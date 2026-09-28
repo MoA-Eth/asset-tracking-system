@@ -60,15 +60,26 @@ async function main() {
   ]);
   console.log(`  ✅ ${locations.length} locations seeded`);
 
-  // ── Employees ─────────────────────────────────────────────────────────────
+  // ── Employees & Demo Accounts ─────────────────────────────────────────────
   const employees = await Promise.all([
+    // Admin / Top Management
+    prisma.employee.upsert({
+      where: { id: 'EMP-ADMIN-01' },
+      update: { password: 'moaams2024' },
+      create: { id: 'EMP-ADMIN-01', payrollId: 'MOA/ADMIN-001', fullNameEn: 'System Administrator', fullNameAm: 'ሲስተም አድሚኒስትሬተር', departmentId: 'DEP-04', email: 'admin@moa.gov.et', phone: '+251911000000', role: UserRole.TOP_MANAGEMENT, password: 'moaams2024' },
+    }),
     // Minister
     prisma.employee.upsert({
       where: { id: 'EMP-MIN-01' },
       update: { password: 'moaams2024' },
       create: { id: 'EMP-MIN-01', payrollId: 'MOA/EXEC-001', fullNameEn: 'H.E. Mr. Addisu Arega (Minister)', fullNameAm: 'ክቡር አቶ አዲሱ አረጋ (ሚኒስትር)', departmentId: 'DEP-03', email: 'minister@moa.gov.et', phone: '+251911000001', role: UserRole.TOP_MANAGEMENT, password: 'moaams2024' },
     }),
-    // Department Heads
+    // Department Heads (Approvers)
+    prisma.employee.upsert({
+      where: { id: 'EMP-HEAD-00' },
+      update: { password: 'moaams2024' },
+      create: { id: 'EMP-HEAD-00', payrollId: 'MOA/DIR-000', fullNameEn: 'Department Head (Approver)', fullNameAm: 'የዳይሬክቶሬት ኃላፊ', departmentId: 'DEP-03', email: 'head@moa.gov.et', phone: '+251922000000', role: UserRole.DEPARTMENT_HEAD, password: 'moaams2024' },
+    }),
     prisma.employee.upsert({
       where: { id: 'EMP-HEAD-01' },
       update: { password: 'moaams2024' },
@@ -85,6 +96,11 @@ async function main() {
       create: { id: 'EMP-HEAD-04', payrollId: 'MOA/DIR-019', fullNameEn: 'Selamawit Bekele (ICT Director)', fullNameAm: 'ሰላማዊት በቀለ (ICT ዳይሬክተር)', departmentId: 'DEP-04', email: 'selamawit.b@moa.gov.et', phone: '+251944556677', role: UserRole.DEPARTMENT_HEAD, password: 'moaams2024' },
     }),
     // Data Encoders / Store Custodians
+    prisma.employee.upsert({
+      where: { id: 'EMP-ENC-00' },
+      update: { password: 'moaams2024' },
+      create: { id: 'EMP-ENC-00', payrollId: 'MOA/STR-000', fullNameEn: 'Store Encoder (Data Encoder)', fullNameAm: 'የመጋዘን ዳታ ኢንኮደር', departmentId: 'DEP-03', email: 'encoder@moa.gov.et', phone: '+251955000000', role: UserRole.DATA_ENCODER, password: 'moaams2024' },
+    }),
     prisma.employee.upsert({
       where: { id: 'EMP-ENC-01' },
       update: { password: 'moaams2024' },
@@ -229,9 +245,10 @@ async function main() {
   console.log('  ✅ Sample items, history, approvals & audit logs seeded');
   console.log('\n🎉 Database seeding complete!\n');
   console.log('  Uniform Password for All Accounts: moaams2024');
-  console.log('  Minister     → minister@moa.gov.et');
-  console.log('  Dept Head    → dawit.t@moa.gov.et');
-  console.log('  Store Cust.  → abebe.k@moa.gov.et\n');
+  console.log('  System Admin → admin@moa.gov.et   (TOP_MANAGEMENT)');
+  console.log('  Dept Head    → head@moa.gov.et    (DEPARTMENT_HEAD)');
+  console.log('  Store Enc.   → encoder@moa.gov.et (DATA_ENCODER)');
+  console.log('  Minister     → minister@moa.gov.et (TOP_MANAGEMENT)\n');
 }
 
 main()
