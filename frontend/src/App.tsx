@@ -10,6 +10,7 @@ import { ApprovalsPage } from './pages/ApprovalsPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { TransferAssetPage } from './pages/TransferAssetPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UserRole } from './types/asset-management';
@@ -156,17 +157,11 @@ const AuthenticatedPortal: React.FC = () => {
           {activeTab === 'stock-in' && (
             <StockInPage currentRole={role} onNavigate={handleTabChange} mode="stock-in" />
           )}
-          {activeTab === 'return-asset' && (
-            <StockInPage currentRole={role} onNavigate={handleTabChange} mode="return" />
-          )}
-          {activeTab === 'stock-out' && (
+          {(activeTab === 'stock-out' || activeTab === 'assign-asset') && (
             <StockOutPage currentRole={role} onNavigate={handleTabChange} mode="stock-out" />
           )}
-          {activeTab === 'assign-asset' && (
-            <StockOutPage currentRole={role} onNavigate={handleTabChange} mode="assign" />
-          )}
-          {activeTab === 'transfer-asset' && (
-            <StockOutPage currentRole={role} onNavigate={handleTabChange} mode="transfer" />
+          {(activeTab === 'transfer-asset' || activeTab === 'return-asset') && (
+            <TransferAssetPage currentRole={role} onNavigate={handleTabChange} />
           )}
           {activeTab === 'approvals' && (
             <ApprovalsPage currentRole={role} onNavigate={handleTabChange} />
