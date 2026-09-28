@@ -1,4 +1,4 @@
-# Federal Democratic Republic of Ethiopia – Ministry of Agriculture
+# Federal Democratic Republic of Ethiopia – Ministry of Agriculture (MoA)
 ## Asset Tracking System (MoA-AMS) — IFMIS Mirror Platform
 
 A modern, enterprise-grade asset tracking system and REST API built to mirror the Ethiopian Government's **Integrated Financial Management Information System (IFMIS)**. Implements statutory Ethiopian property management vouchers (**Model 19**, **Model 20**, **Model 22**), dual Gregorian/Ethiopian calendar synchronization, and role-based access control.
@@ -30,7 +30,8 @@ asset-tracking-system/
 │   └── .env.example          # Frontend environment configuration template
 │
 ├── docs/                     # Specifications and technical documentation
-└── package.json              # Monorepo workspace runner
+├── package.json              # Monorepo workspace runner
+└── README.md                 # Root repository overview (this file)
 ```
 
 ---
@@ -60,26 +61,39 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-### Step 3: Database Migration & Client Setup
+### Step 3: Install Workspace Dependencies
+From the root repository directory:
 ```bash
-cd backend
-npx prisma generate
-npx prisma db push
-cd ..
+npm run install:all
 ```
 
-### Step 4: Install Dependencies & Run System
-From the root repository folder:
+### Step 4: Database Setup (Prisma & Seed Data)
+Ensure PostgreSQL is running, then run the single-step database setup:
 ```bash
-# Install all workspace dependencies
-npm run install:all
+npm run db:setup
+```
+*Useful Database Helper Scripts:*
+- `npm run db:push` — Push schema updates to database
+- `npm run db:seed` — Seed demo users and initial store assets
+- `npm run db:studio` — Open interactive Prisma Studio DB browser GUI
 
-# Start Backend API & Frontend UI concurrently
+### Step 5: Start Development Services (Recommended)
+Run both backend Express API and frontend Vite React app concurrently:
+```bash
 npm run dev
 ```
-
 * **Frontend Web App**: `http://localhost:5173`
 * **Backend Express API**: `http://localhost:3000/api`
+
+### Step 6: Run Services Independently
+* **Backend Service (`backend/`)**:
+  ```bash
+  npm run dev:backend
+  ```
+* **Frontend Web App (`frontend/`)**:
+  ```bash
+  npm run dev:frontend
+  ```
 
 ---
 
@@ -97,4 +111,4 @@ npm run dev
 1. **Asset Prefixing**: Asset Tag Codes follow statutory formatting (`MOA-VEH-001`, `MOA-IT-042`).
 2. **Single Custodian Rule**: Active custodian (`currentCustodianId`) is set when status is `ISSUED`. Model 22 Returns atomically clear custodian liability (`currentCustodianId = null`).
 3. **Immutable History**: Audit logs and state transition records cannot be deleted.
-
+4. **Dual Calendar Integrity**: All transactions record both G.C. and E.C. timestamps.
