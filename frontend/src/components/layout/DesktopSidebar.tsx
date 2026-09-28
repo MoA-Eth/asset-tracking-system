@@ -294,7 +294,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         )}
 
         {/* 6. Audit Log */}
-        {role !== UserRole.TOP_MANAGEMENT && (
+        {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD) && (
           <button
             onClick={() => setActiveTab('audit')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
