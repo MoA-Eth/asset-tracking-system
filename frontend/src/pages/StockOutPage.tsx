@@ -632,21 +632,21 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
           badge: 'Asset Custody Workflow • የንብረት ድልድል እና ወጪ (ሞዴል 20)',
           title: 'Asset Assignment & Custody Issue (የንብረት ድልድል - ሞዴል 20)',
           subtitle: 'Assign store inventory items to custodian personnel using official IFMIS Model 20 Issue Slips.',
-          buttonLabel: '+ Assign Asset (Model 20)',
+          buttonLabel: 'Assign Asset (Model 20)',
         };
       case 'transfer':
         return {
           badge: 'Inter-Department Transfer Workflow • የንብረት ዝውውር (ሞዴል 20/22)',
           title: 'Asset Transfer Registration (የንብረት ዝውውር - ሞዴል 20/22)',
           subtitle: 'Transfer assets between departments, store locations, or employee custodians.',
-          buttonLabel: '+ Transfer Asset',
+          buttonLabel: 'Transfer Asset',
         };
       default:
         return {
           badge: 'Outbound Store Issue • የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 20)',
-          title: 'Request Items — የዕቃ ወጪ ማዘዣ (ሞዴል 20)',
+          title: 'Stock-Out — የዕቃ ወጪ ማዘዣ (ሞዴል 20)',
           subtitle: 'Issue items from store following official IFMIS Model 20 Stock-Out vouchers (ሞዴል 20 / SIV).',
-          buttonLabel: '+ Request Item',
+          buttonLabel: 'Issue Asset',
         };
     }
   };
