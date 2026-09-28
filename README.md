@@ -22,7 +22,7 @@ A modern, enterprise-grade Asset Management System and REST API conforming to st
 This repository is organized as a consolidated monorepo under `@MoA-Eth`:
 
 ```text
-asset-management-system/
+asset-tracking-system/
 ├── backend/                  # Express.js REST API + Prisma ORM + PostgreSQL
 │   ├── prisma/               # Database schema definitions & migrations
 │   ├── src/                  # Controllers, routes, middleware, RBAC & calendar engine
@@ -36,7 +36,6 @@ asset-management-system/
 │   └── package.json          # Frontend dependencies and scripts
 │
 ├── docs/                     # Technical specifications and architecture documentation
-├── technical_documentation.md # Detailed system architecture & database data dictionary
 ├── package.json              # Root monorepo workspace runner
 └── README.md                 # Root repository overview (this file)
 ```
@@ -51,14 +50,35 @@ From the root repository directory:
 npm run install:all
 ```
 
-### 2. Start Both Backend & Frontend Concurrently (Recommended)
+### 2. Configure Environment Variables
+Copy `.env.example` to `.env` in both packages:
+```bash
+# Backend environment setup
+cp backend/.env.example backend/.env
+
+# Frontend environment setup
+cp frontend/.env.example frontend/.env
+```
+
+### 3. Database Setup (Prisma & Seed Data)
+Ensure PostgreSQL is running, then run the single-step database setup:
+```bash
+npm run db:setup
+```
+*Useful Database Helper Scripts:*
+- `npm run db:push` — Push schema updates to database
+- `npm run db:seed` — Seed demo users and initial store assets
+- `npm run db:studio` — Open interactive Prisma Studio DB browser GUI
+
+### 4. Start Development Services (Recommended)
+Run both backend Express API and frontend Vite React app concurrently:
 ```bash
 npm run dev
 ```
 - **Backend Express API:** `http://localhost:3000/api`
 - **Frontend React UI:** `http://localhost:5173`
 
-### 3. Run Services Independently
+### 5. Run Services Independently
 * **Backend Service (`backend/`)**:
   ```bash
   npm run dev:backend
@@ -76,3 +96,4 @@ npm run dev
 2. **Single Custodian Rule:** Active custodian (`currentCustodianId`) is set when status is `ISSUED`. Returns atomically clear custodian liability (`currentCustodianId = null`).
 3. **No Hard Deletes:** Audit logs and transaction histories remain immutable.
 4. **Dual Calendar Integrity:** All transactions record both G.C. and E.C. timestamps.
+
