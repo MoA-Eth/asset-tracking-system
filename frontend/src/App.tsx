@@ -10,6 +10,7 @@ import { ApprovalsPage } from './pages/ApprovalsPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AssetMovementPage } from './pages/AssetMovementPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UserRole } from './types/asset-management';
@@ -22,9 +23,9 @@ const DEFAULT_TAB_FOR_ROLE: Record<UserRole, string> = {
 };
 
 const ALLOWED_TABS_FOR_ROLE: Record<UserRole, string[]> = {
-  [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
-  [UserRole.DEPARTMENT_HEAD]: ['dashboard', 'approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
-  [UserRole.TOP_MANAGEMENT]: ['dashboard', 'reports', 'audit'],
+  [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'asset-movement', 'transfer-asset', 'return-asset', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
+  [UserRole.DEPARTMENT_HEAD]: ['dashboard', 'asset-movement', 'transfer-asset', 'return-asset', 'approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
+  [UserRole.TOP_MANAGEMENT]: ['dashboard'],
 };
 
 const AuthenticatedPortal: React.FC = () => {
@@ -154,17 +155,11 @@ const AuthenticatedPortal: React.FC = () => {
           {activeTab === 'stock-in' && (
             <StockInPage currentRole={role} onNavigate={handleTabChange} mode="stock-in" />
           )}
-          {activeTab === 'return-asset' && (
-            <StockInPage currentRole={role} onNavigate={handleTabChange} mode="return" />
-          )}
-          {activeTab === 'stock-out' && (
+          {(activeTab === 'stock-out' || activeTab === 'assign-asset') && (
             <StockOutPage currentRole={role} onNavigate={handleTabChange} mode="stock-out" />
           )}
-          {activeTab === 'assign-asset' && (
-            <StockOutPage currentRole={role} onNavigate={handleTabChange} mode="assign" />
-          )}
-          {activeTab === 'transfer-asset' && (
-            <StockOutPage currentRole={role} onNavigate={handleTabChange} mode="transfer" />
+          {(activeTab === 'asset-movement' || activeTab === 'transfer-asset' || activeTab === 'return-asset') && (
+            <AssetMovementPage currentRole={role} onNavigate={handleTabChange} />
           )}
           {activeTab === 'approvals' && (
             <ApprovalsPage currentRole={role} onNavigate={handleTabChange} />

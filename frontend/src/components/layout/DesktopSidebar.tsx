@@ -203,48 +203,19 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           </div>
         )}
 
-        {/* 3. Asset Movement Dropdown (Transfers, Returns) */}
+        {/* 3. Asset Movement & Returns Hub */}
         {(role === UserRole.DATA_ENCODER || role === UserRole.DEPARTMENT_HEAD) && (
-          <div>
-            <button
-              onClick={() => toggleSection('movement')}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-emerald-100/75 hover:bg-[#0B2C1B]/80 hover:text-white transition cursor-pointer font-semibold"
-            >
-              <div className="flex items-center gap-3">
-                <ArrowRightLeft className="w-4 h-4 text-amber-300" />
-                {!collapsed && <span>Asset Movement</span>}
-              </div>
-              {!collapsed && (
-                openSections.movement ? (
-                  <ChevronDown className="w-3.5 h-3.5 text-emerald-400" />
-                ) : (
-                  <ChevronRight className="w-3.5 h-3.5 text-emerald-400" />
-                )
-              )}
-            </button>
-            {!collapsed && openSections.movement && (
-              <div className="pl-9 pr-2 py-1 space-y-1 text-emerald-200/80">
-                <button
-                  onClick={() => setActiveTab('transfer-asset')}
-                  className={`w-full text-left py-1.5 px-2 rounded-lg transition cursor-pointer font-medium flex items-center gap-2 ${
-                    activeTab === 'transfer-asset' ? 'bg-[#11442B] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white'
-                  }`}
-                >
-                  <ArrowRightLeft className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Transfers</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('return-asset')}
-                  className={`w-full text-left py-1.5 px-2 rounded-lg transition cursor-pointer font-medium flex items-center gap-2 ${
-                    activeTab === 'return-asset' ? 'bg-[#11442B] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white'
-                  }`}
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-teal-300" />
-                  <span>Returns</span>
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => setActiveTab('asset-movement')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+              activeTab === 'asset-movement'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
+                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+            }`}
+          >
+            <ArrowRightLeft className="w-4 h-4 shrink-0 text-amber-300" />
+            {!collapsed && <span className="flex-1 text-left font-semibold">Movement & Returns</span>}
+          </button>
         )}
 
         {/* 4. Reports */}

@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   FileSpreadsheet,
   Settings,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { getTodayGcAndEc } from '../../utils/eth-date';
 import { UserRole } from '../../types/asset-management';
@@ -58,6 +59,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         return { title: 'Audit Logs', am: 'የኦዲት መዝገብ', icon: ShieldCheck, iconColor: 'text-purple-700' };
       case 'reports':
         return { title: 'Reports', am: 'የሪፖርት መዝገብ', icon: FileSpreadsheet, iconColor: 'text-emerald-700' };
+      case 'asset-movement':
+        return { title: 'Asset Movement & Returns', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 22)', icon: ArrowRightLeft, iconColor: 'text-amber-600' };
       case 'settings':
         return { title: 'Settings & Permissions', am: 'ቅንብሮች እና የስርዓት መቆጣጠሪያ', icon: Settings, iconColor: 'text-emerald-700' };
       default:
