@@ -13,6 +13,7 @@ datasource db {
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 enum UserRole {
+  SYSTEM_ADMIN
   DATA_ENCODER
   DEPARTMENT_HEAD
   TOP_MANAGEMENT

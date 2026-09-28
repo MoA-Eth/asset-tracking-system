@@ -284,6 +284,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
                               onChange={(e) => handleRoleChange(emp.id, e.target.value as UserRole)}
                               className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-emerald-600 disabled:opacity-50 cursor-pointer"
                             >
+                              <option value={UserRole.SYSTEM_ADMIN}>System Administrator</option>
                               <option value={UserRole.DATA_ENCODER}>Store Custodian / Encoder</option>
                               <option value={UserRole.DEPARTMENT_HEAD}>Directorate Head / Approver</option>
                               <option value={UserRole.TOP_MANAGEMENT}>Executive Minister / Leadership</option>
