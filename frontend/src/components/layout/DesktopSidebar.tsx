@@ -248,7 +248,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         )}
 
         {/* 4. Reports */}
-        {(role === UserRole.TOP_MANAGEMENT || role === UserRole.DEPARTMENT_HEAD) && (
+        {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD) && (
           <button
             onClick={() => setActiveTab('reports')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
@@ -333,17 +333,19 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         )}
 
         {/* 6. Audit Log */}
-        <button
-          onClick={() => setActiveTab('audit')}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
-            activeTab === 'audit'
-              ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
-              : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
-          }`}
-        >
-          <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
-          {!collapsed && <span className="flex-1 text-left font-semibold">Audit Log</span>}
-        </button>
+        {role !== UserRole.TOP_MANAGEMENT && (
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+              activeTab === 'audit'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
+                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
+            {!collapsed && <span className="flex-1 text-left font-semibold">Audit Log</span>}
+          </button>
+        )}
       </nav>
 
       {/* Official Pinned User Profile and Sign-Out at Bottom */}

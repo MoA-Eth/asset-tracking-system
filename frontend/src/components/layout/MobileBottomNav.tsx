@@ -50,13 +50,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       id: 'reports',
       label: 'Reports',
       icon: FileSpreadsheet,
-      roles: [UserRole.TOP_MANAGEMENT, UserRole.DEPARTMENT_HEAD, UserRole.DATA_ENCODER],
+      roles: [UserRole.SYSTEM_ADMIN, UserRole.DEPARTMENT_HEAD, UserRole.DATA_ENCODER],
     },
     {
       id: 'audit',
       label: 'Audit',
       icon: ShieldCheck,
-      roles: [UserRole.TOP_MANAGEMENT, UserRole.DEPARTMENT_HEAD],
+      roles: [UserRole.SYSTEM_ADMIN, UserRole.DEPARTMENT_HEAD, UserRole.DATA_ENCODER],
     },
   ];
 
