@@ -1,0 +1,261 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  DATA_ENCODER
+  DEPARTMENT_HEAD
+  TOP_MANAGEMENT
+}
+
+enum ItemStatus {
+  PENDING_STOCK_IN
+  AVAILABLE
+  PENDING_STOCK_OUT
+  ISSUED
+  IN_REPAIR
+  UNDER_TRANSFER
+  DISPOSED
+}
+
+enum AssetCategory {
+  VEHICLE
+  AGRI_MACHINERY
+  IT_EQUIPMENT
+  OFFICE_FURNITURE
+  LAB_EQUIPMENT
+  FIELD_GEAR
+}
+
+enum TransactionType {
+  STOCK_IN
+  STOCK_OUT
+  TRANSFER
+  RETURN
+}
+
+enum ItemCondition {
+  NEW
+  GOOD
+  FAIR
+  NEEDS_REPAIR
+  DAMAGED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AuditEntityType {
+  ITEM
+  STOCK_IN
+  STOCK_OUT
+  TRANSFER
+  RETURN
+  APPROVAL
+}
+
+// ─── Reference Tables ─────────────────────────────────────────────────────────
+
+// ... (skip down to Item)
+
+
+model Department {
+  id             String  @id
+  code           String  @unique
+  nameEn         String
+  nameAm         String
+  headEmployeeId String?
+
+  // Relations
+  employees           Employee[]
+  assignedItems       Item[]              @relation("AssignedDepartment")
+  stockOutApprovals   TransactionApproval[] @relation("TargetDepartment")
+
+  @@map("departments")
+}
+
+model Location {
+  id             String  @id
+  siteName       String
+  building       String
+  roomNumber     String
+  isCentralStore Boolean @default(false)
+
+  // Relations
+  items Item[] @relation("StoreLocation")
+
+  @@map("locations")
+}
+
+model Employee {
+  id          String   @id
+  payrollId   String   @unique
+  fullNameEn  String
+  fullNameAm  String
+  departmentId String
+  email       String   @unique
+  phone       String
+  role        UserRole
+  password    String   @default("moaams2024") // plain-text for now; bcrypt in production
+
+  // Relations
+  department          Department            @relation(fields: [departmentId], references: [id])
+  registeredItems     Item[]                @relation("RegisteredBy")
+  approvedItems       Item[]                @relation("ApprovedBy")
+  custodiedItems      Item[]                @relation("CurrentCustodian")
+  requestedApprovals  TransactionApproval[] @relation("RequestedBy")
+  reviewedApprovals   TransactionApproval[] @relation("ReviewedBy")
+  recipientApprovals  TransactionApproval[] @relation("RecipientEmployee")
+  auditLogs           AuditLog[]
+
+  @@map("employees")
+}
+
+// ─── Core Asset Tables ────────────────────────────────────────────────────────
+
+model Item {
+  id           String        @id @default(uuid())
+  itemCode     String        @unique
+  name         String
+  category     AssetCategory
+  serialNumber String        @default("")
+  unitCostETB  Float         @default(0)
+  status       ItemStatus    @default(PENDING_STOCK_IN)
+  condition    ItemCondition @default(NEW)
+
+  // Storage & Assignment
+  storeLocationId      String
+  currentCustodianId   String?
+  assignedDepartmentId String?
+
+  // IFMIS Reference
+  ifmisSlipNumber        String
+  ifmisSlipDateGc        String
+  ifmisSlipDateEc        String
+  ifmisSlipAttachmentUrl String?
+  isHistoricalData       Boolean @default(false)
+  notes                  String?
+
+  // Metadata
+  registeredById String
+  approvedById   String?
+  createdAtGc    String
+  createdAtEc    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  storeLocation      Location    @relation("StoreLocation", fields: [storeLocationId], references: [id])
+  currentCustodian   Employee?   @relation("CurrentCustodian", fields: [currentCustodianId], references: [id])
+  assignedDepartment Department? @relation("AssignedDepartment", fields: [assignedDepartmentId], references: [id])
+  registeredBy       Employee    @relation("RegisteredBy", fields: [registeredById], references: [id])
+  approvedBy         Employee?   @relation("ApprovedBy", fields: [approvedById], references: [id])
+
+  // Child tables
+  history             ItemHistory[]
+  approvals           TransactionApproval[]
+  auditLogs           AuditLog[]
+
+  @@map("items")
+}
+
+model ItemHistory {
+  id              String   @id @default(uuid())
+  itemId          String
+  dateGc          String
+  dateEc          String
+  action          String
+  fromEntity      String?
+  toEntity        String?
+  performedBy     String
+  performedByRole UserRole
+  approvedBy      String?
+  ifmisSlipNumber String?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("item_history")
+}
+
+// ─── Approvals & Workflow ─────────────────────────────────────────────────────
+
+model TransactionApproval {
+  id              String          @id @default(uuid())
+  transactionType TransactionType
+  itemId          String
+  itemCode        String
+  itemName        String
+
+  // IFMIS reference
+  ifmisSlipNumber        String
+  ifmisSlipDateGc        String
+  ifmisSlipDateEc        String
+  ifmisSlipAttachmentUrl String?
+
+  // Parties
+  requestedById      String
+  recipientEmployeeId String?
+  targetDepartmentId  String?
+  targetLocationId    String?
+  purposeOrRemarks    String  @default("")
+
+  // Status
+  status        ApprovalStatus @default(PENDING)
+  reviewedById  String?
+  reviewRemarks String?
+  createdAtGc   String
+  createdAtEc   String
+  reviewedAtGc  String?
+  reviewedAtEc  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  item               Item        @relation(fields: [itemId], references: [id])
+  requestedBy        Employee    @relation("RequestedBy", fields: [requestedById], references: [id])
+  recipientEmployee  Employee?   @relation("RecipientEmployee", fields: [recipientEmployeeId], references: [id])
+  targetDepartment   Department? @relation("TargetDepartment", fields: [targetDepartmentId], references: [id])
+  reviewedBy         Employee?   @relation("ReviewedBy", fields: [reviewedById], references: [id])
+
+  @@map("transaction_approvals")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id             String          @id @default(uuid())
+  timestampGc    String
+  timestampEc    String
+  userId         String
+  userName       String
+  userRole       UserRole
+  action         String
+  entityType     AuditEntityType
+  entityId       String
+  ifmisSlipNumber String?
+  details        String
+  previousState  Json?
+  newState       Json?
+  createdAt      DateTime        @default(now())
+
+  // Relations
+  user     Employee @relation(fields: [userId], references: [id])
+  item     Item?    @relation(fields: [entityId], references: [id])
+
+  @@map("audit_logs")
+}

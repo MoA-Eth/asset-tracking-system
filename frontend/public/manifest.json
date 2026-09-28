@@ -1,0 +1,25 @@
+{
+  "short_name": "MoA-AMS",
+  "name": "MoA Asset Management System (የግብርና ሚኒስቴር የንብረትና መጋዘን መከታተያ)",
+  "description": "Federal Democratic Republic of Ethiopia Ministry of Agriculture Fixed Asset & Store Management System",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#071911",
+  "theme_color": "#0B3D25",
+  "display": "standalone",
+  "orientation": "any",
+  "categories": ["business", "productivity", "utilities"]
+}

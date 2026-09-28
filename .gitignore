@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+*/node_modules/
+.pnpm-store/
+
+# Environment variables & secrets (CRITICAL)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+backend/.env
+frontend/.env
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE & OS files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+.DS_Store
+Thumbs.db
+
+# Database & SQLite files
+*.sqlite
+*.sqlite-journal
+*.db
+backend/prisma/*.db
+
+# Temporary scratch & test files
+scratch/
+tmp/
+*.tmp
