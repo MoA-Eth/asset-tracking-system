@@ -39,11 +39,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   onToggleCollapse,
 }) => {
   const { user, role, logout } = useAuth();
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    inventory: true,
-    movement: true,
-    admin: true,
-  });
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => ({
+    admin: activeTab.startsWith('settings'),
+  }));
+
+  React.useEffect(() => {
+    if (activeTab.startsWith('settings')) {
+      setOpenSections((prev) => ({ ...prev, admin: true }));
+    }
+  }, [activeTab]);
 
   const toggleSection = (key: string) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
