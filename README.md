@@ -1,78 +1,100 @@
-# Federal Democratic Republic of Ethiopia – Ministry of Agriculture (MoA)
-## Asset Management System (MoA-AMS) — Monorepo Architecture
+# Federal Democratic Republic of Ethiopia – Ministry of Agriculture
+## Asset Tracking System (MoA-AMS) — IFMIS Mirror Platform
 
-A modern, enterprise-grade Asset Management System and REST API conforming to statutory Ethiopian property administration guidelines (**Model 19**, **Model 20**, and **Model 22**), Integrated Financial Management Information System (**IFMIS**) operational standards, and dual Gregorian/Ethiopian calendar synchronization.
+A modern, enterprise-grade asset tracking system and REST API built to mirror the Ethiopian Government's **Integrated Financial Management Information System (IFMIS)**. Implements statutory Ethiopian property management vouchers (**Model 19**, **Model 20**, **Model 22**), dual Gregorian/Ethiopian calendar synchronization, and role-based access control.
 
 ---
 
-## 🏛️ System Overview & Key Capabilities
+## 🏛️ Core Capabilities
 
-- **IFMIS Operational Mirror**: Co-exists alongside IFMIS to provide line-by-line store tracking, custodian accountability, and executive dashboards.
-- **Statutory Ethiopian Government Vouchers**:
+- **Statutory Voucher Workflows**:
   - **Model 19 (የዕቃ መረከቢያ):** Inbound Store Goods Receipt Voucher.
-  - **Model 20 (የዕቃ ወጪ ማዘዣ እና መረከቢያ):** Store Issue Voucher assigning items to custodians.
-  - **Model 22 (የዕቃ መመለሻ መረከቢያ):** Store Asset Return Voucher clearing custodian liability.
-- **Dual Calendar Synchronization:** Automatic lockstep sync between **Gregorian Calendar (G.C.)** and **Ethiopian Calendar (E.C.)**.
-- **Role-Based Access Control (RBAC):** Strict privilege separation across Store Custodians (`DATA_ENCODER`), Directorate Heads (`DEPARTMENT_HEAD`), and Executive Leadership (`TOP_MANAGEMENT`).
+  - **Model 20 (የዕቃ ወጪ ማዘዣ):** Store Issue Voucher assigning items to custodians.
+  - **Model 22 (የዕቃ መመለሻ):** Asset Return Voucher clearing custodian liability.
+- **Dual Calendar Engine**: Bidirectional lockstep synchronization across **Gregorian Calendar (G.C.)** and **Ethiopian Calendar (E.C.)**.
+- **Role Governance**: Privilege separation for Store Custodians (`DATA_ENCODER`), Directorate Heads (`DEPARTMENT_HEAD`), and Executive Leadership (`TOP_MANAGEMENT`).
 
 ---
 
-## 📁 Repository Structure (`@MoA-Eth` Standard)
-
-This repository is organized as a consolidated monorepo under `@MoA-Eth`:
+## 📁 Repository Structure (`@MoA-Eth` Monorepo Standard)
 
 ```text
-asset-management-system/
+asset-tracking-system/
 ├── backend/                  # Express.js REST API + Prisma ORM + PostgreSQL
 │   ├── prisma/               # Database schema definitions & migrations
 │   ├── src/                  # Controllers, routes, middleware, RBAC & calendar engine
-│   ├── .env.example          # Backend environment configuration template
-│   └── package.json          # Backend dependencies and scripts
+│   └── .env.example          # Backend environment configuration template
 │
 ├── frontend/                 # React 18 (TypeScript) + Vite + Tailwind CSS
 │   ├── src/                  # Components, pages, dual calendar & print voucher forms
-│   ├── public/               # Ministry emblem and PWA static assets
-│   ├── .env.example          # Frontend environment configuration template
-│   └── package.json          # Frontend dependencies and scripts
+│   └── .env.example          # Frontend environment configuration template
 │
-├── docs/                     # Technical specifications and architecture documentation
-├── technical_documentation.md # Detailed system architecture & database data dictionary
-├── package.json              # Root monorepo workspace runner
-└── README.md                 # Root repository overview (this file)
+├── docs/                     # Specifications and technical documentation
+└── package.json              # Monorepo workspace runner
 ```
 
 ---
 
-## 🚀 Development & Setup Commands
+## 🚀 Setup & Running Instructions
 
-### 1. Install Workspace Dependencies
-From the root repository directory:
+### Prerequisites
+- **Node.js**: `v20.x` or higher
+- **PostgreSQL**: `v15.x` or higher
+- **npm**: `v10.x` or higher
+
+---
+
+### Step 1: Clone Repository
 ```bash
-npm run install:all
+git clone https://github.com/MoA-Eth/asset-tracking-system.git
+cd asset-tracking-system
 ```
 
-### 2. Start Both Backend & Frontend Concurrently (Recommended)
+### Step 2: Configure Environment Variables
+Copy `.env.example` templates to `.env` in both `backend/` and `frontend/`:
 ```bash
+# Backend environment setup
+cp backend/.env.example backend/.env
+
+# Frontend environment setup
+cp frontend/.env.example frontend/.env
+```
+
+### Step 3: Database Migration & Client Setup
+```bash
+cd backend
+npx prisma generate
+npx prisma db push
+cd ..
+```
+
+### Step 4: Install Dependencies & Run System
+From the root repository folder:
+```bash
+# Install all workspace dependencies
+npm run install:all
+
+# Start Backend API & Frontend UI concurrently
 npm run dev
 ```
-- **Backend Express API:** `http://localhost:3000/api`
-- **Frontend React UI:** `http://localhost:5173`
 
-### 3. Run Services Independently
-* **Backend Service (`backend/`)**:
-  ```bash
-  npm run dev:backend
-  ```
-* **Frontend Web App (`frontend/`)**:
-  ```bash
-  npm run dev:frontend
-  ```
+* **Frontend Web App**: `http://localhost:5173`
+* **Backend Express API**: `http://localhost:3000/api`
 
 ---
 
-## 🛡️ Core Business Invariants Enforced
+## 🔑 Test Roles & Privileges
 
-1. **Unique Asset Tagging:** Asset codes follow statutory MoA prefix formatting (`MOA-VEH-001`, `MOA-IT-042`).
-2. **Single Custodian Rule:** Active custodian (`currentCustodianId`) is set when status is `ISSUED`. Returns atomically clear custodian liability (`currentCustodianId = null`).
-3. **No Hard Deletes:** Audit logs and transaction histories remain immutable.
-4. **Dual Calendar Integrity:** All transactions record both G.C. and E.C. timestamps.
+| Role | Access Scope | Accessible Tabs |
+| :--- | :--- | :--- |
+| **`TOP_MANAGEMENT`** | Executive Minister | Dashboard, Reports, Audit Log |
+| **`DEPARTMENT_HEAD`** | Directorate Head | Dashboard, Approvals Queue, Receive/Request Items, Movement, Reports, Settings, Audit Log |
+| **`DATA_ENCODER`** | Store Custodian | Receive Items, Request Items, Asset Movement, Settings, Audit Log |
+
+---
+
+## 🛡️ Core Business Invariants
+1. **Asset Prefixing**: Asset Tag Codes follow statutory formatting (`MOA-VEH-001`, `MOA-IT-042`).
+2. **Single Custodian Rule**: Active custodian (`currentCustodianId`) is set when status is `ISSUED`. Model 22 Returns atomically clear custodian liability (`currentCustodianId = null`).
+3. **Immutable History**: Audit logs and state transition records cannot be deleted.
+
