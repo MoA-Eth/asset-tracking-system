@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Calendar,
   PanelLeftClose,
@@ -15,10 +15,14 @@ import {
   FileSpreadsheet,
   Settings,
   ArrowRightLeft,
+  X,
+  CheckCircle2,
+  Clock,
 } from 'lucide-react';
 import { getTodayGcAndEc } from '../../utils/eth-date';
-import { UserRole } from '../../types/asset-management';
+import { UserRole, TransactionApproval, TransactionType, ApprovalStatus } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
+import { api } from '../../api/client';
 
 interface TopHeaderProps {
   activeTab: string;
@@ -43,7 +47,61 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 }) => {
   const { user, role, logout } = useAuth();
   const [showAmDate, setShowAmDate] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<TransactionApproval[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const dateInfo = getTodayGcAndEc();
+
+  const fetchNotificationItems = async () => {
+    try {
+      setLoadingNotifications(true);
+      const data = await api.getApprovals(ApprovalStatus.PENDING);
+      let relevant = data;
+      if (role === UserRole.TEAM_LEADER) {
+        relevant = data.filter((a) => (a.currentStage ?? 1) === 1);
+      } else if (role === UserRole.DEPARTMENT_HEAD) {
+        relevant = data.filter((a) => a.currentStage === 2);
+      }
+      setNotifications(relevant);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showNotifications) {
+      fetchNotificationItems();
+    }
+  }, [showNotifications, role]);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      if (showNotifications) {
+        fetchNotificationItems();
+      }
+    };
+    window.addEventListener('moa_approvals_updated', handleUpdate);
+    return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
+  }, [showNotifications, role]);
+
+  // Click outside listener
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
 
   const getPageInfo = () => {
     switch (activeTab) {
@@ -160,22 +218,123 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           </select>
         </div>
 
-        {/* Pending Approvals Bell (For Authorizing Roles - Department Head & Team Leader) */}
-        {(role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
-          <button
-            onClick={() => onNavigate('approvals')}
-            className="relative p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
-            title="Pending Approvals"
-          >
-            <Bell className="w-4 h-4" />
-            {pendingApprovalsCount > 0 && (
-              <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] flex items-center justify-center animate-bounce shadow-xs">
-                {pendingApprovalsCount}
-              </span>
+        {/* Pending Approvals Bell & Interactive Notification Popover */}
+        {(role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER || role === UserRole.SYSTEM_ADMIN) && (
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => {
+                setShowNotifications((prev) => !prev);
+              }}
+              className={`relative p-2 rounded-lg transition cursor-pointer ${
+                showNotifications
+                  ? 'bg-amber-100/70 text-slate-900 border border-amber-300 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              }`}
+              title="Pending Approvals & Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              {pendingApprovalsCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] flex items-center justify-center animate-bounce shadow-xs">
+                  {pendingApprovalsCount}
+                </span>
+              )}
+            </button>
+
+            {/* Floating Notification Popover (YouTube-style clean drawer) */}
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800">
+                {/* Header */}
+                <div className="px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm text-slate-900">Notifications</span>
+                    {notifications.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
+                        {notifications.length}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowNotifications(false)}
+                    className="p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition cursor-pointer"
+                    title="Close"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Notification Items List */}
+                <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
+                  {loadingNotifications ? (
+                    <div className="py-12 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                      <Clock className="w-4 h-4 animate-spin text-slate-400" />
+                      Loading notifications...
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="py-12 px-6 text-center space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                        <Bell className="w-6 h-6 stroke-[1.5]" />
+                      </div>
+                      <h4 className="text-sm font-medium text-slate-800">Your notifications live here</h4>
+                      <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                        No notifications right now.
+                      </p>
+                    </div>
+                  ) : (
+                    notifications.map((item) => {
+                      const isStockIn = item.transactionType === TransactionType.STOCK_IN;
+                      const isStockOut = item.transactionType === TransactionType.STOCK_OUT;
+                      const stage = item.currentStage ?? 1;
+                      const typeLabel = isStockIn ? 'Stock In' : isStockOut ? 'Stock Out' : 'Asset Transfer';
+                      const stageText = stage === 1 ? 'Endorsement' : 'Authorization';
+
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => {
+                            setShowNotifications(false);
+                            onNavigate('approvals');
+                          }}
+                          className="px-4 py-3 hover:bg-slate-50 transition cursor-pointer flex items-start gap-3 select-none"
+                        >
+                          <div
+                            className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                              isStockIn
+                                ? 'bg-emerald-50 text-emerald-600'
+                                : isStockOut
+                                ? 'bg-blue-50 text-blue-600'
+                                : 'bg-purple-50 text-purple-600'
+                            }`}
+                          >
+                            {isStockIn && <PackagePlus className="w-4 h-4" />}
+                            {isStockOut && <PackageMinus className="w-4 h-4" />}
+                            {!isStockIn && !isStockOut && <ArrowRightLeft className="w-4 h-4" />}
+                          </div>
+
+                          <div className="flex-1 min-w-0 pr-1">
+                            <p className="text-xs text-slate-700 leading-snug line-clamp-2">
+                              <span className="font-semibold text-slate-900">{typeLabel}</span>: {item.itemName} awaits {stageText.toLowerCase()}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400">
+                              <span>Slip #{item.ifmisSlipNumber}</span>
+                              <span>•</span>
+                              <span>{item.ifmisSlipDateEc} E.C.</span>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 self-center">
+                            <span className="block w-2 h-2 rounded-full bg-blue-600" />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             )}
-          </button>
+          </div>
         )}
       </div>
     </header>
   );
 };
+
