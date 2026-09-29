@@ -114,9 +114,6 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 <span className="font-extrabold text-sm text-white tracking-tight">
                   MoA<span className="text-[#FCDD09]">-AMS</span>
                 </span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-400/20 text-[#FCDD09] border border-amber-400/30">
-                  IFMIS
-                </span>
               </div>
               <p className="text-[11px] text-emerald-100/90 truncate font-semibold">
                 Ministry of Agriculture
