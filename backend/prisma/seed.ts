@@ -98,8 +98,8 @@ async function main() {
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-HEAD-03' },
-      update: { password: 'moaams2024' },
-      create: { id: 'EMP-HEAD-03', payrollId: 'MOA/DIR-008', fullNameEn: 'Dawit Tadesse (Property Director)', fullNameAm: 'ዳዊት ታደሰ (የንብረት ዳይሬክተር)', departmentId: 'DEP-03', email: 'dawit.t@moa.gov.et', phone: '+251933445566', role: UserRole.DEPARTMENT_HEAD, password: 'moaams2024' },
+      update: { fullNameEn: 'Kassahun Tolosa (Property Director)', fullNameAm: 'ካሳሁን ቶሎሳ (የንብረት ዳይሬክተር)', email: 'kassahun.t@moa.gov.et', password: 'moaams2024' },
+      create: { id: 'EMP-HEAD-03', payrollId: 'MOA/DIR-008', fullNameEn: 'Kassahun Tolosa (Property Director)', fullNameAm: 'ካሳሁን ቶሎሳ (የንብረት ዳይሬክተር)', departmentId: 'DEP-03', email: 'kassahun.t@moa.gov.et', phone: '+251933445566', role: UserRole.DEPARTMENT_HEAD, password: 'moaams2024' },
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-HEAD-04' },
@@ -114,8 +114,8 @@ async function main() {
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-ENC-01' },
-      update: { password: 'moaams2024' },
-      create: { id: 'EMP-ENC-01', payrollId: 'MOA/STR-045', fullNameEn: 'Abebe Kebede (Store Custodian)', fullNameAm: 'አበበ ከበደ (የመጋዘን ሃላፊ)', departmentId: 'DEP-03', email: 'abebe.k@moa.gov.et', phone: '+251955667788', role: UserRole.DATA_ENCODER, password: 'moaams2024' },
+      update: { fullNameEn: 'Bikila Desta (Store Custodian)', fullNameAm: 'ቢኪላ ደስታ (የመጋዘን ሃላፊ)', email: 'bikila.d@moa.gov.et', password: 'moaams2024' },
+      create: { id: 'EMP-ENC-01', payrollId: 'MOA/STR-045', fullNameEn: 'Bikila Desta (Store Custodian)', fullNameAm: 'ቢኪላ ደስታ (የመጋዘን ሃላፊ)', departmentId: 'DEP-03', email: 'bikila.d@moa.gov.et', phone: '+251955667788', role: UserRole.DATA_ENCODER, password: 'moaams2024' },
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-ENC-02' },
@@ -216,7 +216,7 @@ async function main() {
   await prisma.itemHistory.createMany({
     skipDuplicates: true,
     data: [
-      { id: 'HIST-SEED-001', itemId: 'ITEM-SEED-001', dateGc: today, dateEc: '2017-01-17', action: 'STOCK_IN_APPROVED', fromEntity: 'Pending Approval', toEntity: 'Central Store (AVAILABLE)', performedBy: 'Dawit Tadesse (Property Director)', performedByRole: UserRole.DEPARTMENT_HEAD, ifmisSlipNumber: 'IFMIS-GRN-2024-0881', notes: 'Approved and available in central store' },
+      { id: 'HIST-SEED-001', itemId: 'ITEM-SEED-001', dateGc: today, dateEc: '2017-01-17', action: 'STOCK_IN_APPROVED', fromEntity: 'Pending Approval', toEntity: 'Central Store (AVAILABLE)', performedBy: 'Kassahun Tolosa (Property Director)', performedByRole: UserRole.DEPARTMENT_HEAD, ifmisSlipNumber: 'IFMIS-GRN-2024-0881', notes: 'Approved and available in central store' },
       { id: 'HIST-SEED-002', itemId: 'ITEM-SEED-002', dateGc: today, dateEc: '2017-01-17', action: 'STOCK_OUT_APPROVED', fromEntity: 'Central Store', toEntity: 'Kebede Alemu (Field Officer)', performedBy: 'Tigist Haile (Extension Director)', performedByRole: UserRole.DEPARTMENT_HEAD, ifmisSlipNumber: 'IFMIS-SIV-2024-0112', notes: 'Issued for field operations' },
       { id: 'HIST-SEED-003', itemId: 'ITEM-SEED-003', dateGc: today, dateEc: '2017-01-17', action: 'STOCK_IN_REGISTERED', fromEntity: 'IFMIS Slip IFMIS-GRN-2024-0994', toEntity: 'Store (Pending Approval)', performedBy: 'Meron Alemu (Store Officer)', performedByRole: UserRole.DATA_ENCODER, ifmisSlipNumber: 'IFMIS-GRN-2024-0994', notes: 'Awaiting Department Head sign-off' },
     ],
@@ -247,8 +247,8 @@ async function main() {
   await prisma.auditLog.createMany({
     skipDuplicates: true,
     data: [
-      { id: 'AUD-SEED-001', timestampGc: `${today} 09:00:00`, timestampEc: '2017-01-17 09:00:00', userId: 'EMP-ENC-01', userName: 'Abebe Kebede (Store Custodian)', userRole: UserRole.DATA_ENCODER, action: 'REGISTER_STOCK_IN', entityType: AuditEntityType.STOCK_IN, entityId: 'ITEM-SEED-001', ifmisSlipNumber: 'IFMIS-GRN-2024-0881', details: 'Item MOA-IT-2024-0001 (Dell Latitude 5540 Laptop) registered via IFMIS slip IFMIS-GRN-2024-0881' },
-      { id: 'AUD-SEED-002', timestampGc: `${today} 10:30:00`, timestampEc: '2017-01-17 10:30:00', userId: 'EMP-HEAD-03', userName: 'Dawit Tadesse (Property Director)', userRole: UserRole.DEPARTMENT_HEAD, action: 'APPROVE_STOCK_IN', entityType: AuditEntityType.APPROVAL, entityId: 'ITEM-SEED-001', ifmisSlipNumber: 'IFMIS-GRN-2024-0881', details: 'STOCK_IN APPROVED by Dawit Tadesse for item MOA-IT-2024-0001. Remarks: Approved' },
+      { id: 'AUD-SEED-001', timestampGc: `${today} 09:00:00`, timestampEc: '2017-01-17 09:00:00', userId: 'EMP-ENC-01', userName: 'Bikila Desta (Store Custodian)', userRole: UserRole.DATA_ENCODER, action: 'REGISTER_STOCK_IN', entityType: AuditEntityType.STOCK_IN, entityId: 'ITEM-SEED-001', ifmisSlipNumber: 'IFMIS-GRN-2024-0881', details: 'Item MOA-IT-2024-0001 (Dell Latitude 5540 Laptop) registered via IFMIS slip IFMIS-GRN-2024-0881' },
+      { id: 'AUD-SEED-002', timestampGc: `${today} 10:30:00`, timestampEc: '2017-01-17 10:30:00', userId: 'EMP-HEAD-03', userName: 'Kassahun Tolosa (Property Director)', userRole: UserRole.DEPARTMENT_HEAD, action: 'APPROVE_STOCK_IN', entityType: AuditEntityType.APPROVAL, entityId: 'ITEM-SEED-001', ifmisSlipNumber: 'IFMIS-GRN-2024-0881', details: 'STOCK_IN APPROVED by Kassahun Tolosa for item MOA-IT-2024-0001. Remarks: Approved' },
       { id: 'AUD-SEED-003', timestampGc: `${today} 14:00:00`, timestampEc: '2017-01-17 14:00:00', userId: 'EMP-ENC-02', userName: 'Meron Alemu (Store Officer)', userRole: UserRole.DATA_ENCODER, action: 'REGISTER_STOCK_IN', entityType: AuditEntityType.STOCK_IN, entityId: 'ITEM-SEED-003', ifmisSlipNumber: 'IFMIS-GRN-2024-0994', details: 'Item MOA-AGR-2024-0001 (Massey Ferguson MF-385) registered — awaiting approval' },
     ],
   });

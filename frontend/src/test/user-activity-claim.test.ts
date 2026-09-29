@@ -35,7 +35,7 @@ describe('User Activity Claiming Invariants', () => {
     const approval = {
       requestedBy: { fullNameEn: 'Meron Alemu (Store Officer)' },
       endorsedBy: { fullNameEn: 'Mulugeta Berhanu (Property Team Leader)' },
-      reviewedBy: { fullNameEn: 'Dawit Tadesse (Property Director)' },
+      reviewedBy: { fullNameEn: 'Kassahun Tolosa (Property Director)' },
       recipientEmployee: { fullNameEn: 'Kebede Alemu (Field Officer)' },
     };
 
@@ -46,7 +46,7 @@ describe('User Activity Claiming Invariants', () => {
 
     expect(issuedBy).toBe('Meron Alemu (Store Officer)');
     expect(endorsedBy).toBe('Mulugeta Berhanu (Property Team Leader)');
-    expect(approvedBy).toBe('Dawit Tadesse (Property Director)');
+    expect(approvedBy).toBe('Kassahun Tolosa (Property Director)');
     expect(receivedBy).toBe('Kebede Alemu (Field Officer)');
   });
 });

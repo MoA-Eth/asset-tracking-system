@@ -29,10 +29,10 @@ function createMockApproval(
     requestedBy: {
       id: 'emp-1',
       payrollId: 'PAY-1001',
-      fullNameEn: 'Abebe Bikila',
-      fullNameAm: 'አበበ ቢቂላ',
+      fullNameEn: 'Chala Bekele',
+      fullNameAm: 'ጫላ በቀለ',
       departmentId: 'dept-ict',
-      email: 'abebe@moa.gov.et',
+      email: 'chala@moa.gov.et',
       phone: '+251911000000',
       role: UserRole.DATA_ENCODER,
     },
@@ -200,7 +200,7 @@ describe('Two-Stage Approval Workflow & Queue Logic', () => {
       const nameMatch = filterApprovals(sampleData, {
         activeTab: 'ALL',
         role: UserRole.TEAM_LEADER,
-        searchTerm: 'Abebe',
+        searchTerm: 'Chala',
       });
       expect(nameMatch).toHaveLength(4);
     });
