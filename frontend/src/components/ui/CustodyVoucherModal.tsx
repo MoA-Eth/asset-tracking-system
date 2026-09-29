@@ -189,7 +189,9 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
               <div>
                 <p className="text-[10px] font-bold uppercase text-slate-500">Issued By (Store Keeper):</p>
                 <div className="h-10 border-b border-dashed border-slate-400 mt-1 flex items-end pb-1">
-                  <span className="font-semibold text-slate-800">Abebe Bekele (Encoder)</span>
+                  <span className="font-semibold text-slate-800">
+                    {approval?.requestedBy?.fullNameEn || item?.registeredBy?.fullNameEn || 'Store Officer'}
+                  </span>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">Signature & Date</p>
               </div>
@@ -199,7 +201,9 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
               <div>
                 <p className="text-[10px] font-bold uppercase text-slate-500">Approved By (Dept Head):</p>
                 <div className="h-10 border-b border-dashed border-slate-400 mt-1 flex items-end pb-1">
-                  <span className="font-semibold text-slate-800">Tigist Haile (Director)</span>
+                  <span className="font-semibold text-slate-800">
+                    {approval?.reviewedBy?.fullNameEn || item?.approvedBy?.fullNameEn || 'Directorate Head'}
+                  </span>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">Signature & Stamp</p>
               </div>
@@ -209,7 +213,9 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
               <div>
                 <p className="text-[10px] font-bold uppercase text-slate-500">Received By (Recipient Staff):</p>
                 <div className="h-10 border-b border-dashed border-slate-400 mt-1 flex items-end pb-1">
-                  <span className="font-semibold text-slate-800">Kenenisa Gemeda</span>
+                  <span className="font-semibold text-slate-800">
+                    {approval?.recipientEmployee?.fullNameEn || item?.currentCustodian?.fullNameEn || 'Authorized Recipient'}
+                  </span>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">Signature & Date</p>
               </div>
