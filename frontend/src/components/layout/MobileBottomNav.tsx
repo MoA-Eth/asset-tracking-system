@@ -26,7 +26,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       id: 'dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard,
-      roles: [UserRole.TOP_MANAGEMENT, UserRole.SYSTEM_ADMIN],
+      roles: [UserRole.MANAGER, UserRole.SYSTEM_ADMIN],
     },
     {
       id: 'approvals',

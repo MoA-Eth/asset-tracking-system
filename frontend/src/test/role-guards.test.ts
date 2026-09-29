@@ -7,7 +7,7 @@ const DEFAULT_TAB_FOR_ROLE: Record<UserRole, string> = {
   [UserRole.DATA_ENCODER]: 'stock-in',
   [UserRole.TEAM_LEADER]: 'approvals',
   [UserRole.DEPARTMENT_HEAD]: 'approvals',
-  [UserRole.TOP_MANAGEMENT]: 'dashboard',
+  [UserRole.MANAGER]: 'dashboard',
 };
 
 const ALLOWED_TABS_FOR_ROLE: Record<UserRole, string[]> = {
@@ -15,7 +15,7 @@ const ALLOWED_TABS_FOR_ROLE: Record<UserRole, string[]> = {
   [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
   [UserRole.TEAM_LEADER]: ['approvals', 'reports', 'audit'],
   [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
-  [UserRole.TOP_MANAGEMENT]: ['dashboard'],
+  [UserRole.MANAGER]: ['dashboard'],
 };
 
 export const getValidTabForRole = (currentRole: UserRole, candidateTab?: string | null): string => {
@@ -33,7 +33,7 @@ describe('Role-Based Access Control & Segregation of Duties (SOD)', () => {
       [UserRole.DATA_ENCODER, 'stock-in'],
       [UserRole.TEAM_LEADER, 'approvals'],
       [UserRole.DEPARTMENT_HEAD, 'approvals'],
-      [UserRole.TOP_MANAGEMENT, 'dashboard'],
+      [UserRole.MANAGER, 'dashboard'],
     ])('maps %s to default landing tab %s', (role, expectedDefault) => {
       expect(DEFAULT_TAB_FOR_ROLE[role]).toBe(expectedDefault);
       expect(getValidTabForRole(role, null)).toBe(expectedDefault);
@@ -67,10 +67,10 @@ describe('Role-Based Access Control & Segregation of Duties (SOD)', () => {
       expect(allowed).toContain('approvals');
     });
 
-    it('TOP_MANAGEMENT is strictly restricted to dashboard read-only analytics', () => {
-      const allowed = ALLOWED_TABS_FOR_ROLE[UserRole.TOP_MANAGEMENT];
+    it('MANAGER is strictly restricted to dashboard read-only analytics', () => {
+      const allowed = ALLOWED_TABS_FOR_ROLE[UserRole.MANAGER];
       expect(allowed).toEqual(['dashboard']);
-      expect(getValidTabForRole(UserRole.TOP_MANAGEMENT, 'settings')).toBe('dashboard');
+      expect(getValidTabForRole(UserRole.MANAGER, 'settings')).toBe('dashboard');
     });
 
     it('preserves valid requested tab when authorized for role', () => {

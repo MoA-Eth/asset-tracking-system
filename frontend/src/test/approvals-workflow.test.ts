@@ -138,7 +138,7 @@ describe('Two-Stage Approval Workflow & Queue Logic', () => {
       sampleData.forEach((item) => {
         expect(isActionableForRole(item, UserRole.DATA_ENCODER)).toBe(false);
         expect(isActionableForRole(item, UserRole.SYSTEM_ADMIN)).toBe(false);
-        expect(isActionableForRole(item, UserRole.TOP_MANAGEMENT)).toBe(false);
+        expect(isActionableForRole(item, UserRole.MANAGER)).toBe(false);
       });
     });
   });

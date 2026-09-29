@@ -498,9 +498,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 You hold final signing authority to grant <strong>Stage 2 Store Issue Authorizations</strong>.
               </span>
             )}
-            {role === UserRole.TOP_MANAGEMENT && (
+            {role === UserRole.MANAGER && (
               <span className="ml-1 text-slate-700 font-medium">
-                Executive Oversight: Full visibility into active approval throughput.
+                Management Oversight: Full visibility into active approval throughput.
               </span>
             )}
             {role === UserRole.SYSTEM_ADMIN && (

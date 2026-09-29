@@ -1,11 +1,11 @@
 const BASE_URL = 'http://localhost:3000/api';
 
 const USERS = {
-  admin: { email: 'admin@moa.gov.et', password: 'moaams2024', role: 'SYSTEM_ADMIN' },
+  admin: { email: 'sysadmin@moa.gov.et', password: 'moaams2024', role: 'SYSTEM_ADMIN' },
   encoder: { email: 'encoder@moa.gov.et', password: 'moaams2024', role: 'DATA_ENCODER' },
-  teamlead: { email: 'teamlead@moa.gov.et', password: 'moaams2024', role: 'TEAM_LEADER' },
-  head: { email: 'head@moa.gov.et', password: 'moaams2024', role: 'DEPARTMENT_HEAD' },
-  minister: { email: 'minister@moa.gov.et', password: 'moaams2024', role: 'TOP_MANAGEMENT' },
+  teamlead: { email: 'teamleader@moa.gov.et', password: 'moaams2024', role: 'TEAM_LEADER' },
+  head: { email: 'depthead@moa.gov.et', password: 'moaams2024', role: 'DEPARTMENT_HEAD' },
+  manager: { email: 'manager@moa.gov.et', password: 'moaams2024', role: 'MANAGER' },
 };
 
 const tokens = {};
@@ -256,9 +256,9 @@ async function runTests() {
   console.log('\n▶ [6/6] Testing Executive Dashboard & Statutory Audit Logs...');
   try {
     const dashRes = await request('/items/dashboard/executive', {
-      headers: { Authorization: `Bearer ${tokens.minister}` },
+      headers: { Authorization: `Bearer ${tokens.manager}` },
     });
-    assert(dashRes.status === 200, 'Executive Dashboard data retrieved for TOP_MANAGEMENT');
+    assert(dashRes.status === 200, 'Executive Dashboard data retrieved for MANAGER');
     assert(dashRes.data.data.totalItems >= 1, `Dashboard shows ${dashRes.data.data.totalItems} total portfolio items`);
     assert(dashRes.data.data.totalValuationETB > 0, `Portfolio valuation computed: ${dashRes.data.data.totalValuationETB} ETB`);
 

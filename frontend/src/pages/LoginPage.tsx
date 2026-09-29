@@ -98,7 +98,7 @@ export const LoginPage: React.FC = () => {
                   required
                   value={usernameOrEmail}
                   onChange={(e) => setUsernameOrEmail(e.target.value)}
-                  placeholder="e.g. minister@moa.gov.et or MOA/STORE-102"
+                  placeholder="e.g. sysadmin@moa.gov.et or MOA/STORE-102"
                   className="w-full pl-9 pr-3 py-2.5 bg-[#05160E] border border-emerald-900/80 rounded-xl text-xs text-white placeholder-emerald-700/60 focus:outline-none focus:border-amber-400 font-mono"
                 />
               </div>

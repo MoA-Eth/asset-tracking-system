@@ -92,15 +92,15 @@ npm run dev
 
 The system utilizes **[Vitest](https://vitest.dev/)** as the unified, high-performance unit test runner for both the frontend and backend, structured in alignment with the **Livescan** test architecture standard.
 
-### Test Suites Overview (103 Unit Tests + 87 Integration Assertions)
+### Test Suites Overview (114 Unit Tests + 87 Integration Assertions)
 
-- **Backend Unit Tests (`backend/src/**/*.test.ts`)** — *28 Tests / 4 Suites (~300ms)*:
+- **Backend Unit Tests (`backend/src/**/*.test.ts`)** — *36 Tests / 5 Suites (~400ms)*:
   - **Store Service Invariants** (`store-rules.test.ts`): Model 19 mandatory IFMIS slip validation, 2-stage sequential approval transitions (Stage 1 Team Leader endorsement, Stage 2 Dept Head sign-off), and atomic status transitions (`AVAILABLE`, `ISSUED`, `DISPOSED`).
   - **Auth Middleware & SOD** (`auth.middleware.test.ts`): Strict Segregation of Duties guards blocking Data Encoders from approvals and System Admins from operational transactions.
   - **Authentication Service** (`auth.service.test.ts`): Singleton lifecycle, token decoding, and malformed token rejection.
   - **Ethiopian Date Engine** (`eth-date.test.ts`): Julian Day Number calculations, Pagume leap year rules, and GC ↔ EC conversions.
 
-- **Frontend Unit Tests (`frontend/src/**/*.{test,spec}.{ts,tsx}`)** — *75 Tests / 8 Suites (~3.5s)*:
+- **Frontend Unit Tests (`frontend/src/**/*.{test,spec}.{ts,tsx}`)** — *78 Tests / 9 Suites (~4s)*:
   - **Dual Calendar Engine** (`eth-date.test.ts`): Bidirectional Gregorian ↔ Ethiopian calendar transformations, Meskerem 1 New Year boundary, Pagume 5 vs 6 days, and ETB currency formatting.
   - **System Settings** (`system-settings.test.ts`): Attachment policy persistence (`localStorage`) and custom event broadcasting.
   - **Role-Based Access & SOD** (`role-guards.test.ts`): Role tab navigation, landing tab resolution, and privilege restrictions.
@@ -226,17 +226,19 @@ Verify that the production build passes type-checking:
 npm run build
 ```
 
-## 🔑 Test Roles & Credentials
+## 🔑 Roles & Test Credentials
 
-All test accounts use uniform password **`moaams2024`**:
+All test accounts use uniform password **`moaams2024`**.
 
-| Role | Email Login | Access Scope | Approval Stage Responsibility | Accessible Tabs |
-| :--- | :--- | :--- | :--- | :--- |
-| **`DATA_ENCODER`** | `encoder@moa.gov.et` | Store Custodian | Requisitioner (Model 19, 20, 22) | Stock-In, Stock-Out, Transfer Asset, Settings |
-| **`TEAM_LEADER`** | `teamlead@moa.gov.et` | Team Leader | **Stage 1 Endorsement** | Approvals (Stage 1), Reports, Audit Log |
-| **`DEPARTMENT_HEAD`** | `head@moa.gov.et` | Directorate Head | **Stage 2 Final Authorization** | Approvals (Stage 2), Reports, Settings, Audit Log |
-| **`TOP_MANAGEMENT`** | `minister@moa.gov.et` | Executive Minister | Executive Visibility | Executive Dashboard (Portfolio Valuation, Directorate Allocations, Custody Ratios, Stores) |
-| **`SYSTEM_ADMIN`** | `admin@moa.gov.et` | System Administrator | IT Governance & Security (SOD) | System Dashboard, User Management, Approval Matrix, System Config, Reports, Audit Logs (Store Operations & Approvals hidden for Segregation of Duties) |
+> **5 statutory roles** implement strict Segregation of Duties (SOD) — no single user can both initiate and approve the same transaction.
+
+| # | Role | Email Login | Title | Default View | Responsibilities |
+| :- | :--- | :--- | :--- | :--- | :--- |
+| 1 | **`DATA_ENCODER`** | `encoder@moa.gov.et` | Store Custodian / Encoder | Stock-In | Registers Model 19 (GRN), requests Model 20 (Issue), and Model 22 (Return). **Cannot approve.** |
+| 2 | **`TEAM_LEADER`** | `teamleader@moa.gov.et` | Team Leader | Approvals | **Stage 1 Endorsement** — technical review and spec verification before forwarding to Stage 2. |
+| 3 | **`DEPARTMENT_HEAD`** | `depthead@moa.gov.et` | Directorate Head | Approvals | **Stage 2 Final Authorization** — signs off on stock transitions, custody issuance, and returns. |
+| 4 | **`MANAGER`** | `manager@moa.gov.et` | Manager | Dashboard | Read-only executive visibility: portfolio valuation, directorate allocations, custody ratios, and store analytics. |
+| 5 | **`SYSTEM_ADMIN`** | `sysadmin@moa.gov.et` | System Administrator | Dashboard | Platform administration: user management, approval matrix config, audit logs. **Blocked from all store operations (SOD).** |
 
 ---
 

@@ -15,7 +15,7 @@ export class AuthService {
   }
 
   public async getPersonas(): Promise<AuthUser[]> {
-    const roles = [UserRole.TOP_MANAGEMENT, UserRole.DEPARTMENT_HEAD, UserRole.DATA_ENCODER];
+    const roles = [UserRole.MANAGER, UserRole.DEPARTMENT_HEAD, UserRole.DATA_ENCODER];
     const employees = await Promise.all(
       roles.map((role) =>
         prisma.employee.findFirst({ where: { role: role as any } })

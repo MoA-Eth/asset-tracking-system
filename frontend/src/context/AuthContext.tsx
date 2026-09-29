@@ -106,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value: AuthContextType = {
     user,
     token,
-    role: user?.role || UserRole.TOP_MANAGEMENT,
+    role: user?.role || UserRole.MANAGER,
     isAuthenticated: !!user && !!token,
     isLoading,
     login,

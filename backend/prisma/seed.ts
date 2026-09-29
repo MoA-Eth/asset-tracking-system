@@ -65,20 +65,37 @@ async function main() {
     // System Administrator (SYSTEM_ADMIN)
     prisma.employee.upsert({
       where: { id: 'EMP-ADMIN-01' },
-      update: { role: UserRole.SYSTEM_ADMIN, password: 'moaams2024' },
-      create: { id: 'EMP-ADMIN-01', payrollId: 'MOA/ADMIN-001', fullNameEn: 'System Administrator', fullNameAm: 'ሲስተም አድሚኒስትሬተር', departmentId: 'DEP-04', email: 'admin@moa.gov.et', phone: '+251911000000', role: UserRole.SYSTEM_ADMIN, password: 'moaams2024' },
+      update: { role: UserRole.SYSTEM_ADMIN, email: 'sysadmin@moa.gov.et', password: 'moaams2024' },
+      create: { id: 'EMP-ADMIN-01', payrollId: 'MOA/ADMIN-001', fullNameEn: 'System Administrator', fullNameAm: 'ሲስተም አድሚኒስትሬተር', departmentId: 'DEP-04', email: 'sysadmin@moa.gov.et', phone: '+251911000000', role: UserRole.SYSTEM_ADMIN, password: 'moaams2024' },
     }),
-    // Executive Leadership (TOP_MANAGEMENT)
+    // General Manager (MANAGER)
     prisma.employee.upsert({
       where: { id: 'EMP-MIN-01' },
-      update: { password: 'moaams2024' },
-      create: { id: 'EMP-MIN-01', payrollId: 'MOA/EXEC-001', fullNameEn: 'H.E. Mr. Addisu Arega (Minister)', fullNameAm: 'ክቡር አቶ አዲሱ አረጋ (ሚኒስትር)', departmentId: 'DEP-03', email: 'minister@moa.gov.et', phone: '+251911000001', role: UserRole.TOP_MANAGEMENT, password: 'moaams2024' },
+      update: {
+        payrollId: 'MOA/MGR-001',
+        fullNameEn: 'Addisu Arega (Manager)',
+        fullNameAm: 'አቶ አዲሱ አረጋ (ሥራ አስኪያጅ)',
+        email: 'manager@moa.gov.et',
+        role: UserRole.MANAGER,
+        password: 'moaams2024',
+      },
+      create: {
+        id: 'EMP-MIN-01',
+        payrollId: 'MOA/MGR-001',
+        fullNameEn: 'Addisu Arega (Manager)',
+        fullNameAm: 'አቶ አዲሱ አረጋ (ሥራ አስኪያጅ)',
+        departmentId: 'DEP-03',
+        email: 'manager@moa.gov.et',
+        phone: '+251911000001',
+        role: UserRole.MANAGER,
+        password: 'moaams2024',
+      },
     }),
     // Team Leaders (TEAM_LEADER / Stage 1 Endorser)
     prisma.employee.upsert({
       where: { id: 'EMP-TL-00' },
-      update: { role: UserRole.TEAM_LEADER, password: 'moaams2024' },
-      create: { id: 'EMP-TL-00', payrollId: 'MOA/TL-000', fullNameEn: 'Team Leader (Stage 1 Endorser)', fullNameAm: 'የቡድን መሪ', departmentId: 'DEP-03', email: 'teamlead@moa.gov.et', phone: '+251921000000', role: UserRole.TEAM_LEADER, password: 'moaams2024' },
+      update: { role: UserRole.TEAM_LEADER, email: 'teamleader@moa.gov.et', password: 'moaams2024' },
+      create: { id: 'EMP-TL-00', payrollId: 'MOA/TL-000', fullNameEn: 'Team Leader (Stage 1 Endorser)', fullNameAm: 'የቡድን መሪ', departmentId: 'DEP-03', email: 'teamleader@moa.gov.et', phone: '+251921000000', role: UserRole.TEAM_LEADER, password: 'moaams2024' },
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-TL-01' },
@@ -88,8 +105,8 @@ async function main() {
     // Department Heads (DEPARTMENT_HEAD / Approver)
     prisma.employee.upsert({
       where: { id: 'EMP-HEAD-00' },
-      update: { password: 'moaams2024' },
-      create: { id: 'EMP-HEAD-00', payrollId: 'MOA/DIR-000', fullNameEn: 'Department Head (Approver)', fullNameAm: 'የዳይሬክቶሬት ኃላፊ', departmentId: 'DEP-03', email: 'head@moa.gov.et', phone: '+251922000000', role: UserRole.DEPARTMENT_HEAD, password: 'moaams2024' },
+      update: { email: 'depthead@moa.gov.et', password: 'moaams2024' },
+      create: { id: 'EMP-HEAD-00', payrollId: 'MOA/DIR-000', fullNameEn: 'Department Head (Approver)', fullNameAm: 'የዳይሬክቶሬት ኃላፊ', departmentId: 'DEP-03', email: 'depthead@moa.gov.et', phone: '+251922000000', role: UserRole.DEPARTMENT_HEAD, password: 'moaams2024' },
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-HEAD-01' },
@@ -256,11 +273,11 @@ async function main() {
   console.log('  ✅ Sample items, history, approvals & audit logs seeded');
   console.log('\n🎉 Database seeding complete!\n');
   console.log('  Uniform Password for All Accounts: moaams2024');
-  console.log('  System Administrator       → admin@moa.gov.et    (SYSTEM_ADMIN)');
-  console.log('  Store Custodian / Encoder  → encoder@moa.gov.et  (DATA_ENCODER)');
-  console.log('  Team Leader (Endorser)     → teamlead@moa.gov.et (TEAM_LEADER)');
-  console.log('  Directorate Head / Approver→ head@moa.gov.et     (DEPARTMENT_HEAD)');
-  console.log('  Executive Minister          → minister@moa.gov.et (TOP_MANAGEMENT)\n');
+  console.log('  System Administrator       → sysadmin@moa.gov.et   (SYSTEM_ADMIN)');
+  console.log('  Store Custodian / Encoder  → encoder@moa.gov.et    (DATA_ENCODER)');
+  console.log('  Team Leader (Endorser)     → teamleader@moa.gov.et (TEAM_LEADER)');
+  console.log('  Directorate Head / Approver→ depthead@moa.gov.et   (DEPARTMENT_HEAD)');
+  console.log('  Manager                    → manager@moa.gov.et    (MANAGER)\n');
 }
 
 main()
