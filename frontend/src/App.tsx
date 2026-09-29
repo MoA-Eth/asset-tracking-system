@@ -25,7 +25,7 @@ const DEFAULT_TAB_FOR_ROLE: Record<UserRole, string> = {
 };
 
 const ALLOWED_TABS_FOR_ROLE: Record<UserRole, string[]> = {
-  [UserRole.SYSTEM_ADMIN]: ['dashboard', 'stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
+  [UserRole.SYSTEM_ADMIN]: ['dashboard', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
   [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
   [UserRole.TEAM_LEADER]: ['approvals', 'reports', 'audit'],
   [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],

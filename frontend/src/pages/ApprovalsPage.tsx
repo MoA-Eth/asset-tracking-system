@@ -33,8 +33,8 @@ interface ApprovalsPageProps {
 
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefreshPendingCount }) => {
   const { user, role } = useAuth();
-  const canEndorse = role === UserRole.SYSTEM_ADMIN || role === UserRole.TEAM_LEADER;
-  const canApprove = role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD;
+  const canEndorse = role === UserRole.TEAM_LEADER;
+  const canApprove = role === UserRole.DEPARTMENT_HEAD;
   const canReview = canEndorse || canApprove;
 
   const [approvals, setApprovals] = useState<TransactionApproval[]>([]);
@@ -201,7 +201,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           Logged in as <strong>{user?.fullNameEn || 'Officer'}</strong> ({role}).{' '}
           {role === UserRole.TEAM_LEADER && <span>Stage 1 Action: You are authorized to review & <strong>Endorse</strong> requests.</span>}
           {role === UserRole.DEPARTMENT_HEAD && <span>Stage 2 Action: You are authorized to grant <strong>Final Approval</strong> on endorsed requests.</span>}
-          {role === UserRole.SYSTEM_ADMIN && <span>Admin Override: Authorized for Stage 1 Endorsement and Stage 2 Final Approvals.</span>}
+          {role === UserRole.SYSTEM_ADMIN && <span>IT Governance: Segregation of Duties active (Approvals reserved for Team Leaders and Department Heads).</span>}
           {role === UserRole.DATA_ENCODER && <span>Read-Only View: Requester status monitoring mode.</span>}
         </span>
       </div>

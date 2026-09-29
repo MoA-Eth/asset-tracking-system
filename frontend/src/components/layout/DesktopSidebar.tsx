@@ -161,7 +161,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         )}
 
         {/* 2. Stock-In (Model 19) */}
-        {(role === UserRole.DATA_ENCODER || role === UserRole.SYSTEM_ADMIN) && (
+        {role === UserRole.DATA_ENCODER && (
           <button
             onClick={() => setActiveTab('stock-in')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
@@ -177,7 +177,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         )}
 
         {/* 3. Stock-Out (Model 20) */}
-        {(role === UserRole.DATA_ENCODER || role === UserRole.SYSTEM_ADMIN) && (
+        {role === UserRole.DATA_ENCODER && (
           <button
             onClick={() => setActiveTab('stock-out')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
@@ -193,7 +193,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         )}
 
         {/* 3. Transfer Asset (Includes Custody Transfers & Model 22 Returns) */}
-        {(role === UserRole.DATA_ENCODER || role === UserRole.SYSTEM_ADMIN) && (
+        {role === UserRole.DATA_ENCODER && (
           <button
             onClick={() => setActiveTab('transfer-asset')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
