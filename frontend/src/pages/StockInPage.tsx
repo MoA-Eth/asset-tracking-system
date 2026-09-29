@@ -24,6 +24,7 @@ import { formatETB } from '../utils/eth-date';
 import { getSystemSettings } from '../utils/system-settings';
 import { ConditionBadge } from '../components/ui/Badge';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 
 interface StockInPageProps {
   currentRole: UserRole;
@@ -75,6 +76,7 @@ interface StockInFormProps {
 }
 
 const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess }) => {
+  const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
@@ -136,7 +138,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
     }
 
     setSubmitting(true);
-    const encoder = employees.find((emp) => emp.role === UserRole.DATA_ENCODER) || employees[0];
+    const registeredById = user?.id || employees[0]?.id || '';
 
     try {
       const res = await api.registerStockIn({
@@ -150,7 +152,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         ifmisSlipDateGc,
         ifmisSlipAttachmentUrl: attachmentFileName ? `/slips/${attachmentFileName}` : undefined,
         isHistoricalData: policy === 'OPTIONAL',
-        registeredById: encoder.id,
+        registeredById,
         notes,
       });
       const itemCode = res.item?.itemCode || 'New Asset';

@@ -64,7 +64,8 @@ export class ItemController {
       throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
     }
     const payload: CreateStockInRequest = req.body;
-    if (req.user && !payload.registeredById) {
+    // Authenticated user identity strictly claims the registration activity
+    if (req.user) {
       payload.registeredById = req.user.id;
     }
     if (!payload.name || !payload.category) {
@@ -72,6 +73,9 @@ export class ItemController {
     }
     if (!payload.isHistoricalData && !payload.ifmisSlipNumber) {
       throw new BadRequestError('IFMIS receiving voucher slip number is required for new stock-in.');
+    }
+    if (!payload.registeredById) {
+      throw new BadRequestError('User identity is required to register stock-in.');
     }
     const result = await this.store.registerStockIn(payload);
     return sendSuccess(res, result, 'Stock-In registered successfully', 201);
@@ -86,11 +90,15 @@ export class ItemController {
       throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
     }
     const payload: CreateStockOutRequest = req.body;
-    if (req.user && !payload.registeredById) {
+    // Authenticated user identity strictly claims the requisition activity
+    if (req.user) {
       payload.registeredById = req.user.id;
     }
     if (!payload.itemId || !payload.recipientEmployeeId || !payload.ifmisSlipNumber) {
       throw new BadRequestError('Asset Item, Recipient Staff, and IFMIS Issue Voucher are required.');
+    }
+    if (!payload.registeredById) {
+      throw new BadRequestError('User identity is required to register stock-out.');
     }
     const result = await this.store.registerStockOut(payload);
     return sendSuccess(res, result, 'Stock-out submitted for Department Head approval', 201);
@@ -105,11 +113,15 @@ export class ItemController {
       throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
     }
     const payload = req.body;
-    if (req.user && !payload.registeredById) {
+    // Authenticated user identity strictly claims the return activity
+    if (req.user) {
       payload.registeredById = req.user.id;
     }
     if (!payload.itemId || !payload.ifmisSlipNumber || !payload.condition) {
       throw new BadRequestError('Item ID, IFMIS Return Slip Number (Model 22), and Condition are mandatory.');
+    }
+    if (!payload.registeredById) {
+      throw new BadRequestError('User identity is required to register return.');
     }
     const result = await this.store.registerReturn(payload);
     return sendSuccess(res, result, 'Model 22 Return-to-Store registered and sent for approval', 201);
@@ -124,11 +136,15 @@ export class ItemController {
       throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
     }
     const payload: CreateTransferRequest = req.body;
-    if (req.user && !payload.performedById) {
+    // Authenticated user identity strictly claims the transfer activity
+    if (req.user) {
       payload.performedById = req.user.id;
     }
     if (!payload.itemId || !payload.reason) {
       throw new BadRequestError('Item ID and transfer reason are mandatory.');
+    }
+    if (!payload.performedById) {
+      throw new BadRequestError('User identity is required to transfer item.');
     }
     const result = await this.store.transferItem(payload);
     return sendSuccess(res, result, 'Item transferred successfully');
@@ -159,9 +175,9 @@ export class ItemController {
       if (req.user.role === UserRole.DATA_ENCODER) {
         throw new ForbiddenError('Data Encoders are restricted from signing off approval workflows under Segregation of Duties.');
       }
-      if (!payload.reviewedById) {
-        payload.reviewedById = req.user.id;
-      }
+      // Review action is strictly claimed by the authenticated officer
+      payload.reviewedById = req.user.id;
+
       // Enforce role clearance based on 2-stage approval action
       if (payload.action === 'ENDORSE') {
         if (

@@ -166,6 +166,7 @@ export interface TransactionApproval {
   reviewedAtEc?: string;
   reviewedBy?: Employee;
   requestedBy?: Employee;
+  recipientEmployee?: Employee;
 }
 
 export interface AuditLogEntry {
