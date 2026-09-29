@@ -15,6 +15,7 @@ datasource db {
 enum UserRole {
   SYSTEM_ADMIN
   DATA_ENCODER
+  TEAM_LEADER
   DEPARTMENT_HEAD
   TOP_MANAGEMENT
 }
@@ -118,6 +119,7 @@ model Employee {
   approvedItems       Item[]                @relation("ApprovedBy")
   custodiedItems      Item[]                @relation("CurrentCustodian")
   requestedApprovals  TransactionApproval[] @relation("RequestedBy")
+  endorsedApprovals   TransactionApproval[] @relation("EndorsedBy")
   reviewedApprovals   TransactionApproval[] @relation("ReviewedBy")
   recipientApprovals  TransactionApproval[] @relation("RecipientEmployee")
   auditLogs           AuditLog[]
@@ -215,8 +217,17 @@ model TransactionApproval {
   targetLocationId    String?
   purposeOrRemarks    String  @default("")
 
-  // Status
-  status        ApprovalStatus @default(PENDING)
+  // Status & Multi-Stage Workflow
+  status             ApprovalStatus @default(PENDING)
+  currentStage       Int            @default(1) // 1 = Team Leader Endorsement, 2 = Dept Head Approval
+
+  // Stage 1: Team Leader Endorsement
+  endorsedById       String?
+  endorsementRemarks String?
+  endorsedAtGc       String?
+  endorsedAtEc       String?
+
+  // Stage 2: Department Head Final Approval
   reviewedById  String?
   reviewRemarks String?
   createdAtGc   String
@@ -231,6 +242,7 @@ model TransactionApproval {
   requestedBy        Employee    @relation("RequestedBy", fields: [requestedById], references: [id])
   recipientEmployee  Employee?   @relation("RecipientEmployee", fields: [recipientEmployeeId], references: [id])
   targetDepartment   Department? @relation("TargetDepartment", fields: [targetDepartmentId], references: [id])
+  endorsedBy         Employee?   @relation("EndorsedBy", fields: [endorsedById], references: [id])
   reviewedBy         Employee?   @relation("ReviewedBy", fields: [reviewedById], references: [id])
 
   @@map("transaction_approvals")

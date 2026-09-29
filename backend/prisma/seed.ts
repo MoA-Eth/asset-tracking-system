@@ -74,6 +74,17 @@ async function main() {
       update: { password: 'moaams2024' },
       create: { id: 'EMP-MIN-01', payrollId: 'MOA/EXEC-001', fullNameEn: 'H.E. Mr. Addisu Arega (Minister)', fullNameAm: 'ክቡር አቶ አዲሱ አረጋ (ሚኒስትር)', departmentId: 'DEP-03', email: 'minister@moa.gov.et', phone: '+251911000001', role: UserRole.TOP_MANAGEMENT, password: 'moaams2024' },
     }),
+    // Team Leaders (TEAM_LEADER / Stage 1 Endorser)
+    prisma.employee.upsert({
+      where: { id: 'EMP-TL-00' },
+      update: { role: UserRole.TEAM_LEADER, password: 'moaams2024' },
+      create: { id: 'EMP-TL-00', payrollId: 'MOA/TL-000', fullNameEn: 'Team Leader (Stage 1 Endorser)', fullNameAm: 'የቡድን መሪ', departmentId: 'DEP-03', email: 'teamlead@moa.gov.et', phone: '+251921000000', role: UserRole.TEAM_LEADER, password: 'moaams2024' },
+    }),
+    prisma.employee.upsert({
+      where: { id: 'EMP-TL-01' },
+      update: { role: UserRole.TEAM_LEADER, password: 'moaams2024' },
+      create: { id: 'EMP-TL-01', payrollId: 'MOA/TL-005', fullNameEn: 'Mulugeta Berhanu (Property Team Leader)', fullNameAm: 'ሙሉጌታ ብርሃኑ (የቡድን መሪ)', departmentId: 'DEP-03', email: 'mulugeta.b@moa.gov.et', phone: '+251921112233', role: UserRole.TEAM_LEADER, password: 'moaams2024' },
+    }),
     // Department Heads (DEPARTMENT_HEAD / Approver)
     prisma.employee.upsert({
       where: { id: 'EMP-HEAD-00' },
@@ -247,6 +258,7 @@ async function main() {
   console.log('  Uniform Password for All Accounts: moaams2024');
   console.log('  System Administrator       → admin@moa.gov.et    (SYSTEM_ADMIN)');
   console.log('  Store Custodian / Encoder  → encoder@moa.gov.et  (DATA_ENCODER)');
+  console.log('  Team Leader (Endorser)     → teamlead@moa.gov.et (TEAM_LEADER)');
   console.log('  Directorate Head / Approver→ head@moa.gov.et     (DEPARTMENT_HEAD)');
   console.log('  Executive Minister          → minister@moa.gov.et (TOP_MANAGEMENT)\n');
 }

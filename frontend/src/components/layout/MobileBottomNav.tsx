@@ -26,13 +26,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       id: 'dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard,
-      roles: [UserRole.TOP_MANAGEMENT],
+      roles: [UserRole.TOP_MANAGEMENT, UserRole.TEAM_LEADER],
     },
     {
       id: 'approvals',
       label: 'Approvals',
       icon: FileCheck2,
-      roles: [UserRole.DEPARTMENT_HEAD],
+      roles: [UserRole.DEPARTMENT_HEAD, UserRole.TEAM_LEADER],
     },
     {
       id: 'stock-in',
@@ -50,13 +50,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       id: 'reports',
       label: 'Reports',
       icon: FileSpreadsheet,
-      roles: [UserRole.SYSTEM_ADMIN, UserRole.DEPARTMENT_HEAD, UserRole.DATA_ENCODER],
+      roles: [UserRole.SYSTEM_ADMIN, UserRole.DEPARTMENT_HEAD, UserRole.DATA_ENCODER, UserRole.TEAM_LEADER],
     },
     {
       id: 'audit',
       label: 'Audit',
       icon: ShieldCheck,
-      roles: [UserRole.SYSTEM_ADMIN, UserRole.DEPARTMENT_HEAD],
+      roles: [UserRole.SYSTEM_ADMIN, UserRole.DEPARTMENT_HEAD, UserRole.TEAM_LEADER],
     },
   ];
 

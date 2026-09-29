@@ -32,7 +32,10 @@ interface ApprovalsPageProps {
 
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
   const { user, role } = useAuth();
-  const canApprove = role === UserRole.TOP_MANAGEMENT || role === UserRole.DEPARTMENT_HEAD;
+  const canEndorse = role === UserRole.SYSTEM_ADMIN || role === UserRole.TEAM_LEADER;
+  const canApprove = role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD;
+  const canReview = canEndorse || canApprove;
+
   const [approvals, setApprovals] = useState<TransactionApproval[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('PENDING');
@@ -66,21 +69,25 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
     fetchApprovals();
   }, [statusFilter]);
 
-  const handleAction = async (approvalId: string, action: 'APPROVE' | 'REJECT') => {
+  const handleAction = async (approvalId: string, action: 'ENDORSE' | 'APPROVE' | 'REJECT') => {
     setActionError(null);
     if (action === 'REJECT' && !reviewRemarks.trim()) {
       setActionError('Please provide a reason or remarks for rejection.');
       return;
     }
 
-    if (!canApprove) {
-      setActionError('Access Denied: Only Directorate Heads or Executive Ministers have approval clearance.');
+    if (!canReview) {
+      setActionError('Access Denied: You do not have permission to perform approval actions.');
       return;
     }
 
     setActionLoading(true);
     const approverId =
-      user?.id || (employees.find((e) => e.role === UserRole.DEPARTMENT_HEAD) || employees[0])?.id;
+      user?.id ||
+      (role === UserRole.TEAM_LEADER
+        ? employees.find((e) => e.role === UserRole.TEAM_LEADER)?.id
+        : employees.find((e) => e.role === UserRole.DEPARTMENT_HEAD)?.id) ||
+      employees[0]?.id;
 
     try {
       await api.handleApproval({
@@ -136,7 +143,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
               <FileCheck2 className="w-5 h-5 text-amber-600" />
-              Department Head Authorization Queue
+              2-Stage Sequential Authorization Queue
             </h2>
             {pendingCount > 0 && (
               <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
@@ -145,7 +152,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
             )}
           </div>
           <p className="text-xs text-slate-500">
-            Review and sign-off on inbound Stock-In items and outbound Stock-Out requisitions.
+            Multi-stage workflow: <strong>Stage 1</strong> Team Leader Endorsement → <strong>Stage 2</strong> Directorate Head Final Authorization.
           </p>
         </div>
 
@@ -158,15 +165,17 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
         </button>
       </div>
 
-      {/* RBAC Notice if viewing as Store Custodian */}
-      {!canApprove && (
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-center gap-2.5">
-          <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
-          <span>
-            <strong>Read-Only Mode:</strong> You are logged in as <strong>{user?.fullNameEn || 'Store Custodian'}</strong>. Statutory approval & rejection actions require Directorate Head (Property Director) or Executive Minister credentials.
-          </span>
-        </div>
-      )}
+      {/* Role Banner */}
+      <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-xs flex items-center gap-2.5">
+        <ShieldAlert className="w-4 h-4 text-blue-600 shrink-0" />
+        <span>
+          Logged in as <strong>{user?.fullNameEn || 'Officer'}</strong> ({role}).{' '}
+          {role === UserRole.TEAM_LEADER && <span>Stage 1 Action: You are authorized to review & <strong>Endorse</strong> requests.</span>}
+          {role === UserRole.DEPARTMENT_HEAD && <span>Stage 2 Action: You are authorized to grant <strong>Final Approval</strong> on endorsed requests.</span>}
+          {role === UserRole.SYSTEM_ADMIN && <span>Admin Override: Authorized for Stage 1 Endorsement and Stage 2 Final Approvals.</span>}
+          {role === UserRole.DATA_ENCODER && <span>Read-Only View: Requester status monitoring mode.</span>}
+        </span>
+      </div>
 
       {/* Filter Tabs */}
       <div className="flex gap-1.5 border-b border-slate-200 pb-2">
@@ -207,13 +216,16 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
           {approvals.map((appr) => {
             const isStockIn = appr.transactionType === TransactionType.STOCK_IN;
             const isPending = appr.status === ApprovalStatus.PENDING;
+            const stage = appr.currentStage ?? 1;
 
             return (
               <div
                 key={appr.id}
                 className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
                   isPending
-                    ? 'bg-white border-amber-400 ring-1 ring-amber-400/30 shadow-xs'
+                    ? stage === 1
+                      ? 'bg-white border-amber-400 ring-1 ring-amber-400/30 shadow-xs'
+                      : 'bg-white border-purple-400 ring-1 ring-purple-400/30 shadow-xs'
                     : 'bg-white border-slate-200 shadow-xs'
                 }`}
               >
@@ -228,17 +240,32 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
                     >
                       {isStockIn ? 'Stock-In Verification' : 'Stock-Out Authorization'}
                     </span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                        appr.status === ApprovalStatus.PENDING
-                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                          : appr.status === ApprovalStatus.APPROVED
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                          : 'bg-rose-100 text-rose-900 border border-rose-300'
-                      }`}
-                    >
-                      {appr.status}
-                    </span>
+
+                    {/* Stage & Status Badges */}
+                    <div className="flex items-center gap-1">
+                      {isPending && (
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
+                            stage === 1
+                              ? 'bg-amber-100 text-amber-900 border-amber-300'
+                              : 'bg-purple-100 text-purple-900 border-purple-300'
+                          }`}
+                        >
+                          {stage === 1 ? 'Stage 1 Pending (Team Leader)' : 'Stage 2 Pending (Dept Head)'}
+                        </span>
+                      )}
+                      {!isPending && (
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            appr.status === ApprovalStatus.APPROVED
+                              ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                              : 'bg-rose-100 text-rose-900 border border-rose-300'
+                          }`}
+                        >
+                          {appr.status}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <h3 className="text-sm font-bold text-slate-900">{appr.itemName}</h3>
@@ -247,15 +274,24 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
                   <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">IFMIS Slip:</span>
-                      <span className="font-mono text-amber-800 font-bold bg-amber-100 px-1.5 py-0.2 rounded">{appr.ifmisSlipNumber}</span>
+                      <span className="font-mono text-amber-800 font-bold bg-amber-100 px-1.5 py-0.2 rounded">
+                        {appr.ifmisSlipNumber}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">Slip Date:</span>
-                      <span className="text-slate-800">{appr.ifmisSlipDateEc} E.C. ({appr.ifmisSlipDateGc})</span>
+                      <span className="text-slate-800">
+                        {appr.ifmisSlipDateEc} E.C. ({appr.ifmisSlipDateGc})
+                      </span>
                     </div>
                     {appr.purposeOrRemarks && (
                       <div className="pt-1 border-t border-slate-200 text-[11px] text-slate-700">
                         <strong>Purpose / Note:</strong> {appr.purposeOrRemarks}
+                      </div>
+                    )}
+                    {stage === 2 && appr.endorsedBy && (
+                      <div className="pt-1 border-t border-slate-200 text-[11px] text-purple-900 font-medium">
+                        <strong>Stage 1 Endorsement:</strong> {appr.endorsedBy.fullNameEn} ({appr.endorsementRemarks || 'Endorsed'})
                       </div>
                     )}
                   </div>
@@ -268,19 +304,32 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
                   </span>
 
                   {isPending ? (
-                    canApprove ? (
-                      <div className="flex items-center gap-2">
+                    stage === 1 ? (
+                      canEndorse ? (
                         <button
                           onClick={() => setSelectedApproval(appr)}
-                          className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+                          className="px-3.5 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
                         >
-                          Review & Sign
+                          Review & Endorse (Stage 1)
                         </button>
-                      </div>
+                      ) : (
+                        <span className="px-2 py-1 rounded-md bg-amber-50 text-amber-800 text-[10px] font-semibold border border-amber-200">
+                          Awaiting Team Leader Endorsement
+                        </span>
+                      )
                     ) : (
-                      <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold border border-slate-200">
-                        Awaiting Directorate Authorization
-                      </span>
+                      canApprove ? (
+                        <button
+                          onClick={() => setSelectedApproval(appr)}
+                          className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+                        >
+                          Final Approve (Stage 2)
+                        </button>
+                      ) : (
+                        <span className="px-2 py-1 rounded-md bg-purple-50 text-purple-800 text-[10px] font-semibold border border-purple-200">
+                          Endorsed • Awaiting Dept Head Approval
+                        </span>
+                      )
                     )
                   ) : (
                     <span className="text-[11px] text-slate-500 italic">
@@ -294,14 +343,16 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
         </div>
       )}
 
-      {/* Review & Sign-Off Modal */}
+      {/* Review Modal */}
       {selectedApproval && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl text-slate-900">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <FileCheck2 className="w-4 h-4 text-amber-600" />
-                Department Head Authorization
+                {selectedApproval.currentStage === 1
+                  ? 'Stage 1: Team Leader Endorsement'
+                  : 'Stage 2: Department Head Final Authorization'}
               </h3>
               <button
                 onClick={() => setSelectedApproval(null)}
@@ -326,6 +377,22 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
                 </p>
               </div>
 
+              {/* Endorsement Banner if Stage 2 */}
+              {selectedApproval.currentStage === 2 && selectedApproval.endorsedBy && (
+                <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-950 space-y-1">
+                  <div className="font-bold flex items-center justify-between">
+                    <span>Stage 1 Endorsement Status: ENDORSED</span>
+                    <span className="text-[10px] bg-purple-200 px-1.5 py-0.2 rounded font-mono">Stage 2 Ready</span>
+                  </div>
+                  <p>
+                    Endorsed by: <strong>{selectedApproval.endorsedBy.fullNameEn}</strong> ({selectedApproval.endorsedBy.role}) on {selectedApproval.endorsedAtGc}
+                  </p>
+                  <p className="italic text-slate-700">
+                    Remarks: "{selectedApproval.endorsementRemarks || 'Endorsed'}"
+                  </p>
+                </div>
+              )}
+
               {/* Simulated IFMIS Attachment Preview */}
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1.5 text-center">
                 <FileText className="w-8 h-8 text-emerald-700 mx-auto" />
@@ -346,11 +413,17 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
 
               <div>
                 <label className="block text-slate-700 font-semibold mb-1">
-                  Department Head Review Comments / Remarks:
+                  {selectedApproval.currentStage === 1
+                    ? 'Team Leader Endorsement Remarks:'
+                    : 'Department Head Authorization Comments:'}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Inspected against physical delivery and authorized."
+                  placeholder={
+                    selectedApproval.currentStage === 1
+                      ? 'e.g. Endorsed specification and IFMIS voucher details.'
+                      : 'e.g. Approved and authorized for store release.'
+                  }
                   value={reviewRemarks}
                   onChange={(e) => setReviewRemarks(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-600 text-xs"
@@ -366,22 +439,35 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 disabled={actionLoading}
                 onClick={() => handleAction(selectedApproval.id, 'REJECT')}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
               >
                 <XCircle className="w-4 h-4" /> Reject
               </button>
-              <button
-                type="button"
-                disabled={actionLoading}
-                onClick={() => handleAction(selectedApproval.id, 'APPROVE')}
-                className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
-              >
-                <CheckCircle2 className="w-4 h-4" /> Approve & Sign-Off
-              </button>
+
+              {selectedApproval.currentStage === 1 ? (
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => handleAction(selectedApproval.id, 'ENDORSE')}
+                  className="px-5 py-2 bg-amber-700 hover:bg-amber-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Endorse Request (Stage 1)
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => handleAction(selectedApproval.id, 'APPROVE')}
+                  className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Final Approve & Sign-Off
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -389,3 +475,4 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
     </div>
   );
 };
+
