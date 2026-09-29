@@ -204,7 +204,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             }`}
           >
             <ArrowRightLeft className="w-4 h-4 shrink-0 text-amber-300" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Transfer Asset</span>}
+            {!collapsed && <span className="flex-1 text-left font-semibold">Asset Transfer</span>}
           </button>
         )}
 

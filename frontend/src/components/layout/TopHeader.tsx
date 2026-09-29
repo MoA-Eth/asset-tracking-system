@@ -60,7 +60,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       case 'reports':
         return { title: 'Reports', am: 'የሪፖርት መዝገብ', icon: FileSpreadsheet, iconColor: 'text-emerald-700' };
       case 'transfer-asset':
-        return { title: 'Transfer Asset', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 22)', icon: ArrowRightLeft, iconColor: 'text-amber-600' };
+        return { title: 'Asset Transfer', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 22)', icon: ArrowRightLeft, iconColor: 'text-amber-600' };
       case 'settings':
         return { title: 'Settings & Permissions', am: 'ቅንብሮች እና የስርዓት መቆጣጠሪያ', icon: Settings, iconColor: 'text-emerald-700' };
       default:
