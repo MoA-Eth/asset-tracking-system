@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import { ItemWithRelations, ItemCondition, Employee } from '../../types/asset-management';
 import { Modal } from './Modal';
 import { getSystemSettings } from '../../utils/system-settings';
+import { useToast } from '../../context/ToastContext';
 
 interface ReturnToStoreModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
   employees,
   onSuccess,
 }) => {
+  const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [ifmisSlipNumber, setIfmisSlipNumber] = useState('');
   const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(new Date().toISOString().split('T')[0]);
@@ -79,11 +81,17 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
         returningEmployeeId: item.currentCustodianId || undefined,
         registeredById: encoder ? encoder.id : employees[0]?.id || '',
       });
+      toast.success(
+        'Model 22 Return Submitted',
+        `Return request for ${item.itemCode} (${ifmisSlipNumber.trim()}) submitted for Team Leader verification.`
+      );
       handleReset();
       onSuccess();
       onClose();
     } catch (err: any) {
-      setFormError(`Return registration failed: ${err.message || 'Server error'}`);
+      const errMsg = err.message || 'Server error';
+      setFormError(`Return registration failed: ${errMsg}`);
+      toast.error('Return Request Failed', errMsg);
     } finally {
       setSubmitting(false);
     }

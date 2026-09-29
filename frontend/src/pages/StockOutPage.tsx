@@ -24,6 +24,7 @@ import { Modal } from '../components/ui/Modal';
 import { CustodyVoucherModal } from '../components/ui/CustodyVoucherModal';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
 import { ConditionBadge } from '../components/ui/Badge';
+import { useToast } from '../context/ToastContext';
 import {
   ItemStatus,
   ApprovalStatus,
@@ -90,6 +91,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   onCancel,
   onSuccess,
 }) => {
+  const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([availableItems[0]?.id ?? '']);
   const [recipientEmployeeId, setRecipientEmployeeId] = useState(employees[0]?.id ?? '');
@@ -135,15 +137,21 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     e.preventDefault();
     setFormError(null);
     if (selectedItemIds.length === 0) {
-      setFormError('Please select at least one available store item to issue.');
+      const msg = 'Please select at least one available store item to issue.';
+      setFormError(msg);
+      toast.warning('Selection Required', msg);
       return;
     }
     if (!ifmisSlipNumber.trim()) {
-      setFormError('IFMIS Stock-Out Slip Number (Model 20) is mandatory.');
+      const msg = 'IFMIS Stock-Out Slip Number (Model 20) is mandatory.';
+      setFormError(msg);
+      toast.warning('Voucher Required', msg);
       return;
     }
     if (!purpose.trim()) {
-      setFormError('Please provide the official purpose/requisition reason.');
+      const msg = 'Please provide the official purpose/requisition reason.';
+      setFormError(msg);
+      toast.warning('Purpose Required', msg);
       return;
     }
 
@@ -151,7 +159,9 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     const isAttachmentRequired = policy === 'REQUIRED';
 
     if (isAttachmentRequired && !attachmentFileName) {
-      setFormError('System Policy configured in Settings requires a scanned IFMIS issue voucher attachment.');
+      const msg = 'System Policy configured in Settings requires a scanned IFMIS issue voucher attachment.';
+      setFormError(msg);
+      toast.warning('Attachment Required', msg);
       return;
     }
 
@@ -172,9 +182,18 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
           registeredById: encoder.id,
         });
       }
-      if (lastRes) onSuccess(lastRes);
+      if (lastRes) {
+        const recipient = employees.find((e) => e.id === recipientEmployeeId);
+        toast.success(
+          'Stock-Out Requisition Submitted',
+          `Model 20 voucher (${ifmisSlipNumber.trim()}) for ${selectedItemIds.length} item(s) to ${recipient?.fullNameEn || 'staff'} submitted for verification.`
+        );
+        onSuccess(lastRes);
+      }
     } catch (err: any) {
-      setFormError(`Stock-Out failed: ${err.message || 'Server error'}`);
+      const errMsg = err.message || 'Server error';
+      setFormError(`Stock-Out failed: ${errMsg}`);
+      toast.error('Stock-Out Failed', errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -612,6 +631,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavigate, mode = 'stock-out' }) => {
+  const toast = useToast();
   const [availableItems, setAvailableItems] = useState<ItemWithRelations[]>([]);
   const [stockOutApprovals, setStockOutApprovals] = useState<TransactionApproval[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -661,7 +681,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
         setReturnItem(found);
       }
     } catch {
-      alert(`Could not fetch details for item ${itemCode}`);
+      toast.error('Item Fetch Error', `Could not fetch details for item ${itemCode}`);
     }
   };
 

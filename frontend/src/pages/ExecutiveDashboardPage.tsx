@@ -29,6 +29,7 @@ import { api } from '../api/client';
 import { formatETB } from '../utils/eth-date';
 import { UserRole } from '../types/asset-management';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 interface ExecutiveDashboardPageProps {
   onNavigate: (tab: string) => void;
@@ -44,6 +45,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   setSelectedCenter,
 }) => {
   const { user } = useAuth();
+  const toast = useToast();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +58,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       setData(res);
     } catch (err: any) {
       console.error('Failed to fetch executive dashboard:', err);
-      setError(err.message || 'Failed to load executive metrics.');
+      const msg = err.message || 'Failed to load executive metrics.';
+      setError(msg);
+      toast.error('Dashboard Sync Error', msg);
     } finally {
       setLoading(false);
     }
@@ -101,7 +105,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const totalStock = data?.totalItems || 0;
   const availableStock = data?.availableCount || 0;
   const issuedStock = data?.issuedCount || 0;
-  const pendingApprovals = data?.pendingApprovalsCount || 1;
   const totalValuationETB = data?.totalValuationETB || 14850000;
 
   const categoryAmharicMap: Record<string, string> = {
@@ -241,25 +244,25 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           </div>
         </div>
 
-        {/* Card 4: Executive Approvals Queue */}
+        {/* Card 4: Central Store Reserve (Available Assets) */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs hover:shadow-md transition space-y-3 relative overflow-hidden group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pending Sign-Offs</span>
-            <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 group-hover:scale-105 transition">
-              <FileCheck2 className="w-5 h-5" />
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Available in Store</span>
+            <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 group-hover:scale-105 transition">
+              <Warehouse className="w-5 h-5" />
             </div>
           </div>
           <div>
-            <span className="text-2xl font-black text-amber-600 tracking-tight block">
-              {pendingApprovals} <span className="text-xs text-slate-400 font-normal">requests</span>
+            <span className="text-2xl font-black text-slate-900 tracking-tight block">
+              {availableStock.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/ {totalStock}</span>
             </span>
-            <span className="text-[11px] text-amber-800 font-semibold font-amharic block mt-0.5">
-              የማፅደቅ ውሳኔ የሚጠብቁ ንብረቶች
+            <span className="text-[11px] text-blue-800 font-semibold font-amharic block mt-0.5">
+              በመጋዘን ያለ ዝግጁ ንብረት
             </span>
           </div>
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-            <span>Executive Vouchers Queue</span>
-            <span className="text-amber-700 font-bold">Action Required</span>
+            <span>Model 19 Inbound Stock</span>
+            <span className="text-blue-700 font-bold">{Math.round((availableStock / (totalStock || 1)) * 100)}% Available</span>
           </div>
         </div>
 

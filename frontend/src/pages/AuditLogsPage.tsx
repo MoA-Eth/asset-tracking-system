@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { AuditLogEntry } from '../types/asset-management';
+import { useToast } from '../context/ToastContext';
 
 export const AuditLogsPage: React.FC = () => {
+  const toast = useToast();
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +34,9 @@ export const AuditLogsPage: React.FC = () => {
       setLogs(data);
     } catch (err: any) {
       console.error('Failed to load audit logs:', err);
-      setError(err.message || 'Failed to load statutory audit trail entries.');
+      const msg = err.message || 'Failed to load statutory audit trail entries.';
+      setError(msg);
+      toast.error('Audit Log Sync Failed', msg);
     } finally {
       setLoading(false);
     }
@@ -79,36 +83,48 @@ export const AuditLogsPage: React.FC = () => {
 
   // CSV Export handler
   const handleExportCSV = () => {
-    if (filteredLogs.length === 0) return;
-    const headers = [
-      'Log ID',
-      'Action',
-      'User Name',
-      'User Role',
-      'IFMIS Slip #',
-      'Timestamp (E.C.)',
-      'Timestamp (G.C.)',
-      'Details',
-    ];
-    const rows = filteredLogs.map((l) => [
-      l.id,
-      l.action,
-      `"${l.userName.replace(/"/g, '""')}"`,
-      l.userRole,
-      l.ifmisSlipNumber || '',
-      `"${l.timestampEc || ''}"`,
-      `"${l.timestampGc || ''}"`,
-      `"${l.details.replace(/"/g, '""')}"`,
-    ]);
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `MoA_AMS_Audit_Trail_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (filteredLogs.length === 0) {
+      toast.warning('No Records', 'There are no audit log entries matching the current filters to export.');
+      return;
+    }
+    try {
+      const headers = [
+        'Log ID',
+        'Action',
+        'User Name',
+        'User Role',
+        'IFMIS Slip #',
+        'Timestamp (E.C.)',
+        'Timestamp (G.C.)',
+        'Details',
+      ];
+      const rows = filteredLogs.map((l) => [
+        l.id,
+        l.action,
+        `"${l.userName.replace(/"/g, '""')}"`,
+        l.userRole,
+        l.ifmisSlipNumber || '',
+        `"${l.timestampEc || ''}"`,
+        `"${l.timestampGc || ''}"`,
+        `"${l.details.replace(/"/g, '""')}"`,
+      ]);
+      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `MoA_AMS_Audit_Trail_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success(
+        'Audit Trail Exported',
+        `Successfully exported ${filteredLogs.length} audit entries to CSV.`
+      );
+    } catch (err: any) {
+      toast.error('Export Failed', err.message || 'Failed to export audit trail.');
+    }
   };
 
   // Print PDF handler

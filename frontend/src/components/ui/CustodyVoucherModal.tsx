@@ -3,6 +3,7 @@ import { Printer, X, ShieldCheck, FileCheck, Building2, UserCheck, Barcode } fro
 import { TransactionApproval, ItemWithRelations } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { ConditionBadge } from './Badge';
+import { useToast } from '../../context/ToastContext';
 
 interface CustodyVoucherModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
   item,
   voucherType = 'MODEL_20_STOCK_OUT',
 }) => {
+  const toast = useToast();
   if (!isOpen || (!approval && !item)) return null;
 
   const today = new Date().toISOString().split('T')[0];
@@ -41,6 +43,11 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
     ? 'የዕቃ መመለሻ ማዘዣ — ሞዴል 22 (Model 22 Store Return)'
     : 'የዕቃ ወጪ ማዘዣ እና መረከቢያ — ሞዴል 20 (Model 20 Issue Voucher)';
 
+  const handlePrint = () => {
+    toast.info('Preparing Printout', `Generating statutory handover document for Slip #${slipNo}...`);
+    window.print();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
       <div className="bg-white border border-slate-300 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh]">
@@ -55,7 +62,7 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => window.print()}
+              onClick={handlePrint}
               className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
               <Printer className="w-4 h-4" />

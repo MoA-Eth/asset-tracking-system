@@ -21,6 +21,8 @@ import {
   Employee,
 } from '../types/asset-management';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
+import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 
 interface TransferAssetPageProps {
   currentRole: UserRole;
@@ -31,6 +33,8 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   currentRole,
   onNavigate,
 }) => {
+  const { user } = useAuth();
+  const toast = useToast();
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'transfer' | 'return'>('all');
   const [items, setItems] = useState<ItemWithRelations[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -77,23 +81,38 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   const handleTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItemId) {
-      alert('Please select an asset to transfer.');
+      toast.warning('Asset Required', 'Please select an asset to transfer.');
+      return;
+    }
+    if (!targetEmployeeId) {
+      toast.warning('Recipient Required', 'Please select a recipient employee.');
       return;
     }
     setSubmittingTransfer(true);
     setTransferSuccessMsg(null);
     try {
       const selectedItem = items.find((i) => i.id === selectedItemId);
-      setTransferSuccessMsg(
-        `Transfer request submitted for asset ${selectedItem?.itemCode || selectedItemId}. Awaiting approval.`
-      );
+      const targetEmp = employees.find((e) => e.id === targetEmployeeId);
+
+      await api.transferItem({
+        itemId: selectedItemId,
+        toEmployeeId: targetEmployeeId,
+        toDepartmentId: targetDepartmentId || undefined,
+        reason: transferReason || 'Official custody reassignment',
+        performedById: user?.id || employees[0]?.id || '',
+      });
+
+      const msg = `Asset ${selectedItem?.itemCode || selectedItemId} transferred to ${targetEmp?.fullNameEn || 'new custodian'}.`;
+      setTransferSuccessMsg(msg);
+      toast.success('Custody Handover Completed', msg);
       setSelectedItemId('');
       setTargetEmployeeId('');
       setTargetDepartmentId('');
       setTransferReason('');
       fetchData();
     } catch (err: any) {
-      alert(err.message || 'Failed to process transfer.');
+      const errMsg = err.message || 'Failed to process transfer.';
+      toast.error('Transfer Failed', errMsg);
     } finally {
       setSubmittingTransfer(false);
     }

@@ -13,6 +13,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { TransferAssetPage } from './pages/TransferAssetPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 import { UserRole } from './types/asset-management';
 import { api } from './api/client';
 
@@ -215,7 +216,9 @@ const AuthenticatedPortal: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AuthenticatedPortal />
+      <ToastProvider>
+        <AuthenticatedPortal />
+      </ToastProvider>
     </AuthProvider>
   );
 };

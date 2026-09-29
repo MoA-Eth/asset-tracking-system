@@ -26,11 +26,13 @@ import {
   ItemStatus,
 } from '../types/asset-management';
 import { formatETB, getTodayGcAndEc } from '../utils/eth-date';
+import { useToast } from '../context/ToastContext';
 
 export type ReportType = 'all' | 'registered' | 'available' | 'issued' | 'transferred';
 export type TimeframePreset = 'ALL_TIME' | 'TODAY' | 'PAST_7_DAYS' | 'THIS_MONTH' | 'CUSTOM';
 
 export const ReportsPage: React.FC = () => {
+  const toast = useToast();
   const [items, setItems] = useState<ItemWithRelations[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -62,7 +64,9 @@ export const ReportsPage: React.FC = () => {
       setLocations(locsData);
     } catch (err: any) {
       console.error('Failed to load report data:', err);
-      setError(err.message || 'Failed to load report data.');
+      const msg = err.message || 'Failed to load report data.';
+      setError(msg);
+      toast.error('Reports Sync Error', msg);
     } finally {
       setLoading(false);
     }
@@ -75,7 +79,13 @@ export const ReportsPage: React.FC = () => {
   // Filter items based on report type, timeframe, category, location, and search
   const filteredItems = useMemo(() => {
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+    const sevenDaysAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = `${sevenDaysAgoDate.getFullYear()}-${String(sevenDaysAgoDate.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgoDate.getDate()).padStart(2, '0')}`;
+    const firstDayOfMonth = `${y}-${m}-01`;
 
     return items.filter((item) => {
       // 1. Report Type Filter
@@ -103,15 +113,9 @@ export const ReportsPage: React.FC = () => {
         if (timeframe === 'TODAY') {
           if (itemDateOnly !== todayStr) return false;
         } else if (timeframe === 'PAST_7_DAYS') {
-          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split('T')[0];
-          if (itemDateOnly < sevenDaysAgo || itemDateOnly > todayStr) return false;
+          if (itemDateOnly < sevenDaysAgo) return false;
         } else if (timeframe === 'THIS_MONTH') {
-          const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-            .toISOString()
-            .split('T')[0];
-          if (itemDateOnly < firstDayOfMonth || itemDateOnly > todayStr) return false;
+          if (itemDateOnly < firstDayOfMonth) return false;
         } else if (timeframe === 'CUSTOM') {
           if (customFrom && itemDateOnly < customFrom) return false;
           if (customTo && itemDateOnly > customTo) return false;
@@ -186,137 +190,163 @@ export const ReportsPage: React.FC = () => {
 
   // CSV Export handler
   const handleExportCSV = () => {
-    if (filteredItems.length === 0) return;
-    const headers = [
-      '#',
-      'Tracking Code',
-      'Asset Name',
-      'Category',
-      'Status',
-      'IFMIS Slip #',
-      'Receipt/Slip Date (E.C.)',
-      'Date (G.C.)',
-      'Custodian / User',
-      'Department / Directorate',
-      'Store Location',
-      'Serial Number',
-      'Unit Cost (ETB)',
-    ];
+    if (filteredItems.length === 0) {
+      toast.warning('No Records', 'There are no asset records matching current filters to export.');
+      return;
+    }
+    try {
+      const headers = [
+        '#',
+        'Tracking Code',
+        'Asset Name',
+        'Category',
+        'Status',
+        'IFMIS Slip #',
+        'Receipt/Slip Date (E.C.)',
+        'Date (G.C.)',
+        'Custodian / User',
+        'Department / Directorate',
+        'Store Location',
+        'Serial Number',
+        'Unit Cost (ETB)',
+      ];
 
-    const rows = filteredItems.map((item, index) => [
-      index + 1,
-      item.itemCode,
-      `"${item.name.replace(/"/g, '""')}"`,
-      item.category,
-      item.status,
-      item.ifmisSlipNumber,
-      `"${item.ifmisSlipDateEc || item.createdAtEc}"`,
-      `"${item.ifmisSlipDateGc || item.createdAtGc}"`,
-      `"${item.currentCustodian?.fullNameEn || 'In Store'}"`,
-      `"${item.assignedDepartment?.nameEn || ''}"`,
-      `"${item.storeLocation?.siteName || ''}"`,
-      `"${item.serialNumber || 'N/A'}"`,
-      item.unitCostETB,
-    ]);
+      const rows = filteredItems.map((item, index) => [
+        index + 1,
+        item.itemCode,
+        `"${item.name.replace(/"/g, '""')}"`,
+        item.category,
+        item.status,
+        item.ifmisSlipNumber,
+        `"${item.ifmisSlipDateEc || item.createdAtEc}"`,
+        `"${item.ifmisSlipDateGc || item.createdAtGc}"`,
+        `"${item.currentCustodian?.fullNameEn || 'In Store'}"`,
+        `"${item.assignedDepartment?.nameEn || ''}"`,
+        `"${item.storeLocation?.siteName || ''}"`,
+        `"${item.serialNumber || 'N/A'}"`,
+        item.unitCostETB,
+      ]);
 
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `MoA_Asset_Report_${reportType}_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `MoA_Asset_Report_${reportType}_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success(
+        'CSV Export Completed',
+        `Successfully generated and downloaded spreadsheet with ${filteredItems.length} asset records.`
+      );
+    } catch (err: any) {
+      toast.error('CSV Export Failed', err.message || 'Failed to generate CSV export.');
+    }
   };
 
   // PDF Export handler
   const handleExportPDF = () => {
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'pt',
-      format: 'a4',
-    });
-
-    const pw = doc.internal.pageSize.width;
-
-    // Header Band (#0A3F24 Ethiopian MoA Dark Emerald)
-    doc.setFillColor(10, 63, 36);
-    doc.rect(0, 0, pw, 44, 'F');
-
-    // Tricolor Ribbon
-    doc.setFillColor(7, 137, 48);
-    doc.rect(0, 44, pw / 3, 3, 'F');
-    doc.setFillColor(252, 221, 9);
-    doc.rect(pw / 3, 44, pw / 3, 3, 'F');
-    doc.setFillColor(218, 18, 26);
-    doc.rect((pw * 2) / 3, 44, pw / 3, 3, 'F');
-
-    // Header Text
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA', 24, 18);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text('MINISTRY OF AGRICULTURE (MoA) • FIXED ASSET MANAGEMENT SYSTEM', 24, 32);
-
-    doc.setFontSize(8);
-    doc.text(`Generated: ${dateInfo.gc} (G.C.) / ${dateInfo.ecFormattedAm}`, pw - 24, 25, { align: 'right' });
-
-    // Report Title & Period Subheader
-    doc.setTextColor(15, 23, 42);
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text(getReportTypeLabel(), 24, 68);
-
-    doc.setFontSize(8.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(71, 85, 105);
-    doc.text(
-      `Timeframe: ${getTimeframeLabel()}  |  Category: ${selectedCategory.replace(/_/g, ' ')}  |  Total Assets: ${filteredItems.length}  |  Total Valuation: ${formatETB(totalValuation)}`,
-      24,
-      82
-    );
-
-    const tableHead = [['#', 'Tracking Code', 'Asset Name', 'Category', 'Status', 'IFMIS Slip #', 'Date (E.C.)', 'Custodian / Dept', 'Unit Cost (ETB)']];
-    const tableBody = filteredItems.map((item, idx) => [
-      idx + 1,
-      item.itemCode,
-      item.name,
-      item.category.replace(/_/g, ' '),
-      item.status.replace(/_/g, ' '),
-      item.ifmisSlipNumber,
-      item.ifmisSlipDateEc || item.createdAtEc,
-      item.currentCustodian?.fullNameEn || item.assignedDepartment?.code || item.storeLocation?.siteName || 'In Store',
-      formatETB(item.unitCostETB),
-    ]);
-
-    autoTable(doc, {
-      head: tableHead,
-      body: tableBody,
-      startY: 92,
-      theme: 'grid',
-      headStyles: { fillColor: [10, 63, 36], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59] },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      margin: { left: 24, right: 24 },
-    });
-
-    const pageCount = (doc as any).internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(7.5);
-      doc.setTextColor(148, 163, 184);
-      doc.text(
-        `Federal Democratic Republic of Ethiopia • Ministry of Agriculture • Page ${i} of ${pageCount}`,
-        pw / 2,
-        doc.internal.pageSize.height - 10,
-        { align: 'center' }
-      );
+    if (filteredItems.length === 0) {
+      toast.warning('No Records', 'There are no asset records matching current filters to export.');
+      return;
     }
 
-    doc.save(`MoA_Asset_Report_${reportType}_${dateInfo.gc.replace(/\s+/g, '_')}.pdf`);
+    try {
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'pt',
+        format: 'a4',
+      });
+
+      const pw = doc.internal.pageSize.width;
+
+      // Header Band (#0A3F24 Ethiopian MoA Dark Emerald)
+      doc.setFillColor(10, 63, 36);
+      doc.rect(0, 0, pw, 44, 'F');
+
+      // Tricolor Ribbon
+      doc.setFillColor(7, 137, 48);
+      doc.rect(0, 44, pw / 3, 3, 'F');
+      doc.setFillColor(252, 221, 9);
+      doc.rect(pw / 3, 44, pw / 3, 3, 'F');
+      doc.setFillColor(218, 18, 26);
+      doc.rect((pw * 2) / 3, 44, pw / 3, 3, 'F');
+
+      // Header Text
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA', 24, 18);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('MINISTRY OF AGRICULTURE (MoA) • FIXED ASSET MANAGEMENT SYSTEM', 24, 32);
+
+      doc.setFontSize(8);
+      doc.text(`Generated: ${dateInfo.gc} (G.C.) / ${dateInfo.ecFormattedAm}`, pw - 24, 25, { align: 'right' });
+
+      // Report Title & Period Subheader
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.text(getReportTypeLabel(), 24, 68);
+
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(71, 85, 105);
+      doc.text(
+        `Timeframe: ${getTimeframeLabel()}  |  Category: ${selectedCategory.replace(/_/g, ' ')}  |  Total Assets: ${filteredItems.length}  |  Total Valuation: ${formatETB(totalValuation)}`,
+        24,
+        82
+      );
+
+      const tableHead = [['#', 'Tracking Code', 'Asset Name', 'Category', 'Status', 'IFMIS Slip #', 'Date (E.C.)', 'Custodian / Dept', 'Unit Cost (ETB)']];
+      const tableBody = filteredItems.map((item, idx) => [
+        idx + 1,
+        item.itemCode,
+        item.name,
+        item.category.replace(/_/g, ' '),
+        item.status.replace(/_/g, ' '),
+        item.ifmisSlipNumber,
+        item.ifmisSlipDateEc || item.createdAtEc,
+        item.currentCustodian?.fullNameEn || item.assignedDepartment?.code || item.storeLocation?.siteName || 'In Store',
+        formatETB(item.unitCostETB),
+      ]);
+
+      autoTable(doc, {
+        head: tableHead,
+        body: tableBody,
+        startY: 92,
+        theme: 'grid',
+        headStyles: { fillColor: [10, 63, 36], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+        bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: 24, right: 24 },
+      });
+
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text(
+          `Federal Democratic Republic of Ethiopia • Ministry of Agriculture • Page ${i} of ${pageCount}`,
+          pw / 2,
+          doc.internal.pageSize.height - 10,
+          { align: 'center' }
+        );
+      }
+
+      doc.save(`MoA_Asset_Report_${reportType}_${dateInfo.gc.replace(/\s+/g, '_')}.pdf`);
+
+      toast.success(
+        'PDF Report Generated',
+        `Official statutory summary (${filteredItems.length} records) downloaded.`
+      );
+    } catch (err: any) {
+      toast.error('PDF Export Failed', err.message || 'Failed to render PDF document.');
+    }
   };
 
   const reportTabs: { id: ReportType; label: string; icon: any }[] = [

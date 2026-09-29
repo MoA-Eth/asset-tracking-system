@@ -3,6 +3,7 @@ import { X, Camera, Barcode, CheckCircle2, AlertCircle, RefreshCw } from 'lucide
 import { api } from '../../api/client';
 import { ItemWithRelations } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
+import { useToast } from '../../context/ToastContext';
 
 interface CameraScannerModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
   onClose,
   onSelectItem,
 }) => {
+  const toast = useToast();
   const [manualCode, setManualCode] = useState('');
   const [isScanningCamera, setIsScanningCamera] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -52,7 +54,9 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
         videoRef.current.srcObject = stream;
       }
     } catch {
-      setCameraError('Camera access unavailable or denied. Use barcode reader or manual entry.');
+      const msg = 'Camera access unavailable or denied. Use barcode reader or manual entry.';
+      setCameraError(msg);
+      toast.warning('Camera Scanner', msg);
       setIsScanningCamera(false);
     }
   };
@@ -74,11 +78,17 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
     try {
       const item = await api.getItemById(code);
       setScannedItem(item);
+      toast.success(
+        'Asset Located',
+        `${item.itemCode} — ${item.name} (${item.status.replace(/_/g, ' ')})`
+      );
       if (onSelectItem) {
         onSelectItem(item);
       }
     } catch {
-      setSearchError(`Item with Code, Serial, or IFMIS Slip "${code}" not found.`);
+      const msg = `Item with Code, Serial, or IFMIS Slip "${code}" not found.`;
+      setSearchError(msg);
+      toast.error('Asset Not Found', msg);
       setScannedItem(null);
     } finally {
       setLoading(false);
