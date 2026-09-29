@@ -56,17 +56,33 @@ export const ETHIOPIAN_MONTH_NAMES_EN = [
 ];
 
 export function formatGcToEc(gcDateStr: string): string {
-  const [y, m, d] = gcDateStr.split('-').map(Number);
-  const jdn = gcToJdn(y, m, d);
-  const ec = jdnToEc(jdn);
-  return `${ec.year}-${String(ec.month).padStart(2, '0')}-${String(ec.day).padStart(2, '0')}`;
+  try {
+    if (!gcDateStr || typeof gcDateStr !== 'string') return gcDateStr;
+    const parts = gcDateStr.split('-');
+    if (parts.length !== 3) return gcDateStr;
+    const [y, m, d] = parts.map(Number);
+    if (isNaN(y) || isNaN(m) || isNaN(d) || y <= 0 || m <= 0 || d <= 0) return gcDateStr;
+    const jdn = gcToJdn(y, m, d);
+    const ec = jdnToEc(jdn);
+    return `${ec.year}-${String(ec.month).padStart(2, '0')}-${String(ec.day).padStart(2, '0')}`;
+  } catch {
+    return gcDateStr;
+  }
 }
 
 export function formatEcToGc(ecDateStr: string): string {
-  const [y, m, d] = ecDateStr.split('-').map(Number);
-  const jdn = ecToJdn(y, m, d);
-  const gc = jdnToGc(jdn);
-  return `${gc.year}-${String(gc.month).padStart(2, '0')}-${String(gc.day).padStart(2, '0')}`;
+  try {
+    if (!ecDateStr || typeof ecDateStr !== 'string') return ecDateStr;
+    const parts = ecDateStr.split('-');
+    if (parts.length !== 3) return ecDateStr;
+    const [y, m, d] = parts.map(Number);
+    if (isNaN(y) || isNaN(m) || isNaN(d) || y <= 0 || m <= 0 || d <= 0) return ecDateStr;
+    const jdn = ecToJdn(y, m, d);
+    const gc = jdnToGc(jdn);
+    return `${gc.year}-${String(gc.month).padStart(2, '0')}-${String(gc.day).padStart(2, '0')}`;
+  } catch {
+    return ecDateStr;
+  }
 }
 
 export function getTodayGcAndEc(): { gc: string; ec: string; ecFormattedAm: string; ecFormattedEn: string } {
