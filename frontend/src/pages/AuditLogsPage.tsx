@@ -9,11 +9,6 @@ import {
   Printer,
   ChevronDown,
   ChevronUp,
-  PackagePlus,
-  PackageMinus,
-  FileCheck2,
-  XCircle,
-  Clock,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { AuditLogEntry } from '../types/asset-management';
@@ -81,15 +76,6 @@ export const AuditLogsPage: React.FC = () => {
     });
   }, [logs, searchTerm, selectedAction, dateFilter]);
 
-  // Statistics counters
-  const stats = useMemo(() => {
-    const total = logs.length;
-    const stockInCount = logs.filter((l) => l.action.includes('STOCK_IN')).length;
-    const stockOutCount = logs.filter((l) => l.action.includes('STOCK_OUT')).length;
-    const approvalCount = logs.filter((l) => l.action.includes('APPROVE')).length;
-    const rejectCount = logs.filter((l) => l.action.includes('REJECT')).length;
-    return { total, stockInCount, stockOutCount, approvalCount, rejectCount };
-  }, [logs]);
 
   // CSV Export handler
   const handleExportCSV = () => {
@@ -214,53 +200,6 @@ export const AuditLogsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Audit Metric Counters Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[11px] font-bold uppercase text-slate-500">Total Logs</span>
-            <Clock className="w-4 h-4 text-emerald-700" />
-          </div>
-          <span className="text-lg font-extrabold text-slate-900 font-mono">{stats.total}</span>
-          <span className="text-[10px] text-slate-400">Total registered audit entries</span>
-        </div>
-
-        <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[11px] font-bold uppercase text-blue-700">Stock-In</span>
-            <PackagePlus className="w-4 h-4 text-blue-700" />
-          </div>
-          <span className="text-lg font-extrabold text-blue-900 font-mono">{stats.stockInCount}</span>
-          <span className="text-[10px] text-slate-400">Model 19 Inbound</span>
-        </div>
-
-        <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[11px] font-bold uppercase text-amber-700">Stock-Out</span>
-            <PackageMinus className="w-4 h-4 text-amber-700" />
-          </div>
-          <span className="text-lg font-extrabold text-amber-900 font-mono">{stats.stockOutCount}</span>
-          <span className="text-[10px] text-slate-400">Model 20 Outbound</span>
-        </div>
-
-        <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[11px] font-bold uppercase text-emerald-700">Approvals</span>
-            <FileCheck2 className="w-4 h-4 text-emerald-700" />
-          </div>
-          <span className="text-lg font-extrabold text-emerald-900 font-mono">{stats.approvalCount}</span>
-          <span className="text-[10px] text-slate-400">Sign-offs granted</span>
-        </div>
-
-        <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col col-span-2 sm:col-span-1">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[11px] font-bold uppercase text-rose-700">Rejections</span>
-            <XCircle className="w-4 h-4 text-rose-700" />
-          </div>
-          <span className="text-lg font-extrabold text-rose-900 font-mono">{stats.rejectCount}</span>
-          <span className="text-[10px] text-slate-400">Declined requests</span>
-        </div>
-      </div>
 
       {/* Search & Comprehensive Filters */}
       <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
