@@ -75,7 +75,13 @@ export const ReportsPage: React.FC = () => {
   // Filter items based on report type, timeframe, category, location, and search
   const filteredItems = useMemo(() => {
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+    const sevenDaysAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = `${sevenDaysAgoDate.getFullYear()}-${String(sevenDaysAgoDate.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgoDate.getDate()).padStart(2, '0')}`;
+    const firstDayOfMonth = `${y}-${m}-01`;
 
     return items.filter((item) => {
       // 1. Report Type Filter
@@ -103,15 +109,9 @@ export const ReportsPage: React.FC = () => {
         if (timeframe === 'TODAY') {
           if (itemDateOnly !== todayStr) return false;
         } else if (timeframe === 'PAST_7_DAYS') {
-          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split('T')[0];
-          if (itemDateOnly < sevenDaysAgo || itemDateOnly > todayStr) return false;
+          if (itemDateOnly < sevenDaysAgo) return false;
         } else if (timeframe === 'THIS_MONTH') {
-          const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-            .toISOString()
-            .split('T')[0];
-          if (itemDateOnly < firstDayOfMonth || itemDateOnly > todayStr) return false;
+          if (itemDateOnly < firstDayOfMonth) return false;
         } else if (timeframe === 'CUSTOM') {
           if (customFrom && itemDateOnly < customFrom) return false;
           if (customTo && itemDateOnly > customTo) return false;

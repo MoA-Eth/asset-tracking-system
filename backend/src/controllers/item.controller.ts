@@ -144,6 +144,9 @@ export class ItemController {
       if (req.user.role === UserRole.SYSTEM_ADMIN) {
         throw new ForbiddenError('System Administrators are restricted from signing off approval workflows to maintain Segregation of Duties.');
       }
+      if (req.user.role === UserRole.DATA_ENCODER) {
+        throw new ForbiddenError('Data Encoders are restricted from signing off approval workflows under Segregation of Duties.');
+      }
       if (!payload.reviewedById) {
         payload.reviewedById = req.user.id;
       }
@@ -153,14 +156,14 @@ export class ItemController {
           req.user.role !== UserRole.TEAM_LEADER &&
           req.user.role !== UserRole.DEPARTMENT_HEAD
         ) {
-          throw new BadRequestError('Only Team Leaders can endorse Stage 1 requests.');
+          throw new ForbiddenError('Only Team Leaders can endorse Stage 1 requests.');
         }
       } else if (payload.action === 'APPROVE') {
         if (
           req.user.role !== UserRole.DEPARTMENT_HEAD &&
           req.user.role !== UserRole.TOP_MANAGEMENT
         ) {
-          throw new BadRequestError('Only Department Heads or Executive Management can grant Stage 2 final approval.');
+          throw new ForbiddenError('Only Department Heads or Executive Management can grant Stage 2 final approval.');
         }
       } else if (payload.action === 'REJECT') {
         if (
@@ -168,7 +171,7 @@ export class ItemController {
           req.user.role !== UserRole.DEPARTMENT_HEAD &&
           req.user.role !== UserRole.TOP_MANAGEMENT
         ) {
-          throw new BadRequestError('You do not have authorization to reject this approval workflow.');
+          throw new ForbiddenError('You do not have authorization to reject this approval workflow.');
         }
       }
     }

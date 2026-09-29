@@ -514,10 +514,14 @@ export class StoreService {
     }
 
     // ── STAGE 2 ACTION: APPROVE / REJECT (Dept Head / Admin) ──────────────
+    const isApprove = payload.action === 'APPROVE';
+    if (isApprove && approval.currentStage === 1) {
+      throw new Error(`Transaction ${approval.itemCode} must be endorsed by a Team Leader (Stage 1) before final approval can be granted.`);
+    }
+
     const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new Error(`Target item ${approval.itemId} not found.`);
 
-    const isApprove = payload.action === 'APPROVE';
     const newStatus = isApprove ? 'APPROVED' : 'REJECTED';
 
     // Update approval record
