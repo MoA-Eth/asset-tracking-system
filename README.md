@@ -12,7 +12,10 @@ A modern, enterprise-grade asset tracking system and REST API built to mirror th
   - **Model 20 (የዕቃ ወጪ ማዘዣ):** Store Issue Voucher assigning items to custodians.
   - **Model 22 (የዕቃ መመለሻ):** Asset Return Voucher clearing custodian liability.
 - **Dual Calendar Engine**: Bidirectional lockstep synchronization across **Gregorian Calendar (G.C.)** and **Ethiopian Calendar (E.C.)**.
-- **Role Governance**: Privilege separation for Store Custodians (`DATA_ENCODER`), Directorate Heads (`DEPARTMENT_HEAD`), and Executive Leadership (`TOP_MANAGEMENT`).
+- **2-Stage Sequential Approval Workflow**:
+  - **Stage 1 (Team Leader Endorsement)**: Review and endorse store requests.
+  - **Stage 2 (Directorate Head Authorization)**: Final sign-off and property status update (`AVAILABLE` or `ISSUED`).
+- **Role Governance**: Privilege separation across System Admin (`SYSTEM_ADMIN`), Team Leaders (`TEAM_LEADER`), Directorate Heads (`DEPARTMENT_HEAD`), Store Custodians (`DATA_ENCODER`), and Executive Leadership (`TOP_MANAGEMENT`).
 
 ---
 
@@ -101,19 +104,21 @@ npm run dev
 
 ## 🔑 Test Roles & Credentials
 
-All test accounts use password **`moaams2024`**:
+All test accounts use uniform password **`moaams2024`**:
 
-| Role | Email Login | Access Scope | Accessible Navigation Tabs |
-| :--- | :--- | :--- | :--- |
-| **`TOP_MANAGEMENT`** | `minister@moa.gov.et` | Executive Minister | Executive Dashboard (Portfolio Valuation, Directorate Allocations, Custody Ratios, Stores) |
-| **`DEPARTMENT_HEAD`** | `head@moa.gov.et` | Directorate Head | Dashboard, Approvals Queue, Stock-In, Stock-Out, Transfer Asset, Reports, Settings, Audit Log |
-| **`DATA_ENCODER`** | `encoder@moa.gov.et` | Store Custodian | Stock-In, Stock-Out, Transfer Asset, Settings |
-| **`SYSTEM_ADMIN`** | `admin@moa.gov.et` | System Administrator | Full Platform Access (Dashboard, Stock-In/Out, Transfer, Approvals, Reports, Settings, Audit Log) |
+| Role | Email Login | Access Scope | Approval Stage Responsibility | Accessible Tabs |
+| :--- | :--- | :--- | :--- | :--- |
+| **`DATA_ENCODER`** | `encoder@moa.gov.et`<br>`storekeeper@moa.gov.et` | Store Custodian | Requisitioner (Model 19, 20, 22) | Stock-In, Stock-Out, Transfer Asset, Settings |
+| **`TEAM_LEADER`** | `teamlead@moa.gov.et`<br>`mulugeta.b@moa.gov.et` | Team Leader | **Stage 1 Endorsement** | Dashboard, Approvals (Stage 1), Reports, Audit Log |
+| **`DEPARTMENT_HEAD`** | `head@moa.gov.et`<br>`abebe.k@moa.gov.et` | Directorate Head | **Stage 2 Final Authorization** | Dashboard, Approvals (Stage 2), Stock-In, Stock-Out, Transfer Asset, Reports, Settings, Audit Log |
+| **`TOP_MANAGEMENT`** | `minister@moa.gov.et` | Executive Minister | Executive Visibility | Executive Dashboard (Portfolio Valuation, Directorate Allocations, Custody Ratios, Stores) |
+| **`SYSTEM_ADMIN`** | `admin@moa.gov.et` | System Administrator | Full Admin Override (Stage 1 & 2) | Full Platform Access (Dashboard, Stock-In/Out, Transfer, Approvals, Reports, Settings, Audit Log) |
 
 ---
 
 ## 🛡️ Core Business Invariants
 1. **Asset Prefixing**: Asset Tag Codes follow statutory formatting (`MOA-VEH-001`, `MOA-IT-042`).
-2. **Single Custodian Rule**: Active custodian (`currentCustodianId`) is set when status is `ISSUED`. Model 22 Returns atomically clear custodian liability (`currentCustodianId = null`).
-3. **Immutable History**: Audit logs and state transition records cannot be deleted.
-4. **Dual Calendar Integrity**: All transactions record both G.C. and E.C. timestamps.
+2. **2-Stage Approval Gate**: Asset status updates (`AVAILABLE` or `ISSUED`) only occur after Stage 2 Directorate Head final sign-off.
+3. **Single Custodian Rule**: Active custodian (`currentCustodianId`) is set when status is `ISSUED`. Model 22 Returns atomically clear custodian liability (`currentCustodianId = null`).
+4. **Immutable History**: Audit logs and state transition records cannot be deleted.
+5. **Dual Calendar Integrity**: All transactions record both G.C. and E.C. timestamps.
