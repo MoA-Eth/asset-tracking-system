@@ -107,7 +107,33 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
     }
   };
 
-  const pendingCount = approvals.filter((a) => a.status === ApprovalStatus.PENDING).length;
+  const [stageSubFilter, setStageSubFilter] = useState<'ALL' | 'STAGE_1' | 'STAGE_2'>(() => {
+    if (role === UserRole.TEAM_LEADER) return 'STAGE_1';
+    if (role === UserRole.DEPARTMENT_HEAD) return 'STAGE_2';
+    return 'ALL';
+  });
+
+  const pendingStage1Count = approvals.filter(
+    (a) => a.status === ApprovalStatus.PENDING && (a.currentStage ?? 1) === 1
+  ).length;
+  const pendingStage2Count = approvals.filter(
+    (a) => a.status === ApprovalStatus.PENDING && a.currentStage === 2
+  ).length;
+
+  const rolePendingCount =
+    role === UserRole.TEAM_LEADER
+      ? pendingStage1Count
+      : role === UserRole.DEPARTMENT_HEAD
+      ? pendingStage2Count
+      : approvals.filter((a) => a.status === ApprovalStatus.PENDING).length;
+
+  const displayedApprovals = approvals.filter((a) => {
+    if (statusFilter === ApprovalStatus.PENDING) {
+      if (stageSubFilter === 'STAGE_1') return (a.currentStage ?? 1) === 1;
+      if (stageSubFilter === 'STAGE_2') return a.currentStage === 2;
+    }
+    return true;
+  });
 
   if (loading) {
     return (
@@ -145,9 +171,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
               <FileCheck2 className="w-5 h-5 text-amber-600" />
               2-Stage Sequential Authorization Queue
             </h2>
-            {pendingCount > 0 && (
+            {rolePendingCount > 0 && (
               <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
-                {pendingCount} Pending
+                {rolePendingCount} Pending Action
               </span>
             )}
           </div>
@@ -199,21 +225,69 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
         ))}
       </div>
 
+      {/* Stage Sub-Filter toolbar when Pending Action is selected */}
+      {statusFilter === ApprovalStatus.PENDING && (
+        <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+          <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider pl-1">
+            Filter Stage:
+          </span>
+          <button
+            onClick={() => setStageSubFilter('STAGE_1')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+              stageSubFilter === 'STAGE_1'
+                ? 'bg-amber-700 text-white font-bold shadow-xs'
+                : 'bg-white text-slate-700 hover:bg-amber-50 border border-slate-200'
+            }`}
+          >
+            <span>Stage 1 (Team Leader Endorsement)</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-950 font-black">
+              {pendingStage1Count}
+            </span>
+          </button>
+          <button
+            onClick={() => setStageSubFilter('STAGE_2')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+              stageSubFilter === 'STAGE_2'
+                ? 'bg-purple-700 text-white font-bold shadow-xs'
+                : 'bg-white text-slate-700 hover:bg-purple-50 border border-slate-200'
+            }`}
+          >
+            <span>Stage 2 (Dept Head Approval)</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-purple-100 text-purple-950 font-black">
+              {pendingStage2Count}
+            </span>
+          </button>
+          <button
+            onClick={() => setStageSubFilter('ALL')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+              stageSubFilter === 'ALL'
+                ? 'bg-slate-800 text-white font-bold shadow-xs'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <span>All Stages</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 text-slate-900 font-black">
+              {pendingStage1Count + pendingStage2Count}
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Approvals Listing */}
       {loading && approvals.length === 0 ? (
         <div className="py-16 text-center text-slate-500 text-xs">
           <RefreshCw className="w-6 h-6 text-amber-600 animate-spin mx-auto mb-2" />
           Loading approval requests...
         </div>
-      ) : approvals.length === 0 ? (
+      ) : displayedApprovals.length === 0 ? (
         <div className="py-12 text-center rounded-2xl bg-white border border-dashed border-slate-300 space-y-1 shadow-xs">
           <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
           <h3 className="text-sm font-bold text-slate-900">No Approvals Pending in Queue</h3>
-          <p className="text-xs text-slate-500">All registered stock transactions are up to date.</p>
+          <p className="text-xs text-slate-500">All registered stock transactions are up to date for this view.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {approvals.map((appr) => {
+          {displayedApprovals.map((appr) => {
             const isStockIn = appr.transactionType === TransactionType.STOCK_IN;
             const isPending = appr.status === ApprovalStatus.PENDING;
             const stage = appr.currentStage ?? 1;

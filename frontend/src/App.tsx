@@ -70,7 +70,15 @@ const AuthenticatedPortal: React.FC = () => {
   const fetchPending = async () => {
     try {
       const data = await api.getApprovals();
-      const count = data.filter((a) => a.status === 'PENDING').length;
+      const pending = data.filter((a) => a.status === 'PENDING');
+      let count = 0;
+      if (role === UserRole.TEAM_LEADER) {
+        count = pending.filter((a) => (a.currentStage ?? 1) === 1).length;
+      } else if (role === UserRole.DEPARTMENT_HEAD) {
+        count = pending.filter((a) => a.currentStage === 2).length;
+      } else {
+        count = pending.length;
+      }
       setPendingApprovalsCount(count);
     } catch {
       // ignore
