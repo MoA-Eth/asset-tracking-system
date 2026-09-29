@@ -88,6 +88,144 @@ npm run dev
 
 ---
 
+## 🧪 Testing with Vitest (Unit & Integration Tests)
+
+The system utilizes **[Vitest](https://vitest.dev/)** as the unified, high-performance unit test runner for both the frontend and backend, structured in alignment with the **Livescan** test architecture standard.
+
+### Test Suites Overview (103 Unit Tests + 87 Integration Assertions)
+
+- **Backend Unit Tests (`backend/src/**/*.test.ts`)** — *28 Tests / 4 Suites (~300ms)*:
+  - **Store Service Invariants** (`store-rules.test.ts`): Model 19 mandatory IFMIS slip validation, 2-stage sequential approval transitions (Stage 1 Team Leader endorsement, Stage 2 Dept Head sign-off), and atomic status transitions (`AVAILABLE`, `ISSUED`, `DISPOSED`).
+  - **Auth Middleware & SOD** (`auth.middleware.test.ts`): Strict Segregation of Duties guards blocking Data Encoders from approvals and System Admins from operational transactions.
+  - **Authentication Service** (`auth.service.test.ts`): Singleton lifecycle, token decoding, and malformed token rejection.
+  - **Ethiopian Date Engine** (`eth-date.test.ts`): Julian Day Number calculations, Pagume leap year rules, and GC ↔ EC conversions.
+
+- **Frontend Unit Tests (`frontend/src/**/*.{test,spec}.{ts,tsx}`)** — *75 Tests / 8 Suites (~3.5s)*:
+  - **Dual Calendar Engine** (`eth-date.test.ts`): Bidirectional Gregorian ↔ Ethiopian calendar transformations, Meskerem 1 New Year boundary, Pagume 5 vs 6 days, and ETB currency formatting.
+  - **System Settings** (`system-settings.test.ts`): Attachment policy persistence (`localStorage`) and custom event broadcasting.
+  - **Role-Based Access & SOD** (`role-guards.test.ts`): Role tab navigation, landing tab resolution, and privilege restrictions.
+  - **Approvals & Queue Logic** (`approvals-workflow.test.ts`): Stage 1 vs Stage 2 queue filtering, batch selection safety, and multi-field search.
+  - **Statutory Vouchers** (`CustodyVoucherModal.test.tsx`): Model 19 (GRN), Model 20 (Issue Voucher), and Model 22 (Return Voucher) dual-calendar certificate rendering.
+  - **Toast Notifications** (`ToastContext.test.tsx` & `Toast.test.tsx`): Context hook, auto-dismiss countdown, and UI presentation.
+  - **Status & Condition Badges** (`Badge.test.tsx`): Ethiopian MoA asset status and condition badge mappings.
+
+- **Backend Integration Tests (`backend/test-*.js`)** — *87 Assertions*:
+  - `test-critical-flows.js`: End-to-end 2-stage inbound stock-in, outbound stock-out, custody transfer, and SOD enforcement.
+  - `test-status-consistency.js`: Atomic status lifecycle, stage sequencing, concurrency locks, and audit trail permanence.
+
+---
+
+### 📋 Steps to Run Tests
+
+#### 1. Run Complete Unit Test Suite (Backend + Frontend)
+Execute from the root directory (`asset-tracking-system/`):
+```bash
+npm test
+```
+*(Runs both backend and frontend Vitest suites sequentially in ~4 seconds).*
+
+#### 2. Run Backend Unit Tests Only
+```bash
+# From root:
+npm run test:backend
+
+# Or from backend directory:
+cd backend
+npm test
+```
+
+#### 3. Run Frontend Unit Tests Only
+```bash
+# From root:
+npm run test:frontend
+
+# Or from frontend directory:
+cd frontend
+npm test
+```
+
+#### 4. Run Tests in Interactive Watch Mode
+To run tests continuously as you edit code:
+```bash
+# For backend tests:
+cd backend
+npm run test:watch
+
+# For frontend tests:
+cd frontend
+npm run test:watch
+```
+
+#### 5. Run Backend API Integration Tests
+Ensure the PostgreSQL database and backend server are running, then execute from the root directory:
+```bash
+npm run test:integration
+```
+
+---
+
+### ✍️ Steps to Add New Tests
+
+The project follows the co-located testing convention from the **Livescan** architecture.
+
+#### Step 1: File Placement & Naming
+- **Utilities / Business Logic**: Create `<filename>.test.ts` next to the implementation file (e.g. `src/utils/my-util.test.ts` or `src/services/my-service.test.ts`).
+- **React Components / Hooks**: Create `<ComponentName>.test.tsx` next to the component (e.g. `src/components/ui/MyComponent.test.tsx`).
+
+#### Step 2: Boilerplate Structure
+Use Vitest's global methods (`describe`, `it`, `expect`, `vi`):
+
+```typescript
+import { describe, expect, it } from 'vitest';
+import { myHelperFunction } from './my-helper';
+
+describe('myHelperFunction', () => {
+  it('handles standard input correctly', () => {
+    const result = myHelperFunction('valid-input');
+    expect(result).toBe(true);
+  });
+
+  it('rejects invalid or empty input safely', () => {
+    expect(myHelperFunction('')).toBe(false);
+  });
+});
+```
+
+#### Step 3: Testing React Components with Providers
+When testing UI components that require Toast or Authentication context, use `renderWithProviders` from `src/test/renderWithProviders`:
+
+```tsx
+import React from 'react';
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { renderWithProviders } from '@/test/renderWithProviders';
+import { MyActionButton } from './MyActionButton';
+
+describe('<MyActionButton />', () => {
+  it('renders and triggers action on click', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<MyActionButton label="Endorse" />);
+
+    const button = screen.getByRole('button', { name: /endorse/i });
+    expect(button).toBeInTheDocument();
+
+    await user.click(button);
+    expect(screen.getByText(/success/i)).toBeInTheDocument();
+  });
+});
+```
+
+#### Step 4: Verify and Validate
+Run the test command to verify your new test passes with zero failures:
+```bash
+npm test
+```
+Verify that the production build passes type-checking:
+```bash
+npm run build
+```
+
 ## 🔑 Test Roles & Credentials
 
 All test accounts use uniform password **`moaams2024`**:
