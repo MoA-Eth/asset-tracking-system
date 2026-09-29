@@ -248,7 +248,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 <div className="p-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Bell className="w-4 h-4 text-amber-600" />
-                    <span className="font-bold text-xs text-slate-900">Pending Authorization Queue</span>
+                    <span className="font-bold text-xs text-slate-900">Notifications</span>
                     <span className="px-2 py-0.2 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
                       {notifications.length}
                     </span>
@@ -266,7 +266,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   {loadingNotifications ? (
                     <div className="py-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
                       <Clock className="w-4 h-4 animate-spin text-amber-500" />
-                      Loading pending approvals...
+                      Loading notifications...
                     </div>
                   ) : notifications.length === 0 ? (
                     <div className="py-8 px-4 text-center space-y-2">
@@ -275,7 +275,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       </div>
                       <h4 className="text-xs font-bold text-slate-800">All Caught Up!</h4>
                       <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
-                        No pending requests currently require your sign-off or endorsement.
+                        No new notifications at this time.
                       </p>
                     </div>
                   ) : (
@@ -351,7 +351,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                     }}
                     className="w-full py-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
                   >
-                    <span>View All Approvals</span>
+                    <span>View All Notifications</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </button>
                 </div>
