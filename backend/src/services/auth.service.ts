@@ -33,6 +33,7 @@ export class AuthService {
     if (req.personaRole) {
       matched = await prisma.employee.findFirst({
         where: { role: req.personaRole as any },
+        orderBy: { id: 'asc' },
       });
     }
 

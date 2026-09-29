@@ -104,6 +104,7 @@ function mapApproval(raw: any): TransactionApproval {
     reviewedAtEc: raw.reviewedAtEc ?? undefined,
     reviewedBy: raw.reviewedBy ? mapEmployee(raw.reviewedBy) : undefined,
     requestedBy: raw.requestedBy ? mapEmployee(raw.requestedBy) : undefined,
+    recipientEmployee: raw.recipientEmployee ? mapEmployee(raw.recipientEmployee) : undefined,
   };
 }
 
@@ -777,11 +778,21 @@ export class StoreService {
     return rows.map(mapEmployee);
   }
 
-  public async updateEmployeeRole(id: string, role: UserRole): Promise<Employee> {
+  public async updateEmployeeRole(id: string, role: UserRole, actorId?: string): Promise<Employee> {
+    const prev = await prisma.employee.findUnique({ where: { id } });
     const updated = await prisma.employee.update({
       where: { id },
       data: { role: role as any },
     });
+    if (actorId) {
+      await addAuditLog(
+        actorId,
+        'UPDATE_STAFF_ROLE',
+        'APPROVAL',
+        id,
+        `Role for ${prev?.fullNameEn || id} updated from ${prev?.role || 'N/A'} to ${role}`
+      );
+    }
     return mapEmployee(updated);
   }
 

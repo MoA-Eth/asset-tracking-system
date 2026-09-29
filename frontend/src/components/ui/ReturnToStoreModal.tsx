@@ -5,6 +5,7 @@ import { ItemWithRelations, ItemCondition, Employee } from '../../types/asset-ma
 import { Modal } from './Modal';
 import { getSystemSettings } from '../../utils/system-settings';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface ReturnToStoreModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
   employees,
   onSuccess,
 }) => {
+  const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [ifmisSlipNumber, setIfmisSlipNumber] = useState('');
@@ -68,7 +70,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
     }
 
     setSubmitting(true);
-    const encoder = employees.find((emp) => emp.role === 'DATA_ENCODER') || employees[0];
+    const registeredById = user?.id || employees[0]?.id || '';
 
     try {
       await api.registerReturn({
@@ -79,7 +81,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
         returnReason: returnReason.trim(),
         condition,
         returningEmployeeId: item.currentCustodianId || undefined,
-        registeredById: encoder ? encoder.id : employees[0]?.id || '',
+        registeredById,
       });
       toast.success(
         'Model 22 Return Submitted',

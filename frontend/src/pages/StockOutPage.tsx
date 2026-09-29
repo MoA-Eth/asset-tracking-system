@@ -25,6 +25,7 @@ import { CustodyVoucherModal } from '../components/ui/CustodyVoucherModal';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
 import { ConditionBadge } from '../components/ui/Badge';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import {
   ItemStatus,
   ApprovalStatus,
@@ -91,6 +92,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   onCancel,
   onSuccess,
 }) => {
+  const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([availableItems[0]?.id ?? '']);
@@ -166,7 +168,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     }
 
     setSubmitting(true);
-    const encoder = employees.find((e) => e.role === UserRole.DATA_ENCODER) || employees[0];
+    const registeredById = user?.id || employees[0]?.id || '';
 
     try {
       let lastRes: TransactionApproval | null = null;
@@ -179,7 +181,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
           ifmisSlipDateGc,
           ifmisSlipAttachmentUrl: attachmentFileName ? `/slips/${attachmentFileName}` : undefined,
           purpose,
-          registeredById: encoder.id,
+          registeredById,
         });
       }
       if (lastRes) {

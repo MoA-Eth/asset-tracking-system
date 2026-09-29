@@ -41,7 +41,8 @@ export class ReferenceController {
   public updateEmployeeRole = asyncHandler(async (req: Request, res: Response) => {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { role } = req.body;
-    const updated = await this.store.updateEmployeeRole(id as string, role);
+    const actorId = req.user?.id;
+    const updated = await this.store.updateEmployeeRole(id as string, role, actorId);
     return sendSuccess(res, updated, 'Employee role updated successfully');
   });
 }
