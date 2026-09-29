@@ -128,8 +128,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
       {/* Navigation Items (Exact Layout matching User Mockup) */}
       <nav className="p-3 space-y-1.5 overflow-y-auto flex-1 text-xs">
-        {/* 1. Dashboard (Top Management, Dept Head & Team Leader) */}
-        {(role === UserRole.TOP_MANAGEMENT || role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
+        {/* 1. Dashboard (Top Management & System Admin) */}
+        {(role === UserRole.TOP_MANAGEMENT || role === UserRole.SYSTEM_ADMIN) && (
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
@@ -164,7 +164,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         )}
 
         {/* 2. Stock-In (Model 19) */}
-        {(role === UserRole.DATA_ENCODER || role === UserRole.DEPARTMENT_HEAD) && (
+        {(role === UserRole.DATA_ENCODER || role === UserRole.SYSTEM_ADMIN) && (
           <button
             onClick={() => setActiveTab('stock-in')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
@@ -180,7 +180,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         )}
 
         {/* 3. Stock-Out (Model 20) */}
-        {(role === UserRole.DATA_ENCODER || role === UserRole.DEPARTMENT_HEAD) && (
+        {(role === UserRole.DATA_ENCODER || role === UserRole.SYSTEM_ADMIN) && (
           <button
             onClick={() => setActiveTab('stock-out')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
@@ -196,7 +196,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         )}
 
         {/* 3. Transfer Asset (Includes Custody Transfers & Model 22 Returns) */}
-        {(role === UserRole.DATA_ENCODER || role === UserRole.DEPARTMENT_HEAD) && (
+        {(role === UserRole.DATA_ENCODER || role === UserRole.SYSTEM_ADMIN) && (
           <button
             onClick={() => setActiveTab('transfer-asset')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
