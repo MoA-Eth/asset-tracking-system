@@ -68,21 +68,23 @@ npm run install:all
 ```
 
 ### Step 4: Database Setup (Prisma & Seed Data)
-Ensure PostgreSQL is running, then run the single-step database setup:
+Ensure PostgreSQL is running locally, then run the single-step database setup from the root directory:
 ```bash
 npm run db:setup
 ```
+*Note: If the `moa_ams` database does not exist yet in PostgreSQL, Prisma will automatically create it, apply the schema, and seed initial data.*
+
 *Useful Database Helper Scripts:*
 - `npm run db:push` — Push schema updates to database
 - `npm run db:seed` — Seed demo users and initial store assets
-- `npm run db:studio` — Open interactive Prisma Studio DB browser GUI
+- `npm run db:studio` — Open interactive Prisma Studio DB browser GUI (`http://localhost:5555`)
 
 ### Step 5: Start Development Services (Recommended)
 Run both backend Express API and frontend Vite React app concurrently:
 ```bash
 npm run dev
 ```
-* **Frontend Web App**: `http://localhost:5173`
+* **Frontend Web App**: `http://localhost:3001`
 * **Backend Express API**: `http://localhost:3000/api`
 
 ### Step 6: Run Services Independently
@@ -97,13 +99,16 @@ npm run dev
 
 ---
 
-## 🔑 Test Roles & Privileges
+## 🔑 Test Roles & Credentials
 
-| Role | Access Scope | Accessible Tabs |
-| :--- | :--- | :--- |
-| **`TOP_MANAGEMENT`** | Executive Minister | Dashboard, Reports, Audit Log |
-| **`DEPARTMENT_HEAD`** | Directorate Head | Dashboard, Approvals Queue, Receive/Request Items, Movement, Reports, Settings, Audit Log |
-| **`DATA_ENCODER`** | Store Custodian | Receive Items, Request Items, Asset Movement, Settings, Audit Log |
+All test accounts use password **`moaams2024`**:
+
+| Role | Email Login | Access Scope | Accessible Navigation Tabs |
+| :--- | :--- | :--- | :--- |
+| **`TOP_MANAGEMENT`** | `minister@moa.gov.et` | Executive Minister | Executive Dashboard (Portfolio Valuation, Directorate Allocations, Custody Ratios, Stores) |
+| **`DEPARTMENT_HEAD`** | `head@moa.gov.et` | Directorate Head | Dashboard, Approvals Queue, Stock-In, Stock-Out, Transfer Asset, Reports, Settings, Audit Log |
+| **`DATA_ENCODER`** | `encoder@moa.gov.et` | Store Custodian | Stock-In, Stock-Out, Transfer Asset, Settings |
+| **`SYSTEM_ADMIN`** | `admin@moa.gov.et` | System Administrator | Full Platform Access (Dashboard, Stock-In/Out, Transfer, Approvals, Reports, Settings, Audit Log) |
 
 ---
 
