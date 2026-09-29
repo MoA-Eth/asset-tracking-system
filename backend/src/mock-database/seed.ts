@@ -29,12 +29,12 @@ export const SEED_LOCATIONS: Location[] = [
 ];
 
 export const SEED_EMPLOYEES: Employee[] = [
-  // General Manager
+  // General Manager (MANAGER)
   {
     id: 'EMP-MIN-01',
     payrollId: 'MOA/MGR-001',
-    fullNameEn: 'Addisu Arega (General Manager)',
-    fullNameAm: 'አቶ አዲሱ አረጋ (ዋና ሥራ አስኪያጅ)',
+    fullNameEn: 'Addisu Arega (Manager)',
+    fullNameAm: 'አቶ አዲሱ አረጋ (ሥራ አስኪያጅ)',
     departmentId: 'DEP-03',
     email: 'manager@moa.gov.et',
     phone: '+251911000001',

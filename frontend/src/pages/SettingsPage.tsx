@@ -299,7 +299,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
                               <option value={UserRole.DATA_ENCODER}>Store Custodian / Encoder</option>
                               <option value={UserRole.TEAM_LEADER}>Team Leader</option>
                               <option value={UserRole.DEPARTMENT_HEAD}>Directorate Head / Approver</option>
-                              <option value={UserRole.MANAGER}>General Manager</option>
+                              <option value={UserRole.MANAGER}>Manager</option>
                             </select>
                             {isUpdating && <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />}
                           </div>

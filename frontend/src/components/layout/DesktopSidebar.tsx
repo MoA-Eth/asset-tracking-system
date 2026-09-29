@@ -56,7 +56,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   const getRoleTitle = (r: UserRole): string => {
     switch (r) {
       case UserRole.MANAGER:
-        return 'General Manager';
+        return 'Manager';
       case UserRole.DEPARTMENT_HEAD:
         return 'Directorate Head';
       case UserRole.TEAM_LEADER:

@@ -73,8 +73,8 @@ async function main() {
       where: { id: 'EMP-MIN-01' },
       update: {
         payrollId: 'MOA/MGR-001',
-        fullNameEn: 'Addisu Arega (General Manager)',
-        fullNameAm: 'አቶ አዲሱ አረጋ (ዋና ሥራ አስኪያጅ)',
+        fullNameEn: 'Addisu Arega (Manager)',
+        fullNameAm: 'አቶ አዲሱ አረጋ (ሥራ አስኪያጅ)',
         email: 'manager@moa.gov.et',
         role: UserRole.MANAGER,
         password: 'moaams2024',
@@ -82,8 +82,8 @@ async function main() {
       create: {
         id: 'EMP-MIN-01',
         payrollId: 'MOA/MGR-001',
-        fullNameEn: 'Addisu Arega (General Manager)',
-        fullNameAm: 'አቶ አዲሱ አረጋ (ዋና ሥራ አስኪያጅ)',
+        fullNameEn: 'Addisu Arega (Manager)',
+        fullNameAm: 'አቶ አዲሱ አረጋ (ሥራ አስኪያጅ)',
         departmentId: 'DEP-03',
         email: 'manager@moa.gov.et',
         phone: '+251911000001',
