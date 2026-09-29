@@ -2,52 +2,49 @@ import React, { useState, useEffect, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
-  FileSpreadsheet,
-  FileDown,
-  Printer,
-  Download,
-  Filter,
-  RefreshCw,
   Search,
-  Package,
-  Layers,
-  Building,
-  TrendingDown,
-  TrendingUp,
-  FileCheck2,
+  RefreshCw,
+  Download,
+  Printer,
+  FileDown,
   Calendar,
+  Layers,
+  PackagePlus,
+  CheckCircle2,
+  FileCheck2,
+  ArrowRightLeft,
+  X,
   AlertCircle,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { api } from '../api/client';
 import {
   ItemWithRelations,
   Department,
   Location,
-  Employee,
   AssetCategory,
   ItemStatus,
 } from '../types/asset-management';
 import { formatETB, getTodayGcAndEc } from '../utils/eth-date';
 
-type ReportType =
-  | 'inventory_balance'
-  | 'stock_in_ledger'
-  | 'stock_out_ledger'
-  | 'department_summary';
+export type ReportType = 'all' | 'registered' | 'available' | 'issued' | 'transferred';
+export type TimeframePreset = 'ALL_TIME' | 'TODAY' | 'PAST_7_DAYS' | 'THIS_MONTH' | 'CUSTOM';
 
 export const ReportsPage: React.FC = () => {
-  const [reportType, setReportType] = useState<ReportType>('inventory_balance');
   const [items, setItems] = useState<ItemWithRelations[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
+  // Search & Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [reportType, setReportType] = useState<ReportType>('all');
+  const [timeframe, setTimeframe] = useState<TimeframePreset>('ALL_TIME');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedLocation, setSelectedLocation] = useState<string>('ALL');
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
 
   const dateInfo = getTodayGcAndEc();
 
@@ -65,7 +62,7 @@ export const ReportsPage: React.FC = () => {
       setLocations(locsData);
     } catch (err: any) {
       console.error('Failed to load report data:', err);
-      setError(err.message || 'Failed to load report data and ledgers.');
+      setError(err.message || 'Failed to load report data.');
     } finally {
       setLoading(false);
     }
@@ -75,44 +72,165 @@ export const ReportsPage: React.FC = () => {
     loadData();
   }, []);
 
-  // Filtered Items
+  // Filter items based on report type, timeframe, category, location, and search
   const filteredItems = useMemo(() => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
     return items.filter((item) => {
-      const matchCat = selectedCategory === 'ALL' || item.category === selectedCategory;
-      const matchLoc = selectedLocation === 'ALL' || item.storeLocationId === selectedLocation;
-      const matchDept = selectedDepartment === 'ALL' || item.assignedDepartmentId === selectedDepartment;
-      const matchSearch =
-        !searchQuery.trim() ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.itemCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.ifmisSlipNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.serialNumber && item.serialNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+      // 1. Report Type Filter
+      if (reportType === 'available') {
+        if (item.status !== ItemStatus.AVAILABLE) return false;
+      } else if (reportType === 'issued') {
+        if (item.status !== ItemStatus.ISSUED) return false;
+      } else if (reportType === 'transferred') {
+        const hasTransfer =
+          item.status === ItemStatus.UNDER_TRANSFER ||
+          (item.history || []).some(
+            (h) =>
+              h.action.toUpperCase().includes('TRANSFER') ||
+              h.action.toUpperCase().includes('RETURN')
+          );
+        if (!hasTransfer) return false;
+      }
+      // 'registered' & 'all' include all records
 
-      return matchCat && matchLoc && matchDept && matchSearch;
+      // 2. Timeframe Filter
+      const dateStr = item.ifmisSlipDateGc || item.createdAtGc;
+      if (dateStr) {
+        const itemDateOnly = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr.slice(0, 10);
+
+        if (timeframe === 'TODAY') {
+          if (itemDateOnly !== todayStr) return false;
+        } else if (timeframe === 'PAST_7_DAYS') {
+          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split('T')[0];
+          if (itemDateOnly < sevenDaysAgo || itemDateOnly > todayStr) return false;
+        } else if (timeframe === 'THIS_MONTH') {
+          const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+            .toISOString()
+            .split('T')[0];
+          if (itemDateOnly < firstDayOfMonth || itemDateOnly > todayStr) return false;
+        } else if (timeframe === 'CUSTOM') {
+          if (customFrom && itemDateOnly < customFrom) return false;
+          if (customTo && itemDateOnly > customTo) return false;
+        }
+      }
+
+      // 3. Category Filter
+      if (selectedCategory !== 'ALL' && item.category !== selectedCategory) return false;
+
+      // 4. Store Location Filter
+      if (selectedLocation !== 'ALL' && item.storeLocationId !== selectedLocation) return false;
+
+      // 5. Search Term Filter
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase();
+        const match =
+          item.name.toLowerCase().includes(q) ||
+          item.itemCode.toLowerCase().includes(q) ||
+          item.ifmisSlipNumber.toLowerCase().includes(q) ||
+          (item.serialNumber && item.serialNumber.toLowerCase().includes(q)) ||
+          (item.currentCustodian?.fullNameEn && item.currentCustodian.fullNameEn.toLowerCase().includes(q)) ||
+          (item.assignedDepartment?.nameEn && item.assignedDepartment.nameEn.toLowerCase().includes(q));
+        if (!match) return false;
+      }
+
+      return true;
     });
-  }, [items, selectedCategory, selectedLocation, selectedDepartment, searchQuery]);
+  }, [items, reportType, timeframe, customFrom, customTo, selectedCategory, selectedLocation, searchTerm]);
 
-  // Aggregate Metrics
-  const metrics = useMemo(() => {
-    let totalETB = 0;
-    let inStoreCount = 0;
-    let issuedCount = 0;
-
-    filteredItems.forEach((i) => {
-      totalETB += i.unitCostETB;
-      if (i.status === ItemStatus.AVAILABLE) inStoreCount++;
-      if (i.status === ItemStatus.ISSUED) issuedCount++;
-    });
-
-    return {
-      totalCount: filteredItems.length,
-      totalETB,
-      inStoreCount,
-      issuedCount,
-    };
+  // Aggregate Total Valuation
+  const totalValuation = useMemo(() => {
+    return filteredItems.reduce((sum, item) => sum + item.unitCostETB, 0);
   }, [filteredItems]);
 
-  // Export PDF
+  const getTimeframeLabel = () => {
+    switch (timeframe) {
+      case 'TODAY':
+        return 'Today';
+      case 'PAST_7_DAYS':
+        return 'Past 7 Days';
+      case 'THIS_MONTH':
+        return 'This Month';
+      case 'CUSTOM':
+        return customFrom && customTo
+          ? `${customFrom} to ${customTo}`
+          : customFrom
+          ? `Since ${customFrom}`
+          : customTo
+          ? `Up to ${customTo}`
+          : 'Custom Range';
+      case 'ALL_TIME':
+      default:
+        return 'All Time';
+    }
+  };
+
+  const getReportTypeLabel = () => {
+    switch (reportType) {
+      case 'registered':
+        return 'Registered Assets (Stock-In)';
+      case 'available':
+        return 'Available Assets (In Store)';
+      case 'issued':
+        return 'Issued Assets (In Custody)';
+      case 'transferred':
+        return 'Transferred & Returned Assets';
+      case 'all':
+      default:
+        return 'All Assets';
+    }
+  };
+
+  // CSV Export handler
+  const handleExportCSV = () => {
+    if (filteredItems.length === 0) return;
+    const headers = [
+      '#',
+      'Tracking Code',
+      'Asset Name',
+      'Category',
+      'Status',
+      'IFMIS Slip #',
+      'Receipt/Slip Date (E.C.)',
+      'Date (G.C.)',
+      'Custodian / User',
+      'Department / Directorate',
+      'Store Location',
+      'Serial Number',
+      'Unit Cost (ETB)',
+    ];
+
+    const rows = filteredItems.map((item, index) => [
+      index + 1,
+      item.itemCode,
+      `"${item.name.replace(/"/g, '""')}"`,
+      item.category,
+      item.status,
+      item.ifmisSlipNumber,
+      `"${item.ifmisSlipDateEc || item.createdAtEc}"`,
+      `"${item.ifmisSlipDateGc || item.createdAtGc}"`,
+      `"${item.currentCustodian?.fullNameEn || 'In Store'}"`,
+      `"${item.assignedDepartment?.nameEn || ''}"`,
+      `"${item.storeLocation?.siteName || ''}"`,
+      `"${item.serialNumber || 'N/A'}"`,
+      item.unitCostETB,
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `MoA_Asset_Report_${reportType}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // PDF Export handler
   const handleExportPDF = () => {
     const doc = new jsPDF({
       orientation: 'landscape',
@@ -124,158 +242,96 @@ export const ReportsPage: React.FC = () => {
 
     // Header Band (#0A3F24 Ethiopian MoA Dark Emerald)
     doc.setFillColor(10, 63, 36);
-    doc.rect(0, 0, pw, 46, 'F');
+    doc.rect(0, 0, pw, 44, 'F');
 
     // Tricolor Ribbon
     doc.setFillColor(7, 137, 48);
-    doc.rect(0, 46, pw / 3, 3, 'F');
+    doc.rect(0, 44, pw / 3, 3, 'F');
     doc.setFillColor(252, 221, 9);
-    doc.rect(pw / 3, 46, pw / 3, 3, 'F');
+    doc.rect(pw / 3, 44, pw / 3, 3, 'F');
     doc.setFillColor(218, 18, 26);
-    doc.rect((pw * 2) / 3, 46, pw / 3, 3, 'F');
+    doc.rect((pw * 2) / 3, 44, pw / 3, 3, 'F');
 
-    // Title Texts in Banner
+    // Header Text
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(13);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA', 24, 20);
-    doc.setFontSize(10);
+    doc.text('FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA', 24, 18);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text('MINISTRY OF AGRICULTURE (MoA) • ASSET MANAGEMENT SYSTEM', 24, 36);
+    doc.text('MINISTRY OF AGRICULTURE (MoA) • FIXED ASSET MANAGEMENT SYSTEM', 24, 32);
 
-    doc.setFontSize(8.5);
-    doc.text(`Report Date: ${dateInfo.gc} (G.C.) / ${dateInfo.ecFormattedAm}`, pw - 24, 28, { align: 'right' });
+    doc.setFontSize(8);
+    doc.text(`Generated: ${dateInfo.gc} (G.C.) / ${dateInfo.ecFormattedAm}`, pw - 24, 25, { align: 'right' });
 
-    let titleStr = '';
-    if (reportType === 'inventory_balance') titleStr = 'Current Store Stock Balance Report';
-    else if (reportType === 'stock_in_ledger') titleStr = 'Inbound Stock-In Ledger (IFMIS Reconciliation)';
-    else if (reportType === 'stock_out_ledger') titleStr = 'Outbound Store Issue Ledger';
-    else if (reportType === 'department_summary') titleStr = 'Directorate Asset Allocation Summary';
-
+    // Report Title & Period Subheader
     doc.setTextColor(15, 23, 42);
     doc.setFontSize(13);
     doc.setFont('helvetica', 'bold');
-    doc.text(titleStr, 24, 72);
+    doc.text(getReportTypeLabel(), 24, 68);
 
     doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(71, 85, 105);
     doc.text(
-      `Items: ${metrics.totalCount} | Available: ${metrics.inStoreCount} | Issued: ${metrics.issuedCount} | Total Valuation: ${formatETB(metrics.totalETB)}`,
+      `Timeframe: ${getTimeframeLabel()}  |  Category: ${selectedCategory.replace(/_/g, ' ')}  |  Total Assets: ${filteredItems.length}  |  Total Valuation: ${formatETB(totalValuation)}`,
       24,
-      86
+      82
     );
 
-    if (reportType === 'department_summary') {
-      const tableHead = [['Directorate / Program', 'Code', 'Allocated Items', 'Total Valuation (ETB)']];
-      const tableBody = departments.map((dept) => {
-        const deptItems = items.filter((i) => i.assignedDepartmentId === dept.id);
-        const deptTotal = deptItems.reduce((acc, i) => acc + i.unitCostETB, 0);
-        return [dept.nameEn, dept.code, deptItems.length.toString(), formatETB(deptTotal)];
-      });
+    const tableHead = [['#', 'Tracking Code', 'Asset Name', 'Category', 'Status', 'IFMIS Slip #', 'Date (E.C.)', 'Custodian / Dept', 'Unit Cost (ETB)']];
+    const tableBody = filteredItems.map((item, idx) => [
+      idx + 1,
+      item.itemCode,
+      item.name,
+      item.category.replace(/_/g, ' '),
+      item.status.replace(/_/g, ' '),
+      item.ifmisSlipNumber,
+      item.ifmisSlipDateEc || item.createdAtEc,
+      item.currentCustodian?.fullNameEn || item.assignedDepartment?.code || item.storeLocation?.siteName || 'In Store',
+      formatETB(item.unitCostETB),
+    ]);
 
-      autoTable(doc, {
-        head: tableHead,
-        body: tableBody,
-        startY: 98,
-        theme: 'grid',
-        headStyles: { fillColor: [10, 63, 36], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
-        bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        margin: { left: 24, right: 24 },
-      });
-    } else {
-      const tableHead = [['Tracking Code', 'Item Name', 'Category', 'IFMIS Slip', 'Store Location', 'Status', 'Unit Cost (ETB)']];
-      const tableBody = filteredItems.map((item) => [
-        item.itemCode,
-        item.name,
-        item.category.replace(/_/g, ' '),
-        item.ifmisSlipNumber,
-        item.storeLocation?.siteName || 'HQ Store',
-        item.status.replace(/_/g, ' '),
-        formatETB(item.unitCostETB),
-      ]);
-
-      autoTable(doc, {
-        head: tableHead,
-        body: tableBody,
-        startY: 98,
-        theme: 'grid',
-        headStyles: { fillColor: [10, 63, 36], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
-        bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        margin: { left: 24, right: 24 },
-      });
-    }
+    autoTable(doc, {
+      head: tableHead,
+      body: tableBody,
+      startY: 92,
+      theme: 'grid',
+      headStyles: { fillColor: [10, 63, 36], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59] },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: 24, right: 24 },
+    });
 
     const pageCount = (doc as any).internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setTextColor(148, 163, 184);
       doc.text(
         `Federal Democratic Republic of Ethiopia • Ministry of Agriculture • Page ${i} of ${pageCount}`,
         pw / 2,
-        doc.internal.pageSize.height - 12,
+        doc.internal.pageSize.height - 10,
         { align: 'center' }
       );
     }
 
-    doc.save(`MoA_${reportType}_${dateInfo.gc.replace(/\s+/g, '_')}.pdf`);
+    doc.save(`MoA_Asset_Report_${reportType}_${dateInfo.gc.replace(/\s+/g, '_')}.pdf`);
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
-    let csvContent = 'data:text/csv;charset=utf-8,';
-    const filename = `MoA_${reportType}_${dateInfo.gc.replace(/\s+/g, '_')}.csv`;
-
-    if (reportType === 'inventory_balance') {
-      csvContent += 'Item Code,Item Name,Category,Serial Number,Store Location,Status,Unit Cost (ETB),IFMIS Slip,Assigned Dept,Current Custodian\n';
-      filteredItems.forEach((item) => {
-        csvContent += `"${item.itemCode}","${item.name.replace(/"/g, '""')}","${item.category}","${item.serialNumber || 'N/A'}","${item.storeLocation?.siteName || ''}","${item.status}",${item.unitCostETB},"${item.ifmisSlipNumber}","${item.assignedDepartment?.code || ''}","${item.currentCustodian?.fullNameEn || 'In Store'}"\n`;
-      });
-    } else if (reportType === 'stock_in_ledger') {
-      csvContent += 'Item Code,Item Name,Category,IFMIS Slip,Date Received,Supplier/Source,Store Location,Unit Cost (ETB)\n';
-      filteredItems.forEach((item) => {
-        csvContent += `"${item.itemCode}","${item.name.replace(/"/g, '""')}","${item.category}","${item.ifmisSlipNumber}","${item.ifmisSlipDateGc}","${'MoA Central Store'}","${item.storeLocation?.siteName || ''}",${item.unitCostETB}\n`;
-      });
-    } else if (reportType === 'stock_out_ledger') {
-      csvContent += 'Item Code,Item Name,Category,Requesting Directorate,Issued To,Issue Date,Purpose,Status\n';
-      filteredItems
-        .filter((item) => item.status === ItemStatus.ISSUED)
-        .forEach((item) => {
-          csvContent += `"${item.itemCode}","${item.name.replace(/"/g, '""')}","${item.category}","${item.assignedDepartment?.nameEn || ''}","${item.currentCustodian?.fullNameEn || ''}","${item.createdAtGc || item.ifmisSlipDateGc}","Official Operations","${item.status}"\n`;
-        });
-    } else if (reportType === 'department_summary') {
-      csvContent += 'Directorate / Department,Code,Total Items Allocated,Total Valuation (ETB)\n';
-      departments.forEach((dept) => {
-        const deptItems = items.filter((i) => i.assignedDepartmentId === dept.id);
-        const deptTotal = deptItems.reduce((acc, i) => acc + i.unitCostETB, 0);
-        csvContent += `"${dept.nameEn}","${dept.code}",${deptItems.length},${deptTotal}\n`;
-      });
-    }
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const reportTabs = [
-    { id: 'inventory_balance', label: 'Store Stock Balance' },
-    { id: 'stock_in_ledger', label: 'Inbound Stock-In (IFMIS)' },
-    { id: 'stock_out_ledger', label: 'Outbound Store Issues' },
-    { id: 'department_summary', label: 'Directorate Allocation' },
+  const reportTabs: { id: ReportType; label: string; icon: any }[] = [
+    { id: 'all', label: 'All Assets', icon: Layers },
+    { id: 'registered', label: 'Registered (Stock-In)', icon: PackagePlus },
+    { id: 'available', label: 'Available (In Store)', icon: CheckCircle2 },
+    { id: 'issued', label: 'Issued (In Custody)', icon: FileCheck2 },
+    { id: 'transferred', label: 'Transferred & Returned', icon: ArrowRightLeft },
   ];
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-xs text-slate-400">
+      <div className="flex items-center justify-center py-24 text-xs text-slate-400">
         <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
-        Loading reporting ledgers & inventory balances...
+        Loading asset reports...
       </div>
     );
   }
@@ -284,123 +340,110 @@ export const ReportsPage: React.FC = () => {
     return (
       <div className="p-8 rounded-2xl bg-red-50 border border-red-200 text-center space-y-3 max-w-md mx-auto my-12 animate-fadeIn">
         <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
-        <h3 className="text-sm font-bold text-red-900">Data Connection Error</h3>
+        <h3 className="text-sm font-bold text-red-900">Failed to Load Reports</h3>
         <p className="text-xs text-red-700">{error}</p>
         <button
-          onClick={() => loadData()}
+          onClick={loadData}
           className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl transition cursor-pointer inline-flex items-center gap-1.5"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          Retry Connection
+          Retry
         </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-16">
-      {/* Header Banner */}
-      <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-4 animate-fadeIn pb-16">
+      {/* 1. Header Bar with Direct Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
-              Reporting & Audits
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
+              Operational Reporting
             </span>
-            <span className="text-xs text-slate-500 font-mono hidden sm:inline">
-              Statutory Stock Briefings
+            <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
+              Ministry of Agriculture
             </span>
           </div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight mt-1">
-            Reports
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-emerald-700" />
+            Asset Reports (የንብረት ሪፖርት)
           </h2>
-          <p className="text-xs text-slate-500">
-            Exportable and printable inventory ledgers, IFMIS inbound delivery summaries, and distribution reports.
-          </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            onClick={loadData}
-            className="p-2 rounded-xl bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200 transition shadow-xs cursor-pointer"
-            title="Refresh Data"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            onClick={handleExportPDF}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-red-700 hover:bg-red-800 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
-          >
-            <FileDown className="w-4 h-4 text-white" />
-            <span>Export PDF</span>
-          </button>
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
+            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+            title="Export filtered records to CSV"
           >
-            <Download className="w-4 h-4 text-emerald-700" />
+            <Download className="w-3.5 h-3.5 text-emerald-700" />
             <span>Export CSV</span>
           </button>
           <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
+            onClick={handleExportPDF}
+            className="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+            title="Export filtered records to official PDF"
           >
-            <Printer className="w-4 h-4 text-[#FCDD09]" />
-            <span>Print Report</span>
+            <FileDown className="w-3.5 h-3.5 text-white" />
+            <span>Export PDF</span>
           </button>
-        </div>
-      </div>
-
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
-          <span className="text-xs font-bold text-slate-500 block">Total Items Listed</span>
-          <span className="text-2xl font-black text-slate-900 mt-1 block">{metrics.totalCount}</span>
-          <p className="text-[10px] text-slate-400 mt-0.5">Matching active filters</p>
-        </div>
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
-          <span className="text-xs font-bold text-slate-500 block">Total Valuation (ETB)</span>
-          <span className="text-xl sm:text-2xl font-black text-emerald-800 mt-1 block">{formatETB(metrics.totalETB)}</span>
-          <p className="text-[10px] text-slate-400 mt-0.5">Acquisition unit cost</p>
-        </div>
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
-          <span className="text-xs font-bold text-slate-500 block">Available in Store</span>
-          <span className="text-2xl font-black text-blue-700 mt-1 block">{metrics.inStoreCount}</span>
-          <p className="text-[10px] text-slate-400 mt-0.5">Ready for issuance</p>
-        </div>
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
-          <span className="text-xs font-bold text-slate-500 block">Issued to Staff</span>
-          <span className="text-2xl font-black text-amber-700 mt-1 block">{metrics.issuedCount}</span>
-          <p className="text-[10px] text-slate-400 mt-0.5">Under department custody</p>
-        </div>
-      </div>
-
-      {/* Report Type Selector Tabs */}
-      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto">
-        {reportTabs.map((tab) => (
           <button
-            key={tab.id}
-            onClick={() => setReportType(tab.id as ReportType)}
-            className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
-              reportType === tab.id
-                ? 'border-emerald-700 text-emerald-800'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+            onClick={() => window.print()}
+            className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+            title="Print report"
           >
-            {tab.label}
+            <Printer className="w-3.5 h-3.5 text-amber-300" />
+            <span>Print</span>
           </button>
-        ))}
+          <button
+            onClick={loadData}
+            className="p-1.5 rounded-xl bg-white text-slate-700 hover:text-slate-900 border border-slate-200 transition shadow-xs cursor-pointer"
+            title="Refresh Data"
+          >
+            <RefreshCw className={`w-4 h-4 text-emerald-700 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
-      {/* Filter Controls Bar */}
-      <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Filter className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+      {/* 2. Simple, Unified Filter & Search Bar */}
+      <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+        {/* Row 1: Search + Timeframe + Category + Location */}
+        <div className="flex flex-col lg:flex-row items-center gap-2.5">
+          {/* Search Box */}
+          <div className="relative flex-1 w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by code, item name, serial #, slip #, or custodian..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white font-mono"
+            />
+          </div>
 
-          {/* Category Filter */}
+          {/* Timeframe Dropdown */}
+          <div className="flex items-center gap-1.5 w-full sm:w-auto shrink-0">
+            <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
+            <select
+              value={timeframe}
+              onChange={(e) => setTimeframe(e.target.value as TimeframePreset)}
+              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
+            >
+              <option value="ALL_TIME">All Time</option>
+              <option value="TODAY">Today</option>
+              <option value="PAST_7_DAYS">Past 7 Days</option>
+              <option value="THIS_MONTH">This Month</option>
+              <option value="CUSTOM">Custom Date Range...</option>
+            </select>
+          </div>
+
+          {/* Category Dropdown */}
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-slate-800 text-xs font-semibold focus:outline-none"
+            className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer w-full sm:w-auto"
           >
             <option value="ALL">All Categories</option>
             {Object.values(AssetCategory).map((cat) => (
@@ -410,143 +453,206 @@ export const ReportsPage: React.FC = () => {
             ))}
           </select>
 
-          {/* Store Location Filter */}
+          {/* Store Location Dropdown */}
           <select
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-slate-800 text-xs font-semibold focus:outline-none"
+            className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer w-full sm:w-auto"
           >
-            <option value="ALL">All Store Locations</option>
+            <option value="ALL">All Locations</option>
             {locations.map((loc) => (
               <option key={loc.id} value={loc.id}>
                 {loc.siteName}
               </option>
             ))}
           </select>
-
-          {/* Department Filter */}
-          <select
-            value={selectedDepartment}
-            onChange={(e) => setSelectedDepartment(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-slate-800 text-xs font-semibold focus:outline-none"
-          >
-            <option value="ALL">All Directorates</option>
-            {departments.map((dept) => (
-              <option key={dept.id} value={dept.id}>
-                {dept.code} - {dept.nameEn}
-              </option>
-            ))}
-          </select>
         </div>
 
-        {/* Search Input */}
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search code, slip, serial..."
-            className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white"
-          />
+        {/* Custom Date Pickers (only when Custom Range is active) */}
+        {timeframe === 'CUSTOM' && (
+          <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-100 text-xs animate-fadeIn">
+            <span className="font-semibold text-slate-600">Date Range:</span>
+            <div className="flex items-center gap-1.5">
+              <label className="text-slate-500 font-medium">From:</label>
+              <input
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <label className="text-slate-500 font-medium">To:</label>
+              <input
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
+              />
+            </div>
+            {(customFrom || customTo) && (
+              <button
+                onClick={() => {
+                  setCustomFrom('');
+                  setCustomTo('');
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1 text-xs"
+                title="Clear date inputs"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Row 2: Report Type Filter Pills */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
+          {reportTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = reportType === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setReportType(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  isActive
+                    ? 'bg-emerald-800 text-white shadow-xs font-bold'
+                    : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-amber-300' : 'text-slate-500'}`} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Printable Report Document Card */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
-        {/* Printable Header */}
-        <div className="border-b border-slate-200 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              {reportType === 'inventory_balance' && 'Current Store Stock Balance Report'}
-              {reportType === 'stock_in_ledger' && 'Inbound Stock-In Ledger (IFMIS Reconciliation)'}
-              {reportType === 'stock_out_ledger' && 'Outbound Store Issue Ledger'}
-              {reportType === 'department_summary' && 'Directorate Asset Allocation Summary'}
-            </h3>
-            <p className="text-xs text-slate-500">
-              Federal Democratic Republic of Ethiopia • Ministry of Agriculture
-            </p>
+      {/* 3. Pure Clean Tabular Form */}
+      <div className="rounded-2xl bg-white border border-slate-200 shadow-xs overflow-hidden">
+        {/* Table Subheader showing active count and valuation */}
+        <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-800">{getReportTypeLabel()}</span>
+            <span className="text-slate-400">•</span>
+            <span className="text-slate-500">{getTimeframeLabel()}</span>
+            <span className="text-slate-400">•</span>
+            <span className="font-semibold text-emerald-800">
+              {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
+            </span>
           </div>
-          <div className="text-right text-[11px] text-slate-500 font-mono">
-            <div>Report Date: {dateInfo.gc} (G.C.)</div>
-            <div>Ethiopian Calendar: {dateInfo.ecFormattedAm}</div>
+          <div className="font-mono font-bold text-slate-800">
+            Total Value: <span className="text-emerald-700">{formatETB(totalValuation)}</span>
           </div>
         </div>
 
         {/* Data Table */}
         <div className="overflow-x-auto">
-          {reportType === 'department_summary' ? (
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-700 uppercase font-bold text-[10px] border-y border-slate-200">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-700 uppercase font-bold text-[10px] border-b border-slate-200">
+              <tr>
+                <th className="py-2.5 px-3 w-10 text-center">#</th>
+                <th className="py-2.5 px-3">Tracking Code</th>
+                <th className="py-2.5 px-3">Asset Item</th>
+                <th className="py-2.5 px-3">Category</th>
+                <th className="py-2.5 px-3">Status</th>
+                <th className="py-2.5 px-3">IFMIS Slip #</th>
+                <th className="py-2.5 px-3">Date (E.C.)</th>
+                <th className="py-2.5 px-3">Custodian / Location</th>
+                <th className="py-2.5 px-3 text-right">Unit Cost</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredItems.length === 0 ? (
                 <tr>
-                  <th className="py-2.5 px-3">Directorate / Program</th>
-                  <th className="py-2.5 px-3">Code</th>
-                  <th className="py-2.5 px-3 text-center">Allocated Items</th>
-                  <th className="py-2.5 px-3 text-right">Total Valuation (ETB)</th>
+                  <td colSpan={9} className="py-16 text-center text-slate-400 space-y-1">
+                    <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto" />
+                    <p className="font-bold text-slate-700 text-sm">No Assets Found</p>
+                    <p className="text-xs text-slate-400">
+                      Try adjusting the timeframe filter, search keyword, or selecting "All Time".
+                    </p>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {departments.map((dept) => {
-                  const deptItems = items.filter((i) => i.assignedDepartmentId === dept.id);
-                  const deptTotal = deptItems.reduce((acc, i) => acc + i.unitCostETB, 0);
+              ) : (
+                filteredItems.map((item, idx) => {
+                  const isAvailable = item.status === ItemStatus.AVAILABLE;
+                  const isIssued = item.status === ItemStatus.ISSUED;
+
                   return (
-                    <tr key={dept.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-2.5 px-3 font-semibold text-slate-900">{dept.nameEn}</td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-800">{dept.code}</td>
-                      <td className="py-2.5 px-3 text-center font-bold text-slate-800">{deptItems.length}</td>
-                      <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatETB(deptTotal)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-700 uppercase font-bold text-[10px] border-y border-slate-200">
-                <tr>
-                  <th className="py-2.5 px-3">Tracking Code</th>
-                  <th className="py-2.5 px-3">Item Name</th>
-                  <th className="py-2.5 px-3">Category</th>
-                  <th className="py-2.5 px-3">IFMIS Slip</th>
-                  <th className="py-2.5 px-3">Store Location</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3 text-right">Unit Cost</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
-                      No asset items match the selected report criteria.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredItems.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-800">{item.itemCode}</td>
-                      <td className="py-2.5 px-3 font-semibold text-slate-900">{item.name}</td>
-                      <td className="py-2.5 px-3 text-slate-600">{item.category.replace(/_/g, ' ')}</td>
-                      <td className="py-2.5 px-3 font-mono text-amber-800 font-bold">{item.ifmisSlipNumber}</td>
-                      <td className="py-2.5 px-3 text-slate-600">{item.storeLocation?.siteName || 'HQ Store'}</td>
+                      <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">
+                        {idx + 1}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-800 whitespace-nowrap">
+                        {item.itemCode}
+                      </td>
                       <td className="py-2.5 px-3">
+                        <div className="font-semibold text-slate-900">{item.name}</div>
+                        {item.serialNumber && (
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            SN: {item.serialNumber}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                        {item.category.replace(/_/g, ' ')}
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            item.status === ItemStatus.AVAILABLE
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-emerald-100 text-emerald-800'
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                            isAvailable
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : isIssued
+                              ? 'bg-blue-50 text-blue-800 border-blue-200'
+                              : 'bg-amber-50 text-amber-800 border-amber-200'
                           }`}
                         >
                           {item.status.replace(/_/g, ' ')}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatETB(item.unitCostETB)}</td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-amber-900 whitespace-nowrap">
+                        {item.ifmisSlipNumber}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">
+                        {item.ifmisSlipDateEc || item.createdAtEc}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700">
+                        {item.currentCustodian ? (
+                          <div className="font-semibold text-slate-900">
+                            {item.currentCustodian.fullNameEn}
+                          </div>
+                        ) : item.assignedDepartment ? (
+                          <div className="font-semibold text-slate-800">
+                            {item.assignedDepartment.nameEn}
+                          </div>
+                        ) : (
+                          <div className="text-slate-500">
+                            {item.storeLocation?.siteName || 'Central Store'}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                        {formatETB(item.unitCostETB)}
+                      </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          )}
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
+
+        {/* Table Footer */}
+        {filteredItems.length > 0 && (
+          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-mono">
+            <div>
+              Showing {filteredItems.length} of {items.length} total records
+            </div>
+            <div className="font-bold text-slate-800">
+              Total: <span className="text-emerald-800">{formatETB(totalValuation)}</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
