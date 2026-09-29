@@ -62,25 +62,25 @@ cp frontend/.env.example frontend/.env
 ```
 
 ### Step 3: Install Workspace Dependencies
-From the root repository directory:
+*(Must be executed from the root directory `asset-tracking-system/`)*
 ```bash
 npm run install:all
 ```
 
 ### Step 4: Database Setup (Prisma & Seed Data)
-Ensure PostgreSQL is running locally, then run the single-step database setup from the root directory:
+Ensure PostgreSQL is running locally, then execute from the root directory (`asset-tracking-system/`):
 ```bash
 npm run db:setup
 ```
-*Note: If the `moa_ams` database does not exist yet in PostgreSQL, Prisma will automatically create it, apply the schema, and seed initial data.*
+*Note: If the `moa_ams` database does not exist yet in PostgreSQL, Prisma automatically creates it, applies all tables/relations, and seeds demo data.*
 
-*Useful Database Helper Scripts:*
+*Useful Database Helper Scripts (Run from `asset-tracking-system/`):*
 - `npm run db:push` — Push schema updates to database
 - `npm run db:seed` — Seed demo users and initial store assets
 - `npm run db:studio` — Open interactive Prisma Studio DB browser GUI (`http://localhost:5555`)
 
 ### Step 5: Start Development Services (Recommended)
-Run both backend Express API and frontend Vite React app concurrently:
+From the root directory (`asset-tracking-system/`), run both backend Express API and frontend Vite React app concurrently:
 ```bash
 npm run dev
 ```
