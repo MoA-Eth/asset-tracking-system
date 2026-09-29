@@ -143,7 +143,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       } else if (activeTab === 'REJECTED') {
         if (item.status !== ApprovalStatus.REJECTED) return false;
       }
-      // 'ALL' tab includes all records
 
       // 2. Type Filter
       if (typeFilter !== 'ALL' && item.transactionType !== typeFilter) {
@@ -343,52 +342,54 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     }
   };
 
+  // Light, pastel, subtle badges
   const getTypeBadge = (type: TransactionType) => {
     switch (type) {
       case TransactionType.STOCK_IN:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
             <PackagePlus className="w-3 h-3 text-emerald-700" />
             Model 19 (IN)
           </span>
         );
       case TransactionType.STOCK_OUT:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300">
-            <PackageMinus className="w-3 h-3 text-blue-700" />
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-50 text-sky-800 border border-sky-200">
+            <PackageMinus className="w-3 h-3 text-sky-700" />
             Model 20 (OUT)
           </span>
         );
       case TransactionType.RETURN:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-900 border border-amber-200">
             <RotateCcw className="w-3 h-3 text-amber-700" />
             Model 22 (RET)
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 text-slate-700 border border-slate-200">
             {type}
           </span>
         );
     }
   };
 
+  // Clean, understated stage stepper
   const getStageIndicator = (appr: TransactionApproval) => {
     if (appr.status !== ApprovalStatus.PENDING) {
       return (
         <span
-          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold ${
             appr.status === ApprovalStatus.APPROVED
-              ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-              : 'bg-rose-100 text-rose-900 border border-rose-300'
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'bg-rose-50 text-rose-700 border border-rose-200'
           }`}
         >
           {appr.status === ApprovalStatus.APPROVED ? (
             <CheckCircle2 className="w-3 h-3 text-emerald-700" />
           ) : (
-            <XCircle className="w-3 h-3 text-rose-700" />
+            <XCircle className="w-3 h-3 text-rose-600" />
           )}
           {appr.status}
         </span>
@@ -399,22 +400,24 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     return (
       <div className="flex items-center gap-1.5">
         <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
             stage === 1
-              ? 'bg-amber-100 text-amber-900 border-amber-300 ring-1 ring-amber-400/50'
-              : 'bg-slate-100 text-slate-500 border-slate-200'
+              ? 'bg-slate-50 text-slate-800 border-slate-300 font-bold'
+              : 'bg-transparent text-slate-400 border-transparent'
           }`}
         >
+          <span className={`w-1.5 h-1.5 rounded-full ${stage === 1 ? 'bg-amber-500' : 'bg-slate-300'}`} />
           1. Endorse
         </span>
-        <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+        <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
         <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
             stage === 2
-              ? 'bg-purple-100 text-purple-900 border-purple-300 ring-1 ring-purple-400/50'
-              : 'bg-slate-100 text-slate-500 border-slate-200'
+              ? 'bg-slate-50 text-slate-800 border-slate-300 font-bold'
+              : 'bg-transparent text-slate-400 border-transparent'
           }`}
         >
+          <span className={`w-1.5 h-1.5 rounded-full ${stage === 2 ? 'bg-emerald-600' : 'bg-slate-300'}`} />
           2. Authorize
         </span>
       </div>
@@ -427,42 +430,42 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
               Statutory 2-Stage Governance
             </span>
             <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
-              Ethiopian Ministry of Agriculture Store Logistics Directive
+              Ethiopian Ministry of Agriculture Store Directive
             </span>
           </div>
           <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <FileCheck2 className="w-5 h-5 text-amber-700" />
+            <FileCheck2 className="w-5 h-5 text-emerald-800" />
             Approvals & Authorization Queue (የማረጋገጫና ፈቃድ መስጫ)
           </h2>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           {/* View Mode Toggle Button Group */}
-          <div className="bg-slate-100 p-0.5 rounded-xl border border-slate-300 flex items-center">
+          <div className="bg-slate-100 p-0.5 rounded-xl border border-slate-200 flex items-center">
             <button
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs font-bold ${
+              className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs font-semibold ${
                 viewMode === 'table'
-                  ? 'bg-white text-emerald-950 shadow-xs'
+                  ? 'bg-white text-slate-900 shadow-2xs font-bold'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
-              title="Compact Enterprise Table View (Recommended for high volume)"
+              title="Compact Enterprise Table View (Recommended)"
             >
               <List className="w-4 h-4" />
               <span className="hidden md:inline pr-1">Table View</span>
             </button>
             <button
               onClick={() => setViewMode('cards')}
-              className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs font-bold ${
+              className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs font-semibold ${
                 viewMode === 'cards'
-                  ? 'bg-white text-emerald-950 shadow-xs'
+                  ? 'bg-white text-slate-900 shadow-2xs font-bold'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
-              title="Grid Card View"
+              title="Grid Cards View"
             >
               <LayoutGrid className="w-4 h-4" />
               <span className="hidden md:inline pr-1">Cards View</span>
@@ -471,7 +474,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
           <button
             onClick={fetchApprovals}
-            className="p-2 rounded-xl bg-white text-slate-700 hover:text-slate-900 border border-slate-300 transition shadow-xs cursor-pointer"
+            className="p-2 rounded-xl bg-white text-slate-700 hover:text-slate-900 border border-slate-300 transition shadow-2xs cursor-pointer"
             title="Refresh Approvals List"
           >
             <RefreshCw className={`w-4 h-4 text-emerald-700 ${loading ? 'animate-spin' : ''}`} />
@@ -479,24 +482,24 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         </div>
       </div>
 
-      {/* Role Permission Context Banner */}
-      <div className="p-3 rounded-xl bg-amber-50 border border-amber-300/80 flex items-center justify-between text-xs text-amber-950 shadow-2xs">
+      {/* Role Permission Context Banner (Light & Simple) */}
+      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-600 shadow-2xs">
         <div className="flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0" />
+          <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
           <span>
-            Active Role: <strong className="font-bold underline">{role.replace(/_/g, ' ')}</strong>.
+            Active Role: <strong className="font-bold text-slate-900">{role.replace(/_/g, ' ')}</strong>.
             {role === UserRole.TEAM_LEADER && (
-              <span className="ml-1 text-amber-900 font-medium">
+              <span className="ml-1 text-slate-700 font-medium">
                 You are authorized to review and record <strong>Stage 1 Technical Endorsements</strong>.
               </span>
             )}
             {role === UserRole.DEPARTMENT_HEAD && (
-              <span className="ml-1 text-purple-900 font-medium">
+              <span className="ml-1 text-slate-700 font-medium">
                 You hold final signing authority to grant <strong>Stage 2 Store Issue Authorizations</strong>.
               </span>
             )}
             {role === UserRole.TOP_MANAGEMENT && (
-              <span className="ml-1 text-emerald-900 font-medium">
+              <span className="ml-1 text-slate-700 font-medium">
                 Executive Oversight: Full visibility into active approval throughput.
               </span>
             )}
@@ -512,98 +515,90 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             )}
           </span>
         </div>
-        <span className="hidden md:inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-amber-900 border border-amber-300">
+        <span className="hidden md:inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-slate-700 border border-slate-200">
           SOD Protected
         </span>
       </div>
 
-      {/* ── 2. Top Summary KPI Badges ── */}
+      {/* ── 2. Top Summary KPI Cards (Clean, Light & Modern) ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div
           onClick={() => setActiveTab('MY_QUEUE')}
-          className={`p-3 rounded-2xl border transition cursor-pointer ${
+          className={`p-3.5 rounded-xl border transition-all cursor-pointer bg-white relative ${
             activeTab === 'MY_QUEUE'
-              ? 'bg-amber-600 text-white border-amber-700 shadow-md ring-2 ring-amber-400'
-              : 'bg-white border-slate-200 hover:border-amber-400 text-slate-800'
+              ? 'border-emerald-700 shadow-xs ring-1 ring-emerald-700/25'
+              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${activeTab === 'MY_QUEUE' ? 'text-amber-100' : 'text-slate-500'}`}>
+            <span className={`text-[11px] font-semibold tracking-tight ${activeTab === 'MY_QUEUE' ? 'text-emerald-950 font-bold' : 'text-slate-500'}`}>
               Pending My Action
             </span>
-            <Clock className={`w-4 h-4 ${activeTab === 'MY_QUEUE' ? 'text-white' : 'text-amber-600'}`} />
+            <span className={`w-2 h-2 rounded-full ${activeTab === 'MY_QUEUE' ? 'bg-emerald-600 ring-2 ring-emerald-100' : 'bg-slate-300'}`} />
           </div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-black">{metrics.myQueueCount}</span>
-            <span className={`text-[10px] font-medium ${activeTab === 'MY_QUEUE' ? 'text-amber-100' : 'text-slate-500'}`}>
-              Actionable
-            </span>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-slate-900">{metrics.myQueueCount}</span>
+            <span className="text-[10px] text-slate-400 font-medium">Actionable</span>
           </div>
         </div>
 
         <div
           onClick={() => setActiveTab('STAGE_1')}
-          className={`p-3 rounded-2xl border transition cursor-pointer ${
+          className={`p-3.5 rounded-xl border transition-all cursor-pointer bg-white relative ${
             activeTab === 'STAGE_1'
-              ? 'bg-amber-700 text-white border-amber-800 shadow-md ring-2 ring-amber-400'
-              : 'bg-white border-slate-200 hover:border-amber-400 text-slate-800'
+              ? 'border-emerald-700 shadow-xs ring-1 ring-emerald-700/25'
+              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${activeTab === 'STAGE_1' ? 'text-amber-100' : 'text-slate-500'}`}>
+            <span className={`text-[11px] font-semibold tracking-tight ${activeTab === 'STAGE_1' ? 'text-emerald-950 font-bold' : 'text-slate-500'}`}>
               Stage 1 Endorsements
             </span>
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span className={`w-2 h-2 rounded-full ${activeTab === 'STAGE_1' ? 'bg-emerald-600 ring-2 ring-emerald-100' : 'bg-slate-300'}`} />
           </div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-black">{metrics.stage1Count}</span>
-            <span className={`text-[10px] font-medium ${activeTab === 'STAGE_1' ? 'text-amber-100' : 'text-slate-500'}`}>
-              Team Leader
-            </span>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-slate-900">{metrics.stage1Count}</span>
+            <span className="text-[10px] text-slate-400 font-medium">Team Leader</span>
           </div>
         </div>
 
         <div
           onClick={() => setActiveTab('STAGE_2')}
-          className={`p-3 rounded-2xl border transition cursor-pointer ${
+          className={`p-3.5 rounded-xl border transition-all cursor-pointer bg-white relative ${
             activeTab === 'STAGE_2'
-              ? 'bg-purple-700 text-white border-purple-800 shadow-md ring-2 ring-purple-400'
-              : 'bg-white border-slate-200 hover:border-purple-400 text-slate-800'
+              ? 'border-emerald-700 shadow-xs ring-1 ring-emerald-700/25'
+              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${activeTab === 'STAGE_2' ? 'text-purple-100' : 'text-slate-500'}`}>
+            <span className={`text-[11px] font-semibold tracking-tight ${activeTab === 'STAGE_2' ? 'text-emerald-950 font-bold' : 'text-slate-500'}`}>
               Stage 2 Authorizations
             </span>
-            <span className="w-2 h-2 rounded-full bg-purple-500" />
+            <span className={`w-2 h-2 rounded-full ${activeTab === 'STAGE_2' ? 'bg-emerald-600 ring-2 ring-emerald-100' : 'bg-slate-300'}`} />
           </div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-black">{metrics.stage2Count}</span>
-            <span className={`text-[10px] font-medium ${activeTab === 'STAGE_2' ? 'text-purple-100' : 'text-slate-500'}`}>
-              Directorate Head
-            </span>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-slate-900">{metrics.stage2Count}</span>
+            <span className="text-[10px] text-slate-400 font-medium">Dept Head</span>
           </div>
         </div>
 
         <div
           onClick={() => setActiveTab('APPROVED')}
-          className={`p-3 rounded-2xl border transition cursor-pointer ${
+          className={`p-3.5 rounded-xl border transition-all cursor-pointer bg-white relative ${
             activeTab === 'APPROVED'
-              ? 'bg-emerald-800 text-white border-emerald-900 shadow-md ring-2 ring-emerald-400'
-              : 'bg-white border-slate-200 hover:border-emerald-400 text-slate-800'
+              ? 'border-emerald-700 shadow-xs ring-1 ring-emerald-700/25'
+              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${activeTab === 'APPROVED' ? 'text-emerald-100' : 'text-slate-500'}`}>
+            <span className={`text-[11px] font-semibold tracking-tight ${activeTab === 'APPROVED' ? 'text-emerald-950 font-bold' : 'text-slate-500'}`}>
               Approved & Released
             </span>
-            <CheckCircle2 className={`w-4 h-4 ${activeTab === 'APPROVED' ? 'text-white' : 'text-emerald-600'}`} />
+            <span className={`w-2 h-2 rounded-full ${activeTab === 'APPROVED' ? 'bg-emerald-600 ring-2 ring-emerald-100' : 'bg-slate-300'}`} />
           </div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-black">{metrics.approvedCount}</span>
-            <span className={`text-[10px] font-medium ${activeTab === 'APPROVED' ? 'text-emerald-100' : 'text-slate-500'}`}>
-              Completed
-            </span>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-slate-900">{metrics.approvedCount}</span>
+            <span className="text-[10px] text-slate-400 font-medium">Completed</span>
           </div>
         </div>
       </div>
@@ -616,10 +611,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search by code, item name, slip #, or staff..."
+              placeholder="Search by tracking code, item name, slip #, or staff..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-600 focus:bg-white font-mono"
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:bg-white font-mono"
             />
           </div>
 
@@ -628,9 +623,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as any)}
-              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-amber-600 cursor-pointer w-full sm:w-auto"
+              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-700 cursor-pointer w-full sm:w-auto"
             >
-              <option value="ALL">All Statutory Types</option>
+              <option value="ALL">All Statutory Forms</option>
               <option value={TransactionType.STOCK_IN}>Model 19 (Stock-In Receipt)</option>
               <option value={TransactionType.STOCK_OUT}>Model 20 (Stock-Out Issue)</option>
               <option value={TransactionType.RETURN}>Model 22 (Return to Store)</option>
@@ -638,7 +633,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           </div>
         </div>
 
-        {/* Row 2: Queue Tabs */}
+        {/* Row 2: Queue Tabs (Clean & Understated) */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-100">
           {[
             { id: 'MY_QUEUE', label: 'Pending My Action', count: metrics.myQueueCount },
@@ -654,18 +649,18 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 setActiveTab(tab.id as TabFilter);
                 setSelectedIds([]);
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
                 activeTab === tab.id
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  ? 'bg-emerald-800 text-white font-bold shadow-xs'
+                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
               <span>{tab.label}</span>
               <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                   activeTab === tab.id
-                    ? 'bg-amber-400 text-slate-950'
-                    : 'bg-slate-200 text-slate-700'
+                    ? 'bg-emerald-900/80 text-emerald-100'
+                    : 'bg-slate-100 text-slate-600'
                 }`}
               >
                 {tab.count}
@@ -678,12 +673,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       {/* ── 4. Main Approvals Display Area ── */}
       {loading && approvals.length === 0 ? (
         <div className="py-20 text-center text-slate-500 text-xs">
-          <RefreshCw className="w-6 h-6 text-amber-600 animate-spin mx-auto mb-2" />
+          <RefreshCw className="w-5 h-5 text-emerald-700 animate-spin mx-auto mb-2" />
           Loading approval requests registry...
         </div>
       ) : filteredApprovals.length === 0 ? (
         <div className="py-16 text-center rounded-2xl bg-white border border-dashed border-slate-300 space-y-2 shadow-xs">
-          <CheckCircle2 className="w-9 h-9 text-emerald-600 mx-auto" />
+          <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
           <h3 className="text-sm font-bold text-slate-900">No Approvals Matching Criteria</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             All registered stock transactions are fully cleared for the selected filters.
@@ -691,7 +686,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         </div>
       ) : viewMode === 'table' ? (
         /* ══════════════════════════════════════════════════════════════════════
-           HIGH-DENSITY DATA TABLE (Enterprise Standard - ServiceNow/Workday style)
+           HIGH-DENSITY DATA TABLE (Enterprise Standard)
            ══════════════════════════════════════════════════════════════════════ */
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
@@ -704,8 +699,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                         type="checkbox"
                         checked={isAllSelected}
                         onChange={handleToggleSelectAll}
-                        className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer w-4 h-4"
-                        title="Select All Pending Items"
+                        className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 cursor-pointer w-4 h-4"
+                        title="Select All Actionable Items"
                       />
                     </th>
                   )}
@@ -730,8 +725,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   return (
                     <tr
                       key={appr.id}
-                      className={`hover:bg-amber-50/40 transition group ${
-                        isSelected ? 'bg-amber-50/70' : ''
+                      className={`hover:bg-slate-50/80 transition group ${
+                        isSelected ? 'bg-slate-50' : ''
                       }`}
                     >
                       {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
@@ -741,7 +736,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => handleToggleSelectItem(appr.id)}
-                              className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer w-4 h-4"
+                              className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 cursor-pointer w-4 h-4"
                             />
                           ) : (
                             <span className="text-slate-300 font-mono text-[10px]">—</span>
@@ -757,10 +752,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       {/* Tracking Code & Item Name */}
                       <td className="py-3 px-4">
                         <div className="flex flex-col">
-                          <span className="font-mono font-bold text-emerald-800 text-xs">
+                          <span className="font-mono font-bold text-slate-800 text-xs">
                             {appr.itemCode}
                           </span>
-                          <span className="font-medium text-slate-900 line-clamp-1 group-hover:text-amber-900 transition">
+                          <span className="font-medium text-slate-900 line-clamp-1 group-hover:text-emerald-900 transition">
                             {appr.itemName}
                           </span>
                         </div>
@@ -769,10 +764,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       {/* IFMIS Slip Number & Slip Date */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         <div className="flex flex-col">
-                          <span className="font-mono font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded w-fit text-[11px]">
+                          <span className="font-mono font-medium text-slate-800 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded w-fit text-[11px]">
                             {appr.ifmisSlipNumber}
                           </span>
-                          <span className="text-[10px] text-slate-500 mt-0.5">
+                          <span className="text-[10px] text-slate-400 mt-0.5">
                             {appr.ifmisSlipDateEc} E.C.
                           </span>
                         </div>
@@ -803,12 +798,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                               setSelectedApproval(appr);
                               setReviewRemarks('');
                             }}
-                            className={`px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                            className={`px-3 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-2xs ${
                               isActionableForMe
-                                ? stage === 1
-                                  ? 'bg-amber-700 hover:bg-amber-800 text-white'
-                                  : 'bg-purple-700 hover:bg-purple-800 text-white'
-                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+                                ? 'bg-emerald-800 hover:bg-emerald-900 text-white'
+                                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
                             }`}
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -831,7 +824,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         </div>
       ) : (
         /* ══════════════════════════════════════════════════════════════════════
-           COMPACT CARDS GRID (Visual Responsive Alternative)
+           COMPACT CARDS GRID (Clean, Light & Simple Alternative)
            ══════════════════════════════════════════════════════════════════════ */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {filteredApprovals.map((appr) => {
@@ -846,14 +839,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             return (
               <div
                 key={appr.id}
-                className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                className={`p-4 rounded-xl border transition-all flex flex-col justify-between bg-white ${
                   isSelected
-                    ? 'bg-amber-50/80 border-amber-500 shadow-md ring-1 ring-amber-400'
-                    : isPending
-                    ? stage === 1
-                      ? 'bg-white border-amber-300 ring-1 ring-amber-300/40 shadow-2xs hover:shadow-xs'
-                      : 'bg-white border-purple-300 ring-1 ring-purple-300/40 shadow-2xs hover:shadow-xs'
-                    : 'bg-white border-slate-200 shadow-2xs'
+                    ? 'border-emerald-700 ring-1 ring-emerald-700/30 shadow-xs'
+                    : 'border-slate-200 hover:border-slate-300 shadow-2xs hover:shadow-xs'
                 }`}
               >
                 <div>
@@ -864,7 +853,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => handleToggleSelectItem(appr.id)}
-                          className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer w-3.5 h-3.5"
+                          className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 cursor-pointer w-3.5 h-3.5"
                         />
                       )}
                       {getTypeBadge(appr.transactionType)}
@@ -873,12 +862,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   </div>
 
                   <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{appr.itemName}</h3>
-                  <p className="text-xs font-mono text-emerald-800 font-bold mt-0.5">{appr.itemCode}</p>
+                  <p className="text-xs font-mono text-slate-700 font-bold mt-0.5">{appr.itemCode}</p>
 
-                  <div className="mt-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
+                  <div className="mt-2.5 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-1 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">IFMIS Slip:</span>
-                      <span className="font-mono text-amber-800 font-bold bg-amber-100 px-1 rounded">
+                      <span className="font-mono text-slate-800 font-semibold bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[11px]">
                         {appr.ifmisSlipNumber}
                       </span>
                     </div>
@@ -895,7 +884,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 </div>
 
                 <div className="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between gap-2">
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-slate-400">
                     {appr.createdAtEc} E.C.
                   </span>
                   <button
@@ -905,10 +894,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs ${
                       isActionableForMe
-                        ? stage === 1
-                          ? 'bg-amber-700 hover:bg-amber-800 text-white'
-                          : 'bg-purple-700 hover:bg-purple-800 text-white'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+                        ? 'bg-emerald-800 hover:bg-emerald-900 text-white'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
                     }`}
                   >
                     <Eye className="w-3.5 h-3.5" />
@@ -923,23 +910,23 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
       {/* ── 5. Sticky Floating Batch Action Bar ── */}
       {selectedIds.length > 0 && canReview && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4 animate-slideUp">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl border border-slate-800 flex items-center gap-4 animate-slideUp">
           <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">
+            <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">
               {selectedIds.length}
             </span>
             <span className="text-xs font-semibold">
-              Requests Selected
+              Selected Requests
             </span>
           </div>
 
-          <div className="h-5 w-px bg-slate-700" />
+          <div className="h-5 w-px bg-slate-800" />
 
           <div className="flex items-center gap-2">
             {role === UserRole.TEAM_LEADER ? (
               <button
                 onClick={() => handleOpenBatchModal('ENDORSE')}
-                className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Batch Endorse ({selectedIds.length})</span>
@@ -947,7 +934,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             ) : role === UserRole.DEPARTMENT_HEAD ? (
               <button
                 onClick={() => handleOpenBatchModal('APPROVE')}
-                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Batch Authorize ({selectedIds.length})</span>
@@ -956,7 +943,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
             <button
               onClick={() => handleOpenBatchModal('REJECT')}
-              className="px-3.5 py-1.5 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="px-3.5 py-1.5 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
               <XCircle className="w-3.5 h-3.5" />
               <span>Batch Reject</span>
@@ -964,7 +951,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
             <button
               onClick={() => setSelectedIds([])}
-              className="px-2.5 py-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl text-xs transition cursor-pointer"
+              className="px-2.5 py-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg text-xs transition cursor-pointer"
             >
               Clear
             </button>
@@ -978,7 +965,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl text-slate-900 my-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <FileCheck2 className="w-4 h-4 text-amber-600" />
+                <FileCheck2 className="w-4 h-4 text-emerald-800" />
                 {selectedApproval.currentStage === 1
                   ? 'Stage 1: Team Leader Endorsement'
                   : 'Stage 2: Directorate Head Final Authorization'}
@@ -997,10 +984,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   <span className="font-bold text-slate-900 text-sm">{selectedApproval.itemName}</span>
                   {getTypeBadge(selectedApproval.transactionType)}
                 </div>
-                <p className="font-mono text-emerald-800 font-bold">{selectedApproval.itemCode}</p>
+                <p className="font-mono text-slate-800 font-bold">{selectedApproval.itemCode}</p>
                 <div className="flex items-center justify-between pt-1 border-t border-slate-200">
                   <span className="text-slate-500">IFMIS Slip:</span>
-                  <span className="font-mono text-amber-800 bg-amber-100 font-bold px-1.5 py-0.2 rounded">
+                  <span className="font-mono text-slate-800 font-semibold bg-white border border-slate-200 px-1.5 py-0.5 rounded">
                     {selectedApproval.ifmisSlipNumber}
                   </span>
                 </div>
@@ -1019,40 +1006,40 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
               {/* Endorsement Audit Trail Banner if Stage 2 */}
               {selectedApproval.currentStage === 2 && selectedApproval.endorsedBy && (
-                <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-950 space-y-1">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 space-y-1">
                   <div className="font-bold flex items-center justify-between text-[11px]">
-                    <span className="flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-purple-700" />
+                    <span className="flex items-center gap-1 text-slate-900">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
                       Stage 1 Endorsement Verified
                     </span>
-                    <span className="text-[10px] bg-purple-200 px-1.5 py-0.2 rounded font-mono">
+                    <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-mono font-semibold">
                       Ready for Final Sign-Off
                     </span>
                   </div>
-                  <p>
+                  <p className="text-slate-700">
                     Endorsed by: <strong>{selectedApproval.endorsedBy.fullNameEn}</strong> on{' '}
                     {selectedApproval.endorsedAtGc}
                   </p>
-                  <p className="italic text-slate-700">
+                  <p className="italic text-slate-600">
                     Remarks: "{selectedApproval.endorsementRemarks || 'Endorsed'}"
                   </p>
                 </div>
               )}
 
               {/* Simulated IFMIS Attachment Document Badge */}
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <FileText className="w-5 h-5 text-emerald-700" />
                   <div>
-                    <p className="font-bold text-emerald-950">
+                    <p className="font-bold text-slate-900">
                       {selectedApproval.ifmisSlipNumber}.pdf
                     </p>
-                    <p className="text-[10px] text-emerald-800">
+                    <p className="text-[10px] text-slate-500">
                       Official Scanned Government Voucher
                     </p>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold">
+                <span className="px-2 py-0.5 rounded text-[10px] bg-white text-slate-700 border border-slate-200 font-bold">
                   Verified
                 </span>
               </div>
@@ -1079,7 +1066,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   }
                   value={reviewRemarks}
                   onChange={(e) => setReviewRemarks(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-amber-600 text-xs"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-700 text-xs"
                 />
               </div>
             </div>
@@ -1097,7 +1084,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 type="button"
                 disabled={actionLoading}
                 onClick={() => handleAction(selectedApproval.id, 'REJECT')}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
               >
                 <XCircle className="w-4 h-4" /> Reject
               </button>
@@ -1107,7 +1094,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   type="button"
                   disabled={actionLoading}
                   onClick={() => handleAction(selectedApproval.id, 'ENDORSE')}
-                  className="px-5 py-2 bg-amber-700 hover:bg-amber-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
                   <CheckCircle2 className="w-4 h-4" /> Endorse (Stage 1)
                 </button>
@@ -1116,7 +1103,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   type="button"
                   disabled={actionLoading}
                   onClick={() => handleAction(selectedApproval.id, 'APPROVE')}
-                  className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
                   <CheckCircle2 className="w-4 h-4" /> Authorize & Sign-Off
                 </button>
@@ -1132,7 +1119,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl text-slate-900">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-amber-600" />
+                <Layers className="w-4 h-4 text-emerald-800" />
                 Batch {batchActionType === 'ENDORSE' ? 'Endorsement' : batchActionType === 'APPROVE' ? 'Authorization' : 'Rejection'}
               </h3>
               <button
@@ -1144,9 +1131,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700">
                 You are about to batch {batchActionType.toLowerCase()}{' '}
-                <strong className="font-black text-amber-900">{selectedIds.length}</strong> selected transaction requests in a single action.
+                <strong className="font-black text-slate-900">{selectedIds.length}</strong> selected transaction requests in a single action.
               </div>
 
               <div>
@@ -1158,7 +1145,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   placeholder="e.g. Batch verified under procurement directive."
                   value={batchRemarks}
                   onChange={(e) => setBatchRemarks(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-amber-600 text-xs"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-700 text-xs"
                 />
               </div>
             </div>
@@ -1175,12 +1162,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 type="button"
                 disabled={batchProcessing}
                 onClick={handleExecuteBatch}
-                className={`px-5 py-2 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer ${
+                className={`px-5 py-2 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
                   batchActionType === 'REJECT'
                     ? 'bg-rose-700 hover:bg-rose-800'
-                    : batchActionType === 'ENDORSE'
-                    ? 'bg-amber-700 hover:bg-amber-800'
-                    : 'bg-emerald-700 hover:bg-emerald-800'
+                    : 'bg-emerald-800 hover:bg-emerald-900'
                 }`}
               >
                 {batchProcessing && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
