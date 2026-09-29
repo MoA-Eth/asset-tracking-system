@@ -160,8 +160,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           </select>
         </div>
 
-        {/* Pending Approvals Bell (For Authorizing Role - Department Head) */}
-        {role === UserRole.DEPARTMENT_HEAD && (
+        {/* Pending Approvals Bell (For Authorizing Roles - Department Head & Team Leader) */}
+        {(role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
           <button
             onClick={() => onNavigate('approvals')}
             className="relative p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"

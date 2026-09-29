@@ -19,6 +19,7 @@ import { api } from './api/client';
 const DEFAULT_TAB_FOR_ROLE: Record<UserRole, string> = {
   [UserRole.SYSTEM_ADMIN]: 'dashboard',
   [UserRole.DATA_ENCODER]: 'stock-in',
+  [UserRole.TEAM_LEADER]: 'approvals',
   [UserRole.DEPARTMENT_HEAD]: 'approvals',
   [UserRole.TOP_MANAGEMENT]: 'dashboard',
 };
@@ -26,6 +27,7 @@ const DEFAULT_TAB_FOR_ROLE: Record<UserRole, string> = {
 const ALLOWED_TABS_FOR_ROLE: Record<UserRole, string[]> = {
   [UserRole.SYSTEM_ADMIN]: ['dashboard', 'stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
   [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
+  [UserRole.TEAM_LEADER]: ['dashboard', 'approvals', 'reports', 'audit'],
   [UserRole.DEPARTMENT_HEAD]: ['dashboard', 'approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
   [UserRole.TOP_MANAGEMENT]: ['dashboard'],
 };
@@ -68,7 +70,15 @@ const AuthenticatedPortal: React.FC = () => {
   const fetchPending = async () => {
     try {
       const data = await api.getApprovals();
-      const count = data.filter((a) => a.status === 'PENDING').length;
+      const pending = data.filter((a) => a.status === 'PENDING');
+      let count = 0;
+      if (role === UserRole.TEAM_LEADER) {
+        count = pending.filter((a) => (a.currentStage ?? 1) === 1).length;
+      } else if (role === UserRole.DEPARTMENT_HEAD) {
+        count = pending.filter((a) => a.currentStage === 2).length;
+      } else {
+        count = pending.length;
+      }
       setPendingApprovalsCount(count);
     } catch {
       // ignore

@@ -1,5 +1,7 @@
 export enum UserRole {
+  SYSTEM_ADMIN = 'SYSTEM_ADMIN',
   DATA_ENCODER = 'DATA_ENCODER',
+  TEAM_LEADER = 'TEAM_LEADER',
   DEPARTMENT_HEAD = 'DEPARTMENT_HEAD',
   TOP_MANAGEMENT = 'TOP_MANAGEMENT', // Minister / Directors
 }
@@ -144,14 +146,26 @@ export interface TransactionApproval {
   targetLocationId?: string;
   purposeOrRemarks: string;
   
-  // Status
+  // Multi-Stage Workflow Status
   status: ApprovalStatus;
+  currentStage: number; // 1 = Team Leader Endorsement Pending, 2 = Dept Head Approval Pending
+  
+  // Stage 1: Team Leader Endorsement
+  endorsedById?: string;
+  endorsementRemarks?: string;
+  endorsedAtGc?: string;
+  endorsedAtEc?: string;
+  endorsedBy?: Employee;
+  
+  // Stage 2: Department Head Final Approval
   reviewedById?: string;
   reviewRemarks?: string;
   createdAtGc: string;
   createdAtEc: string;
   reviewedAtGc?: string;
   reviewedAtEc?: string;
+  reviewedBy?: Employee;
+  requestedBy?: Employee;
 }
 
 export interface AuditLogEntry {
@@ -219,7 +233,7 @@ export interface CreateTransferRequest {
 
 export interface ApprovalActionRequest {
   approvalId: string;
-  action: 'APPROVE' | 'REJECT';
+  action: 'ENDORSE' | 'APPROVE' | 'REJECT';
   reviewedById: string;
   reviewRemarks?: string;
 }

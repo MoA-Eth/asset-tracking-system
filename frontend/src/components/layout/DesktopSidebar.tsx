@@ -59,6 +59,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         return 'Executive Minister';
       case UserRole.DEPARTMENT_HEAD:
         return 'Directorate Head';
+      case UserRole.TEAM_LEADER:
+        return 'Team Leader';
       case UserRole.DATA_ENCODER:
         return 'Store Custodian';
       default:
@@ -126,8 +128,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
       {/* Navigation Items (Exact Layout matching User Mockup) */}
       <nav className="p-3 space-y-1.5 overflow-y-auto flex-1 text-xs">
-        {/* 1. Dashboard (Top Management & Dept Head) */}
-        {(role === UserRole.TOP_MANAGEMENT || role === UserRole.DEPARTMENT_HEAD) && (
+        {/* 1. Dashboard (Top Management, Dept Head & Team Leader) */}
+        {(role === UserRole.TOP_MANAGEMENT || role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
@@ -141,8 +143,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           </button>
         )}
 
-        {/* Approvals Badge (Department Head Only) */}
-        {role === UserRole.DEPARTMENT_HEAD && (
+        {/* Approvals Badge (Department Head & Team Leader) */}
+        {(role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
           <button
             onClick={() => setActiveTab('approvals')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer relative ${
@@ -209,7 +211,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         )}
 
         {/* 4. Reports */}
-        {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD) && (
+        {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
           <button
             onClick={() => setActiveTab('reports')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${

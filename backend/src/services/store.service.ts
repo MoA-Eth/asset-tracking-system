@@ -66,6 +66,14 @@ function mapItem(raw: any): ItemWithRelations {
   };
 }
 
+const APPROVAL_INCLUDES = {
+  requestedBy: true,
+  endorsedBy: true,
+  reviewedBy: true,
+  recipientEmployee: true,
+  targetDepartment: true,
+};
+
 function mapApproval(raw: any): TransactionApproval {
   return {
     id: raw.id,
@@ -82,12 +90,20 @@ function mapApproval(raw: any): TransactionApproval {
     targetDepartmentId: raw.targetDepartmentId ?? undefined,
     purposeOrRemarks: raw.purposeOrRemarks,
     status: raw.status as ApprovalStatus,
+    currentStage: raw.currentStage ?? 1,
+    endorsedById: raw.endorsedById ?? undefined,
+    endorsementRemarks: raw.endorsementRemarks ?? undefined,
+    endorsedAtGc: raw.endorsedAtGc ?? undefined,
+    endorsedAtEc: raw.endorsedAtEc ?? undefined,
+    endorsedBy: raw.endorsedBy ? mapEmployee(raw.endorsedBy) : undefined,
     reviewedById: raw.reviewedById ?? undefined,
     reviewRemarks: raw.reviewRemarks ?? undefined,
     createdAtGc: raw.createdAtGc,
     createdAtEc: raw.createdAtEc,
     reviewedAtGc: raw.reviewedAtGc ?? undefined,
     reviewedAtEc: raw.reviewedAtEc ?? undefined,
+    reviewedBy: raw.reviewedBy ? mapEmployee(raw.reviewedBy) : undefined,
+    requestedBy: raw.requestedBy ? mapEmployee(raw.requestedBy) : undefined,
   };
 }
 
@@ -463,12 +479,44 @@ export class StoreService {
     if (!approval) throw new Error(`Approval record ${payload.approvalId} not found.`);
     if (approval.status !== 'PENDING') throw new Error(`This transaction is already ${approval.status}.`);
 
+    const today = getTodayGcAndEc();
+    const reviewer = await prisma.employee.findUnique({ where: { id: payload.reviewedById } });
+    const reviewerName = reviewer ? `${reviewer.fullNameEn} (${reviewer.role})` : 'Reviewer';
+
+    // ── STAGE 1 ACTION: ENDORSE (Team Leader) ──────────────────────────────
+    if (payload.action === 'ENDORSE') {
+      if (approval.currentStage !== 1) {
+        throw new Error(`Transaction ${approval.itemCode} has already completed Stage 1 endorsement.`);
+      }
+
+      const updatedApproval = await prisma.transactionApproval.update({
+        where: { id: payload.approvalId },
+        data: {
+          currentStage: 2, // Advance to Stage 2 Department Head Final Approval
+          endorsedById: payload.reviewedById,
+          endorsementRemarks: payload.reviewRemarks || 'Endorsed by Team Leader (Stage 1)',
+          endorsedAtGc: today.gc,
+          endorsedAtEc: today.ec,
+        },
+        include: APPROVAL_INCLUDES,
+      });
+
+      await addAuditLog(
+        payload.reviewedById,
+        `ENDORSE_${approval.transactionType}`,
+        'APPROVAL',
+        approval.itemId,
+        `${approval.transactionType} ENDORSED by Team Leader ${reviewerName} for item ${approval.itemCode}. Advanced to Stage 2 Dept Head Approval. Remarks: ${updatedApproval.endorsementRemarks}`,
+        approval.ifmisSlipNumber,
+      );
+
+      return mapApproval(updatedApproval);
+    }
+
+    // ── STAGE 2 ACTION: APPROVE / REJECT (Dept Head / Admin) ──────────────
     const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new Error(`Target item ${approval.itemId} not found.`);
 
-    const today = getTodayGcAndEc();
-    const reviewer = await prisma.employee.findUnique({ where: { id: payload.reviewedById } });
-    const reviewerName = reviewer ? reviewer.fullNameEn : 'Department Head';
     const isApprove = payload.action === 'APPROVE';
     const newStatus = isApprove ? 'APPROVED' : 'REJECTED';
 
@@ -478,10 +526,11 @@ export class StoreService {
       data: {
         status: newStatus as any,
         reviewedById: payload.reviewedById,
-        reviewRemarks: payload.reviewRemarks || (isApprove ? 'Approved' : 'Rejected by Department Head'),
+        reviewRemarks: payload.reviewRemarks || (isApprove ? 'Approved by Department Head (Stage 2)' : 'Rejected'),
         reviewedAtGc: today.gc,
         reviewedAtEc: today.ec,
       },
+      include: APPROVAL_INCLUDES,
     });
 
     // Determine new item status and history entry
@@ -562,7 +611,7 @@ export class StoreService {
             fromEntity,
             toEntity,
             performedBy: reviewerName,
-            performedByRole: 'DEPARTMENT_HEAD' as any,
+            performedByRole: (reviewer ? reviewer.role : 'DEPARTMENT_HEAD') as any,
             approvedBy: reviewerName,
             ifmisSlipNumber: approval.ifmisSlipNumber,
             notes: histNote,
@@ -637,6 +686,7 @@ export class StoreService {
     const where: any = status ? { status } : {};
     const rows = await prisma.transactionApproval.findMany({
       where,
+      include: APPROVAL_INCLUDES,
       orderBy: { createdAt: 'desc' },
     });
     return rows.map(mapApproval);
