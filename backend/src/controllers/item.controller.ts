@@ -132,9 +132,32 @@ export class ItemController {
       if (!payload.reviewedById) {
         payload.reviewedById = req.user.id;
       }
-      // Enforce role clearance
-      if (req.user.role !== UserRole.TOP_MANAGEMENT && req.user.role !== UserRole.DEPARTMENT_HEAD) {
-        throw new BadRequestError('Only Department Heads or Executive Management can approve or reject asset workflows.');
+      // Enforce role clearance based on 2-stage approval action
+      if (payload.action === 'ENDORSE') {
+        if (
+          req.user.role !== UserRole.TEAM_LEADER &&
+          req.user.role !== UserRole.SYSTEM_ADMIN &&
+          req.user.role !== UserRole.DEPARTMENT_HEAD
+        ) {
+          throw new BadRequestError('Only Team Leaders or System Administrators can endorse Stage 1 requests.');
+        }
+      } else if (payload.action === 'APPROVE') {
+        if (
+          req.user.role !== UserRole.DEPARTMENT_HEAD &&
+          req.user.role !== UserRole.TOP_MANAGEMENT &&
+          req.user.role !== UserRole.SYSTEM_ADMIN
+        ) {
+          throw new BadRequestError('Only Department Heads or Executive Management can grant Stage 2 final approval.');
+        }
+      } else if (payload.action === 'REJECT') {
+        if (
+          req.user.role !== UserRole.TEAM_LEADER &&
+          req.user.role !== UserRole.DEPARTMENT_HEAD &&
+          req.user.role !== UserRole.TOP_MANAGEMENT &&
+          req.user.role !== UserRole.SYSTEM_ADMIN
+        ) {
+          throw new BadRequestError('You do not have authorization to reject this approval workflow.');
+        }
       }
     }
 
