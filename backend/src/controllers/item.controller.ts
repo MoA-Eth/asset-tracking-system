@@ -64,6 +64,9 @@ export class ItemController {
       throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
     }
     const payload: CreateStockInRequest = req.body;
+    if (req.user && !payload.registeredById) {
+      payload.registeredById = req.user.id;
+    }
     if (!payload.name || !payload.category) {
       throw new BadRequestError('Item name and asset category are mandatory fields.');
     }
@@ -83,6 +86,9 @@ export class ItemController {
       throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
     }
     const payload: CreateStockOutRequest = req.body;
+    if (req.user && !payload.registeredById) {
+      payload.registeredById = req.user.id;
+    }
     if (!payload.itemId || !payload.recipientEmployeeId || !payload.ifmisSlipNumber) {
       throw new BadRequestError('Asset Item, Recipient Staff, and IFMIS Issue Voucher are required.');
     }
@@ -99,6 +105,9 @@ export class ItemController {
       throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
     }
     const payload = req.body;
+    if (req.user && !payload.registeredById) {
+      payload.registeredById = req.user.id;
+    }
     if (!payload.itemId || !payload.ifmisSlipNumber || !payload.condition) {
       throw new BadRequestError('Item ID, IFMIS Return Slip Number (Model 22), and Condition are mandatory.');
     }
@@ -115,6 +124,9 @@ export class ItemController {
       throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
     }
     const payload: CreateTransferRequest = req.body;
+    if (req.user && !payload.performedById) {
+      payload.performedById = req.user.id;
+    }
     if (!payload.itemId || !payload.reason) {
       throw new BadRequestError('Item ID and transfer reason are mandatory.');
     }

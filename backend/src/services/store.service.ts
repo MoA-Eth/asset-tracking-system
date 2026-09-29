@@ -170,7 +170,7 @@ async function addAuditLog(
   previousState?: any,
   newState?: any,
 ) {
-  const user = await prisma.employee.findUnique({ where: { id: userId } });
+  const user = userId ? await prisma.employee.findUnique({ where: { id: userId } }) : null;
   const dateInfo = getTodayGcAndEc();
   await prisma.auditLog.create({
     data: {
@@ -269,7 +269,7 @@ export class StoreService {
     const itemCode = await generateItemCode(payload.category, currentYear);
     const initialStatus = payload.isHistoricalData ? ItemStatus.AVAILABLE : ItemStatus.PENDING_STOCK_IN;
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
-    const user = await prisma.employee.findUnique({ where: { id: payload.registeredById } });
+    const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
     const newItem = await prisma.item.create({
       data: {
@@ -352,8 +352,8 @@ export class StoreService {
 
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
-    const recipient = await prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId ?? '' } });
-    const user = await prisma.employee.findUnique({ where: { id: payload.registeredById } });
+    const recipient = payload.recipientEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }) : null;
+    const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
     await prisma.item.update({
       where: { id: item.id },
@@ -415,11 +415,17 @@ export class StoreService {
     if (item.status !== 'ISSUED' && item.status !== 'IN_REPAIR' && item.status !== 'AVAILABLE') {
       throw new Error(`Item ${item.itemCode} cannot be returned to store. Current status: ${item.status}`);
     }
+    const pendingApproval = await prisma.transactionApproval.findFirst({
+      where: { itemId: item.id, status: 'PENDING' },
+    });
+    if (pendingApproval) {
+      throw new Error(`Item ${item.itemCode} already has a pending ${pendingApproval.transactionType} approval (${pendingApproval.ifmisSlipNumber}).`);
+    }
     if (!payload.ifmisSlipNumber.trim()) throw new Error('IFMIS Return Slip Number (Model 22) is mandatory.');
 
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
-    const user = await prisma.employee.findUnique({ where: { id: payload.registeredById } });
+    const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
     await prisma.item.update({
       where: { id: item.id },
@@ -480,7 +486,7 @@ export class StoreService {
     if (approval.status !== 'PENDING') throw new Error(`This transaction is already ${approval.status}.`);
 
     const today = getTodayGcAndEc();
-    const reviewer = await prisma.employee.findUnique({ where: { id: payload.reviewedById } });
+    const reviewer = payload.reviewedById ? await prisma.employee.findUnique({ where: { id: payload.reviewedById } }) : null;
     const reviewerName = reviewer ? `${reviewer.fullNameEn} (${reviewer.role})` : 'Reviewer';
 
     // ── STAGE 1 ACTION: ENDORSE (Team Leader) ──────────────────────────────
@@ -499,6 +505,25 @@ export class StoreService {
           endorsedAtEc: today.ec,
         },
         include: APPROVAL_INCLUDES,
+      });
+
+      await prisma.item.update({
+        where: { id: approval.itemId },
+        data: {
+          history: {
+            create: {
+              dateGc: today.gc,
+              dateEc: today.ec,
+              action: `STAGE_1_ENDORSED_${approval.transactionType}`,
+              fromEntity: 'Team Leader Review',
+              toEntity: 'Directorate Head Authorization (Stage 2)',
+              performedBy: reviewerName,
+              performedByRole: (reviewer ? reviewer.role : 'TEAM_LEADER') as any,
+              ifmisSlipNumber: approval.ifmisSlipNumber,
+              notes: payload.reviewRemarks || 'Stage 1 Endorsement granted by Team Leader',
+            },
+          },
+        },
       });
 
       await addAuditLog(
@@ -641,6 +666,15 @@ export class StoreService {
   public async transferItem(payload: CreateTransferRequest): Promise<ItemWithRelations> {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
     if (!item) throw new Error(`Item ${payload.itemId} not found.`);
+    if (item.status === 'DISPOSED') {
+      throw new Error(`Item ${item.itemCode} is DISPOSED and cannot be transferred.`);
+    }
+    if (item.status === 'PENDING_STOCK_IN') {
+      throw new Error(`Item ${item.itemCode} is pending Stock-In approval and cannot be transferred.`);
+    }
+    if (item.status === 'PENDING_STOCK_OUT') {
+      throw new Error(`Item ${item.itemCode} is pending Stock-Out approval and cannot be transferred.`);
+    }
 
     const today = getTodayGcAndEc();
     const prevCustodian = item.currentCustodianId
@@ -649,7 +683,7 @@ export class StoreService {
     const newCustodian = payload.toEmployeeId
       ? (await prisma.employee.findUnique({ where: { id: payload.toEmployeeId } }))?.fullNameEn
       : prevCustodian;
-    const performer = await prisma.employee.findUnique({ where: { id: payload.performedById } });
+    const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
 
     const updated = await prisma.item.update({
       where: { id: item.id },
