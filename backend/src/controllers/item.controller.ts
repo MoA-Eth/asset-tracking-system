@@ -12,7 +12,7 @@ import {
 } from '../types/asset-management';
 import { asyncHandler } from '../middleware/async-handler';
 import { sendSuccess } from '../utils/api-response';
-import { BadRequestError, NotFoundError } from '../errors/app-error';
+import { BadRequestError, NotFoundError, ForbiddenError } from '../errors/app-error';
 
 export class ItemController {
   private store = StoreService.getInstance();
@@ -60,6 +60,9 @@ export class ItemController {
    * Scenario 2.1: Inbound goods registration mirrored from IFMIS Model 19.
    */
   public registerStockIn = asyncHandler(async (req: Request, res: Response) => {
+    if (req.user && req.user.role === UserRole.SYSTEM_ADMIN) {
+      throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
+    }
     const payload: CreateStockInRequest = req.body;
     if (!payload.name || !payload.category) {
       throw new BadRequestError('Item name and asset category are mandatory fields.');
@@ -76,6 +79,9 @@ export class ItemController {
    * Scenario 2.2: Outbound store issue mirrored from IFMIS Model 20/22.
    */
   public registerStockOut = asyncHandler(async (req: Request, res: Response) => {
+    if (req.user && req.user.role === UserRole.SYSTEM_ADMIN) {
+      throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
+    }
     const payload: CreateStockOutRequest = req.body;
     if (!payload.itemId || !payload.recipientEmployeeId || !payload.ifmisSlipNumber) {
       throw new BadRequestError('Asset Item, Recipient Staff, and IFMIS Issue Voucher are required.');
@@ -89,6 +95,9 @@ export class ItemController {
    * Scenario 2.3: Model 22 Return Slip (Issued item returned to central store).
    */
   public registerReturn = asyncHandler(async (req: Request, res: Response) => {
+    if (req.user && req.user.role === UserRole.SYSTEM_ADMIN) {
+      throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
+    }
     const payload = req.body;
     if (!payload.itemId || !payload.ifmisSlipNumber || !payload.condition) {
       throw new BadRequestError('Item ID, IFMIS Return Slip Number (Model 22), and Condition are mandatory.');
@@ -102,6 +111,9 @@ export class ItemController {
    * Reassignment / transfer between custodians or physical store depots.
    */
   public transferItem = asyncHandler(async (req: Request, res: Response) => {
+    if (req.user && req.user.role === UserRole.SYSTEM_ADMIN) {
+      throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
+    }
     const payload: CreateTransferRequest = req.body;
     if (!payload.itemId || !payload.reason) {
       throw new BadRequestError('Item ID and transfer reason are mandatory.');
@@ -129,6 +141,9 @@ export class ItemController {
     
     // Auto-populate reviewing officer if authenticated
     if (req.user) {
+      if (req.user.role === UserRole.SYSTEM_ADMIN) {
+        throw new ForbiddenError('System Administrators are restricted from signing off approval workflows to maintain Segregation of Duties.');
+      }
       if (!payload.reviewedById) {
         payload.reviewedById = req.user.id;
       }
@@ -136,16 +151,14 @@ export class ItemController {
       if (payload.action === 'ENDORSE') {
         if (
           req.user.role !== UserRole.TEAM_LEADER &&
-          req.user.role !== UserRole.SYSTEM_ADMIN &&
           req.user.role !== UserRole.DEPARTMENT_HEAD
         ) {
-          throw new BadRequestError('Only Team Leaders or System Administrators can endorse Stage 1 requests.');
+          throw new BadRequestError('Only Team Leaders can endorse Stage 1 requests.');
         }
       } else if (payload.action === 'APPROVE') {
         if (
           req.user.role !== UserRole.DEPARTMENT_HEAD &&
-          req.user.role !== UserRole.TOP_MANAGEMENT &&
-          req.user.role !== UserRole.SYSTEM_ADMIN
+          req.user.role !== UserRole.TOP_MANAGEMENT
         ) {
           throw new BadRequestError('Only Department Heads or Executive Management can grant Stage 2 final approval.');
         }
@@ -153,8 +166,7 @@ export class ItemController {
         if (
           req.user.role !== UserRole.TEAM_LEADER &&
           req.user.role !== UserRole.DEPARTMENT_HEAD &&
-          req.user.role !== UserRole.TOP_MANAGEMENT &&
-          req.user.role !== UserRole.SYSTEM_ADMIN
+          req.user.role !== UserRole.TOP_MANAGEMENT
         ) {
           throw new BadRequestError('You do not have authorization to reject this approval workflow.');
         }

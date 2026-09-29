@@ -219,7 +219,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         </div>
 
         {/* Pending Approvals Bell & Interactive Notification Popover */}
-        {(role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER || role === UserRole.SYSTEM_ADMIN) && (
+        {(role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => {

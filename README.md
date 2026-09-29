@@ -112,7 +112,7 @@ All test accounts use uniform password **`moaams2024`**:
 | **`TEAM_LEADER`** | `teamlead@moa.gov.et`<br>`mulugeta.b@moa.gov.et` | Team Leader | **Stage 1 Endorsement** | Approvals (Stage 1), Reports, Audit Log |
 | **`DEPARTMENT_HEAD`** | `head@moa.gov.et`<br>`abebe.k@moa.gov.et` | Directorate Head | **Stage 2 Final Authorization** | Approvals (Stage 2), Reports, Settings, Audit Log |
 | **`TOP_MANAGEMENT`** | `minister@moa.gov.et` | Executive Minister | Executive Visibility | Executive Dashboard (Portfolio Valuation, Directorate Allocations, Custody Ratios, Stores) |
-| **`SYSTEM_ADMIN`** | `admin@moa.gov.et` | System Administrator | Full Admin Override (Stage 1 & 2) | Full Platform Access (Dashboard, Stock-In/Out, Transfer, Approvals, Reports, Settings, Audit Log) |
+| **`SYSTEM_ADMIN`** | `admin@moa.gov.et` | System Administrator | IT Governance & Security (SOD) | System Dashboard, User Management, Approval Matrix, System Config, Reports, Audit Logs (Store Operations & Approvals hidden for Segregation of Duties) |
 
 ---
 
