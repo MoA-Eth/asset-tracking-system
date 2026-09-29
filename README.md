@@ -5,20 +5,6 @@ A modern, enterprise-grade asset tracking system and REST API built to mirror th
 
 ---
 
-## 🏛️ Core Capabilities
-
-- **Statutory Voucher Workflows**:
-  - **Model 19 (የዕቃ መረከቢያ):** Inbound Store Goods Receipt Voucher.
-  - **Model 20 (የዕቃ ወጪ ማዘዣ):** Store Issue Voucher assigning items to custodians.
-  - **Model 22 (የዕቃ መመለሻ):** Asset Return Voucher clearing custodian liability.
-- **Dual Calendar Engine**: Bidirectional lockstep synchronization across **Gregorian Calendar (G.C.)** and **Ethiopian Calendar (E.C.)**.
-- **2-Stage Sequential Approval Workflow**:
-  - **Stage 1 (Team Leader Endorsement)**: Review and endorse store requests.
-  - **Stage 2 (Directorate Head Authorization)**: Final sign-off and property status update (`AVAILABLE` or `ISSUED`).
-- **Role Governance**: Privilege separation across System Admin (`SYSTEM_ADMIN`), Team Leaders (`TEAM_LEADER`), Directorate Heads (`DEPARTMENT_HEAD`), Store Custodians (`DATA_ENCODER`), and Executive Leadership (`TOP_MANAGEMENT`).
-
----
-
 ## 📁 Repository Structure (`@MoA-Eth` Monorepo Standard)
 
 ```text
