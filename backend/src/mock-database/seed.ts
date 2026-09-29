@@ -29,16 +29,16 @@ export const SEED_LOCATIONS: Location[] = [
 ];
 
 export const SEED_EMPLOYEES: Employee[] = [
-  // Top Management / Minister
+  // General Manager
   {
     id: 'EMP-MIN-01',
-    payrollId: 'MOA/EXEC-001',
-    fullNameEn: 'H.E. Mr. Addisu Arega (Minister)',
-    fullNameAm: 'ክቡር አቶ አዲሱ አረጋ (ሚኒስትር)',
+    payrollId: 'MOA/MGR-001',
+    fullNameEn: 'Addisu Arega (General Manager)',
+    fullNameAm: 'አቶ አዲሱ አረጋ (ዋና ሥራ አስኪያጅ)',
     departmentId: 'DEP-03',
-    email: 'minister@moa.gov.et',
+    email: 'manager@moa.gov.et',
     phone: '+251911000001',
-    role: UserRole.TOP_MANAGEMENT,
+    role: UserRole.MANAGER,
   },
   // Department Heads / Approvers
   {

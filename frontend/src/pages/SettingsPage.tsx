@@ -276,7 +276,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
                         <td className="py-3 px-4">
                           <span
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                              emp.role === UserRole.TOP_MANAGEMENT
+                              emp.role === UserRole.MANAGER
                                 ? 'bg-amber-100 text-amber-900 border-amber-300'
                                 : emp.role === UserRole.DEPARTMENT_HEAD
                                 ? 'bg-blue-100 text-blue-900 border-blue-300'
@@ -297,8 +297,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
                             >
                               <option value={UserRole.SYSTEM_ADMIN}>System Administrator</option>
                               <option value={UserRole.DATA_ENCODER}>Store Custodian / Encoder</option>
+                              <option value={UserRole.TEAM_LEADER}>Team Leader</option>
                               <option value={UserRole.DEPARTMENT_HEAD}>Directorate Head / Approver</option>
-                              <option value={UserRole.TOP_MANAGEMENT}>Executive Minister / Leadership</option>
+                              <option value={UserRole.MANAGER}>General Manager</option>
                             </select>
                             {isUpdating && <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />}
                           </div>

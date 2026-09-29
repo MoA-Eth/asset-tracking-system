@@ -235,7 +235,7 @@ All test accounts use uniform password **`moaams2024`**:
 | **`DATA_ENCODER`** | `encoder@moa.gov.et` | Store Custodian | Requisitioner (Model 19, 20, 22) | Stock-In, Stock-Out, Transfer Asset, Settings |
 | **`TEAM_LEADER`** | `teamlead@moa.gov.et` | Team Leader | **Stage 1 Endorsement** | Approvals (Stage 1), Reports, Audit Log |
 | **`DEPARTMENT_HEAD`** | `head@moa.gov.et` | Directorate Head | **Stage 2 Final Authorization** | Approvals (Stage 2), Reports, Settings, Audit Log |
-| **`TOP_MANAGEMENT`** | `minister@moa.gov.et` | Executive Minister | Executive Visibility | Executive Dashboard (Portfolio Valuation, Directorate Allocations, Custody Ratios, Stores) |
+| **`MANAGER`** | `manager@moa.gov.et` | General Manager | Management Visibility | Management Dashboard (Portfolio Valuation, Directorate Allocations, Custody Ratios, Stores) |
 | **`SYSTEM_ADMIN`** | `admin@moa.gov.et` | System Administrator | IT Governance & Security (SOD) | System Dashboard, User Management, Approval Matrix, System Config, Reports, Audit Logs (Store Operations & Approvals hidden for Segregation of Duties) |
 
 ---

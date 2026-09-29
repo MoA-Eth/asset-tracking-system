@@ -22,7 +22,7 @@ const DEFAULT_TAB_FOR_ROLE: Record<UserRole, string> = {
   [UserRole.DATA_ENCODER]: 'stock-in',
   [UserRole.TEAM_LEADER]: 'approvals',
   [UserRole.DEPARTMENT_HEAD]: 'approvals',
-  [UserRole.TOP_MANAGEMENT]: 'dashboard',
+  [UserRole.MANAGER]: 'dashboard',
 };
 
 const ALLOWED_TABS_FOR_ROLE: Record<UserRole, string[]> = {
@@ -30,7 +30,7 @@ const ALLOWED_TABS_FOR_ROLE: Record<UserRole, string[]> = {
   [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
   [UserRole.TEAM_LEADER]: ['approvals', 'reports', 'audit'],
   [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
-  [UserRole.TOP_MANAGEMENT]: ['dashboard'],
+  [UserRole.MANAGER]: ['dashboard'],
 };
 
 const AuthenticatedPortal: React.FC = () => {

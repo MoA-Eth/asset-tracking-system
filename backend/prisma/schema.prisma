@@ -17,7 +17,7 @@ enum UserRole {
   DATA_ENCODER
   TEAM_LEADER
   DEPARTMENT_HEAD
-  TOP_MANAGEMENT
+  MANAGER
 }
 
 enum ItemStatus {

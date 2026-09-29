@@ -3,7 +3,7 @@ export enum UserRole {
   DATA_ENCODER = 'DATA_ENCODER',
   TEAM_LEADER = 'TEAM_LEADER',
   DEPARTMENT_HEAD = 'DEPARTMENT_HEAD',
-  TOP_MANAGEMENT = 'TOP_MANAGEMENT', // Minister / Directors
+  MANAGER = 'MANAGER', // General Manager
 }
 
 export enum ItemStatus {

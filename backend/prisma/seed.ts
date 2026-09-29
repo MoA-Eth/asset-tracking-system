@@ -68,11 +68,28 @@ async function main() {
       update: { role: UserRole.SYSTEM_ADMIN, password: 'moaams2024' },
       create: { id: 'EMP-ADMIN-01', payrollId: 'MOA/ADMIN-001', fullNameEn: 'System Administrator', fullNameAm: 'ሲስተም አድሚኒስትሬተር', departmentId: 'DEP-04', email: 'admin@moa.gov.et', phone: '+251911000000', role: UserRole.SYSTEM_ADMIN, password: 'moaams2024' },
     }),
-    // Executive Leadership (TOP_MANAGEMENT)
+    // General Manager (MANAGER)
     prisma.employee.upsert({
       where: { id: 'EMP-MIN-01' },
-      update: { password: 'moaams2024' },
-      create: { id: 'EMP-MIN-01', payrollId: 'MOA/EXEC-001', fullNameEn: 'H.E. Mr. Addisu Arega (Minister)', fullNameAm: 'ክቡር አቶ አዲሱ አረጋ (ሚኒስትር)', departmentId: 'DEP-03', email: 'minister@moa.gov.et', phone: '+251911000001', role: UserRole.TOP_MANAGEMENT, password: 'moaams2024' },
+      update: {
+        payrollId: 'MOA/MGR-001',
+        fullNameEn: 'Addisu Arega (General Manager)',
+        fullNameAm: 'አቶ አዲሱ አረጋ (ዋና ሥራ አስኪያጅ)',
+        email: 'manager@moa.gov.et',
+        role: UserRole.MANAGER,
+        password: 'moaams2024',
+      },
+      create: {
+        id: 'EMP-MIN-01',
+        payrollId: 'MOA/MGR-001',
+        fullNameEn: 'Addisu Arega (General Manager)',
+        fullNameAm: 'አቶ አዲሱ አረጋ (ዋና ሥራ አስኪያጅ)',
+        departmentId: 'DEP-03',
+        email: 'manager@moa.gov.et',
+        phone: '+251911000001',
+        role: UserRole.MANAGER,
+        password: 'moaams2024',
+      },
     }),
     // Team Leaders (TEAM_LEADER / Stage 1 Endorser)
     prisma.employee.upsert({
@@ -260,7 +277,7 @@ async function main() {
   console.log('  Store Custodian / Encoder  → encoder@moa.gov.et  (DATA_ENCODER)');
   console.log('  Team Leader (Endorser)     → teamlead@moa.gov.et (TEAM_LEADER)');
   console.log('  Directorate Head / Approver→ head@moa.gov.et     (DEPARTMENT_HEAD)');
-  console.log('  Executive Minister          → minister@moa.gov.et (TOP_MANAGEMENT)\n');
+  console.log('  General Manager             → manager@moa.gov.et  (MANAGER)\n');
 }
 
 main()

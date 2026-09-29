@@ -189,15 +189,15 @@ export class ItemController {
       } else if (payload.action === 'APPROVE') {
         if (
           req.user.role !== UserRole.DEPARTMENT_HEAD &&
-          req.user.role !== UserRole.TOP_MANAGEMENT
+          req.user.role !== UserRole.MANAGER
         ) {
-          throw new ForbiddenError('Only Department Heads or Executive Management can grant Stage 2 final approval.');
+          throw new ForbiddenError('Only Department Heads or General Managers can grant Stage 2 final approval.');
         }
       } else if (payload.action === 'REJECT') {
         if (
           req.user.role !== UserRole.TEAM_LEADER &&
           req.user.role !== UserRole.DEPARTMENT_HEAD &&
-          req.user.role !== UserRole.TOP_MANAGEMENT
+          req.user.role !== UserRole.MANAGER
         ) {
           throw new ForbiddenError('You do not have authorization to reject this approval workflow.');
         }
