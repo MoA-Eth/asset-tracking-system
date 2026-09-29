@@ -109,8 +109,8 @@ All test accounts use uniform password **`moaams2024`**:
 | Role | Email Login | Access Scope | Approval Stage Responsibility | Accessible Tabs |
 | :--- | :--- | :--- | :--- | :--- |
 | **`DATA_ENCODER`** | `encoder@moa.gov.et`<br>`storekeeper@moa.gov.et` | Store Custodian | Requisitioner (Model 19, 20, 22) | Stock-In, Stock-Out, Transfer Asset, Settings |
-| **`TEAM_LEADER`** | `teamlead@moa.gov.et`<br>`mulugeta.b@moa.gov.et` | Team Leader | **Stage 1 Endorsement** | Dashboard, Approvals (Stage 1), Reports, Audit Log |
-| **`DEPARTMENT_HEAD`** | `head@moa.gov.et`<br>`abebe.k@moa.gov.et` | Directorate Head | **Stage 2 Final Authorization** | Dashboard, Approvals (Stage 2), Stock-In, Stock-Out, Transfer Asset, Reports, Settings, Audit Log |
+| **`TEAM_LEADER`** | `teamlead@moa.gov.et`<br>`mulugeta.b@moa.gov.et` | Team Leader | **Stage 1 Endorsement** | Approvals (Stage 1), Reports, Audit Log |
+| **`DEPARTMENT_HEAD`** | `head@moa.gov.et`<br>`abebe.k@moa.gov.et` | Directorate Head | **Stage 2 Final Authorization** | Approvals (Stage 2), Reports, Settings, Audit Log |
 | **`TOP_MANAGEMENT`** | `minister@moa.gov.et` | Executive Minister | Executive Visibility | Executive Dashboard (Portfolio Valuation, Directorate Allocations, Custody Ratios, Stores) |
 | **`SYSTEM_ADMIN`** | `admin@moa.gov.et` | System Administrator | Full Admin Override (Stage 1 & 2) | Full Platform Access (Dashboard, Stock-In/Out, Transfer, Approvals, Reports, Settings, Audit Log) |
 
