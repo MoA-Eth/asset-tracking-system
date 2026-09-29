@@ -39,11 +39,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   onToggleCollapse,
 }) => {
   const { user, role, logout } = useAuth();
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    inventory: true,
-    movement: true,
-    admin: true,
-  });
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => ({
+    admin: activeTab.startsWith('settings'),
+  }));
+
+  React.useEffect(() => {
+    if (activeTab.startsWith('settings')) {
+      setOpenSections((prev) => ({ ...prev, admin: true }));
+    }
+  }, [activeTab]);
 
   const toggleSection = (key: string) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -157,50 +161,36 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           </button>
         )}
 
-        {/* 2. Inventory Dropdown (Stock In, Stock Out) */}
+        {/* 2. Stock-In (Model 19) */}
         {(role === UserRole.DATA_ENCODER || role === UserRole.DEPARTMENT_HEAD) && (
-          <div>
-            <button
-              onClick={() => toggleSection('inventory')}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-emerald-100/75 hover:bg-[#0B2C1B]/80 hover:text-white transition cursor-pointer font-semibold"
-            >
-              <div className="flex items-center gap-3">
-                <Boxes className="w-4 h-4 text-emerald-400" />
-                {!collapsed && <span>Inventory</span>}
-              </div>
-              {!collapsed && (
-                openSections.inventory ? (
-                  <ChevronDown className="w-3.5 h-3.5 text-emerald-400" />
-                ) : (
-                  <ChevronRight className="w-3.5 h-3.5 text-emerald-400" />
-                )
-              )}
-            </button>
-            {!collapsed && openSections.inventory && (
-              <div className="pl-9 pr-2 py-1 space-y-1 text-emerald-200/80">
-                <button
-                  onClick={() => setActiveTab('stock-in')}
-                  className={`w-full text-left py-1.5 px-2 rounded-lg transition cursor-pointer font-medium flex items-center gap-2 ${
-                    activeTab === 'stock-in' ? 'bg-[#11442B] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white'
-                  }`}
-                  title="Receive Inbound Store Items (Model 19 / የዕቃ መረከቢያ)"
-                >
-                  <PackagePlus className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span className="truncate">Receive Items</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('stock-out')}
-                  className={`w-full text-left py-1.5 px-2 rounded-lg transition cursor-pointer font-medium flex items-center gap-2 ${
-                    activeTab === 'stock-out' ? 'bg-[#11442B] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white'
-                  }`}
-                  title="Request Outbound Store Items (Model 20 / የዕቃ ወጪ ማዘዣ)"
-                >
-                  <PackageMinus className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span className="truncate">Request Items</span>
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => setActiveTab('stock-in')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+              activeTab === 'stock-in'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
+                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+            }`}
+            title="Stock-In (Model 19 / የዕቃ መረከቢያ)"
+          >
+            <PackagePlus className="w-4 h-4 shrink-0 text-emerald-400" />
+            {!collapsed && <span className="flex-1 text-left font-semibold">Stock-In</span>}
+          </button>
+        )}
+
+        {/* 3. Stock-Out (Model 20) */}
+        {(role === UserRole.DATA_ENCODER || role === UserRole.DEPARTMENT_HEAD) && (
+          <button
+            onClick={() => setActiveTab('stock-out')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+              activeTab === 'stock-out'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
+                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+            }`}
+            title="Stock-Out (Model 20 / የዕቃ ወጪ ማዘዣ)"
+          >
+            <PackageMinus className="w-4 h-4 shrink-0 text-amber-400" />
+            {!collapsed && <span className="flex-1 text-left font-semibold">Stock-Out</span>}
+          </button>
         )}
 
         {/* 3. Transfer Asset (Includes Custody Transfers & Model 22 Returns) */}
@@ -304,7 +294,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         )}
 
         {/* 6. Audit Log */}
-        {role !== UserRole.TOP_MANAGEMENT && (
+        {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD) && (
           <button
             onClick={() => setActiveTab('audit')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${

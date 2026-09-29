@@ -50,9 +50,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       case 'dashboard':
         return { title: 'Dashboard', am: 'የንብረትና የመጋዘን ክምችት መከታተያ', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
       case 'stock-in':
-        return { title: 'Receive Items', am: 'የዕቃ መረከቢያ (ሞዴል 19)', icon: PackagePlus, iconColor: 'text-emerald-700' };
+        return { title: 'Stock-In', am: 'የዕቃ መረከቢያ (ሞዴል 19)', icon: PackagePlus, iconColor: 'text-emerald-700' };
       case 'stock-out':
-        return { title: 'Request Items', am: 'የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 20)', icon: PackageMinus, iconColor: 'text-blue-700' };
+        return { title: 'Stock-Out', am: 'የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 20)', icon: PackageMinus, iconColor: 'text-blue-700' };
       case 'approvals':
         return { title: 'Approvals', am: 'የማረጋገጫና ፈቃድ መስጫ', icon: FileCheck2, iconColor: 'text-amber-600' };
       case 'audit':

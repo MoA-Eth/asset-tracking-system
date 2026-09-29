@@ -581,9 +581,9 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
     }
     return {
       badge: 'Inbound Store Receipt • የዕቃ መረከቢያ (ሞዴል 19)',
-      title: 'Receive Items — የዕቃ መረከቢያ (ሞዴል 19)',
+      title: 'Stock-In — የዕቃ መረከቢያ (ሞዴል 19)',
       subtitle: 'Register incoming goods into store using IFMIS Model 19 receiving vouchers.',
-      buttonLabel: '+ Receive New Item',
+      buttonLabel: 'Register New Item',
     };
   };
 
