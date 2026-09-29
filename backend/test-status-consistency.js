@@ -53,9 +53,9 @@ async function runStatusConsistencyTests() {
   try {
     // 0. Authenticate Personas
     const encoderToken = await login('encoder@moa.gov.et');
-    const teamleadToken = await login('teamlead@moa.gov.et');
-    const headToken = await login('head@moa.gov.et');
-    const adminToken = await login('admin@moa.gov.et');
+    const teamleadToken = await login('teamleader@moa.gov.et');
+    const headToken = await login('depthead@moa.gov.et');
+    const adminToken = await login('sysadmin@moa.gov.et');
 
     // Get reference employees and locations
     const empsRes = await request('/reference/employees', {}, encoderToken);

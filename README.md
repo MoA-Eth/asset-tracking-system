@@ -235,10 +235,10 @@ All test accounts use uniform password **`moaams2024`**.
 | # | Role | Email Login | Title | Default View | Responsibilities |
 | :- | :--- | :--- | :--- | :--- | :--- |
 | 1 | **`DATA_ENCODER`** | `encoder@moa.gov.et` | Store Custodian / Encoder | Stock-In | Registers Model 19 (GRN), requests Model 20 (Issue), and Model 22 (Return). **Cannot approve.** |
-| 2 | **`TEAM_LEADER`** | `teamlead@moa.gov.et` | Team Leader | Approvals | **Stage 1 Endorsement** — technical review and spec verification before forwarding to Stage 2. |
-| 3 | **`DEPARTMENT_HEAD`** | `head@moa.gov.et` | Directorate Head | Approvals | **Stage 2 Final Authorization** — signs off on stock transitions, custody issuance, and returns. |
+| 2 | **`TEAM_LEADER`** | `teamleader@moa.gov.et` | Team Leader | Approvals | **Stage 1 Endorsement** — technical review and spec verification before forwarding to Stage 2. |
+| 3 | **`DEPARTMENT_HEAD`** | `depthead@moa.gov.et` | Directorate Head | Approvals | **Stage 2 Final Authorization** — signs off on stock transitions, custody issuance, and returns. |
 | 4 | **`MANAGER`** | `manager@moa.gov.et` | Manager | Dashboard | Read-only executive visibility: portfolio valuation, directorate allocations, custody ratios, and store analytics. |
-| 5 | **`SYSTEM_ADMIN`** | `admin@moa.gov.et` | System Administrator | Dashboard | Platform administration: user management, approval matrix config, audit logs. **Blocked from all store operations (SOD).** |
+| 5 | **`SYSTEM_ADMIN`** | `sysadmin@moa.gov.et` | System Administrator | Dashboard | Platform administration: user management, approval matrix config, audit logs. **Blocked from all store operations (SOD).** |
 
 ---
 

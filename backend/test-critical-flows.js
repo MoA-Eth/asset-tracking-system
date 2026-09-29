@@ -1,10 +1,10 @@
 const BASE_URL = 'http://localhost:3000/api';
 
 const USERS = {
-  admin: { email: 'admin@moa.gov.et', password: 'moaams2024', role: 'SYSTEM_ADMIN' },
+  admin: { email: 'sysadmin@moa.gov.et', password: 'moaams2024', role: 'SYSTEM_ADMIN' },
   encoder: { email: 'encoder@moa.gov.et', password: 'moaams2024', role: 'DATA_ENCODER' },
-  teamlead: { email: 'teamlead@moa.gov.et', password: 'moaams2024', role: 'TEAM_LEADER' },
-  head: { email: 'head@moa.gov.et', password: 'moaams2024', role: 'DEPARTMENT_HEAD' },
+  teamlead: { email: 'teamleader@moa.gov.et', password: 'moaams2024', role: 'TEAM_LEADER' },
+  head: { email: 'depthead@moa.gov.et', password: 'moaams2024', role: 'DEPARTMENT_HEAD' },
   manager: { email: 'manager@moa.gov.et', password: 'moaams2024', role: 'MANAGER' },
 };
 
