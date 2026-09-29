@@ -24,6 +24,7 @@ import {
 } from '../types/asset-management';
 import { getTodayGcAndEc } from '../utils/eth-date';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 interface ApprovalsPageProps {
   currentRole?: UserRole;
@@ -33,6 +34,7 @@ interface ApprovalsPageProps {
 
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefreshPendingCount }) => {
   const { user, role } = useAuth();
+  const toast = useToast();
   const canEndorse = role === UserRole.TEAM_LEADER;
   const canApprove = role === UserRole.DEPARTMENT_HEAD;
   const canReview = canEndorse || canApprove;
@@ -82,6 +84,15 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       return;
     }
 
+    const targetApproval = approvals.find((a) => a.id === approvalId) || selectedApproval;
+    const itemCode = targetApproval?.itemCode || 'Transaction';
+    const typeLabel =
+      targetApproval?.transactionType === 'STOCK_IN'
+        ? 'Model 19 Stock-In'
+        : targetApproval?.transactionType === 'STOCK_OUT'
+        ? 'Model 20 Stock-Out'
+        : 'Model 22 Return';
+
     setActionLoading(true);
     const approverId =
       user?.id ||
@@ -103,8 +114,33 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       await fetchApprovals();
       onRefreshPendingCount?.();
       window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
+
+      if (action === 'ENDORSE') {
+        toast.success(
+          'Stage 1 Endorsement Recorded',
+          `${typeLabel} (${itemCode}) verified and advanced to Directorate Head for Stage 2 final approval.`
+        );
+      } else if (action === 'APPROVE') {
+        const resultDesc =
+          targetApproval?.transactionType === 'STOCK_IN'
+            ? 'Asset is now AVAILABLE in Central Store.'
+            : targetApproval?.transactionType === 'STOCK_OUT'
+            ? 'Asset is now ISSUED to staff custodian.'
+            : 'Asset is now RETURNED to store stock.';
+        toast.success(
+          'Authorization Approved',
+          `${typeLabel} (${itemCode}) granted final sign-off. ${resultDesc}`
+        );
+      } else if (action === 'REJECT') {
+        toast.warning(
+          'Transaction Rejected',
+          `${typeLabel} (${itemCode}) has been rejected. Item status updated accordingly.`
+        );
+      }
     } catch (err: any) {
-      setActionError(`Approval action failed: ${err.message || 'Server error'}`);
+      const errMsg = err.message || 'Server error';
+      setActionError(`Approval action failed: ${errMsg}`);
+      toast.error('Approval Action Failed', errMsg);
     } finally {
       setActionLoading(false);
     }

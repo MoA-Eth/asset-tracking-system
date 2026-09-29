@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import {
   Lock,
   Mail,
@@ -11,6 +12,7 @@ import { Button } from '../components/ui';
 
 export const LoginPage: React.FC = () => {
   const { login, isLoading } = useAuth();
+  const toast = useToast();
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -18,14 +20,19 @@ export const LoginPage: React.FC = () => {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!usernameOrEmail.trim()) {
-      setErrorMsg('Please enter your MoA official email or civil service payroll ID.');
+      const msg = 'Please enter your MoA official email or civil service payroll ID.';
+      setErrorMsg(msg);
+      toast.warning('Credentials Required', msg);
       return;
     }
     setErrorMsg(null);
     try {
       await login(usernameOrEmail.trim(), password);
+      toast.success('Welcome Back', 'Civil service credentials verified. Logging in...');
     } catch (err: any) {
-      setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
+      const msg = err.message || 'Authentication failed. Please verify credentials.';
+      setErrorMsg(msg);
+      toast.error('Authentication Failed', msg);
     }
   };
 

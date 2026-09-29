@@ -23,6 +23,7 @@ import { AssetCategory, ItemStatus, ItemCondition, ItemWithRelations, Location, 
 import { formatETB } from '../utils/eth-date';
 import { getSystemSettings } from '../utils/system-settings';
 import { ConditionBadge } from '../components/ui/Badge';
+import { useToast } from '../context/ToastContext';
 
 interface StockInPageProps {
   currentRole: UserRole;
@@ -74,6 +75,7 @@ interface StockInFormProps {
 }
 
 const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess }) => {
+  const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
   const [category, setCategory] = useState<AssetCategory>(AssetCategory.IT_EQUIPMENT);
@@ -114,16 +116,22 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
     e.preventDefault();
     setFormError(null);
     if (!name.trim()) {
-      setFormError('Please provide the asset name and description.');
+      const msg = 'Please provide the asset name and description.';
+      setFormError(msg);
+      toast.warning('Name Required', msg);
       return;
     }
     if (!ifmisSlipNumber.trim()) {
-      setFormError('IFMIS Slip / Voucher Number is mandatory.');
+      const msg = 'IFMIS Slip / Voucher Number (Model 19) is mandatory.';
+      setFormError(msg);
+      toast.warning('Voucher Required', msg);
       return;
     }
 
     if (isAttachmentRequired && !attachmentFileName) {
-      setFormError('System Policy configured in Settings requires a scanned IFMIS slip attachment.');
+      const msg = 'System Policy configured in Settings requires a scanned IFMIS slip attachment.';
+      setFormError(msg);
+      toast.warning('Attachment Required', msg);
       return;
     }
 
@@ -145,9 +153,16 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         registeredById: encoder.id,
         notes,
       });
+      const itemCode = res.item?.itemCode || 'New Asset';
+      toast.success(
+        'Stock-In Registered',
+        `Asset ${itemCode} (${name}) registered with Model 19 slip ${ifmisSlipNumber.trim()} and submitted for Team Leader verification.`
+      );
       onSuccess(res);
     } catch (err: any) {
-      setFormError(`Stock-In failed: ${err.message || 'Server error'}`);
+      const errMsg = err.message || 'Server error';
+      setFormError(`Stock-In failed: ${errMsg}`);
+      toast.error('Stock-In Registration Failed', errMsg);
     } finally {
       setSubmitting(false);
     }

@@ -29,6 +29,7 @@ import { api } from '../api/client';
 import { formatETB } from '../utils/eth-date';
 import { UserRole } from '../types/asset-management';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 interface ExecutiveDashboardPageProps {
   onNavigate: (tab: string) => void;
@@ -44,6 +45,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   setSelectedCenter,
 }) => {
   const { user } = useAuth();
+  const toast = useToast();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +58,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       setData(res);
     } catch (err: any) {
       console.error('Failed to fetch executive dashboard:', err);
-      setError(err.message || 'Failed to load executive metrics.');
+      const msg = err.message || 'Failed to load executive metrics.';
+      setError(msg);
+      toast.error('Dashboard Sync Error', msg);
     } finally {
       setLoading(false);
     }

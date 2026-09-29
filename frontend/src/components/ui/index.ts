@@ -5,3 +5,4 @@ export * from './Input';
 export * from './Select';
 export * from './StatCard';
 export * from './Modal';
+export * from './Toast';

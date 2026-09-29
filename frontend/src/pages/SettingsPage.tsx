@@ -15,6 +15,7 @@ import {
 import { api } from '../api/client';
 import { UserRole, Employee, Department } from '../types/asset-management';
 import { getSystemSettings, saveSystemSettings, AttachmentPolicy } from '../utils/system-settings';
+import { useToast } from '../context/ToastContext';
 
 interface SettingsPageProps {
   currentRole: UserRole;
@@ -23,6 +24,7 @@ interface SettingsPageProps {
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users' }) => {
+  const toast = useToast();
   const [activeSubTab, setActiveSubTab] = useState<'users' | 'policies'>(initialTab);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -56,7 +58,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
       setDepartments(depts);
     } catch (err: any) {
       console.error('Failed to load settings data:', err);
-      setError(err.message || 'Failed to load user permissions registry.');
+      const msg = err.message || 'Failed to load user permissions registry.';
+      setError(msg);
+      toast.error('Settings Sync Error', msg);
     } finally {
       setLoading(false);
     }
@@ -72,10 +76,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
     try {
       const updated = await api.updateEmployeeRole(employeeId, newRole);
       setEmployees((prev) => prev.map((emp) => (emp.id === employeeId ? updated : emp)));
-      setSuccessMsg(`Role updated to ${newRole.replace(/_/g, ' ')} for ${updated.fullNameEn}`);
+      const roleName = newRole.replace(/_/g, ' ');
+      setSuccessMsg(`Role updated to ${roleName} for ${updated.fullNameEn}`);
+      toast.success(
+        'Authorization Role Updated',
+        `Assigned ${roleName} permissions to ${updated.fullNameEn}.`
+      );
       setTimeout(() => setSuccessMsg(null), 4000);
     } catch (err: any) {
-      alert(`Role update failed: ${err.message}`);
+      const errMsg = err.message || 'Role update rejected.';
+      toast.error('Role Update Failed', errMsg);
     } finally {
       setUpdatingId(null);
     }
@@ -84,11 +94,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
   const handlePolicyChange = (policy: AttachmentPolicy) => {
     setAttachmentPolicy(policy);
     saveSystemSettings({ historicalDataAttachmentPolicy: policy });
-    setSuccessMsg(
-      policy === 'REQUIRED'
-        ? 'Policy updated: Scanned IFMIS slip attachment is now MANDATORY for historical legacy data.'
-        : 'Policy updated: Scanned IFMIS slip attachment is now OPTIONAL for historical legacy data.'
-    );
+    const isReq = policy === 'REQUIRED';
+    const policyDesc = isReq
+      ? 'Scanned IFMIS slip attachment is now MANDATORY for historical legacy stock-in data.'
+      : 'Scanned IFMIS slip attachment is now OPTIONAL for historical legacy stock-in data.';
+    setSuccessMsg(`Policy updated: ${policyDesc}`);
+    toast.info('Store Policy Updated', policyDesc);
     setTimeout(() => setSuccessMsg(null), 4500);
   };
 
