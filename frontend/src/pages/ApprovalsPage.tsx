@@ -28,9 +28,10 @@ import { useAuth } from '../context/AuthContext';
 interface ApprovalsPageProps {
   currentRole?: UserRole;
   onNavigate: (tab: string) => void;
+  onRefreshPendingCount?: () => void;
 }
 
-export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
+export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefreshPendingCount }) => {
   const { user, role } = useAuth();
   const canEndorse = role === UserRole.SYSTEM_ADMIN || role === UserRole.TEAM_LEADER;
   const canApprove = role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD;
@@ -99,7 +100,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
 
       setSelectedApproval(null);
       setReviewRemarks('');
-      fetchApprovals();
+      await fetchApprovals();
+      onRefreshPendingCount?.();
+      window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
     } catch (err: any) {
       setActionError(`Approval action failed: ${err.message || 'Server error'}`);
     } finally {

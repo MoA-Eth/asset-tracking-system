@@ -89,7 +89,15 @@ const AuthenticatedPortal: React.FC = () => {
     if (isAuthenticated) {
       fetchPending();
     }
-  }, [activeTab, isAuthenticated]);
+  }, [activeTab, isAuthenticated, role]);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      fetchPending();
+    };
+    window.addEventListener('moa_approvals_updated', handleUpdate);
+    return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
+  }, [role, isAuthenticated]);
 
   // Loading state with MoA branding
   if (isLoading) {
@@ -174,7 +182,11 @@ const AuthenticatedPortal: React.FC = () => {
             <TransferAssetPage currentRole={role} onNavigate={handleTabChange} />
           )}
           {activeTab === 'approvals' && (
-            <ApprovalsPage currentRole={role} onNavigate={handleTabChange} />
+            <ApprovalsPage
+              currentRole={role}
+              onNavigate={handleTabChange}
+              onRefreshPendingCount={fetchPending}
+            />
           )}
           {activeTab === 'audit' && (
             <AuditLogsPage />
