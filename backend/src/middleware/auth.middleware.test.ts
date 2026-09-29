@@ -20,7 +20,7 @@ describe('auth.middleware - requireRole & Segregation of Duties (SOD)', () => {
       user: {
         id: 'emp-1',
         role: UserRole.TEAM_LEADER,
-        fullNameEn: 'Abebe Bikila',
+        fullNameEn: 'Chala Bekele',
       },
     };
     const res: any = {};
