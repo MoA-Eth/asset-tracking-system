@@ -225,8 +225,23 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           </button>
         )}
 
-        {/* 5. Settings Dropdown (Users, Roles, Employees, Departments, Locations, Stores) */}
-        {(role === UserRole.DEPARTMENT_HEAD || role === UserRole.DATA_ENCODER) && (
+        {/* 5. Audit Log */}
+        {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+              activeTab === 'audit'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
+                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
+            {!collapsed && <span className="flex-1 text-left font-semibold">Audit Log</span>}
+          </button>
+        )}
+
+        {/* 6. Settings Dropdown (Users, Roles, Employees, Departments, Locations, Stores) */}
+        {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD || role === UserRole.DATA_ENCODER) && (
           <div>
             <button
               onClick={() => toggleSection('admin')}
@@ -293,21 +308,6 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               </div>
             )}
           </div>
-        )}
-
-        {/* 6. Audit Log */}
-        {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD) && (
-          <button
-            onClick={() => setActiveTab('audit')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
-              activeTab === 'audit'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Audit Log</span>}
-          </button>
         )}
       </nav>
 
