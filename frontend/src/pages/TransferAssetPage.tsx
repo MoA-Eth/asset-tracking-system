@@ -347,14 +347,14 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           </div>
 
           <div className="overflow-x-auto border border-slate-200 rounded-xl">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[720px]">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
                 <tr>
-                  <th className="p-3">Asset Code</th>
-                  <th className="p-3">Item Description</th>
-                  <th className="p-3">Current Custodian</th>
-                  <th className="p-3">Location</th>
-                  <th className="p-3 text-right">Action</th>
+                  <th className="p-3 w-36 whitespace-nowrap">Asset Code</th>
+                  <th className="p-3 min-w-[180px]">Item Description</th>
+                  <th className="p-3 min-w-[150px]">Current Custodian</th>
+                  <th className="p-3 w-32">Location</th>
+                  <th className="p-3 w-36 text-right whitespace-nowrap">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white font-medium">
@@ -362,7 +362,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                   .filter((i) => i.status === ItemStatus.ISSUED)
                   .map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50 transition">
-                      <td className="p-3 font-mono font-bold text-slate-900">{item.itemCode}</td>
+                      <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">{item.itemCode}</td>
                       <td className="p-3 text-slate-800">{item.name}</td>
                       <td className="p-3 text-slate-700">
                         {item.currentCustodian?.fullNameEn || 'Assigned Staff'}
@@ -408,23 +408,23 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           </div>
 
           <div className="overflow-x-auto border border-slate-200 rounded-xl">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[800px]">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
                 <tr>
-                  <th className="p-3">Asset Code</th>
-                  <th className="p-3">Item Name</th>
-                  <th className="p-3">Current Status</th>
-                  <th className="p-3">Custodian / Department</th>
-                  <th className="p-3">Store Location</th>
-                  <th className="p-3 text-right">Quick Action</th>
+                  <th className="p-3 w-36 whitespace-nowrap">Asset Code</th>
+                  <th className="p-3 min-w-[180px]">Item Name</th>
+                  <th className="p-3 w-32 whitespace-nowrap">Current Status</th>
+                  <th className="p-3 min-w-[160px]">Custodian / Department</th>
+                  <th className="p-3 w-32">Store Location</th>
+                  <th className="p-3 w-32 text-right whitespace-nowrap">Quick Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white font-medium">
                 {filteredItems.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50 transition">
-                    <td className="p-3 font-mono font-bold text-slate-900">{item.itemCode}</td>
+                    <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">{item.itemCode}</td>
                     <td className="p-3 text-slate-800">{item.name}</td>
-                    <td className="p-3">
+                    <td className="p-3 whitespace-nowrap">
                       <span
                         className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                           item.status === ItemStatus.AVAILABLE
@@ -441,7 +441,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       {item.currentCustodian?.fullNameEn || item.assignedDepartment?.nameEn || 'Store Stock'}
                     </td>
                     <td className="p-3 text-slate-600">{item.storeLocation?.siteName || 'HQ'}</td>
-                    <td className="p-3 text-right">
+                    <td className="p-3 text-right whitespace-nowrap">
                       {item.status === ItemStatus.ISSUED ? (
                         <button
                           onClick={() => setReturnItem(item)}

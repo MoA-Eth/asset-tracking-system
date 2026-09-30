@@ -561,7 +561,7 @@ export const ReportsPage: React.FC = () => {
       {/* 3. Pure Clean Tabular Form */}
       <div className="rounded-2xl bg-white border border-slate-200 shadow-xs overflow-hidden">
         {/* Table Subheader showing active count and valuation */}
-        <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between text-xs">
+        <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-800">{getReportTypeLabel()}</span>
             <span className="text-slate-400">•</span>
@@ -571,25 +571,30 @@ export const ReportsPage: React.FC = () => {
               {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
             </span>
           </div>
-          <div className="font-mono font-bold text-slate-800">
-            Total Value: <span className="text-emerald-700">{formatETB(totalValuation)}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-slate-400 hidden sm:inline-flex items-center gap-1 font-mono">
+              ↔ Scrollable table
+            </span>
+            <div className="font-mono font-bold text-slate-800">
+              Total Value: <span className="text-emerald-700">{formatETB(totalValuation)}</span>
+            </div>
           </div>
         </div>
 
         {/* Data Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[960px]">
             <thead className="bg-slate-50 text-slate-700 uppercase font-bold text-[10px] border-b border-slate-200">
               <tr>
-                <th className="py-2.5 px-3 w-10 text-center">#</th>
-                <th className="py-2.5 px-3">Tracking Code</th>
-                <th className="py-2.5 px-3">Asset Item</th>
-                <th className="py-2.5 px-3">Category</th>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3">IFMIS Slip #</th>
-                <th className="py-2.5 px-3">Date (E.C.)</th>
-                <th className="py-2.5 px-3">Custodian / Location</th>
-                <th className="py-2.5 px-3 text-right">Unit Cost</th>
+                <th className="py-2.5 px-3 w-10 text-center shrink-0">#</th>
+                <th className="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap">Tracking Code</th>
+                <th className="py-2.5 px-3 min-w-[180px] max-w-[260px]">Asset Item</th>
+                <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Category</th>
+                <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Status</th>
+                <th className="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap">IFMIS Slip #</th>
+                <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Date (E.C.)</th>
+                <th className="py-2.5 px-3 min-w-[150px] max-w-[220px]">Custodian / Location</th>
+                <th className="py-2.5 px-3 w-28 shrink-0 text-right whitespace-nowrap">Unit Cost</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -610,24 +615,29 @@ export const ReportsPage: React.FC = () => {
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">
+                      <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px] w-10 shrink-0">
                         {idx + 1}
                       </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-800 whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-800 whitespace-nowrap w-32 shrink-0">
                         {item.itemCode}
                       </td>
-                      <td className="py-2.5 px-3">
-                        <div className="font-semibold text-slate-900">{item.name}</div>
+                      <td className="py-2.5 px-3 min-w-[180px] max-w-[260px]">
+                        <div className="font-semibold text-slate-900 truncate" title={item.name}>
+                          {item.name}
+                        </div>
                         {item.serialNumber && (
-                          <div className="text-[10px] text-slate-400 font-mono">
+                          <div
+                            className="text-[10px] text-slate-400 font-mono truncate"
+                            title={`SN: ${item.serialNumber}`}
+                          >
                             SN: {item.serialNumber}
                           </div>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap w-28 shrink-0">
                         {item.category.replace(/_/g, ' ')}
                       </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap">
+                      <td className="py-2.5 px-3 whitespace-nowrap w-28 shrink-0">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
                             isAvailable
@@ -640,28 +650,34 @@ export const ReportsPage: React.FC = () => {
                           {item.status.replace(/_/g, ' ')}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-amber-900 whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono font-bold text-amber-900 whitespace-nowrap w-32 shrink-0">
                         {item.ifmisSlipNumber}
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap w-28 shrink-0">
                         {item.ifmisSlipDateEc || item.createdAtEc}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-700">
+                      <td className="py-2.5 px-3 text-slate-700 min-w-[150px] max-w-[220px]">
                         {item.currentCustodian ? (
-                          <div className="font-semibold text-slate-900">
+                          <div
+                            className="font-semibold text-slate-900 truncate"
+                            title={item.currentCustodian.fullNameEn}
+                          >
                             {item.currentCustodian.fullNameEn}
                           </div>
                         ) : item.assignedDepartment ? (
-                          <div className="font-semibold text-slate-800">
+                          <div
+                            className="font-semibold text-slate-800 truncate"
+                            title={item.assignedDepartment.nameEn}
+                          >
                             {item.assignedDepartment.nameEn}
                           </div>
                         ) : (
-                          <div className="text-slate-500">
+                          <div className="text-slate-500 truncate">
                             {item.storeLocation?.siteName || 'Central Store'}
                           </div>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap w-28 shrink-0">
                         {formatETB(item.unitCostETB)}
                       </td>
                     </tr>
