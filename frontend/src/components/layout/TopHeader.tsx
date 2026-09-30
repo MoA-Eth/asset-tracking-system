@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   FileSpreadsheet,
   Settings,
+  Sliders,
   ArrowRightLeft,
   X,
   CheckCircle2,
@@ -184,6 +185,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         return { title: 'Asset Transfer', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 22)', icon: ArrowRightLeft, iconColor: 'text-amber-600' };
       case 'settings':
         return { title: 'Settings & Permissions', am: 'ቅንብሮች እና የስርዓት መቆጣጠሪያ', icon: Settings, iconColor: 'text-emerald-700' };
+      case 'settings-system':
+        return { title: 'System Settings', am: 'የስርዓት ቅንብሮች', icon: Sliders, iconColor: 'text-emerald-700' };
       default:
         return { title: 'AMS Portal', am: 'የግብርና ሚኒስቴር', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
     }

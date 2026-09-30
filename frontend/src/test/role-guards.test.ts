@@ -11,10 +11,10 @@ const DEFAULT_TAB_FOR_ROLE: Record<UserRole, string> = {
 };
 
 const ALLOWED_TABS_FOR_ROLE: Record<UserRole, string[]> = {
-  [UserRole.SYSTEM_ADMIN]: ['dashboard', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
-  [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
+  [UserRole.SYSTEM_ADMIN]: ['dashboard', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config', 'settings-system'],
+  [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'settings', 'settings-users', 'settings-matrix', 'settings-config', 'settings-system'],
   [UserRole.TEAM_LEADER]: ['approvals', 'reports', 'audit'],
-  [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
+  [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config', 'settings-system'],
   [UserRole.MANAGER]: ['dashboard'],
 };
 
@@ -77,6 +77,14 @@ describe('Role-Based Access Control & Segregation of Duties (SOD)', () => {
       expect(getValidTabForRole(UserRole.DEPARTMENT_HEAD, 'reports')).toBe('reports');
       expect(getValidTabForRole(UserRole.DATA_ENCODER, 'stock-out')).toBe('stock-out');
       expect(getValidTabForRole(UserRole.SYSTEM_ADMIN, 'audit')).toBe('audit');
+    });
+
+    it('System Settings page is limited to roles with Settings access', () => {
+      expect(getValidTabForRole(UserRole.SYSTEM_ADMIN, 'settings-system')).toBe('settings-system');
+      expect(getValidTabForRole(UserRole.DEPARTMENT_HEAD, 'settings-system')).toBe('settings-system');
+      expect(getValidTabForRole(UserRole.DATA_ENCODER, 'settings-system')).toBe('settings-system');
+      expect(getValidTabForRole(UserRole.TEAM_LEADER, 'settings-system')).toBe('approvals');
+      expect(getValidTabForRole(UserRole.MANAGER, 'settings-system')).toBe('dashboard');
     });
   });
 });

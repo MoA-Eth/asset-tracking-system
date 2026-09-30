@@ -10,6 +10,7 @@ import { ApprovalsPage } from './pages/ApprovalsPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { SystemSettingsPage } from './pages/SystemSettingsPage';
 import { TransferAssetPage } from './pages/TransferAssetPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -27,10 +28,10 @@ const DEFAULT_TAB_FOR_ROLE: Record<string, string> = {
 };
 
 const ALLOWED_TABS_FOR_ROLE: Record<string, string[]> = {
-  [UserRole.SYSTEM_ADMIN]: ['dashboard', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
-  [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
+  [UserRole.SYSTEM_ADMIN]: ['dashboard', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config', 'settings-system'],
+  [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'settings', 'settings-users', 'settings-matrix', 'settings-config', 'settings-system'],
   [UserRole.TEAM_LEADER]: ['approvals', 'reports', 'audit'],
-  [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
+  [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config', 'settings-system'],
   [UserRole.MANAGER]: ['dashboard'],
   'TOP_MANAGEMENT': ['dashboard'],
 };
@@ -197,7 +198,10 @@ const AuthenticatedPortal: React.FC = () => {
           {activeTab === 'reports' && (
             <ReportsPage />
           )}
-          {activeTab.startsWith('settings') && (
+          {activeTab === 'settings-system' && (
+            <SystemSettingsPage />
+          )}
+          {activeTab.startsWith('settings') && activeTab !== 'settings-system' && (
             <SettingsPage
               currentRole={role}
               userEmail={user?.email}

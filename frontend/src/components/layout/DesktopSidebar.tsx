@@ -17,6 +17,7 @@ import {
   Building2,
   MapPin,
   Warehouse,
+  Sliders,
 } from 'lucide-react';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
@@ -326,6 +327,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 >
                   <Warehouse className={getSubIconClass(activeTab === 'settings-config')} />
                   <span>Stores</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('settings-system')}
+                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeTab === 'settings-system' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
+                  }`}
+                >
+                  <Sliders className={getSubIconClass(activeTab === 'settings-system')} />
+                  <span>System Settings</span>
                 </button>
               </div>
             )}
