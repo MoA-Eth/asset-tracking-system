@@ -1226,14 +1226,6 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
       {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
-              {headerConfig.badge}
-            </span>
-            <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
-              Official Ethiopian Government Standard • Model 19
-            </span>
-          </div>
           <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
             <PackagePlus className="w-5 h-5 text-emerald-700" />
             {headerConfig.title}
