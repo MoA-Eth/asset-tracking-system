@@ -510,11 +510,23 @@ export class StoreService {
     if (pendingApproval) {
       throw new Error(`Item ${item.itemCode} already has a pending ${pendingApproval.transactionType} approval (${pendingApproval.ifmisSlipNumber}).`);
     }
-    if (!payload.ifmisSlipNumber.trim()) throw new Error('IFMIS Return Slip Number (Model 22) is mandatory.');
+    const effectiveSlipNo = (payload.model21No || payload.ifmisSlipNumber).trim();
+    if (!effectiveSlipNo) throw new Error('Return Voucher (Model 21 / 22) Slip Number is mandatory.');
 
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
+
+    const model21Details = [
+      `Return Reason: ${payload.returnReason}`,
+      `Condition: ${payload.condition}`,
+      payload.model21No ? `[Model/21 # ${payload.model21No}]` : '',
+      payload.book ? `Book: ${payload.book}` : '',
+      payload.chassisNumber ? `Chassis: ${payload.chassisNumber}` : '',
+      payload.plateNo ? `Plate: ${payload.plateNo}` : '',
+      payload.engineNo ? `Engine: ${payload.engineNo}` : '',
+      payload.defectRemark ? `Defects: ${payload.defectRemark}` : '',
+    ].filter(Boolean).join(' | ');
 
     await prisma.item.update({
       where: { id: item.id },
@@ -529,8 +541,8 @@ export class StoreService {
             toEntity: 'Central Store (Pending Return Approval)',
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
-            ifmisSlipNumber: payload.ifmisSlipNumber,
-            notes: `Return Reason: ${payload.returnReason}. Condition: ${payload.condition}`,
+            ifmisSlipNumber: effectiveSlipNo,
+            notes: model21Details,
           },
         },
       },
@@ -542,13 +554,13 @@ export class StoreService {
         itemId: item.id,
         itemCode: item.itemCode,
         itemName: item.name,
-        ifmisSlipNumber: payload.ifmisSlipNumber,
+        ifmisSlipNumber: effectiveSlipNo,
         ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
         ifmisSlipDateEc: slipDateEc,
         ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
         requestedById: payload.registeredById,
         recipientEmployeeId: payload.returningEmployeeId || item.currentCustodianId || undefined,
-        purposeOrRemarks: `[Model 22 Return - Condition: ${payload.condition}] ${payload.returnReason}`,
+        purposeOrRemarks: model21Details,
         status: 'PENDING' as any,
         createdAtGc: today.gc,
         createdAtEc: today.ec,
@@ -560,8 +572,8 @@ export class StoreService {
       'REGISTER_RETURN',
       'RETURN',
       item.id,
-      `Model 22 Return requested for ${item.itemCode}. Condition: ${payload.condition}. IFMIS: ${payload.ifmisSlipNumber}`,
-      payload.ifmisSlipNumber,
+      `Return to store requested for ${item.itemCode}. ${model21Details}. Slip: ${effectiveSlipNo}`,
+      effectiveSlipNo,
     );
 
     return mapApproval(approval);

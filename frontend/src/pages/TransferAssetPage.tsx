@@ -769,10 +769,10 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <RotateCcw className="w-5 h-5 text-teal-700" />
-                Model 22 Store Asset Returns (የዕቃ መመለሻ መረከቢያ)
+                Model 21 Store Asset Returns (የዕቃ መመለሻ መረከቢያ)
               </h2>
               <p className="text-xs text-slate-500">
-                Select an active issued item below to process Model 22 return and clear custodian liability.
+                Select an active issued item below to process Model 21 return and clear custodian liability.
               </p>
             </div>
             <div className="relative">
@@ -814,7 +814,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                           <button
                             onClick={() => handlePrintModel21(item)}
                             className="px-2.5 py-1 bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-300 hover:border-amber-300 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
-                            title="Print Model 21 Transfer Voucher"
+                            title="Print Model 21 Transfer / Return Voucher"
                           >
                             <Printer className="w-3.5 h-3.5 text-amber-700" />
                             <span>Print M21</span>
@@ -824,7 +824,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                             className="px-3 py-1 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-lg text-xs transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
-                            Return M22
+                            Return (M21)
                           </button>
                         </div>
                       </td>
@@ -929,16 +929,19 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         onClose={() => setActiveVoucher(null)}
       />
 
-      {/* Model 22 Return Modal */}
+      {/* Model 21 / 22 Return Modal */}
       {returnItem && (
         <ReturnToStoreModal
           isOpen={!!returnItem}
           item={returnItem}
           employees={employees}
           onClose={() => setReturnItem(null)}
-          onSuccess={() => {
+          onSuccess={(voucher) => {
             setReturnItem(null);
             fetchData();
+            if (voucher) {
+              setActiveVoucher(voucher);
+            }
           }}
         />
       )}

@@ -404,6 +404,20 @@ export interface CreateReturnRequest {
   returningEmployeeId?: string;
   targetStoreLocationId?: string;
   registeredById: string;
+
+  // Extended Model 21 Return fields
+  model21No?: string;
+  book?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
+  origCost?: number;
+  depreciation?: number;
+  bookValue?: number;
+  defectRemark?: string;
+  storeRecipientId?: string;
 }
 
 export interface CreateTransferRequest {
