@@ -209,6 +209,47 @@ export interface Model22Voucher {
   reportPrintedDate?: string;
 }
 
+export interface Model21Accessory {
+  name: string;
+  quantity: number;
+}
+
+export interface Model21LineItem {
+  id?: string;
+  sNo: number;
+  description: string;
+  tagNumber: string;
+  serialNumber?: string;
+  chassisNumber?: string;
+  uom?: string;
+  unit: number;
+  origCost: number;
+  depreciation: number;
+  bookValue: number;
+  dateGc: string;
+  dateEc?: string;
+  fromLocation: string;
+  toLocation: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
+  remark?: string;
+}
+
+export interface Model21Voucher {
+  model21No: string;
+  fromEmployeeName: string;
+  fromEmployeeId: string;
+  book: string;
+  toEmployeeName: string;
+  toEmployeeId: string;
+  items: Model21LineItem[];
+  famuAccountantName?: string;
+  reportTakenBy?: string;
+  reportTakenDate?: string;
+}
+
 export interface ItemWithRelations extends Item {
   storeLocation?: Location;
   currentCustodian?: Employee | null;
@@ -372,6 +413,19 @@ export interface CreateTransferRequest {
   toLocationId?: string;
   reason: string;
   performedById: string;
+
+  // Extended Model 21 fields
+  model21No?: string;
+  book?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
+  origCost?: number;
+  depreciation?: number;
+  bookValue?: number;
+  remark?: string;
 }
 
 export interface ApprovalActionRequest {

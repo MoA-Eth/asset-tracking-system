@@ -773,6 +773,16 @@ export class StoreService {
       : prevCustodian;
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
 
+    const model21Details = [
+      payload.reason,
+      payload.model21No ? `[Model/21 # ${payload.model21No}]` : '',
+      payload.book ? `Book: ${payload.book}` : '',
+      payload.chassisNumber ? `Chassis: ${payload.chassisNumber}` : '',
+      payload.plateNo ? `Plate: ${payload.plateNo}` : '',
+      payload.engineNo ? `Engine: ${payload.engineNo}` : '',
+      payload.remark ? `Remark: ${payload.remark}` : '',
+    ].filter(Boolean).join(' | ');
+
     const updated = await prisma.item.update({
       where: { id: item.id },
       data: {
@@ -788,7 +798,8 @@ export class StoreService {
             toEntity: newCustodian || 'New Location',
             performedBy: performer ? performer.fullNameEn : payload.performedById,
             performedByRole: (performer?.role ?? 'DATA_ENCODER') as any,
-            notes: payload.reason,
+            ifmisSlipNumber: payload.model21No,
+            notes: model21Details,
           },
         },
       },
@@ -800,7 +811,8 @@ export class StoreService {
       'TRANSFER_ITEM',
       'TRANSFER',
       item.id,
-      `Item ${item.itemCode} transferred from ${prevCustodian} to ${newCustodian}. Reason: ${payload.reason}`,
+      `Item ${item.itemCode} transferred from ${prevCustodian} to ${newCustodian}. ${model21Details}`,
+      payload.model21No,
     );
 
     return mapItem(updated);
