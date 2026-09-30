@@ -347,7 +347,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           <div className="flex flex-col items-center gap-2">
             <div
               className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#125835] to-[#258957] border border-amber-400/40 text-white flex items-center justify-center font-bold text-xs"
-              title={`${user?.fullNameEn || roleTitle} (${roleTitle})`}
+              title={user?.fullNameEn && user.fullNameEn !== roleTitle ? `${user.fullNameEn} (${roleTitle})` : (user?.fullNameEn || roleTitle)}
             >
               {getInitials(user?.fullNameEn)}
             </div>

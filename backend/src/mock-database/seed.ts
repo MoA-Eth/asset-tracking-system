@@ -33,8 +33,8 @@ export const SEED_EMPLOYEES: Employee[] = [
   {
     id: 'EMP-MIN-01',
     payrollId: 'MOA/MGR-001',
-    fullNameEn: 'Addisu Arega (Manager)',
-    fullNameAm: 'አቶ አዲሱ አረጋ (ሥራ አስኪያጅ)',
+    fullNameEn: 'Manager',
+    fullNameAm: 'ሥራ አስኪያጅ',
     departmentId: 'DEP-03',
     email: 'manager@moa.gov.et',
     phone: '+251911000001',
