@@ -19,12 +19,28 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const TOKEN_KEY = 'moa_token';
 const USER_KEY = 'moa_user';
 
+export const normalizeRole = (r: any): UserRole => {
+  if (!r) return UserRole.MANAGER;
+  if (r === 'TOP_MANAGEMENT' || r === 'manager' || r === 'MANAGER') {
+    return UserRole.MANAGER;
+  }
+  return r as UserRole;
+};
+
+export const normalizeUser = (u: any): AuthUser | null => {
+  if (!u) return null;
+  return {
+    ...u,
+    role: normalizeRole(u.role),
+  };
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(() => {
     const saved = localStorage.getItem(USER_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        return normalizeUser(JSON.parse(saved));
       } catch {
         return null;
       }
@@ -49,8 +65,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
         const currentUser = await api.getMe();
-        setUser(currentUser);
-        localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+        const normalized = normalizeUser(currentUser);
+        setUser(normalized);
+        if (normalized) {
+          localStorage.setItem(USER_KEY, JSON.stringify(normalized));
+        }
       } catch (err) {
         console.warn('Session verification failed, clearing auth:', err);
         logout();
@@ -66,10 +85,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const res = await api.login({ usernameOrEmail, password });
-      setUser(res.user);
+      const normalizedUser = normalizeUser(res.user);
+      setUser(normalizedUser);
       setToken(res.token);
       localStorage.setItem(TOKEN_KEY, res.token);
-      localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+      if (normalizedUser) {
+        localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
+      }
       localStorage.removeItem('moa_active_tab');
     } finally {
       setIsLoading(false);
@@ -80,10 +102,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const res = await api.login({ usernameOrEmail: '', personaRole: role });
-      setUser(res.user);
+      const normalizedUser = normalizeUser(res.user);
+      setUser(normalizedUser);
       setToken(res.token);
       localStorage.setItem(TOKEN_KEY, res.token);
-      localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+      if (normalizedUser) {
+        localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
+      }
       localStorage.removeItem('moa_active_tab');
     } finally {
       setIsLoading(false);
@@ -100,13 +125,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const hasRole = (...roles: UserRole[]): boolean => {
     if (!user) return false;
-    return roles.includes(user.role);
+    const current = normalizeRole(user.role);
+    return roles.map(normalizeRole).includes(current);
   };
 
   const value: AuthContextType = {
     user,
     token,
-    role: user?.role || UserRole.MANAGER,
+    role: normalizeRole(user?.role),
     isAuthenticated: !!user && !!token,
     isLoading,
     login,
