@@ -23,6 +23,15 @@ import { getTodayGcAndEc, formatGcToEc } from '../utils/eth-date';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function mapItem(raw: any): ItemWithRelations {
+  let model19Meta: any = {};
+  if (raw.notes) {
+    try {
+      model19Meta = JSON.parse(raw.notes);
+    } catch {
+      // not JSON format
+    }
+  }
+
   return {
     id: raw.id,
     itemCode: raw.itemCode,
@@ -40,7 +49,7 @@ function mapItem(raw: any): ItemWithRelations {
     ifmisSlipDateEc: raw.ifmisSlipDateEc,
     ifmisSlipAttachmentUrl: raw.ifmisSlipAttachmentUrl ?? undefined,
     isHistoricalData: raw.isHistoricalData,
-    notes: raw.notes ?? undefined,
+    notes: (model19Meta.userNotes || (typeof model19Meta === 'object' && Object.keys(model19Meta).length > 0 ? (model19Meta.remark || raw.notes) : raw.notes)) || undefined,
     registeredById: raw.registeredById,
     approvedById: raw.approvedById ?? undefined,
     createdAtGc: raw.createdAtGc,
@@ -50,6 +59,25 @@ function mapItem(raw: any): ItemWithRelations {
     assignedDepartment: raw.assignedDepartment ?? null,
     registeredBy: raw.registeredBy ?? undefined,
     approvedBy: raw.approvedBy ?? undefined,
+
+    // Model 19 fields
+    poNumber: model19Meta.poNumber || raw.poNumber || undefined,
+    transactionType: model19Meta.transactionType || raw.transactionType || undefined,
+    source: model19Meta.source || raw.source || undefined,
+    buyer: model19Meta.buyer || raw.buyer || undefined,
+    programName: model19Meta.programName || raw.programName || undefined,
+    uom: model19Meta.uom || raw.uom || undefined,
+    subInventory: model19Meta.subInventory || raw.subInventory || undefined,
+    itemCategoryDisplay: model19Meta.itemCategoryDisplay || undefined,
+    lotBatchNo: model19Meta.lotBatchNo || raw.lotBatchNo || undefined,
+    printedPadFrom: model19Meta.printedPadFrom || raw.printedPadFrom || undefined,
+    printedPadTo: model19Meta.printedPadTo || raw.printedPadTo || undefined,
+    quantity: model19Meta.quantity || raw.quantity || 1,
+    totalAmount: model19Meta.totalAmount || raw.totalAmount || (raw.unitCostETB * (model19Meta.quantity || 1)),
+    deliveredBy: model19Meta.deliveredBy || raw.deliveredBy || undefined,
+    receivedBy: model19Meta.receivedBy || raw.receivedBy || undefined,
+    remark: model19Meta.remark || raw.remark || undefined,
+
     history: (raw.history ?? []).map((h: any) => ({
       id: h.id,
       dateGc: h.dateGc,
@@ -257,7 +285,7 @@ export class StoreService {
 
   public async registerStockIn(
     payload: CreateStockInRequest,
-  ): Promise<{ item: ItemWithRelations; approval?: TransactionApproval }> {
+  ): Promise<{ item: ItemWithRelations; items?: ItemWithRelations[]; approval?: TransactionApproval }> {
     if (!payload.ifmisSlipNumber.trim()) {
       throw new Error('IFMIS Slip Number is always mandatory.');
     }
@@ -267,78 +295,133 @@ export class StoreService {
 
     const today = getTodayGcAndEc();
     const currentYear = new Date().getFullYear();
-    const itemCode = await generateItemCode(payload.category, currentYear);
     const initialStatus = payload.isHistoricalData ? ItemStatus.AVAILABLE : ItemStatus.PENDING_STOCK_IN;
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
-    const newItem = await prisma.item.create({
-      data: {
-        itemCode,
-        name: payload.name,
-        category: payload.category as any,
-        serialNumber: payload.serialNumber || `SN-${Date.now()}`,
-        unitCostETB: payload.unitCostETB,
-        status: initialStatus as any,
-        storeLocationId: payload.storeLocationId,
-        ifmisSlipNumber: payload.ifmisSlipNumber,
-        ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
-        ifmisSlipDateEc: slipDateEc,
-        ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl || '/slips/sample-ifmis-slip.png',
-        isHistoricalData: payload.isHistoricalData || false,
-        registeredById: payload.registeredById,
-        createdAtGc: today.gc,
-        createdAtEc: today.ec,
-        notes: payload.notes,
-        history: {
-          create: {
-            dateGc: today.gc,
-            dateEc: today.ec,
-            action: payload.isHistoricalData ? 'HISTORICAL_STOCK_IN' : 'STOCK_IN_REGISTERED',
-            fromEntity: `IFMIS Slip ${payload.ifmisSlipNumber}`,
-            toEntity: payload.isHistoricalData ? 'Central Store (Available)' : 'Store (Pending Approval)',
-            performedBy: user ? user.fullNameEn : payload.registeredById,
-            performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
-            ifmisSlipNumber: payload.ifmisSlipNumber,
-            notes: payload.notes || 'Registered in mirror system from IFMIS slip',
-          },
-        },
-      },
-      include: ITEM_INCLUDES,
-    });
+    const rawItems = (payload.items && payload.items.length > 0)
+      ? payload.items
+      : [{
+          name: payload.name,
+          category: payload.category,
+          serialNumber: payload.serialNumber,
+          unitCostETB: payload.unitCostETB,
+          condition: payload.condition,
+          itemCode: payload.itemCode,
+          uom: payload.uom,
+          subInventory: payload.subInventory,
+          itemCategoryDisplay: payload.itemCategoryDisplay,
+          lotBatchNo: payload.lotBatchNo,
+          printedPadFrom: payload.printedPadFrom,
+          printedPadTo: payload.printedPadTo,
+          quantity: payload.quantity || 1,
+          totalAmount: payload.totalAmount || (payload.unitCostETB * (payload.quantity || 1)),
+          remark: payload.remark,
+        }];
 
-    let approval: TransactionApproval | undefined;
-    if (!payload.isHistoricalData) {
-      const created = await prisma.transactionApproval.create({
+    const createdItems: ItemWithRelations[] = [];
+    let primaryApproval: TransactionApproval | undefined;
+
+    for (let i = 0; i < rawItems.length; i++) {
+      const lineItem = rawItems[i];
+      const category = (lineItem.category || payload.category || AssetCategory.IT_EQUIPMENT) as AssetCategory;
+      const itemCode = lineItem.itemCode?.trim() || await generateItemCode(category, currentYear);
+      const serialNumber = lineItem.serialNumber || (rawItems.length > 1 ? `SN-${Date.now()}-${i + 1}` : `SN-${Date.now()}`);
+      const unitCost = Number(lineItem.unitCostETB) || 0;
+      const quantity = Number(lineItem.quantity) || 1;
+      const totalAmount = Number(lineItem.totalAmount) || (unitCost * quantity);
+
+      const model19Meta = {
+        poNumber: payload.poNumber,
+        transactionType: payload.transactionType || 'PO Receipt',
+        source: payload.source,
+        buyer: payload.buyer,
+        programName: payload.programName || 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa',
+        uom: lineItem.uom || payload.uom || 'EA',
+        subInventory: lineItem.subInventory || payload.subInventory,
+        itemCategoryDisplay: lineItem.itemCategoryDisplay || payload.itemCategoryDisplay,
+        lotBatchNo: lineItem.lotBatchNo || payload.lotBatchNo,
+        printedPadFrom: lineItem.printedPadFrom || payload.printedPadFrom,
+        printedPadTo: lineItem.printedPadTo || payload.printedPadTo,
+        quantity,
+        totalAmount,
+        deliveredBy: payload.deliveredBy,
+        receivedBy: payload.receivedBy || (user ? user.fullNameEn : undefined),
+        remark: lineItem.remark || payload.remark,
+        userNotes: payload.notes,
+      };
+
+      const newItem = await prisma.item.create({
         data: {
-          transactionType: 'STOCK_IN' as any,
-          itemId: newItem.id,
-          itemCode: newItem.itemCode,
-          itemName: newItem.name,
+          itemCode,
+          name: lineItem.name || payload.name,
+          category: category as any,
+          serialNumber,
+          unitCostETB: unitCost,
+          status: initialStatus as any,
+          storeLocationId: payload.storeLocationId,
           ifmisSlipNumber: payload.ifmisSlipNumber,
           ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
           ifmisSlipDateEc: slipDateEc,
-          ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
-          requestedById: payload.registeredById,
-          purposeOrRemarks: payload.notes || 'New stock inbound registration waiting for sign-off',
-          status: 'PENDING' as any,
+          ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl || '/slips/sample-ifmis-slip.png',
+          isHistoricalData: payload.isHistoricalData || false,
+          registeredById: payload.registeredById,
           createdAtGc: today.gc,
           createdAtEc: today.ec,
+          notes: JSON.stringify(model19Meta),
+          history: {
+            create: {
+              dateGc: today.gc,
+              dateEc: today.ec,
+              action: payload.isHistoricalData ? 'HISTORICAL_STOCK_IN' : 'STOCK_IN_REGISTERED',
+              fromEntity: `IFMIS Slip ${payload.ifmisSlipNumber}`,
+              toEntity: payload.isHistoricalData ? 'Central Store (Available)' : 'Store (Pending Approval)',
+              performedBy: user ? user.fullNameEn : payload.registeredById,
+              performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
+              ifmisSlipNumber: payload.ifmisSlipNumber,
+              notes: lineItem.remark || payload.notes || 'Registered in mirror system from IFMIS Model 19 slip',
+            },
+          },
         },
+        include: ITEM_INCLUDES,
       });
-      approval = mapApproval(created);
+
+      if (!payload.isHistoricalData) {
+        const createdApproval = await prisma.transactionApproval.create({
+          data: {
+            transactionType: 'STOCK_IN' as any,
+            itemId: newItem.id,
+            itemCode: newItem.itemCode,
+            itemName: newItem.name,
+            ifmisSlipNumber: payload.ifmisSlipNumber,
+            ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
+            ifmisSlipDateEc: slipDateEc,
+            ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
+            requestedById: payload.registeredById,
+            purposeOrRemarks: lineItem.remark || payload.notes || `Stock-in inbound receipt (Model 19 #${payload.ifmisSlipNumber})`,
+            status: 'PENDING' as any,
+            createdAtGc: today.gc,
+            createdAtEc: today.ec,
+          },
+        });
+        if (!primaryApproval) {
+          primaryApproval = mapApproval(createdApproval);
+        }
+      }
+
+      await addAuditLog(
+        payload.registeredById,
+        payload.isHistoricalData ? 'REGISTER_HISTORICAL_ITEM' : 'REGISTER_STOCK_IN',
+        'STOCK_IN',
+        newItem.id,
+        `Item ${newItem.itemCode} (${newItem.name}) registered via IFMIS Model 19 slip ${newItem.ifmisSlipNumber}`,
+        newItem.ifmisSlipNumber,
+      );
+
+      createdItems.push(mapItem(newItem));
     }
 
-    await addAuditLog(
-      payload.registeredById,
-      payload.isHistoricalData ? 'REGISTER_HISTORICAL_ITEM' : 'REGISTER_STOCK_IN',
-      'STOCK_IN',
-      newItem.id,
-      `Item ${newItem.itemCode} (${newItem.name}) registered via IFMIS slip ${newItem.ifmisSlipNumber}`,
-      newItem.ifmisSlipNumber,
-    );
-
-    return { item: mapItem(newItem), approval };
+    return { item: createdItems[0], items: createdItems, approval: primaryApproval };
   }
 
   // ── Stock-Out Registration ──────────────────────────────────────────────

@@ -98,7 +98,7 @@ export const api = {
 
   // Workflows
   registerStockIn: (payload: CreateStockInRequest) => {
-    return request<{ item: ItemWithRelations; approval?: TransactionApproval }>(
+    return request<{ item: ItemWithRelations; items?: ItemWithRelations[]; approval?: TransactionApproval }>(
       '/items/stock-in',
       {
         method: 'POST',
