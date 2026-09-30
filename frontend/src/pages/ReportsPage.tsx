@@ -818,7 +818,7 @@ export const ReportsPage: React.FC = () => {
                           </div>
                         ) : (
                           <div className="text-slate-500 truncate">
-                            {item.storeLocation?.siteName || 'Central Store'}
+                            {item.storeLocation?.siteName || 'Head office'}
                           </div>
                         )}
                       </td>

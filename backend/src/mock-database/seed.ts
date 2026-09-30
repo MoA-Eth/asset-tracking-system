@@ -22,10 +22,9 @@ export const SEED_DEPARTMENTS: Department[] = [
 ];
 
 export const SEED_LOCATIONS: Location[] = [
-  { id: 'LOC-01', siteName: 'MoA Headquarters (Addis Ababa)', building: 'Block B', roomNumber: 'Central Store-01', isCentralStore: true },
-  { id: 'LOC-02', siteName: 'MoA Headquarters (Addis Ababa)', building: 'Block A', roomNumber: 'Office 304', isCentralStore: false },
-  { id: 'LOC-03', siteName: 'Melkassa Agricultural Research Center', building: 'Machinery Depot', roomNumber: 'Hangar A', isCentralStore: true },
-  { id: 'LOC-04', siteName: 'Kulumsa Agricultural Research Center', building: 'Agronomy Building', roomNumber: 'Store 02', isCentralStore: true },
+  { id: 'LOC-01', siteName: 'Kality', building: 'Kality Depot', roomNumber: 'Store-01', isCentralStore: true },
+  { id: 'LOC-02', siteName: 'Saris', building: 'Saris Storehouse', roomNumber: 'Store-02', isCentralStore: true },
+  { id: 'LOC-03', siteName: 'Head office', building: 'Main HQ Block', roomNumber: 'Central Store', isCentralStore: true },
 ];
 
 export const SEED_EMPLOYEES: Employee[] = [
@@ -75,7 +74,7 @@ export const SEED_EMPLOYEES: Employee[] = [
   {
     id: 'EMP-ENC-02',
     payrollId: 'MOA/STORE-105',
-    fullNameEn: 'Hiwot Girma (Melkassa Store Encoder)',
+    fullNameEn: 'Hiwot Girma (Saris Store Encoder)',
     fullNameAm: 'ሕይወት ግርማ (መጋዘን ኃላፊ)',
     departmentId: 'DEP-03',
     email: 'hiwot.g@moa.gov.et',
@@ -170,7 +169,7 @@ export const SEED_ITEMS: Item[] = [
         dateEc: '2016-06-22',
         action: 'STOCK_IN_APPROVED',
         fromEntity: 'IFMIS Slip IFMIS-GRN-2024-0580',
-        toEntity: 'Melkassa Machinery Depot',
+        toEntity: 'Saris Storehouse',
         performedBy: 'Hiwot Girma',
         performedByRole: UserRole.DATA_ENCODER,
         approvedBy: 'Kassahun Tolosa',

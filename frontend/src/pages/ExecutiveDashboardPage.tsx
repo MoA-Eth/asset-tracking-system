@@ -358,75 +358,58 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
 
       </div>
 
-      {/* ── 4. Strategic Store Infrastructure & Regional Hub Overview ───────────── */}
+      {/* ── 4. Strategic Store Infrastructure Overview ───────────── */}
       <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-2xs space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div>
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Warehouse className="w-5 h-5 text-amber-600" />
-              Ministry Store Facilities & Regional Logistics Hubs
+              Ministry Store Facilities & Logistics Hubs
             </h2>
             <p className="text-xs text-slate-500 font-amharic mt-0.5">
-              የማዕከላዊ እና ክልላዊ መጋዘኖች ሁኔታ እና ዝርዝር
+              የማዕከላዊ እና መጋዘኖች ሁኔታ እና ዝርዝር
             </p>
           </div>
-          <span className="text-xs text-slate-400 font-mono font-medium">4 Active Stores</span>
+          <span className="text-xs text-slate-400 font-mono font-medium">
+            {(data?.locationUtilization?.length || 3)} Active Stores
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100/60 border border-emerald-200 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-700 text-white">Central Store</span>
-              <Building className="w-4 h-4 text-emerald-800" />
-            </div>
-            <h4 className="text-sm font-bold text-slate-900">MoA HQ Store (Megenagna)</h4>
-            <p className="text-[11px] text-slate-600">Block B — Central Inventory</p>
-            <div className="pt-2 border-t border-emerald-200/60 flex items-center justify-between text-xs font-bold text-emerald-900">
-              <span>Primary Depot</span>
-              <span>1,240 Assets</span>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {(data?.locationUtilization && data.locationUtilization.length > 0
+            ? data.locationUtilization
+            : [
+                { id: 'LOC-01', siteName: 'Kality', building: 'Kality Depot', roomNumber: 'Store-01', itemCount: 24, totalValueETB: 14200000 },
+                { id: 'LOC-02', siteName: 'Saris', building: 'Saris Storehouse', roomNumber: 'Store-02', itemCount: 22, totalValueETB: 12800000 },
+                { id: 'LOC-03', siteName: 'Head office', building: 'Main HQ Block', roomNumber: 'Central Store', itemCount: 24, totalValueETB: 14977763 },
+              ]
+          ).map((store: any, idx: number) => {
+            const themes = [
+              { bg: 'from-emerald-50 to-emerald-100/60', border: 'border-emerald-200', badge: 'bg-emerald-700', text: 'text-emerald-900', iconColor: 'text-emerald-800' },
+              { bg: 'from-blue-50 to-blue-100/60', border: 'border-blue-200', badge: 'bg-blue-700', text: 'text-blue-900', iconColor: 'text-blue-800' },
+              { bg: 'from-amber-50 to-amber-100/60', border: 'border-amber-200', badge: 'bg-amber-700', text: 'text-amber-900', iconColor: 'text-amber-800' },
+            ];
+            const theme = themes[idx % themes.length];
 
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100/60 border border-blue-200 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-700 text-white">Regional Hub</span>
-              <Warehouse className="w-4 h-4 text-blue-800" />
-            </div>
-            <h4 className="text-sm font-bold text-slate-900">Melkassa Agricultural Center</h4>
-            <p className="text-[11px] text-slate-600">Machinery Hangar A</p>
-            <div className="pt-2 border-t border-blue-200/60 flex items-center justify-between text-xs font-bold text-blue-900">
-              <span>Machinery Hub</span>
-              <span>380 Assets</span>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100/60 border border-purple-200 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-700 text-white">Regional Hub</span>
-              <Warehouse className="w-4 h-4 text-purple-800" />
-            </div>
-            <h4 className="text-sm font-bold text-slate-900">Kulumsa Research Depot</h4>
-            <p className="text-[11px] text-slate-600">Agronomy Store 02</p>
-            <div className="pt-2 border-t border-purple-200/60 flex items-center justify-between text-xs font-bold text-purple-900">
-              <span>Agronomy Hub</span>
-              <span>210 Assets</span>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/60 border border-amber-200 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-700 text-white">Regional Hub</span>
-              <Warehouse className="w-4 h-4 text-amber-800" />
-            </div>
-            <h4 className="text-sm font-bold text-slate-900">Holeta Research Center</h4>
-            <p className="text-[11px] text-slate-600">Field Equipment Depot</p>
-            <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between text-xs font-bold text-amber-900">
-              <span>Field Gear Hub</span>
-              <span>165 Assets</span>
-            </div>
-          </div>
-
+            return (
+              <div key={store.id} className={`p-4 rounded-2xl bg-gradient-to-br ${theme.bg} border ${theme.border} space-y-2`}>
+                <div className="flex items-center justify-between">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${theme.badge} text-white`}>
+                    {store.siteName === 'Head office' ? 'Central Store' : (store.roomNumber || 'Store Facility')}
+                  </span>
+                  <Warehouse className={`w-4 h-4 ${theme.iconColor}`} />
+                </div>
+                <h4 className="text-sm font-bold text-slate-900">{store.siteName}</h4>
+                <p className="text-[11px] text-slate-600">
+                  {store.building} {store.roomNumber ? `— ${store.roomNumber}` : ''}
+                </p>
+                <div className={`pt-2 border-t ${theme.border} flex items-center justify-between text-xs font-bold ${theme.text}`}>
+                  <span>{store.itemCount ?? 0} Assets</span>
+                  <span className="font-mono">{formatETB(store.totalValueETB || 0)}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

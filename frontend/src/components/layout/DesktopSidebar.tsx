@@ -1,23 +1,22 @@
 import React, { useState } from 'react';
 import {
-  Home,
+  LayoutDashboard,
+  FileCheck2,
   PackagePlus,
   PackageMinus,
-  Package,
-  UserCheck,
   ArrowRightLeft,
-  RotateCcw,
   FileSpreadsheet,
-  Settings,
   ShieldCheck,
+  Settings,
   ChevronDown,
   ChevronRight,
   LogOut,
   Users,
-  Building,
+  Shield,
+  UserCheck,
+  Building2,
+  MapPin,
   Warehouse,
-  History,
-  Boxes,
 } from 'lucide-react';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
@@ -77,6 +76,16 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
   const roleTitle = getRoleTitle(role);
 
+  const getIconClass = (isActive: boolean) =>
+    `w-4 h-4 shrink-0 transition-colors ${
+      isActive ? 'text-white stroke-[2]' : 'text-emerald-300/70 group-hover:text-white stroke-[1.75]'
+    }`;
+
+  const getSubIconClass = (isActive: boolean) =>
+    `w-3.5 h-3.5 shrink-0 transition-colors ${
+      isActive ? 'text-white stroke-[2]' : 'text-emerald-300/70 group-hover/sub:text-white stroke-[1.75]'
+    }`;
+
   return (
     <aside
       className={`no-print hidden lg:flex flex-col bg-[#071911] border-r border-[#04120C] text-white shadow-xl transition-all duration-300 select-none z-30 shrink-0 h-full overflow-hidden ${
@@ -123,20 +132,21 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         </div>
       </div>
 
-      {/* Navigation Items (Exact Layout matching User Mockup) */}
+      {/* Navigation Items */}
       <nav className="p-3 space-y-1.5 overflow-y-auto flex-1 text-xs">
         {/* 1. Dashboard (General Manager & System Admin) */}
         {(role === UserRole.MANAGER || (role as string) === 'TOP_MANAGEMENT' || role === UserRole.SYSTEM_ADMIN) && (
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer ${
               activeTab === 'dashboard'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
+                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
             }`}
+            title="Dashboard"
           >
-            <Home className="w-4 h-4 shrink-0 text-[#FCDD09]" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Dashboard</span>}
+            <LayoutDashboard className={getIconClass(activeTab === 'dashboard')} />
+            {!collapsed && <span className="flex-1 text-left">Dashboard</span>}
           </button>
         )}
 
@@ -144,16 +154,17 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {(role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
           <button
             onClick={() => setActiveTab('approvals')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer relative ${
+            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer relative ${
               activeTab === 'approvals'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
+                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
             }`}
+            title="Approvals"
           >
-            <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Approvals</span>}
+            <FileCheck2 className={getIconClass(activeTab === 'approvals')} />
+            {!collapsed && <span className="flex-1 text-left">Approvals</span>}
             {pendingApprovalsCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-xs shrink-0 animate-pulse">
+              <span className={`${collapsed ? 'absolute top-1.5 right-2' : ''} px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-xs shrink-0 animate-pulse`}>
                 {pendingApprovalsCount}
               </span>
             )}
@@ -164,15 +175,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {role === UserRole.DATA_ENCODER && (
           <button
             onClick={() => setActiveTab('stock-in')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer ${
               activeTab === 'stock-in'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
+                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
             }`}
             title="Stock-In (Model 19 / የዕቃ መረከቢያ)"
           >
-            <PackagePlus className="w-4 h-4 shrink-0 text-emerald-400" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Stock-In</span>}
+            <PackagePlus className={getIconClass(activeTab === 'stock-in')} />
+            {!collapsed && <span className="flex-1 text-left">Stock-In</span>}
           </button>
         )}
 
@@ -180,15 +191,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {role === UserRole.DATA_ENCODER && (
           <button
             onClick={() => setActiveTab('stock-out')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer ${
               activeTab === 'stock-out'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
+                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
             }`}
             title="Stock-Out (Model 20 / የዕቃ ወጪ ማዘዣ)"
           >
-            <PackageMinus className="w-4 h-4 shrink-0 text-amber-400" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Stock-Out</span>}
+            <PackageMinus className={getIconClass(activeTab === 'stock-out')} />
+            {!collapsed && <span className="flex-1 text-left">Stock-Out</span>}
           </button>
         )}
 
@@ -196,14 +207,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {role === UserRole.DATA_ENCODER && (
           <button
             onClick={() => setActiveTab('transfer-asset')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer ${
               activeTab === 'transfer-asset'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
+                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
             }`}
+            title="Asset Transfer & Returns"
           >
-            <ArrowRightLeft className="w-4 h-4 shrink-0 text-amber-300" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Asset Transfer</span>}
+            <ArrowRightLeft className={getIconClass(activeTab === 'transfer-asset')} />
+            {!collapsed && <span className="flex-1 text-left">Asset Transfer</span>}
           </button>
         )}
 
@@ -211,14 +223,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
           <button
             onClick={() => setActiveTab('reports')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer ${
               activeTab === 'reports'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
+                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
             }`}
+            title="Reports"
           >
-            <FileSpreadsheet className="w-4 h-4 shrink-0 text-emerald-400" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Reports</span>}
+            <FileSpreadsheet className={getIconClass(activeTab === 'reports')} />
+            {!collapsed && <span className="flex-1 text-left">Reports</span>}
           </button>
         )}
 
@@ -226,14 +239,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
           <button
             onClick={() => setActiveTab('audit')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer ${
               activeTab === 'audit'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
+                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
             }`}
+            title="Audit Log"
           >
-            <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Audit Log</span>}
+            <ShieldCheck className={getIconClass(activeTab === 'audit')} />
+            {!collapsed && <span className="flex-1 text-left">Audit Log</span>}
           </button>
         )}
 
@@ -242,65 +256,76 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           <div>
             <button
               onClick={() => toggleSection('admin')}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-emerald-100/75 hover:bg-[#0B2C1B]/80 hover:text-white transition cursor-pointer font-semibold"
+              className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'justify-between px-3.5'} py-2.5 rounded-xl transition cursor-pointer font-semibold ${
+                activeTab.startsWith('settings')
+                  ? 'bg-[#11442B] text-white shadow-xs font-bold'
+                  : 'text-emerald-100/75 hover:bg-[#0B2C1B]/80 hover:text-white font-medium'
+              }`}
+              title="Settings"
             >
-              <div className="flex items-center gap-3">
-                <Settings className="w-4 h-4 text-slate-300" />
+              <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
+                <Settings className={getIconClass(activeTab.startsWith('settings'))} />
                 {!collapsed && <span>Settings</span>}
               </div>
               {!collapsed && (
-                openSections.admin ? <ChevronDown className="w-3.5 h-3.5 text-emerald-400" /> : <ChevronRight className="w-3.5 h-3.5 text-emerald-400" />
+                openSections.admin ? <ChevronDown className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               )}
             </button>
             {!collapsed && openSections.admin && (
-              <div className="pl-9 pr-2 py-1 space-y-1 text-emerald-200/80">
+              <div className="pl-6 pr-2 py-1 space-y-1 text-emerald-200/80">
                 <button
                   onClick={() => setActiveTab('settings-users')}
-                  className={`w-full text-left py-1 px-2 rounded-lg transition cursor-pointer font-medium ${
-                    activeTab === 'settings-users' ? 'bg-[#11442B] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white'
+                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeTab === 'settings-users' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
                   }`}
                 >
-                  Users
+                  <Users className={getSubIconClass(activeTab === 'settings-users')} />
+                  <span>Users</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('settings-matrix')}
-                  className={`w-full text-left py-1 px-2 rounded-lg transition cursor-pointer font-medium ${
-                    activeTab === 'settings-matrix' ? 'bg-[#11442B] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white'
+                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeTab === 'settings-matrix' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
                   }`}
                 >
-                  Roles
+                  <Shield className={getSubIconClass(activeTab === 'settings-matrix')} />
+                  <span>Roles</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('settings')}
-                  className={`w-full text-left py-1 px-2 rounded-lg transition cursor-pointer font-medium ${
-                    activeTab === 'settings' ? 'bg-[#11442B] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white'
+                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeTab === 'settings' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
                   }`}
                 >
-                  Employees
+                  <UserCheck className={getSubIconClass(activeTab === 'settings')} />
+                  <span>Employees</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('settings-config')}
-                  className={`w-full text-left py-1 px-2 rounded-lg transition cursor-pointer font-medium ${
-                    activeTab === 'settings-config' ? 'bg-[#11442B] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white'
+                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeTab === 'settings-config' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
                   }`}
                 >
-                  Departments
+                  <Building2 className={getSubIconClass(activeTab === 'settings-config')} />
+                  <span>Departments</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('settings-config')}
-                  className={`w-full text-left py-1 px-2 rounded-lg transition cursor-pointer font-medium ${
-                    activeTab === 'settings-config' ? 'bg-[#11442B] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white'
+                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeTab === 'settings-config' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
                   }`}
                 >
-                  Locations
+                  <MapPin className={getSubIconClass(activeTab === 'settings-config')} />
+                  <span>Locations</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('settings-config')}
-                  className={`w-full text-left py-1 px-2 rounded-lg transition cursor-pointer font-medium ${
-                    activeTab === 'settings-config' ? 'bg-[#11442B] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white'
+                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeTab === 'settings-config' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
                   }`}
                 >
-                  Stores
+                  <Warehouse className={getSubIconClass(activeTab === 'settings-config')} />
+                  <span>Stores</span>
                 </button>
               </div>
             )}

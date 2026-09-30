@@ -17,10 +17,11 @@ import {
   ArrowRightLeft,
   X,
   CheckCircle2,
+  CheckCheck,
   Clock,
 } from 'lucide-react';
 import { getTodayGcAndEc } from '../../utils/eth-date';
-import { UserRole, TransactionApproval, TransactionType, ApprovalStatus } from '../../types/asset-management';
+import { UserRole, TransactionApproval, TransactionType, ApprovalStatus, Location } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 
@@ -50,7 +51,38 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<TransactionApproval[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [readIds, setReadIds] = useState<string[]>(() => {
+    try {
+      const key = `moa_read_notifs_${user?.id || 'default'}`;
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Sync stored read IDs when user switches
+  useEffect(() => {
+    try {
+      const key = `moa_read_notifs_${user?.id || 'default'}`;
+      const stored = localStorage.getItem(key);
+      setReadIds(stored ? JSON.parse(stored) : []);
+    } catch {
+      setReadIds([]);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    api.getLocations()
+      .then((locs) => {
+        if (locs && locs.length > 0) {
+          setLocations(locs);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const dateInfo = getTodayGcAndEc();
 
@@ -73,6 +105,12 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   };
 
   useEffect(() => {
+    if (role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) {
+      fetchNotificationItems();
+    }
+  }, [role, user?.id]);
+
+  useEffect(() => {
     if (showNotifications) {
       fetchNotificationItems();
     }
@@ -80,13 +118,38 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
   useEffect(() => {
     const handleUpdate = () => {
-      if (showNotifications) {
-        fetchNotificationItems();
-      }
+      fetchNotificationItems();
     };
     window.addEventListener('moa_approvals_updated', handleUpdate);
     return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
-  }, [showNotifications, role]);
+  }, [role]);
+
+  const markAsRead = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setReadIds((prev) => {
+      if (prev.includes(id)) return prev;
+      const updated = [...prev, id];
+      try {
+        localStorage.setItem(`moa_read_notifs_${user?.id || 'default'}`, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  const markAllAsRead = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const allIds = notifications.map((n) => n.id);
+    setReadIds((prev) => {
+      const merged = Array.from(new Set([...prev, ...allIds]));
+      try {
+        localStorage.setItem(`moa_read_notifs_${user?.id || 'default'}`, JSON.stringify(merged));
+      } catch {}
+      return merged;
+    });
+  };
+
+  const unreadCount = notifications.filter((n) => !readIds.includes(n.id)).length;
+  const displayBadgeCount = notifications.length > 0 ? unreadCount : pendingApprovalsCount;
 
   // Click outside listener
   useEffect(() => {
@@ -209,12 +272,20 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             onChange={(e) => setSelectedCenter(e.target.value)}
             className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer pr-1"
           >
-            <option value="ALL">All Centers / Stores</option>
-            <option value="HQ_MEGENAGNA">Central HQ Store (Megenagna)</option>
-            <option value="CMC_DEPOT">CMC Machinery Depot</option>
-            <option value="MELKASSA_ARC">Melkassa ARC</option>
-            <option value="KULUMSA_ARC">Kulumsa ARC</option>
-            <option value="HOLETA_ARC">Holeta ARC</option>
+            <option value="ALL">All Stores</option>
+            {locations.length > 0 ? (
+              locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.siteName}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="LOC-01">Kality</option>
+                <option value="LOC-02">Saris</option>
+                <option value="LOC-03">Head office</option>
+              </>
+            )}
           </select>
         </div>
 
@@ -233,9 +304,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               title="Pending Approvals & Notifications"
             >
               <Bell className="w-4 h-4" />
-              {pendingApprovalsCount > 0 && (
+              {displayBadgeCount > 0 && (
                 <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] flex items-center justify-center animate-bounce shadow-xs">
-                  {pendingApprovalsCount}
+                  {displayBadgeCount}
                 </span>
               )}
             </button>
@@ -247,19 +318,35 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 <div className="px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm text-slate-900">Notifications</span>
-                    {notifications.length > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
-                        {notifications.length}
+                    {unreadCount > 0 ? (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                        {unreadCount} unread
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500">
+                        All read
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={() => setShowNotifications(false)}
-                    className="p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition cursor-pointer"
-                    title="Close"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-800 hover:bg-slate-100 rounded-lg transition cursor-pointer flex items-center gap-1"
+                        title="Mark all notifications as read"
+                      >
+                        <CheckCheck className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Mark all read</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowNotifications(false)}
+                      className="p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition cursor-pointer"
+                      title="Close"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Notification Items List */}
@@ -286,15 +373,21 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       const stage = item.currentStage ?? 1;
                       const typeLabel = isStockIn ? 'Stock In' : isStockOut ? 'Stock Out' : 'Asset Transfer';
                       const stageText = stage === 1 ? 'Endorsement' : 'Authorization';
+                      const isRead = readIds.includes(item.id);
 
                       return (
                         <div
                           key={item.id}
                           onClick={() => {
+                            markAsRead(item.id);
                             setShowNotifications(false);
                             onNavigate('approvals');
                           }}
-                          className="px-4 py-3 hover:bg-slate-50 transition cursor-pointer flex items-start gap-3 select-none"
+                          className={`px-4 py-3 transition cursor-pointer flex items-start gap-3 select-none ${
+                            isRead
+                              ? 'bg-white opacity-75 hover:bg-slate-50'
+                              : 'bg-emerald-50/25 hover:bg-slate-50'
+                          }`}
                         >
                           <div
                             className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
@@ -311,7 +404,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                           </div>
 
                           <div className="flex-1 min-w-0 pr-1">
-                            <p className="text-xs text-slate-700 leading-snug line-clamp-2">
+                            <p className={`text-xs leading-snug line-clamp-2 ${isRead ? 'text-slate-600 font-normal' : 'text-slate-900 font-semibold'}`}>
                               <span className="font-semibold text-slate-900">{typeLabel}</span>: {item.itemName} awaits {stageText.toLowerCase()}
                             </p>
                             <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400">
@@ -321,8 +414,20 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                             </div>
                           </div>
 
-                          <div className="shrink-0 self-center">
-                            <span className="block w-2 h-2 rounded-full bg-blue-600" />
+                          <div className="shrink-0 flex items-center gap-1.5 self-center">
+                            {!isRead ? (
+                              <button
+                                onClick={(e) => markAsRead(item.id, e)}
+                                title="Mark as read"
+                                className="p-1 rounded-full text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+                              >
+                                <span className="block w-2.5 h-2.5 rounded-full bg-blue-600" />
+                              </button>
+                            ) : (
+                              <span title="Marked as read" className="text-slate-300">
+                                <CheckCheck className="w-3.5 h-3.5 text-slate-400" />
+                              </span>
+                            )}
                           </div>
                         </div>
                       );

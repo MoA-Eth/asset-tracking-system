@@ -39,23 +39,18 @@ async function main() {
   const locations = await Promise.all([
     prisma.location.upsert({
       where: { id: 'LOC-01' },
-      update: {},
-      create: { id: 'LOC-01', siteName: 'MoA Headquarters (Addis Ababa)', building: 'Block B', roomNumber: 'Central Store-01', isCentralStore: true },
+      update: { siteName: 'Kality', building: 'Kality Depot', roomNumber: 'Store-01', isCentralStore: true },
+      create: { id: 'LOC-01', siteName: 'Kality', building: 'Kality Depot', roomNumber: 'Store-01', isCentralStore: true },
     }),
     prisma.location.upsert({
       where: { id: 'LOC-02' },
-      update: {},
-      create: { id: 'LOC-02', siteName: 'MoA Headquarters (Addis Ababa)', building: 'Block A', roomNumber: 'Office 304', isCentralStore: false },
+      update: { siteName: 'Saris', building: 'Saris Storehouse', roomNumber: 'Store-02', isCentralStore: true },
+      create: { id: 'LOC-02', siteName: 'Saris', building: 'Saris Storehouse', roomNumber: 'Store-02', isCentralStore: true },
     }),
     prisma.location.upsert({
       where: { id: 'LOC-03' },
-      update: {},
-      create: { id: 'LOC-03', siteName: 'Melkassa Agricultural Research Center', building: 'Machinery Depot', roomNumber: 'Hangar A', isCentralStore: true },
-    }),
-    prisma.location.upsert({
-      where: { id: 'LOC-04' },
-      update: {},
-      create: { id: 'LOC-04', siteName: 'Kulumsa Agricultural Research Center', building: 'Agronomy Building', roomNumber: 'Store 02', isCentralStore: true },
+      update: { siteName: 'Head office', building: 'Main HQ Block', roomNumber: 'Central Store', isCentralStore: true },
+      create: { id: 'LOC-03', siteName: 'Head office', building: 'Main HQ Block', roomNumber: 'Central Store', isCentralStore: true },
     }),
   ]);
   console.log(`  ✅ ${locations.length} locations seeded`);
