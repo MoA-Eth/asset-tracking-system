@@ -172,6 +172,43 @@ export interface Model19Voucher {
   grandTotal: number;
 }
 
+export interface Model22LineItem {
+  id?: string;
+  sNo: number;
+  itemCode: string;
+  itemDescription: string;
+  uom: string;
+  subInventory?: string;
+  itemCategory: string;
+  lotBatchNo?: string;
+  serialNo?: string;
+  printedPadFrom?: string;
+  printedPadTo?: string;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  remark?: string;
+}
+
+export interface Model22Voucher {
+  model22No: string;
+  issuedDateGc: string;
+  issuedDateEc?: string;
+  transactionType: string;
+  destination: string;
+  destinationDepartmentId?: string;
+  subInventory?: string;
+  issuedByName?: string;
+  receivedByName?: string;
+  receivedByEmployeeId?: string;
+  items: Model22LineItem[];
+  total: number;
+  transportationCost?: number;
+  grandTotal: number;
+  reportPrintedBy?: string;
+  reportPrintedDate?: string;
+}
+
 export interface ItemWithRelations extends Item {
   storeLocation?: Location;
   currentCustodian?: Employee | null;
@@ -301,6 +338,19 @@ export interface CreateStockOutRequest {
   ifmisSlipAttachmentUrl?: string;
   purpose: string;
   registeredById: string;
+
+  // Extended Model 22 fields
+  transactionType?: string;
+  destination?: string;
+  subInventory?: string;
+  lotBatchNo?: string;
+  printedPadFrom?: string;
+  printedPadTo?: string;
+  quantity?: number;
+  unitPrice?: number;
+  totalAmount?: number;
+  transportationCost?: number;
+  remark?: string;
 }
 
 export interface CreateReturnRequest {
