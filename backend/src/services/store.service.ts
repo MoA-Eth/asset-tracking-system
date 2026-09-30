@@ -364,7 +364,7 @@ export class StoreService {
           ifmisSlipNumber: payload.ifmisSlipNumber,
           ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
           ifmisSlipDateEc: slipDateEc,
-          ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl || '/slips/sample-ifmis-slip.png',
+          ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl || null,
           isHistoricalData: payload.isHistoricalData || false,
           registeredById: payload.registeredById,
           createdAtGc: today.gc,

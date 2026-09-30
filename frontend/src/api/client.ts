@@ -97,6 +97,18 @@ export const api = {
   },
 
   // Workflows
+  // Uploads a scanned IFMIS slip; the returned url is saved as ifmisSlipAttachmentUrl
+  uploadSlip: (file: File) => {
+    return request<{ url: string; fileName: string; contentType: string; size: number }>('/uploads/slips', {
+      method: 'POST',
+      headers: {
+        'Content-Type': file.type,
+        'X-File-Name': encodeURIComponent(file.name),
+      },
+      body: file,
+    });
+  },
+
   registerStockIn: (payload: CreateStockInRequest) => {
     return request<{ item: ItemWithRelations; items?: ItemWithRelations[]; approval?: TransactionApproval }>(
       '/items/stock-in',

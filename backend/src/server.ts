@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import itemRoutes from './routes/item.routes';
 import referenceRoutes from './routes/reference.routes';
 import authRoutes from './routes/auth.routes';
+import uploadRoutes from './routes/upload.routes';
+import { SLIP_PUBLIC_PATH, SLIP_UPLOAD_DIR } from './lib/uploads';
 import { errorHandler } from './middleware/error-handler';
 import { sendError } from './utils/api-response';
 
@@ -55,10 +57,22 @@ app.use(
   })
 );
 
+// Uploaded IFMIS slips (file names are random UUIDs; nosniff stops browsers re-typing content)
+app.use(
+  SLIP_PUBLIC_PATH,
+  express.static(SLIP_UPLOAD_DIR, {
+    index: false,
+    setHeaders: (res) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    },
+  })
+);
+
 // Primary API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/reference', referenceRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 // SPA catch-all fallback for frontend client routing (non-API GET requests)
 app.get('*', (req: Request, res: Response, next: NextFunction) => {

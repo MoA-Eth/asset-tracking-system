@@ -39,6 +39,7 @@ import {
 } from '../types/asset-management';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
 import { getSystemSettings } from '../utils/system-settings';
+import { validateSlipFile, SLIP_ACCEPT_ATTR } from '../utils/slip-upload';
 
 interface StockOutPageProps {
   currentRole: UserRole;
@@ -131,6 +132,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   const [remark, setRemark] = useState<string>('');
   const [purpose, setPurpose] = useState<string>('Move Order Issue for Ministry Operations');
   const [attachmentFileName, setAttachmentFileName] = useState<string>('');
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   // Auto-populate when an item is selected from store
@@ -159,10 +161,19 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     }
   };
 
-  const handleSimulateUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setAttachmentFileName(e.target.files[0].name);
+  const handleSlipSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const error = validateSlipFile(file);
+    if (error) {
+      setFormError(error);
+      toast.warning('Invalid Slip File', error);
+      return;
     }
+    setFormError(null);
+    setAttachmentFile(file);
+    setAttachmentFileName(file.name);
   };
 
   const handleReset = () => {
@@ -188,6 +199,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     setRemark('');
     setPurpose('Move Order Issue for Ministry Operations');
     setAttachmentFileName('');
+    setAttachmentFile(null);
     setFormError(null);
   };
 
@@ -234,13 +246,15 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     const dept = departments.find((d) => d.id === destinationDepartmentId);
 
     try {
+      const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
+
       const result = await api.registerStockOut({
         itemId: selectedItemId,
         recipientEmployeeId,
         targetDepartmentId: destinationDepartmentId,
         ifmisSlipNumber: model22No.trim(),
         ifmisSlipDateGc: issuedDateGc,
-        ifmisSlipAttachmentUrl: attachmentFileName ? `/slips/${attachmentFileName}` : undefined,
+        ifmisSlipAttachmentUrl: slipUrl,
         purpose: purpose.trim() || 'Move Order Issue for Ministry Operations',
         registeredById,
         transactionType,
@@ -694,9 +708,9 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
                       Browse
                       <input
                         type="file"
-                        onChange={handleSimulateUpload}
+                        onChange={handleSlipSelected}
                         className="hidden"
-                        accept="image/*,application/pdf"
+                        accept={SLIP_ACCEPT_ATTR}
                       />
                     </label>
                   </div>
