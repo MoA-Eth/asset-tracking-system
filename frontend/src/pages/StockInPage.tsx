@@ -548,13 +548,13 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
           <table className="w-full text-left text-xs border-collapse min-w-[1050px]">
             <thead className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold text-[10px] sticky top-0 z-10">
               <tr>
-                <th className="p-2 w-8 text-center border-r border-slate-200">#</th>
+                <th className="p-2 w-8 text-center border-r border-slate-200">S/No.</th>
                 <th className="p-2 w-32 border-r border-slate-200">Item Code</th>
                 <th className="p-2 min-w-[160px] border-r border-slate-200">Item Description *</th>
-                <th className="p-2 w-36 border-r border-slate-200">Category</th>
                 <th className="p-2 w-20 border-r border-slate-200">UOM</th>
                 <th className="p-2 w-28 border-r border-slate-200">Sub Inventory</th>
-                <th className="p-2 w-24 border-r border-slate-200">Lot/Batch</th>
+                <th className="p-2 w-36 border-r border-slate-200">Item Category</th>
+                <th className="p-2 w-24 border-r border-slate-200">Lot/ Batch No.</th>
                 <th className="p-2 w-24 border-r border-slate-200">Serial No.</th>
                 <th className="p-2 w-28 border-r border-slate-200 text-center">Pad FROM / TO</th>
                 <th className="p-2 w-16 border-r border-slate-200 text-right">Qty *</th>
@@ -597,26 +597,6 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
                       />
                     </td>
 
-                    {/* Category */}
-                    <td className="p-1.5 border-r border-slate-200">
-                      <select
-                        value={item.category}
-                        onChange={(e) => {
-                          const cat = e.target.value as AssetCategory;
-                          const found = COMMON_CATEGORIES.find((c) => c.value === cat);
-                          updateLineItem(item.id, 'category', cat);
-                          if (found) updateLineItem(item.id, 'itemCategoryDisplay', found.label);
-                        }}
-                        className="w-full px-1.5 py-1 bg-white border border-slate-300 rounded text-[11px]"
-                      >
-                        {COMMON_CATEGORIES.map((c) => (
-                          <option key={c.value} value={c.value}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-
                     {/* UOM */}
                     <td className="p-1.5 border-r border-slate-200">
                       <input
@@ -638,6 +618,26 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
                         onChange={(e) => updateLineItem(item.id, 'subInventory', e.target.value)}
                         className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-[11px]"
                       />
+                    </td>
+
+                    {/* Item Category */}
+                    <td className="p-1.5 border-r border-slate-200">
+                      <select
+                        value={item.category}
+                        onChange={(e) => {
+                          const cat = e.target.value as AssetCategory;
+                          const found = COMMON_CATEGORIES.find((c) => c.value === cat);
+                          updateLineItem(item.id, 'category', cat);
+                          if (found) updateLineItem(item.id, 'itemCategoryDisplay', found.label);
+                        }}
+                        className="w-full px-1.5 py-1 bg-white border border-slate-300 rounded text-[11px]"
+                      >
+                        {COMMON_CATEGORIES.map((c) => (
+                          <option key={c.value} value={c.value}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
                     </td>
 
                     {/* Lot/Batch */}
