@@ -53,9 +53,6 @@ export const StatusBadge: React.FC<{ status: ItemStatus | ApprovalStatus | strin
     case ItemStatus.ISSUED:
       return <Badge variant="info">Issued (In-Use)</Badge>;
 
-    case ItemStatus.IN_REPAIR:
-      return <Badge variant="purple">In-Repair / Maintenance</Badge>;
-
     case ItemStatus.PENDING_STOCK_IN:
       return <Badge variant="warning">Pending Stock-In</Badge>;
 

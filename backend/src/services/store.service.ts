@@ -496,7 +496,7 @@ export class StoreService {
   public async registerReturn(payload: CreateReturnRequest): Promise<TransactionApproval> {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
     if (!item) throw new Error(`Item ${payload.itemId} not found.`);
-    if (item.status !== 'ISSUED' && item.status !== 'IN_REPAIR' && item.status !== 'AVAILABLE') {
+    if (item.status !== 'ISSUED' && item.status !== 'AVAILABLE') {
       throw new Error(`Item ${item.itemCode} cannot be returned to store. Current status: ${item.status}`);
     }
     const pendingApproval = await prisma.transactionApproval.findFirst({
@@ -665,12 +665,11 @@ export class StoreService {
         histNote = payload.reviewRemarks || 'Stock-in approved. Item available for issuance.';
         approvedById = payload.reviewedById;
       } else if (approval.transactionType === 'RETURN') {
-        const cond = item.condition as string;
-        newItemStatus = (cond === 'NEEDS_REPAIR' || cond === 'DAMAGED') ? 'IN_REPAIR' : 'AVAILABLE';
+        newItemStatus = 'AVAILABLE';
         historyAction = 'RETURN_APPROVED';
         fromEntity = 'Staff Custodian (Issued)';
-        toEntity = newItemStatus === 'IN_REPAIR' ? 'Maintenance Workshop (In-Repair)' : 'Central Store (AVAILABLE)';
-        histNote = payload.reviewRemarks || `Model 22 Return approved. Item returned to ${newItemStatus}.`;
+        toEntity = 'Central Store (AVAILABLE)';
+        histNote = payload.reviewRemarks || 'Model 22 Return approved. Item returned to Central Store (AVAILABLE).';
         custodianId = null;
         departmentId = null;
         approvedById = payload.reviewedById;
@@ -897,7 +896,6 @@ export class StoreService {
 
     const available = allItems.filter((i) => i.status === 'AVAILABLE');
     const issued = allItems.filter((i) => i.status === 'ISSUED');
-    const inRepair = allItems.filter((i) => i.status === 'IN_REPAIR');
     const pendingIn = allItems.filter((i) => i.status === 'PENDING_STOCK_IN');
     const pendingOut = allItems.filter((i) => i.status === 'PENDING_STOCK_OUT');
     const active = allItems.filter((i) => i.status !== 'DISPOSED');
@@ -915,8 +913,7 @@ export class StoreService {
         totalValueETB: sum(deptItems),
         availableCount: deptItems.filter((i) => i.status === 'AVAILABLE').length,
         issuedCount: deptItems.filter((i) => i.status === 'ISSUED').length,
-        inRepairCount: deptItems.filter((i) => i.status === 'IN_REPAIR').length,
-        otherStatusCount: deptItems.filter((i) => !['AVAILABLE', 'ISSUED', 'IN_REPAIR'].includes(i.status)).length,
+        otherStatusCount: deptItems.filter((i) => !['AVAILABLE', 'ISSUED'].includes(i.status)).length,
         items: deptItems,
       };
     });
@@ -961,8 +958,6 @@ export class StoreService {
       availableValuationETB: sum(available),
       issuedCount: issued.length,
       issuedValuationETB: sum(issued),
-      inRepairCount: inRepair.length,
-      inRepairValuationETB: sum(inRepair),
       pendingStockInCount: pendingIn.length,
       pendingStockOutCount: pendingOut.length,
       pendingApprovalsCount: pendingApprovals,

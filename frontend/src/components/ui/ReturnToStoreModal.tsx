@@ -125,7 +125,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
           <p className="text-purple-900 leading-relaxed">
             <strong>Model 22 Rule:</strong> Returned items stay{' '}
             <span className="bg-amber-100 text-amber-800 px-1 rounded font-bold font-mono">PENDING</span> until Department Head approves.
-            If condition is marked as <span className="bg-purple-100 text-purple-800 px-1 rounded font-bold font-mono">NEEDS REPAIR</span>, item will be sent to technical maintenance.
+            Once approved, the item is returned to store inventory (<span className="bg-emerald-100 text-emerald-800 px-1 rounded font-bold font-mono">AVAILABLE</span>).
           </p>
         </div>
 

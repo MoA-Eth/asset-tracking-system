@@ -63,10 +63,6 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
     label: 'Issued (In-Use)',
     className: 'bg-blue-100 text-blue-800 border-blue-200',
   },
-  [ItemStatus.IN_REPAIR]: {
-    label: 'In-Repair / Maintenance',
-    className: 'bg-purple-100 text-purple-800 border-purple-200',
-  },
 };
 
 const StatusBadge: React.FC<{ status: ItemStatus }> = ({ status }) => {
@@ -1288,9 +1284,6 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
             </span>
             <span className="bg-blue-100 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded font-bold">
               {items.filter((i) => i.status === ItemStatus.ISSUED).length} In-Use
-            </span>
-            <span className="bg-purple-100 text-purple-800 border border-purple-200 px-1.5 py-0.5 rounded font-bold">
-              {items.filter((i) => i.status === ItemStatus.IN_REPAIR).length} In Repair
             </span>
           </div>
         </div>

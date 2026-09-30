@@ -11,7 +11,6 @@ export enum ItemStatus {
   AVAILABLE = 'AVAILABLE',               // In Store, ready to be issued
   PENDING_STOCK_OUT = 'PENDING_STOCK_OUT', // Stock out registered, waiting for approval
   ISSUED = 'ISSUED',                     // Issued/In-Use by an employee or department
-  IN_REPAIR = 'IN_REPAIR',               // Under technical repair / maintenance
   UNDER_TRANSFER = 'UNDER_TRANSFER',     // In transit between locations/employees
   DISPOSED = 'DISPOSED',                 // Delisted
 }
