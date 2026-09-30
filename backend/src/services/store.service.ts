@@ -296,7 +296,9 @@ export class StoreService {
 
     const today = getTodayGcAndEc();
     const currentYear = new Date().getFullYear();
-    const initialStatus = payload.isHistoricalData ? ItemStatus.AVAILABLE : ItemStatus.PENDING_STOCK_IN;
+    // Every registration, historical or not, waits for Stage 1/2 approval before becoming AVAILABLE.
+    // isHistoricalData only waives the slip attachment requirement above.
+    const initialStatus = ItemStatus.PENDING_STOCK_IN;
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
@@ -376,7 +378,7 @@ export class StoreService {
               dateEc: today.ec,
               action: payload.isHistoricalData ? 'HISTORICAL_STOCK_IN' : 'STOCK_IN_REGISTERED',
               fromEntity: `IFMIS Slip ${payload.ifmisSlipNumber}`,
-              toEntity: payload.isHistoricalData ? 'Central Store (Available)' : 'Store (Pending Approval)',
+              toEntity: 'Store (Pending Approval)',
               performedBy: user ? user.fullNameEn : payload.registeredById,
               performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
               ifmisSlipNumber: payload.ifmisSlipNumber,
@@ -387,27 +389,25 @@ export class StoreService {
         include: ITEM_INCLUDES,
       });
 
-      if (!payload.isHistoricalData) {
-        const createdApproval = await prisma.transactionApproval.create({
-          data: {
-            transactionType: 'STOCK_IN' as any,
-            itemId: newItem.id,
-            itemCode: newItem.itemCode,
-            itemName: newItem.name,
-            ifmisSlipNumber: payload.ifmisSlipNumber,
-            ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
-            ifmisSlipDateEc: slipDateEc,
-            ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
-            requestedById: payload.registeredById,
-            purposeOrRemarks: lineItem.remark || payload.notes || `Stock-in inbound receipt (Model 19 #${payload.ifmisSlipNumber})`,
-            status: 'PENDING' as any,
-            createdAtGc: today.gc,
-            createdAtEc: today.ec,
-          },
-        });
-        if (!primaryApproval) {
-          primaryApproval = mapApproval(createdApproval);
-        }
+      const createdApproval = await prisma.transactionApproval.create({
+        data: {
+          transactionType: 'STOCK_IN' as any,
+          itemId: newItem.id,
+          itemCode: newItem.itemCode,
+          itemName: newItem.name,
+          ifmisSlipNumber: payload.ifmisSlipNumber,
+          ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
+          ifmisSlipDateEc: slipDateEc,
+          ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
+          requestedById: payload.registeredById,
+          purposeOrRemarks: lineItem.remark || payload.notes || `Stock-in inbound receipt (Model 19 #${payload.ifmisSlipNumber})`,
+          status: 'PENDING' as any,
+          createdAtGc: today.gc,
+          createdAtEc: today.ec,
+        },
+      });
+      if (!primaryApproval) {
+        primaryApproval = mapApproval(createdApproval);
       }
 
       await addAuditLog(
