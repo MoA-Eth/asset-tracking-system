@@ -530,10 +530,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
 
       {/* Model 19 Items Table */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between px-1">
-          <span className="text-xs font-bold text-slate-800">
-            Model 19 Table Items ({lineItems.length})
-          </span>
+        <div className="flex items-center justify-end px-1 pb-1">
           <button
             type="button"
             onClick={addLineItem}
@@ -742,17 +739,12 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
             </tbody>
             <tfoot>
               <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300 text-xs">
-                <td colSpan={9} className="p-2 text-right uppercase tracking-wider border-r border-slate-200">
-                  Total Summary ({lineItems.length} line items, {totalQuantity} units):
+                <td colSpan={10} className="p-2 border-r border-slate-200"></td>
+                <td className="p-2 text-right border-r border-slate-200 uppercase tracking-wider text-[11px]">
+                  Grand Total
                 </td>
-                <td className="p-2 text-right font-mono border-r border-slate-200">
-                  {totalQuantity}
-                </td>
-                <td className="p-2 text-right border-r border-slate-200">
-                  Grand Total:
-                </td>
-                <td className="p-2 text-right font-mono text-emerald-800 border-r border-slate-200">
-                  {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ETB
+                <td className="p-2 text-right font-mono text-emerald-800 border-r border-slate-200 text-xs">
+                  {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                 </td>
                 <td colSpan={2} className="p-2"></td>
               </tr>
