@@ -226,19 +226,19 @@ Verify that the production build passes type-checking:
 npm run build
 ```
 
-## 🔑 Roles & Test Credentials
+## 🔑 Roles, Credentials & Access Matrix
 
 All test accounts use uniform password **`moaams2024`**.
 
-> **5 statutory roles** implement strict Segregation of Duties (SOD) — no single user can both initiate and approve the same transaction.
+> **5 statutory roles** implement strict Segregation of Duties (SOD) — operational entry, technical endorsement, statutory authorization, and platform governance are strictly decoupled.
 
-| # | Role | Email Login | Title | Default View | Responsibilities |
-| :- | :--- | :--- | :--- | :--- | :--- |
-| 1 | **`DATA_ENCODER`** | `encoder@moa.gov.et` | Store Custodian / Encoder | Stock-In | Registers Model 19 (GRN), requests Model 20 (Issue), and Model 22 (Return). **Cannot approve.** |
-| 2 | **`TEAM_LEADER`** | `teamleader@moa.gov.et` | Team Leader | Approvals | **Stage 1 Endorsement** — technical review and spec verification before forwarding to Stage 2. |
-| 3 | **`DEPARTMENT_HEAD`** | `depthead@moa.gov.et` | Directorate Head | Approvals | **Stage 2 Final Authorization** — signs off on stock transitions, custody issuance, and returns. |
-| 4 | **`MANAGER`** | `manager@moa.gov.et` | Manager | Dashboard | Read-only executive visibility: portfolio valuation, directorate allocations, custody ratios, and store analytics. |
-| 5 | **`SYSTEM_ADMIN`** | `sysadmin@moa.gov.et` | System Administrator | Dashboard | Platform administration: user management, approval matrix config, audit logs. **Blocked from all store operations (SOD).** |
+| # | Role | Email Login | Title | Default View | Accessible Tabs | Access Scope & Responsibilities |
+| :- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | **`DATA_ENCODER`** | `encoder@moa.gov.et` | Store Custodian / Encoder | Stock-In | `Stock-In`, `Stock-Out`, `Asset Transfer`, `Settings` | **Operational Ingestion & Requisition**: Registers Model 19 (GRN), submits Model 20 (Issue), initiates inter-store transfers & Model 22 Returns. *(Strict SOD: Forbidden from approving vouchers).* |
+| 2 | **`TEAM_LEADER`** | `teamleader@moa.gov.et` | Team Leader | Approvals | `Approvals`, `Reports`, `Audit Log` | **Stage 1 Endorsement**: Verifies technical specs and endorses pending vouchers before forwarding to Stage 2. Full read access to operational reports and audit trail. |
+| 3 | **`DEPARTMENT_HEAD`** | `depthead@moa.gov.et` | Directorate Head | Approvals | `Approvals`, `Reports`, `Audit Log`, `Settings` | **Stage 2 Final Authorization**: Final statutory sign-off that commits stock transitions (`AVAILABLE`, `ISSUED`). Full access to reports, audit trail, and department settings. |
+| 4 | **`MANAGER`** | `manager@moa.gov.et` | Manager | Dashboard | `Dashboard` | **Executive Oversight**: Read-only executive view over total ministry portfolio valuation, directorate allocations, custodian ratios, and store capacities. Isolated from operations. |
+| 5 | **`SYSTEM_ADMIN`** | `sysadmin@moa.gov.et` | System Administrator | Dashboard | `Dashboard`, `Reports`, `Audit Log`, `Settings` | **IT & Security Governance**: Manages user accounts, assigns roles, configures approval matrix tiers and system settings. *(Strict SOD: Blocked from store operations & approvals).* |
 
 ---
 
