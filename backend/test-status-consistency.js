@@ -4,7 +4,7 @@
  * and rejection rollbacks across all scenarios.
  */
 
-const BASE_URL = 'http://localhost:3000/api';
+const BASE_URL = (process.env.AMS_API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');
 
 let passed = 0;
 let failed = 0;

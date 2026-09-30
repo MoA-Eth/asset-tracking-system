@@ -9,6 +9,7 @@ import {
   Department,
   Employee,
   Location,
+  LocationInput,
   CreateStockInRequest,
   CreateStockOutRequest,
   CreateReturnRequest,
@@ -21,6 +22,7 @@ import {
 } from '../types/asset-management';
 
 const BASE_URL = '/api';
+const REQUEST_TIMEOUT_MS = 15000;
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
@@ -32,24 +34,46 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     ...(options?.headers as Record<string, string>),
   };
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const signal = options?.signal || controller.signal;
 
-  if (!response.ok) {
-    let errorMsg = `HTTP Error: ${response.statusText}`;
+  try {
+    let response: Response;
     try {
-      const errorJson = await response.json();
-      errorMsg = errorJson.message || errorJson.error || errorMsg;
-    } catch {
-      // ignore
+      response = await fetch(url, {
+        ...options,
+        headers,
+        signal,
+      });
+    } catch (error) {
+      if (options?.signal?.aborted) throw error;
+      throw new Error(controller.signal.aborted
+        ? 'The AMS server took too long to respond. Check your connection and try again.'
+        : 'Cannot reach the AMS server. Check your connection and that the app is running.');
     }
-    throw new Error(errorMsg);
-  }
 
-  const json: ApiResponse<T> = await response.json();
-  return json.data;
+    if (!response.ok) {
+      let errorMsg = `AMS server returned HTTP ${response.status}.`;
+      try {
+        const errorJson = await response.json();
+        errorMsg = errorJson.message || errorJson.error?.message || errorMsg;
+      } catch {
+        // A disconnected development proxy or network gateway may return non-JSON errors.
+      }
+      throw new Error(errorMsg);
+    }
+
+    let json: ApiResponse<T>;
+    try {
+      json = await response.json();
+    } catch {
+      throw new Error('The AMS server returned an invalid response. Check that you opened the correct app address.');
+    }
+    return json.data;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 export const api = {
@@ -155,6 +179,18 @@ export const api = {
   getLocations: () => {
     return request<Location[]>('/reference/locations');
   },
+
+  createLocation: (payload: LocationInput) => request<Location>('/reference/locations', {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+
+  updateLocation: (id: string, payload: LocationInput) => request<Location>(`/reference/locations/${encodeURIComponent(id)}`, {
+    method: 'PUT', body: JSON.stringify(payload),
+  }),
+
+  deleteLocation: (id: string) => request<Location>(`/reference/locations/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  }),
 
   getEmployees: (departmentId?: string) => {
     return request<Employee[]>(

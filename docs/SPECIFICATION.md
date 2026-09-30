@@ -1,6 +1,8 @@
 # Ministry of Agriculture – Asset & Store Management System (MoA-AMS)
 ## Functional Technical Specification (IFMIS Store Mirror & Executive Dashboard)
 
+The user-approved [role and page access map](ROLE_ACCESS.md) refines the high-level role descriptions below into five roles and a two-stage approval workflow. See [page status](PAGE_STATUS.md) for built and planned pages.
+
 - **Target Organization:** Federal Democratic Republic of Ethiopia – Ministry of Agriculture (MoA)
 - **Primary Frameworks:** React 18+ (Mobile-First PWA) | Node.js + Express (Backend REST API)
 - **System Scope:** Store-Level Processing, IFMIS Slip Mirroring, and Top Management Visibility

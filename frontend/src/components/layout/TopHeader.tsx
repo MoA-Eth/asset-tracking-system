@@ -5,6 +5,8 @@ import {
   PanelLeftOpen,
   Bell,
   Building2,
+  MapPin,
+  Warehouse,
   UserCheck2,
   LogOut,
   PackagePlus,
@@ -182,8 +184,18 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         return { title: 'Reports', am: 'የሪፖርት መዝገብ', icon: FileSpreadsheet, iconColor: 'text-emerald-700' };
       case 'transfer-asset':
         return { title: 'Asset Transfer', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 22)', icon: ArrowRightLeft, iconColor: 'text-amber-600' };
-      case 'settings':
-        return { title: 'Settings & Permissions', am: 'ቅንብሮች እና የስርዓት መቆጣጠሪያ', icon: Settings, iconColor: 'text-emerald-700' };
+      case 'settings-employees':
+        return { title: 'Employees', am: 'ሠራተኞች', icon: UserCheck2, iconColor: 'text-emerald-700' };
+      case 'settings-users':
+        return { title: 'User Accounts', am: 'የተጠቃሚ መለያዎች', icon: ShieldCheck, iconColor: 'text-emerald-700' };
+      case 'settings-system':
+        return { title: 'System Settings', am: 'ቅንብሮች', icon: Settings, iconColor: 'text-emerald-700' };
+      case 'settings-departments':
+        return { title: 'Departments', am: 'ዳይሬክቶሬቶች', icon: Building2, iconColor: 'text-emerald-700' };
+      case 'settings-locations':
+        return { title: 'Locations', am: 'ቦታዎች', icon: MapPin, iconColor: 'text-emerald-700' };
+      case 'settings-stores':
+        return { title: 'Stores', am: 'መጋዘኖች', icon: Warehouse, iconColor: 'text-emerald-700' };
       default:
         return { title: 'AMS Portal', am: 'የግብርና ሚኒስቴር', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
     }
@@ -415,4 +427,3 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     </header>
   );
 };
-

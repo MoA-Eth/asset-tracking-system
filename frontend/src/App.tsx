@@ -10,49 +10,29 @@ import { ApprovalsPage } from './pages/ApprovalsPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { DepartmentsPage } from './pages/DepartmentsPage';
+import { LocationsPage } from './pages/LocationsPage';
+import { StoresPage } from './pages/StoresPage';
 import { TransferAssetPage } from './pages/TransferAssetPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { UserRole } from './types/asset-management';
 import { api } from './api/client';
-
-const DEFAULT_TAB_FOR_ROLE: Record<string, string> = {
-  [UserRole.SYSTEM_ADMIN]: 'dashboard',
-  [UserRole.DATA_ENCODER]: 'stock-in',
-  [UserRole.TEAM_LEADER]: 'approvals',
-  [UserRole.DEPARTMENT_HEAD]: 'approvals',
-  [UserRole.MANAGER]: 'dashboard',
-  'TOP_MANAGEMENT': 'dashboard',
-};
-
-const ALLOWED_TABS_FOR_ROLE: Record<string, string[]> = {
-  [UserRole.SYSTEM_ADMIN]: ['dashboard', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
-  [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
-  [UserRole.TEAM_LEADER]: ['approvals', 'reports', 'audit'],
-  [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config'],
-  [UserRole.MANAGER]: ['dashboard'],
-  'TOP_MANAGEMENT': ['dashboard'],
-};
+import { getValidTabForRole } from './utils/navigation';
 
 const AuthenticatedPortal: React.FC = () => {
   const { user, role, isAuthenticated, isLoading } = useAuth();
 
-  const getValidTabForRole = (currentRole: UserRole, candidateTab?: string | null): string => {
-    const allowed = ALLOWED_TABS_FOR_ROLE[currentRole] || [];
-    if (candidateTab && allowed.includes(candidateTab)) {
-      return candidateTab;
-    }
-    return DEFAULT_TAB_FOR_ROLE[currentRole] || 'reports';
-  };
-
-  const [activeTab, setActiveTab] = useState<string>(() => {
+  const [requestedTab, setActiveTab] = useState<string>(() => {
     const saved = localStorage.getItem('moa_active_tab');
     return getValidTabForRole(role, saved);
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number>(0);
   const [selectedCenter, setSelectedCenter] = useState<string>('ALL');
+  // Validate before rendering, including the first render after a role change.
+  const activeTab = getValidTabForRole(role, requestedTab);
 
   const handleTabChange = (tab: string) => {
     const valid = getValidTabForRole(role, tab);
@@ -64,13 +44,17 @@ const AuthenticatedPortal: React.FC = () => {
   useEffect(() => {
     const saved = localStorage.getItem('moa_active_tab');
     const valid = getValidTabForRole(role, saved || activeTab);
-    if (valid !== activeTab) {
+    if (valid !== requestedTab) {
       setActiveTab(valid);
       localStorage.setItem('moa_active_tab', valid);
     }
   }, [role, user?.id]);
 
   const fetchPending = async () => {
+    if (!isAuthenticated || ![UserRole.TEAM_LEADER, UserRole.DEPARTMENT_HEAD].includes(role)) {
+      setPendingApprovalsCount(0);
+      return;
+    }
     try {
       const data = await api.getApprovals();
       const pending = data.filter((a) => a.status === 'PENDING');
@@ -197,10 +181,14 @@ const AuthenticatedPortal: React.FC = () => {
           {activeTab === 'reports' && (
             <ReportsPage />
           )}
-          {activeTab.startsWith('settings') && (
+          {activeTab === 'settings-departments' && <DepartmentsPage />}
+          {activeTab === 'settings-locations' && <LocationsPage currentRole={role} />}
+          {activeTab === 'settings-stores' && <StoresPage currentRole={role} onNavigate={handleTabChange} />}
+          {['settings-employees', 'settings-users', 'settings-system'].includes(activeTab) && (
             <SettingsPage
+              key={activeTab}
               currentRole={role}
-              userEmail={user?.email}
+              section={activeTab === 'settings-system' ? 'policies' : activeTab === 'settings-users' ? 'users' : 'employees'}
             />
           )}
         </main>

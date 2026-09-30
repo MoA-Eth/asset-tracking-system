@@ -1,0 +1,31 @@
+import {
+  LayoutDashboard,
+  PackagePlus,
+  PackageMinus,
+  ArrowRightLeft,
+  FileCheck2,
+  FileSpreadsheet,
+  ShieldCheck,
+  Users,
+  Building2,
+  MapPin,
+  Warehouse,
+  Settings,
+  type LucideIcon,
+} from 'lucide-react';
+
+export const navigationIcons: Record<string, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  'stock-in': PackagePlus,
+  'stock-out': PackageMinus,
+  'transfer-asset': ArrowRightLeft,
+  approvals: FileCheck2,
+  reports: FileSpreadsheet,
+  audit: ShieldCheck,
+  'settings-employees': Users,
+  'settings-departments': Building2,
+  'settings-locations': MapPin,
+  'settings-stores': Warehouse,
+  'settings-users': ShieldCheck,
+  'settings-system': Settings,
+};

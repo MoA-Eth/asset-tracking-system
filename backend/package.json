@@ -4,9 +4,12 @@
   "description": "Express REST API for Ministry of Agriculture Asset Management System (MoA-AMS)",
   "main": "dist/server.js",
   "scripts": {
+    "predev": "prisma generate",
     "dev": "tsx watch src/server.ts",
+    "prebuild": "prisma generate",
     "build": "tsc",
     "start": "node dist/server.js",
+    "pretest": "prisma generate",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:setup": "prisma generate && prisma db push && tsx prisma/seed.ts",

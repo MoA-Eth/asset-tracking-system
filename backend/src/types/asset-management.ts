@@ -61,6 +61,13 @@ export interface Location {
   isCentralStore?: boolean;
 }
 
+export interface LocationInput {
+  siteName: string;
+  building: string;
+  roomNumber: string;
+  isCentralStore: boolean;
+}
+
 export interface Employee {
   id: string;
   payrollId: string;
@@ -231,7 +238,7 @@ export interface AuditLogEntry {
   userName: string;
   userRole: UserRole;
   action: string;
-  entityType: 'ITEM' | 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'RETURN' | 'APPROVAL';
+  entityType: 'ITEM' | 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'RETURN' | 'APPROVAL' | 'EMPLOYEE' | 'LOCATION';
   entityId: string;
   ifmisSlipNumber?: string;
   details: string;

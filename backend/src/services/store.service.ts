@@ -19,6 +19,7 @@ import {
 } from '../types/asset-management';
 import { prisma } from '../lib/prisma';
 import { getTodayGcAndEc, formatGcToEc } from '../utils/eth-date';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../errors/app-error';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,7 +56,7 @@ function mapItem(raw: any): ItemWithRelations {
     createdAtGc: raw.createdAtGc,
     createdAtEc: raw.createdAtEc,
     storeLocation: raw.storeLocation ?? undefined,
-    currentCustodian: raw.currentCustodian ?? null,
+    currentCustodian: raw.currentCustodian ? mapEmployee(raw.currentCustodian) : null,
     assignedDepartment: raw.assignedDepartment ?? null,
     registeredBy: raw.registeredBy ?? undefined,
     approvedBy: raw.approvedBy ?? undefined,
@@ -572,6 +573,17 @@ export class StoreService {
 
     const today = getTodayGcAndEc();
     const reviewer = payload.reviewedById ? await prisma.employee.findUnique({ where: { id: payload.reviewedById } }) : null;
+    if (!['ENDORSE', 'APPROVE', 'REJECT'].includes(payload.action)) {
+      throw new BadRequestError('Unknown approval action.');
+    }
+    const requiredRole = approval.currentStage === 1 ? UserRole.TEAM_LEADER : UserRole.DEPARTMENT_HEAD;
+    if (![1, 2].includes(approval.currentStage) || reviewer?.role !== requiredRole) {
+      throw new ForbiddenError(`Stage ${approval.currentStage} must be reviewed by ${requiredRole}.`);
+    }
+    if ((approval.currentStage === 1 && payload.action === 'APPROVE') ||
+        (approval.currentStage === 2 && payload.action === 'ENDORSE')) {
+      throw new BadRequestError('Stage 1 requires endorsement; Stage 2 requires final approval.');
+    }
     const reviewerName = reviewer ? `${reviewer.fullNameEn} (${reviewer.role})` : 'Reviewer';
 
     // ── STAGE 1 ACTION: ENDORSE (Team Leader) ──────────────────────────────
@@ -804,8 +816,8 @@ export class StoreService {
 
   // ── Queries ─────────────────────────────────────────────────────────────
 
-  public async getApprovals(status?: ApprovalStatus): Promise<TransactionApproval[]> {
-    const where: any = status ? { status } : {};
+  public async getApprovals(status?: ApprovalStatus, requestedById?: string): Promise<TransactionApproval[]> {
+    const where = { ...(status ? { status } : {}), ...(requestedById ? { requestedById } : {}) };
     const rows = await prisma.transactionApproval.findMany({
       where,
       include: APPROVAL_INCLUDES,
@@ -862,21 +874,34 @@ export class StoreService {
   }
 
   public async updateEmployeeRole(id: string, role: UserRole, actorId?: string): Promise<Employee> {
-    const prev = await prisma.employee.findUnique({ where: { id } });
-    const updated = await prisma.employee.update({
-      where: { id },
-      data: { role: role as any },
-    });
-    if (actorId) {
-      await addAuditLog(
-        actorId,
-        'UPDATE_STAFF_ROLE',
-        'APPROVAL',
-        id,
-        `Role for ${prev?.fullNameEn || id} updated from ${prev?.role || 'N/A'} to ${role}`
-      );
+    if (!Object.values(UserRole).includes(role)) {
+      throw new BadRequestError('A valid system role is required.');
     }
-    return mapEmployee(updated);
+    return prisma.$transaction(async tx => {
+      const actor = actorId ? await tx.employee.findUnique({ where: { id: actorId } }) : null;
+      if (actor?.role !== UserRole.SYSTEM_ADMIN) {
+        throw new ForbiddenError('Only System Administrators can change user roles.');
+      }
+      const previous = await tx.employee.findUnique({ where: { id } });
+      if (!previous) throw new NotFoundError('Employee not found.');
+      const updated = await tx.employee.update({ where: { id }, data: { role } });
+      const today = getTodayGcAndEc();
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+      await tx.auditLog.create({ data: {
+        timestampGc: `${today.gc} ${time}`,
+        timestampEc: `${today.ec} ${time}`,
+        userId: actor.id,
+        userName: actor.fullNameEn,
+        userRole: actor.role,
+        action: 'UPDATE_STAFF_ROLE',
+        entityType: 'EMPLOYEE',
+        entityId: id,
+        details: `Role for ${previous.fullNameEn} updated from ${previous.role} to ${role}`,
+        previousState: { role: previous.role },
+        newState: { role },
+      } });
+      return mapEmployee(updated);
+    });
   }
 
   // ── Executive Dashboard ─────────────────────────────────────────────────

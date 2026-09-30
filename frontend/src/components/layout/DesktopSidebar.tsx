@@ -38,22 +38,10 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   onToggleCollapse,
 }) => {
   const { user, role, logout } = useAuth();
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => ({
-    admin: activeTab.startsWith('settings'),
-  }));
-
-  React.useEffect(() => {
-    if (activeTab.startsWith('settings')) {
-      setOpenSections((prev) => ({ ...prev, admin: true }));
-    }
-  }, [activeTab]);
-
-  const toggleSection = (key: string) => {
-    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const getRoleTitle = (r: UserRole): string => {
     switch (r) {
+      case UserRole.SYSTEM_ADMIN:
+        return 'System Administrator';
       case UserRole.MANAGER:
         return 'Manager';
       case UserRole.DEPARTMENT_HEAD:
@@ -107,8 +95,20 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             title={collapsed ? 'Click to expand sidebar' : undefined}
           >
             <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow">
-              <circle cx="50" cy="50" r="46" fill="#0A3F24" stroke="#FCDD09" strokeWidth="3" />
-              <path d="M50 16 L50 82" stroke="#FCDD09" strokeWidth="3.5" strokeLinecap="round" />
+              <circle
+                cx="50"
+                cy="50"
+                r="46"
+                fill="#0A3F24"
+                stroke="#FCDD09"
+                strokeWidth="3"
+              />
+              <path
+                d="M50 16 L50 82"
+                stroke="#FCDD09"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+              />
               <path d="M50 28 Q66 22 68 34 Q58 38 50 34" fill="#FCDD09" />
               <path d="M50 42 Q68 36 70 48 Q60 52 50 48" fill="#FCDD09" />
               <path d="M50 28 Q34 22 32 34 Q42 38 50 34" fill="#FCDD09" />
@@ -352,7 +352,9 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   />
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] text-emerald-300/70 truncate">
-                  <span className="font-mono text-amber-300/90 font-medium">{user?.payrollId || 'MOA-AUTH'}</span>
+                  <span className="font-mono text-amber-300/90 font-medium">
+                    {user?.payrollId || 'MOA-AUTH'}
+                  </span>
                   <span>•</span>
                   <span>{roleTitle}</span>
                 </div>
@@ -389,4 +391,3 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
     </aside>
   );
 };
-

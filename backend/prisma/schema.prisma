@@ -66,6 +66,8 @@ enum AuditEntityType {
   TRANSFER
   RETURN
   APPROVAL
+  EMPLOYEE
+  LOCATION
 }
 
 // ─── Reference Tables ─────────────────────────────────────────────────────────
@@ -169,7 +171,6 @@ model Item {
   // Child tables
   history             ItemHistory[]
   approvals           TransactionApproval[]
-  auditLogs           AuditLog[]
 
   @@map("items")
 }
@@ -258,6 +259,7 @@ model AuditLog {
   userRole       UserRole
   action         String
   entityType     AuditEntityType
+  // Polymorphic subject ID: item, employee, or location, according to entityType.
   entityId       String
   ifmisSlipNumber String?
   details        String
@@ -267,7 +269,6 @@ model AuditLog {
 
   // Relations
   user     Employee @relation(fields: [userId], references: [id])
-  item     Item?    @relation(fields: [entityId], references: [id])
 
   @@map("audit_logs")
 }

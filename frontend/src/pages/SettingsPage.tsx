@@ -9,23 +9,39 @@ import {
   SlidersHorizontal,
   FileText,
   FileCheck,
-  UserCheck,
-  Sliders,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { UserRole, Employee, Department } from '../types/asset-management';
-import { getSystemSettings, saveSystemSettings, AttachmentPolicy } from '../utils/system-settings';
+import {
+  getSystemSettings,
+  saveSystemSettings,
+  AttachmentPolicy,
+} from '../utils/system-settings';
 import { useToast } from '../context/ToastContext';
 
 interface SettingsPageProps {
   currentRole: UserRole;
-  userEmail?: string;
-  initialTab?: 'users' | 'policies';
+  section?: 'employees' | 'users' | 'policies';
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users' }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({
+  currentRole,
+  section = 'employees',
+}) => {
   const toast = useToast();
-  const [activeSubTab, setActiveSubTab] = useState<'users' | 'policies'>(initialTab);
+  const isAdmin = currentRole === UserRole.SYSTEM_ADMIN;
+  const canView =
+    isAdmin ||
+    (section === 'employees' &&
+      [UserRole.DATA_ENCODER, UserRole.DEPARTMENT_HEAD].includes(currentRole));
+  const canManageRoles = isAdmin && section !== 'policies';
+  const activeSubTab = section === 'policies' ? 'policies' : 'users';
+  const title =
+    section === 'employees'
+      ? 'Employees'
+      : section === 'users'
+        ? 'User Accounts'
+        : 'System Settings';
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,11 +58,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    setActiveSubTab(initialTab);
-  }, [initialTab]);
-
   const fetchData = async () => {
+    if (!canView || section === 'policies') {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -71,11 +87,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
   }, []);
 
   const handleRoleChange = async (employeeId: string, newRole: UserRole) => {
+    if (!canManageRoles) return;
     setUpdatingId(employeeId);
     setSuccessMsg(null);
     try {
       const updated = await api.updateEmployeeRole(employeeId, newRole);
-      setEmployees((prev) => prev.map((emp) => (emp.id === employeeId ? updated : emp)));
+      setEmployees((prev) =>
+        prev.map((emp) => (emp.id === employeeId ? updated : emp))
+      );
       const roleName = newRole.replace(/_/g, ' ');
       setSuccessMsg(`Role updated to ${roleName} for ${updated.fullNameEn}`);
       toast.success(
@@ -92,6 +111,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
   };
 
   const handlePolicyChange = (policy: AttachmentPolicy) => {
+    if (!isAdmin || section !== 'policies') return;
     setAttachmentPolicy(policy);
     saveSystemSettings({ historicalDataAttachmentPolicy: policy });
     const isReq = policy === 'REQUIRED';
@@ -109,9 +129,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
       emp.fullNameEn.toLowerCase().includes(q) ||
       emp.email.toLowerCase().includes(q) ||
       (emp.payrollId && emp.payrollId.toLowerCase().includes(q));
-    const matchesDept = selectedDeptFilter === 'ALL' || emp.departmentId === selectedDeptFilter;
+    const matchesDept =
+      selectedDeptFilter === 'ALL' || emp.departmentId === selectedDeptFilter;
     return matchesSearch && matchesDept;
   });
+
+  if (!canView) return <p role="alert">You do not have access to this page.</p>;
 
   if (loading) {
     return (
@@ -126,7 +149,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
     return (
       <div className="p-8 rounded-2xl bg-red-50 border border-red-200 text-center space-y-3 max-w-md mx-auto my-12 animate-fadeIn">
         <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
-        <h3 className="text-sm font-bold text-red-900">Settings Load Failure</h3>
+        <h3 className="text-sm font-bold text-red-900">
+          Settings Load Failure
+        </h3>
         <p className="text-xs text-red-700">{error}</p>
         <button
           onClick={fetchData}
@@ -146,18 +171,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
-              Department Head Settings
+              Ministry Registry
             </span>
             <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
-              Ministry of Agriculture Policy & Access Controls
+              Ministry of Agriculture
             </span>
           </div>
           <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
             <Settings className="w-5 h-5 text-emerald-700" />
-            Settings — Governance & Policies (ቅንብሮች እና መመሪያዎች)
+            {title}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure system data policies and manage civil service authorization roles across directorates.
+            {section === 'policies'
+              ? 'Configure the historical stock-in attachment preference for this browser.'
+              : canManageRoles
+                ? 'Review staff records and manage system authorization roles across directorates.'
+                : 'View staff records and department assignments.'}
           </p>
         </div>
 
@@ -177,33 +206,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
           <span className="font-semibold">{successMsg}</span>
         </div>
       )}
-
-      {/* Sub-Menu Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-        <button
-          onClick={() => setActiveSubTab('users')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-            activeSubTab === 'users'
-              ? 'bg-emerald-800 text-white shadow-xs'
-              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-          }`}
-        >
-          <UserCheck className="w-4 h-4" />
-          <span>User Permissions & Roles</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('policies')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-            activeSubTab === 'policies'
-              ? 'bg-emerald-800 text-white shadow-xs'
-              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-          }`}
-        >
-          <Sliders className="w-4 h-4" />
-          <span>System Settings</span>
-        </button>
-      </div>
 
       {/* ── Sub-Menu 1: User Permissions ── */}
       {activeSubTab === 'users' && (
@@ -228,7 +230,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
                 onChange={(e) => setSelectedDeptFilter(e.target.value)}
                 className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 font-semibold focus:outline-none focus:border-emerald-600 cursor-pointer"
               >
-                <option value="ALL">All Directorates ({departments.length})</option>
+                <option value="ALL">
+                  All Directorates ({departments.length})
+                </option>
                 {departments.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.code} — {d.nameEn}
@@ -253,7 +257,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredEmployees.map((emp) => {
-                    const dept = departments.find((d) => d.id === emp.departmentId);
+                    const dept = departments.find(
+                      (d) => d.id === emp.departmentId
+                    );
                     const isUpdating = updatingId === emp.id;
 
                     return (
@@ -264,14 +270,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
                               {emp.fullNameEn.slice(0, 2).toUpperCase()}
                             </div>
                             <div>
-                              <p className="font-bold text-slate-900">{emp.fullNameEn}</p>
-                              <p className="text-[10px] text-slate-500">{emp.fullNameAm}</p>
+                              <p className="font-bold text-slate-900">
+                                {emp.fullNameEn}
+                              </p>
+                              <p className="text-[10px] text-slate-500">
+                                {emp.fullNameAm}
+                              </p>
                             </div>
                           </div>
                         </td>
-                        <td className="py-3 px-4 font-mono text-slate-700">{emp.email}</td>
+                        <td className="py-3 px-4 font-mono text-slate-700">
+                          {emp.email}
+                        </td>
                         <td className="py-3 px-4 text-slate-700 font-medium">
-                          {dept ? `${dept.code} — ${dept.nameEn}` : 'Ministry HQ'}
+                          {dept
+                            ? `${dept.code} — ${dept.nameEn}`
+                            : 'Ministry HQ'}
                         </td>
                         <td className="py-3 px-4">
                           <span
@@ -279,31 +293,51 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
                               emp.role === UserRole.MANAGER
                                 ? 'bg-amber-100 text-amber-900 border-amber-300'
                                 : emp.role === UserRole.DEPARTMENT_HEAD
-                                ? 'bg-blue-100 text-blue-900 border-blue-300'
-                                : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                  ? 'bg-blue-100 text-blue-900 border-blue-300'
+                                  : 'bg-emerald-100 text-emerald-900 border-emerald-300'
                             }`}
                           >
                             <Shield className="w-3 h-3" />
                             {emp.role.replace(/_/g, ' ')}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <select
-                              value={emp.role}
-                              disabled={isUpdating}
-                              onChange={(e) => handleRoleChange(emp.id, e.target.value as UserRole)}
-                              className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-emerald-600 disabled:opacity-50 cursor-pointer"
-                            >
-                              <option value={UserRole.SYSTEM_ADMIN}>System Administrator</option>
-                              <option value={UserRole.DATA_ENCODER}>Store Custodian / Encoder</option>
-                              <option value={UserRole.TEAM_LEADER}>Team Leader</option>
-                              <option value={UserRole.DEPARTMENT_HEAD}>Directorate Head / Approver</option>
-                              <option value={UserRole.MANAGER}>Manager</option>
-                            </select>
-                            {isUpdating && <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />}
-                          </div>
-                        </td>
+                        {canManageRoles && (
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <select
+                                aria-label={`Role for ${emp.fullNameEn}`}
+                                value={emp.role}
+                                disabled={isUpdating}
+                                onChange={(e) =>
+                                  handleRoleChange(
+                                    emp.id,
+                                    e.target.value as UserRole
+                                  )
+                                }
+                                className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-emerald-600 disabled:opacity-50 cursor-pointer"
+                              >
+                                <option value={UserRole.SYSTEM_ADMIN}>
+                                  System Administrator
+                                </option>
+                                <option value={UserRole.DATA_ENCODER}>
+                                  Store Custodian / Encoder
+                                </option>
+                                <option value={UserRole.TEAM_LEADER}>
+                                  Team Leader
+                                </option>
+                                <option value={UserRole.DEPARTMENT_HEAD}>
+                                  Directorate Head / Approver
+                                </option>
+                                <option value={UserRole.MANAGER}>
+                                  Manager
+                                </option>
+                              </select>
+                              {isUpdating && (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                              )}
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -315,7 +349,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
       )}
 
       {/* ── Sub-Menu 2: System Data Policies ── */}
-      {activeSubTab === 'policies' && (
+      {isAdmin && activeSubTab === 'policies' && (
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 animate-fadeIn">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
@@ -336,8 +370,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
                 </p>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Define whether Store Custodians must upload a scanned IFMIS delivery slip when checking the{' '}
-                <strong className="text-slate-800">"Historical Legacy Data"</strong> checkbox during Stock-In registration.
+                Define whether Store Custodians must upload a scanned IFMIS
+                delivery slip when checking the{' '}
+                <strong className="text-slate-800">
+                  "Historical Legacy Data"
+                </strong>{' '}
+                checkbox during Stock-In registration.
               </p>
             </div>
 

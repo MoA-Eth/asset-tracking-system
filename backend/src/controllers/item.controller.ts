@@ -161,7 +161,10 @@ export class ItemController {
    */
   public getApprovals = asyncHandler(async (req: Request, res: Response) => {
     const { status } = req.query;
-    const approvals = await this.store.getApprovals(status as ApprovalStatus);
+    const approvals = await this.store.getApprovals(
+      status as ApprovalStatus,
+      req.user?.role === UserRole.DATA_ENCODER ? req.user.id : undefined
+    );
     return sendSuccess(res, approvals, 'Approvals list retrieved');
   });
 
@@ -186,23 +189,20 @@ export class ItemController {
       // Enforce role clearance based on 2-stage approval action
       if (payload.action === 'ENDORSE') {
         if (
-          req.user.role !== UserRole.TEAM_LEADER &&
-          req.user.role !== UserRole.DEPARTMENT_HEAD
+          req.user.role !== UserRole.TEAM_LEADER
         ) {
           throw new ForbiddenError('Only Team Leaders can endorse Stage 1 requests.');
         }
       } else if (payload.action === 'APPROVE') {
         if (
-          req.user.role !== UserRole.DEPARTMENT_HEAD &&
-          req.user.role !== UserRole.MANAGER
+          req.user.role !== UserRole.DEPARTMENT_HEAD
         ) {
-          throw new ForbiddenError('Only Department Heads or General Managers can grant Stage 2 final approval.');
+          throw new ForbiddenError('Only Department Heads can grant Stage 2 final approval.');
         }
       } else if (payload.action === 'REJECT') {
         if (
           req.user.role !== UserRole.TEAM_LEADER &&
-          req.user.role !== UserRole.DEPARTMENT_HEAD &&
-          req.user.role !== UserRole.MANAGER
+          req.user.role !== UserRole.DEPARTMENT_HEAD
         ) {
           throw new ForbiddenError('You do not have authorization to reject this approval workflow.');
         }
@@ -211,6 +211,9 @@ export class ItemController {
 
     if (!payload.approvalId || !payload.action || !payload.reviewedById) {
       throw new BadRequestError('Approval ID, Action, and Reviewing Officer are required.');
+    }
+    if (!['ENDORSE', 'APPROVE', 'REJECT'].includes(payload.action)) {
+      throw new BadRequestError('Action must be ENDORSE, APPROVE, or REJECT.');
     }
     const result = await this.store.handleApproval(payload);
     return sendSuccess(res, result, `Approval request ${payload.action.toLowerCase()}d successfully`);

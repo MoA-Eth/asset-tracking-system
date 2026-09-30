@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:3000/api';
+const BASE_URL = (process.env.AMS_API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');
 
 const USERS = {
   admin: { email: 'sysadmin@moa.gov.et', password: 'moaams2024', role: 'SYSTEM_ADMIN' },
@@ -124,7 +124,7 @@ async function runTests() {
       body: { approvalId: testApprovalId, action: 'APPROVE', reviewRemarks: 'Premature approval attempt' },
     });
     assert(
-      prematureRes.status === 500 || prematureRes.status === 400,
+      prematureRes.status === 403,
       'Sequence Guard: Stage 2 approval rejected before Stage 1 endorsement'
     );
 

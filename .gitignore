@@ -40,6 +40,7 @@ pnpm-debug.log*
 Thumbs.db
 
 # Database & SQLite files
+.local/
 *.sqlite
 *.sqlite-journal
 *.db
