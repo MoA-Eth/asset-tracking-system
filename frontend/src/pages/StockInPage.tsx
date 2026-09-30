@@ -74,25 +74,6 @@ const StatusBadge: React.FC<{ status: ItemStatus }> = ({ status }) => {
   );
 };
 
-// ─── Form Line Item Interface ────────────────────────────────────────────────
-
-interface FormLineItem {
-  id: string;
-  itemCode: string;
-  name: string;
-  category: AssetCategory;
-  itemCategoryDisplay: string;
-  uom: string;
-  subInventory: string;
-  lotBatchNo: string;
-  serialNumber: string;
-  printedPadFrom: string;
-  printedPadTo: string;
-  quantity: number;
-  unitCostETB: number;
-  condition: ItemCondition;
-  remark: string;
-}
 
 const COMMON_UOMS = ['EA', 'PKT', 'SET', 'ROLL', 'PCS', 'BOX', 'BAG', 'KG', 'LTR', 'CAN', 'BOTTLE'];
 const COMMON_CATEGORIES = [
@@ -104,25 +85,7 @@ const COMMON_CATEGORIES = [
   { value: AssetCategory.FIELD_GEAR, label: 'Field Gear & Uniforms' },
 ];
 
-const createEmptyLineItem = (index: number): FormLineItem => ({
-  id: `item-${Date.now()}-${index}`,
-  itemCode: '',
-  name: '',
-  category: AssetCategory.IT_EQUIPMENT,
-  itemCategoryDisplay: 'IT Equipment & Accessories',
-  uom: 'EA',
-  subInventory: 'General Store',
-  lotBatchNo: '',
-  serialNumber: '',
-  printedPadFrom: '',
-  printedPadTo: '',
-  quantity: 1,
-  unitCostETB: 0,
-  condition: ItemCondition.NEW,
-  remark: '',
-});
-
-// ─── Stock-In Form (inside modal) ───────────────────────────────────────────
+// ─── Stock-In Form (Flat Single-Item Format) ────────────────────────────────
 
 interface StockInFormProps {
   locations: Location[];
@@ -136,7 +99,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
 
-  // Document Voucher Header Metadata
+  // Section 1: Document Voucher Header Metadata
   const [ifmisSlipNumber, setIfmisSlipNumber] = useState('');
   const [poNumber, setPoNumber] = useState('');
   const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(new Date().toISOString().split('T')[0]);
@@ -145,14 +108,27 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
   const [buyer, setBuyer] = useState('');
   const [programName, setProgramName] = useState('MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa');
   const [storeLocationId, setStoreLocationId] = useState(locations[0]?.id ?? '');
+
+  // Section 2: Single-Item Particulars
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState<AssetCategory>(AssetCategory.IT_EQUIPMENT);
+  const [itemCode, setItemCode] = useState('');
+  const [uom, setUom] = useState('EA');
+  const [subInventory, setSubInventory] = useState('General Store');
+  const [lotBatchNo, setLotBatchNo] = useState('');
+  const [serialNumber, setSerialNumber] = useState('');
+  const [printedPadFrom, setPrintedPadFrom] = useState('');
+  const [printedPadTo, setPrintedPadTo] = useState('');
+  const [quantity, setQuantity] = useState<number>(1);
+  const [unitCostETB, setUnitCostETB] = useState<number>(0);
+  const [condition, setCondition] = useState<ItemCondition>(ItemCondition.NEW);
+  const [remark, setRemark] = useState('');
+
+  // Section 3: Signatures & Document Scan
   const [deliveredBy, setDeliveredBy] = useState('');
   const [receivedBy, setReceivedBy] = useState(user?.fullNameEn || '');
   const [attachmentFileName, setAttachmentFileName] = useState('');
-  const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
-
-  // Line Items
-  const [lineItems, setLineItems] = useState<FormLineItem[]>([createEmptyLineItem(1)]);
 
   useEffect(() => {
     if (!storeLocationId && locations.length > 0) {
@@ -169,6 +145,8 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
   const policy = getSystemSettings().historicalDataAttachmentPolicy;
   const isAttachmentRequired = policy === 'REQUIRED';
 
+  const totalAmount = (Number(quantity) || 0) * (Number(unitCostETB) || 0);
+
   const handleReset = () => {
     setIfmisSlipNumber('');
     setPoNumber('');
@@ -177,11 +155,22 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
     setSource('');
     setBuyer('');
     setStoreLocationId(locations[0]?.id ?? '');
+    setName('');
+    setCategory(AssetCategory.IT_EQUIPMENT);
+    setItemCode('');
+    setUom('EA');
+    setSubInventory('General Store');
+    setLotBatchNo('');
+    setSerialNumber('');
+    setPrintedPadFrom('');
+    setPrintedPadTo('');
+    setQuantity(1);
+    setUnitCostETB(0);
+    setCondition(ItemCondition.NEW);
+    setRemark('');
     setDeliveredBy('');
     setReceivedBy(user?.fullNameEn || '');
     setAttachmentFileName('');
-    setNotes('');
-    setLineItems([createEmptyLineItem(1)]);
     setFormError(null);
   };
 
@@ -190,30 +179,6 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
       setAttachmentFileName(e.target.files[0].name);
     }
   };
-
-  const addLineItem = () => {
-    setLineItems((prev) => [...prev, createEmptyLineItem(prev.length + 1)]);
-  };
-
-  const removeLineItem = (id: string) => {
-    if (lineItems.length <= 1) return;
-    setLineItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const updateLineItem = (id: string, field: keyof FormLineItem, value: any) => {
-    setLineItems((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) return item;
-        return { ...item, [field]: value };
-      })
-    );
-  };
-
-  const grandTotal = lineItems.reduce(
-    (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unitCostETB) || 0),
-    0
-  );
-  const totalQuantity = lineItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,27 +192,25 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
       return;
     }
 
-    // Validate line items
-    for (let i = 0; i < lineItems.length; i++) {
-      const item = lineItems[i];
-      if (!item.name.trim()) {
-        const msg = `Item #${i + 1}: Description / Name is required.`;
-        setFormError(msg);
-        toast.warning('Description Required', msg);
-        return;
-      }
-      if (item.quantity <= 0) {
-        const msg = `Item #${i + 1}: Quantity must be at least 1.`;
-        setFormError(msg);
-        toast.warning('Invalid Quantity', msg);
-        return;
-      }
-      if (item.unitCostETB < 0) {
-        const msg = `Item #${i + 1}: Unit price cannot be negative.`;
-        setFormError(msg);
-        toast.warning('Invalid Unit Price', msg);
-        return;
-      }
+    if (!name.trim()) {
+      const msg = 'Item Description / Name is required.';
+      setFormError(msg);
+      toast.warning('Description Required', msg);
+      return;
+    }
+
+    if (quantity <= 0) {
+      const msg = 'Quantity must be at least 1.';
+      setFormError(msg);
+      toast.warning('Invalid Quantity', msg);
+      return;
+    }
+
+    if (unitCostETB < 0) {
+      const msg = 'Unit price cannot be negative.';
+      setFormError(msg);
+      toast.warning('Invalid Unit Price', msg);
+      return;
     }
 
     if (isAttachmentRequired && !attachmentFileName) {
@@ -261,37 +224,38 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
     const registeredById = user?.id || employees[0]?.id || '';
 
     try {
-      const itemsPayload = lineItems.map((item) => ({
-        itemCode: item.itemCode.trim() || undefined,
-        name: item.name.trim(),
-        category: item.category,
-        serialNumber: item.serialNumber.trim() || undefined,
-        unitCostETB: Number(item.unitCostETB) || 0,
-        condition: item.condition,
-        uom: item.uom.trim() || 'EA',
-        subInventory: item.subInventory.trim() || undefined,
-        itemCategoryDisplay: item.itemCategoryDisplay.trim() || undefined,
-        lotBatchNo: item.lotBatchNo.trim() || undefined,
-        printedPadFrom: item.printedPadFrom.trim() || undefined,
-        printedPadTo: item.printedPadTo.trim() || undefined,
-        quantity: Number(item.quantity) || 1,
-        totalAmount: (Number(item.quantity) || 1) * (Number(item.unitCostETB) || 0),
-        remark: item.remark.trim() || undefined,
-      }));
+      const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
+      const itemsPayload = [{
+        itemCode: itemCode.trim() || undefined,
+        name: name.trim(),
+        category,
+        serialNumber: serialNumber.trim() || undefined,
+        unitCostETB: Number(unitCostETB) || 0,
+        condition,
+        uom: uom.trim() || 'EA',
+        subInventory: subInventory.trim() || undefined,
+        itemCategoryDisplay: selectedCat?.label,
+        lotBatchNo: lotBatchNo.trim() || undefined,
+        printedPadFrom: printedPadFrom.trim() || undefined,
+        printedPadTo: printedPadTo.trim() || undefined,
+        quantity: Number(quantity) || 1,
+        totalAmount,
+        remark: remark.trim() || undefined,
+      }];
 
       const res = await api.registerStockIn({
-        name: itemsPayload[0].name,
-        category: itemsPayload[0].category || AssetCategory.IT_EQUIPMENT,
-        serialNumber: itemsPayload[0].serialNumber || '',
-        unitCostETB: itemsPayload[0].unitCostETB,
-        condition: itemsPayload[0].condition,
+        name: name.trim(),
+        category,
+        serialNumber: serialNumber.trim() || '',
+        unitCostETB: Number(unitCostETB) || 0,
+        condition,
         storeLocationId,
         ifmisSlipNumber: slipNo,
         ifmisSlipDateGc,
         ifmisSlipAttachmentUrl: attachmentFileName ? `/slips/${attachmentFileName}` : undefined,
         isHistoricalData: policy === 'OPTIONAL',
         registeredById,
-        notes,
+        notes: remark.trim() || undefined,
         poNumber: poNumber.trim() || undefined,
         transactionType,
         source: source.trim() || undefined,
@@ -304,22 +268,22 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
 
       // Construct printable Model 19 voucher
       const targetStore = locations.find((l) => l.id === storeLocationId);
-      const voucherItems: Model19LineItem[] = lineItems.map((it, idx) => ({
-        sNo: idx + 1,
-        itemCode: it.itemCode.trim() || (res.items?.[idx]?.itemCode || res.item?.itemCode || '—'),
-        itemDescription: it.name.trim(),
-        uom: it.uom || 'EA',
-        subInventory: it.subInventory || 'General Store',
-        itemCategory: it.itemCategoryDisplay || it.category.replace(/_/g, ' '),
-        lotBatchNo: it.lotBatchNo || '',
-        serialNo: it.serialNumber || '',
-        printedPadFrom: it.printedPadFrom || '',
-        printedPadTo: it.printedPadTo || '',
-        quantity: Number(it.quantity) || 1,
-        unitPrice: Number(it.unitCostETB) || 0,
-        totalAmount: (Number(it.quantity) || 1) * (Number(it.unitCostETB) || 0),
-        remark: it.remark || '',
-      }));
+      const voucherItems: Model19LineItem[] = [{
+        sNo: 1,
+        itemCode: itemCode.trim() || (res.items?.[0]?.itemCode || res.item?.itemCode || '—'),
+        itemDescription: name.trim(),
+        uom: uom.trim() || 'EA',
+        subInventory: subInventory.trim() || 'General Store',
+        itemCategory: selectedCat?.label || category.replace(/_/g, ' '),
+        lotBatchNo: lotBatchNo.trim() || '',
+        serialNo: serialNumber.trim() || '',
+        printedPadFrom: printedPadFrom.trim() || '',
+        printedPadTo: printedPadTo.trim() || '',
+        quantity: Number(quantity) || 1,
+        unitPrice: Number(unitCostETB) || 0,
+        totalAmount,
+        remark: remark.trim() || '',
+      }];
 
       const generatedVoucher: Model19Voucher = {
         invModel19No: slipNo,
@@ -336,12 +300,12 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         receivedByName: receivedBy.trim() || user?.fullNameEn,
         reportTakenBy: user?.fullNameEn || 'azebmif',
         items: voucherItems,
-        grandTotal,
+        grandTotal: totalAmount,
       };
 
       toast.success(
         'Stock-In Registered',
-        `Voucher ${slipNo} (${lineItems.length} item(s), Total ${formatETB(grandTotal)}) registered and submitted for Team Leader verification.`
+        `Item "${name.trim()}" (Model 19 #${slipNo}, Total ${formatETB(totalAmount)}) registered and submitted for Team Leader verification.`
       );
 
       onSuccess(res, generatedVoucher);
@@ -370,7 +334,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
       {/* Top Document Reference & Policy Notice */}
       <div className="flex items-center justify-between text-xs text-slate-500 pb-1">
         <span className="font-semibold text-slate-700">
-          Integrated Financial Management Information System (IFMIS) • Print Model 19
+          Integrated Financial Management Information System (IFMIS) • Model 19 Receiving
         </span>
         <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
           isAttachmentRequired
@@ -381,8 +345,13 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         </span>
       </div>
 
-      {/* Voucher Header Metadata */}
-      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+      {/* ── Section 1: Official Voucher Details ── */}
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+          <FileText className="w-3.5 h-3.5 text-emerald-700" />
+          1. Voucher & Procurement Header (የሰነድ እና የግዥ መረጃ)
+        </h4>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <div>
             <label className="block text-[11px] font-semibold text-slate-700 mb-1">
@@ -500,9 +469,244 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
               ))}
             </select>
           </div>
+        </div>
+      </div>
+
+      {/* ── Section 2: Flat Item Particulars ── */}
+      <div className="p-4 rounded-xl bg-white border border-slate-300 shadow-xs space-y-3">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+          <PackagePlus className="w-3.5 h-3.5 text-emerald-700" />
+          2. Received Item Particulars (የተረከቡት ዕቃ ዝርዝር መረጃ)
+        </h4>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="sm:col-span-2">
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Item Description / Name *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Sulfa Drug In Vial"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={`${inputClass} font-medium`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Item Category *
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as AssetCategory)}
+              className={inputClass}
+            >
+              {COMMON_CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Item Code (Inventory Code)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. 107101102.4336 (Optional)"
+              value={itemCode}
+              onChange={(e) => setItemCode(e.target.value)}
+              className={`${inputClass} font-mono`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Unit of Measure (UOM) *
+            </label>
+            <input
+              type="text"
+              list="uom-options"
+              value={uom}
+              onChange={(e) => setUom(e.target.value.toUpperCase())}
+              className={`${inputClass} font-mono uppercase text-center`}
+              placeholder="EA"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Sub Inventory
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. AMedicine / General Store"
+              value={subInventory}
+              onChange={(e) => setSubInventory(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Lot / Batch No.
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. BATCH-2026-09"
+              value={lotBatchNo}
+              onChange={(e) => setLotBatchNo(e.target.value)}
+              className={`${inputClass} font-mono`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Serial Number
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. SN-892348"
+              value={serialNumber}
+              onChange={(e) => setSerialNumber(e.target.value)}
+              className={`${inputClass} font-mono`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Sequence # of Printed Pad (FROM / TO)
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="From"
+                value={printedPadFrom}
+                onChange={(e) => setPrintedPadFrom(e.target.value)}
+                className={`${inputClass} font-mono text-center`}
+              />
+              <input
+                type="text"
+                placeholder="To"
+                value={printedPadTo}
+                onChange={(e) => setPrintedPadTo(e.target.value)}
+                className={`${inputClass} font-mono text-center`}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Quantity *
+            </label>
+            <input
+              type="number"
+              min="1"
+              required
+              value={quantity}
+              onChange={(e) => setQuantity(parseInt(e.target.value, 10) || 1)}
+              className={`${inputClass} font-mono font-bold`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Unit Price (ETB) *
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              required
+              placeholder="0.00"
+              value={unitCostETB || ''}
+              onChange={(e) => setUnitCostETB(parseFloat(e.target.value) || 0)}
+              className={`${inputClass} font-mono`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Total Amount (ETB)
+            </label>
+            <div className="w-full px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-mono font-bold text-emerald-900 flex items-center justify-between">
+              <span>Grand Total:</span>
+              <span>{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ETB</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Physical Condition *
+            </label>
+            <select
+              value={condition}
+              onChange={(e) => setCondition(e.target.value as ItemCondition)}
+              className={inputClass}
+            >
+              <option value={ItemCondition.NEW}>New / Brand New (አዲስ)</option>
+              <option value={ItemCondition.GOOD}>Good (ጥሩ)</option>
+              <option value={ItemCondition.FAIR}>Fair (መካከለኛ)</option>
+              <option value={ItemCondition.NEEDS_REPAIR}>Needs Repair (ጥገና የሚያስፈልገው)</option>
+              <option value={ItemCondition.DAMAGED}>Damaged (የተበላሸ)</option>
+            </select>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Remark / Notes
+            </label>
+            <input
+              type="text"
+              placeholder="Optional remarks or specification notes"
+              value={remark}
+              onChange={(e) => setRemark(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section 3: Signatures & Document Scan ── */}
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+          <FileText className="w-3.5 h-3.5 text-emerald-700" />
+          3. Verification, Signatures & Attachment (ፊርማ እና ሰነድ)
+        </h4>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Delivered By : Name
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Delivery Driver / Vendor Agent"
+              value={deliveredBy}
+              onChange={(e) => setDeliveredBy(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Received By : Name
+            </label>
+            <input
+              type="text"
+              placeholder="Store Custodian Name"
+              value={receivedBy}
+              onChange={(e) => setReceivedBy(e.target.value)}
+              className={inputClass}
+            />
+          </div>
 
           {/* Attachment */}
-          <div className="sm:col-span-3">
+          <div className="sm:col-span-2">
             <label className="block text-[11px] font-semibold text-slate-700 mb-1">
               Attach Scanned Model 19 Voucher {isAttachmentRequired ? '*' : <span className="text-slate-400 font-normal">(Optional)</span>}
             </label>
@@ -524,261 +728,6 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
                 <input type="file" onChange={handleSimulateUpload} className="hidden" accept="image/*,application/pdf" />
               </label>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Model 19 Items Table */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-end px-1 pb-1">
-          <button
-            type="button"
-            onClick={addLineItem}
-            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg transition flex items-center gap-1 cursor-pointer shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Item Row</span>
-          </button>
-        </div>
-
-        <div className="overflow-x-auto border border-slate-300 rounded-xl bg-white shadow-xs max-h-[380px]">
-          <table className="w-full text-left text-xs border-collapse min-w-[1050px]">
-            <thead className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold text-[10px] sticky top-0 z-10">
-              <tr>
-                <th className="p-2 w-8 text-center border-r border-slate-200">S/No.</th>
-                <th className="p-2 w-32 border-r border-slate-200">Item Code</th>
-                <th className="p-2 min-w-[160px] border-r border-slate-200">Item Description *</th>
-                <th className="p-2 w-20 border-r border-slate-200">UOM</th>
-                <th className="p-2 w-28 border-r border-slate-200">Sub Inventory</th>
-                <th className="p-2 w-36 border-r border-slate-200">Item Category</th>
-                <th className="p-2 w-24 border-r border-slate-200">Lot/ Batch No.</th>
-                <th className="p-2 w-24 border-r border-slate-200">Serial No.</th>
-                <th className="p-2 w-28 border-r border-slate-200 text-center">Pad FROM / TO</th>
-                <th className="p-2 w-16 border-r border-slate-200 text-right">Qty *</th>
-                <th className="p-2 w-24 border-r border-slate-200 text-right">Unit Price *</th>
-                <th className="p-2 w-28 border-r border-slate-200 text-right">Total Amount</th>
-                <th className="p-2 w-28 border-r border-slate-200">Remark</th>
-                <th className="p-2 w-10 text-center"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 text-xs">
-              {lineItems.map((item, index) => {
-                const rowTotal = (Number(item.quantity) || 0) * (Number(item.unitCostETB) || 0);
-
-                return (
-                  <tr key={item.id} className="hover:bg-slate-50/80">
-                    <td className="p-1.5 text-center font-mono font-bold text-slate-500 border-r border-slate-200 text-[11px]">
-                      {index + 1}
-                    </td>
-
-                    {/* Item Code */}
-                    <td className="p-1.5 border-r border-slate-200">
-                      <input
-                        type="text"
-                        placeholder="e.g. 107101102.4336"
-                        value={item.itemCode}
-                        onChange={(e) => updateLineItem(item.id, 'itemCode', e.target.value)}
-                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-[11px] font-mono"
-                      />
-                    </td>
-
-                    {/* Description */}
-                    <td className="p-1.5 border-r border-slate-200">
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Sulfa Drug In Vial"
-                        value={item.name}
-                        onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
-                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-[11px] font-medium"
-                      />
-                    </td>
-
-                    {/* UOM */}
-                    <td className="p-1.5 border-r border-slate-200">
-                      <input
-                        type="text"
-                        list="uom-options"
-                        value={item.uom}
-                        onChange={(e) => updateLineItem(item.id, 'uom', e.target.value.toUpperCase())}
-                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-[11px] font-mono text-center uppercase"
-                        placeholder="EA"
-                      />
-                    </td>
-
-                    {/* Sub Inventory */}
-                    <td className="p-1.5 border-r border-slate-200">
-                      <input
-                        type="text"
-                        placeholder="e.g. AMedicine"
-                        value={item.subInventory}
-                        onChange={(e) => updateLineItem(item.id, 'subInventory', e.target.value)}
-                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-[11px]"
-                      />
-                    </td>
-
-                    {/* Item Category */}
-                    <td className="p-1.5 border-r border-slate-200">
-                      <select
-                        value={item.category}
-                        onChange={(e) => {
-                          const cat = e.target.value as AssetCategory;
-                          const found = COMMON_CATEGORIES.find((c) => c.value === cat);
-                          updateLineItem(item.id, 'category', cat);
-                          if (found) updateLineItem(item.id, 'itemCategoryDisplay', found.label);
-                        }}
-                        className="w-full px-1.5 py-1 bg-white border border-slate-300 rounded text-[11px]"
-                      >
-                        {COMMON_CATEGORIES.map((c) => (
-                          <option key={c.value} value={c.value}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-
-                    {/* Lot/Batch */}
-                    <td className="p-1.5 border-r border-slate-200">
-                      <input
-                        type="text"
-                        placeholder="Lot #"
-                        value={item.lotBatchNo}
-                        onChange={(e) => updateLineItem(item.id, 'lotBatchNo', e.target.value)}
-                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-[11px] font-mono"
-                      />
-                    </td>
-
-                    {/* Serial No */}
-                    <td className="p-1.5 border-r border-slate-200">
-                      <input
-                        type="text"
-                        placeholder="Serial #"
-                        value={item.serialNumber}
-                        onChange={(e) => updateLineItem(item.id, 'serialNumber', e.target.value)}
-                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-[11px] font-mono"
-                      />
-                    </td>
-
-                    {/* Sequence FROM / TO */}
-                    <td className="p-1.5 border-r border-slate-200">
-                      <div className="grid grid-cols-2 gap-1">
-                        <input
-                          type="text"
-                          placeholder="From"
-                          value={item.printedPadFrom}
-                          onChange={(e) => updateLineItem(item.id, 'printedPadFrom', e.target.value)}
-                          className="w-full px-1 py-1 bg-white border border-slate-300 rounded text-[10px] font-mono text-center"
-                        />
-                        <input
-                          type="text"
-                          placeholder="To"
-                          value={item.printedPadTo}
-                          onChange={(e) => updateLineItem(item.id, 'printedPadTo', e.target.value)}
-                          className="w-full px-1 py-1 bg-white border border-slate-300 rounded text-[10px] font-mono text-center"
-                        />
-                      </div>
-                    </td>
-
-                    {/* Qty */}
-                    <td className="p-1.5 border-r border-slate-200 text-right">
-                      <input
-                        type="number"
-                        min="1"
-                        required
-                        value={item.quantity}
-                        onChange={(e) => updateLineItem(item.id, 'quantity', parseInt(e.target.value, 10) || 1)}
-                        className="w-full px-1.5 py-1 bg-white border border-slate-300 rounded text-[11px] font-mono text-right font-bold"
-                      />
-                    </td>
-
-                    {/* Unit Price */}
-                    <td className="p-1.5 border-r border-slate-200 text-right">
-                      <input
-                        type="number"
-                        min="0"
-                        step="any"
-                        required
-                        placeholder="0.00"
-                        value={item.unitCostETB || ''}
-                        onChange={(e) => updateLineItem(item.id, 'unitCostETB', parseFloat(e.target.value) || 0)}
-                        className="w-full px-1.5 py-1 bg-white border border-slate-300 rounded text-[11px] font-mono text-right"
-                      />
-                    </td>
-
-                    {/* Total Amount (Read-only) */}
-                    <td className="p-1.5 border-r border-slate-200 text-right font-mono font-bold text-slate-900 text-[11px]">
-                      {rowTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                    </td>
-
-                    {/* Remark */}
-                    <td className="p-1.5 border-r border-slate-200">
-                      <input
-                        type="text"
-                        placeholder="Notes"
-                        value={item.remark}
-                        onChange={(e) => updateLineItem(item.id, 'remark', e.target.value)}
-                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-[11px]"
-                      />
-                    </td>
-
-                    {/* Delete Row */}
-                    <td className="p-1.5 text-center">
-                      <button
-                        type="button"
-                        onClick={() => removeLineItem(item.id)}
-                        disabled={lineItems.length <= 1}
-                        className="text-slate-400 hover:text-red-600 disabled:opacity-30 disabled:hover:text-slate-400 cursor-pointer p-1"
-                        title="Delete item row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300 text-xs">
-                <td colSpan={10} className="p-2 border-r border-slate-200"></td>
-                <td className="p-2 text-right border-r border-slate-200 uppercase tracking-wider text-[11px]">
-                  Grand Total
-                </td>
-                <td className="p-2 text-right font-mono text-emerald-800 border-r border-slate-200 text-xs">
-                  {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                </td>
-                <td colSpan={2} className="p-2"></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-
-      {/* Signatures & Delivered By / Received By Block */}
-      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Delivered By : Name
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Delivery Driver / Vendor Agent"
-              value={deliveredBy}
-              onChange={(e) => setDeliveredBy(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Received By : Name
-            </label>
-            <input
-              type="text"
-              placeholder="Store Custodian Name"
-              value={receivedBy}
-              onChange={(e) => setReceivedBy(e.target.value)}
-              className={inputClass}
-            />
           </div>
         </div>
       </div>
@@ -815,7 +764,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
             className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-2 cursor-pointer"
           >
             {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-            Register Model 19 Voucher ({lineItems.length} items)
+            Register Model 19 Item
           </button>
         </div>
       </div>
