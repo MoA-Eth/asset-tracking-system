@@ -45,6 +45,9 @@ Thumbs.db
 *.db
 backend/prisma/*.db
 
+# Uploaded IFMIS slip files (runtime data)
+backend/uploads/
+
 # Temporary scratch & test files
 scratch/
 tmp/

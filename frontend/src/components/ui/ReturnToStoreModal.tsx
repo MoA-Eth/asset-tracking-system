@@ -22,6 +22,7 @@ import {
 } from '../../types/asset-management';
 import { Modal } from './Modal';
 import { getSystemSettings } from '../../utils/system-settings';
+import { validateSlipFile, SLIP_ACCEPT_ATTR } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
@@ -66,6 +67,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
   const [defectRemark, setDefectRemark] = useState('');
 
   const [attachmentFileName, setAttachmentFileName] = useState('');
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -93,10 +95,19 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
   const policy = getSystemSettings().historicalDataAttachmentPolicy;
   const isAttachmentReq = policy === 'REQUIRED';
 
-  const handleSimulateUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setAttachmentFileName(e.target.files[0].name);
+  const handleSlipSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const error = validateSlipFile(file);
+    if (error) {
+      setFormError(error);
+      toast.warning('Invalid Slip File', error);
+      return;
     }
+    setFormError(null);
+    setAttachmentFile(file);
+    setAttachmentFileName(file.name);
   };
 
   const handleReset = () => {
@@ -106,6 +117,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
     setCondition(ItemCondition.GOOD);
     setReturnReason('Official project assignment completed, returning to central store');
     setAttachmentFileName('');
+    setAttachmentFile(null);
     setFormError(null);
   };
 
@@ -146,11 +158,13 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
       .filter(Boolean);
 
     try {
+      const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
+
       await api.registerReturn({
         itemId: item.id,
         ifmisSlipNumber: model21No.trim(),
         ifmisSlipDateGc: todayGc,
-        ifmisSlipAttachmentUrl: attachmentFileName ? `/slips/${attachmentFileName}` : undefined,
+        ifmisSlipAttachmentUrl: slipUrl,
         returnReason: returnReason.trim(),
         condition,
         returningEmployeeId: item.currentCustodianId || undefined,
@@ -552,7 +566,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
               </span>
               <label className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-[10px] font-semibold cursor-pointer">
                 Browse
-                <input type="file" onChange={handleSimulateUpload} className="hidden" accept="image/*,application/pdf" />
+                <input type="file" onChange={handleSlipSelected} className="hidden" accept={SLIP_ACCEPT_ATTR} />
               </label>
             </div>
           </div>

@@ -35,6 +35,7 @@ import {
 } from '../types/asset-management';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
 import { getSystemSettings } from '../utils/system-settings';
+import { validateSlipFile, SLIP_ACCEPT_ATTR } from '../utils/slip-upload';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -128,6 +129,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
   const [deliveredBy, setDeliveredBy] = useState('');
   const [receivedBy, setReceivedBy] = useState(user?.fullNameEn || '');
   const [attachmentFileName, setAttachmentFileName] = useState('');
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -171,13 +173,23 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
     setDeliveredBy('');
     setReceivedBy(user?.fullNameEn || '');
     setAttachmentFileName('');
+    setAttachmentFile(null);
     setFormError(null);
   };
 
-  const handleSimulateUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setAttachmentFileName(e.target.files[0].name);
+  const handleSlipSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const error = validateSlipFile(file);
+    if (error) {
+      setFormError(error);
+      toast.warning('Invalid Slip File', error);
+      return;
     }
+    setFormError(null);
+    setAttachmentFile(file);
+    setAttachmentFileName(file.name);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -243,6 +255,8 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         remark: remark.trim() || undefined,
       }];
 
+      const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
+
       const res = await api.registerStockIn({
         name: name.trim(),
         category,
@@ -252,7 +266,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         storeLocationId,
         ifmisSlipNumber: slipNo,
         ifmisSlipDateGc,
-        ifmisSlipAttachmentUrl: attachmentFileName ? `/slips/${attachmentFileName}` : undefined,
+        ifmisSlipAttachmentUrl: slipUrl,
         isHistoricalData: policy === 'OPTIONAL',
         registeredById,
         notes: remark.trim() || undefined,
@@ -725,7 +739,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
               </span>
               <label className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-[11px] font-semibold cursor-pointer transition">
                 Browse
-                <input type="file" onChange={handleSimulateUpload} className="hidden" accept="image/*,application/pdf" />
+                <input type="file" onChange={handleSlipSelected} className="hidden" accept={SLIP_ACCEPT_ATTR} />
               </label>
             </div>
           </div>
