@@ -1,23 +1,8 @@
 import React, { useState } from 'react';
 import {
-  Home,
-  PackagePlus,
-  PackageMinus,
-  Package,
-  UserCheck,
-  ArrowRightLeft,
-  RotateCcw,
-  FileSpreadsheet,
-  Settings,
-  ShieldCheck,
   ChevronDown,
   ChevronRight,
   LogOut,
-  Users,
-  Building,
-  Warehouse,
-  History,
-  Boxes,
 } from 'lucide-react';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
@@ -123,20 +108,22 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         </div>
       </div>
 
-      {/* Navigation Items (Exact Layout matching User Mockup) */}
+      {/* Navigation Items (Clean, Simple & Modern Text-Only) */}
       <nav className="p-3 space-y-1.5 overflow-y-auto flex-1 text-xs">
         {/* 1. Dashboard (General Manager & System Admin) */}
         {(role === UserRole.MANAGER || (role as string) === 'TOP_MANAGEMENT' || role === UserRole.SYSTEM_ADMIN) && (
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center px-3.5 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
               activeTab === 'dashboard'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
                 : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
             }`}
+            title="Dashboard"
           >
-            <Home className="w-4 h-4 shrink-0 text-[#FCDD09]" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Dashboard</span>}
+            <span className={collapsed ? 'text-center font-bold text-xs w-full' : 'flex-1 text-left'}>
+              {collapsed ? 'DB' : 'Dashboard'}
+            </span>
           </button>
         )}
 
@@ -144,14 +131,16 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {(role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
           <button
             onClick={() => setActiveTab('approvals')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer relative ${
+            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-semibold transition cursor-pointer relative ${
               activeTab === 'approvals'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
                 : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
             }`}
+            title="Approvals"
           >
-            <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Approvals</span>}
+            <span className={collapsed ? 'text-center font-bold text-xs w-full' : 'flex-1 text-left'}>
+              {collapsed ? 'AP' : 'Approvals'}
+            </span>
             {pendingApprovalsCount > 0 && (
               <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-xs shrink-0 animate-pulse">
                 {pendingApprovalsCount}
@@ -164,15 +153,16 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {role === UserRole.DATA_ENCODER && (
           <button
             onClick={() => setActiveTab('stock-in')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center px-3.5 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
               activeTab === 'stock-in'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
                 : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
             }`}
             title="Stock-In (Model 19 / የዕቃ መረከቢያ)"
           >
-            <PackagePlus className="w-4 h-4 shrink-0 text-emerald-400" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Stock-In</span>}
+            <span className={collapsed ? 'text-center font-bold text-xs w-full' : 'flex-1 text-left'}>
+              {collapsed ? 'IN' : 'Stock-In'}
+            </span>
           </button>
         )}
 
@@ -180,15 +170,16 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {role === UserRole.DATA_ENCODER && (
           <button
             onClick={() => setActiveTab('stock-out')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center px-3.5 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
               activeTab === 'stock-out'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
                 : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
             }`}
             title="Stock-Out (Model 20 / የዕቃ ወጪ ማዘዣ)"
           >
-            <PackageMinus className="w-4 h-4 shrink-0 text-amber-400" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Stock-Out</span>}
+            <span className={collapsed ? 'text-center font-bold text-xs w-full' : 'flex-1 text-left'}>
+              {collapsed ? 'OUT' : 'Stock-Out'}
+            </span>
           </button>
         )}
 
@@ -196,14 +187,16 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {role === UserRole.DATA_ENCODER && (
           <button
             onClick={() => setActiveTab('transfer-asset')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center px-3.5 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
               activeTab === 'transfer-asset'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
                 : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
             }`}
+            title="Asset Transfer & Returns"
           >
-            <ArrowRightLeft className="w-4 h-4 shrink-0 text-amber-300" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Asset Transfer</span>}
+            <span className={collapsed ? 'text-center font-bold text-xs w-full' : 'flex-1 text-left'}>
+              {collapsed ? 'TR' : 'Asset Transfer'}
+            </span>
           </button>
         )}
 
@@ -211,14 +204,16 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
           <button
             onClick={() => setActiveTab('reports')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center px-3.5 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
               activeTab === 'reports'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
                 : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
             }`}
+            title="Reports"
           >
-            <FileSpreadsheet className="w-4 h-4 shrink-0 text-emerald-400" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Reports</span>}
+            <span className={collapsed ? 'text-center font-bold text-xs w-full' : 'flex-1 text-left'}>
+              {collapsed ? 'RP' : 'Reports'}
+            </span>
           </button>
         )}
 
@@ -226,14 +221,16 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
           <button
             onClick={() => setActiveTab('audit')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center px-3.5 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
               activeTab === 'audit'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold border-l-4 border-[#FCDD09]'
+                ? 'bg-[#11442B] text-white shadow-xs font-bold'
                 : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
             }`}
+            title="Audit Log"
           >
-            <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
-            {!collapsed && <span className="flex-1 text-left font-semibold">Audit Log</span>}
+            <span className={collapsed ? 'text-center font-bold text-xs w-full' : 'flex-1 text-left'}>
+              {collapsed ? 'AL' : 'Audit Log'}
+            </span>
           </button>
         )}
 
@@ -242,14 +239,18 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           <div>
             <button
               onClick={() => toggleSection('admin')}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-emerald-100/75 hover:bg-[#0B2C1B]/80 hover:text-white transition cursor-pointer font-semibold"
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition cursor-pointer font-semibold ${
+                activeTab.startsWith('settings')
+                  ? 'bg-[#11442B] text-white shadow-xs font-bold'
+                  : 'text-emerald-100/75 hover:bg-[#0B2C1B]/80 hover:text-white'
+              }`}
+              title="Settings"
             >
-              <div className="flex items-center gap-3">
-                <Settings className="w-4 h-4 text-slate-300" />
-                {!collapsed && <span>Settings</span>}
-              </div>
+              <span className={collapsed ? 'text-center font-bold text-xs w-full' : 'text-left font-semibold'}>
+                {collapsed ? 'SET' : 'Settings'}
+              </span>
               {!collapsed && (
-                openSections.admin ? <ChevronDown className="w-3.5 h-3.5 text-emerald-400" /> : <ChevronRight className="w-3.5 h-3.5 text-emerald-400" />
+                openSections.admin ? <ChevronDown className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               )}
             </button>
             {!collapsed && openSections.admin && (
