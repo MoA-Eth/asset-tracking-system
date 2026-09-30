@@ -28,7 +28,7 @@ export const LoginPage: React.FC = () => {
     setErrorMsg(null);
     try {
       await login(usernameOrEmail.trim(), password);
-      toast.success('Welcome Back', 'Civil service credentials verified. Logging in...');
+      toast.success('Welcome Back', 'Your credentials are verified. Logging in...');
     } catch (err: any) {
       const msg = err.message || 'Authentication failed. Please verify credentials.';
       setErrorMsg(msg);
