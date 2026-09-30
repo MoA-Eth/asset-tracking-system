@@ -735,7 +735,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
             <span className="bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-bold">
               {items.filter((i) => i.status === ItemStatus.PENDING_STOCK_IN).length} Pending
             </span>
-            <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-bold">
+            {/* <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-bold">
               {items.filter((i) => i.status === ItemStatus.AVAILABLE).length} Available
             </span>
             <span className="bg-blue-100 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded font-bold">
@@ -743,7 +743,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
             </span>
             <span className="bg-purple-100 text-purple-800 border border-purple-200 px-1.5 py-0.5 rounded font-bold">
               {items.filter((i) => i.status === ItemStatus.IN_REPAIR).length} In Repair
-            </span>
+            </span> */}
           </div>
         </div>
         <ItemsTable items={items} onRefresh={() => initData(true)} refreshing={refreshing} onNavigate={onNavigate} />
