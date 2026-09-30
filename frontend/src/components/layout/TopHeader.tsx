@@ -15,6 +15,10 @@ import {
   FileSpreadsheet,
   Settings,
   Sliders,
+  Shield,
+  UserCheck,
+  MapPin,
+  Warehouse,
   ArrowRightLeft,
   X,
   CheckCircle2,
@@ -183,8 +187,18 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         return { title: 'Reports', am: 'የሪፖርት መዝገብ', icon: FileSpreadsheet, iconColor: 'text-emerald-700' };
       case 'transfer-asset':
         return { title: 'Asset Transfer', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 22)', icon: ArrowRightLeft, iconColor: 'text-amber-600' };
-      case 'settings':
+      case 'settings-users':
         return { title: 'Settings & Permissions', am: 'ቅንብሮች እና የስርዓት መቆጣጠሪያ', icon: Settings, iconColor: 'text-emerald-700' };
+      case 'settings-roles':
+        return { title: 'Roles', am: 'ሚናዎች', icon: Shield, iconColor: 'text-emerald-700' };
+      case 'settings-employees':
+        return { title: 'Employees', am: 'ሰራተኞች', icon: UserCheck, iconColor: 'text-emerald-700' };
+      case 'settings-departments':
+        return { title: 'Departments', am: 'ዳይሬክቶሬቶች', icon: Building2, iconColor: 'text-emerald-700' };
+      case 'settings-locations':
+        return { title: 'Locations', am: 'አድራሻዎች', icon: MapPin, iconColor: 'text-emerald-700' };
+      case 'settings-stores':
+        return { title: 'Stores', am: 'መጋዘኖች', icon: Warehouse, iconColor: 'text-emerald-700' };
       case 'settings-system':
         return { title: 'System Settings', am: 'የስርዓት ቅንብሮች', icon: Sliders, iconColor: 'text-emerald-700' };
       default:

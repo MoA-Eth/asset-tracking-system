@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { UserRole } from '../types/asset-management';
 
 // Replicate mapping as tested against App.tsx security constraints
+const SETTINGS_TABS = [
+  'settings-users',
+  'settings-roles',
+  'settings-employees',
+  'settings-departments',
+  'settings-locations',
+  'settings-stores',
+  'settings-system',
+];
+
 const DEFAULT_TAB_FOR_ROLE: Record<UserRole, string> = {
   [UserRole.SYSTEM_ADMIN]: 'dashboard',
   [UserRole.DATA_ENCODER]: 'stock-in',
@@ -11,10 +21,10 @@ const DEFAULT_TAB_FOR_ROLE: Record<UserRole, string> = {
 };
 
 const ALLOWED_TABS_FOR_ROLE: Record<UserRole, string[]> = {
-  [UserRole.SYSTEM_ADMIN]: ['dashboard', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config', 'settings-system'],
-  [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'settings', 'settings-users', 'settings-matrix', 'settings-config', 'settings-system'],
+  [UserRole.SYSTEM_ADMIN]: ['dashboard', 'reports', 'audit', ...SETTINGS_TABS],
+  [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', ...SETTINGS_TABS],
   [UserRole.TEAM_LEADER]: ['approvals', 'reports', 'audit'],
-  [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', 'settings', 'settings-users', 'settings-matrix', 'settings-config', 'settings-system'],
+  [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', ...SETTINGS_TABS],
   [UserRole.MANAGER]: ['dashboard'],
 };
 
@@ -70,7 +80,7 @@ describe('Role-Based Access Control & Segregation of Duties (SOD)', () => {
     it('MANAGER is strictly restricted to dashboard read-only analytics', () => {
       const allowed = ALLOWED_TABS_FOR_ROLE[UserRole.MANAGER];
       expect(allowed).toEqual(['dashboard']);
-      expect(getValidTabForRole(UserRole.MANAGER, 'settings')).toBe('dashboard');
+      expect(getValidTabForRole(UserRole.MANAGER, 'settings-users')).toBe('dashboard');
     });
 
     it('preserves valid requested tab when authorized for role', () => {
@@ -79,12 +89,12 @@ describe('Role-Based Access Control & Segregation of Duties (SOD)', () => {
       expect(getValidTabForRole(UserRole.SYSTEM_ADMIN, 'audit')).toBe('audit');
     });
 
-    it('System Settings page is limited to roles with Settings access', () => {
-      expect(getValidTabForRole(UserRole.SYSTEM_ADMIN, 'settings-system')).toBe('settings-system');
-      expect(getValidTabForRole(UserRole.DEPARTMENT_HEAD, 'settings-system')).toBe('settings-system');
-      expect(getValidTabForRole(UserRole.DATA_ENCODER, 'settings-system')).toBe('settings-system');
-      expect(getValidTabForRole(UserRole.TEAM_LEADER, 'settings-system')).toBe('approvals');
-      expect(getValidTabForRole(UserRole.MANAGER, 'settings-system')).toBe('dashboard');
+    it.each(SETTINGS_TABS)('%s is limited to roles with Settings access', (tab) => {
+      expect(getValidTabForRole(UserRole.SYSTEM_ADMIN, tab)).toBe(tab);
+      expect(getValidTabForRole(UserRole.DEPARTMENT_HEAD, tab)).toBe(tab);
+      expect(getValidTabForRole(UserRole.DATA_ENCODER, tab)).toBe(tab);
+      expect(getValidTabForRole(UserRole.TEAM_LEADER, tab)).toBe('approvals');
+      expect(getValidTabForRole(UserRole.MANAGER, tab)).toBe('dashboard');
     });
   });
 });

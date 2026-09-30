@@ -284,48 +284,48 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   <span>Users</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('settings-matrix')}
+                  onClick={() => setActiveTab('settings-roles')}
                   className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
-                    activeTab === 'settings-matrix' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
+                    activeTab === 'settings-roles' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
                   }`}
                 >
-                  <Shield className={getSubIconClass(activeTab === 'settings-matrix')} />
+                  <Shield className={getSubIconClass(activeTab === 'settings-roles')} />
                   <span>Roles</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('settings')}
+                  onClick={() => setActiveTab('settings-employees')}
                   className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
-                    activeTab === 'settings' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
+                    activeTab === 'settings-employees' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
                   }`}
                 >
-                  <UserCheck className={getSubIconClass(activeTab === 'settings')} />
+                  <UserCheck className={getSubIconClass(activeTab === 'settings-employees')} />
                   <span>Employees</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('settings-config')}
+                  onClick={() => setActiveTab('settings-departments')}
                   className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
-                    activeTab === 'settings-config' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
+                    activeTab === 'settings-departments' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
                   }`}
                 >
-                  <Building2 className={getSubIconClass(activeTab === 'settings-config')} />
+                  <Building2 className={getSubIconClass(activeTab === 'settings-departments')} />
                   <span>Departments</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('settings-config')}
+                  onClick={() => setActiveTab('settings-locations')}
                   className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
-                    activeTab === 'settings-config' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
+                    activeTab === 'settings-locations' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
                   }`}
                 >
-                  <MapPin className={getSubIconClass(activeTab === 'settings-config')} />
+                  <MapPin className={getSubIconClass(activeTab === 'settings-locations')} />
                   <span>Locations</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('settings-config')}
+                  onClick={() => setActiveTab('settings-stores')}
                   className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
-                    activeTab === 'settings-config' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
+                    activeTab === 'settings-stores' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
                   }`}
                 >
-                  <Warehouse className={getSubIconClass(activeTab === 'settings-config')} />
+                  <Warehouse className={getSubIconClass(activeTab === 'settings-stores')} />
                   <span>Stores</span>
                 </button>
                 <button
