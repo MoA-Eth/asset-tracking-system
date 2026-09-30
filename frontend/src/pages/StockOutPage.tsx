@@ -319,19 +319,6 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
         </div>
       )}
 
-      {/* Official MoA Form Header Banner (Exact match to provided photo) */}
-      <div className="bg-[#4b5563] text-white py-3 px-4 text-center rounded-xl shadow-xs">
-        <h3 className="text-xs font-semibold tracking-wide uppercase">
-          The Federal Democratic Republic of Ethiopia • Ministry of Agriculture
-        </h3>
-        <h4 className="text-sm font-extrabold tracking-tight mt-0.5">
-          Receipt For Articles Or Property Issued (Model 22)
-        </h4>
-        <p className="text-[10px] text-slate-200 font-amharic mt-0.5">
-          የዕቃ ወጪ ማዘዣ እና መረከቢያ ሰነድ (ሞዴል 22)
-        </p>
-      </div>
-
       {/* ── Section 1: Header / Document Details ── */}
       <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
@@ -1039,22 +1026,19 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     switch (mode) {
       case 'assign':
         return {
-          badge: 'Asset Custody Workflow • የንብረት ድልድል እና ወጪ (ሞዴል 22/20)',
           title: 'Asset Assignment & Custody Issue (የንብረት ድልድል - ሞዴል 22)',
           subtitle: 'Assign store inventory items to custodian personnel using official Model 22 Issue Slips.',
           buttonLabel: 'Assign Asset (Model 22)',
         };
       case 'transfer':
         return {
-          badge: 'Inter-Department Transfer Workflow • የንብረት ዝውውር (ሞዴል 22)',
           title: 'Asset Transfer Registration (የንብረት ዝውውር - ሞዴል 22)',
           subtitle: 'Transfer assets between departments, store locations, or employee custodians.',
           buttonLabel: 'Transfer Asset',
         };
       default:
         return {
-          badge: 'Outbound Store Issue • የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 22)',
-          title: 'Stock-Out — Receipt For Articles Or Property Issued (ሞዴል 22)',
+          title: 'Stock-Out — Property Issued (ሞዴል 22)',
           subtitle: 'Issue items from store following official FDRE Ministry of Agriculture Model 22 vouchers (Move Order Issue).',
           buttonLabel: 'Issue Asset (Model 22)',
         };
@@ -1210,7 +1194,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 text-xs hidden sm:inline-block">
+          <span className="font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 text-xs whitespace-nowrap shrink-0 hidden sm:inline-block">
             {availableItems.length} Available in Store
           </span>
           <button
