@@ -123,7 +123,7 @@ const AuthenticatedPortal: React.FC = () => {
               MoA<span className="text-[#FCDD09]">-AMS</span>
             </h2>
             <p className="text-xs text-emerald-200/80">
-              Verifying Civil Service Session Credentials...
+              Verifying your Session Credentials...
             </p>
           </div>
         </div>
