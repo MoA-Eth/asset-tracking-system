@@ -1,5 +1,5 @@
 import React from 'react';
-import { Printer, X, ShieldCheck, FileCheck, Building2, UserCheck, Barcode } from 'lucide-react';
+import { Printer, X, ShieldCheck, FileCheck, Building2, UserCheck, Barcode, ExternalLink } from 'lucide-react';
 import { TransactionApproval, ItemWithRelations } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { ConditionBadge } from './Badge';
@@ -61,6 +61,17 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {item?.ifmisSlipAttachmentUrl && (
+              <a
+                href={item.ifmisSlipAttachmentUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <ExternalLink className="w-4 h-4 text-emerald-400" />
+                View Scanned Slip
+              </a>
+            )}
             <button
               onClick={handlePrint}
               className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm"
@@ -118,12 +129,16 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
               <span className="font-mono font-bold text-emerald-800 text-xs">{slipNo}</span>
             </div>
             <div>
-              <span className="text-slate-500 block text-[10px] uppercase font-bold">Issuing Store</span>
-              <span className="font-semibold text-slate-800">HQ Central Depot</span>
+              <span className="text-slate-500 block text-[10px] uppercase font-bold">{isStockIn ? 'Receiving Store' : 'Issuing Store'}</span>
+              <span className="font-semibold text-slate-800">
+                {item?.storeLocation ? `${item.storeLocation.roomNumber} — ${item.storeLocation.siteName}` : 'HQ Central Depot'}
+              </span>
             </div>
             <div>
               <span className="text-slate-500 block text-[10px] uppercase font-bold">Voucher Status</span>
-              <span className="font-bold text-emerald-700">VERIFIED & APPROVED</span>
+              <span className="font-bold text-emerald-700">
+                {isStockIn && item?.status === 'PENDING_STOCK_IN' ? 'PENDING APPROVAL' : 'VERIFIED & APPROVED'}
+              </span>
             </div>
             <div>
               <span className="text-slate-500 block text-[10px] uppercase font-bold">Asset Tag Code</span>

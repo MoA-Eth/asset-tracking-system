@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   PackagePlus,
+  Package,
+  Layers,
+  DollarSign,
+  ExternalLink,
   FileText,
   Upload,
   CheckCircle2,
@@ -22,7 +26,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { api } from '../api/client';
-import { Modal } from '../components/ui/Modal';
+import { Modal, StatCard } from '../components/ui';
 import {
   FormSection,
   FieldGrid,
@@ -982,7 +986,20 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       {item.quantity || 1}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap w-36">
-                      {item.ifmisSlipNumber || '—'}
+                      <div className="flex items-center gap-1.5">
+                        <span>{item.ifmisSlipNumber || '—'}</span>
+                        {item.ifmisSlipAttachmentUrl && (
+                          <a
+                            href={item.ifmisSlipAttachmentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-emerald-600 hover:text-emerald-800 transition p-0.5 rounded hover:bg-emerald-50 inline-flex items-center"
+                            title="View Scanned Voucher Attachment"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2.5 font-mono text-slate-600 whitespace-nowrap w-28 text-[11px]">
                       {item.ifmisSlipDateGc || item.createdAtGc || '—'}
@@ -1229,6 +1246,18 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
     );
   }
 
+  // Metric calculations strictly excluding pending items from inbound counts & valuation (see docs/reminder.md)
+  const approvedInboundItems = items.filter((i) => i.status === ItemStatus.AVAILABLE);
+  const totalInboundCount = approvedInboundItems.length;
+  const pendingApprovalCount = items.filter(
+    (i) => i.status === ItemStatus.PENDING_STOCK_IN
+  ).length;
+  const availableStoreCount = approvedInboundItems.length;
+  const totalInboundValue = approvedInboundItems.reduce(
+    (acc, i) => acc + (Number(i.unitCostETB) || 0) * (Number(i.quantity) || 1),
+    0
+  );
+
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
       {/* ── Page Header ── */}
@@ -1287,6 +1316,38 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
           </button>
         </div>
       )}
+
+      {/* ── Summary KPI Cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Total Inbound (Approved)"
+          value={totalInboundCount}
+          subtitle="Verified assets in store"
+          icon={<Package className="w-5 h-5 text-emerald-600" />}
+          valueColor="text-emerald-700"
+        />
+        <StatCard
+          label="Pending Approval"
+          value={pendingApprovalCount}
+          subtitle="Awaiting Dept Head review"
+          icon={<Clock className="w-5 h-5 text-amber-600" />}
+          valueColor={pendingApprovalCount > 0 ? "text-amber-600" : "text-slate-900"}
+        />
+        <StatCard
+          label="Available in Store"
+          value={availableStoreCount}
+          subtitle="Ready for issuance"
+          icon={<Layers className="w-5 h-5 text-blue-600" />}
+          valueColor="text-blue-700"
+        />
+        <StatCard
+          label="Total Inbound Value"
+          value={formatETB(totalInboundValue)}
+          subtitle="Acquisition valuation (ETB)"
+          icon={<DollarSign className="w-5 h-5 text-purple-600" />}
+          valueColor="text-purple-700"
+        />
+      </div>
 
       {/* ── Items Table ── */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-3">
