@@ -265,7 +265,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         )}
 
         {/* Store Center Scope Selector */}
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200">
+        {/* <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200">
           <Building2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
           <select
             value={selectedCenter}
@@ -287,7 +287,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               </>
             )}
           </select>
-        </div>
+        </div> */}
 
         {/* Pending Approvals Bell & Interactive Notification Popover */}
         {(role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
