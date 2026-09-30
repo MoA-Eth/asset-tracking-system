@@ -219,9 +219,9 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         reportTakenDate: `${todayGc} @ ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`,
       };
 
-      const msg = `Model 21 Transfer completed for ${selectedItem?.itemCode || selectedItemId} to ${targetEmp?.fullNameEn || 'new custodian'}.`;
+      const msg = `Model 21 transfer of ${selectedItem?.itemCode || selectedItemId} to ${targetEmp?.fullNameEn || 'new custodian'} submitted for Team Leader endorsement. Custody changes after Stage 2 approval.`;
       setTransferSuccessMsg(msg);
-      toast.success('Model 21 Transfer Completed', msg);
+      toast.success('Transfer Submitted for Approval', msg);
       setActiveVoucher(voucher);
 
       // Reset form
@@ -756,7 +756,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                   ) : (
                     <CheckCircle2 className="w-4 h-4" />
                   )}
-                  Submit Model 21 Internal Transfer
+                  Submit Model 21 Transfer for Approval
                 </button>
               </div>
             </form>

@@ -27,6 +27,7 @@ import {
   ChevronRight,
   ShieldCheck,
   Paperclip,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { api } from '../api/client';
 import {
@@ -223,6 +224,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         ? 'Model 19 Stock-In'
         : target?.transactionType === 'STOCK_OUT'
         ? 'Model 20 Stock-Out'
+        : target?.transactionType === 'TRANSFER'
+        ? 'Model 21 Transfer'
         : 'Model 22 Return';
 
     setActionLoading(true);
@@ -259,6 +262,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             ? 'Asset is now AVAILABLE in Central Store.'
             : target?.transactionType === 'STOCK_OUT'
             ? 'Asset is now ISSUED to staff custodian.'
+            : target?.transactionType === 'TRANSFER'
+            ? 'Custody has moved to the new custodian.'
             : 'Asset is now RETURNED to store inventory.';
         toast.success(
           'Authorization Approved',
@@ -370,6 +375,13 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-900 border border-amber-200">
             <RotateCcw className="w-3 h-3 text-amber-700" />
             Model 22 (RET)
+          </span>
+        );
+      case TransactionType.TRANSFER:
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-violet-50 text-violet-800 border border-violet-200">
+            <ArrowRightLeft className="w-3 h-3 text-violet-700" />
+            Model 21 (TRF)
           </span>
         );
       default:
@@ -552,6 +564,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               <option value={TransactionType.STOCK_IN}>Model 19 (Stock-In Receipt)</option>
               <option value={TransactionType.STOCK_OUT}>Model 20 (Stock-Out Issue)</option>
               <option value={TransactionType.RETURN}>Model 22 (Return to Store)</option>
+              <option value={TransactionType.TRANSFER}>Model 21 (Asset Transfer)</option>
             </select>
           </div>
         </div>

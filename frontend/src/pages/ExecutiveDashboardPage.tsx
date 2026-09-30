@@ -140,6 +140,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const pendingApprovals  = data?.pendingApprovalsCount || 0;
   const pendingStockIn    = data?.pendingStockInCount   || 0;
   const pendingStockOut   = data?.pendingStockOutCount  || 0;
+  const pendingTransfer   = data?.pendingTransferCount  || 0;
   const totalValuation    = data?.totalValuationETB     || 0;
   const issuedValuation   = data?.issuedValuationETB    || 0;
   const availableValuation= data?.availableValuationETB || 0;
@@ -316,8 +317,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       </div>
 
       {/* ── Row 2: Pending Workflow Status Chips (if any) ───────────────────── */}
-      {(pendingApprovals > 0 || pendingStockIn > 0 || pendingStockOut > 0 || atRiskCount > 0) && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {(pendingApprovals > 0 || pendingStockIn > 0 || pendingStockOut > 0 || pendingTransfer > 0 || atRiskCount > 0) && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {pendingApprovals > 0 && (
             <button onClick={() => onNavigate('approvals')} className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 hover:border-amber-400 hover:bg-amber-100 transition cursor-pointer text-left">
               <div className="p-2 rounded-lg bg-amber-500 text-white shrink-0"><Clock className="w-3.5 h-3.5" /></div>
@@ -342,6 +343,15 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               <div>
                 <span className="text-lg font-black text-indigo-900 block">{pendingStockOut}</span>
                 <span className="text-[10px] text-indigo-700 font-bold uppercase">Pending Stock-Out</span>
+              </div>
+            </button>
+          )}
+          {pendingTransfer > 0 && (
+            <button onClick={() => onNavigate('transfer-asset')} className="flex items-center gap-2.5 p-3 rounded-xl bg-violet-50 border border-violet-200 hover:border-violet-400 hover:bg-violet-100 transition cursor-pointer text-left">
+              <div className="p-2 rounded-lg bg-violet-600 text-white shrink-0"><ArrowRightLeft className="w-3.5 h-3.5" /></div>
+              <div>
+                <span className="text-lg font-black text-violet-900 block">{pendingTransfer}</span>
+                <span className="text-[10px] text-violet-700 font-bold uppercase">Pending Transfers</span>
               </div>
             </button>
           )}
