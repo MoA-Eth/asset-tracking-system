@@ -2,28 +2,26 @@ import React, { useState, useEffect, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
-  Search,
-  RefreshCw,
-  Download,
-  Printer,
-  FileDown,
-  Calendar,
-  Layers,
-  PackagePlus,
-  CheckCircle2,
-  FileCheck2,
-  ArrowRightLeft,
-  X,
-  AlertCircle,
-<<<<<<< Updated upstream
   FileSpreadsheet,
-=======
+  FileDown,
+  Printer,
+  Download,
+  Filter,
+  RefreshCw,
+  Search,
+  Package,
+  Layers,
+  Building,
+  TrendingDown,
+  TrendingUp,
+  FileCheck2,
+  Calendar,
+  AlertCircle,
   BarChart3,
   PieChart as PieChartIcon,
   Activity,
   CalendarRange,
   X,
->>>>>>> Stashed changes
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -49,14 +47,17 @@ import {
   ItemWithRelations,
   Department,
   Location,
+  Employee,
   AssetCategory,
   ItemStatus,
 } from '../types/asset-management';
 import { formatETB, getTodayGcAndEc } from '../utils/eth-date';
-import { useToast } from '../context/ToastContext';
 
-export type ReportType = 'all' | 'registered' | 'available' | 'issued' | 'transferred';
-export type TimeframePreset = 'ALL_TIME' | 'TODAY' | 'PAST_7_DAYS' | 'THIS_MONTH' | 'CUSTOM';
+type ReportType =
+  | 'inventory_balance'
+  | 'stock_in_ledger'
+  | 'stock_out_ledger'
+  | 'department_summary';
 
 /* ------------------------------------------------------------------ */
 /* Brand palette                                                       */
@@ -142,25 +143,18 @@ const MiniBar: React.FC<{ value: number; max: number; color?: string }> = ({
 };
 
 export const ReportsPage: React.FC = () => {
-  const toast = useToast();
+  const [reportType, setReportType] = useState<ReportType>('inventory_balance');
   const [items, setItems] = useState<ItemWithRelations[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-<<<<<<< Updated upstream
-  // Search & Filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [reportType, setReportType] = useState<ReportType>('all');
-  const [timeframe, setTimeframe] = useState<TimeframePreset>('ALL_TIME');
-  const [customFrom, setCustomFrom] = useState('');
-  const [customTo, setCustomTo] = useState('');
-=======
   // Existing filters
->>>>>>> Stashed changes
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedLocation, setSelectedLocation] = useState<string>('ALL');
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // --- NEW: Date range filters (ISO YYYY-MM-DD strings from <input type="date">)
   const [startDate, setStartDate] = useState<string>('');
@@ -182,9 +176,7 @@ export const ReportsPage: React.FC = () => {
       setLocations(locsData);
     } catch (err: any) {
       console.error('Failed to load report data:', err);
-      const msg = err.message || 'Failed to load report data.';
-      setError(msg);
-      toast.error('Reports Sync Error', msg);
+      setError(err.message || 'Failed to load report data and ledgers.');
     } finally {
       setLoading(false);
     }
@@ -194,74 +186,6 @@ export const ReportsPage: React.FC = () => {
     loadData();
   }, []);
 
-<<<<<<< Updated upstream
-  // Filter items based on report type, timeframe, category, location, and search
-  const filteredItems = useMemo(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    const todayStr = `${y}-${m}-${d}`;
-    const sevenDaysAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const sevenDaysAgo = `${sevenDaysAgoDate.getFullYear()}-${String(sevenDaysAgoDate.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgoDate.getDate()).padStart(2, '0')}`;
-    const firstDayOfMonth = `${y}-${m}-01`;
-
-    return items.filter((item) => {
-      // 1. Report Type Filter
-      if (reportType === 'available') {
-        if (item.status !== ItemStatus.AVAILABLE) return false;
-      } else if (reportType === 'issued') {
-        if (item.status !== ItemStatus.ISSUED) return false;
-      } else if (reportType === 'transferred') {
-        const hasTransfer =
-          item.status === ItemStatus.UNDER_TRANSFER ||
-          (item.history || []).some(
-            (h) =>
-              h.action.toUpperCase().includes('TRANSFER') ||
-              h.action.toUpperCase().includes('RETURN')
-          );
-        if (!hasTransfer) return false;
-      }
-      // 'registered' & 'all' include all records
-
-      // 2. Timeframe Filter
-      const dateStr = item.ifmisSlipDateGc || item.createdAtGc;
-      if (dateStr) {
-        const itemDateOnly = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr.slice(0, 10);
-
-        if (timeframe === 'TODAY') {
-          if (itemDateOnly !== todayStr) return false;
-        } else if (timeframe === 'PAST_7_DAYS') {
-          if (itemDateOnly < sevenDaysAgo) return false;
-        } else if (timeframe === 'THIS_MONTH') {
-          if (itemDateOnly < firstDayOfMonth) return false;
-        } else if (timeframe === 'CUSTOM') {
-          if (customFrom && itemDateOnly < customFrom) return false;
-          if (customTo && itemDateOnly > customTo) return false;
-        }
-      }
-
-      // 3. Category Filter
-      if (selectedCategory !== 'ALL' && item.category !== selectedCategory) return false;
-
-      // 4. Store Location Filter
-      if (selectedLocation !== 'ALL' && item.storeLocationId !== selectedLocation) return false;
-
-      // 5. Search Term Filter
-      if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase();
-        const match =
-          item.name.toLowerCase().includes(q) ||
-          item.itemCode.toLowerCase().includes(q) ||
-          item.ifmisSlipNumber.toLowerCase().includes(q) ||
-          (item.serialNumber && item.serialNumber.toLowerCase().includes(q)) ||
-          (item.currentCustodian?.fullNameEn && item.currentCustodian.fullNameEn.toLowerCase().includes(q)) ||
-          (item.assignedDepartment?.nameEn && item.assignedDepartment.nameEn.toLowerCase().includes(q));
-        if (!match) return false;
-      }
-
-      return true;
-=======
   /* ---------------------------------------------------------------- */
   /* Date range presets                                               */
   /* ---------------------------------------------------------------- */
@@ -366,171 +290,16 @@ export const ReportsPage: React.FC = () => {
       totalETB += i.unitCostETB;
       if (i.status === ItemStatus.AVAILABLE) inStoreCount++;
       if (i.status === ItemStatus.ISSUED) issuedCount++;
->>>>>>> Stashed changes
     });
-  }, [items, reportType, timeframe, customFrom, customTo, selectedCategory, selectedLocation, searchTerm]);
 
-  // Aggregate Total Valuation
-  const totalValuation = useMemo(() => {
-    return filteredItems.reduce((sum, item) => sum + item.unitCostETB, 0);
+    return {
+      totalCount: filteredItems.length,
+      totalETB,
+      inStoreCount,
+      issuedCount,
+    };
   }, [filteredItems]);
 
-<<<<<<< Updated upstream
-  const getTimeframeLabel = () => {
-    switch (timeframe) {
-      case 'TODAY':
-        return 'Today';
-      case 'PAST_7_DAYS':
-        return 'Past 7 Days';
-      case 'THIS_MONTH':
-        return 'This Month';
-      case 'CUSTOM':
-        return customFrom && customTo
-          ? `${customFrom} to ${customTo}`
-          : customFrom
-          ? `Since ${customFrom}`
-          : customTo
-          ? `Up to ${customTo}`
-          : 'Custom Range';
-      case 'ALL_TIME':
-      default:
-        return 'All Time';
-    }
-  };
-
-  const getReportTypeLabel = () => {
-    switch (reportType) {
-      case 'registered':
-        return 'Registered Assets (Stock-In)';
-      case 'available':
-        return 'Available Assets (In Store)';
-      case 'issued':
-        return 'Issued Assets (In Custody)';
-      case 'transferred':
-        return 'Transferred & Returned Assets';
-      case 'all':
-      default:
-        return 'All Assets';
-    }
-  };
-
-  // CSV Export handler
-  const handleExportCSV = () => {
-    if (filteredItems.length === 0) {
-      toast.warning('No Records', 'There are no asset records matching current filters to export.');
-      return;
-    }
-    try {
-      const headers = [
-        '#',
-        'Tracking Code',
-        'Asset Name',
-        'Category',
-        'Status',
-        'IFMIS Slip #',
-        'Receipt/Slip Date (E.C.)',
-        'Date (G.C.)',
-        'Custodian / User',
-        'Department / Directorate',
-        'Store Location',
-        'Serial Number',
-        'Unit Cost (ETB)',
-      ];
-
-      const rows = filteredItems.map((item, index) => [
-        index + 1,
-        item.itemCode,
-        `"${item.name.replace(/"/g, '""')}"`,
-        item.category,
-        item.status,
-        item.ifmisSlipNumber,
-        `"${item.ifmisSlipDateEc || item.createdAtEc}"`,
-        `"${item.ifmisSlipDateGc || item.createdAtGc}"`,
-        `"${item.currentCustodian?.fullNameEn || 'In Store'}"`,
-        `"${item.assignedDepartment?.nameEn || ''}"`,
-        `"${item.storeLocation?.siteName || ''}"`,
-        `"${item.serialNumber || 'N/A'}"`,
-        item.unitCostETB,
-      ]);
-
-      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `MoA_Asset_Report_${reportType}_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      toast.success(
-        'CSV Export Completed',
-        `Successfully generated and downloaded spreadsheet with ${filteredItems.length} asset records.`
-      );
-    } catch (err: any) {
-      toast.error('CSV Export Failed', err.message || 'Failed to generate CSV export.');
-    }
-  };
-
-  // PDF Export handler
-  const handleExportPDF = () => {
-    if (filteredItems.length === 0) {
-      toast.warning('No Records', 'There are no asset records matching current filters to export.');
-      return;
-    }
-
-    try {
-      const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'pt',
-        format: 'a4',
-      });
-
-      const pw = doc.internal.pageSize.width;
-
-      // Header Band (#0A3F24 Ethiopian MoA Dark Emerald)
-      doc.setFillColor(10, 63, 36);
-      doc.rect(0, 0, pw, 44, 'F');
-
-      // Tricolor Ribbon
-      doc.setFillColor(7, 137, 48);
-      doc.rect(0, 44, pw / 3, 3, 'F');
-      doc.setFillColor(252, 221, 9);
-      doc.rect(pw / 3, 44, pw / 3, 3, 'F');
-      doc.setFillColor(218, 18, 26);
-      doc.rect((pw * 2) / 3, 44, pw / 3, 3, 'F');
-
-      // Header Text
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA', 24, 18);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text('MINISTRY OF AGRICULTURE (MoA) • FIXED ASSET MANAGEMENT SYSTEM', 24, 32);
-
-      doc.setFontSize(8);
-      doc.text(`Generated: ${dateInfo.gc} (G.C.) / ${dateInfo.ecFormattedAm}`, pw - 24, 25, { align: 'right' });
-
-      // Report Title & Period Subheader
-      doc.setTextColor(15, 23, 42);
-      doc.setFontSize(13);
-      doc.setFont('helvetica', 'bold');
-      doc.text(getReportTypeLabel(), 24, 68);
-
-      doc.setFontSize(8.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(71, 85, 105);
-      doc.text(
-        `Timeframe: ${getTimeframeLabel()}  |  Category: ${selectedCategory.replace(/_/g, ' ')}  |  Total Assets: ${filteredItems.length}  |  Total Valuation: ${formatETB(totalValuation)}`,
-        24,
-        82
-      );
-
-      const tableHead = [['#', 'Tracking Code', 'Asset Name', 'Category', 'Status', 'IFMIS Slip #', 'Date (E.C.)', 'Custodian / Dept', 'Unit Cost (ETB)']];
-      const tableBody = filteredItems.map((item, idx) => [
-        idx + 1,
-=======
   /* ---------------------------------------------------------------- */
   /* Chart datasets                                                   */
   /* ---------------------------------------------------------------- */
@@ -712,56 +481,39 @@ export const ReportsPage: React.FC = () => {
         ['Tracking Code', 'Item Name', 'Category', 'IFMIS Slip', 'Store Location', 'Status', 'Unit Cost (ETB)'],
       ];
       const tableBody = filteredItems.map((item) => [
->>>>>>> Stashed changes
         item.itemCode,
         item.name,
         item.category.replace(/_/g, ' '),
-        item.status.replace(/_/g, ' '),
         item.ifmisSlipNumber,
-        item.ifmisSlipDateEc || item.createdAtEc,
-        item.currentCustodian?.fullNameEn || item.assignedDepartment?.code || item.storeLocation?.siteName || 'In Store',
+        item.storeLocation?.siteName || 'HQ Store',
+        item.status.replace(/_/g, ' '),
         formatETB(item.unitCostETB),
       ]);
 
       autoTable(doc, {
         head: tableHead,
         body: tableBody,
-<<<<<<< Updated upstream
-        startY: 92,
-=======
         startY: 110,
->>>>>>> Stashed changes
         theme: 'grid',
-        headStyles: { fillColor: [10, 63, 36], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-        bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59] },
+        headStyles: { fillColor: [10, 63, 36], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+        bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         margin: { left: 24, right: 24 },
       });
-
-      const pageCount = (doc as any).internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(7.5);
-        doc.setTextColor(148, 163, 184);
-        doc.text(
-          `Federal Democratic Republic of Ethiopia • Ministry of Agriculture • Page ${i} of ${pageCount}`,
-          pw / 2,
-          doc.internal.pageSize.height - 10,
-          { align: 'center' }
-        );
-      }
-
-      doc.save(`MoA_Asset_Report_${reportType}_${dateInfo.gc.replace(/\s+/g, '_')}.pdf`);
-
-      toast.success(
-        'PDF Report Generated',
-        `Official statutory summary (${filteredItems.length} records) downloaded.`
-      );
-    } catch (err: any) {
-      toast.error('PDF Export Failed', err.message || 'Failed to render PDF document.');
     }
-<<<<<<< Updated upstream
-=======
+
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text(
+        `Federal Democratic Republic of Ethiopia • Ministry of Agriculture • Page ${i} of ${pageCount}`,
+        pw / 2,
+        doc.internal.pageSize.height - 12,
+        { align: 'center' }
+      );
+    }
 
     doc.save(`MoA_${reportType}_${dateInfo.gc.replace(/\s+/g, '_')}.pdf`);
   };
@@ -809,22 +561,20 @@ export const ReportsPage: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
->>>>>>> Stashed changes
   };
 
-  const reportTabs: { id: ReportType; label: string; icon: any }[] = [
-    { id: 'all', label: 'All Assets', icon: Layers },
-    { id: 'registered', label: 'Registered (Stock-In)', icon: PackagePlus },
-    { id: 'available', label: 'Available (In Store)', icon: CheckCircle2 },
-    { id: 'issued', label: 'Issued (In Custody)', icon: FileCheck2 },
-    { id: 'transferred', label: 'Transferred & Returned', icon: ArrowRightLeft },
+  const reportTabs = [
+    { id: 'inventory_balance', label: 'Store Stock Balance' },
+    { id: 'stock_in_ledger', label: 'Inbound Stock-In (IFMIS)' },
+    { id: 'stock_out_ledger', label: 'Outbound Store Issues' },
+    { id: 'department_summary', label: 'Directorate Allocation' },
   ];
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-xs text-slate-400">
+      <div className="flex items-center justify-center py-20 text-xs text-slate-400">
         <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
-        Loading asset reports...
+        Loading reporting ledgers & inventory balances...
       </div>
     );
   }
@@ -833,157 +583,94 @@ export const ReportsPage: React.FC = () => {
     return (
       <div className="p-8 rounded-2xl bg-red-50 border border-red-200 text-center space-y-3 max-w-md mx-auto my-12 animate-fadeIn">
         <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
-        <h3 className="text-sm font-bold text-red-900">Failed to Load Reports</h3>
+        <h3 className="text-sm font-bold text-red-900">Data Connection Error</h3>
         <p className="text-xs text-red-700">{error}</p>
         <button
-          onClick={loadData}
+          onClick={() => loadData()}
           className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl transition cursor-pointer inline-flex items-center gap-1.5"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          Retry
+          Retry Connection
         </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 animate-fadeIn pb-16">
-      {/* 1. Header Bar with Direct Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+    <div className="space-y-6 animate-fadeIn pb-16">
+      {/* Header Banner */}
+      <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-<<<<<<< Updated upstream
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
-              Operational Reporting
-            </span>
-            <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
-              Ministry of Agriculture
-            </span>
-          </div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-emerald-700" />
-            Asset Reports (የንብረት ሪፖርት)
-=======
           <div className="flex items-center gap-2">
-           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 transition-colors">
-            Reporting & Audits
-          </span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors">
+              Reporting & Audits
+            </span>
             <span className="text-xs text-slate-500 font-mono hidden sm:inline">
               Statutory Stock Briefings
             </span>
-        </div>
+          </div>
           <h2 className="text-xl font-extrabold text-slate-900 tracking-tight mt-1">
             Reports
->>>>>>> Stashed changes
           </h2>
+          <p className="text-xs text-slate-500">
+            Exportable and printable inventory ledgers, IFMIS inbound delivery summaries, and distribution reports.
+          </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <button
-            onClick={handleExportCSV}
-            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
-            title="Export filtered records to CSV"
+            onClick={loadData}
+            className="p-2 rounded-xl bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200 transition shadow-xs cursor-pointer"
+            title="Refresh Data"
           >
-            <Download className="w-3.5 h-3.5 text-emerald-700" />
-            <span>Export CSV</span>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={handleExportPDF}
-<<<<<<< Updated upstream
-            className="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
-            title="Export filtered records to official PDF"
-=======
-             className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
->>>>>>> Stashed changes
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
           >
-            <FileDown className="w-3.5 h-3.5 text-white" />
+            <FileDown className="w-4 h-4 text-white" />
             <span>Export PDF</span>
           </button>
           <button
-<<<<<<< Updated upstream
-            onClick={() => window.print()}
-            className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
-            title="Print report"
-=======
             onClick={handleExportCSV}
-             className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
->>>>>>> Stashed changes
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
           >
-            <Printer className="w-3.5 h-3.5 text-amber-300" />
-            <span>Print</span>
+            <Download className="w-4 h-4 text-emerald-700" />
+            <span>Export CSV</span>
           </button>
           <button
-<<<<<<< Updated upstream
-            onClick={loadData}
-            className="p-1.5 rounded-xl bg-white text-slate-700 hover:text-slate-900 border border-slate-200 transition shadow-xs cursor-pointer"
-            title="Refresh Data"
-=======
             onClick={() => window.print()}
-             className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
->>>>>>> Stashed changes
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
           >
-            <RefreshCw className={`w-4 h-4 text-emerald-700 ${loading ? 'animate-spin' : ''}`} />
+            <Printer className="w-4 h-4 text-[#FCDD09]" />
+            <span>Print Report</span>
           </button>
         </div>
       </div>
 
-<<<<<<< Updated upstream
-      {/* 2. Simple, Unified Filter & Search Bar */}
-      <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
-        {/* Row 1: Search + Timeframe + Category + Location */}
-        <div className="flex flex-col lg:flex-row items-center gap-2.5">
-          {/* Search Box */}
-          <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search by code, item name, serial #, slip #, or custodian..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white font-mono"
-            />
-          </div>
-
-          {/* Timeframe Dropdown */}
-          <div className="flex items-center gap-1.5 w-full sm:w-auto shrink-0">
-            <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
-            <select
-              value={timeframe}
-              onChange={(e) => setTimeframe(e.target.value as TimeframePreset)}
-              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
-            >
-              <option value="ALL_TIME">All Time</option>
-              <option value="TODAY">Today</option>
-              <option value="PAST_7_DAYS">Past 7 Days</option>
-              <option value="THIS_MONTH">This Month</option>
-              <option value="CUSTOM">Custom Date Range...</option>
-            </select>
-          </div>
-
-          {/* Category Dropdown */}
-=======
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
           <span className="text-xs font-bold text-slate-500 block">Total Items Listed</span>
-          <span className="text-2xl font-black text-slate-900 mt-1 block">{metrics.totalCount}</span>
+          <span className="text-2xl font-black text-slate-600 mt-1 block">{metrics.totalCount}</span>
           <p className="text-[10px] text-slate-400 mt-0.5">Matching active filters</p>
         </div>
         <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
           <span className="text-xs font-bold text-slate-500 block">Total Valuation (ETB)</span>
-          <span className="text-xl sm:text-2xl font-black text-emerald-800 mt-1 block">
+          <span className="text-2xl font-black text-slate-600 mt-1 block">
             {formatETB(metrics.totalETB)}
           </span>
           <p className="text-[10px] text-slate-400 mt-0.5">Acquisition unit cost</p>
         </div>
         <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
           <span className="text-xs font-bold text-slate-500 block">Available in Store</span>
-          <span className="text-2xl font-black text-blue-700 mt-1 block">{metrics.inStoreCount}</span>
+          <span className="text-2xl font-black text-slate-600 mt-1 block">{metrics.inStoreCount}</span>
           <p className="text-[10px] text-slate-400 mt-0.5">Ready for issuance</p>
         </div>
         <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
           <span className="text-xs font-bold text-slate-500 block">Issued to Staff</span>
-          <span className="text-2xl font-black text-amber-700 mt-1 block">{metrics.issuedCount}</span>
+          <span className="text-xs font-bold text-slate-500 block">{metrics.issuedCount}</span>
           <p className="text-[10px] text-slate-400 mt-0.5">Under department custody</p>
         </div>
       </div>
@@ -1088,7 +775,7 @@ export const ReportsPage: React.FC = () => {
         {/* Active range display */}
         <div className="mt-2.5 flex items-center gap-2 text-[11px]">
           <span className="text-slate-500 font-medium">Active period:</span>
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 transition-colors">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors">
             {dateRangeLabel()}
           </span>
           <span className="text-slate-400">
@@ -1102,11 +789,10 @@ export const ReportsPage: React.FC = () => {
         <div className="flex items-center gap-2 flex-wrap">
           <Filter className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
 
->>>>>>> Stashed changes
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer w-full sm:w-auto"
+            className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-slate-800 text-xs font-semibold focus:outline-none"
           >
             <option value="ALL">All Categories</option>
             {Object.values(AssetCategory).map((cat) => (
@@ -1116,98 +802,18 @@ export const ReportsPage: React.FC = () => {
             ))}
           </select>
 
-<<<<<<< Updated upstream
-          {/* Store Location Dropdown */}
-=======
->>>>>>> Stashed changes
           <select
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer w-full sm:w-auto"
+            className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-slate-800 text-xs font-semibold focus:outline-none"
           >
-            <option value="ALL">All Locations</option>
+            <option value="ALL">All Store Locations</option>
             {locations.map((loc) => (
               <option key={loc.id} value={loc.id}>
                 {loc.siteName}
               </option>
             ))}
           </select>
-<<<<<<< Updated upstream
-        </div>
-
-        {/* Custom Date Pickers (only when Custom Range is active) */}
-        {timeframe === 'CUSTOM' && (
-          <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-100 text-xs animate-fadeIn">
-            <span className="font-semibold text-slate-600">Date Range:</span>
-            <div className="flex items-center gap-1.5">
-              <label className="text-slate-500 font-medium">From:</label>
-              <input
-                type="date"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
-              />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <label className="text-slate-500 font-medium">To:</label>
-              <input
-                type="date"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-                className="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
-              />
-            </div>
-            {(customFrom || customTo) && (
-              <button
-                onClick={() => {
-                  setCustomFrom('');
-                  setCustomTo('');
-                }}
-                className="text-slate-400 hover:text-slate-600 p-1 text-xs"
-                title="Clear date inputs"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Row 2: Report Type Filter Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
-          {reportTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = reportType === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setReportType(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  isActive
-                    ? 'bg-emerald-800 text-white shadow-xs font-bold'
-                    : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-amber-300' : 'text-slate-500'}`} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. Pure Clean Tabular Form */}
-      <div className="rounded-2xl bg-white border border-slate-200 shadow-xs overflow-hidden">
-        {/* Table Subheader showing active count and valuation */}
-        <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-800">{getReportTypeLabel()}</span>
-            <span className="text-slate-400">•</span>
-            <span className="text-slate-500">{getTimeframeLabel()}</span>
-            <span className="text-slate-400">•</span>
-            <span className="font-semibold text-emerald-800">
-              {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
-            </span>
-=======
 
           <select
             value={selectedDepartment}
@@ -1688,54 +1294,18 @@ export const ReportsPage: React.FC = () => {
                 Reporting period: {dateRangeLabel()}
               </p>
             )}
->>>>>>> Stashed changes
           </div>
-          <div className="font-mono font-bold text-slate-800">
-            Total Value: <span className="text-emerald-700">{formatETB(totalValuation)}</span>
+          <div className="text-right text-[11px] text-slate-500 font-mono">
+            <div>Report Date: {dateInfo.gc} (G.C.)</div>
+            <div>Ethiopian Calendar: {dateInfo.ecFormattedAm}</div>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-700 uppercase font-bold text-[10px] border-b border-slate-200">
-              <tr>
-                <th className="py-2.5 px-3 w-10 text-center">#</th>
-                <th className="py-2.5 px-3">Tracking Code</th>
-                <th className="py-2.5 px-3">Asset Item</th>
-                <th className="py-2.5 px-3">Category</th>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3">IFMIS Slip #</th>
-                <th className="py-2.5 px-3">Date (E.C.)</th>
-                <th className="py-2.5 px-3">Custodian / Location</th>
-                <th className="py-2.5 px-3 text-right">Unit Cost</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredItems.length === 0 ? (
+          {reportType === 'department_summary' ? (
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-700 uppercase font-bold text-[10px] border-y border-slate-200">
                 <tr>
-<<<<<<< Updated upstream
-                  <td colSpan={9} className="py-16 text-center text-slate-400 space-y-1">
-                    <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto" />
-                    <p className="font-bold text-slate-700 text-sm">No Assets Found</p>
-                    <p className="text-xs text-slate-400">
-                      Try adjusting the timeframe filter, search keyword, or selecting "All Time".
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                filteredItems.map((item, idx) => {
-                  const isAvailable = item.status === ItemStatus.AVAILABLE;
-                  const isIssued = item.status === ItemStatus.ISSUED;
-
-                  return (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">
-                        {idx + 1}
-                      </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-800 whitespace-nowrap">
-                        {item.itemCode}
-                      </td>
-=======
                   <th className="py-2.5 px-3">Directorate / Program</th>
                   <th className="py-2.5 px-3">Code</th>
                   <th className="py-2.5 px-3 text-center">Allocated Items</th>
@@ -1814,78 +1384,27 @@ export const ReportsPage: React.FC = () => {
                       <td className="py-2.5 px-3 text-slate-600">
                         {item.storeLocation?.siteName || 'HQ Store'}
                       </td>
->>>>>>> Stashed changes
                       <td className="py-2.5 px-3">
-                        <div className="font-semibold text-slate-900">{item.name}</div>
-                        {item.serialNumber && (
-                          <div className="text-[10px] text-slate-400 font-mono">
-                            SN: {item.serialNumber}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
-                        {item.category.replace(/_/g, ' ')}
-                      </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap">
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                            isAvailable
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : isIssued
-                              ? 'bg-blue-50 text-blue-800 border-blue-200'
-                              : 'bg-amber-50 text-amber-800 border-amber-200'
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            item.status === ItemStatus.AVAILABLE
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-emerald-100 text-emerald-800'
                           }`}
                         >
                           {item.status.replace(/_/g, ' ')}
                         </span>
                       </td>
-<<<<<<< Updated upstream
-                      <td className="py-2.5 px-3 font-mono font-bold text-amber-900 whitespace-nowrap">
-                        {item.ifmisSlipNumber}
-                      </td>
-                      <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">
-                        {item.ifmisSlipDateEc || item.createdAtEc}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-700">
-                        {item.currentCustodian ? (
-                          <div className="font-semibold text-slate-900">
-                            {item.currentCustodian.fullNameEn}
-                          </div>
-                        ) : item.assignedDepartment ? (
-                          <div className="font-semibold text-slate-800">
-                            {item.assignedDepartment.nameEn}
-                          </div>
-                        ) : (
-                          <div className="text-slate-500">
-                            {item.storeLocation?.siteName || 'Central Store'}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-=======
                       <td className="py-2.5 px-3 text-right font-bold text-slate-900">
->>>>>>> Stashed changes
                         {formatETB(item.unitCostETB)}
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
-
-        {/* Table Footer */}
-        {filteredItems.length > 0 && (
-          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-mono">
-            <div>
-              Showing {filteredItems.length} of {items.length} total records
-            </div>
-            <div className="font-bold text-slate-800">
-              Total: <span className="text-emerald-800">{formatETB(totalValuation)}</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
