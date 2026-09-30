@@ -91,6 +91,12 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!storeLocationId && locations.length > 0) {
+      setStoreLocationId(locations[0].id);
+    }
+  }, [locations, storeLocationId]);
+
   const policy = getSystemSettings().historicalDataAttachmentPolicy;
   const isAttachmentRequired = policy === 'REQUIRED';
 
@@ -241,7 +247,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
             >
               {locations.map((loc) => (
                 <option key={loc.id} value={loc.id}>
-                  {loc.roomNumber} — {loc.siteName}
+                  {loc.siteName} {loc.roomNumber ? `(${loc.roomNumber})` : ''}
                 </option>
               ))}
             </select>

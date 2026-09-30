@@ -74,7 +74,7 @@ export const SEED_EMPLOYEES: Employee[] = [
   {
     id: 'EMP-ENC-02',
     payrollId: 'MOA/STORE-105',
-    fullNameEn: 'Hiwot Girma (Melkassa Store Encoder)',
+    fullNameEn: 'Hiwot Girma (Saris Store Encoder)',
     fullNameAm: 'ሕይወት ግርማ (መጋዘን ኃላፊ)',
     departmentId: 'DEP-03',
     email: 'hiwot.g@moa.gov.et',
@@ -169,7 +169,7 @@ export const SEED_ITEMS: Item[] = [
         dateEc: '2016-06-22',
         action: 'STOCK_IN_APPROVED',
         fromEntity: 'IFMIS Slip IFMIS-GRN-2024-0580',
-        toEntity: 'Melkassa Machinery Depot',
+        toEntity: 'Saris Storehouse',
         performedBy: 'Hiwot Girma',
         performedByRole: UserRole.DATA_ENCODER,
         approvedBy: 'Kassahun Tolosa',

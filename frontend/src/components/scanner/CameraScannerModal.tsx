@@ -250,7 +250,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
                 <div>
                   <span className="text-slate-500">Custodian:</span>
                   <span className="text-slate-900 ml-1 truncate">
-                    {scannedItem.currentCustodian?.fullNameEn || 'Central Store'}
+                    {scannedItem.currentCustodian?.fullNameEn || scannedItem.storeLocation?.siteName || 'Head office'}
                   </span>
                 </div>
                 <div>

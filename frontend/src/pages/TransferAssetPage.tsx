@@ -367,7 +367,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       <td className="p-3 text-slate-700">
                         {item.currentCustodian?.fullNameEn || 'Assigned Staff'}
                       </td>
-                      <td className="p-3 text-slate-600">{item.storeLocation?.siteName || 'HQ'}</td>
+                      <td className="p-3 text-slate-600">{item.storeLocation?.siteName || 'Head office'}</td>
                       <td className="p-3 text-right">
                         <button
                           onClick={() => setReturnItem(item)}
@@ -440,7 +440,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                     <td className="p-3 text-slate-700">
                       {item.currentCustodian?.fullNameEn || item.assignedDepartment?.nameEn || 'Store Stock'}
                     </td>
-                    <td className="p-3 text-slate-600">{item.storeLocation?.siteName || 'HQ'}</td>
+                    <td className="p-3 text-slate-600">{item.storeLocation?.siteName || 'Head office'}</td>
                     <td className="p-3 text-right whitespace-nowrap">
                       {item.status === ItemStatus.ISSUED ? (
                         <button

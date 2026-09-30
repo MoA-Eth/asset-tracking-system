@@ -20,7 +20,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { getTodayGcAndEc } from '../../utils/eth-date';
-import { UserRole, TransactionApproval, TransactionType, ApprovalStatus } from '../../types/asset-management';
+import { UserRole, TransactionApproval, TransactionType, ApprovalStatus, Location } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 
@@ -50,7 +50,18 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<TransactionApproval[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [locations, setLocations] = useState<Location[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    api.getLocations()
+      .then((locs) => {
+        if (locs && locs.length > 0) {
+          setLocations(locs);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const dateInfo = getTodayGcAndEc();
 
@@ -209,12 +220,20 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             onChange={(e) => setSelectedCenter(e.target.value)}
             className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer pr-1"
           >
-            <option value="ALL">All Centers / Stores</option>
-            <option value="HQ_MEGENAGNA">Central HQ Store (Megenagna)</option>
-            <option value="CMC_DEPOT">CMC Machinery Depot</option>
-            <option value="MELKASSA_ARC">Melkassa ARC</option>
-            <option value="KULUMSA_ARC">Kulumsa ARC</option>
-            <option value="HOLETA_ARC">Holeta ARC</option>
+            <option value="ALL">All Stores</option>
+            {locations.length > 0 ? (
+              locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.siteName}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="LOC-01">Kality</option>
+                <option value="LOC-02">Saris</option>
+                <option value="LOC-03">Head office</option>
+              </>
+            )}
           </select>
         </div>
 
