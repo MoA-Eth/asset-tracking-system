@@ -137,28 +137,28 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
               <Building2 className="w-3.5 h-3.5 text-emerald-700" />
               Asset & Specification Particulars (የንብረት ዝርዝር መግለጫ)
             </h4>
-            <div className="border border-slate-300 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs border-collapse">
+            <div className="border border-slate-300 rounded-xl overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse min-w-[560px]">
                 <thead className="bg-slate-100 text-slate-800 font-bold uppercase text-[10px] border-b border-slate-300">
                   <tr>
-                    <th className="py-2.5 px-3">Item Tag Code</th>
-                    <th className="py-2.5 px-3">Item Description</th>
-                    <th className="py-2.5 px-3">Category</th>
-                    <th className="py-2.5 px-3">Serial No</th>
-                    <th className="py-2.5 px-3">Condition</th>
-                    <th className="py-2.5 px-3 text-right">Unit Cost (ETB)</th>
+                    <th className="py-2.5 px-3 w-32 whitespace-nowrap">Item Tag Code</th>
+                    <th className="py-2.5 px-3 min-w-[140px]">Item Description</th>
+                    <th className="py-2.5 px-3 w-28 whitespace-nowrap">Category</th>
+                    <th className="py-2.5 px-3 w-28 whitespace-nowrap">Serial No</th>
+                    <th className="py-2.5 px-3 w-24 whitespace-nowrap">Condition</th>
+                    <th className="py-2.5 px-3 w-28 text-right whitespace-nowrap">Unit Cost (ETB)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="divide-x divide-slate-200">
-                    <td className="py-3 px-3 font-mono font-bold text-emerald-800">{itemCode}</td>
-                    <td className="py-3 px-3 font-semibold text-slate-900">{itemName}</td>
-                    <td className="py-3 px-3 text-slate-600">{category}</td>
-                    <td className="py-3 px-3 font-mono text-slate-800">{serialNo}</td>
-                    <td className="py-3 px-3">
+                    <td className="py-3 px-3 font-mono font-bold text-emerald-800 whitespace-nowrap w-32">{itemCode}</td>
+                    <td className="py-3 px-3 font-semibold text-slate-900 min-w-[140px]">{itemName}</td>
+                    <td className="py-3 px-3 text-slate-600 whitespace-nowrap w-28">{category}</td>
+                    <td className="py-3 px-3 font-mono text-slate-800 whitespace-nowrap w-28">{serialNo}</td>
+                    <td className="py-3 px-3 whitespace-nowrap w-24">
                       <ConditionBadge condition={condition} />
                     </td>
-                    <td className="py-3 px-3 text-right font-bold text-slate-900">{formatETB(unitCost)}</td>
+                    <td className="py-3 px-3 text-right font-bold text-slate-900 whitespace-nowrap w-28">{formatETB(unitCost)}</td>
                   </tr>
                 </tbody>
               </table>

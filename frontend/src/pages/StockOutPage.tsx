@@ -505,12 +505,12 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs min-w-[840px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-left">
                 <th
                   onClick={() => handleSort('itemCode')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition"
+                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-32 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Item Code</span>
@@ -519,7 +519,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('itemName')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition"
+                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition min-w-[170px]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Item Name</span>
@@ -528,7 +528,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('ifmisSlipNumber')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hidden md:table-cell hover:bg-slate-100 cursor-pointer select-none transition"
+                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-36 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>ሞዴል 20 / IFMIS Slip</span>
@@ -537,7 +537,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('purposeOrRemarks')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hidden lg:table-cell hover:bg-slate-100 cursor-pointer select-none transition"
+                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition min-w-[150px] max-w-[200px]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Purpose</span>
@@ -546,7 +546,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('createdAtGc')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hidden lg:table-cell hover:bg-slate-100 cursor-pointer select-none transition"
+                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Date</span>
@@ -555,34 +555,34 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('status')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition"
+                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Status</span>
                     {renderSortIcon('status')}
                   </div>
                 </th>
-                <th className="px-3 py-2.5 font-semibold text-slate-600 text-right">Actions</th>
+                <th className="px-3 py-2.5 font-semibold text-slate-600 text-right w-36 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {sorted.map((approval) => (
                 <tr key={approval.id} className="hover:bg-slate-50 transition">
-                  <td className="px-3 py-2.5 font-mono font-bold text-blue-700">{approval.itemCode}</td>
-                  <td className="px-3 py-2.5 text-slate-900 font-medium max-w-[180px] truncate">{approval.itemName}</td>
-                  <td className="px-3 py-2.5 font-mono text-slate-600 hidden md:table-cell">
+                  <td className="px-3 py-2.5 font-mono font-bold text-blue-700 whitespace-nowrap w-32">{approval.itemCode}</td>
+                  <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[170px] max-w-[220px] truncate">{approval.itemName}</td>
+                  <td className="px-3 py-2.5 font-mono text-slate-600 whitespace-nowrap w-36">
                     {approval.ifmisSlipNumber || '—'}
                   </td>
-                  <td className="px-3.5 py-2.5 text-slate-600 hidden lg:table-cell max-w-[200px] truncate">
+                  <td className="px-3.5 py-2.5 text-slate-600 min-w-[150px] max-w-[200px] truncate">
                     {approval.purposeOrRemarks || '—'}
                   </td>
-                  <td className="px-3 py-2.5 text-slate-500 hidden lg:table-cell">
+                  <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap w-28">
                     {approval.createdAtGc ? approval.createdAtGc.split('T')[0] : '—'}
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-3 py-2.5 whitespace-nowrap w-28">
                     <ApprovalStatusBadge status={approval.status} />
                   </td>
-                  <td className="px-3 py-2.5 text-right">
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap w-36">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         onClick={() => onOpenVoucher(approval)}

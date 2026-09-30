@@ -241,14 +241,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialTab = 'users'
           {/* Users Permission Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-left border-collapse text-xs min-w-[860px]">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
-                    <th className="py-3 px-4">Civil Servant / User</th>
-                    <th className="py-3 px-4">Official Email</th>
-                    <th className="py-3 px-4">Directorate / Dept</th>
-                    <th className="py-3 px-4">Assigned Authorization Role</th>
-                    <th className="py-3 px-4 text-right">Update Role</th>
+                    <th className="py-3 px-4 min-w-[200px]">Civil Servant / User</th>
+                    <th className="py-3 px-4 w-48 whitespace-nowrap">Official Email</th>
+                    <th className="py-3 px-4 min-w-[180px]">Directorate / Dept</th>
+                    <th className="py-3 px-4 w-48 whitespace-nowrap">Assigned Authorization Role</th>
+                    <th className="py-3 px-4 text-right w-56 whitespace-nowrap">Update Role</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

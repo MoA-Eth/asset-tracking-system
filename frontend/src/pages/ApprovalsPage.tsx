@@ -690,11 +690,11 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
            ══════════════════════════════════════════════════════════════════════ */
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-xs min-w-[940px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
                   {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
-                    <th className="py-3 px-3 w-10 text-center">
+                    <th className="py-3 px-3 w-10 text-center shrink-0">
                       <input
                         type="checkbox"
                         checked={isAllSelected}
@@ -704,12 +704,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       />
                     </th>
                   )}
-                  <th className="py-3 px-3">Statutory Form</th>
-                  <th className="py-3 px-4">Tracking Code & Asset Description</th>
-                  <th className="py-3 px-4">IFMIS Slip Reference</th>
-                  <th className="py-3 px-4">Workflow Stage</th>
-                  <th className="py-3 px-4">Requester / Justification</th>
-                  <th className="py-3 px-4 text-right">Review Action</th>
+                  <th className="py-3 px-3 w-32 whitespace-nowrap shrink-0">Statutory Form</th>
+                  <th className="py-3 px-4 min-w-[190px]">Tracking Code & Asset Description</th>
+                  <th className="py-3 px-4 w-36 whitespace-nowrap shrink-0">IFMIS Slip Reference</th>
+                  <th className="py-3 px-4 w-36 whitespace-nowrap shrink-0">Workflow Stage</th>
+                  <th className="py-3 px-4 min-w-[170px]">Requester / Justification</th>
+                  <th className="py-3 px-4 text-right w-36 whitespace-nowrap shrink-0">Review Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

@@ -29,7 +29,24 @@ import { formatETB, getTodayGcAndEc } from '../utils/eth-date';
 import { useToast } from '../context/ToastContext';
 
 export type ReportType = 'all' | 'registered' | 'available' | 'issued' | 'transferred';
-export type TimeframePreset = 'ALL_TIME' | 'TODAY' | 'PAST_7_DAYS' | 'THIS_MONTH' | 'CUSTOM';
+export type TimeframePreset =
+  | 'ALL_TIME'
+  | 'TODAY'
+  | 'THIS_WEEK'
+  | 'PAST_7_DAYS'
+  | 'THIS_MONTH'
+  | 'LAST_MONTH'
+  | 'THIS_QUARTER'
+  | 'LAST_QUARTER'
+  | 'THIS_YEAR'
+  | 'CUSTOM';
+
+const formatDateOnly = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 export const ReportsPage: React.FC = () => {
   const toast = useToast();
@@ -49,6 +66,39 @@ export const ReportsPage: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('ALL');
 
   const dateInfo = getTodayGcAndEc();
+
+  // Helper date calculations for presets
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed
+
+  const todayStr = formatDateOnly(now);
+
+  const startOfWeekDate = new Date(now);
+  const dayOfWeek = (now.getDay() + 6) % 7; // Monday = 0
+  startOfWeekDate.setDate(now.getDate() - dayOfWeek);
+  const startOfWeekStr = formatDateOnly(startOfWeekDate);
+
+  const sevenDaysAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgoStr = formatDateOnly(sevenDaysAgoDate);
+
+  const startOfMonthStr = formatDateOnly(new Date(currentYear, currentMonth, 1));
+  const endOfMonthStr = formatDateOnly(new Date(currentYear, currentMonth + 1, 0));
+
+  const startOfLastMonthStr = formatDateOnly(new Date(currentYear, currentMonth - 1, 1));
+  const endOfLastMonthStr = formatDateOnly(new Date(currentYear, currentMonth, 0));
+
+  const currentQuarter = Math.floor(currentMonth / 3);
+  const startOfQuarterStr = formatDateOnly(new Date(currentYear, currentQuarter * 3, 1));
+  const endOfQuarterStr = formatDateOnly(new Date(currentYear, (currentQuarter + 1) * 3, 0));
+
+  const lastQuarterYear = currentQuarter === 0 ? currentYear - 1 : currentYear;
+  const lastQuarterIndex = currentQuarter === 0 ? 3 : currentQuarter - 1;
+  const startOfLastQuarterStr = formatDateOnly(new Date(lastQuarterYear, lastQuarterIndex * 3, 1));
+  const endOfLastQuarterStr = formatDateOnly(new Date(lastQuarterYear, (lastQuarterIndex + 1) * 3, 0));
+
+  const startOfYearStr = formatDateOnly(new Date(currentYear, 0, 1));
+  const endOfYearStr = formatDateOnly(new Date(currentYear, 11, 31));
 
   const loadData = async () => {
     try {
@@ -78,15 +128,6 @@ export const ReportsPage: React.FC = () => {
 
   // Filter items based on report type, timeframe, category, location, and search
   const filteredItems = useMemo(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    const todayStr = `${y}-${m}-${d}`;
-    const sevenDaysAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const sevenDaysAgo = `${sevenDaysAgoDate.getFullYear()}-${String(sevenDaysAgoDate.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgoDate.getDate()).padStart(2, '0')}`;
-    const firstDayOfMonth = `${y}-${m}-01`;
-
     return items.filter((item) => {
       // 1. Report Type Filter
       if (reportType === 'available') {
@@ -112,10 +153,20 @@ export const ReportsPage: React.FC = () => {
 
         if (timeframe === 'TODAY') {
           if (itemDateOnly !== todayStr) return false;
+        } else if (timeframe === 'THIS_WEEK') {
+          if (itemDateOnly < startOfWeekStr || itemDateOnly > todayStr) return false;
         } else if (timeframe === 'PAST_7_DAYS') {
-          if (itemDateOnly < sevenDaysAgo) return false;
+          if (itemDateOnly < sevenDaysAgoStr || itemDateOnly > todayStr) return false;
         } else if (timeframe === 'THIS_MONTH') {
-          if (itemDateOnly < firstDayOfMonth) return false;
+          if (itemDateOnly < startOfMonthStr || itemDateOnly > endOfMonthStr) return false;
+        } else if (timeframe === 'LAST_MONTH') {
+          if (itemDateOnly < startOfLastMonthStr || itemDateOnly > endOfLastMonthStr) return false;
+        } else if (timeframe === 'THIS_QUARTER') {
+          if (itemDateOnly < startOfQuarterStr || itemDateOnly > endOfQuarterStr) return false;
+        } else if (timeframe === 'LAST_QUARTER') {
+          if (itemDateOnly < startOfLastQuarterStr || itemDateOnly > endOfLastQuarterStr) return false;
+        } else if (timeframe === 'THIS_YEAR') {
+          if (itemDateOnly < startOfYearStr || itemDateOnly > endOfYearStr) return false;
         } else if (timeframe === 'CUSTOM') {
           if (customFrom && itemDateOnly < customFrom) return false;
           if (customTo && itemDateOnly > customTo) return false;
@@ -143,7 +194,29 @@ export const ReportsPage: React.FC = () => {
 
       return true;
     });
-  }, [items, reportType, timeframe, customFrom, customTo, selectedCategory, selectedLocation, searchTerm]);
+  }, [
+    items,
+    reportType,
+    timeframe,
+    customFrom,
+    customTo,
+    selectedCategory,
+    selectedLocation,
+    searchTerm,
+    todayStr,
+    startOfWeekStr,
+    sevenDaysAgoStr,
+    startOfMonthStr,
+    endOfMonthStr,
+    startOfLastMonthStr,
+    endOfLastMonthStr,
+    startOfQuarterStr,
+    endOfQuarterStr,
+    startOfLastQuarterStr,
+    endOfLastQuarterStr,
+    startOfYearStr,
+    endOfYearStr,
+  ]);
 
   // Aggregate Total Valuation
   const totalValuation = useMemo(() => {
@@ -154,10 +227,20 @@ export const ReportsPage: React.FC = () => {
     switch (timeframe) {
       case 'TODAY':
         return 'Today';
+      case 'THIS_WEEK':
+        return 'This Week';
       case 'PAST_7_DAYS':
         return 'Past 7 Days';
       case 'THIS_MONTH':
         return 'This Month';
+      case 'LAST_MONTH':
+        return 'Last Month';
+      case 'THIS_QUARTER':
+        return `This Quarter (Q${currentQuarter + 1})`;
+      case 'LAST_QUARTER':
+        return `Last Quarter (Q${lastQuarterIndex + 1})`;
+      case 'THIS_YEAR':
+        return `This Year (${currentYear})`;
       case 'CUSTOM':
         return customFrom && customTo
           ? `${customFrom} to ${customTo}`
@@ -405,34 +488,34 @@ export const ReportsPage: React.FC = () => {
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleExportCSV}
-            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
             title="Export filtered records to CSV"
           >
-            <Download className="w-3.5 h-3.5 text-emerald-700" />
+            <Download className="w-3.5 h-3.5 text-slate-500" />
             <span>Export CSV</span>
           </button>
           <button
             onClick={handleExportPDF}
-            className="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
             title="Export filtered records to official PDF"
           >
-            <FileDown className="w-3.5 h-3.5 text-white" />
+            <FileDown className="w-3.5 h-3.5 text-slate-500" />
             <span>Export PDF</span>
           </button>
           <button
             onClick={() => window.print()}
-            className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
             title="Print report"
           >
-            <Printer className="w-3.5 h-3.5 text-amber-300" />
+            <Printer className="w-3.5 h-3.5 text-slate-500" />
             <span>Print</span>
           </button>
           <button
             onClick={loadData}
-            className="p-1.5 rounded-xl bg-white text-slate-700 hover:text-slate-900 border border-slate-200 transition shadow-xs cursor-pointer"
+            className="p-1.5 rounded-xl bg-white text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
             title="Refresh Data"
           >
-            <RefreshCw className={`w-4 h-4 text-emerald-700 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -459,12 +542,17 @@ export const ReportsPage: React.FC = () => {
             <select
               value={timeframe}
               onChange={(e) => setTimeframe(e.target.value as TimeframePreset)}
-              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
+              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
             >
               <option value="ALL_TIME">All Time</option>
               <option value="TODAY">Today</option>
+              <option value="THIS_WEEK">This Week</option>
               <option value="PAST_7_DAYS">Past 7 Days</option>
               <option value="THIS_MONTH">This Month</option>
+              <option value="LAST_MONTH">Last Month</option>
+              <option value="THIS_QUARTER">This Quarter (Q{currentQuarter + 1})</option>
+              <option value="LAST_QUARTER">Last Quarter (Q{lastQuarterIndex + 1})</option>
+              <option value="THIS_YEAR">This Year ({currentYear})</option>
               <option value="CUSTOM">Custom Date Range...</option>
             </select>
           </div>
@@ -500,38 +588,95 @@ export const ReportsPage: React.FC = () => {
 
         {/* Custom Date Pickers (only when Custom Range is active) */}
         {timeframe === 'CUSTOM' && (
-          <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-100 text-xs animate-fadeIn">
-            <span className="font-semibold text-slate-600">Date Range:</span>
-            <div className="flex items-center gap-1.5">
-              <label className="text-slate-500 font-medium">From:</label>
-              <input
-                type="date"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
-              />
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-slate-100 text-xs animate-fadeIn">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="font-semibold text-slate-600">Date Range:</span>
+              <div className="flex items-center gap-1.5">
+                <label className="text-slate-500 font-medium">From:</label>
+                <input
+                  type="date"
+                  value={customFrom}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                  className="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <label className="text-slate-500 font-medium">To:</label>
+                <input
+                  type="date"
+                  value={customTo}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                  className="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
+                />
+              </div>
+              {(customFrom || customTo) && (
+                <button
+                  onClick={() => {
+                    setCustomFrom('');
+                    setCustomTo('');
+                  }}
+                  className="text-slate-400 hover:text-slate-600 p-1 text-xs cursor-pointer"
+                  title="Clear date inputs"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-            <div className="flex items-center gap-1.5">
-              <label className="text-slate-500 font-medium">To:</label>
-              <input
-                type="date"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-                className="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
-              />
-            </div>
-            {(customFrom || customTo) && (
+
+            {/* Quick Preset Buttons inside Custom Range */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-slate-400 font-medium mr-0.5">Quick Fill:</span>
               <button
+                type="button"
                 onClick={() => {
-                  setCustomFrom('');
-                  setCustomTo('');
+                  setCustomFrom(startOfMonthStr);
+                  setCustomTo(endOfMonthStr);
                 }}
-                className="text-slate-400 hover:text-slate-600 p-1 text-xs"
-                title="Clear date inputs"
+                className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
               >
-                <X className="w-3.5 h-3.5" />
+                This Month
               </button>
-            )}
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomFrom(startOfLastMonthStr);
+                  setCustomTo(endOfLastMonthStr);
+                }}
+                className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
+              >
+                Last Month
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomFrom(startOfQuarterStr);
+                  setCustomTo(endOfQuarterStr);
+                }}
+                className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
+              >
+                This Quarter
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomFrom(startOfLastQuarterStr);
+                  setCustomTo(endOfLastQuarterStr);
+                }}
+                className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
+              >
+                Last Quarter
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomFrom(startOfYearStr);
+                  setCustomTo(endOfYearStr);
+                }}
+                className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
+              >
+                This Year
+              </button>
+            </div>
           </div>
         )}
 
@@ -561,7 +706,7 @@ export const ReportsPage: React.FC = () => {
       {/* 3. Pure Clean Tabular Form */}
       <div className="rounded-2xl bg-white border border-slate-200 shadow-xs overflow-hidden">
         {/* Table Subheader showing active count and valuation */}
-        <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between text-xs">
+        <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-800">{getReportTypeLabel()}</span>
             <span className="text-slate-400">•</span>
@@ -571,25 +716,30 @@ export const ReportsPage: React.FC = () => {
               {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
             </span>
           </div>
-          <div className="font-mono font-bold text-slate-800">
-            Total Value: <span className="text-emerald-700">{formatETB(totalValuation)}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-slate-400 hidden sm:inline-flex items-center gap-1 font-mono">
+              ↔ Scrollable table
+            </span>
+            <div className="font-mono font-bold text-slate-800">
+              Total Value: <span className="text-emerald-700">{formatETB(totalValuation)}</span>
+            </div>
           </div>
         </div>
 
         {/* Data Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[960px]">
             <thead className="bg-slate-50 text-slate-700 uppercase font-bold text-[10px] border-b border-slate-200">
               <tr>
-                <th className="py-2.5 px-3 w-10 text-center">#</th>
-                <th className="py-2.5 px-3">Tracking Code</th>
-                <th className="py-2.5 px-3">Asset Item</th>
-                <th className="py-2.5 px-3">Category</th>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3">IFMIS Slip #</th>
-                <th className="py-2.5 px-3">Date (E.C.)</th>
-                <th className="py-2.5 px-3">Custodian / Location</th>
-                <th className="py-2.5 px-3 text-right">Unit Cost</th>
+                <th className="py-2.5 px-3 w-10 text-center shrink-0">#</th>
+                <th className="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap">Tracking Code</th>
+                <th className="py-2.5 px-3 min-w-[180px] max-w-[260px]">Asset Item</th>
+                <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Category</th>
+                <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Status</th>
+                <th className="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap">IFMIS Slip #</th>
+                <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Date (E.C.)</th>
+                <th className="py-2.5 px-3 min-w-[150px] max-w-[220px]">Custodian / Location</th>
+                <th className="py-2.5 px-3 w-28 shrink-0 text-right whitespace-nowrap">Unit Cost</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -610,24 +760,29 @@ export const ReportsPage: React.FC = () => {
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">
+                      <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px] w-10 shrink-0">
                         {idx + 1}
                       </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-800 whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-800 whitespace-nowrap w-32 shrink-0">
                         {item.itemCode}
                       </td>
-                      <td className="py-2.5 px-3">
-                        <div className="font-semibold text-slate-900">{item.name}</div>
+                      <td className="py-2.5 px-3 min-w-[180px] max-w-[260px]">
+                        <div className="font-semibold text-slate-900 truncate" title={item.name}>
+                          {item.name}
+                        </div>
                         {item.serialNumber && (
-                          <div className="text-[10px] text-slate-400 font-mono">
+                          <div
+                            className="text-[10px] text-slate-400 font-mono truncate"
+                            title={`SN: ${item.serialNumber}`}
+                          >
                             SN: {item.serialNumber}
                           </div>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap w-28 shrink-0">
                         {item.category.replace(/_/g, ' ')}
                       </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap">
+                      <td className="py-2.5 px-3 whitespace-nowrap w-28 shrink-0">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
                             isAvailable
@@ -640,28 +795,34 @@ export const ReportsPage: React.FC = () => {
                           {item.status.replace(/_/g, ' ')}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-amber-900 whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono font-bold text-amber-900 whitespace-nowrap w-32 shrink-0">
                         {item.ifmisSlipNumber}
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap w-28 shrink-0">
                         {item.ifmisSlipDateEc || item.createdAtEc}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-700">
+                      <td className="py-2.5 px-3 text-slate-700 min-w-[150px] max-w-[220px]">
                         {item.currentCustodian ? (
-                          <div className="font-semibold text-slate-900">
+                          <div
+                            className="font-semibold text-slate-900 truncate"
+                            title={item.currentCustodian.fullNameEn}
+                          >
                             {item.currentCustodian.fullNameEn}
                           </div>
                         ) : item.assignedDepartment ? (
-                          <div className="font-semibold text-slate-800">
+                          <div
+                            className="font-semibold text-slate-800 truncate"
+                            title={item.assignedDepartment.nameEn}
+                          >
                             {item.assignedDepartment.nameEn}
                           </div>
                         ) : (
-                          <div className="text-slate-500">
+                          <div className="text-slate-500 truncate">
                             {item.storeLocation?.siteName || 'Central Store'}
                           </div>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap w-28 shrink-0">
                         {formatETB(item.unitCostETB)}
                       </td>
                     </tr>
