@@ -126,7 +126,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       {/* Navigation Items (Exact Layout matching User Mockup) */}
       <nav className="p-3 space-y-1.5 overflow-y-auto flex-1 text-xs">
         {/* 1. Dashboard (General Manager & System Admin) */}
-        {(role === UserRole.MANAGER || role === UserRole.SYSTEM_ADMIN) && (
+        {(role === UserRole.MANAGER || (role as string) === 'TOP_MANAGEMENT' || role === UserRole.SYSTEM_ADMIN) && (
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
