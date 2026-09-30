@@ -119,10 +119,15 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   };
 
   const filteredItems = items.filter((item) => {
+    const q = searchTerm.trim().toLowerCase();
     const matchesSearch =
-      item.itemCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.currentCustodian?.fullNameEn || '').toLowerCase().includes(searchTerm.toLowerCase());
+      !q ||
+      (item.itemCode || '').toLowerCase().includes(q) ||
+      (item.name || '').toLowerCase().includes(q) ||
+      (item.serialNumber || '').toLowerCase().includes(q) ||
+      (item.ifmisSlipNumber || '').toLowerCase().includes(q) ||
+      (item.currentCustodian?.fullNameEn || '').toLowerCase().includes(q) ||
+      (item.assignedDepartment?.nameEn || '').toLowerCase().includes(q);
 
     if (activeSubTab === 'transfer' || activeSubTab === 'return') {
       return matchesSearch && item.status === ItemStatus.ISSUED;

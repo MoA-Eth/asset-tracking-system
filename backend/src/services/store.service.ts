@@ -255,6 +255,7 @@ export class StoreService {
         { name: { contains: q, mode: 'insensitive' } },
         { serialNumber: { contains: q, mode: 'insensitive' } },
         { ifmisSlipNumber: { contains: q, mode: 'insensitive' } },
+        { notes: { contains: q, mode: 'insensitive' } },
       ];
     }
 

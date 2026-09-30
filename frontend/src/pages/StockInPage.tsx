@@ -774,7 +774,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
 
 // ─── Items Table ─────────────────────────────────────────────────────────────
 
-type SortField = 'itemCode' | 'name' | 'category' | 'ifmisSlipNumber' | 'unitCostETB' | 'status';
+type SortField = 'createdAt' | 'itemCode' | 'name' | 'category' | 'ifmisSlipNumber' | 'unitCostETB' | 'status';
 
 interface ItemsTableProps {
   items: ItemWithRelations[];
@@ -782,19 +782,27 @@ interface ItemsTableProps {
   refreshing: boolean;
   onNavigate: (tab: string) => void;
   onPrintModel19: (item: ItemWithRelations) => void;
+  highlightItemId?: string;
 }
 
-const ItemsTable: React.FC<ItemsTableProps> = ({ items, onRefresh, refreshing, onNavigate, onPrintModel19 }) => {
+const ItemsTable: React.FC<ItemsTableProps> = ({
+  items,
+  onRefresh,
+  refreshing,
+  onNavigate,
+  onPrintModel19,
+  highlightItemId,
+}) => {
   const [search, setSearch] = useState('');
-  const [sortField, setSortField] = useState<SortField>('itemCode');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection(field === 'createdAt' ? 'desc' : 'asc');
     }
   };
 
@@ -807,20 +815,37 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ items, onRefresh, refreshing, o
     );
   };
 
-  const filtered = items.filter(
-    (item) =>
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.itemCode.toLowerCase().includes(search.toLowerCase()) ||
-      (item.ifmisSlipNumber ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (item.source ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (item.poNumber ?? '').toLowerCase().includes(search.toLowerCase())
-  );
+  const q = search.trim().toLowerCase();
+  const filtered = items.filter((item) => {
+    if (!q) return true;
+    return (
+      (item.name || '').toLowerCase().includes(q) ||
+      (item.itemCode || '').toLowerCase().includes(q) ||
+      (item.serialNumber || '').toLowerCase().includes(q) ||
+      (item.ifmisSlipNumber || '').toLowerCase().includes(q) ||
+      (item.source || '').toLowerCase().includes(q) ||
+      (item.poNumber || '').toLowerCase().includes(q) ||
+      (item.category || '').toLowerCase().includes(q) ||
+      (item.itemCategoryDisplay || '').toLowerCase().includes(q) ||
+      (item.subInventory || '').toLowerCase().includes(q) ||
+      (item.status || '').toLowerCase().includes(q) ||
+      (item.uom || '').toLowerCase().includes(q) ||
+      (item.deliveredBy || '').toLowerCase().includes(q) ||
+      (item.receivedBy || '').toLowerCase().includes(q) ||
+      (item.notes || '').toLowerCase().includes(q) ||
+      (item.remark || '').toLowerCase().includes(q) ||
+      (item.storeLocation?.siteName || '').toLowerCase().includes(q)
+    );
+  });
 
   const sorted = [...filtered].sort((a, b) => {
     let valA: any = a[sortField] ?? '';
     let valB: any = b[sortField] ?? '';
 
-    if (sortField === 'unitCostETB') {
+    if (sortField === 'createdAt') {
+      valA = new Date((a as any).createdAt || a.createdAtGc || 0).getTime();
+      valB = new Date((b as any).createdAt || b.createdAtGc || 0).getTime();
+    } else if (sortField === 'unitCostETB') {
       valA = Number(valA) || 0;
       valB = Number(valB) || 0;
     } else if (typeof valA === 'string') {
@@ -841,12 +866,26 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ items, onRefresh, refreshing, o
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by name, code, IFMIS slip, PO number, or vendor..."
+            placeholder="Search by name, code, IFMIS slip, serial, vendor, PO number..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500"
+            className="w-full pl-8 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500"
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 transition cursor-pointer"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
+        {search.trim() && (
+          <span className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-xl font-medium shrink-0">
+            {filtered.length} of {items.length} found
+          </span>
+        )}
         <button
           onClick={onRefresh}
           disabled={refreshing}
@@ -910,6 +949,15 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ items, onRefresh, refreshing, o
                   </div>
                 </th>
                 <th
+                  onClick={() => handleSort('createdAt')}
+                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Date (G.C.)</span>
+                    {renderSortIcon('createdAt')}
+                  </div>
+                </th>
+                <th
                   onClick={() => handleSort('unitCostETB')}
                   className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-28 text-right whitespace-nowrap"
                 >
@@ -933,44 +981,66 @@ const ItemsTable: React.FC<ItemsTableProps> = ({ items, onRefresh, refreshing, o
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {sorted.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50 transition">
-                  <td className="px-3 py-2.5 font-mono font-bold text-emerald-700 whitespace-nowrap w-32">
-                    {item.itemCode}
-                  </td>
-                  <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[180px] max-w-[240px] truncate">
-                    {item.name}
-                  </td>
-                  <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap w-28">
-                    {item.itemCategoryDisplay || item.category.replace(/_/g, ' ')}
-                  </td>
-                  <td className="px-3 py-2.5 font-mono text-center text-slate-700 uppercase whitespace-nowrap w-16">
-                    {item.uom || 'EA'}
-                  </td>
-                  <td className="px-3 py-2.5 font-mono text-right text-slate-900 font-bold whitespace-nowrap w-16">
-                    {item.quantity || 1}
-                  </td>
-                  <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap w-36">
-                    {item.ifmisSlipNumber || '—'}
-                  </td>
-                  <td className="px-3 py-2.5 font-mono text-slate-700 text-right whitespace-nowrap w-28">
-                    {formatETB(item.unitCostETB)}
-                  </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap w-28">
-                    <StatusBadge status={item.status} />
-                  </td>
-                  <td className="px-3 py-2.5 text-center whitespace-nowrap w-24">
-                    <button
-                      onClick={() => onPrintModel19(item)}
-                      className="px-2 py-1 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-300 hover:border-emerald-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                      title="Print Official Model 19 Report"
-                    >
-                      <Printer className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Print M19</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {sorted.map((item) => {
+                const isJustRegistered =
+                  highlightItemId &&
+                  (item.id === highlightItemId || item.itemCode === highlightItemId);
+                return (
+                  <tr
+                    key={item.id}
+                    className={`transition ${
+                      isJustRegistered
+                        ? 'bg-emerald-50/90 border-l-4 border-emerald-600 font-medium'
+                        : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <td className="px-3 py-2.5 font-mono font-bold text-emerald-700 whitespace-nowrap w-32">
+                      <div className="flex items-center gap-1.5">
+                        <span>{item.itemCode}</span>
+                        {isJustRegistered && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-700 text-white tracking-wider animate-pulse">
+                            New
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[180px] max-w-[240px] truncate">
+                      {item.name}
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap w-28">
+                      {item.itemCategoryDisplay || item.category.replace(/_/g, ' ')}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-center text-slate-700 uppercase whitespace-nowrap w-16">
+                      {item.uom || 'EA'}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-right text-slate-900 font-bold whitespace-nowrap w-16">
+                      {item.quantity || 1}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap w-36">
+                      {item.ifmisSlipNumber || '—'}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-slate-600 whitespace-nowrap w-28 text-[11px]">
+                      {item.ifmisSlipDateGc || item.createdAtGc || '—'}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-slate-700 text-right whitespace-nowrap w-28">
+                      {formatETB(item.unitCostETB)}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap w-28">
+                      <StatusBadge status={item.status} />
+                    </td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap w-24">
+                      <button
+                        onClick={() => onPrintModel19(item)}
+                        className="px-2 py-1 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-300 hover:border-emerald-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                        title="Print Official Model 19 Report"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Print M19</span>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1060,6 +1130,15 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
   const handleSuccess = (result: any, voucher?: Model19Voucher) => {
     setLastRegistered(result);
     setIsModalOpen(false);
+
+    // Optimistically prepend registered item to table immediately
+    if (result?.item) {
+      setItems((prev) => [result.item, ...prev.filter((i) => i.id !== result.item.id)]);
+    } else if (result?.items && result.items.length > 0) {
+      const newIds = new Set(result.items.map((i: any) => i.id));
+      setItems((prev) => [...result.items, ...prev.filter((i) => !newIds.has(i.id))]);
+    }
+
     initData(true);
     if (voucher) {
       setActiveVoucher(voucher);
@@ -1234,6 +1313,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
           refreshing={refreshing}
           onNavigate={onNavigate}
           onPrintModel19={handlePrintItem}
+          highlightItemId={lastRegistered?.item?.id || lastRegistered?.item?.itemCode}
         />
       </div>
 
