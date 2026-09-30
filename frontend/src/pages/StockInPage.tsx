@@ -371,32 +371,22 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         </div>
       )}
 
-      {/* Official MoA Reference Header Banner */}
-      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2">
-        <FileText className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-        <div className="text-xs text-emerald-900 leading-relaxed">
-          <p className="font-bold">Official Ethiopian IFMIS Goods Receiving Note (Print Model 19)</p>
-          <p className="text-[11px] text-emerald-800">
-            Fill in the voucher details below matching your physical or scanned IFMIS receiving voucher. You can enter single or multi-line items.
-          </p>
-        </div>
+      {/* Top Document Reference & Policy Notice */}
+      <div className="flex items-center justify-between text-xs text-slate-500 pb-1">
+        <span className="font-semibold text-slate-700">
+          Integrated Financial Management Information System (IFMIS) • Print Model 19
+        </span>
+        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
+          isAttachmentRequired
+            ? 'bg-amber-100 text-amber-900 border-amber-300'
+            : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+        }`}>
+          Voucher Scan: {isAttachmentRequired ? 'Mandatory Attachment' : 'Optional Attachment'}
+        </span>
       </div>
 
-      {/* ── Section 1: Official Voucher Header Metadata ── */}
-      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-            1. Voucher Header (የሰነድ ራስጌ መረጃ)
-          </h3>
-          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
-            isAttachmentRequired
-              ? 'bg-amber-100 text-amber-900 border-amber-300'
-              : 'bg-emerald-100 text-emerald-900 border-emerald-300'
-          }`}>
-            Attachment: {isAttachmentRequired ? 'Mandatory' : 'Optional'}
-          </span>
-        </div>
-
+      {/* Voucher Header Metadata */}
+      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <div>
             <label className="block text-[11px] font-semibold text-slate-700 mb-1">
@@ -542,15 +532,12 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         </div>
       </div>
 
-      {/* ── Section 2: Model 19 Items Table (Multi-Item Grid) ── */}
-      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-            <span>2. Received Items Particulars (የተረከቧቸው ዕቃዎች ዝርዝር)</span>
-            <span className="px-2 py-0.2 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-mono">
-              {lineItems.length} item{lineItems.length > 1 ? 's' : ''}
-            </span>
-          </h3>
+      {/* Model 19 Items Table */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-xs font-bold text-slate-800">
+            Model 19 Table Items ({lineItems.length})
+          </span>
           <button
             type="button"
             onClick={addLineItem}
@@ -778,15 +765,12 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         </div>
       </div>
 
-      {/* ── Section 3: Signatures & Remarks ── */}
-      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-          3. Sign-Off & Verification (የማረጋገጫ ፊርማዎች)
-        </h3>
+      {/* Signatures & Delivered By / Received By Block */}
+      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Delivered By : Name (አስረካቢ)
+              Delivered By : Name
             </label>
             <input
               type="text"
@@ -798,7 +782,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
           </div>
           <div>
             <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Received By : Name (ተረካቢ ቋት ጠባቂ)
+              Received By : Name
             </label>
             <input
               type="text"
