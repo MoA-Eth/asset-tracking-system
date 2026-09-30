@@ -133,8 +133,9 @@ export const api = {
     });
   },
 
+  // Creates a TRANSFER approval; custody changes only after Stage 2 sign-off
   transferItem: (payload: CreateTransferRequest) => {
-    return request<ItemWithRelations>('/items/transfer', {
+    return request<TransactionApproval>('/items/transfer', {
       method: 'POST',
       body: JSON.stringify(payload),
     });

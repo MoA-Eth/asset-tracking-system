@@ -361,10 +361,18 @@ async function runStatusConsistencyTests() {
         itemId: item4Id,
         toEmployeeId: emp2.id,
         reason: 'Handover to regional surveyor',
+        model21No: `M21-XFER-${ts5}`,
       },
     }, encoderToken);
-    assert(transferValid.ok, 'Custody transfer executed successfully');
-    assert(transferValid.data.currentCustodianId === emp2.id, `Custody liability transferred to ${emp2.fullNameEn}`);
+    assert(transferValid.ok, 'Custody transfer request submitted');
+    const item4InTransfer = await request(`/items/${item4Id}`, {}, encoderToken);
+    assert(item4InTransfer.data.status === 'UNDER_TRANSFER', 'Item held UNDER_TRANSFER while pending');
+    assert(item4InTransfer.data.currentCustodianId === emp1.id, 'Custody unchanged until Stage 2 approval');
+
+    await request('/items/approvals/action', { method: 'POST', body: { approvalId: transferValid.data.id, action: 'ENDORSE' } }, teamleadToken);
+    await request('/items/approvals/action', { method: 'POST', body: { approvalId: transferValid.data.id, action: 'APPROVE' } }, headToken);
+    const item4Transferred = await request(`/items/${item4Id}`, {}, encoderToken);
+    assert(item4Transferred.data.currentCustodianId === emp2.id, `Custody liability transferred to ${emp2.fullNameEn} after approval`);
 
     // =========================================================================
     // SCENARIO 7: Complete Audit Log & Historical Traceability

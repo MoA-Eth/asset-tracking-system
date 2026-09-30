@@ -152,7 +152,7 @@ export class ItemController {
       throw new BadRequestError('User identity is required to transfer item.');
     }
     const result = await this.store.transferItem(payload);
-    return sendSuccess(res, result, 'Item transferred successfully');
+    return sendSuccess(res, result, 'Transfer request submitted for approval');
   });
 
   /**

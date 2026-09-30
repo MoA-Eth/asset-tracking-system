@@ -361,7 +361,13 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       const isStockIn = item.transactionType === TransactionType.STOCK_IN;
                       const isStockOut = item.transactionType === TransactionType.STOCK_OUT;
                       const stage = item.currentStage ?? 1;
-                      const typeLabel = isStockIn ? 'Stock In' : isStockOut ? 'Stock Out' : 'Asset Transfer';
+                      const typeLabel = isStockIn
+                        ? 'Stock In'
+                        : isStockOut
+                        ? 'Stock Out'
+                        : item.transactionType === TransactionType.RETURN
+                        ? 'Return to Store'
+                        : 'Asset Transfer';
                       const stageText = stage === 1 ? 'Endorsement' : 'Authorization';
                       const isRead = readIds.includes(item.id);
 
