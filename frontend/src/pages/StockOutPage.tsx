@@ -1039,21 +1039,18 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     switch (mode) {
       case 'assign':
         return {
-          badge: 'Asset Custody Workflow • የንብረት ድልድል እና ወጪ (ሞዴል 22/20)',
           title: 'Asset Assignment & Custody Issue (የንብረት ድልድል - ሞዴል 22)',
           subtitle: 'Assign store inventory items to custodian personnel using official Model 22 Issue Slips.',
           buttonLabel: 'Assign Asset (Model 22)',
         };
       case 'transfer':
         return {
-          badge: 'Inter-Department Transfer Workflow • የንብረት ዝውውር (ሞዴል 22)',
           title: 'Asset Transfer Registration (የንብረት ዝውውር - ሞዴል 22)',
           subtitle: 'Transfer assets between departments, store locations, or employee custodians.',
           buttonLabel: 'Transfer Asset',
         };
       default:
         return {
-          badge: 'Outbound Store Issue • የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 22)',
           title: 'Stock-Out — Receipt For Articles Or Property Issued (ሞዴል 22)',
           subtitle: 'Issue items from store following official FDRE Ministry of Agriculture Model 22 vouchers (Move Order Issue).',
           buttonLabel: 'Issue Asset (Model 22)',
