@@ -1,7 +1,7 @@
 import React from 'react';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, afterEach } from 'vitest';
 import { ToastProvider, useToast } from './ToastContext';
 
 // Helper component to trigger various toasts
@@ -30,6 +30,10 @@ const TestToastConsumer: React.FC = () => {
 };
 
 describe('ToastContext & ToastProvider', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('throws an error when useToast is used outside of ToastProvider', () => {
     // Suppress console.error for expected thrown error
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -102,7 +106,7 @@ describe('ToastContext & ToastProvider', () => {
     const toastCloseBtn = closeButtons.find((btn) => btn.querySelector('svg'));
     if (toastCloseBtn) {
       await user.click(toastCloseBtn);
-      expect(screen.queryByText('Operation Successful')).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByText('Operation Successful')).not.toBeInTheDocument());
     }
   });
 
@@ -123,13 +127,36 @@ describe('ToastContext & ToastProvider', () => {
 
     expect(screen.getByText('Quick Dismiss')).toBeInTheDocument();
 
-    // Advance timers past duration
+    // Advance timers past duration plus the exit animation
     act(() => {
-      vi.advanceTimersByTime(600);
+      vi.advanceTimersByTime(500);
+    });
+    act(() => {
+      vi.advanceTimersByTime(200);
     });
 
     expect(screen.queryByText('Quick Dismiss')).not.toBeInTheDocument();
 
     vi.useRealTimers();
+  });
+
+  it('shows newest first and keeps at most four toasts', async () => {
+    render(
+      <ToastProvider>
+        <TestToastConsumer />
+      </ToastProvider>
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /trigger success/i }));
+    await user.click(screen.getByRole('button', { name: /trigger error/i }));
+    await user.click(screen.getByRole('button', { name: /trigger warning/i }));
+    await user.click(screen.getByRole('button', { name: /trigger info/i }));
+    await user.click(screen.getByRole('button', { name: /trigger short toast/i }));
+
+    const region = screen.getByRole('region', { name: /notifications/i });
+    const titles = [...region.querySelectorAll('p.font-semibold')].map((p) => p.textContent);
+    expect(titles).toEqual(['Quick Dismiss', 'System Sync', 'Low Stock Alert', 'Approval Rejected']);
+    expect(screen.queryByText('Operation Successful')).not.toBeInTheDocument();
   });
 });

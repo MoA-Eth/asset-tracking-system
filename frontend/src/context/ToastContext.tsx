@@ -19,6 +19,9 @@ export interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
+/** When a new toast would exceed this, the oldest one is dropped. */
+const MAX_VISIBLE_TOASTS = 4;
+
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
@@ -29,7 +32,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const showToast = useCallback(
     (type: ToastType, title: string, message?: string, duration = 4000) => {
       const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      setToasts((prev) => [...prev, { id, type, title, message, duration }]);
+      setToasts((prev) => [...prev, { id, type, title, message, duration }].slice(-MAX_VISIBLE_TOASTS));
     },
     []
   );
@@ -65,9 +68,12 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ showToast, success, error, warning, info }}>
       {children}
-      {/* Toast Container positioned top right */}
-      <div className="fixed top-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm sm:max-w-md w-full pointer-events-none">
-        {toasts.map((toast) => (
+      {/* Toast stack: top-right on desktop, full width on phones, above modals; newest first */}
+      <section
+        aria-label="Notifications"
+        className="no-print fixed top-4 inset-x-4 sm:inset-x-auto sm:right-5 z-[70] flex flex-col gap-2.5 sm:w-[380px] pointer-events-none"
+      >
+        {[...toasts].reverse().map((toast) => (
           <div key={toast.id} className="pointer-events-auto">
             <Toast
               id={toast.id}
@@ -79,7 +85,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             />
           </div>
         ))}
-      </div>
+      </section>
     </ToastContext.Provider>
   );
 };
