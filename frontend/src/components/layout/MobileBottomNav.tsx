@@ -1,14 +1,6 @@
 import React from 'react';
-import {
-  LayoutDashboard,
-  PackagePlus,
-  PackageMinus,
-  FileCheck2,
-  FileSpreadsheet,
-  ShieldCheck,
-} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { UserRole } from '../../types/asset-management';
+import { getMobileNavItems } from './navigation';
 
 interface MobileBottomNavProps {
   activeTab: string;
@@ -20,68 +12,32 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   setActiveTab,
 }) => {
   const { role } = useAuth();
-
-  const allTabs = [
-    {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: LayoutDashboard,
-      roles: [UserRole.MANAGER, UserRole.SYSTEM_ADMIN, 'TOP_MANAGEMENT' as UserRole],
-    },
-    {
-      id: 'approvals',
-      label: 'Approvals',
-      icon: FileCheck2,
-      roles: [UserRole.DEPARTMENT_HEAD, UserRole.TEAM_LEADER],
-    },
-    {
-      id: 'stock-in',
-      label: 'Stock-In',
-      icon: PackagePlus,
-      roles: [UserRole.DATA_ENCODER],
-    },
-    {
-      id: 'stock-out',
-      label: 'Stock-Out',
-      icon: PackageMinus,
-      roles: [UserRole.DATA_ENCODER],
-    },
-    {
-      id: 'reports',
-      label: 'Reports',
-      icon: FileSpreadsheet,
-      roles: [UserRole.SYSTEM_ADMIN, UserRole.DEPARTMENT_HEAD, UserRole.DATA_ENCODER, UserRole.TEAM_LEADER],
-    },
-    {
-      id: 'audit',
-      label: 'Audit',
-      icon: ShieldCheck,
-      roles: [UserRole.SYSTEM_ADMIN, UserRole.DEPARTMENT_HEAD, UserRole.TEAM_LEADER],
-    },
-  ];
-
-  const visibleTabs = allTabs.filter((t) => t.roles.includes(role)).slice(0, 4);
+  const visibleTabs = getMobileNavItems(role).slice(0, 5);
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-slate-200 mobile-nav-bar px-2 shadow-lg">
+    <nav
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-slate-200 mobile-nav-bar px-2 shadow-lg pb-[env(safe-area-inset-bottom)]"
+      aria-label="Main navigation"
+    >
       <div className="flex items-center justify-around">
         {visibleTabs.map((tab) => {
           const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+          const isActive = tab.matches(activeTab);
 
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-2 flex flex-col items-center justify-center transition-colors min-h-[44px] cursor-pointer ${
-                isActive ? 'text-emerald-800 font-bold' : 'text-slate-500 hover:text-slate-800'
+              aria-current={isActive ? 'page' : undefined}
+              className={`relative flex-1 pt-2.5 pb-2 flex flex-col items-center justify-center gap-0.5 transition-colors min-h-[52px] cursor-pointer ${
+                isActive ? 'text-emerald-800 font-semibold' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              <Icon className={`w-5 h-5 mb-0.5 ${isActive ? 'stroke-[2.5] text-emerald-800' : 'stroke-[1.75]'}`} />
-              <span className="text-[10px] tracking-tight">{tab.label}</span>
               {isActive && (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-0.5" />
+                <span aria-hidden="true" className="absolute top-0 h-[3px] w-8 rounded-b-full bg-emerald-700" />
               )}
+              <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.25]' : 'stroke-[1.75]'}`} />
+              <span className="text-[10px] tracking-tight">{tab.label}</span>
             </button>
           );
         })}
