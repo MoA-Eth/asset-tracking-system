@@ -27,8 +27,7 @@ describe('<Badge /> & Status Badges', () => {
   describe('<StatusBadge />', () => {
     it.each([
       [ItemStatus.AVAILABLE, 'Available (In Store)'],
-      [ItemStatus.ISSUED, 'Issued (In-Use)'],
-      [ItemStatus.IN_REPAIR, 'In-Repair / Maintenance'],
+      [ItemStatus.ISSUED, 'Issued'],
       [ItemStatus.PENDING_STOCK_IN, 'Pending Stock-In'],
       [ItemStatus.PENDING_STOCK_OUT, 'Pending Stock-Out'],
       [ItemStatus.UNDER_TRANSFER, 'In-Transfer'],

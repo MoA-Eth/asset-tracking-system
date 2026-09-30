@@ -236,33 +236,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
       {/* Right: Clean, Uncluttered Controls */}
       <div className="flex items-center gap-2.5 text-xs shrink-0">
-        {/* Quick Stock Action Shortcuts for Store Custodians */}
-        {role === UserRole.DATA_ENCODER && (
-          <div className="hidden xl:flex items-center gap-1.5">
-            <button
-              onClick={() => onNavigate('stock-in')}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition cursor-pointer ${
-                activeTab === 'stock-in'
-                  ? 'bg-emerald-700 text-white border-emerald-800'
-                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300/80'
-              }`}
-            >
-              <PackagePlus className="w-3.5 h-3.5" />
-              <span>+ Stock-In</span>
-            </button>
-            <button
-              onClick={() => onNavigate('stock-out')}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition cursor-pointer ${
-                activeTab === 'stock-out'
-                  ? 'bg-blue-700 text-white border-blue-800'
-                  : 'bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-300/80'
-              }`}
-            >
-              <PackageMinus className="w-3.5 h-3.5" />
-              <span>- Stock-Out</span>
-            </button>
-          </div>
-        )}
 
         {/* Store Center Scope Selector */}
         {/* <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200">

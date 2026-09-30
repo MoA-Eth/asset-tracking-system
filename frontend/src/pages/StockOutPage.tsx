@@ -102,7 +102,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(new Date().toISOString().split('T')[0]);
   const [attachmentFileName, setAttachmentFileName] = useState('');
   const [purpose, setPurpose] = useState('');
-  const [notes, setNotes] = useState('');
+  const [itemSearch, setItemSearch] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
   const toggleItemSelection = (id: string) => {
@@ -131,9 +131,20 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     setIfmisSlipDateGc(new Date().toISOString().split('T')[0]);
     setAttachmentFileName('');
     setPurpose('');
-    setNotes('');
+    setItemSearch('');
     setFormError(null);
   };
+
+  const itemQ = itemSearch.trim().toLowerCase();
+  const displayedAvailableItems = availableItems.filter((item) => {
+    if (!itemQ) return true;
+    return (
+      (item.name || '').toLowerCase().includes(itemQ) ||
+      (item.itemCode || '').toLowerCase().includes(itemQ) ||
+      (item.serialNumber || '').toLowerCase().includes(itemQ) ||
+      (item.ifmisSlipNumber || '').toLowerCase().includes(itemQ)
+    );
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -233,35 +244,61 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
           </span>
         </div>
 
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Filter available items by name, code, serial number..."
+            value={itemSearch}
+            onChange={(e) => setItemSearch(e.target.value)}
+            className="w-full pl-8 pr-8 py-1.5 bg-white border border-slate-300 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-500"
+          />
+          {itemSearch && (
+            <button
+              type="button"
+              onClick={() => setItemSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 transition cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
         <div className="max-h-44 overflow-y-auto space-y-1.5 p-2 bg-white rounded-xl border border-slate-300">
-          {availableItems.map((item) => {
-            const isSelected = selectedItemIds.includes(item.id);
-            return (
-              <label
-                key={item.id}
-                className={`flex items-center justify-between p-2 rounded-lg border transition cursor-pointer text-xs ${
-                  isSelected ? 'bg-blue-50/80 border-blue-400' : 'bg-white border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleItemSelection(item.id)}
-                    className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer shrink-0"
-                  />
-                  <div className="truncate">
-                    <span className="font-mono font-bold text-blue-800 mr-2">{item.itemCode}</span>
-                    <span className="font-semibold text-slate-900">{item.name}</span>
+          {displayedAvailableItems.length === 0 ? (
+            <div className="py-4 text-center text-xs text-slate-400">
+              {itemSearch ? 'No available items match your search.' : 'No available items.'}
+            </div>
+          ) : (
+            displayedAvailableItems.map((item) => {
+              const isSelected = selectedItemIds.includes(item.id);
+              return (
+                <label
+                  key={item.id}
+                  className={`flex items-center justify-between p-2 rounded-lg border transition cursor-pointer text-xs ${
+                    isSelected ? 'bg-blue-50/80 border-blue-400' : 'bg-white border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleItemSelection(item.id)}
+                      className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer shrink-0"
+                    />
+                    <div className="truncate">
+                      <span className="font-mono font-bold text-blue-800 mr-2">{item.itemCode}</span>
+                      <span className="font-semibold text-slate-900">{item.name}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 text-[10px] shrink-0 ml-2">
-                  <ConditionBadge condition={item.condition} />
-                  <span className="font-mono font-bold text-slate-700">{formatETB(item.unitCostETB)}</span>
-                </div>
-              </label>
-            );
-          })}
+                  <div className="flex items-center gap-2 text-[10px] shrink-0 ml-2">
+                    <ConditionBadge condition={item.condition} />
+                    <span className="font-mono font-bold text-slate-700">{formatETB(item.unitCostETB)}</span>
+                  </div>
+                </label>
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -453,12 +490,19 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
     );
   };
 
-  const filtered = approvals.filter(
-    (a) =>
-      a.itemName.toLowerCase().includes(search.toLowerCase()) ||
-      a.itemCode.toLowerCase().includes(search.toLowerCase()) ||
-      (a.ifmisSlipNumber ?? '').toLowerCase().includes(search.toLowerCase()),
-  );
+  const q = search.trim().toLowerCase();
+  const filtered = approvals.filter((a) => {
+    if (!q) return true;
+    return (
+      (a.itemName || '').toLowerCase().includes(q) ||
+      (a.itemCode || '').toLowerCase().includes(q) ||
+      (a.ifmisSlipNumber || '').toLowerCase().includes(q) ||
+      (a.purposeOrRemarks || '').toLowerCase().includes(q) ||
+      (a.recipientEmployee?.fullNameEn || '').toLowerCase().includes(q) ||
+      ((a as any).targetDepartment?.nameEn || a.targetDepartmentId || '').toLowerCase().includes(q) ||
+      (a.status || '').toLowerCase().includes(q)
+    );
+  });
 
   const sorted = [...filtered].sort((a, b) => {
     let valA: any = a[sortField] ?? '';
@@ -482,12 +526,26 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by item name, code or IFMIS slip..."
+            placeholder="Search by item name, code, IFMIS slip, recipient..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-500"
+            className="w-full pl-8 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-500"
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 transition cursor-pointer"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
+        {search.trim() && (
+          <span className="text-[11px] text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1.5 rounded-xl font-medium shrink-0">
+            {filtered.length} of {approvals.length} found
+          </span>
+        )}
         <button
           onClick={onRefresh}
           disabled={refreshing}

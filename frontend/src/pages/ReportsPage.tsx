@@ -181,7 +181,7 @@ export const ReportsPage: React.FC = () => {
 
       // 5. Search Term Filter
       if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase();
+        const q = searchTerm.trim().toLowerCase();
         const match =
           item.name.toLowerCase().includes(q) ||
           item.itemCode.toLowerCase().includes(q) ||

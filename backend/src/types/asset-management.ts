@@ -10,8 +10,7 @@ export enum ItemStatus {
   PENDING_STOCK_IN = 'PENDING_STOCK_IN', // Registered by Data Encoder, waiting for Dept Head approval
   AVAILABLE = 'AVAILABLE',               // In Store, ready to be issued
   PENDING_STOCK_OUT = 'PENDING_STOCK_OUT', // Stock out registered, waiting for approval
-  ISSUED = 'ISSUED',                     // Issued/In-Use by an employee or department
-  IN_REPAIR = 'IN_REPAIR',               // Under technical repair / maintenance
+  ISSUED = 'ISSUED',                     // Issued to an employee or department
   UNDER_TRANSFER = 'UNDER_TRANSFER',     // In transit between locations/employees
   DISPOSED = 'DISPOSED',                 // Delisted
 }
@@ -116,6 +115,61 @@ export interface Item {
   createdAtGc: string;
   createdAtEc: string;
   history: ItemMovementHistory[];
+
+  // Extended Model 19 (IFMIS Receiving) Fields
+  poNumber?: string;
+  transactionType?: string;
+  source?: string;
+  buyer?: string;
+  programName?: string;
+  uom?: string;
+  subInventory?: string;
+  itemCategoryDisplay?: string;
+  lotBatchNo?: string;
+  printedPadFrom?: string;
+  printedPadTo?: string;
+  quantity?: number;
+  totalAmount?: number;
+  deliveredBy?: string;
+  receivedBy?: string;
+  remark?: string;
+}
+
+export interface Model19LineItem {
+  id?: string;
+  sNo: number;
+  itemCode?: string;
+  itemDescription: string;
+  uom: string;
+  subInventory?: string;
+  itemCategory: string;
+  lotBatchNo?: string;
+  serialNo?: string;
+  printedPadFrom?: string;
+  printedPadTo?: string;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  remark?: string;
+}
+
+export interface Model19Voucher {
+  invModel19No: string;
+  poNumber: string;
+  receivedDateGc: string;
+  receivedDateEc?: string;
+  transactionType: string;
+  source: string;
+  buyer: string;
+  programName?: string;
+  storeLocationId?: string;
+  storeLocationName?: string;
+  deliveredByName?: string;
+  receivedByName?: string;
+  reportTakenBy?: string;
+  reportTakenDate?: string;
+  items: Model19LineItem[];
+  grandTotal: number;
 }
 
 export interface ItemWithRelations extends Item {
@@ -198,6 +252,44 @@ export interface CreateStockInRequest {
   condition?: ItemCondition;
   registeredById: string;
   notes?: string;
+
+  // Extended Model 19 fields
+  poNumber?: string;
+  transactionType?: string;
+  source?: string;
+  buyer?: string;
+  programName?: string;
+  itemCode?: string;
+  uom?: string;
+  subInventory?: string;
+  itemCategoryDisplay?: string;
+  lotBatchNo?: string;
+  printedPadFrom?: string;
+  printedPadTo?: string;
+  quantity?: number;
+  totalAmount?: number;
+  deliveredBy?: string;
+  receivedBy?: string;
+  remark?: string;
+
+  // Multi-item batch registration support
+  items?: Array<{
+    itemCode?: string;
+    name: string;
+    category?: AssetCategory;
+    serialNumber?: string;
+    unitCostETB: number;
+    condition?: ItemCondition;
+    uom?: string;
+    subInventory?: string;
+    itemCategoryDisplay?: string;
+    lotBatchNo?: string;
+    printedPadFrom?: string;
+    printedPadTo?: string;
+    quantity: number;
+    totalAmount?: number;
+    remark?: string;
+  }>;
 }
 
 export interface CreateStockOutRequest {

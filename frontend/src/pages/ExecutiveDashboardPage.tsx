@@ -349,9 +349,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               <span className="text-[10px] text-emerald-800 font-amharic block">በክምችት ያለ</span>
             </div>
             <div className="p-2.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-900">
-              <span className="text-[10px] text-purple-700 block uppercase font-bold">Assigned (In-Use)</span>
+              <span className="text-[10px] text-purple-700 block uppercase font-bold">Issued</span>
               <span className="text-base font-black block">{issuedStock} items</span>
-              <span className="text-[10px] text-purple-800 font-amharic block">በአገልግሎት ላይ</span>
+              <span className="text-[10px] text-purple-800 font-amharic block">የተሰጠ</span>
             </div>
           </div>
         </div>

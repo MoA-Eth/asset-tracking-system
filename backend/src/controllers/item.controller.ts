@@ -68,6 +68,11 @@ export class ItemController {
     if (req.user) {
       payload.registeredById = req.user.id;
     }
+    if (payload.items && payload.items.length > 0) {
+      if (!payload.name) payload.name = payload.items[0].name;
+      if (!payload.category) payload.category = payload.items[0].category || AssetCategory.IT_EQUIPMENT;
+      if (payload.unitCostETB === undefined) payload.unitCostETB = payload.items[0].unitCostETB || 0;
+    }
     if (!payload.name || !payload.category) {
       throw new BadRequestError('Item name and asset category are mandatory fields.');
     }
