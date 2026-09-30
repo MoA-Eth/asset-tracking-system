@@ -218,7 +218,7 @@ async function runStatusConsistencyTests() {
     console.log('\n▶ [Scenario 4] Model 20 Stock-Out Rejection (Atomic Reversion to AVAILABLE)');
     const ts4 = Date.now().toString().slice(-6);
 
-    // Create another available item directly (historical stock-in)
+    // Historical stock-in: slip attachment is waived, but it must still pass Stage 1/2 approval
     const histRes = await request('/items/stock-in', {
       method: 'POST',
       body: {
@@ -234,7 +234,13 @@ async function runStatusConsistencyTests() {
       },
     }, encoderToken);
     const item4Id = histRes.data.item.id;
-    assert(histRes.data.item.status === 'AVAILABLE', 'Historical asset created directly with status AVAILABLE');
+    assert(histRes.data.item.status === 'PENDING_STOCK_IN', 'Historical asset still starts as PENDING_STOCK_IN');
+    assert(histRes.data.approval && histRes.data.approval.currentStage === 1, 'Historical asset gets a Stage 1 approval request');
+
+    await request('/items/approvals/action', { method: 'POST', body: { approvalId: histRes.data.approval.id, action: 'ENDORSE' } }, teamleadToken);
+    await request('/items/approvals/action', { method: 'POST', body: { approvalId: histRes.data.approval.id, action: 'APPROVE' } }, headToken);
+    const item4Approved = await request(`/items/${item4Id}`, {}, encoderToken);
+    assert(item4Approved.data.status === 'AVAILABLE', 'Historical asset becomes AVAILABLE only after Stage 2 approval');
 
     // Request Stock-Out
     const out4Res = await request('/items/stock-out', {
