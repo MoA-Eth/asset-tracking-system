@@ -1,23 +1,7 @@
-import React, { useState } from 'react';
-import {
-  LayoutDashboard,
-  FileCheck2,
-  PackagePlus,
-  PackageMinus,
-  ArrowRightLeft,
-  FileSpreadsheet,
-  ShieldCheck,
-  Settings,
-  ChevronDown,
-  ChevronRight,
-  LogOut,
-  Users,
-  Shield,
-  UserCheck,
-  Building2,
-  MapPin,
-  Warehouse,
-} from 'lucide-react';
+import React from 'react';
+import { LogOut } from 'lucide-react';
+import { getNavigationGroups } from '../../utils/navigation';
+import { navigationIcons } from './navigation-icons';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
 
@@ -63,16 +47,6 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   };
 
   const roleTitle = getRoleTitle(role);
-
-  const getIconClass = (isActive: boolean) =>
-    `w-4 h-4 shrink-0 transition-colors ${
-      isActive ? 'text-white stroke-[2]' : 'text-emerald-300/70 group-hover:text-white stroke-[1.75]'
-    }`;
-
-  const getSubIconClass = (isActive: boolean) =>
-    `w-3.5 h-3.5 shrink-0 transition-colors ${
-      isActive ? 'text-white stroke-[2]' : 'text-emerald-300/70 group-hover/sub:text-white stroke-[1.75]'
-    }`;
 
   return (
     <aside
@@ -132,205 +106,54 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         </div>
       </div>
 
-      {/* Navigation Items */}
-      <nav className="p-3 space-y-1.5 overflow-y-auto flex-1 text-xs">
-        {/* 1. Dashboard (General Manager & System Admin) */}
-        {(role === UserRole.MANAGER || (role as string) === 'TOP_MANAGEMENT' || role === UserRole.SYSTEM_ADMIN) && (
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer ${
-              activeTab === 'dashboard'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
-            }`}
-            title="Dashboard"
-          >
-            <LayoutDashboard className={getIconClass(activeTab === 'dashboard')} />
-            {!collapsed && <span className="flex-1 text-left">Dashboard</span>}
-          </button>
-        )}
-
-        {/* Approvals Badge (Department Head & Team Leader) */}
-        {(role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
-          <button
-            onClick={() => setActiveTab('approvals')}
-            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer relative ${
-              activeTab === 'approvals'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
-            }`}
-            title="Approvals"
-          >
-            <FileCheck2 className={getIconClass(activeTab === 'approvals')} />
-            {!collapsed && <span className="flex-1 text-left">Approvals</span>}
-            {pendingApprovalsCount > 0 && (
-              <span className={`${collapsed ? 'absolute top-1.5 right-2' : ''} px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-xs shrink-0 animate-pulse`}>
-                {pendingApprovalsCount}
-              </span>
-            )}
-          </button>
-        )}
-
-        {/* 2. Stock-In (Model 19) */}
-        {role === UserRole.DATA_ENCODER && (
-          <button
-            onClick={() => setActiveTab('stock-in')}
-            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer ${
-              activeTab === 'stock-in'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
-            }`}
-            title="Stock-In (Model 19 / የዕቃ መረከቢያ)"
-          >
-            <PackagePlus className={getIconClass(activeTab === 'stock-in')} />
-            {!collapsed && <span className="flex-1 text-left">Stock-In</span>}
-          </button>
-        )}
-
-        {/* 3. Stock-Out (Model 20) */}
-        {role === UserRole.DATA_ENCODER && (
-          <button
-            onClick={() => setActiveTab('stock-out')}
-            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer ${
-              activeTab === 'stock-out'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
-            }`}
-            title="Stock-Out (Model 20 / የዕቃ ወጪ ማዘዣ)"
-          >
-            <PackageMinus className={getIconClass(activeTab === 'stock-out')} />
-            {!collapsed && <span className="flex-1 text-left">Stock-Out</span>}
-          </button>
-        )}
-
-        {/* 3. Transfer Asset (Includes Custody Transfers & Model 22 Returns) */}
-        {role === UserRole.DATA_ENCODER && (
-          <button
-            onClick={() => setActiveTab('transfer-asset')}
-            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer ${
-              activeTab === 'transfer-asset'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
-            }`}
-            title="Asset Transfer & Returns"
-          >
-            <ArrowRightLeft className={getIconClass(activeTab === 'transfer-asset')} />
-            {!collapsed && <span className="flex-1 text-left">Asset Transfer</span>}
-          </button>
-        )}
-
-        {/* 4. Reports */}
-        {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
-          <button
-            onClick={() => setActiveTab('reports')}
-            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer ${
-              activeTab === 'reports'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
-            }`}
-            title="Reports"
-          >
-            <FileSpreadsheet className={getIconClass(activeTab === 'reports')} />
-            {!collapsed && <span className="flex-1 text-left">Reports</span>}
-          </button>
-        )}
-
-        {/* 5. Audit Log */}
-        {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
-          <button
-            onClick={() => setActiveTab('audit')}
-            className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-semibold transition cursor-pointer ${
-              activeTab === 'audit'
-                ? 'bg-[#11442B] text-white shadow-xs font-bold'
-                : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80 font-medium'
-            }`}
-            title="Audit Log"
-          >
-            <ShieldCheck className={getIconClass(activeTab === 'audit')} />
-            {!collapsed && <span className="flex-1 text-left">Audit Log</span>}
-          </button>
-        )}
-
-        {/* 6. Settings Dropdown (Users, Roles, Employees, Departments, Locations, Stores) */}
-        {(role === UserRole.SYSTEM_ADMIN || role === UserRole.DEPARTMENT_HEAD || role === UserRole.DATA_ENCODER) && (
-          <div>
-            <button
-              onClick={() => toggleSection('admin')}
-              className={`group w-full flex items-center ${collapsed ? 'justify-center px-0' : 'justify-between px-3.5'} py-2.5 rounded-xl transition cursor-pointer font-semibold ${
-                activeTab.startsWith('settings')
-                  ? 'bg-[#11442B] text-white shadow-xs font-bold'
-                  : 'text-emerald-100/75 hover:bg-[#0B2C1B]/80 hover:text-white font-medium'
-              }`}
-              title="Settings"
+      <nav
+        aria-label="Desktop navigation"
+        className="p-3 space-y-5 overflow-y-auto flex-1 text-xs"
+      >
+        {getNavigationGroups(role).map((group) => (
+          <section key={group.label} aria-label={group.label}>
+            <h2
+              className={
+                collapsed
+                  ? 'sr-only'
+                  : 'px-3 mb-2 text-[10px] uppercase tracking-wider font-bold text-emerald-200/50'
+              }
             >
-              <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
-                <Settings className={getIconClass(activeTab.startsWith('settings'))} />
-                {!collapsed && <span>Settings</span>}
-              </div>
-              {!collapsed && (
-                openSections.admin ? <ChevronDown className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              )}
-            </button>
-            {!collapsed && openSections.admin && (
-              <div className="pl-6 pr-2 py-1 space-y-1 text-emerald-200/80">
-                <button
-                  onClick={() => setActiveTab('settings-users')}
-                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
-                    activeTab === 'settings-users' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
-                  }`}
-                >
-                  <Users className={getSubIconClass(activeTab === 'settings-users')} />
-                  <span>Users</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('settings-matrix')}
-                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
-                    activeTab === 'settings-matrix' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
-                  }`}
-                >
-                  <Shield className={getSubIconClass(activeTab === 'settings-matrix')} />
-                  <span>Roles</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('settings')}
-                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
-                    activeTab === 'settings' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
-                  }`}
-                >
-                  <UserCheck className={getSubIconClass(activeTab === 'settings')} />
-                  <span>Employees</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('settings-config')}
-                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
-                    activeTab === 'settings-config' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
-                  }`}
-                >
-                  <Building2 className={getSubIconClass(activeTab === 'settings-config')} />
-                  <span>Departments</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('settings-config')}
-                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
-                    activeTab === 'settings-config' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
-                  }`}
-                >
-                  <MapPin className={getSubIconClass(activeTab === 'settings-config')} />
-                  <span>Locations</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('settings-config')}
-                  className={`group/sub w-full flex items-center gap-2.5 text-left py-1.5 px-2.5 rounded-lg transition cursor-pointer text-xs ${
-                    activeTab === 'settings-config' ? 'bg-[#165637] text-white font-bold' : 'hover:bg-[#0B2C1B]/60 hover:text-white font-medium'
-                  }`}
-                >
-                  <Warehouse className={getSubIconClass(activeTab === 'settings-config')} />
-                  <span>Stores</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+              {group.label}
+            </h2>
+            <div className="space-y-1">
+              {group.pages.map((page) => {
+                const Icon = navigationIcons[page.id];
+                return (
+                  <button
+                    key={page.id}
+                    onClick={() => setActiveTab(page.id)}
+                    aria-label={page.label}
+                    title={page.label}
+                    aria-current={activeTab === page.id ? 'page' : undefined}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition cursor-pointer ${
+                      activeTab === page.id
+                        ? 'bg-[#11442B] text-white border-l-4 border-[#FCDD09]'
+                        : 'text-emerald-100/75 hover:text-white hover:bg-[#0B2C1B]/80'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0 text-amber-300" />
+                    {!collapsed && (
+                      <span className="flex-1 text-left">{page.label}</span>
+                    )}
+                    {page.id === 'approvals' &&
+                      pendingApprovalsCount > 0 &&
+                      !collapsed && (
+                        <span className="px-1.5 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950">
+                          {pendingApprovalsCount}
+                        </span>
+                      )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </nav>
 
       {/* Official Pinned User Profile and Sign-Out at Bottom */}
@@ -374,7 +197,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           <div className="flex flex-col items-center gap-2">
             <div
               className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#125835] to-[#258957] border border-amber-400/40 text-white flex items-center justify-center font-bold text-xs"
-              title={user?.fullNameEn && user.fullNameEn !== roleTitle ? `${user.fullNameEn} (${roleTitle})` : (user?.fullNameEn || roleTitle)}
+              title={`${user?.fullNameEn || roleTitle} (${roleTitle})`}
             >
               {getInitials(user?.fullNameEn)}
             </div>
