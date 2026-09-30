@@ -10,7 +10,7 @@ export enum ItemStatus {
   PENDING_STOCK_IN = 'PENDING_STOCK_IN', // Registered by Data Encoder, waiting for Dept Head approval
   AVAILABLE = 'AVAILABLE',               // In Store, ready to be issued
   PENDING_STOCK_OUT = 'PENDING_STOCK_OUT', // Stock out registered, waiting for approval
-  ISSUED = 'ISSUED',                     // Issued/In-Use by an employee or department
+  ISSUED = 'ISSUED',                     // Issued to an employee or department
   UNDER_TRANSFER = 'UNDER_TRANSFER',     // In transit between locations/employees
   DISPOSED = 'DISPOSED',                 // Delisted
 }

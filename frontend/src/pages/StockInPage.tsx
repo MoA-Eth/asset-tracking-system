@@ -60,7 +60,7 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
     className: 'bg-blue-100 text-blue-800 border-blue-200',
   },
   [ItemStatus.ISSUED]: {
-    label: 'Issued (In-Use)',
+    label: 'Issued',
     className: 'bg-blue-100 text-blue-800 border-blue-200',
   },
 };
@@ -1283,7 +1283,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
               {items.filter((i) => i.status === ItemStatus.AVAILABLE).length} Available
             </span>
             <span className="bg-blue-100 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded font-bold">
-              {items.filter((i) => i.status === ItemStatus.ISSUED).length} In-Use
+              {items.filter((i) => i.status === ItemStatus.ISSUED).length} Issued
             </span>
           </div>
         </div>
