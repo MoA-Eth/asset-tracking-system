@@ -948,6 +948,17 @@ export class StoreService {
 
     const locationUtilization = locations.map((loc) => {
       const locItems = allItems.filter((i) => i.storeLocationId === loc.id);
+      const locAvailable = locItems.filter((i) => i.status === 'AVAILABLE');
+      const locIssued    = locItems.filter((i) => i.status === 'ISSUED');
+      const locPending   = locItems.filter((i) =>
+        i.status === 'PENDING_STOCK_IN' || i.status === 'PENDING_STOCK_OUT',
+      );
+      // category breakdown per location
+      const locCategoryBreakdown = Object.values(AssetCategory).map((cat) => {
+        const matching = locItems.filter((i) => i.category === cat);
+        return { category: cat, count: matching.length, totalValueETB: sum(matching) };
+      }).filter((c) => c.count > 0);
+
       return {
         id: loc.id,
         siteName: loc.siteName,
@@ -956,8 +967,15 @@ export class StoreService {
         isCentralStore: loc.isCentralStore,
         itemCount: locItems.length,
         totalValueETB: sum(locItems),
+        availableCount: locAvailable.length,
+        availableValueETB: sum(locAvailable),
+        issuedCount: locIssued.length,
+        issuedValueETB: sum(locIssued),
+        pendingCount: locPending.length,
+        categoryBreakdown: locCategoryBreakdown,
       };
     });
+
 
     const categoryBreakdown = Object.values(AssetCategory).map((cat) => {
       const matching = allItems.filter((i) => i.category === cat);
