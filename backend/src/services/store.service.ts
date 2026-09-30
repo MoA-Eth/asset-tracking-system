@@ -440,6 +440,10 @@ export class StoreService {
     const recipient = payload.recipientEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }) : null;
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
+    const notesText = payload.remark
+      ? `${payload.purpose} (Remark: ${payload.remark})`
+      : payload.purpose;
+
     await prisma.item.update({
       where: { id: item.id },
       data: {
@@ -454,7 +458,7 @@ export class StoreService {
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
             ifmisSlipNumber: payload.ifmisSlipNumber,
-            notes: payload.purpose,
+            notes: notesText,
           },
         },
       },
@@ -473,7 +477,7 @@ export class StoreService {
         requestedById: payload.registeredById,
         recipientEmployeeId: payload.recipientEmployeeId,
         targetDepartmentId: payload.targetDepartmentId,
-        purposeOrRemarks: payload.purpose,
+        purposeOrRemarks: notesText,
         status: 'PENDING' as any,
         createdAtGc: today.gc,
         createdAtEc: today.ec,

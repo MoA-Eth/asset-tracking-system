@@ -22,6 +22,7 @@ import {
 import { api } from '../api/client';
 import { Modal } from '../components/ui/Modal';
 import { CustodyVoucherModal } from '../components/ui/CustodyVoucherModal';
+import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
 import { ConditionBadge } from '../components/ui/Badge';
 import { useToast } from '../context/ToastContext';
@@ -34,8 +35,9 @@ import {
   Department,
   Employee,
   UserRole,
+  Model22Voucher,
 } from '../types/asset-management';
-import { formatETB } from '../utils/eth-date';
+import { formatETB, formatGcToEc } from '../utils/eth-date';
 import { getSystemSettings } from '../utils/system-settings';
 
 interface StockOutPageProps {
@@ -82,7 +84,7 @@ interface StockOutFormProps {
   departments: Department[];
   employees: Employee[];
   onCancel: () => void;
-  onSuccess: (result: TransactionApproval) => void;
+  onSuccess: (result: TransactionApproval, voucher?: Model22Voucher) => void;
 }
 
 const StockOutForm: React.FC<StockOutFormProps> = ({
@@ -95,26 +97,66 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
-  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([availableItems[0]?.id ?? '']);
-  const [recipientEmployeeId, setRecipientEmployeeId] = useState(employees[0]?.id ?? '');
-  const [targetDepartmentId, setTargetDepartmentId] = useState(employees[0]?.departmentId ?? '');
-  const [ifmisSlipNumber, setIfmisSlipNumber] = useState('');
-  const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(new Date().toISOString().split('T')[0]);
-  const [attachmentFileName, setAttachmentFileName] = useState('');
-  const [purpose, setPurpose] = useState('');
-  const [itemSearch, setItemSearch] = useState('');
+
+  // Selected store item
+  const initialItem = availableItems[0];
+  const [selectedItemId, setSelectedItemId] = useState<string>(initialItem?.id ?? '');
+
+  // Header fields matching photo
+  const [model22No, setModel22No] = useState<string>('0004653/A Inventory');
+  const [issuedDateGc, setIssuedDateGc] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [transactionType, setTransactionType] = useState<string>('Move Order Issue');
+  const [destinationDepartmentId, setDestinationDepartmentId] = useState<string>(
+    employees[0]?.departmentId ?? departments[0]?.id ?? ''
+  );
+  const [recipientEmployeeId, setRecipientEmployeeId] = useState<string>(employees[0]?.id ?? '');
+
+  // Line item particulars matching photo columns
+  const [itemCode, setItemCode] = useState<string>(initialItem?.itemCode ?? '');
+  const [itemDescription, setItemDescription] = useState<string>(initialItem?.name ?? '');
+  const [uom, setUom] = useState<string>(initialItem?.uom ?? 'EA');
+  const [subInventory, setSubInventory] = useState<string>(
+    initialItem?.subInventory ?? initialItem?.storeLocation?.siteName ?? 'Spareparts'
+  );
+  const [itemCategory, setItemCategory] = useState<string>(
+    initialItem?.itemCategoryDisplay ?? initialItem?.category?.replace(/_/g, ' ') ?? 'Spare parts'
+  );
+  const [lotBatchNo, setLotBatchNo] = useState<string>(initialItem?.lotBatchNo ?? '');
+  const [serialNo, setSerialNo] = useState<string>(initialItem?.serialNumber ?? '');
+  const [printedPadFrom, setPrintedPadFrom] = useState<string>(initialItem?.printedPadFrom ?? '');
+  const [printedPadTo, setPrintedPadTo] = useState<string>(initialItem?.printedPadTo ?? '');
+  const [quantity, setQuantity] = useState<number>(1);
+  const [unitPrice, setUnitPrice] = useState<number>(initialItem?.unitCostETB ?? 18963.5);
+  const [transportationCost, setTransportationCost] = useState<number>(0);
+  const [remark, setRemark] = useState<string>('');
+  const [purpose, setPurpose] = useState<string>('Move Order Issue for Ministry Operations');
+  const [attachmentFileName, setAttachmentFileName] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
 
-  const toggleItemSelection = (id: string) => {
-    setSelectedItemIds((prev) =>
-      prev.includes(id) ? (prev.length > 1 ? prev.filter((i) => i !== id) : prev) : [...prev, id]
-    );
+  // Auto-populate when an item is selected from store
+  const handleItemSelect = (id: string) => {
+    setSelectedItemId(id);
+    const item = availableItems.find((i) => i.id === id);
+    if (item) {
+      setItemCode(item.itemCode || '');
+      setItemDescription(item.name || '');
+      setUom(item.uom || 'EA');
+      setSubInventory(item.subInventory || item.storeLocation?.siteName || 'Spareparts');
+      setItemCategory(item.itemCategoryDisplay || item.category?.replace(/_/g, ' ') || 'Spare parts');
+      setLotBatchNo(item.lotBatchNo || '');
+      setSerialNo(item.serialNumber || '');
+      setPrintedPadFrom(item.printedPadFrom || '');
+      setPrintedPadTo(item.printedPadTo || '');
+      setUnitPrice(item.unitCostETB || 0);
+    }
   };
 
   const handleEmployeeChange = (empId: string) => {
     setRecipientEmployeeId(empId);
     const emp = employees.find((e) => e.id === empId);
-    if (emp) setTargetDepartmentId(emp.departmentId);
+    if (emp && emp.departmentId) {
+      setDestinationDepartmentId(emp.departmentId);
+    }
   };
 
   const handleSimulateUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,55 +166,62 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   };
 
   const handleReset = () => {
-    setSelectedItemIds([availableItems[0]?.id ?? '']);
+    const it = availableItems[0];
+    setSelectedItemId(it?.id ?? '');
+    setModel22No('0004653/A Inventory');
+    setIssuedDateGc(new Date().toISOString().split('T')[0]);
+    setTransactionType('Move Order Issue');
+    setDestinationDepartmentId(employees[0]?.departmentId ?? departments[0]?.id ?? '');
     setRecipientEmployeeId(employees[0]?.id ?? '');
-    setTargetDepartmentId(employees[0]?.departmentId ?? '');
-    setIfmisSlipNumber('');
-    setIfmisSlipDateGc(new Date().toISOString().split('T')[0]);
+    setItemCode(it?.itemCode ?? '');
+    setItemDescription(it?.name ?? '');
+    setUom(it?.uom ?? 'EA');
+    setSubInventory(it?.subInventory ?? it?.storeLocation?.siteName ?? 'Spareparts');
+    setItemCategory(it?.itemCategoryDisplay ?? it?.category?.replace(/_/g, ' ') ?? 'Spare parts');
+    setLotBatchNo(it?.lotBatchNo ?? '');
+    setSerialNo(it?.serialNumber ?? '');
+    setPrintedPadFrom(it?.printedPadFrom ?? '');
+    setPrintedPadTo(it?.printedPadTo ?? '');
+    setQuantity(1);
+    setUnitPrice(it?.unitCostETB ?? 18963.5);
+    setTransportationCost(0);
+    setRemark('');
+    setPurpose('Move Order Issue for Ministry Operations');
     setAttachmentFileName('');
-    setPurpose('');
-    setItemSearch('');
     setFormError(null);
   };
 
-  const itemQ = itemSearch.trim().toLowerCase();
-  const displayedAvailableItems = availableItems.filter((item) => {
-    if (!itemQ) return true;
-    return (
-      (item.name || '').toLowerCase().includes(itemQ) ||
-      (item.itemCode || '').toLowerCase().includes(itemQ) ||
-      (item.serialNumber || '').toLowerCase().includes(itemQ) ||
-      (item.ifmisSlipNumber || '').toLowerCase().includes(itemQ)
-    );
-  });
+  const totalAmount = quantity * unitPrice;
+  const grandTotal = totalAmount + transportationCost;
+  const ethDate = formatGcToEc(issuedDateGc);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (selectedItemIds.length === 0) {
-      const msg = 'Please select at least one available store item to issue.';
+
+    if (!selectedItemId) {
+      const msg = 'Please select an available store item to issue.';
       setFormError(msg);
       toast.warning('Selection Required', msg);
       return;
     }
-    if (!ifmisSlipNumber.trim()) {
-      const msg = 'IFMIS Stock-Out Slip Number (Model 20) is mandatory.';
+    if (!model22No.trim()) {
+      const msg = 'Model 22 Voucher Number is mandatory.';
       setFormError(msg);
       toast.warning('Voucher Required', msg);
       return;
     }
-    if (!purpose.trim()) {
-      const msg = 'Please provide the official purpose/requisition reason.';
+    if (!recipientEmployeeId) {
+      const msg = 'Please select the recipient staff member.';
       setFormError(msg);
-      toast.warning('Purpose Required', msg);
+      toast.warning('Recipient Required', msg);
       return;
     }
 
     const policy = getSystemSettings().historicalDataAttachmentPolicy;
     const isAttachmentRequired = policy === 'REQUIRED';
-
     if (isAttachmentRequired && !attachmentFileName) {
-      const msg = 'System Policy configured in Settings requires a scanned IFMIS issue voucher attachment.';
+      const msg = 'System Policy requires a scanned IFMIS issue voucher attachment.';
       setFormError(msg);
       toast.warning('Attachment Required', msg);
       return;
@@ -180,29 +229,74 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
 
     setSubmitting(true);
     const registeredById = user?.id || employees[0]?.id || '';
+    const selectedItem = availableItems.find((i) => i.id === selectedItemId);
+    const recipient = employees.find((e) => e.id === recipientEmployeeId);
+    const dept = departments.find((d) => d.id === destinationDepartmentId);
 
     try {
-      let lastRes: TransactionApproval | null = null;
-      for (const itemId of selectedItemIds) {
-        lastRes = await api.registerStockOut({
-          itemId,
-          recipientEmployeeId,
-          targetDepartmentId,
-          ifmisSlipNumber: ifmisSlipNumber.trim(),
-          ifmisSlipDateGc,
-          ifmisSlipAttachmentUrl: attachmentFileName ? `/slips/${attachmentFileName}` : undefined,
-          purpose,
-          registeredById,
-        });
-      }
-      if (lastRes) {
-        const recipient = employees.find((e) => e.id === recipientEmployeeId);
-        toast.success(
-          'Stock-Out Requisition Submitted',
-          `Model 20 voucher (${ifmisSlipNumber.trim()}) for ${selectedItemIds.length} item(s) to ${recipient?.fullNameEn || 'staff'} submitted for verification.`
-        );
-        onSuccess(lastRes);
-      }
+      const result = await api.registerStockOut({
+        itemId: selectedItemId,
+        recipientEmployeeId,
+        targetDepartmentId: destinationDepartmentId,
+        ifmisSlipNumber: model22No.trim(),
+        ifmisSlipDateGc: issuedDateGc,
+        ifmisSlipAttachmentUrl: attachmentFileName ? `/slips/${attachmentFileName}` : undefined,
+        purpose: purpose.trim() || 'Move Order Issue for Ministry Operations',
+        registeredById,
+        transactionType,
+        destination: dept ? `${dept.nameEn} (${dept.code})` : destinationDepartmentId,
+        subInventory,
+        lotBatchNo,
+        printedPadFrom,
+        printedPadTo,
+        quantity,
+        unitPrice,
+        totalAmount,
+        transportationCost,
+        remark: remark.trim() || undefined,
+      });
+
+      const voucher: Model22Voucher = {
+        model22No: model22No.trim(),
+        issuedDateGc,
+        issuedDateEc: ethDate,
+        transactionType,
+        destination: dept ? `${dept.nameEn} (${dept.code})` : destinationDepartmentId,
+        destinationDepartmentId,
+        subInventory,
+        issuedByName: user?.fullNameEn || 'Store Custodian',
+        receivedByName: recipient?.fullNameEn || 'Staff Recipient',
+        receivedByEmployeeId: recipientEmployeeId,
+        items: [
+          {
+            sNo: 1,
+            itemCode: itemCode || selectedItem?.itemCode || '—',
+            itemDescription: itemDescription || selectedItem?.name || '—',
+            uom,
+            subInventory,
+            itemCategory,
+            lotBatchNo,
+            serialNo,
+            printedPadFrom,
+            printedPadTo,
+            quantity,
+            unitPrice,
+            totalAmount,
+            remark,
+          },
+        ],
+        total: totalAmount,
+        transportationCost,
+        grandTotal,
+        reportPrintedBy: user?.payrollId || 'store.keeper',
+        reportPrintedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+      };
+
+      toast.success(
+        'Model 22 Issue Voucher Submitted',
+        `Receipt for Articles Or Property Issued (${model22No.trim()}) to ${recipient?.fullNameEn || 'staff'} registered for approval.`
+      );
+      onSuccess(result, voucher);
     } catch (err: any) {
       const errMsg = err.message || 'Server error';
       setFormError(`Stock-Out failed: ${errMsg}`);
@@ -224,109 +318,83 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
           <span>{formError}</span>
         </div>
       )}
-      {/* Workflow Banner */}
-      <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 flex items-start gap-2">
-        <FileText className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-        <p className="text-xs text-blue-900 leading-relaxed">
-          <strong>Batch Requisition Rule:</strong> You can select multiple items to issue under a single IFMIS Model 20 Slip Number. Requests stay{' '}
-          <span className="text-amber-800 bg-amber-100 px-1 rounded font-bold font-mono">PENDING</span> until approved.
+
+      {/* Official MoA Form Header Banner (Exact match to provided photo) */}
+      <div className="bg-[#4b5563] text-white py-3 px-4 text-center rounded-xl shadow-xs">
+        <h3 className="text-xs font-semibold tracking-wide uppercase">
+          The Federal Democratic Republic of Ethiopia • Ministry of Agriculture
+        </h3>
+        <h4 className="text-sm font-extrabold tracking-tight mt-0.5">
+          Receipt For Articles Or Property Issued (Model 22)
+        </h4>
+        <p className="text-[10px] text-slate-200 font-amharic mt-0.5">
+          የዕቃ ወጪ ማዘዣ እና መረከቢያ ሰነድ (ሞዴል 22)
         </p>
       </div>
 
-      {/* Section 1 — Select Item(s) */}
-      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-            1. Select Items to Issue from Store ({selectedItemIds.length} Selected)
-          </h3>
-          <span className="text-[10px] text-blue-800 font-bold bg-blue-100 px-2 py-0.5 rounded border border-blue-200 uppercase">
-            Multi-Item Batch Mode
-          </span>
-        </div>
+      {/* ── Section 1: Header / Document Details ── */}
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+          <FileText className="w-3.5 h-3.5 text-blue-700" />
+          1. Issue Voucher Header Information
+        </h4>
 
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Filter available items by name, code, serial number..."
-            value={itemSearch}
-            onChange={(e) => setItemSearch(e.target.value)}
-            className="w-full pl-8 pr-8 py-1.5 bg-white border border-slate-300 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-500"
-          />
-          {itemSearch && (
-            <button
-              type="button"
-              onClick={() => setItemSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 transition cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
-        <div className="max-h-44 overflow-y-auto space-y-1.5 p-2 bg-white rounded-xl border border-slate-300">
-          {displayedAvailableItems.length === 0 ? (
-            <div className="py-4 text-center text-xs text-slate-400">
-              {itemSearch ? 'No available items match your search.' : 'No available items.'}
-            </div>
-          ) : (
-            displayedAvailableItems.map((item) => {
-              const isSelected = selectedItemIds.includes(item.id);
-              return (
-                <label
-                  key={item.id}
-                  className={`flex items-center justify-between p-2 rounded-lg border transition cursor-pointer text-xs ${
-                    isSelected ? 'bg-blue-50/80 border-blue-400' : 'bg-white border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleItemSelection(item.id)}
-                      className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer shrink-0"
-                    />
-                    <div className="truncate">
-                      <span className="font-mono font-bold text-blue-800 mr-2">{item.itemCode}</span>
-                      <span className="font-semibold text-slate-900">{item.name}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-[10px] shrink-0 ml-2">
-                    <ConditionBadge condition={item.condition} />
-                    <span className="font-mono font-bold text-slate-700">{formatETB(item.unitCostETB)}</span>
-                  </div>
-                </label>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* Section 2 — Recipient */}
-      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-          2. Recipient Personnel & Department
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Recipient Staff Member *</label>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Model 22 No. *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. 0004653/A Inventory"
+              value={model22No}
+              onChange={(e) => setModel22No(e.target.value)}
+              className={`${inputClass} font-mono font-bold text-blue-950`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Issued Date (G.C.) *
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                required
+                value={issuedDateGc}
+                onChange={(e) => setIssuedDateGc(e.target.value)}
+                className={inputClass}
+              />
+              <span className="text-[10px] text-slate-500 font-mono block mt-1">
+                E.C.: {ethDate}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Transaction Type *
+            </label>
             <select
-              value={recipientEmployeeId}
-              onChange={(e) => handleEmployeeChange(e.target.value)}
+              value={transactionType}
+              onChange={(e) => setTransactionType(e.target.value)}
               className={inputClass}
             >
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.fullNameEn} ({emp.payrollId})
-                </option>
-              ))}
+              <option value="Move Order Issue">Move Order Issue</option>
+              <option value="Direct Store Issue">Direct Store Issue</option>
+              <option value="Department Assignment">Department Assignment</option>
+              <option value="Project Allocation">Project Allocation</option>
             </select>
           </div>
+
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Assigning Directorate *</label>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Destination Directorate *
+            </label>
             <select
-              value={targetDepartmentId}
-              onChange={(e) => setTargetDepartmentId(e.target.value)}
+              value={destinationDepartmentId}
+              onChange={(e) => setDestinationDepartmentId(e.target.value)}
               className={inputClass}
             >
               {departments.map((dept) => (
@@ -339,46 +407,282 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
         </div>
       </div>
 
-      {/* Section 3 — IFMIS Slip & Purpose */}
-      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-          3. IFMIS Stock-Out Reference — የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 20)
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">IFMIS / Model 20 Slip Number *</label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. M20-IFMIS-SIV-2024-0412"
-              value={ifmisSlipNumber}
-              onChange={(e) => setIfmisSlipNumber(e.target.value)}
-              className={`${inputClass} font-mono`}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Slip Date *</label>
-            <input
-              type="date"
-              required
-              value={ifmisSlipDateGc}
-              onChange={(e) => setIfmisSlipDateGc(e.target.value)}
-              className={inputClass}
-            />
-          </div>
+      {/* ── Section 2: Flat Single-Item Particulars ── */}
+      <div className="p-4 rounded-xl bg-white border border-slate-300 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+            <PackageMinus className="w-3.5 h-3.5 text-blue-700" />
+            2. Issued Item Particulars (የሚወጣው ዕቃ ዝርዝር መረጃ)
+          </h4>
+          <span className="text-[10px] text-blue-800 font-bold bg-blue-100 px-2 py-0.5 rounded border border-blue-200">
+            Single Item Flat Mode
+          </span>
+        </div>
+
+        {/* Available item selector */}
+        <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200">
+          <label className="block text-xs font-bold text-blue-950 mb-1">
+            Select Available Store Item to Issue *
+          </label>
+          <select
+            value={selectedItemId}
+            onChange={(e) => handleItemSelect(e.target.value)}
+            className="w-full px-3 py-2 bg-white border border-blue-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            {availableItems.length === 0 ? (
+              <option value="">No items available in store</option>
+            ) : (
+              availableItems.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.itemCode} — {item.name} ({formatETB(item.unitCostETB)})
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+
+        {/* Flat Grid matching provided document columns */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Official Requisition Purpose / Justification *
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Item Description *
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. Assigned for national agricultural census survey field operations"
+              placeholder="e.g. Battery 12v - 70 Amp"
+              value={itemDescription}
+              onChange={(e) => setItemDescription(e.target.value)}
+              className={`${inputClass} font-medium`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Item Code (Inventory Code) *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. 103108101.0004"
+              value={itemCode}
+              onChange={(e) => setItemCode(e.target.value)}
+              className={`${inputClass} font-mono font-bold text-blue-800`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              UOM (Unit of Measure) *
+            </label>
+            <input
+              type="text"
+              value={uom}
+              onChange={(e) => setUom(e.target.value.toUpperCase())}
+              className={`${inputClass} font-mono uppercase text-center`}
+              placeholder="EA"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Sub Inventory *
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Spareparts / General Store"
+              value={subInventory}
+              onChange={(e) => setSubInventory(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Item Category *
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Spare parts / IT Equipment"
+              value={itemCategory}
+              onChange={(e) => setItemCategory(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Lot / Batch No.
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. LOT-2026"
+              value={lotBatchNo}
+              onChange={(e) => setLotBatchNo(e.target.value)}
+              className={`${inputClass} font-mono`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Serial Number
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. SN-49202"
+              value={serialNo}
+              onChange={(e) => setSerialNo(e.target.value)}
+              className={`${inputClass} font-mono`}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Sequence # Printed Pad (From / To)
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="From"
+                value={printedPadFrom}
+                onChange={(e) => setPrintedPadFrom(e.target.value)}
+                className={`${inputClass} font-mono text-center`}
+              />
+              <input
+                type="text"
+                placeholder="To"
+                value={printedPadTo}
+                onChange={(e) => setPrintedPadTo(e.target.value)}
+                className={`${inputClass} font-mono text-center`}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Quantity *
+            </label>
+            <input
+              type="number"
+              min="1"
+              required
+              value={quantity}
+              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+              className={`${inputClass} font-mono text-right font-bold`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Unit Price (ETB) *
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              required
+              value={unitPrice}
+              onChange={(e) => setUnitPrice(Math.max(0, parseFloat(e.target.value) || 0))}
+              className={`${inputClass} font-mono text-right font-bold text-slate-900`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Transportation Cost (ETB)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={transportationCost}
+              onChange={(e) => setTransportationCost(Math.max(0, parseFloat(e.target.value) || 0))}
+              className={`${inputClass} font-mono text-right`}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Total Amount (ETB)
+            </label>
+            <div className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-mono font-bold text-right text-slate-900">
+              {formatETB(totalAmount)}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Grand Total (ETB)
+            </label>
+            <div className="px-3 py-2 bg-blue-50 border border-blue-300 rounded-xl text-xs font-mono font-black text-right text-blue-950">
+              {formatETB(grandTotal)}
+            </div>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Remark / Notes
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Routine maintenance issue for central pool"
+              value={remark}
+              onChange={(e) => setRemark(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Requisition Purpose / Reason *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Move Order Issue for Agricultural Operations"
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
               className={inputClass}
             />
           </div>
+        </div>
+      </div>
+
+      {/* ── Section 3: Signatures & Custody ── */}
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+          <User className="w-3.5 h-3.5 text-blue-700" />
+          3. Custody & Signatures (ማረጋገጫ እና ፊርማዎች)
+        </h4>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Issued By : Name (Store Custodian)
+            </label>
+            <div className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs text-slate-700 font-medium flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>{user?.fullNameEn || 'Current User (Store Keeper)'}</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Received By : Name (Recipient Staff Member) *
+            </label>
+            <select
+              value={recipientEmployeeId}
+              onChange={(e) => handleEmployeeChange(e.target.value)}
+              className={inputClass}
+            >
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.fullNameEn} ({emp.payrollId})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="sm:col-span-2">
             {(() => {
               const policy = getSystemSettings().historicalDataAttachmentPolicy;
@@ -386,7 +690,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
               return (
                 <>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Attach Scanned Issue Voucher {isAttachmentReq ? '*' : <span className="text-slate-400 font-normal">(Optional per System Settings)</span>}
+                    Attach Scanned Issue Voucher {isAttachmentReq ? '*' : <span className="text-slate-400 font-normal">(Optional)</span>}
                   </label>
                   <div className={`flex items-center gap-2 p-2.5 rounded-xl border border-dashed bg-white ${
                     isAttachmentReq && !attachmentFileName ? 'border-amber-400' : 'border-slate-300'
@@ -441,7 +745,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
             className="px-5 py-2 bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-2 cursor-pointer"
           >
             {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-            Submit Stock-Out for Dept Head Approval
+            Submit Model 22 Issue Voucher
           </button>
         </div>
       </div>
@@ -458,6 +762,8 @@ interface StockOutTableProps {
   onNavigate: (tab: string) => void;
   onOpenVoucher: (approval: TransactionApproval) => void;
   onOpenReturn: (itemCode: string) => void;
+  onPrintModel22?: (approval: TransactionApproval) => void;
+  highlightApprovalId?: string;
 }
 
 const StockOutTable: React.FC<StockOutTableProps> = ({
@@ -467,10 +773,12 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
   onNavigate,
   onOpenVoucher,
   onOpenReturn,
+  onPrintModel22,
+  highlightApprovalId,
 }) => {
   const [search, setSearch] = useState('');
-  const [sortField, setSortField] = useState<StockOutSortField>('itemCode');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState<StockOutSortField>('createdAtGc');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const handleSort = (field: StockOutSortField) => {
     if (sortField === field) {
@@ -589,7 +897,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                   className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-36 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>ሞዴል 20 / IFMIS Slip</span>
+                    <span>Model 22 / Slip No.</span>
                     {renderSortIcon('ifmisSlipNumber')}
                   </div>
                 </th>
@@ -598,7 +906,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                   className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition min-w-[150px] max-w-[200px]"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>Purpose</span>
+                    <span>Purpose / Remark</span>
                     {renderSortIcon('purposeOrRemarks')}
                   </div>
                 </th>
@@ -607,7 +915,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                   className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>Date</span>
+                    <span>Date (G.C.)</span>
                     {renderSortIcon('createdAtGc')}
                   </div>
                 </th>
@@ -620,49 +928,69 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                     {renderSortIcon('status')}
                   </div>
                 </th>
-                <th className="px-3 py-2.5 font-semibold text-slate-600 text-right w-36 whitespace-nowrap">Actions</th>
+                <th className="px-3 py-2.5 font-semibold text-slate-600 text-right w-44 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {sorted.map((approval) => (
-                <tr key={approval.id} className="hover:bg-slate-50 transition">
-                  <td className="px-3 py-2.5 font-mono font-bold text-blue-700 whitespace-nowrap w-32">{approval.itemCode}</td>
-                  <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[170px] max-w-[220px] truncate">{approval.itemName}</td>
-                  <td className="px-3 py-2.5 font-mono text-slate-600 whitespace-nowrap w-36">
-                    {approval.ifmisSlipNumber || '—'}
-                  </td>
-                  <td className="px-3.5 py-2.5 text-slate-600 min-w-[150px] max-w-[200px] truncate">
-                    {approval.purposeOrRemarks || '—'}
-                  </td>
-                  <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap w-28">
-                    {approval.createdAtGc ? approval.createdAtGc.split('T')[0] : '—'}
-                  </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap w-28">
-                    <ApprovalStatusBadge status={approval.status} />
-                  </td>
-                  <td className="px-3 py-2.5 text-right whitespace-nowrap w-36">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => onOpenVoucher(approval)}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
-                        title="Print Handover Certificate (Model 20)"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                      </button>
-                      {approval.status === ApprovalStatus.APPROVED && (
+              {sorted.map((approval) => {
+                const isJustSubmitted = highlightApprovalId && highlightApprovalId === approval.id;
+                return (
+                  <tr
+                    key={approval.id}
+                    className={`transition ${
+                      isJustSubmitted ? 'bg-blue-50/90 border-l-4 border-blue-600 font-medium' : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <td className="px-3 py-2.5 font-mono font-bold text-blue-700 whitespace-nowrap w-32">
+                      <div className="flex items-center gap-1.5">
+                        <span>{approval.itemCode}</span>
+                        {isJustSubmitted && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-blue-700 text-white tracking-wider animate-pulse">
+                            New
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[170px] max-w-[220px] truncate">
+                      {approval.itemName}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-slate-600 whitespace-nowrap w-36">
+                      {approval.ifmisSlipNumber || '—'}
+                    </td>
+                    <td className="px-3.5 py-2.5 text-slate-600 min-w-[150px] max-w-[200px] truncate">
+                      {approval.purposeOrRemarks || '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap w-28">
+                      {approval.createdAtGc ? approval.createdAtGc.split('T')[0] : '—'}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap w-28">
+                      <ApprovalStatusBadge status={approval.status} />
+                    </td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap w-44">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
-                          onClick={() => onOpenReturn(approval.itemCode)}
-                          className="px-2 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 transition cursor-pointer font-bold text-[10px] flex items-center gap-1 border border-purple-300"
-                          title="Return Issued Item to Store (Model 22)"
+                          onClick={() => (onPrintModel22 ? onPrintModel22(approval) : onOpenVoucher(approval))}
+                          className="px-2 py-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-800 border border-slate-300 hover:border-blue-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                          title="Print Official Model 22 Receipt"
                         >
-                          <RotateCcw className="w-3 h-3" />
-                          Model 22 Return
+                          <Printer className="w-3.5 h-3.5 text-blue-700" />
+                          <span>Print M22</span>
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {approval.status === ApprovalStatus.APPROVED && (
+                          <button
+                            onClick={() => onOpenReturn(approval.itemCode)}
+                            className="px-2 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 transition cursor-pointer font-bold text-[10px] flex items-center gap-1 border border-purple-300"
+                            title="Return Issued Item to Store (Model 22)"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Return
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -691,6 +1019,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavigate, mode = 'stock-out' }) => {
+  const { user } = useAuth();
   const toast = useToast();
   const [availableItems, setAvailableItems] = useState<ItemWithRelations[]>([]);
   const [stockOutApprovals, setStockOutApprovals] = useState<TransactionApproval[]>([]);
@@ -702,6 +1031,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [lastSubmitted, setLastSubmitted] = useState<TransactionApproval | null>(null);
 
+  const [activeVoucher, setActiveVoucher] = useState<Model22Voucher | null>(null);
   const [selectedVoucherApproval, setSelectedVoucherApproval] = useState<TransactionApproval | null>(null);
   const [returnItem, setReturnItem] = useState<ItemWithRelations | null>(null);
 
@@ -709,24 +1039,24 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     switch (mode) {
       case 'assign':
         return {
-          badge: 'Asset Custody Workflow • የንብረት ድልድል እና ወጪ (ሞዴል 20)',
-          title: 'Asset Assignment & Custody Issue (የንብረት ድልድል - ሞዴል 20)',
-          subtitle: 'Assign store inventory items to custodian personnel using official IFMIS Model 20 Issue Slips.',
-          buttonLabel: 'Assign Asset (Model 20)',
+          badge: 'Asset Custody Workflow • የንብረት ድልድል እና ወጪ (ሞዴል 22/20)',
+          title: 'Asset Assignment & Custody Issue (የንብረት ድልድል - ሞዴል 22)',
+          subtitle: 'Assign store inventory items to custodian personnel using official Model 22 Issue Slips.',
+          buttonLabel: 'Assign Asset (Model 22)',
         };
       case 'transfer':
         return {
-          badge: 'Inter-Department Transfer Workflow • የንብረት ዝውውር (ሞዴል 20/22)',
-          title: 'Asset Transfer Registration (የንብረት ዝውውር - ሞዴል 20/22)',
+          badge: 'Inter-Department Transfer Workflow • የንብረት ዝውውር (ሞዴል 22)',
+          title: 'Asset Transfer Registration (የንብረት ዝውውር - ሞዴል 22)',
           subtitle: 'Transfer assets between departments, store locations, or employee custodians.',
           buttonLabel: 'Transfer Asset',
         };
       default:
         return {
-          badge: 'Outbound Store Issue • የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 20)',
-          title: 'Stock-Out — የዕቃ ወጪ ማዘዣ (ሞዴል 20)',
-          subtitle: 'Issue items from store following official IFMIS Model 20 Stock-Out vouchers (ሞዴል 20 / SIV).',
-          buttonLabel: 'Issue Asset',
+          badge: 'Outbound Store Issue • የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 22)',
+          title: 'Stock-Out — Receipt For Articles Or Property Issued (ሞዴል 22)',
+          subtitle: 'Issue items from store following official FDRE Ministry of Agriculture Model 22 vouchers (Move Order Issue).',
+          buttonLabel: 'Issue Asset (Model 22)',
         };
     }
   };
@@ -743,6 +1073,63 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     } catch {
       toast.error('Item Fetch Error', `Could not fetch details for item ${itemCode}`);
     }
+  };
+
+  const handlePrintModel22 = async (approval: TransactionApproval) => {
+    let itemDetails: ItemWithRelations | undefined;
+    try {
+      const items = await api.getItems({ search: approval.itemCode });
+      itemDetails = items.find((i) => i.itemCode === approval.itemCode) || items[0];
+    } catch {
+      // fallback to approval data
+    }
+
+    const targetDept = departments.find((d) => d.id === approval.targetDepartmentId);
+    const destination = targetDept ? `${targetDept.nameEn} (${targetDept.code})` : 'Central Operations';
+    const recipient = employees.find((e) => e.id === approval.recipientEmployeeId) || approval.recipientEmployee;
+    const requester = employees.find((e) => e.id === approval.requestedById) || approval.requestedBy;
+
+    const issuedDateGc = approval.createdAtGc ? approval.createdAtGc.split('T')[0] : new Date().toISOString().split('T')[0];
+    const issuedDateEc = approval.createdAtEc || formatGcToEc(issuedDateGc);
+    const unitPrice = itemDetails?.unitCostETB || 0;
+    const qty = 1;
+    const totalAmount = unitPrice * qty;
+
+    const voucher: Model22Voucher = {
+      model22No: approval.ifmisSlipNumber || '0004653/A Inventory',
+      issuedDateGc,
+      issuedDateEc,
+      transactionType: 'Move Order Issue',
+      destination,
+      destinationDepartmentId: approval.targetDepartmentId,
+      subInventory: itemDetails?.subInventory || 'Spareparts',
+      issuedByName: requester?.fullNameEn || user?.fullNameEn || 'Store Custodian',
+      receivedByName: recipient?.fullNameEn || 'Recipient Staff Member',
+      receivedByEmployeeId: approval.recipientEmployeeId,
+      items: [
+        {
+          sNo: 1,
+          itemCode: approval.itemCode,
+          itemDescription: approval.itemName,
+          uom: itemDetails?.uom || 'EA',
+          subInventory: itemDetails?.subInventory || 'Spareparts',
+          itemCategory: itemDetails?.itemCategoryDisplay || (itemDetails?.category as string) || 'Spare parts',
+          lotBatchNo: itemDetails?.lotBatchNo || undefined,
+          serialNo: itemDetails?.serialNumber || undefined,
+          quantity: qty,
+          unitPrice,
+          totalAmount,
+          remark: approval.purposeOrRemarks || '',
+        },
+      ],
+      total: totalAmount,
+      transportationCost: 0,
+      grandTotal: totalAmount,
+      reportPrintedBy: user?.payrollId || 'lidlyats',
+      reportPrintedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+    };
+
+    setActiveVoucher(voucher);
   };
 
   const fetchData = useCallback(async (isRefresh = false) => {
@@ -773,10 +1160,13 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     fetchData();
   }, [fetchData]);
 
-  const handleSuccess = (result: TransactionApproval) => {
+  const handleSuccess = (result: TransactionApproval, voucher?: Model22Voucher) => {
     setLastSubmitted(result);
     setIsModalOpen(false);
     fetchData(true);
+    if (voucher) {
+      setActiveVoucher(voucher);
+    }
   };
 
   if (loading) {
@@ -910,16 +1300,18 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
           refreshing={refreshing}
           onNavigate={onNavigate}
           onOpenVoucher={(appr) => setSelectedVoucherApproval(appr)}
+          onPrintModel22={handlePrintModel22}
           onOpenReturn={(code) => handleOpenReturnByCode(code)}
+          highlightApprovalId={lastSubmitted?.id}
         />
       </div>
 
-      {/* ── Stock-Out Modal ── */}
+      {/* ── Stock-Out Modal (Model 22 Single-Item Form) ── */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Issue Item from Store (Stock-Out)"
-        subtitle="Submit an outbound issue request for Department Head approval"
+        title="Issue Item from Store — Receipt For Articles Or Property Issued (Model 22)"
+        subtitle="The Federal Democratic Republic of Ethiopia • Ministry of Agriculture"
         accentColor="blue"
         size="xl"
       >
@@ -939,7 +1331,14 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
         )}
       </Modal>
 
-      {/* ── Printable Custody Voucher Modal ── */}
+      {/* ── Official Model 22 Printable Voucher Modal ── */}
+      <Model22PrintModal
+        isOpen={!!activeVoucher}
+        onClose={() => setActiveVoucher(null)}
+        voucher={activeVoucher}
+      />
+
+      {/* ── Printable Custody Voucher Modal (Model 20 Legacy) ── */}
       <CustodyVoucherModal
         isOpen={!!selectedVoucherApproval}
         onClose={() => setSelectedVoucherApproval(null)}
