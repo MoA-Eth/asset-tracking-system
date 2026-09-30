@@ -980,6 +980,7 @@ export class StoreService {
     const issued = allItems.filter((i) => i.status === 'ISSUED');
     const pendingIn = allItems.filter((i) => i.status === 'PENDING_STOCK_IN');
     const pendingOut = allItems.filter((i) => i.status === 'PENDING_STOCK_OUT');
+    const inTransfer = allItems.filter((i) => i.status === 'UNDER_TRANSFER');
     const active = allItems.filter((i) => i.status !== 'DISPOSED');
 
     const sum = (arr: typeof allItems) => arr.reduce((s, i) => s + (i.unitCostETB || 0), 0);
@@ -1016,7 +1017,7 @@ export class StoreService {
       const locAvailable = locItems.filter((i) => i.status === 'AVAILABLE');
       const locIssued    = locItems.filter((i) => i.status === 'ISSUED');
       const locPending   = locItems.filter((i) =>
-        i.status === 'PENDING_STOCK_IN' || i.status === 'PENDING_STOCK_OUT',
+        i.status === 'PENDING_STOCK_IN' || i.status === 'PENDING_STOCK_OUT' || i.status === 'UNDER_TRANSFER',
       );
       // category breakdown per location
       const locCategoryBreakdown = Object.values(AssetCategory).map((cat) => {
@@ -1060,6 +1061,7 @@ export class StoreService {
       issuedValuationETB: sum(issued),
       pendingStockInCount: pendingIn.length,
       pendingStockOutCount: pendingOut.length,
+      pendingTransferCount: inTransfer.length,
       pendingApprovalsCount: pendingApprovals,
       totalValuationETB: sum(active),
       unassignedItemsCount: unassignedItems.length,
