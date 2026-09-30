@@ -223,10 +223,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       target?.transactionType === 'STOCK_IN'
         ? 'Model 19 Stock-In'
         : target?.transactionType === 'STOCK_OUT'
-        ? 'Model 20 Stock-Out'
+        ? 'Model 22 Stock-Out'
         : target?.transactionType === 'TRANSFER'
         ? 'Model 21 Transfer'
-        : 'Model 22 Return';
+        : 'Model 21 Return';
 
     setActionLoading(true);
     const approverId =
@@ -367,14 +367,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-50 text-sky-800 border border-sky-200">
             <PackageMinus className="w-3 h-3 text-sky-700" />
-            Model 20 (OUT)
+            Model 22 (OUT)
           </span>
         );
       case TransactionType.RETURN:
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-900 border border-amber-200">
             <RotateCcw className="w-3 h-3 text-amber-700" />
-            Model 22 (RET)
+            Model 21 (RET)
           </span>
         );
       case TransactionType.TRANSFER:
@@ -562,8 +562,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             >
               <option value="ALL">All Statutory Forms</option>
               <option value={TransactionType.STOCK_IN}>Model 19 (Stock-In Receipt)</option>
-              <option value={TransactionType.STOCK_OUT}>Model 20 (Stock-Out Issue)</option>
-              <option value={TransactionType.RETURN}>Model 22 (Return to Store)</option>
+              <option value={TransactionType.STOCK_OUT}>Model 22 (Stock-Out Issue)</option>
+              <option value={TransactionType.RETURN}>Model 21 (Return to Store)</option>
               <option value={TransactionType.TRANSFER}>Model 21 (Asset Transfer)</option>
             </select>
           </div>
@@ -1040,7 +1040,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   type="text"
                   placeholder={
                     selectedApproval.currentStage === 1
-                      ? 'e.g. Verified asset specifications against Model 19/20 voucher.'
+                      ? 'e.g. Verified asset specifications against the attached Model 19 / 21 / 22 voucher.'
                       : 'e.g. Authorized for release under official store custody directive.'
                   }
                   value={reviewRemarks}

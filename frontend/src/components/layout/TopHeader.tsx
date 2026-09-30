@@ -178,17 +178,17 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       case 'stock-in':
         return { title: 'Stock-In', am: 'የዕቃ መረከቢያ (ሞዴል 19)', icon: PackagePlus, iconColor: 'text-emerald-700' };
       case 'stock-out':
-        return { title: 'Stock-Out', am: 'የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 20)', icon: PackageMinus, iconColor: 'text-blue-700' };
+        return { title: 'Stock-Out', am: 'የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 22)', icon: PackageMinus, iconColor: 'text-blue-700' };
       case 'approvals':
         return { title: 'Approvals', am: 'የማረጋገጫና ፈቃድ መስጫ', icon: FileCheck2, iconColor: 'text-amber-600' };
       case 'audit':
-        return { title: 'Audit Logs', am: 'የኦዲት መዝገብ', icon: ShieldCheck, iconColor: 'text-purple-700' };
+        return { title: 'Audit Log', am: 'የኦዲት መዝገብ', icon: ShieldCheck, iconColor: 'text-purple-700' };
       case 'reports':
         return { title: 'Reports', am: 'የሪፖርት መዝገብ', icon: FileSpreadsheet, iconColor: 'text-emerald-700' };
       case 'transfer-asset':
-        return { title: 'Asset Transfer', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 22)', icon: ArrowRightLeft, iconColor: 'text-amber-600' };
+        return { title: 'Transfers & Returns', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 21)', icon: ArrowRightLeft, iconColor: 'text-amber-600' };
       case 'settings-users':
-        return { title: 'Settings & Permissions', am: 'ቅንብሮች እና የስርዓት መቆጣጠሪያ', icon: Settings, iconColor: 'text-emerald-700' };
+        return { title: 'Users & Permissions', am: 'ተጠቃሚዎች እና ፈቃዶች', icon: Settings, iconColor: 'text-emerald-700' };
       case 'settings-roles':
         return { title: 'Roles', am: 'ሚናዎች', icon: Shield, iconColor: 'text-emerald-700' };
       case 'settings-employees':

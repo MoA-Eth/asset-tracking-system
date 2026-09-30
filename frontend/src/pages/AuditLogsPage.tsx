@@ -185,7 +185,7 @@ export const AuditLogsPage: React.FC = () => {
             Statutory Audit Log & Activity Trail (የኦዲት መዝገብ)
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Immutable system logs for IFMIS registrations, stock receipts (Model 19), issues (Model 20), and approvals.
+            Immutable system logs for IFMIS registrations, stock receipts (Model 19), issues (Model 22), transfers and returns (Model 21), and approvals.
           </p>
         </div>
 
