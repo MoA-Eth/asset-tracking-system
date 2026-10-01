@@ -2,6 +2,7 @@ import React from 'react';
 import { Printer, X, FileText } from 'lucide-react';
 import { Model22Voucher, Model22LineItem } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
+import { MoaLogo } from './MoaLogo';
 
 interface Model22PrintModalProps {
   isOpen: boolean;
@@ -48,7 +49,7 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
               title="Print Voucher / Save as PDF"
             >
               <Printer className="w-4 h-4" />
@@ -77,6 +78,11 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({
           </div>
 
           <div className="relative z-10 space-y-6">
+            {/* Ministry of Agriculture logo */}
+            <div className="flex justify-center">
+              <MoaLogo className="w-14 h-14" />
+            </div>
+
             {/* Top Official Dark Banner (Exact match to provided photo) */}
             <div className="bg-[#4b5563] text-white py-3 px-4 text-center rounded-xs shadow-xs print:bg-[#4b5563] print:text-white">
               <h1 className="text-xs sm:text-sm font-semibold tracking-wide uppercase">

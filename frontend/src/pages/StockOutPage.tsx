@@ -136,40 +136,40 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   const editNotes = splitPurposeAndRemark(editApproval?.purposeOrRemarks ?? '');
 
   // Selected store item
-  const initialItem = availableItems[0];
-  const [selectedItemId, setSelectedItemId] = useState<string>(initialItem?.id ?? '');
+  // Nothing is pre-selected; choosing a store item fills in its details
+  const [selectedItemId, setSelectedItemId] = useState<string>('');
 
   // Header fields matching photo
   const [model22No, setModel22No] = useState<string>(editApproval?.ifmisSlipNumber ?? '0004653/A Inventory');
   const [issuedDateGc, setIssuedDateGc] = useState<string>(
     editApproval?.ifmisSlipDateGc || editApproval?.createdAtGc?.split('T')[0] || new Date().toISOString().split('T')[0]
   );
-  const [transactionType, setTransactionType] = useState<string>('Move Order Issue');
+  const [transactionType, setTransactionType] = useState<string>('');
   const [destinationDepartmentId, setDestinationDepartmentId] = useState<string>(
-    editApproval?.targetDepartmentId ?? employees[0]?.departmentId ?? departments[0]?.id ?? ''
+    editApproval?.targetDepartmentId ?? ''
   );
   const [recipientEmployeeId, setRecipientEmployeeId] = useState<string>(
-    editApproval?.recipientEmployeeId ?? employees[0]?.id ?? ''
+    editApproval?.recipientEmployeeId ?? ''
   );
 
   // Line item particulars matching photo columns
-  const [itemCode, setItemCode] = useState<string>(initialItem?.itemCode ?? '');
-  const [itemDescription, setItemDescription] = useState<string>(initialItem?.name ?? '');
-  const [uom, setUom] = useState<string>(initialItem?.uom ?? 'EA');
+  const [itemCode, setItemCode] = useState<string>('');
+  const [itemDescription, setItemDescription] = useState<string>('');
+  const [uom, setUom] = useState<string>('EA');
   const [subInventory, setSubInventory] = useState<string>(
-    initialItem?.subInventory ?? initialItem?.storeLocation?.siteName ?? 'Spareparts'
+    ''
   );
   const [itemCategory, setItemCategory] = useState<string>(
-    initialItem?.itemCategoryDisplay ?? initialItem?.category?.replace(/_/g, ' ') ?? 'Spare parts'
+    ''
   );
-  const [lotBatchNo, setLotBatchNo] = useState<string>(initialItem?.lotBatchNo ?? '');
-  const [serialNo, setSerialNo] = useState<string>(initialItem?.serialNumber ?? '');
-  const [printedPadFrom, setPrintedPadFrom] = useState<string>(initialItem?.printedPadFrom ?? '');
-  const [printedPadTo, setPrintedPadTo] = useState<string>(initialItem?.printedPadTo ?? '');
+  const [lotBatchNo, setLotBatchNo] = useState<string>('');
+  const [serialNo, setSerialNo] = useState<string>('');
+  const [printedPadFrom, setPrintedPadFrom] = useState<string>('');
+  const [printedPadTo, setPrintedPadTo] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(
-    Number(editApproval?.requestDetails?.quantity) || Number(editItem?.quantity) || Number(initialItem?.quantity) || 1
+    Number(editApproval?.requestDetails?.quantity) || Number(editItem?.quantity) || 1
   );
-  const [unitPrice, setUnitPrice] = useState<number>(initialItem?.unitCostETB ?? 18963.5);
+  const [unitPrice, setUnitPrice] = useState<number>(0);
   const [transportationCost, setTransportationCost] = useState<number>(0);
   const [remark, setRemark] = useState<string>(editNotes.remark);
   const [purpose, setPurpose] = useState<string>(isEdit ? editNotes.purpose : 'Move Order Issue for Ministry Operations');
@@ -224,24 +224,23 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   };
 
   const handleReset = () => {
-    const it = availableItems[0];
-    setSelectedItemId(it?.id ?? '');
+    setSelectedItemId('');
     setModel22No('0004653/A Inventory');
     setIssuedDateGc(new Date().toISOString().split('T')[0]);
-    setTransactionType('Move Order Issue');
-    setDestinationDepartmentId(employees[0]?.departmentId ?? departments[0]?.id ?? '');
-    setRecipientEmployeeId(employees[0]?.id ?? '');
-    setItemCode(it?.itemCode ?? '');
-    setItemDescription(it?.name ?? '');
-    setUom(it?.uom ?? 'EA');
-    setSubInventory(it?.subInventory ?? it?.storeLocation?.siteName ?? 'Spareparts');
-    setItemCategory(it?.itemCategoryDisplay ?? it?.category?.replace(/_/g, ' ') ?? 'Spare parts');
-    setLotBatchNo(it?.lotBatchNo ?? '');
-    setSerialNo(it?.serialNumber ?? '');
-    setPrintedPadFrom(it?.printedPadFrom ?? '');
-    setPrintedPadTo(it?.printedPadTo ?? '');
-    setQuantity(Number(it?.quantity) || 1);
-    setUnitPrice(it?.unitCostETB ?? 18963.5);
+    setTransactionType('');
+    setDestinationDepartmentId('');
+    setRecipientEmployeeId('');
+    setItemCode('');
+    setItemDescription('');
+    setUom('EA');
+    setSubInventory('');
+    setItemCategory('');
+    setLotBatchNo('');
+    setSerialNo('');
+    setPrintedPadFrom('');
+    setPrintedPadTo('');
+    setQuantity(1);
+    setUnitPrice(0);
     setTransportationCost(0);
     setRemark('');
     setPurpose('Move Order Issue for Ministry Operations');
@@ -277,6 +276,18 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       const msg = `Quantity must be a whole number from 1 to ${inStore} (${inStoreUom} in store).`;
       setFormError(msg);
       toast.warning('Check Quantity', msg);
+      return;
+    }
+    if (!isEdit && !transactionType) {
+      const msg = 'Please select the transaction type.';
+      setFormError(msg);
+      toast.warning('Selection Required', msg);
+      return;
+    }
+    if (!destinationDepartmentId) {
+      const msg = 'Please select the destination directorate.';
+      setFormError(msg);
+      toast.warning('Selection Required', msg);
       return;
     }
     if (!recipientEmployeeId) {
@@ -442,7 +453,8 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
 
           {!isEdit && (
             <Field label="Transaction type" required>
-              <select value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
+              <select required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
+                <option value="" disabled>Select…</option>
                 <option value="Move Order Issue">Move Order Issue</option>
                 <option value="Direct Store Issue">Direct Store Issue</option>
                 <option value="Department Assignment">Department Assignment</option>
@@ -482,15 +494,16 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
               value={selectedItemId}
               onChange={(e) => handleItemSelect(e.target.value)}
               className={`${input()} font-medium`}
+              required
             >
               {availableItems.length === 0 ? (
                 <option value="">No items available in store</option>
               ) : (
-                availableItems.map((item) => (
+                [<option key="" value="" disabled>Select…</option>].concat(availableItems.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.itemCode} — {item.name} · {item.quantity || 1} {item.uom || 'EA'} in store ({formatETB(item.unitCostETB)} each)
                   </option>
-                ))
+                )))
               )}
             </select>
           </Field>
@@ -666,7 +679,9 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
                 value={recipientEmployeeId}
                 onChange={(e) => handleEmployeeChange(e.target.value)}
                 className={input()}
+                required
               >
+                <option value="" disabled>Select…</option>
                 {employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.fullNameEn} ({emp.payrollId})
@@ -680,7 +695,9 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
                 value={destinationDepartmentId}
                 onChange={(e) => setDestinationDepartmentId(e.target.value)}
                 className={input()}
+                required
               >
+                <option value="" disabled>Select…</option>
                 {departments.map((dept) => (
                   <option key={dept.id} value={dept.id}>
                     {dept.nameEn} ({dept.code})

@@ -646,7 +646,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       className={`${input()} font-medium`}
                       required
                     >
-                      <option value="">Choose an asset to transfer…</option>
+                      <option value="" disabled>Select…</option>
                       {items
                         .filter((i) => i.status === ItemStatus.ISSUED)
                         .map((item) => {
@@ -725,7 +725,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                         className={input()}
                         required
                       >
-                        <option value="">Select the new custodian…</option>
+                        <option value="" disabled>Select…</option>
                         {employees.map((emp) => (
                           <option key={emp.id} value={emp.id}>
                             {emp.fullNameEn} ({emp.payrollId})
@@ -734,13 +734,13 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       </select>
                     </Field>
 
-                    <Field label="To directorate" optional hint="Leave blank to keep the current directorate.">
+                    <Field label="To directorate" optional hint="Leave on Select… to keep the current directorate.">
                       <select
                         value={targetDepartmentId}
                         onChange={(e) => setTargetDepartmentId(e.target.value)}
                         className={input()}
                       >
-                        <option value="">Keep current directorate</option>
+                        <option value="">Select…</option>
                         {departments.map((dep) => (
                           <option key={dep.id} value={dep.id}>
                             {dep.nameEn} ({dep.code})
@@ -749,13 +749,13 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       </select>
                     </Field>
 
-                    <Field label="To location" optional hint="Leave blank to keep the current location.">
+                    <Field label="To location" optional hint="Leave on Select… to keep the current location.">
                       <select
                         value={targetLocationId}
                         onChange={(e) => setTargetLocationId(e.target.value)}
                         className={input()}
                       >
-                        <option value="">Keep current location</option>
+                        <option value="">Select…</option>
                         {locations.map((loc) => (
                           <option key={loc.id} value={loc.id}>
                             {loc.siteName} {loc.building ? `(${loc.building})` : ''}
