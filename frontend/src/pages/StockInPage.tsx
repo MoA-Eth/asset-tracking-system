@@ -943,14 +943,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
         <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-2 text-xs text-amber-800">
           <Clock className="w-4 h-4 shrink-0" />
           <span>
-            Some items are pending Department Head approval. Go to{' '}
-            <button
-              onClick={() => onNavigate('approvals')}
-              className="font-bold underline cursor-pointer hover:no-underline"
-            >
-              Approvals Queue
-            </button>{' '}
-            to track status.
+            Some items are awaiting Team Leader endorsement or Department Head approval. Their current status appears in the inventory above.
           </span>
         </div>
       )}

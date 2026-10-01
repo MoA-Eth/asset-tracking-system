@@ -55,10 +55,11 @@ function mapItem(raw: any): ItemWithRelations {
     createdAtGc: raw.createdAtGc,
     createdAtEc: raw.createdAtEc,
     storeLocation: raw.storeLocation ?? undefined,
-    currentCustodian: raw.currentCustodian ?? null,
+    // Map employees explicitly so stored credentials never leave the API
+    currentCustodian: raw.currentCustodian ? mapEmployee(raw.currentCustodian) : null,
     assignedDepartment: raw.assignedDepartment ?? null,
-    registeredBy: raw.registeredBy ?? undefined,
-    approvedBy: raw.approvedBy ?? undefined,
+    registeredBy: raw.registeredBy ? mapEmployee(raw.registeredBy) : undefined,
+    approvedBy: raw.approvedBy ? mapEmployee(raw.approvedBy) : undefined,
 
     // Model 19 fields
     poNumber: model19Meta.poNumber || raw.poNumber || undefined,

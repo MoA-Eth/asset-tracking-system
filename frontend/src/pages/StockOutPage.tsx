@@ -882,14 +882,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
         <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-2 text-xs text-amber-800">
           <Clock className="w-4 h-4 shrink-0" />
           <span>
-            Some stock-out requests are awaiting approval. Go to{' '}
-            <button
-              onClick={() => onNavigate('approvals')}
-              className="font-bold underline cursor-pointer hover:no-underline"
-            >
-              Approvals Queue
-            </button>{' '}
-            to track status.
+            Some stock-out requests are awaiting approval. Track their stage and status in the register above.
           </span>
         </div>
       )}

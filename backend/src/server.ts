@@ -8,6 +8,7 @@ import uploadRoutes from './routes/upload.routes';
 import { SLIP_PUBLIC_PATH, SLIP_UPLOAD_DIR } from './lib/uploads';
 import { errorHandler } from './middleware/error-handler';
 import { sendError } from './utils/api-response';
+import { prisma } from './lib/prisma';
 
 dotenv.config();
 
@@ -32,10 +33,21 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
-// Health check endpoint
-app.get('/api/health', (_req: Request, res: Response) => {
+// Health check endpoint (also confirms the database answers)
+app.get('/api/health', async (_req: Request, res: Response) => {
+  try {
+    await prisma.employee.count();
+  } catch {
+    res.status(503).json({
+      status: 'unhealthy',
+      database: 'unavailable',
+      message: 'The application database is unavailable or has not been initialized.',
+    });
+    return;
+  }
   res.json({
     status: 'healthy',
+    database: 'connected',
     system: 'MoA Fixed Asset & Store Management (IFMIS Mirror)',
     scope: 'Store-level processing, tracking, and executive management dashboard',
     version: '2.0.0',
