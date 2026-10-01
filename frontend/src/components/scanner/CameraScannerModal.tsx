@@ -231,7 +231,9 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Item Found
                 </span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
-                  {scannedItem.status.replace(/_/g, ' ')}
+                  {scannedItem.balance && scannedItem.balance.issued > 0 && scannedItem.balance.available > 0
+                    ? 'Partly issued'
+                    : scannedItem.status.replace(/_/g, ' ')}
                 </span>
               </div>
               <div>
@@ -239,9 +241,20 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
                 <p className="text-xs font-mono text-emerald-800 font-semibold mt-0.5">{scannedItem.itemCode}</p>
               </div>
               <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-emerald-200">
+                {scannedItem.balance && (
+                  <div className="col-span-2">
+                    <span className="text-slate-500">Units:</span>
+                    <span className="text-slate-900 ml-1 font-semibold font-mono">
+                      {scannedItem.balance.total} received · {scannedItem.balance.issued} issued · {scannedItem.balance.available} in store{' '}
+                      {scannedItem.uom || 'EA'}
+                    </span>
+                  </div>
+                )}
                 <div>
                   <span className="text-slate-500">Valuation:</span>
-                  <span className="text-slate-900 ml-1 font-semibold">{formatETB(scannedItem.unitCostETB)}</span>
+                  <span className="text-slate-900 ml-1 font-semibold">
+                    {formatETB((scannedItem.unitCostETB || 0) * (scannedItem.balance?.total || Number(scannedItem.quantity) || 1))}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-500">IFMIS Slip:</span>

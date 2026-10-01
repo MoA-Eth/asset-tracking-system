@@ -442,7 +442,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
                       </div>
                       <div className="shrink-0 text-right">
                         <span className="block font-semibold text-slate-900">{formatETB(dept.totalValueETB)}</span>
-                        <span className="text-[10px] text-slate-500">{dept.itemCount} items · {dept.issuedCount} issued</span>
+                        <span className="text-[10px] text-slate-500">{dept.itemCount} units · {dept.issuedCount} issued</span>
                       </div>
                     </div>
                     <Meter pct={pct} />
@@ -668,7 +668,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
                     <p className="mt-0.5 text-[11px] text-slate-500">{loc.building} — {loc.roomNumber}</p>
                   </div>
                   <div className="shrink-0 text-right leading-tight">
-                    <span className="block text-sm font-semibold text-slate-900">{loc.itemCount ?? 0} {(loc.itemCount ?? 0) === 1 ? 'item' : 'items'}</span>
+                    <span className="block text-sm font-semibold text-slate-900">{loc.itemCount ?? 0} {(loc.itemCount ?? 0) === 1 ? 'unit' : 'units'}</span>
                     <span className="text-[11px] text-slate-500">{formatETB(loc.totalValueETB || 0)}</span>
                   </div>
                 </li>

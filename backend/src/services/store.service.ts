@@ -21,6 +21,7 @@ import {
   UpdateReturnRequest,
   Model21RequestDetails,
   Model21Accessory,
+  ItemBalance,
   ApprovalActionRequest,
 } from '../types/asset-management';
 import { prisma } from '../lib/prisma';
@@ -56,6 +57,7 @@ function mapItem(raw: any): ItemWithRelations {
     ifmisSlipDateEc: raw.ifmisSlipDateEc,
     ifmisSlipAttachmentUrl: raw.ifmisSlipAttachmentUrl ?? undefined,
     isHistoricalData: raw.isHistoricalData,
+    parentItemId: raw.parentItemId ?? undefined,
     notes: (model19Meta.userNotes || (typeof model19Meta === 'object' && Object.keys(model19Meta).length > 0 ? (model19Meta.remark || raw.notes) : raw.notes)) || undefined,
     registeredById: raw.registeredById,
     approvedById: raw.approvedById ?? undefined,
@@ -108,6 +110,8 @@ const APPROVAL_INCLUDES = {
   reviewedBy: true,
   recipientEmployee: true,
   targetDepartment: true,
+  // Quantity lives in the item's Model 19 details
+  item: { select: { notes: true } },
 };
 
 function mapApproval(raw: any): TransactionApproval {
@@ -127,6 +131,8 @@ function mapApproval(raw: any): TransactionApproval {
     targetLocationId: raw.targetLocationId ?? undefined,
     purposeOrRemarks: raw.purposeOrRemarks,
     requestDetails: requestDetailsOf(raw),
+    itemUnits: raw.item ? quantityOf(raw.item) : undefined,
+    itemUom: raw.item ? uomOf(raw.item) : undefined,
     status: raw.status as ApprovalStatus,
     currentStage: raw.currentStage ?? 1,
     endorsedById: raw.endorsedById ?? undefined,
@@ -310,6 +316,67 @@ async function addAuditLog(
 // ─── Workflow Guards ──────────────────────────────────────────────────────────
 
 /** An item may only have one open request at a time (stock-out, return or transfer). */
+/** Model 19 details are kept as JSON in item.notes; older items may hold plain text there */
+function readItemMeta(notes: string | null | undefined): Record<string, any> {
+  if (!notes) return {};
+  try {
+    const parsed = JSON.parse(notes);
+    return parsed && typeof parsed === 'object' ? parsed : { userNotes: notes };
+  } catch {
+    return { userNotes: notes };
+  }
+}
+
+/** Units held by one item record */
+function quantityOf(item: { notes?: string | null }): number {
+  const quantity = Number(readItemMeta(item.notes).quantity);
+  return Number.isInteger(quantity) && quantity > 0 ? quantity : 1;
+}
+
+function uomOf(item: { notes?: string | null }): string {
+  return readItemMeta(item.notes).uom || 'EA';
+}
+
+/** item.notes with a new quantity (and the matching line total) */
+function notesWithQuantity(notes: string | null | undefined, quantity: number, unitCost: number): string {
+  return JSON.stringify({ ...readItemMeta(notes), quantity, totalAmount: unitCost * quantity });
+}
+
+/** Units still in store: available, or requested by a Stock-Out that isn't approved yet */
+const IN_STORE_STATUSES = ['AVAILABLE', 'PENDING_STOCK_OUT'];
+/** Units with a custodian: issued, or being transferred to someone else */
+const WITH_CUSTODIAN_STATUSES = ['ISSUED', 'UNDER_TRANSFER'];
+
+/** Adds up units by where they are: in store, with a custodian, or awaiting registration approval */
+function computeBalance(records: { status: string; notes?: string | null }[]): ItemBalance {
+  const balance: ItemBalance = { total: 0, issued: 0, available: 0, pending: 0 };
+  for (const record of records) {
+    const units = quantityOf(record);
+    if (IN_STORE_STATUSES.includes(record.status)) balance.available += units;
+    else if (WITH_CUSTODIAN_STATUSES.includes(record.status)) balance.issued += units;
+    else if (record.status === 'PENDING_STOCK_IN') balance.pending += units;
+    else continue; // disposed units are not part of the balance
+    balance.total += units;
+  }
+  return balance;
+}
+
+/** A registration's balance covers the records split off it; a split-off record reports only itself */
+async function attachBalances(items: ItemWithRelations[], rawItems: any[]): Promise<ItemWithRelations[]> {
+  const rootIds = rawItems.filter((raw) => !raw.parentItemId).map((raw) => raw.id);
+  const splits = rootIds.length
+    ? await prisma.item.findMany({
+        where: { parentItemId: { in: rootIds } },
+        select: { parentItemId: true, status: true, notes: true },
+      })
+    : [];
+  return items.map((item, index) => {
+    const raw = rawItems[index];
+    const records = raw.parentItemId ? [raw] : [raw, ...splits.filter((split) => split.parentItemId === raw.id)];
+    return { ...item, balance: computeBalance(records) };
+  });
+}
+
 async function assertNoPendingApproval(item: { id: string; itemCode: string }) {
   const pending = await prisma.transactionApproval.findFirst({
     where: { itemId: item.id, status: 'PENDING' },
@@ -370,7 +437,7 @@ export class StoreService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return items.map(mapItem);
+    return attachBalances(items.map(mapItem), items);
   }
 
   public async getItemById(id: string): Promise<ItemWithRelations | null> {
@@ -384,7 +451,9 @@ export class StoreService {
       },
       include: ITEM_INCLUDES,
     });
-    return item ? mapItem(item) : null;
+    if (!item) return null;
+    const [withBalance] = await attachBalances([mapItem(item)], [item]);
+    return withBalance;
   }
 
   // ── Stock-In Registration ───────────────────────────────────────────────
@@ -726,7 +795,19 @@ export class StoreService {
     if (!recipient) throw new BadRequestError('The selected recipient no longer exists.');
     if (!department) throw new BadRequestError('The selected directorate no longer exists.');
 
+    const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
+    if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
+    const inStore = quantityOf(item);
+    const uom = uomOf(item);
+    const previousDetails = (approval.requestDetails ?? {}) as Record<string, any>;
+    const previousQuantity = Number(previousDetails.quantity) || inStore;
+    const quantity = payload.quantity === undefined || payload.quantity === null ? previousQuantity : Number(payload.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
+      throw new BadRequestError(`Quantity must be a whole number from 1 to ${inStore} (${uom} in store).`);
+    }
+
     const before = {
+      quantity: previousQuantity,
       recipientEmployeeId: approval.recipientEmployeeId,
       targetDepartmentId: approval.targetDepartmentId,
       ifmisSlipNumber: approval.ifmisSlipNumber,
@@ -735,6 +816,7 @@ export class StoreService {
       purposeOrRemarks: approval.purposeOrRemarks,
     };
     const after = {
+      quantity,
       recipientEmployeeId: recipient.id,
       targetDepartmentId: department.id,
       ifmisSlipNumber: slipNo,
@@ -778,6 +860,7 @@ export class StoreService {
           ifmisSlipDateEc: formatGcToEc(after.ifmisSlipDateGc),
           ifmisSlipAttachmentUrl: after.ifmisSlipAttachmentUrl,
           purposeOrRemarks: after.purposeOrRemarks,
+          requestDetails: { ...previousDetails, quantity, uom } as any,
         },
         include: APPROVAL_INCLUDES,
       });
@@ -835,6 +918,14 @@ export class StoreService {
     await assertNoPendingApproval(item);
     if (!payload.ifmisSlipNumber.trim()) throw new Error('IFMIS Slip Number is mandatory for Stock-Out.');
 
+    // Issue the whole record unless fewer units are requested
+    const inStore = quantityOf(item);
+    const uom = uomOf(item);
+    const quantity = payload.quantity === undefined || payload.quantity === null ? inStore : Number(payload.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
+      throw new BadRequestError(`Quantity must be a whole number from 1 to ${inStore} (${uom} in store).`);
+    }
+
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const recipient = payload.recipientEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }) : null;
@@ -856,7 +947,7 @@ export class StoreService {
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
             ifmisSlipNumber: payload.ifmisSlipNumber,
-            notes: notesText,
+            notes: quantity < inStore ? `Partial issue: ${quantity} of ${inStore} ${uom}. ${notesText}` : notesText,
           },
         },
       },
@@ -876,6 +967,7 @@ export class StoreService {
         recipientEmployeeId: payload.recipientEmployeeId,
         targetDepartmentId: payload.targetDepartmentId,
         purposeOrRemarks: notesText,
+        requestDetails: { quantity, uom } as any,
         status: 'PENDING' as any,
         createdAtGc: today.gc,
         createdAtEc: today.ec,
@@ -1339,6 +1431,8 @@ export class StoreService {
     let locationId: string = item.storeLocationId;
     let approvedById: string | null = item.approvedById;
     let approvedCondition: string | undefined;
+    // Set when a Stock-Out issues only part of the record's units
+    let partialIssue: { quantity: number; remaining: number; uom: string; code: string; recipientName: string } | null = null;
 
     if (isApprove) {
       if (approval.transactionType === 'STOCK_IN') {
@@ -1386,6 +1480,31 @@ export class StoreService {
         custodianId = approval.recipientEmployeeId ?? null;
         departmentId = approval.targetDepartmentId ?? null;
         approvedById = payload.reviewedById;
+
+        const requested = Number((approval.requestDetails as Record<string, any> | null)?.quantity);
+        const inStore = quantityOf(item);
+        if (Number.isInteger(requested) && requested > 0 && requested < inStore) {
+          // The rest stays in store on this record; the issued units get their own record
+          const rootId = item.parentItemId ?? item.id;
+          const root = item.parentItemId ? await prisma.item.findUnique({ where: { id: rootId } }) : item;
+          const rootCode = root?.itemCode ?? item.itemCode;
+          let next = (await prisma.item.count({ where: { parentItemId: rootId } })) + 1;
+          while (await prisma.item.findUnique({ where: { itemCode: `${rootCode}-${next}` } })) next += 1;
+          partialIssue = {
+            quantity: requested,
+            remaining: inStore - requested,
+            uom: uomOf(item),
+            code: `${rootCode}-${next}`,
+            recipientName: toEntity,
+          };
+          newItemStatus = 'AVAILABLE';
+          custodianId = item.currentCustodianId;
+          departmentId = item.assignedDepartmentId;
+          approvedById = item.approvedById;
+          fromEntity = 'Pending Stock-Out';
+          toEntity = 'Central Store (AVAILABLE)';
+          histNote = `Issued ${requested} of ${inStore} ${partialIssue.uom} as ${partialIssue.code} to ${partialIssue.recipientName}; ${partialIssue.remaining} ${partialIssue.uom} remain in store. Purpose: ${approval.purposeOrRemarks}`;
+        }
       }
     } else {
       if (approval.transactionType === 'STOCK_IN') {
@@ -1426,6 +1545,7 @@ export class StoreService {
         storeLocationId: locationId,
         approvedById,
         ...(approvedCondition ? { condition: approvedCondition as any } : {}),
+        ...(partialIssue ? { notes: notesWithQuantity(item.notes, partialIssue.remaining, item.unitCostETB) } : {}),
         history: {
           create: {
             dateGc: today.gc,
@@ -1443,16 +1563,66 @@ export class StoreService {
       },
     });
 
+    let finalApproval = updatedApproval;
+    if (partialIssue) {
+      await prisma.item.create({
+        data: {
+          itemCode: partialIssue.code,
+          name: item.name,
+          category: item.category,
+          unitCostETB: item.unitCostETB,
+          status: 'ISSUED' as any,
+          condition: item.condition,
+          storeLocationId: item.storeLocationId,
+          currentCustodianId: approval.recipientEmployeeId,
+          assignedDepartmentId: approval.targetDepartmentId,
+          ifmisSlipNumber: item.ifmisSlipNumber,
+          ifmisSlipDateGc: item.ifmisSlipDateGc,
+          ifmisSlipDateEc: item.ifmisSlipDateEc,
+          ifmisSlipAttachmentUrl: item.ifmisSlipAttachmentUrl,
+          isHistoricalData: item.isHistoricalData,
+          notes: notesWithQuantity(item.notes, partialIssue.quantity, item.unitCostETB),
+          parentItemId: item.parentItemId ?? item.id,
+          registeredById: item.registeredById,
+          approvedById: payload.reviewedById,
+          createdAtGc: today.gc,
+          createdAtEc: today.ec,
+          history: {
+            create: {
+              dateGc: today.gc,
+              dateEc: today.ec,
+              action: 'STOCK_OUT_APPROVED',
+              fromEntity: `Central Store (${item.itemCode})`,
+              toEntity: partialIssue.recipientName,
+              performedBy: reviewerName,
+              performedByRole: (reviewer ? reviewer.role : 'DEPARTMENT_HEAD') as any,
+              approvedBy: reviewerName,
+              ifmisSlipNumber: approval.ifmisSlipNumber,
+              notes: `${partialIssue.quantity} ${partialIssue.uom} issued from ${item.itemCode} (Model 22 ${approval.ifmisSlipNumber}). Purpose: ${approval.purposeOrRemarks}`,
+            },
+          },
+        },
+      });
+      // Remember which record holds the issued units
+      finalApproval = await prisma.transactionApproval.update({
+        where: { id: approval.id },
+        data: {
+          requestDetails: { ...((approval.requestDetails ?? {}) as Record<string, any>), issuedItemCode: partialIssue.code } as any,
+        },
+        include: APPROVAL_INCLUDES,
+      });
+    }
+
     await addAuditLog(
       payload.reviewedById,
       isApprove ? `APPROVE_${approval.transactionType}` : `REJECT_${approval.transactionType}`,
       'APPROVAL',
       item.id,
-      `${approval.transactionType} ${payload.action}D by ${reviewerName} for item ${item.itemCode}. Remarks: ${updatedApproval.reviewRemarks}`,
+      `${approval.transactionType} ${payload.action}D by ${reviewerName} for item ${item.itemCode}.${partialIssue ? ` Partial issue: ${partialIssue.quantity} ${partialIssue.uom} as ${partialIssue.code}.` : ''} Remarks: ${updatedApproval.reviewRemarks}`,
       approval.ifmisSlipNumber,
     );
 
-    return mapApproval(updatedApproval);
+    return mapApproval(finalApproval);
   }
 
   // ── Transfer ────────────────────────────────────────────────────────────
@@ -1638,14 +1808,20 @@ export class StoreService {
 
     const allItems = allItemsRaw.map(mapItem);
 
-    const available = allItems.filter((i) => i.status === 'AVAILABLE');
-    const issued = allItems.filter((i) => i.status === 'ISSUED');
+    // Count units, not records: a partial Stock-Out splits one registration into several records,
+    // so record counts would change while the stock did not. Values are unit price × units.
+    const unitsOf = (i: { quantity?: number }) => Number(i.quantity) || 1;
+    const units = (arr: typeof allItems) => arr.reduce((s, i) => s + unitsOf(i), 0);
+
+    // Same buckets as item balances, so the dashboard, Reports and the lists agree
+    const available = allItems.filter((i) => IN_STORE_STATUSES.includes(i.status));
+    const issued = allItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status));
     const pendingIn = allItems.filter((i) => i.status === 'PENDING_STOCK_IN');
     const pendingOut = allItems.filter((i) => i.status === 'PENDING_STOCK_OUT');
     const inTransfer = allItems.filter((i) => i.status === 'UNDER_TRANSFER');
     const active = allItems.filter((i) => i.status !== 'DISPOSED');
 
-    const sum = (arr: typeof allItems) => arr.reduce((s, i) => s + (i.unitCostETB || 0), 0);
+    const sum = (arr: typeof allItems) => arr.reduce((s, i) => s + (i.unitCostETB || 0) * unitsOf(i), 0);
 
     const departmentDistribution = departments.map((dept) => {
       const deptItems = allItems.filter((i) => i.assignedDepartmentId === dept.id);
@@ -1654,11 +1830,11 @@ export class StoreService {
         departmentCode: dept.code,
         nameEn: dept.nameEn,
         nameAm: dept.nameAm,
-        itemCount: deptItems.length,
+        itemCount: units(deptItems),
         totalValueETB: sum(deptItems),
-        availableCount: deptItems.filter((i) => i.status === 'AVAILABLE').length,
-        issuedCount: deptItems.filter((i) => i.status === 'ISSUED').length,
-        otherStatusCount: deptItems.filter((i) => !['AVAILABLE', 'ISSUED'].includes(i.status)).length,
+        availableCount: units(deptItems.filter((i) => IN_STORE_STATUSES.includes(i.status))),
+        issuedCount: units(deptItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
+        otherStatusCount: units(deptItems.filter((i) => i.status === 'PENDING_STOCK_IN')),
         items: deptItems,
       };
     });
@@ -1669,22 +1845,20 @@ export class StoreService {
       const matching = allItems.filter((i) => i.condition === cond);
       return {
         condition: cond,
-        count: matching.length,
+        count: units(matching),
         totalValueETB: sum(matching),
       };
     });
 
     const locationUtilization = locations.map((loc) => {
       const locItems = allItems.filter((i) => i.storeLocationId === loc.id);
-      const locAvailable = locItems.filter((i) => i.status === 'AVAILABLE');
-      const locIssued    = locItems.filter((i) => i.status === 'ISSUED');
-      const locPending   = locItems.filter((i) =>
-        i.status === 'PENDING_STOCK_IN' || i.status === 'PENDING_STOCK_OUT' || i.status === 'UNDER_TRANSFER',
-      );
+      const locAvailable = locItems.filter((i) => IN_STORE_STATUSES.includes(i.status));
+      const locIssued    = locItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status));
+      const locPending   = locItems.filter((i) => i.status === 'PENDING_STOCK_IN');
       // category breakdown per location
       const locCategoryBreakdown = Object.values(AssetCategory).map((cat) => {
         const matching = locItems.filter((i) => i.category === cat);
-        return { category: cat, count: matching.length, totalValueETB: sum(matching) };
+        return { category: cat, count: units(matching), totalValueETB: sum(matching) };
       }).filter((c) => c.count > 0);
 
       return {
@@ -1693,13 +1867,13 @@ export class StoreService {
         building: loc.building,
         roomNumber: loc.roomNumber,
         isCentralStore: loc.isCentralStore,
-        itemCount: locItems.length,
+        itemCount: units(locItems),
         totalValueETB: sum(locItems),
-        availableCount: locAvailable.length,
+        availableCount: units(locAvailable),
         availableValueETB: sum(locAvailable),
-        issuedCount: locIssued.length,
+        issuedCount: units(locIssued),
         issuedValueETB: sum(locIssued),
-        pendingCount: locPending.length,
+        pendingCount: units(locPending),
         categoryBreakdown: locCategoryBreakdown,
       };
     });
@@ -1707,26 +1881,27 @@ export class StoreService {
 
     const categoryBreakdown = Object.values(AssetCategory).map((cat) => {
       const matching = allItems.filter((i) => i.category === cat);
-      return { category: cat, count: matching.length, totalValueETB: sum(matching) };
+      return { category: cat, count: units(matching), totalValueETB: sum(matching) };
     });
 
     const topValuationAssets = allItems
       .slice()
-      .sort((a, b) => (b.unitCostETB || 0) - (a.unitCostETB || 0))
+      .sort((a, b) => (b.unitCostETB || 0) * unitsOf(b) - (a.unitCostETB || 0) * unitsOf(a))
       .slice(0, 8);
 
     return {
-      totalItems: allItems.length,
-      availableCount: available.length,
+      // Units on record, not counting rejected registrations
+      totalItems: units(active),
+      availableCount: units(available),
       availableValuationETB: sum(available),
-      issuedCount: issued.length,
+      issuedCount: units(issued),
       issuedValuationETB: sum(issued),
       pendingStockInCount: pendingIn.length,
       pendingStockOutCount: pendingOut.length,
       pendingTransferCount: inTransfer.length,
       pendingApprovalsCount: pendingApprovals,
       totalValuationETB: sum(active),
-      unassignedItemsCount: unassignedItems.length,
+      unassignedItemsCount: units(unassignedItems),
       unassignedValuationETB: sum(unassignedItems),
       unassignedItems,
       departmentDistribution,
