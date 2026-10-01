@@ -210,7 +210,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const PageIcon = pageInfo.icon;
 
   return (
-    <header className="no-print bg-white border-b border-slate-200/90 sticky top-0 z-20 px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+    <header className="no-print bg-white border-b border-slate-200/90 sticky top-0 z-20 px-4 sm:px-5 py-3 flex items-center justify-between gap-4">
       {/* Left: Sidebar Toggle & Page Title */}
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <button

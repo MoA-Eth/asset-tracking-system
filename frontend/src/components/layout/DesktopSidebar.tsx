@@ -100,7 +100,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   return (
     <aside
       className={`no-print hidden lg:flex flex-col bg-gradient-to-b from-[#0B3D25] via-[#08301D] to-[#062414] border-r border-black/20 text-white shadow-xl transition-all duration-300 select-none z-30 shrink-0 h-full overflow-hidden ${
-        collapsed ? 'w-20' : 'w-64'
+        collapsed ? 'w-20' : 'w-60'
       }`}
     >
       {/* Brand */}
