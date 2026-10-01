@@ -9,8 +9,6 @@ interface ModalProps {
   children: React.ReactNode;
   /** Width class — defaults to lg */
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
-  /** Brand green only, so every modal looks the same */
-  accentColor?: 'emerald';
 }
 
 const SIZE_CLASS: Record<string, string> = {
@@ -21,10 +19,6 @@ const SIZE_CLASS: Record<string, string> = {
   '2xl': 'max-w-5xl',
 };
 
-const ACCENT_BORDER: Record<string, string> = {
-  emerald: 'border-emerald-500',
-};
-
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
@@ -32,7 +26,6 @@ export const Modal: React.FC<ModalProps> = ({
   subtitle,
   children,
   size = 'lg',
-  accentColor = 'emerald',
 }) => {
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -72,7 +65,7 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         className={`
           relative w-full ${SIZE_CLASS[size]} max-h-[90vh] flex flex-col
-          bg-white rounded-2xl shadow-2xl border-t-4 ${ACCENT_BORDER[accentColor]}
+          bg-white rounded-2xl shadow-2xl
           overflow-hidden
         `}
       >

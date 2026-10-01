@@ -1377,7 +1377,6 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
             ? 'You can correct this request until the Team Leader endorses it. Each change is recorded in the item history.'
             : 'The item stays in store until the Team Leader endorses and the Department Head approves the issue.'
         }
-        accentColor="emerald"
         size="xl"
       >
         {editApproval || availableItems.length > 0 ? (
