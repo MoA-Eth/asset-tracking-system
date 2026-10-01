@@ -29,6 +29,9 @@ export const table = {
   rowHighlight: 'bg-emerald-50/80 border-l-4 border-emerald-600',
   /** Item / tracking code cell text: plain, set apart only by the monospace font */
   code: 'font-mono font-bold text-slate-800',
+  /** Actions column ("⋮"), pinned to the right edge so it stays visible when the table scrolls */
+  actionsHead: 'sticky right-0 z-[1] bg-slate-50 w-12 text-right',
+  actionsCell: 'sticky right-0 z-[1] bg-white w-12 text-right whitespace-nowrap shadow-[-10px_0_10px_-10px_rgba(15,23,42,0.18)]',
   /** Search box above a table */
   search:
     'w-full pl-8 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500',

@@ -38,6 +38,8 @@ import {
 import { CustodyVoucherModal } from '../components/ui/CustodyVoucherModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
+import { RowActionsMenu } from '../components/ui/RowActionsMenu';
+import { RecordDetailModal } from '../components/ui/RecordDetailModal';
 import { ConditionBadge } from '../components/ui/Badge';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -792,6 +794,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
   highlightApprovalId,
 }) => {
   const [search, setSearch] = useState('');
+  const [viewing, setViewing] = useState<TransactionApproval | null>(null);
   const [sortField, setSortField] = useState<StockOutSortField>('createdAtGc');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -922,12 +925,12 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                   In Store
                 </th>
                 <th
-                  onClick={() => handleSort('ifmisSlipNumber')}
+                  onClick={() => handleSort('createdAtGc')}
                   className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-36 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>Model 22 / Slip No.</span>
-                    {renderSortIcon('ifmisSlipNumber')}
+                    <span>Model 22 slip / Date</span>
+                    {renderSortIcon('createdAtGc')}
                   </div>
                 </th>
                 <th
@@ -940,15 +943,6 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                   </div>
                 </th>
                 <th
-                  onClick={() => handleSort('createdAtGc')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span>Date (G.C.)</span>
-                    {renderSortIcon('createdAtGc')}
-                  </div>
-                </th>
-                <th
                   onClick={() => handleSort('status')}
                   className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
                 >
@@ -957,7 +951,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                     {renderSortIcon('status')}
                   </div>
                 </th>
-                <th className="px-3 py-2.5 text-right w-44 whitespace-nowrap">Actions</th>
+                <th className={`px-3 py-2.5 ${table.actionsHead}`}><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -980,7 +974,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[170px] max-w-[220px] truncate">
+                    <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[160px] max-w-[200px] truncate" title={approval.itemName}>
                       {approval.itemName}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-right font-bold text-slate-900 whitespace-nowrap w-16">
@@ -996,60 +990,41 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                       {itemsById.get(approval.itemId)?.balance?.available ?? '—'}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-slate-600 whitespace-nowrap w-36">
-                      {approval.ifmisSlipNumber || '—'}
+                      <div>{approval.ifmisSlipNumber || '—'}</div>
+                      <div className="text-[10px] text-slate-500">{approval.createdAtGc ? approval.createdAtGc.split('T')[0] : '—'}</div>
                     </td>
-                    <td className="px-3.5 py-2.5 text-slate-600 min-w-[150px] max-w-[200px] truncate">
+                    <td className="px-3.5 py-2.5 text-slate-600 min-w-[150px] max-w-[200px] truncate" title={approval.purposeOrRemarks || undefined}>
                       {approval.purposeOrRemarks || '—'}
-                    </td>
-                    <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap w-28">
-                      {approval.createdAtGc ? approval.createdAtGc.split('T')[0] : '—'}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap w-28">
                       <ApprovalStatusBadge status={approval.status} stage={approval.currentStage} />
                     </td>
-                    <td className="px-3 py-2.5 text-right whitespace-nowrap w-44">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {canEdit && approval.status === ApprovalStatus.PENDING && approval.currentStage === 1 && (
-                          <button
-                            onClick={() => onEdit(approval)}
-                            className={btn.row}
-                            title="Correct this request (allowed until the Team Leader endorses it)"
-                            aria-label={`Edit ${approval.itemCode}`}
-                          >
-                            <Pencil className={btn.rowIcon} />
-                            <span>Edit</span>
-                          </button>
-                        )}
-                        {canEdit && approval.status === ApprovalStatus.PENDING && approval.currentStage === 2 && (
-                          <button
-                            disabled
-                            className={btn.rowLocked}
-                            title="Locked: the Team Leader has already endorsed this request. To correct it, ask an approver to reject it and submit it again."
-                            aria-label={`Edit ${approval.itemCode} (locked after Team Leader endorsement)`}
-                          >
-                            <Lock className="w-3.5 h-3.5" />
-                            <span>Edit</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={() => (onPrintModel22 ? onPrintModel22(approval) : onOpenVoucher(approval))}
-                          className={btn.row}
-                          title="Print Official Model 22 Receipt"
-                        >
-                          <Printer className={btn.rowIcon} />
-                          <span>Print M22</span>
-                        </button>
-                        {approval.status === ApprovalStatus.APPROVED && !busyItemIds.has(approval.itemId) && (
-                          <button
-                            onClick={() => onOpenReturn(approval.itemCode)}
-                            className={btn.row}
-                            title="Return Issued Item to Store (Model 22)"
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                            Return
-                          </button>
-                        )}
-                      </div>
+                    <td className={`px-3 py-2.5 ${table.actionsCell}`}>
+                      <RowActionsMenu
+                        label={approval.itemCode || 'this request'}
+                        actions={[
+                          { label: 'View details', icon: Eye, onClick: () => setViewing(approval) },
+                          {
+                            label: 'Edit request',
+                            icon: Pencil,
+                            onClick: () => onEdit(approval),
+                            hidden: !canEdit || approval.status !== ApprovalStatus.PENDING,
+                            disabled: approval.currentStage === 2,
+                            reason: approval.currentStage === 2 ? 'The Team Leader has endorsed it. To correct it, ask an approver to reject it.' : undefined,
+                          },
+                          {
+                            label: 'Print Model 22',
+                            icon: Printer,
+                            onClick: () => (onPrintModel22 ? onPrintModel22(approval) : onOpenVoucher(approval)),
+                          },
+                          {
+                            label: 'Return to store',
+                            icon: RotateCcw,
+                            onClick: () => onOpenReturn(approval.itemCode),
+                            hidden: approval.status !== ApprovalStatus.APPROVED || busyItemIds.has(approval.itemId),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 );
@@ -1058,6 +1033,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
           </table>
         </div>
       )}
+      {viewing && <RecordDetailModal itemId={viewing.itemId} approval={viewing} onClose={() => setViewing(null)} />}
     </div>
   );
 };

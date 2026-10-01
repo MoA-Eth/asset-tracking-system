@@ -17,6 +17,7 @@ import {
   Clock,
   Pencil,
   Lock,
+  Eye,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -32,6 +33,8 @@ import {
   TransactionApproval,
 } from '../types/asset-management';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
+import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
+import { RecordDetailModal } from '../components/ui/RecordDetailModal';
 import {
   FormSection,
   FieldGrid,
@@ -95,36 +98,15 @@ const PendingRequestChip: React.FC<{ request: TransactionApproval }> = ({ reques
 );
 
 /** Edit for a transfer or return still waiting for the Team Leader; locked once endorsed */
-const EditRequestButton: React.FC<{ request: TransactionApproval; onEdit: (request: TransactionApproval) => void }> = ({
-  request,
-  onEdit,
-}) => {
-  const label = REQUEST_TYPE_LABELS[request.transactionType]?.toLowerCase() ?? 'request';
-  if (request.currentStage === 1) {
-    return (
-      <button
-        onClick={() => onEdit(request)}
-        className={btn.row}
-        title={`Correct this ${label} request (allowed until the Team Leader endorses it)`}
-        aria-label={`Edit ${label} for ${request.itemCode}`}
-      >
-        <Pencil className={btn.rowIcon} />
-        Edit
-      </button>
-    );
-  }
-  return (
-    <button
-      disabled
-      className={btn.rowLocked}
-      title={`Locked: the Team Leader has already endorsed this ${label}. To correct it, ask an approver to reject it and submit it again.`}
-      aria-label={`Edit ${label} for ${request.itemCode} (locked after Team Leader endorsement)`}
-    >
-      <Lock className="w-3.5 h-3.5" />
-      Edit
-    </button>
-  );
-};
+/** Edit action for a pending transfer / return; locked once the Team Leader has endorsed it */
+const editRequestAction = (request: TransactionApproval | undefined, onEdit: (request: TransactionApproval) => void, allowed: boolean): RowAction => ({
+  label: `Edit ${REQUEST_TYPE_LABELS[request?.transactionType ?? '']?.toLowerCase() ?? 'request'}`,
+  icon: Pencil,
+  onClick: () => request && onEdit(request),
+  hidden: !allowed || !request || !['TRANSFER', 'RETURN'].includes(request.transactionType),
+  disabled: request?.currentStage === 2,
+  reason: request?.currentStage === 2 ? 'The Team Leader has endorsed it. To correct it, ask an approver to reject it.' : undefined,
+});
 
 interface TransferAssetPageProps {
   currentRole: UserRole;
@@ -160,6 +142,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   // Pending requests being corrected (only before Team Leader endorsement)
   const [editTransfer, setEditTransfer] = useState<TransactionApproval | null>(null);
   const [editReturn, setEditReturn] = useState<TransactionApproval | null>(null);
+  const [viewingItemId, setViewingItemId] = useState<string | null>(null);
   const canEdit = currentRole === UserRole.DATA_ENCODER;
 
   // Model 21 Printable Voucher Modal State
@@ -921,7 +904,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                   <th className="p-3 w-24 text-right whitespace-nowrap">Qty</th>
                   <th className="p-3 min-w-[150px]">Current Custodian</th>
                   <th className="p-3 w-32">Location</th>
-                  <th className="p-3 w-48 text-right whitespace-nowrap">Actions</th>
+                  <th className={`p-3 ${table.actionsHead}`}><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white font-medium">
@@ -936,32 +919,23 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                         {item.currentCustodian?.fullNameEn || 'Assigned Staff'}
                       </td>
                       <td className="p-3 text-slate-600">{item.storeLocation?.siteName || 'Head office'}</td>
-                      <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handlePrintModel21(item)}
-                            className={btn.row}
-                            title="Print Model 21 Transfer / Return Voucher"
-                          >
-                            <Printer className={btn.rowIcon} />
-                            <span>Print M21</span>
-                          </button>
-                          {pendingByItem.get(item.id) ? (
-                            <>
-                              <PendingRequestChip request={pendingByItem.get(item.id)!} />
-                              {canWrite && ['TRANSFER', 'RETURN'].includes(pendingByItem.get(item.id)!.transactionType) && (
-                                <EditRequestButton request={pendingByItem.get(item.id)!} onEdit={openEditRequest} />
-                              )}
-                            </>
-                          ) : canWrite ? (
-                            <button
-                              onClick={() => setReturnItem(item)}
-                              className={btn.row}
-                            >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              Return (M21)
-                            </button>
-                          ) : null}
+                      <td className={`p-3 ${table.actionsCell}`}>
+                        <div className="flex items-center justify-end gap-2">
+                          {pendingByItem.get(item.id) && <PendingRequestChip request={pendingByItem.get(item.id)!} />}
+                          <RowActionsMenu
+                            label={item.itemCode}
+                            actions={[
+                              { label: 'View details', icon: Eye, onClick: () => setViewingItemId(item.id) },
+                              editRequestAction(pendingByItem.get(item.id), openEditRequest, canWrite),
+                              { label: 'Print Model 21', icon: Printer, onClick: () => handlePrintModel21(item) },
+                              {
+                                label: 'Return to store',
+                                icon: RotateCcw,
+                                onClick: () => setReturnItem(item),
+                                hidden: !canWrite || pendingByItem.has(item.id),
+                              },
+                            ]}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -1004,7 +978,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                   <th className="p-3 w-32 whitespace-nowrap">Current Status</th>
                   <th className="p-3 min-w-[160px]">Custodian / Department</th>
                   <th className="p-3 w-32">Store Location</th>
-                  <th className="p-3 w-48 text-right whitespace-nowrap">Voucher Actions</th>
+                  <th className={`p-3 ${table.actionsHead}`}><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white font-medium">
@@ -1029,32 +1003,21 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       {item.currentCustodian?.fullNameEn || item.assignedDepartment?.nameEn || 'Store Stock'}
                     </td>
                     <td className="p-3 text-slate-600">{item.storeLocation?.siteName || 'Head office'}</td>
-                    <td className="p-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handlePrintModel21(item)}
-                          className={btn.row}
-                          title="Print Official Model 21 Internal Transfer Form"
-                        >
-                          <Printer className={btn.rowIcon} />
-                          <span>Print M21</span>
-                        </button>
-                        {canEdit &&
-                          pendingByItem.get(item.id) &&
-                          ['TRANSFER', 'RETURN'].includes(pendingByItem.get(item.id)!.transactionType) && (
-                            <EditRequestButton request={pendingByItem.get(item.id)!} onEdit={openEditRequest} />
-                          )}
-                        {item.status === ItemStatus.ISSUED && !pendingByItem.has(item.id) && (
-                          <button
-                            onClick={() => setReturnItem(item)}
-                            className={btn.row}
-                            title="Return to Central Store (Model 21)"
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                            Return
-                          </button>
-                        )}
-                      </div>
+                    <td className={`p-3 ${table.actionsCell}`}>
+                      <RowActionsMenu
+                        label={item.itemCode}
+                        actions={[
+                          { label: 'View details', icon: Eye, onClick: () => setViewingItemId(item.id) },
+                          editRequestAction(pendingByItem.get(item.id), openEditRequest, canEdit),
+                          { label: 'Print Model 21', icon: Printer, onClick: () => handlePrintModel21(item) },
+                          {
+                            label: 'Return to store',
+                            icon: RotateCcw,
+                            onClick: () => setReturnItem(item),
+                            hidden: item.status !== ItemStatus.ISSUED || pendingByItem.has(item.id),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -1063,6 +1026,8 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           </div>
         </div>
       )}
+
+      {viewingItemId && <RecordDetailModal itemId={viewingItemId} onClose={() => setViewingItemId(null)} />}
 
       {/* Model 21 Printable Voucher Modal */}
       <Model21PrintModal
