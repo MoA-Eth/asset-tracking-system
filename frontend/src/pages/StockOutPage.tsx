@@ -1278,9 +1278,6 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 text-xs whitespace-nowrap shrink-0 hidden sm:inline-block">
-            {availableItems.length} Available in Store
-          </span>
           <button
             onClick={openIssue}
             disabled={availableItems.length === 0}
