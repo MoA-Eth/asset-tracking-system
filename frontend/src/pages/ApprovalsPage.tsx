@@ -50,6 +50,17 @@ interface ApprovalsPageProps {
 }
 
 type TabFilter = 'MY_QUEUE' | 'STAGE_1' | 'STAGE_2' | 'APPROVED' | 'REJECTED' | 'ALL';
+
+/**
+ * Queue tabs shown to a role. Stage approvers only get their own queue
+ * ("Pending my action"); the other stage's queue is one they cannot act on.
+ */
+export function getVisibleQueueTabs(role: UserRole): TabFilter[] {
+  const isStageApprover = role === UserRole.TEAM_LEADER || role === UserRole.DEPARTMENT_HEAD;
+  return isStageApprover
+    ? ['MY_QUEUE', 'APPROVED', 'REJECTED', 'ALL']
+    : ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'REJECTED', 'ALL'];
+}
 type ViewMode = 'table' | 'cards';
 
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefreshPendingCount }) => {
@@ -64,11 +75,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const [employees, setEmployees] = useState<Employee[]>([]);
 
   // Navigation & View Controls
-  const [activeTab, setActiveTab] = useState<TabFilter>(() => {
-    if (role === UserRole.TEAM_LEADER) return 'STAGE_1';
-    if (role === UserRole.DEPARTMENT_HEAD) return 'STAGE_2';
-    return 'MY_QUEUE';
-  });
+  const [activeTab, setActiveTab] = useState<TabFilter>('MY_QUEUE');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | TransactionType>('ALL');
@@ -578,7 +585,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             { id: 'APPROVED', label: 'Approved History', count: metrics.approvedCount },
             { id: 'REJECTED', label: 'Rejected', count: metrics.rejectedCount },
             { id: 'ALL', label: 'All Records', count: metrics.totalCount },
-          ].map((tab) => (
+          ]
+            .filter((tab) => getVisibleQueueTabs(role).includes(tab.id as TabFilter))
+            .map((tab) => (
             <button
               key={tab.id}
               onClick={() => {
