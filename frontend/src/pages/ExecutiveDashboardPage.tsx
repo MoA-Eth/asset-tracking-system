@@ -321,6 +321,11 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
     .filter((c: any) => c.condition === 'NEEDS_REPAIR' || c.condition === 'DAMAGED')
     .reduce((s: number, c: any) => s + c.count, 0);
 
+  // Items that should have been distributed: in store longer than the limit (30 days)
+  const stale = data?.staleInStore || { thresholdDays: 30, itemCount: 0, units: 0, valueETB: 0, items: [] };
+  const staleItems: any[] = stale.items || [];
+  const showStale = () => document.getElementById('stale-in-store')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
   const topAssets: any[] = (data?.topValuationAssets || []).slice(0, 6);
   const storeLocations: any[] = data?.locationUtilization || [];
   const activeLocations = storeLocations.filter((l: any) => l.itemCount > 0).length;
@@ -398,7 +403,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
       </div>
 
       {/* ── Row 2: Workflow counts ──────────────────────────────────────────── */}
-      {(pendingApprovals > 0 || pendingStockIn > 0 || pendingStockOut > 0 || pendingTransfer > 0 || atRiskCount > 0) && (
+      {(pendingApprovals > 0 || pendingStockIn > 0 || pendingStockOut > 0 || pendingTransfer > 0 || atRiskCount > 0 || stale.itemCount > 0) && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {pendingApprovals > 0 && (
             <WorkTile label="Pending approvals" count={pendingApprovals} icon={Clock} tone="warning" note="Needs action" onClick={() => onNavigate('approvals')} />
@@ -415,8 +420,112 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           {atRiskCount > 0 && (
             <WorkTile label="At-risk assets" count={atRiskCount} icon={AlertTriangle} tone="critical" note="Damaged or needs repair" />
           )}
+          {stale.itemCount > 0 && (
+            <WorkTile
+              label={`In store over ${stale.thresholdDays} days`}
+              count={stale.itemCount}
+              icon={Warehouse}
+              tone="warning"
+              note={`${stale.units} units · distribute`}
+              onClick={showStale}
+            />
+          )}
         </div>
       )}
+
+      {/* ── Items in store too long ─────────────────────────────────────────── */}
+      <div id="stale-in-store" className="scroll-mt-20">
+        <Panel
+          title={`In store over ${stale.thresholdDays} days`}
+          subtitle={`ከ${stale.thresholdDays} ቀን በላይ በመጋዘን የቆዩ ዕቃዎች · items should be distributed within a month of arriving`}
+          icon={Clock}
+        >
+          {staleItems.length === 0 ? (
+            <EmptyState icon={CheckCircle2}>Nothing has been in store for more than {stale.thresholdDays} days.</EmptyState>
+          ) : (
+            <div className="space-y-4">
+              {/* Summary: what is overdue in total */}
+              <div className="flex flex-col gap-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                    <AlertTriangle className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">These items should have been distributed by now</p>
+                    <p className="text-[11px] text-amber-800/80">
+                      Each has stayed in store longer than {stale.thresholdDays} days since it arrived.
+                    </p>
+                  </div>
+                </div>
+                <dl className="grid grid-cols-3 gap-4 sm:gap-6 text-right">
+                  {[
+                    { label: stale.itemCount === 1 ? 'Item' : 'Items', value: stale.itemCount.toLocaleString() },
+                    { label: 'Units', value: stale.units.toLocaleString() },
+                    { label: 'Value', value: formatETB(stale.valueETB) },
+                  ].map((s) => (
+                    <div key={s.label}>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-amber-800/70">{s.label}</dt>
+                      <dd className="text-base font-semibold text-slate-900 whitespace-nowrap">{s.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+
+              {/* One row per item, oldest first */}
+              <ul className="max-h-[26rem] divide-y divide-slate-100 overflow-auto">
+                {staleItems.map((i: any) => {
+                  const overdue = Math.max(0, i.daysInStore - stale.thresholdDays);
+                  // Bar fills over a further month past the limit
+                  const overduePct = Math.min(100, Math.round((overdue / stale.thresholdDays) * 100));
+                  const arrived = i.inStoreSinceGc
+                    ? new Date(`${i.inStoreSinceGc}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                    : '—';
+                  return (
+                    <li key={i.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:gap-4">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                          <Package className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-900">{i.name}</p>
+                          <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
+                            <span className="font-mono">{i.itemCode}</span>
+                            <span>· Arrived {arrived}</span>
+                            {i.issuePending && (
+                              <span className="rounded-full border border-slate-200 bg-white px-1.5 py-px text-[10px] font-medium text-slate-600">
+                                Issue requested
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="w-full sm:w-44">
+                        <div className="flex items-baseline justify-between text-[11px]">
+                          <span className="font-semibold text-amber-800">
+                            Overdue by {overdue} {overdue === 1 ? 'day' : 'days'}
+                          </span>
+                          <span className="text-slate-400">{i.daysInStore}d</span>
+                        </div>
+                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-amber-100">
+                          <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.max(6, overduePct)}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 items-baseline justify-between gap-4 sm:w-40 sm:flex-col sm:items-end sm:gap-0">
+                        <span className="font-mono text-xs font-semibold text-slate-900">
+                          {i.unitsInStore} {i.uom}
+                        </span>
+                        <span className="text-[11px] text-slate-500">{formatETB(i.valueETB)}</span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </Panel>
+      </div>
 
       {/* ── Row 3: Directorates + categories ───────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">

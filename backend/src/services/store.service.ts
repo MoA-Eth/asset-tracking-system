@@ -350,6 +350,22 @@ const IN_STORE_STATUSES = ['AVAILABLE', 'PENDING_STOCK_OUT'];
 /** Units with a custodian: issued, or being transferred to someone else */
 const WITH_CUSTODIAN_STATUSES = ['ISSUED', 'UNDER_TRANSFER'];
 
+/** Items should be distributed within this many days of arriving in store */
+export const STALE_IN_STORE_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The date a record's units arrived in store: the latest approved return if it came back,
+ * otherwise the Model 19 receiving date (when the goods physically arrived).
+ */
+function inStoreSince(item: { history?: { action: string; dateGc: string }[]; ifmisSlipDateGc?: string; createdAtGc?: string }): string | undefined {
+  const returned = (item.history ?? [])
+    .filter((h) => h.action === 'RETURN_APPROVED')
+    .map((h) => h.dateGc)
+    .sort();
+  return returned[returned.length - 1] ?? item.ifmisSlipDateGc ?? item.createdAtGc;
+}
+
 /** Adds up units by where they are: in store, with a custodian, or awaiting registration approval */
 function computeBalance(records: { status: string; notes?: string | null }[]): ItemBalance {
   const balance: ItemBalance = { total: 0, issued: 0, available: 0, pending: 0 };
@@ -1841,6 +1857,28 @@ export class StoreService {
 
     const unassignedItems = allItems.filter((i) => !i.assignedDepartmentId);
 
+    // Units that have stayed in store longer than the distribution limit, oldest first
+    const todayMs = Date.parse(getTodayGcAndEc().gc);
+    const staleItems = available
+      .map((i) => {
+        const since = inStoreSince(i);
+        const sinceMs = since ? Date.parse(since.slice(0, 10)) : NaN;
+        const daysInStore = Number.isFinite(sinceMs) ? Math.floor((todayMs - sinceMs) / DAY_MS) : 0;
+        return {
+          id: i.id,
+          itemCode: i.itemCode,
+          name: i.name,
+          unitsInStore: unitsOf(i),
+          uom: i.uom || 'EA',
+          inStoreSinceGc: since?.slice(0, 10),
+          daysInStore,
+          valueETB: (i.unitCostETB || 0) * unitsOf(i),
+          issuePending: i.status === 'PENDING_STOCK_OUT',
+        };
+      })
+      .filter((i) => i.daysInStore > STALE_IN_STORE_DAYS)
+      .sort((a, b) => b.daysInStore - a.daysInStore);
+
     const conditionDistribution = ['NEW', 'GOOD', 'FAIR', 'NEEDS_REPAIR', 'DAMAGED'].map((cond) => {
       const matching = allItems.filter((i) => i.condition === cond);
       return {
@@ -1904,6 +1942,13 @@ export class StoreService {
       unassignedItemsCount: units(unassignedItems),
       unassignedValuationETB: sum(unassignedItems),
       unassignedItems,
+      staleInStore: {
+        thresholdDays: STALE_IN_STORE_DAYS,
+        itemCount: staleItems.length,
+        units: staleItems.reduce((sum, i) => sum + i.unitsInStore, 0),
+        valueETB: staleItems.reduce((sum, i) => sum + i.valueETB, 0),
+        items: staleItems,
+      },
       departmentDistribution,
       conditionDistribution,
       locationUtilization,
