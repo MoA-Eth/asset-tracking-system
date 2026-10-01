@@ -424,6 +424,18 @@ export interface CreateStockOutRequest {
   remark?: string;
 }
 
+/** Corrections to a Stock-Out request while it still waits for Stage 1 endorsement. The item itself can't change. */
+export interface UpdateStockOutRequest {
+  recipientEmployeeId: string;
+  targetDepartmentId: string;
+  ifmisSlipNumber: string;
+  ifmisSlipDateGc: string;
+  /** New slip upload; omit to keep the current attachment */
+  ifmisSlipAttachmentUrl?: string;
+  purpose: string;
+  remark?: string;
+}
+
 export interface CreateReturnRequest {
   itemId: string;
   ifmisSlipNumber: string;

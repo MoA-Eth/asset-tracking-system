@@ -13,6 +13,7 @@ import {
   ApprovalStatus,
   CreateStockInRequest,
   UpdateStockInRequest,
+  UpdateStockOutRequest,
   CreateStockOutRequest,
   CreateTransferRequest,
   CreateReturnRequest,
@@ -191,6 +192,11 @@ async function generateItemCode(category: AssetCategory, year: number): Promise<
 }
 
 // ─── Audit Log Helper ─────────────────────────────────────────────────────────
+
+/** Stock-Out purpose and remark share one column: "purpose (Remark: remark)" */
+function formatStockOutNotes(purpose: string, remark?: string): string {
+  return remark ? `${purpose} (Remark: ${remark})` : purpose;
+}
 
 async function addAuditLog(
   userId: string,
@@ -611,6 +617,134 @@ export class StoreService {
     return mapItem(updated);
   }
 
+  /**
+   * Corrects a Stock-Out request while it still waits for Stage 1 endorsement.
+   * The item being issued stays the same; the voucher, recipient and purpose can change.
+   */
+  public async updateStockOut(approvalId: string, payload: UpdateStockOutRequest, actorId: string): Promise<TransactionApproval> {
+    const approval = await prisma.transactionApproval.findUnique({ where: { id: approvalId } });
+    if (!approval || approval.transactionType !== 'STOCK_OUT') {
+      throw new NotFoundError(`Stock-Out request ${approvalId} not found.`);
+    }
+    // Once the Team Leader has endorsed (or the request is decided) the request is locked
+    if (approval.status !== 'PENDING' || approval.currentStage !== 1) {
+      throw new ConflictError(
+        `The Stock-Out request for ${approval.itemCode} can only be edited while it is waiting for Team Leader endorsement. Ask an approver to reject it and submit it again.`
+      );
+    }
+
+    const slipNo = (payload.ifmisSlipNumber || '').trim();
+    const purpose = (payload.purpose || '').trim();
+    if (!slipNo) throw new BadRequestError('IFMIS Slip Number is mandatory for Stock-Out.');
+    if (!purpose) throw new BadRequestError('Purpose of issue is required.');
+    if (!payload.recipientEmployeeId) throw new BadRequestError('Recipient staff member is required.');
+    if (!payload.targetDepartmentId) throw new BadRequestError('Destination directorate is required.');
+
+    const [recipient, department] = await Promise.all([
+      prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }),
+      prisma.department.findUnique({ where: { id: payload.targetDepartmentId } }),
+    ]);
+    if (!recipient) throw new BadRequestError('The selected recipient no longer exists.');
+    if (!department) throw new BadRequestError('The selected directorate no longer exists.');
+
+    const before = {
+      recipientEmployeeId: approval.recipientEmployeeId,
+      targetDepartmentId: approval.targetDepartmentId,
+      ifmisSlipNumber: approval.ifmisSlipNumber,
+      ifmisSlipDateGc: approval.ifmisSlipDateGc,
+      ifmisSlipAttachmentUrl: approval.ifmisSlipAttachmentUrl,
+      purposeOrRemarks: approval.purposeOrRemarks,
+    };
+    const after = {
+      recipientEmployeeId: recipient.id,
+      targetDepartmentId: department.id,
+      ifmisSlipNumber: slipNo,
+      ifmisSlipDateGc: payload.ifmisSlipDateGc || approval.ifmisSlipDateGc,
+      ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl,
+      purposeOrRemarks: formatStockOutNotes(purpose, payload.remark?.trim() || undefined),
+    };
+    const changed = (Object.keys(after) as (keyof typeof after)[]).filter((k) => String(before[k] ?? '') !== String(after[k] ?? ''));
+    if (changed.length === 0) {
+      const unchanged = await prisma.transactionApproval.findUnique({ where: { id: approvalId }, include: APPROVAL_INCLUDES });
+      return mapApproval(unchanged);
+    }
+
+    // Show names rather than ids in the history and audit summary
+    const previousRecipient = before.recipientEmployeeId && before.recipientEmployeeId !== recipient.id
+      ? await prisma.employee.findUnique({ where: { id: before.recipientEmployeeId } })
+      : recipient;
+    const previousDepartment = before.targetDepartmentId && before.targetDepartmentId !== department.id
+      ? await prisma.department.findUnique({ where: { id: before.targetDepartmentId } })
+      : department;
+    const describe = (k: keyof typeof after): string => {
+      if (k === 'recipientEmployeeId') return `recipient ${previousRecipient?.fullNameEn ?? '—'} → ${recipient.fullNameEn}`;
+      if (k === 'targetDepartmentId') return `directorate ${previousDepartment?.nameEn ?? '—'} → ${department.nameEn}`;
+      if (k === 'ifmisSlipAttachmentUrl') return 'slip attachment replaced';
+      return `${k} ${before[k] ?? '—'} → ${after[k] ?? '—'}`;
+    };
+    const summary = `Corrected before endorsement: ${changed.map(describe).join('; ')}`;
+
+    const actor = await prisma.employee.findUnique({ where: { id: actorId } });
+    const today = getTodayGcAndEc();
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const saved = await tx.transactionApproval.update({
+        where: { id: approvalId },
+        data: {
+          recipientEmployeeId: after.recipientEmployeeId,
+          targetDepartmentId: after.targetDepartmentId,
+          ifmisSlipNumber: after.ifmisSlipNumber,
+          ifmisSlipDateGc: after.ifmisSlipDateGc,
+          ifmisSlipDateEc: formatGcToEc(after.ifmisSlipDateGc),
+          ifmisSlipAttachmentUrl: after.ifmisSlipAttachmentUrl,
+          purposeOrRemarks: after.purposeOrRemarks,
+        },
+        include: APPROVAL_INCLUDES,
+      });
+
+      await tx.item.update({
+        where: { id: approval.itemId },
+        data: {
+          history: {
+            create: {
+              dateGc: today.gc,
+              dateEc: today.ec,
+              action: 'STOCK_OUT_EDITED',
+              fromEntity: 'Central Store (Available)',
+              toEntity: `${recipient.fullNameEn} (Pending Approval)`,
+              performedBy: actor ? actor.fullNameEn : actorId,
+              performedByRole: (actor?.role ?? 'DATA_ENCODER') as any,
+              ifmisSlipNumber: after.ifmisSlipNumber,
+              notes: summary,
+            },
+          },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          timestampGc: `${today.gc} ${time}`,
+          timestampEc: `${today.ec} ${time}`,
+          userId: actorId,
+          userName: actor ? actor.fullNameEn : 'System',
+          userRole: (actor?.role ?? 'DATA_ENCODER') as any,
+          action: 'EDIT_STOCK_OUT',
+          entityType: 'STOCK_OUT' as any,
+          entityId: approval.itemId,
+          ifmisSlipNumber: after.ifmisSlipNumber,
+          details: `Item ${approval.itemCode}: ${summary}`,
+          previousState: before as any,
+          newState: after as any,
+        },
+      });
+
+      return saved;
+    });
+
+    return mapApproval(updated);
+  }
+
   // ── Stock-Out Registration ──────────────────────────────────────────────
 
   public async registerStockOut(payload: CreateStockOutRequest): Promise<TransactionApproval> {
@@ -627,9 +761,7 @@ export class StoreService {
     const recipient = payload.recipientEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }) : null;
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
-    const notesText = payload.remark
-      ? `${payload.purpose} (Remark: ${payload.remark})`
-      : payload.purpose;
+    const notesText = formatStockOutNotes(payload.purpose, payload.remark);
 
     await prisma.item.update({
       where: { id: item.id },

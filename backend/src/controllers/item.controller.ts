@@ -6,6 +6,7 @@ import {
   ApprovalStatus,
   CreateStockInRequest,
   UpdateStockInRequest,
+  UpdateStockOutRequest,
   CreateStockOutRequest,
   CreateTransferRequest,
   ApprovalActionRequest,
@@ -119,6 +120,17 @@ export class ItemController {
     }
     const result = await this.store.registerStockOut(payload);
     return sendSuccess(res, result, 'Stock-out submitted for Department Head approval', 201);
+  });
+
+  /**
+   * PUT /api/items/stock-out/:approvalId
+   * Corrects a Stock-Out request while it still waits for Stage 1 endorsement.
+   */
+  public updateStockOut = asyncHandler(async (req: Request, res: Response) => {
+    const approvalId = Array.isArray(req.params.approvalId) ? req.params.approvalId[0] : req.params.approvalId;
+    const payload: UpdateStockOutRequest = req.body;
+    const approval = await this.store.updateStockOut(approvalId, payload, req.user!.id);
+    return sendSuccess(res, { approval }, 'Stock-Out request updated');
   });
 
   /**

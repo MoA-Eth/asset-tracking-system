@@ -31,6 +31,12 @@ router.post(
   optionalAuth,
   controller.registerStockOut
 );
+router.put(
+  '/stock-out/:approvalId',
+  requireAuth,
+  requireRole(UserRole.DATA_ENCODER),
+  controller.updateStockOut
+);
 router.post(
   '/return-to-store',
   optionalAuth,

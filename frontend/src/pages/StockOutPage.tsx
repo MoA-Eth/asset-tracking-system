@@ -17,6 +17,8 @@ import {
   ArrowDown,
   RotateCcw,
   Printer,
+  Pencil,
+  Lock,
   X,
 } from 'lucide-react';
 import { api } from '../api/client';
@@ -50,7 +52,7 @@ import {
 } from '../types/asset-management';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
 import { getSystemSettings } from '../utils/system-settings';
-import { validateSlipFile, SLIP_ACCEPT_ATTR } from '../utils/slip-upload';
+import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../utils/slip-upload';
 
 interface StockOutPageProps {
   currentRole: UserRole;
@@ -75,11 +77,19 @@ const APPROVAL_STATUS_STYLES: Record<string, { label: string; className: string 
   },
 };
 
-const ApprovalStatusBadge: React.FC<{ status: ApprovalStatus }> = ({ status }) => {
-  const style = APPROVAL_STATUS_STYLES[status] ?? {
+/** Who a pending request is waiting on, so two "pending" rows are told apart */
+const PENDING_STAGE_LABELS: Record<number, string> = {
+  1: 'Awaiting Team Leader',
+  2: 'Awaiting Dept. Head',
+};
+
+const ApprovalStatusBadge: React.FC<{ status: ApprovalStatus; stage?: number }> = ({ status, stage }) => {
+  const base = APPROVAL_STATUS_STYLES[status] ?? {
     label: status,
     className: 'bg-slate-100 text-slate-700 border-slate-200',
   };
+  const stageLabel = status === ApprovalStatus.PENDING && stage ? PENDING_STAGE_LABELS[stage] : undefined;
+  const style = stageLabel ? { ...base, label: stageLabel } : base;
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${style.className}`}
@@ -97,7 +107,15 @@ interface StockOutFormProps {
   employees: Employee[];
   onCancel: () => void;
   onSuccess: (result: TransactionApproval, voucher?: Model22Voucher) => void;
+  /** When set, the form corrects this pending request instead of creating a new one */
+  editApproval?: TransactionApproval;
 }
+
+/** Splits the stored "purpose (Remark: remark)" text back into its two fields */
+const splitPurposeAndRemark = (text: string): { purpose: string; remark: string } => {
+  const match = /^([\s\S]*) \(Remark: ([\s\S]*)\)$/.exec(text || '');
+  return match ? { purpose: match[1], remark: match[2] } : { purpose: text || '', remark: '' };
+};
 
 const StockOutForm: React.FC<StockOutFormProps> = ({
   availableItems,
@@ -105,23 +123,30 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   employees,
   onCancel,
   onSuccess,
+  editApproval,
 }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const isEdit = !!editApproval;
+  const editNotes = splitPurposeAndRemark(editApproval?.purposeOrRemarks ?? '');
 
   // Selected store item
   const initialItem = availableItems[0];
   const [selectedItemId, setSelectedItemId] = useState<string>(initialItem?.id ?? '');
 
   // Header fields matching photo
-  const [model22No, setModel22No] = useState<string>('0004653/A Inventory');
-  const [issuedDateGc, setIssuedDateGc] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [model22No, setModel22No] = useState<string>(editApproval?.ifmisSlipNumber ?? '0004653/A Inventory');
+  const [issuedDateGc, setIssuedDateGc] = useState<string>(
+    editApproval?.ifmisSlipDateGc || editApproval?.createdAtGc?.split('T')[0] || new Date().toISOString().split('T')[0]
+  );
   const [transactionType, setTransactionType] = useState<string>('Move Order Issue');
   const [destinationDepartmentId, setDestinationDepartmentId] = useState<string>(
-    employees[0]?.departmentId ?? departments[0]?.id ?? ''
+    editApproval?.targetDepartmentId ?? employees[0]?.departmentId ?? departments[0]?.id ?? ''
   );
-  const [recipientEmployeeId, setRecipientEmployeeId] = useState<string>(employees[0]?.id ?? '');
+  const [recipientEmployeeId, setRecipientEmployeeId] = useState<string>(
+    editApproval?.recipientEmployeeId ?? employees[0]?.id ?? ''
+  );
 
   // Line item particulars matching photo columns
   const [itemCode, setItemCode] = useState<string>(initialItem?.itemCode ?? '');
@@ -140,9 +165,12 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   const [quantity, setQuantity] = useState<number>(1);
   const [unitPrice, setUnitPrice] = useState<number>(initialItem?.unitCostETB ?? 18963.5);
   const [transportationCost, setTransportationCost] = useState<number>(0);
-  const [remark, setRemark] = useState<string>('');
-  const [purpose, setPurpose] = useState<string>('Move Order Issue for Ministry Operations');
-  const [attachmentFileName, setAttachmentFileName] = useState<string>('');
+  const [remark, setRemark] = useState<string>(editNotes.remark);
+  const [purpose, setPurpose] = useState<string>(isEdit ? editNotes.purpose : 'Move Order Issue for Ministry Operations');
+  // In edit mode the current slip is kept unless a new file is chosen
+  const [attachmentFileName, setAttachmentFileName] = useState<string>(
+    editApproval?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editApproval.ifmisSlipAttachmentUrl) : ''
+  );
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -222,7 +250,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     e.preventDefault();
     setFormError(null);
 
-    if (!selectedItemId) {
+    if (!isEdit && !selectedItemId) {
       const msg = 'Please select an available store item to issue.';
       setFormError(msg);
       toast.warning('Selection Required', msg);
@@ -250,7 +278,39 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       return;
     }
 
+    if (!purpose.trim()) {
+      const msg = 'Purpose of issue is required.';
+      setFormError(msg);
+      toast.warning('Purpose Required', msg);
+      return;
+    }
+
     setSubmitting(true);
+
+    if (editApproval) {
+      try {
+        const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
+        const res = await api.updateStockOut(editApproval.id, {
+          recipientEmployeeId,
+          targetDepartmentId: destinationDepartmentId,
+          ifmisSlipNumber: model22No.trim(),
+          ifmisSlipDateGc: issuedDateGc,
+          ifmisSlipAttachmentUrl: slipUrl,
+          purpose: purpose.trim(),
+          remark: remark.trim() || undefined,
+        });
+        toast.success('Stock-Out Updated', `The request for ${editApproval.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
+        onSuccess(res.approval);
+      } catch (err: any) {
+        const errMsg = err.message || 'Server error';
+        setFormError(`Update failed: ${errMsg}`);
+        toast.error('Stock-Out Update Failed', errMsg);
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     const registeredById = user?.id || employees[0]?.id || '';
     const selectedItem = availableItems.find((i) => i.id === selectedItemId);
     const recipient = employees.find((e) => e.id === recipientEmployeeId);
@@ -362,19 +422,31 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
             />
           </Field>
 
-          <Field label="Transaction type" required>
-            <select value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
-              <option value="Move Order Issue">Move Order Issue</option>
-              <option value="Direct Store Issue">Direct Store Issue</option>
-              <option value="Department Assignment">Department Assignment</option>
-              <option value="Project Allocation">Project Allocation</option>
-            </select>
-          </Field>
+          {!isEdit && (
+            <Field label="Transaction type" required>
+              <select value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
+                <option value="Move Order Issue">Move Order Issue</option>
+                <option value="Direct Store Issue">Direct Store Issue</option>
+                <option value="Department Assignment">Department Assignment</option>
+                <option value="Project Allocation">Project Allocation</option>
+              </select>
+            </Field>
+          )}
         </FieldGrid>
       </FormSection>
 
       {/* ── Section 2: Item issued ── */}
       <FormSection step={2} title="Item issued" subtitle="የሚወጣው ዕቃ ዝርዝር መረጃ" icon={PackageMinus} accent="blue">
+        {editApproval ? (
+          <FieldGrid>
+            <Field label="Item code" hint="The item can't be changed. To issue a different item, ask an approver to reject this request.">
+              <ReadOnlyValue mono>{editApproval.itemCode}</ReadOnlyValue>
+            </Field>
+            <Field label="Item description" span="sm:col-span-2">
+              <ReadOnlyValue>{editApproval.itemName}</ReadOnlyValue>
+            </Field>
+          </FieldGrid>
+        ) : (
         <div className="space-y-3.5">
           <Field label="Store item" required hint="Only items currently available in store are listed.">
             <select
@@ -537,6 +609,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
             </Field>
           </FieldGrid>
         </div>
+        )}
       </FormSection>
 
       {/* ── Section 3: Recipient & custody ── */}
@@ -608,7 +681,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
             </Field>
 
             <Field label="Issued by (store custodian)">
-              <ReadOnlyValue>{user?.fullNameEn || 'Current user'}</ReadOnlyValue>
+              <ReadOnlyValue>{editApproval?.requestedBy?.fullNameEn || user?.fullNameEn || 'Current user'}</ReadOnlyValue>
             </Field>
           </FieldGrid>
 
@@ -626,9 +699,9 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       <FormFooter
         accent="blue"
         submitting={submitting}
-        submitLabel="Submit for approval"
+        submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
         onCancel={onCancel}
-        onReset={handleReset}
+        onReset={isEdit ? undefined : handleReset}
       />
     </form>
   );
@@ -644,6 +717,9 @@ interface StockOutTableProps {
   onOpenVoucher: (approval: TransactionApproval) => void;
   onOpenReturn: (itemCode: string) => void;
   onPrintModel22?: (approval: TransactionApproval) => void;
+  /** Only the Data Encoder can correct a request */
+  canEdit: boolean;
+  onEdit: (approval: TransactionApproval) => void;
   highlightApprovalId?: string;
 }
 
@@ -655,6 +731,8 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
   onOpenVoucher,
   onOpenReturn,
   onPrintModel22,
+  canEdit,
+  onEdit,
   highlightApprovalId,
 }) => {
   const [search, setSearch] = useState('');
@@ -845,10 +923,32 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                       {approval.createdAtGc ? approval.createdAtGc.split('T')[0] : '—'}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap w-28">
-                      <ApprovalStatusBadge status={approval.status} />
+                      <ApprovalStatusBadge status={approval.status} stage={approval.currentStage} />
                     </td>
                     <td className="px-3 py-2.5 text-right whitespace-nowrap w-44">
                       <div className="flex items-center justify-end gap-1.5">
+                        {canEdit && approval.status === ApprovalStatus.PENDING && approval.currentStage === 1 && (
+                          <button
+                            onClick={() => onEdit(approval)}
+                            className="px-2 py-1 bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-800 border border-slate-300 hover:border-blue-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                            title="Correct this request (allowed until the Team Leader endorses it)"
+                            aria-label={`Edit ${approval.itemCode}`}
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-blue-700" />
+                            <span>Edit</span>
+                          </button>
+                        )}
+                        {canEdit && approval.status === ApprovalStatus.PENDING && approval.currentStage === 2 && (
+                          <button
+                            disabled
+                            className="px-2 py-1 bg-slate-50 text-slate-400 border border-slate-200 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 cursor-not-allowed"
+                            title="Locked: the Team Leader has already endorsed this request. To correct it, ask an approver to reject it and submit it again."
+                            aria-label={`Edit ${approval.itemCode} (locked after Team Leader endorsement)`}
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => (onPrintModel22 ? onPrintModel22(approval) : onOpenVoucher(approval))}
                           className="px-2 py-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-800 border border-slate-300 hover:border-blue-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
@@ -903,6 +1003,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editApproval, setEditApproval] = useState<TransactionApproval | null>(null);
   const [lastSubmitted, setLastSubmitted] = useState<TransactionApproval | null>(null);
 
   const [activeVoucher, setActiveVoucher] = useState<Model22Voucher | null>(null);
@@ -1031,7 +1132,27 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     fetchData();
   }, [fetchData]);
 
+  const openIssue = () => {
+    setEditApproval(null);
+    setIsModalOpen(true);
+  };
+
+  const openEdit = (approval: TransactionApproval) => {
+    setEditApproval(approval);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditApproval(null);
+  };
+
   const handleSuccess = (result: TransactionApproval, voucher?: Model22Voucher) => {
+    if (editApproval) {
+      closeModal();
+      fetchData(true);
+      return;
+    }
     setLastSubmitted(result);
     setIsModalOpen(false);
     fetchData(true);
@@ -1085,7 +1206,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
             {availableItems.length} Available in Store
           </span>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={openIssue}
             disabled={availableItems.length === 0}
             className="px-5 py-2.5 bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-2 cursor-pointer shrink-0"
           >
@@ -1165,6 +1286,8 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
           onOpenVoucher={(appr) => setSelectedVoucherApproval(appr)}
           onPrintModel22={handlePrintModel22}
           onOpenReturn={(code) => handleOpenReturnByCode(code)}
+          canEdit={currentRole === UserRole.DATA_ENCODER}
+          onEdit={openEdit}
           highlightApprovalId={lastSubmitted?.id}
         />
       </div>
@@ -1172,19 +1295,25 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
       {/* ── Stock-Out Modal (Model 22 Single-Item Form) ── */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Issue item from store · Model 22"
-        subtitle="The item stays in store until the Team Leader endorses and the Department Head approves the issue."
+        onClose={closeModal}
+        title={editApproval ? `Edit request · ${editApproval.itemCode}` : 'Issue item from store · Model 22'}
+        subtitle={
+          editApproval
+            ? 'You can correct this request until the Team Leader endorses it. Each change is recorded in the item history.'
+            : 'The item stays in store until the Team Leader endorses and the Department Head approves the issue.'
+        }
         accentColor="blue"
         size="xl"
       >
-        {availableItems.length > 0 ? (
+        {editApproval || availableItems.length > 0 ? (
           <StockOutForm
+            key={editApproval?.id ?? 'new'}
             availableItems={availableItems}
             departments={departments}
             employees={employees}
-            onCancel={() => setIsModalOpen(false)}
+            onCancel={closeModal}
             onSuccess={handleSuccess}
+            editApproval={editApproval ?? undefined}
           />
         ) : (
           <div className="py-8 text-center text-xs text-slate-500">
