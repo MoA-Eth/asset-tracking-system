@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   PackagePlus,
   Package,
-  Layers,
-  DollarSign,
-  ExternalLink,
+  Warehouse,
+  UserCheck,
+  Paperclip,
   FileText,
   Upload,
   CheckCircle2,
@@ -28,6 +28,7 @@ import {
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { Modal, StatCard } from '../components/ui';
+import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import {
   FormSection,
   FieldGrid,
@@ -754,6 +755,7 @@ interface ItemsTableProps {
   /** Only the Data Encoder can correct a registration */
   canEdit: boolean;
   onEdit: (item: ItemWithRelations) => void;
+  onViewSlip: (url: string) => void;
   highlightItemId?: string;
 }
 
@@ -766,6 +768,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   pendingStages,
   canEdit,
   onEdit,
+  onViewSlip,
   highlightItemId,
 }) => {
   const [search, setSearch] = useState('');
@@ -1007,15 +1010,15 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       <div className="flex items-center gap-1.5">
                         <span>{item.ifmisSlipNumber || '—'}</span>
                         {item.ifmisSlipAttachmentUrl && (
-                          <a
-                            href={item.ifmisSlipAttachmentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-emerald-600 hover:text-emerald-800 transition p-0.5 rounded hover:bg-emerald-50 inline-flex items-center"
-                            title="View Scanned Voucher Attachment"
+                          <button
+                            type="button"
+                            onClick={() => onViewSlip(item.ifmisSlipAttachmentUrl!)}
+                            className="p-1 rounded text-emerald-700 hover:bg-emerald-50 transition cursor-pointer"
+                            title="View scanned Model 19 slip"
+                            aria-label={`View scanned slip for ${item.itemCode}`}
                           >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
+                            <Paperclip className="w-3.5 h-3.5" />
+                          </button>
                         )}
                       </div>
                     </td>
@@ -1090,6 +1093,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
   const [lastRegistered, setLastRegistered] = useState<any | null>(null);
   // Registration being corrected (null = registering a new item)
   const [editItem, setEditItem] = useState<ItemWithRelations | null>(null);
+  const [viewingSlipUrl, setViewingSlipUrl] = useState<string | null>(null);
   const [pendingStages, setPendingStages] = useState<Map<string, number>>(new Map());
 
   const openRegister = () => {
@@ -1258,17 +1262,24 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
     );
   }
 
-  // Metric calculations strictly excluding pending items from inbound counts & valuation (see docs/reminder.md)
-  const approvedInboundItems = items.filter((i) => i.status === ItemStatus.AVAILABLE);
-  const totalInboundCount = approvedInboundItems.length;
-  const pendingApprovalCount = items.filter(
-    (i) => i.status === ItemStatus.PENDING_STOCK_IN
-  ).length;
-  const availableStoreCount = approvedInboundItems.length;
-  const totalInboundValue = approvedInboundItems.reduce(
-    (acc, i) => acc + (Number(i.unitCostETB) || 0) * (Number(i.quantity) || 1),
-    0
+  // Summary in units, from each registration's balance. Registrations still waiting for approval
+  // aren't counted as received or valued until they are approved.
+  const totals = items.reduce(
+    (acc, i) => {
+      const b = i.balance ?? { total: 0, issued: 0, available: 0, pending: 0 };
+      const received = b.issued + b.available;
+      return {
+        received: acc.received + received,
+        issued: acc.issued + b.issued,
+        inStore: acc.inStore + b.available,
+        value: acc.value + (Number(i.unitCostETB) || 0) * received,
+      };
+    },
+    { received: 0, issued: 0, inStore: 0, value: 0 }
   );
+  const awaitingApproval = items.filter((i) => i.status === ItemStatus.PENDING_STOCK_IN);
+  const awaitingUnits = awaitingApproval.reduce((acc, i) => acc + (i.balance?.pending ?? (Number(i.quantity) || 1)), 0);
+  const inStorePct = totals.received > 0 ? Math.round((totals.inStore / totals.received) * 100) : 0;
 
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
@@ -1329,35 +1340,31 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
         </div>
       )}
 
-      {/* ── Summary KPI Cards ── */}
+      {/* ── Summary cards (units) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Total Inbound (Approved)"
-          value={totalInboundCount}
-          subtitle="Verified assets in store"
-          icon={<Package className="w-5 h-5 text-emerald-600" />}
-          valueColor="text-emerald-700"
+          label="Received"
+          value={totals.received.toLocaleString()}
+          subtitle={`Approved units · ${formatETB(totals.value)}`}
+          icon={<Package className="w-5 h-5" />}
         />
         <StatCard
-          label="Pending Approval"
-          value={pendingApprovalCount}
-          subtitle="Awaiting Dept Head review"
-          icon={<Clock className="w-5 h-5 text-amber-600" />}
-          valueColor={pendingApprovalCount > 0 ? "text-amber-600" : "text-slate-900"}
+          label="In Store"
+          value={totals.inStore.toLocaleString()}
+          subtitle={`${inStorePct}% of received · ready to issue`}
+          icon={<Warehouse className="w-5 h-5" />}
         />
         <StatCard
-          label="Available in Store"
-          value={availableStoreCount}
-          subtitle="Ready for issuance"
-          icon={<Layers className="w-5 h-5 text-blue-600" />}
-          valueColor="text-blue-700"
+          label="Issued"
+          value={totals.issued.toLocaleString()}
+          subtitle="Units with custodians"
+          icon={<UserCheck className="w-5 h-5" />}
         />
         <StatCard
-          label="Total Inbound Value"
-          value={formatETB(totalInboundValue)}
-          subtitle="Acquisition valuation (ETB)"
-          icon={<DollarSign className="w-5 h-5 text-purple-600" />}
-          valueColor="text-purple-700"
+          label="Awaiting approval"
+          value={awaitingApproval.length}
+          subtitle={`${awaitingApproval.length === 1 ? 'Registration' : 'Registrations'} · ${awaitingUnits} units not yet received`}
+          icon={<Clock className="w-5 h-5" />}
         />
       </div>
 
@@ -1368,11 +1375,6 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
             <Eye className="w-4 h-4 text-slate-500" />
             Registered Items ({items.length})
           </h3>
-          <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
-            <span className="bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-bold">
-              {items.filter((i) => i.status === ItemStatus.PENDING_STOCK_IN).length} Pending
-            </span>
-          </div>
         </div>
         <ItemsTable
           items={items}
@@ -1383,9 +1385,12 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
           pendingStages={pendingStages}
           canEdit={currentRole === UserRole.DATA_ENCODER}
           onEdit={openEdit}
+          onViewSlip={setViewingSlipUrl}
           highlightItemId={lastRegistered?.item?.id || lastRegistered?.item?.itemCode}
         />
       </div>
+
+      {viewingSlipUrl && <SlipViewerModal url={viewingSlipUrl} onClose={() => setViewingSlipUrl(null)} />}
 
       {/* ── Stock-In Modal ── */}
       <Modal

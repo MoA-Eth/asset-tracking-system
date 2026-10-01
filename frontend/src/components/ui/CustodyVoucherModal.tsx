@@ -64,9 +64,9 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {item?.ifmisSlipAttachmentUrl && (
+            {(approval?.ifmisSlipAttachmentUrl || item?.ifmisSlipAttachmentUrl) && (
               <a
-                href={item.ifmisSlipAttachmentUrl}
+                href={approval?.ifmisSlipAttachmentUrl || item?.ifmisSlipAttachmentUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm"
@@ -134,7 +134,9 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
             <div>
               <span className="text-slate-500 block text-[10px] uppercase font-bold">{isStockIn ? 'Receiving Store' : 'Issuing Store'}</span>
               <span className="font-semibold text-slate-800">
-                {item?.storeLocation ? `${item.storeLocation.roomNumber} — ${item.storeLocation.siteName}` : 'HQ Central Depot'}
+                {item?.storeLocation
+                  ? [item.storeLocation.roomNumber, item.storeLocation.siteName].filter(Boolean).join(' — ')
+                  : 'HQ Central Depot'}
               </span>
             </div>
             <div>
