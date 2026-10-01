@@ -29,6 +29,8 @@ import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { Modal, StatCard } from '../components/ui';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
+import { RowActionsMenu } from '../components/ui/RowActionsMenu';
+import { RecordDetailModal } from '../components/ui/RecordDetailModal';
 import {
   FormSection,
   FieldGrid,
@@ -783,6 +785,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   highlightItemId,
 }) => {
   const [search, setSearch] = useState('');
+  const [viewingItemId, setViewingItemId] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -935,20 +938,11 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                   In Store
                 </th>
                 <th
-                  onClick={() => handleSort('ifmisSlipNumber')}
+                  onClick={() => handleSort('createdAt')}
                   className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-36 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>Model 19 / IFMIS</span>
-                    {renderSortIcon('ifmisSlipNumber')}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('createdAt')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span>Date (G.C.)</span>
+                    <span>Model 19 slip / Date</span>
                     {renderSortIcon('createdAt')}
                   </div>
                 </th>
@@ -970,9 +964,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                     {renderSortIcon('status')}
                   </div>
                 </th>
-                <th className="px-3 py-2.5 text-center w-24 whitespace-nowrap">
-                  Action
-                </th>
+                <th className={`px-3 py-2.5 ${table.actionsHead}`}><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -999,10 +991,13 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[180px] max-w-[240px] truncate">
+                    <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[150px] max-w-[180px] truncate" title={item.name}>
                       {item.name}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap w-28">
+                    <td
+                      className="px-3 py-2.5 text-slate-600 whitespace-nowrap max-w-[120px] truncate"
+                      title={item.itemCategoryDisplay || item.category.replace(/_/g, ' ')}
+                    >
                       {item.itemCategoryDisplay || item.category.replace(/_/g, ' ')}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-center text-slate-700 uppercase whitespace-nowrap w-16">
@@ -1032,9 +1027,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                           </button>
                         )}
                       </div>
-                    </td>
-                    <td className="px-3 py-2.5 font-mono text-slate-600 whitespace-nowrap w-28 text-[11px]">
-                      {item.ifmisSlipDateGc || item.createdAtGc || '—'}
+                      <div className="text-[10px] text-slate-500">{item.ifmisSlipDateGc || item.createdAtGc || '—'}</div>
                     </td>
                     <td className="px-3 py-2.5 font-mono text-slate-700 text-right whitespace-nowrap w-28">
                       {formatETB(item.unitCostETB)}
@@ -1046,39 +1039,22 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                         partlyIssued={(item.balance?.issued ?? 0) > 0 && (item.balance?.available ?? 0) > 0}
                       />
                     </td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {canEdit && pendingStages.get(item.id) === 1 && (
-                          <button
-                            onClick={() => onEdit(item)}
-                            className={btn.row}
-                            title="Correct this registration (allowed until the Team Leader endorses it)"
-                            aria-label={`Edit ${item.itemCode}`}
-                          >
-                            <Pencil className={btn.rowIcon} />
-                            <span>Edit</span>
-                          </button>
-                        )}
-                        {canEdit && pendingStages.get(item.id) === 2 && (
-                          <button
-                            disabled
-                            className={btn.rowLocked}
-                            title="Locked: the Team Leader has already endorsed this registration. To correct it, ask an approver to reject it and register it again."
-                            aria-label={`Edit ${item.itemCode} (locked after Team Leader endorsement)`}
-                          >
-                            <Lock className="w-3.5 h-3.5" />
-                            <span>Edit</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={() => onPrintModel19(item)}
-                          className={btn.row}
-                          title="Print Official Model 19 Report"
-                        >
-                          <Printer className={btn.rowIcon} />
-                          <span>Print M19</span>
-                        </button>
-                      </div>
+                    <td className={`px-3 py-2.5 ${table.actionsCell}`}>
+                      <RowActionsMenu
+                        label={item.itemCode}
+                        actions={[
+                          { label: 'View details', icon: Eye, onClick: () => setViewingItemId(item.id) },
+                          {
+                            label: 'Edit registration',
+                            icon: Pencil,
+                            onClick: () => onEdit(item),
+                            hidden: !canEdit || ![1, 2].includes(pendingStages.get(item.id) ?? 0),
+                            disabled: pendingStages.get(item.id) === 2,
+                            reason: pendingStages.get(item.id) === 2 ? 'The Team Leader has endorsed it. To correct it, ask an approver to reject it.' : undefined,
+                          },
+                          { label: 'Print Model 19', icon: Printer, onClick: () => onPrintModel19(item) },
+                        ]}
+                      />
                     </td>
                   </tr>
                 );
@@ -1087,6 +1063,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
           </table>
         </div>
       )}
+      {viewingItemId && <RecordDetailModal itemId={viewingItemId} onClose={() => setViewingItemId(null)} />}
     </div>
   );
 };
