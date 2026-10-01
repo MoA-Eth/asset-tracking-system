@@ -17,6 +17,10 @@ import {
   CreateStockOutRequest,
   CreateTransferRequest,
   CreateReturnRequest,
+  UpdateTransferRequest,
+  UpdateReturnRequest,
+  Model21RequestDetails,
+  Model21Accessory,
   ApprovalActionRequest,
 } from '../types/asset-management';
 import { prisma } from '../lib/prisma';
@@ -120,7 +124,9 @@ function mapApproval(raw: any): TransactionApproval {
     requestedById: raw.requestedById,
     recipientEmployeeId: raw.recipientEmployeeId ?? undefined,
     targetDepartmentId: raw.targetDepartmentId ?? undefined,
+    targetLocationId: raw.targetLocationId ?? undefined,
     purposeOrRemarks: raw.purposeOrRemarks,
+    requestDetails: requestDetailsOf(raw),
     status: raw.status as ApprovalStatus,
     currentStage: raw.currentStage ?? 1,
     endorsedById: raw.endorsedById ?? undefined,
@@ -192,6 +198,79 @@ async function generateItemCode(category: AssetCategory, year: number): Promise<
 }
 
 // ─── Audit Log Helper ─────────────────────────────────────────────────────────
+
+const RETURN_CONDITIONS = ['NEW', 'GOOD', 'FAIR', 'NEEDS_REPAIR', 'DAMAGED'];
+
+/** Transfer summary shown to approvers, e.g. "Reassignment | [Model/21 # 0004386] | Book: MOA MC BOOK" */
+function formatTransferNotes(slipNo: string, d: Model21RequestDetails): string {
+  return [
+    d.reason,
+    `[Model/21 # ${slipNo}]`,
+    d.book ? `Book: ${d.book}` : '',
+    d.chassisNumber ? `Chassis: ${d.chassisNumber}` : '',
+    d.plateNo ? `Plate: ${d.plateNo}` : '',
+    d.engineNo ? `Engine: ${d.engineNo}` : '',
+    d.remark ? `Remark: ${d.remark}` : '',
+  ].filter(Boolean).join(' | ');
+}
+
+/** Return summary shown to approvers, e.g. "Return Reason: … | Condition: GOOD | [Model/21 # …]" */
+function formatReturnNotes(slipNo: string, d: Model21RequestDetails): string {
+  return [
+    `Return Reason: ${d.reason}`,
+    `Condition: ${d.condition}`,
+    slipNo ? `[Model/21 # ${slipNo}]` : '',
+    d.book ? `Book: ${d.book}` : '',
+    d.chassisNumber ? `Chassis: ${d.chassisNumber}` : '',
+    d.plateNo ? `Plate: ${d.plateNo}` : '',
+    d.engineNo ? `Engine: ${d.engineNo}` : '',
+    d.remark ? `Defects: ${d.remark}` : '',
+  ].filter(Boolean).join(' | ');
+}
+
+/**
+ * Requests made before requestDetails existed only kept the joined summary text,
+ * so read the particulars back out of it.
+ */
+function parseLegacyModel21Notes(type: string, text: string): Model21RequestDetails {
+  const body = type === 'TRANSFER' ? text.replace(/^Transfer from .*? to .*?\. /, '') : text;
+  const prefixes: [string, keyof Model21RequestDetails][] = [
+    ['Return Reason: ', 'reason'],
+    ['Condition: ', 'condition'],
+    ['Book: ', 'book'],
+    ['Chassis: ', 'chassisNumber'],
+    ['Plate: ', 'plateNo'],
+    ['Engine: ', 'engineNo'],
+    ['Remark: ', 'remark'],
+    ['Defects: ', 'remark'],
+  ];
+  const details: Record<string, string> = {};
+  body.split(' | ').forEach((part, index) => {
+    const match = prefixes.find(([prefix]) => part.startsWith(prefix));
+    if (match) details[match[1]] = part.slice(match[0].length);
+    else if (index === 0 && type === 'TRANSFER' && !part.startsWith('[Model/21 #')) details.reason = part;
+  });
+  return details as Model21RequestDetails;
+}
+
+function requestDetailsOf(raw: any): Model21RequestDetails | undefined {
+  if (raw.requestDetails) return raw.requestDetails as Model21RequestDetails;
+  if (raw.transactionType === 'TRANSFER' || raw.transactionType === 'RETURN') {
+    return parseLegacyModel21Notes(raw.transactionType, raw.purposeOrRemarks || '');
+  }
+  return undefined;
+}
+
+const formatAccessories = (list?: Model21Accessory[]): string | undefined =>
+  list && list.length ? list.map((a) => `${a.name} ×${a.quantity}`).join(', ') : undefined;
+
+/** "field old → new" for every value that changed, comparing two labelled snapshots */
+function describeChanges(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
+  const show = (v: unknown) => (v === undefined || v === null || v === '' ? '—' : String(v));
+  return Object.keys(after)
+    .filter((key) => show(before[key]) !== show(after[key]))
+    .map((key) => `${key} ${show(before[key])} → ${show(after[key])}`);
+}
 
 /** Stock-Out purpose and remark share one column: "purpose (Remark: remark)" */
 function formatStockOutNotes(purpose: string, remark?: string): string {
@@ -831,21 +910,27 @@ export class StoreService {
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
-    const model21Details = [
-      `Return Reason: ${payload.returnReason}`,
-      `Condition: ${payload.condition}`,
-      payload.model21No ? `[Model/21 # ${payload.model21No}]` : '',
-      payload.book ? `Book: ${payload.book}` : '',
-      payload.chassisNumber ? `Chassis: ${payload.chassisNumber}` : '',
-      payload.plateNo ? `Plate: ${payload.plateNo}` : '',
-      payload.engineNo ? `Engine: ${payload.engineNo}` : '',
-      payload.defectRemark ? `Defects: ${payload.defectRemark}` : '',
-    ].filter(Boolean).join(' | ');
+    const returnDetails: Model21RequestDetails = {
+      reason: payload.returnReason,
+      condition: payload.condition,
+      remark: payload.defectRemark,
+      book: payload.book,
+      chassisNumber: payload.chassisNumber,
+      plateNo: payload.plateNo,
+      engineNo: payload.engineNo,
+      accessories: payload.accessories,
+      tireNos: payload.tireNos,
+      origCost: payload.origCost,
+      depreciation: payload.depreciation,
+      bookValue: payload.bookValue,
+      storeRecipientId: payload.storeRecipientId,
+    };
+    const model21Details = formatReturnNotes(payload.model21No ? effectiveSlipNo : '', returnDetails);
 
+    // The item keeps its current condition until the return is approved
     await prisma.item.update({
       where: { id: item.id },
       data: {
-        condition: payload.condition as any,
         history: {
           create: {
             dateGc: today.gc,
@@ -875,6 +960,7 @@ export class StoreService {
         requestedById: payload.registeredById,
         recipientEmployeeId: payload.returningEmployeeId || item.currentCustodianId || undefined,
         purposeOrRemarks: model21Details,
+        requestDetails: returnDetails as any,
         status: 'PENDING' as any,
         createdAtGc: today.gc,
         createdAtEc: today.ec,
@@ -891,6 +977,271 @@ export class StoreService {
     );
 
     return mapApproval(approval);
+  }
+
+  /** A transfer or return can only be corrected while it waits for Team Leader endorsement */
+  private async loadEditableModel21Request(approvalId: string, type: 'TRANSFER' | 'RETURN') {
+    const label = type === 'TRANSFER' ? 'Transfer' : 'Return';
+    const approval = await prisma.transactionApproval.findUnique({ where: { id: approvalId } });
+    if (!approval || approval.transactionType !== type) {
+      throw new NotFoundError(`${label} request ${approvalId} not found.`);
+    }
+    if (approval.status !== 'PENDING' || approval.currentStage !== 1) {
+      throw new ConflictError(
+        `The ${label.toLowerCase()} request for ${approval.itemCode} can only be edited while it is waiting for Team Leader endorsement. Ask an approver to reject it and submit it again.`
+      );
+    }
+    return approval;
+  }
+
+  /** Saves a corrected transfer/return with its history entry and audit log in one transaction */
+  private async saveModel21Edit(opts: {
+    approval: { id: string; itemId: string; itemCode: string };
+    data: Record<string, unknown>;
+    historyAction: 'TRANSFER_EDITED' | 'RETURN_EDITED';
+    auditAction: 'EDIT_TRANSFER' | 'EDIT_RETURN';
+    entityType: 'TRANSFER' | 'RETURN';
+    fromEntity: string;
+    toEntity: string;
+    slipNo: string;
+    changes: string[];
+    before: Record<string, unknown>;
+    after: Record<string, unknown>;
+    actorId: string;
+  }): Promise<TransactionApproval> {
+    const actor = await prisma.employee.findUnique({ where: { id: opts.actorId } });
+    const today = getTodayGcAndEc();
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const summary = `Corrected before endorsement: ${opts.changes.join('; ')}`;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const saved = await tx.transactionApproval.update({
+        where: { id: opts.approval.id },
+        data: opts.data as any,
+        include: APPROVAL_INCLUDES,
+      });
+
+      await tx.item.update({
+        where: { id: opts.approval.itemId },
+        data: {
+          history: {
+            create: {
+              dateGc: today.gc,
+              dateEc: today.ec,
+              action: opts.historyAction,
+              fromEntity: opts.fromEntity,
+              toEntity: opts.toEntity,
+              performedBy: actor ? actor.fullNameEn : opts.actorId,
+              performedByRole: (actor?.role ?? 'DATA_ENCODER') as any,
+              ifmisSlipNumber: opts.slipNo,
+              notes: summary,
+            },
+          },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          timestampGc: `${today.gc} ${time}`,
+          timestampEc: `${today.ec} ${time}`,
+          userId: opts.actorId,
+          userName: actor ? actor.fullNameEn : 'System',
+          userRole: (actor?.role ?? 'DATA_ENCODER') as any,
+          action: opts.auditAction,
+          entityType: opts.entityType as any,
+          entityId: opts.approval.itemId,
+          ifmisSlipNumber: opts.slipNo,
+          details: `Item ${opts.approval.itemCode}: ${summary}`,
+          previousState: opts.before as any,
+          newState: opts.after as any,
+        },
+      });
+
+      return saved;
+    });
+
+    return mapApproval(updated);
+  }
+
+  /**
+   * Corrects a Model 21 transfer request while it still waits for Stage 1 endorsement.
+   * The asset stays the same; the voucher, new custodian, destination and particulars can change.
+   */
+  public async updateTransfer(approvalId: string, payload: UpdateTransferRequest, actorId: string): Promise<TransactionApproval> {
+    const approval = await this.loadEditableModel21Request(approvalId, 'TRANSFER');
+
+    const slipNo = (payload.model21No || '').trim();
+    const reason = (payload.reason || '').trim();
+    if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
+    if (!reason) throw new BadRequestError('Reason for transfer is required.');
+    if (!payload.toEmployeeId) throw new BadRequestError('The new custodian is required.');
+
+    const [item, recipient, department, location] = await Promise.all([
+      prisma.item.findUnique({ where: { id: approval.itemId } }),
+      prisma.employee.findUnique({ where: { id: payload.toEmployeeId } }),
+      payload.toDepartmentId ? prisma.department.findUnique({ where: { id: payload.toDepartmentId } }) : null,
+      payload.toLocationId ? prisma.location.findUnique({ where: { id: payload.toLocationId } }) : null,
+    ]);
+    if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
+    if (!recipient) throw new BadRequestError('The selected new custodian no longer exists.');
+    if (payload.toDepartmentId && !department) throw new BadRequestError('The selected directorate no longer exists.');
+    if (payload.toLocationId && !location) throw new BadRequestError('The selected location no longer exists.');
+
+    const previous = requestDetailsOf(approval) ?? {};
+    const details: Model21RequestDetails = {
+      ...previous,
+      reason,
+      remark: payload.remark?.trim() || undefined,
+      book: payload.book?.trim() || undefined,
+      chassisNumber: payload.chassisNumber?.trim() || undefined,
+      plateNo: payload.plateNo?.trim() || undefined,
+      engineNo: payload.engineNo?.trim() || undefined,
+      accessories: payload.accessories ?? previous.accessories,
+      tireNos: payload.tireNos ?? previous.tireNos,
+      depreciation: payload.depreciation ?? previous.depreciation,
+      bookValue: payload.bookValue ?? previous.bookValue,
+      origCost: previous.origCost ?? item.unitCostETB,
+    };
+
+    const [previousRecipient, previousDepartment, previousLocation, custodian] = await Promise.all([
+      approval.recipientEmployeeId ? prisma.employee.findUnique({ where: { id: approval.recipientEmployeeId } }) : null,
+      approval.targetDepartmentId ? prisma.department.findUnique({ where: { id: approval.targetDepartmentId } }) : null,
+      approval.targetLocationId ? prisma.location.findUnique({ where: { id: approval.targetLocationId } }) : null,
+      item.currentCustodianId ? prisma.employee.findUnique({ where: { id: item.currentCustodianId } }) : null,
+    ]);
+    const view = (slip: string, to: string | undefined, dept: string | undefined, loc: string | undefined, d: Model21RequestDetails) => ({
+      'Model 21 no.': slip,
+      'new custodian': to,
+      directorate: dept ?? 'current',
+      location: loc ?? 'current',
+      reason: d.reason,
+      remark: d.remark,
+      book: d.book,
+      chassis: d.chassisNumber,
+      plate: d.plateNo,
+      engine: d.engineNo,
+      accessories: formatAccessories(d.accessories),
+      'tire nos.': d.tireNos?.join(', '),
+      depreciation: d.depreciation,
+      'book value': d.bookValue,
+    });
+    const before = view(approval.ifmisSlipNumber, previousRecipient?.fullNameEn, previousDepartment?.nameEn, previousLocation?.siteName, previous);
+    const after = view(slipNo, recipient.fullNameEn, department?.nameEn, location?.siteName, details);
+    const changes = describeChanges(before, after);
+    if (changes.length === 0) {
+      return mapApproval(await prisma.transactionApproval.findUnique({ where: { id: approvalId }, include: APPROVAL_INCLUDES }));
+    }
+
+    const fromName = custodian?.fullNameEn ?? 'None';
+    return this.saveModel21Edit({
+      approval,
+      data: {
+        ifmisSlipNumber: slipNo,
+        recipientEmployeeId: recipient.id,
+        targetDepartmentId: department?.id ?? null,
+        targetLocationId: location?.id ?? null,
+        purposeOrRemarks: `Transfer from ${fromName} to ${recipient.fullNameEn}. ${formatTransferNotes(slipNo, details)}`,
+        requestDetails: details,
+      },
+      historyAction: 'TRANSFER_EDITED',
+      auditAction: 'EDIT_TRANSFER',
+      entityType: 'TRANSFER',
+      fromEntity: fromName,
+      toEntity: `${recipient.fullNameEn} (Pending Approval)`,
+      slipNo,
+      changes,
+      before,
+      after,
+      actorId,
+    });
+  }
+
+  /**
+   * Corrects a Model 21 return request while it still waits for Stage 1 endorsement.
+   * The asset stays the same; the voucher, condition, reason and particulars can change.
+   */
+  public async updateReturn(approvalId: string, payload: UpdateReturnRequest, actorId: string): Promise<TransactionApproval> {
+    const approval = await this.loadEditableModel21Request(approvalId, 'RETURN');
+
+    const slipNo = (payload.model21No || '').trim();
+    const reason = (payload.returnReason || '').trim();
+    if (!slipNo) throw new BadRequestError('Return Voucher (Model 21) number is mandatory.');
+    if (!reason) throw new BadRequestError('Reason for return is required.');
+    if (!RETURN_CONDITIONS.includes(payload.condition)) throw new BadRequestError('Choose the condition of the returned item.');
+
+    const storeRecipient = payload.storeRecipientId
+      ? await prisma.employee.findUnique({ where: { id: payload.storeRecipientId } })
+      : null;
+    if (payload.storeRecipientId && !storeRecipient) throw new BadRequestError('The selected store receiver no longer exists.');
+
+    const previous = requestDetailsOf(approval) ?? {};
+    const details: Model21RequestDetails = {
+      ...previous,
+      reason,
+      condition: payload.condition,
+      remark: payload.defectRemark?.trim() || undefined,
+      book: payload.book?.trim() || undefined,
+      chassisNumber: payload.chassisNumber?.trim() || undefined,
+      plateNo: payload.plateNo?.trim() || undefined,
+      engineNo: payload.engineNo?.trim() || undefined,
+      accessories: payload.accessories ?? previous.accessories,
+      tireNos: payload.tireNos ?? previous.tireNos,
+      depreciation: payload.depreciation ?? previous.depreciation,
+      bookValue: payload.bookValue ?? previous.bookValue,
+      storeRecipientId: storeRecipient?.id,
+    };
+    const slipDateGc = payload.ifmisSlipDateGc || approval.ifmisSlipDateGc;
+    const attachmentUrl = payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl;
+
+    const previousReceiver = previous.storeRecipientId
+      ? await prisma.employee.findUnique({ where: { id: previous.storeRecipientId } })
+      : null;
+    const fileName = (url?: string | null) => (url ? url.split('/').pop() : undefined);
+    const view = (slip: string, date: string, url: string | null | undefined, receiver: string | undefined, d: Model21RequestDetails) => ({
+      'Model 21 no.': slip,
+      'return date': date,
+      'slip file': fileName(url),
+      condition: d.condition,
+      reason: d.reason,
+      defects: d.remark,
+      book: d.book,
+      chassis: d.chassisNumber,
+      plate: d.plateNo,
+      engine: d.engineNo,
+      accessories: formatAccessories(d.accessories),
+      'tire nos.': d.tireNos?.join(', '),
+      depreciation: d.depreciation,
+      'book value': d.bookValue,
+      'store receiver': receiver ?? 'central store custodian',
+    });
+    const before = view(approval.ifmisSlipNumber, approval.ifmisSlipDateGc, approval.ifmisSlipAttachmentUrl, previousReceiver?.fullNameEn, previous);
+    const after = view(slipNo, slipDateGc, attachmentUrl, storeRecipient?.fullNameEn, details);
+    const changes = describeChanges(before, after);
+    if (changes.length === 0) {
+      return mapApproval(await prisma.transactionApproval.findUnique({ where: { id: approvalId }, include: APPROVAL_INCLUDES }));
+    }
+
+    return this.saveModel21Edit({
+      approval,
+      data: {
+        ifmisSlipNumber: slipNo,
+        ifmisSlipDateGc: slipDateGc,
+        ifmisSlipDateEc: formatGcToEc(slipDateGc),
+        ifmisSlipAttachmentUrl: attachmentUrl,
+        purposeOrRemarks: formatReturnNotes(slipNo, details),
+        requestDetails: details,
+      },
+      historyAction: 'RETURN_EDITED',
+      auditAction: 'EDIT_RETURN',
+      entityType: 'RETURN',
+      fromEntity: 'Staff Custodian (Issued)',
+      toEntity: 'Central Store (Pending Return Approval)',
+      slipNo,
+      changes,
+      before,
+      after,
+      actorId,
+    });
   }
 
   // ── Approval Handling ───────────────────────────────────────────────────
@@ -987,6 +1338,7 @@ export class StoreService {
     let departmentId: string | null = item.assignedDepartmentId;
     let locationId: string = item.storeLocationId;
     let approvedById: string | null = item.approvedById;
+    let approvedCondition: string | undefined;
 
     if (isApprove) {
       if (approval.transactionType === 'STOCK_IN') {
@@ -1002,6 +1354,8 @@ export class StoreService {
         fromEntity = 'Staff Custodian (Issued)';
         toEntity = 'Central Store (AVAILABLE)';
         histNote = payload.reviewRemarks || 'Model 22 Return approved. Item returned to Central Store (AVAILABLE).';
+        // Older returns set the condition when submitted and have no requestDetails
+        approvedCondition = (approval.requestDetails as Model21RequestDetails | null)?.condition;
         custodianId = null;
         departmentId = null;
         approvedById = payload.reviewedById;
@@ -1071,6 +1425,7 @@ export class StoreService {
         assignedDepartmentId: departmentId,
         storeLocationId: locationId,
         approvedById,
+        ...(approvedCondition ? { condition: approvedCondition as any } : {}),
         history: {
           create: {
             dateGc: today.gc,
@@ -1121,15 +1476,20 @@ export class StoreService {
       : prevCustodian;
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
 
-    const model21Details = [
-      payload.reason,
-      `[Model/21 # ${slipNo}]`,
-      payload.book ? `Book: ${payload.book}` : '',
-      payload.chassisNumber ? `Chassis: ${payload.chassisNumber}` : '',
-      payload.plateNo ? `Plate: ${payload.plateNo}` : '',
-      payload.engineNo ? `Engine: ${payload.engineNo}` : '',
-      payload.remark ? `Remark: ${payload.remark}` : '',
-    ].filter(Boolean).join(' | ');
+    const transferDetails: Model21RequestDetails = {
+      reason: payload.reason,
+      remark: payload.remark,
+      book: payload.book,
+      chassisNumber: payload.chassisNumber,
+      plateNo: payload.plateNo,
+      engineNo: payload.engineNo,
+      accessories: payload.accessories,
+      tireNos: payload.tireNos,
+      origCost: payload.origCost,
+      depreciation: payload.depreciation,
+      bookValue: payload.bookValue,
+    };
+    const model21Details = formatTransferNotes(slipNo, transferDetails);
 
     // Nothing moves yet: the item is held UNDER_TRANSFER until Stage 2 approval applies the change
     await prisma.item.update({
@@ -1166,6 +1526,7 @@ export class StoreService {
         targetDepartmentId: payload.toDepartmentId,
         targetLocationId: payload.toLocationId,
         purposeOrRemarks: `Transfer from ${prevCustodian} to ${newCustodian}. ${model21Details}`,
+        requestDetails: transferDetails as any,
         status: 'PENDING' as any,
         createdAtGc: today.gc,
         createdAtEc: today.ec,

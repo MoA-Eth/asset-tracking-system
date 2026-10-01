@@ -7,6 +7,8 @@ import {
   CreateStockInRequest,
   UpdateStockInRequest,
   UpdateStockOutRequest,
+  UpdateTransferRequest,
+  UpdateReturnRequest,
   CreateStockOutRequest,
   CreateTransferRequest,
   ApprovalActionRequest,
@@ -154,6 +156,28 @@ export class ItemController {
     }
     const result = await this.store.registerReturn(payload);
     return sendSuccess(res, result, 'Model 22 Return-to-Store registered and sent for approval', 201);
+  });
+
+  /**
+   * PUT /api/items/return-to-store/:approvalId
+   * Corrects a Model 21 return request while it still waits for Stage 1 endorsement.
+   */
+  public updateReturn = asyncHandler(async (req: Request, res: Response) => {
+    const approvalId = Array.isArray(req.params.approvalId) ? req.params.approvalId[0] : req.params.approvalId;
+    const payload: UpdateReturnRequest = req.body;
+    const approval = await this.store.updateReturn(approvalId, payload, req.user!.id);
+    return sendSuccess(res, { approval }, 'Return request updated');
+  });
+
+  /**
+   * PUT /api/items/transfer/:approvalId
+   * Corrects a Model 21 transfer request while it still waits for Stage 1 endorsement.
+   */
+  public updateTransfer = asyncHandler(async (req: Request, res: Response) => {
+    const approvalId = Array.isArray(req.params.approvalId) ? req.params.approvalId[0] : req.params.approvalId;
+    const payload: UpdateTransferRequest = req.body;
+    const approval = await this.store.updateTransfer(approvalId, payload, req.user!.id);
+    return sendSuccess(res, { approval }, 'Transfer request updated');
   });
 
   /**

@@ -13,6 +13,8 @@ import {
   UpdateStockInRequest,
   CreateStockOutRequest,
   UpdateStockOutRequest,
+  UpdateTransferRequest,
+  UpdateReturnRequest,
   CreateReturnRequest,
   CreateTransferRequest,
   ApprovalActionRequest,
@@ -25,6 +27,13 @@ import {
 const BASE_URL = '/api';
 // Generous enough for a 10 MB slip upload on a slow connection
 const REQUEST_TIMEOUT_MS = 30000;
+
+/** HTTP status of a failed AMS request, or undefined when the server could not be reached */
+export const getErrorStatus = (err: unknown): number | undefined => {
+  // Read the field rather than using instanceof: Vite can load this module twice in development
+  const status = (err as { status?: unknown } | null)?.status;
+  return typeof status === 'number' ? status : undefined;
+};
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
@@ -138,6 +147,20 @@ export const api = {
   // Allowed only while the item waits for Stage 1 endorsement
   updateStockIn: (itemId: string, payload: UpdateStockInRequest) => {
     return request<{ item: ItemWithRelations }>(`/items/${encodeURIComponent(itemId)}/stock-in`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateTransfer: (approvalId: string, payload: UpdateTransferRequest) => {
+    return request<{ approval: TransactionApproval }>(`/items/transfer/${encodeURIComponent(approvalId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateReturn: (approvalId: string, payload: UpdateReturnRequest) => {
+    return request<{ approval: TransactionApproval }>(`/items/return-to-store/${encodeURIComponent(approvalId)}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });

@@ -215,6 +215,8 @@ model TransactionApproval {
   targetDepartmentId  String?
   targetLocationId    String?
   purposeOrRemarks    String  @default("")
+  // Model 21 particulars of a transfer or return, kept as fields so the request can be corrected
+  requestDetails      Json?
 
   // Status & Multi-Stage Workflow
   status             ApprovalStatus @default(PENDING)
