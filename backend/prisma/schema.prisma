@@ -60,6 +60,7 @@ enum ApprovalStatus {
 }
 
 enum AuditEntityType {
+  USER
   ITEM
   STOCK_IN
   STOCK_OUT
@@ -110,7 +111,7 @@ model Employee {
   email       String   @unique
   phone       String
   role        UserRole
-  password    String   @default("moaams2024") // plain-text for now; bcrypt in production
+  password    String // scrypt hash; existing plaintext credentials are upgraded on login
 
   // Relations
   department          Department            @relation(fields: [departmentId], references: [id])
@@ -174,7 +175,6 @@ model Item {
   // Child tables
   history             ItemHistory[]
   approvals           TransactionApproval[]
-  auditLogs           AuditLog[]
 
   @@map("items")
 }
@@ -256,6 +256,16 @@ model TransactionApproval {
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 
+/// Saved changes to a role's permissions. Roles without a row use the built-in defaults.
+model RolePermissionSet {
+  role        UserRole @id
+  permissions String[]
+  updatedById String
+  updatedAt   DateTime @updatedAt
+
+  @@map("role_permissions")
+}
+
 model AuditLog {
   id             String          @id @default(uuid())
   timestampGc    String
@@ -274,7 +284,8 @@ model AuditLog {
 
   // Relations
   user     Employee @relation(fields: [userId], references: [id])
-  item     Item?    @relation(fields: [entityId], references: [id])
+  // entityId targets either an asset or an employee, identified by entityType.
 
+  @@index([entityType, entityId])
   @@map("audit_logs")
 }

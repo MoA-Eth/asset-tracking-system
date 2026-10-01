@@ -16,20 +16,12 @@ import {
   Sliders,
   LucideIcon,
 } from 'lucide-react';
-import { UserRole } from '../../types/asset-management';
-
-// Single source for the sidebar and the mobile bottom bar.
-// Role lists must match ALLOWED_TABS_FOR_ROLE in App.tsx.
-
-const TOP_MANAGEMENT = 'TOP_MANAGEMENT' as UserRole;
-const SETTINGS_ROLES = [UserRole.SYSTEM_ADMIN, UserRole.DEPARTMENT_HEAD, UserRole.DATA_ENCODER];
-const OVERSIGHT_ROLES = [UserRole.SYSTEM_ADMIN, UserRole.DEPARTMENT_HEAD, UserRole.TEAM_LEADER];
+import { AuthUser } from '../../types/asset-management';
 
 export interface NavItem {
   id: string;
   label: string;
   icon: LucideIcon;
-  roles: UserRole[];
   /** Short statutory form tag shown beside the label, e.g. "M19" */
   formTag?: string;
   /** Hover text with the full form name */
@@ -48,31 +40,31 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'overview',
     label: 'Overview',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [UserRole.MANAGER, UserRole.SYSTEM_ADMIN, TOP_MANAGEMENT] },
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     ],
   },
   {
     id: 'operations',
     label: 'Store Operations',
     items: [
-      { id: 'stock-in', label: 'Stock-In', icon: PackagePlus, roles: [UserRole.DATA_ENCODER], formTag: 'M19', hint: 'Stock-In — Goods Received (Model 19 / የዕቃ መረከቢያ)' },
-      { id: 'stock-out', label: 'Stock-Out', icon: PackageMinus, roles: [UserRole.DATA_ENCODER], formTag: 'M22', hint: 'Stock-Out — Property Issued (Model 22 / የዕቃ ወጪ)' },
-      { id: 'transfer-asset', label: 'Transfers & Returns', icon: ArrowRightLeft, roles: [UserRole.DATA_ENCODER], formTag: 'M21', hint: 'Internal Transfers & Returns to Store (Model 21)' },
+      { id: 'stock-in', label: 'Stock-In', icon: PackagePlus, formTag: 'M19', hint: 'Stock-In — Goods Received (Model 19 / የዕቃ መረከቢያ)' },
+      { id: 'stock-out', label: 'Stock-Out', icon: PackageMinus, formTag: 'M22', hint: 'Stock-Out — Property Issued (Model 22 / የዕቃ ወጪ)' },
+      { id: 'transfer-asset', label: 'Transfers & Returns', icon: ArrowRightLeft, formTag: 'M21', hint: 'Internal Transfers & Returns to Store (Model 21)' },
     ],
   },
   {
     id: 'review',
     label: 'Review',
     items: [
-      { id: 'approvals', label: 'Approvals', icon: FileCheck2, roles: [UserRole.DEPARTMENT_HEAD, UserRole.TEAM_LEADER], showsPendingCount: true },
+      { id: 'approvals', label: 'Approvals', icon: FileCheck2, showsPendingCount: true },
     ],
   },
   {
     id: 'insights',
     label: 'Insights',
     items: [
-      { id: 'reports', label: 'Reports', icon: FileSpreadsheet, roles: [...OVERSIGHT_ROLES, UserRole.MANAGER, TOP_MANAGEMENT] },
-      { id: 'audit', label: 'Audit Log', icon: ShieldCheck, roles: OVERSIGHT_ROLES },
+      { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
+      { id: 'audit', label: 'Audit Log', icon: ShieldCheck },
     ],
   },
 ];
@@ -82,10 +74,9 @@ export interface SettingsNavGroup {
   items: { id: string; label: string; icon: LucideIcon }[];
 }
 
-export const SETTINGS_NAV: { label: string; icon: LucideIcon; roles: UserRole[]; groups: SettingsNavGroup[] } = {
+export const SETTINGS_NAV: { label: string; icon: LucideIcon; groups: SettingsNavGroup[] } = {
   label: 'Settings',
   icon: Settings,
-  roles: SETTINGS_ROLES,
   groups: [
     {
       label: 'People',
@@ -110,30 +101,32 @@ export const SETTINGS_NAV: { label: string; icon: LucideIcon; roles: UserRole[];
   ],
 };
 
-/** Sections that contain at least one item the role can open. */
-export function getNavSectionsForRole(role: UserRole): NavSection[] {
-  return NAV_SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.filter((item) => item.roles.includes(role)),
+/** UI consumes the session policy returned by the API; no second role matrix. */
+export function getValidTab(user: Pick<AuthUser, 'allowedTabs' | 'landingTab'> | null, candidate?: string | null): string {
+  const allowed = user?.allowedTabs ?? [];
+  if (candidate && allowed.includes(candidate)) return candidate;
+  return user?.landingTab && allowed.includes(user.landingTab) ? user.landingTab : (allowed[0] ?? '');
+}
+
+export function getNavSections(allowedTabs: readonly string[] = []): NavSection[] {
+  return NAV_SECTIONS.map((section) => ({ ...section,
+    items: section.items.filter((item) => allowedTabs.includes(item.id)),
   })).filter((section) => section.items.length > 0);
 }
 
-export function canSeeSettings(role: UserRole): boolean {
-  return SETTINGS_NAV.roles.includes(role);
+export function getSettingsGroups(allowedTabs: readonly string[] = []): SettingsNavGroup[] {
+  return SETTINGS_NAV.groups.map((group) => ({ ...group,
+    items: group.items.filter((item) => allowedTabs.includes(item.id)),
+  })).filter((group) => group.items.length > 0);
 }
 
-/** Flat list for the mobile bottom bar: main items first, then Settings. */
-export function getMobileNavItems(role: UserRole): { id: string; label: string; icon: LucideIcon; matches: (tab: string) => boolean }[] {
-  const main = getNavSectionsForRole(role).flatMap((s) =>
-    s.items.map((item) => ({
-      id: item.id,
-      label: item.id === 'transfer-asset' ? 'Transfers' : item.label,
-      icon: item.icon,
-      matches: (tab: string) => tab === item.id,
-    }))
-  );
-  const settings = canSeeSettings(role)
-    ? [{ id: 'settings-users', label: 'Settings', icon: SETTINGS_NAV.icon, matches: (tab: string) => tab.startsWith('settings') }]
-    : [];
-  return [...main, ...settings];
+export function getMobileNavItems(allowedTabs: readonly string[] = []): { id: string; label: string; icon: LucideIcon; matches: (tab: string) => boolean }[] {
+  const main = getNavSections(allowedTabs).flatMap((section) => section.items.map((item) => ({
+    id: item.id, label: item.id === 'transfer-asset' ? 'Transfers' : item.label, icon: item.icon,
+    matches: (tab: string) => tab === item.id,
+  })));
+  const firstSettings = getSettingsGroups(allowedTabs)[0]?.items[0];
+  return firstSettings ? [...main, { id: firstSettings.id, label: 'Settings', icon: SETTINGS_NAV.icon,
+    matches: (tab: string) => tab.startsWith('settings-'),
+  }] : main;
 }

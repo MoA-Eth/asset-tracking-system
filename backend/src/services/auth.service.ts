@@ -7,6 +7,8 @@ import {
   isDatabaseUnavailableError,
 } from '../errors/app-error';
 import { prisma } from '../lib/prisma';
+import { createSessionToken, readSessionToken, hashPassword, verifyPassword } from '../security/credentials';
+import { getRoleAccess } from '../security/role-policy';
 
 export class AuthService {
   private static instance: AuthService;
@@ -35,16 +37,12 @@ export class AuthService {
   public async login(req: LoginRequest): Promise<AuthResponse> {
     let matched: any = null;
 
-    // Try persona role shortcut first
-    if (req.personaRole) {
-      matched = await prisma.employee.findFirst({
-        where: { role: req.personaRole as any },
-        orderBy: { id: 'asc' },
-      });
+    if (req.personaRole || typeof req.password !== 'string' || !req.password || req.password.length > 1024) {
+      throw new UnauthorizedError('Email or payroll ID and password are required.');
     }
 
     // Then try email / payrollId
-    if (!matched && req.usernameOrEmail) {
+    if (typeof req.usernameOrEmail === 'string' && req.usernameOrEmail.trim()) {
       const query = req.usernameOrEmail.trim().toLowerCase();
       matched = await prisma.employee.findFirst({
         where: {
@@ -60,9 +58,14 @@ export class AuthService {
       throw new UnauthorizedError('Invalid credentials. Please provide a valid MoA email or payroll ID.');
     }
 
-    // Validate password (plain-text for now)
-    if (req.password && matched.password !== req.password) {
-      throw new UnauthorizedError('Incorrect password.');
+    if (!await verifyPassword(req.password, matched.password)) {
+      throw new UnauthorizedError('Invalid credentials.');
+    }
+    if (!matched.password.startsWith('scrypt$')) {
+      await prisma.employee.updateMany({
+        where: { id: matched.id, password: matched.password },
+        data: { password: await hashPassword(req.password) },
+      });
     }
 
     const authUser = this.toAuthUser(matched);
@@ -73,13 +76,15 @@ export class AuthService {
   public async verifyToken(tokenString: string): Promise<AuthUser> {
     if (!tokenString) throw new UnauthorizedError('Authentication token missing.');
 
-    try {
-      const decoded = Buffer.from(tokenString, 'base64').toString('utf8');
-      const [userId] = decoded.split(':');
-      if (!userId) throw new UnauthorizedError('Malformed authentication token.');
+    // Only signed tokens are accepted. Older unsigned tokens could be made by hand for any user,
+    // so anyone still holding one is asked to sign in again (401).
+    const userId = readSessionToken(tokenString);
 
+    try {
       const employee = await prisma.employee.findUnique({ where: { id: userId } });
-      if (!employee) throw new NotFoundError('User associated with token no longer exists.');
+      if (!employee) {
+        throw new UnauthorizedError('This account is no longer available. Please sign in again.');
+      }
 
       return this.toAuthUser(employee);
     } catch (err: any) {
@@ -91,8 +96,7 @@ export class AuthService {
   }
 
   private generateToken(user: AuthUser): string {
-    const payload = `${user.id}:${user.role}:${Date.now()}`;
-    return Buffer.from(payload).toString('base64');
+    return createSessionToken(user.id);
   }
 
   private toAuthUser(emp: any): AuthUser {
@@ -105,6 +109,7 @@ export class AuthService {
       phone: emp.phone,
       role: emp.role as UserRole,
       departmentId: emp.departmentId,
+      ...getRoleAccess(emp.role),
     };
   }
 }

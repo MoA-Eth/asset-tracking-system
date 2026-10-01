@@ -11,15 +11,21 @@ import {
 import { api } from '../api/client';
 import { table } from '../components/ui/theme';
 import { UserRole, Employee, Department } from '../types/asset-management';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
 interface SettingsPageProps {
   currentRole: UserRole;
   userEmail?: string;
+  initialRoleFilter?: UserRole | 'ALL';
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = () => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 'ALL' }) => {
   const toast = useToast();
+  const { user, refreshSession } = useAuth();
+  const canAssign = user?.permissions?.includes('roles.assign') ?? false;
+  const [roleFilter, setRoleFilter] = useState<UserRole | 'ALL'>(initialRoleFilter);
+  useEffect(() => setRoleFilter(initialRoleFilter), [initialRoleFilter]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +38,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const fetchData = async () => {
+    if (!canAssign) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
@@ -53,14 +60,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [canAssign]);
 
   const handleRoleChange = async (employeeId: string, newRole: UserRole) => {
+    if (!canAssign) return;
     setUpdatingId(employeeId);
     setSuccessMsg(null);
     try {
       const updated = await api.updateEmployeeRole(employeeId, newRole);
       setEmployees((prev) => prev.map((emp) => (emp.id === employeeId ? updated : emp)));
+      await refreshSession();
       const roleName = newRole.replace(/_/g, ' ');
       setSuccessMsg(`Role updated to ${roleName} for ${updated.fullNameEn}`);
       toast.success(
@@ -83,8 +92,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
       emp.email.toLowerCase().includes(q) ||
       (emp.payrollId && emp.payrollId.toLowerCase().includes(q));
     const matchesDept = selectedDeptFilter === 'ALL' || emp.departmentId === selectedDeptFilter;
-    return matchesSearch && matchesDept;
+    return matchesSearch && matchesDept && (roleFilter === 'ALL' || emp.role === roleFilter);
   });
+
+  if (!canAssign) return <p role="alert" className="text-sm text-slate-600">Only System Administrators can manage user roles.</p>;
 
   if (loading) {
     return (
@@ -119,7 +130,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
-              Department Head Settings
+              System Administration
             </span>
             <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
               Ministry of Agriculture Policy & Access Controls
@@ -127,7 +138,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
           </div>
           <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
             <Settings className="w-5 h-5 text-emerald-700" />
-            Settings — User Permissions & Roles (የተጠቃሚ ፈቃዶች እና ሚናዎች)
+            Users (ተጠቃሚዎች)
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Manage civil service authorization roles across directorates.
@@ -168,6 +179,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
 
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
+            <select aria-label="Filter users by role" value={roleFilter} onChange={e => setRoleFilter(e.target.value as UserRole | 'ALL')}
+              className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800">
+              <option value="ALL">All roles</option>
+              {Object.values(UserRole).map(code => <option key={code} value={code}>{code.replace(/_/g, ' ')}</option>)}
+            </select>
             <select
               value={selectedDeptFilter}
               onChange={(e) => setSelectedDeptFilter(e.target.value)}
@@ -236,7 +252,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
                         <div className="flex items-center justify-end gap-2">
                           <select
                             value={emp.role}
-                            disabled={isUpdating}
+                            disabled={updatingId !== null || !canAssign}
+                            aria-label={`Role for ${emp.fullNameEn}`}
                             onChange={(e) => handleRoleChange(emp.id, e.target.value as UserRole)}
                             className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-emerald-600 disabled:opacity-50 cursor-pointer"
                           >
@@ -252,6 +269,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
                     </tr>
                   );
                 })}
+                {filteredEmployees.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-slate-500">No users match these filters.</td></tr>}
               </tbody>
             </table>
           </div>

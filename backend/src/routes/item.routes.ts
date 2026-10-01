@@ -1,74 +1,27 @@
 import { Router } from 'express';
 import { ItemController } from '../controllers/item.controller';
-import { optionalAuth, requireAuth, requireRole } from '../middleware/auth.middleware';
-import { UserRole } from '../types/asset-management';
+import { requireAuth, requirePermission } from '../middleware/auth.middleware';
 
 const router = Router();
 const controller = new ItemController();
 
-// Management visibility
-router.get('/dashboard/executive', optionalAuth, controller.getExecutiveDashboard);
+router.use(requireAuth);
 
-// Items inventory & movements
-router.get('/', optionalAuth, controller.getItems);
-router.get('/:id', optionalAuth, controller.getItemById);
+router.get('/dashboard/executive', requirePermission('dashboard.read'), controller.getExecutiveDashboard);
+router.get('/approvals/pending', requirePermission('approvals.read'), controller.getApprovals);
+router.get('/audit/logs', requirePermission('audit.read'), controller.getAuditLogs);
+router.get('/', requirePermission('inventory.read'), controller.getItems);
+router.get('/:id', requirePermission('inventory.read'), controller.getItemById);
 
-// Workflows (Stock operations require authenticated encoder or leadership role)
-router.post(
-  '/stock-in',
-  optionalAuth, // allows backward compatibility while enforcing if user provided
-  controller.registerStockIn
-);
-// Corrections are only for the encoder, and only before Stage 1 endorsement (checked in the service)
-router.put(
-  '/:id/stock-in',
-  requireAuth,
-  requireRole(UserRole.DATA_ENCODER),
-  controller.updateStockIn
-);
-router.post(
-  '/stock-out',
-  optionalAuth,
-  controller.registerStockOut
-);
-router.put(
-  '/stock-out/:approvalId',
-  requireAuth,
-  requireRole(UserRole.DATA_ENCODER),
-  controller.updateStockOut
-);
-router.post(
-  '/return-to-store',
-  optionalAuth,
-  controller.registerReturn
-);
-router.put(
-  '/return-to-store/:approvalId',
-  requireAuth,
-  requireRole(UserRole.DATA_ENCODER),
-  controller.updateReturn
-);
-router.post(
-  '/transfer',
-  optionalAuth,
-  controller.transferItem
-);
-router.put(
-  '/transfer/:approvalId',
-  requireAuth,
-  requireRole(UserRole.DATA_ENCODER),
-  controller.updateTransfer
-);
+router.post('/stock-in', requirePermission('stock-in.write'), controller.registerStockIn);
+router.put('/:id/stock-in', requirePermission('stock-in.write'), controller.updateStockIn);
+router.post('/stock-out', requirePermission('stock-out.write'), controller.registerStockOut);
+router.put('/stock-out/:approvalId', requirePermission('stock-out.write'), controller.updateStockOut);
+router.post('/return-to-store', requirePermission('transfers.write'), controller.registerReturn);
+router.put('/return-to-store/:approvalId', requirePermission('transfers.write'), controller.updateReturn);
+router.post('/transfer', requirePermission('transfers.write'), controller.transferItem);
+router.put('/transfer/:approvalId', requirePermission('transfers.write'), controller.updateTransfer);
 
-// Approvals (Executive / Department Head sign-off only)
-router.get('/approvals/pending', optionalAuth, controller.getApprovals);
-router.post(
-  '/approvals/action',
-  optionalAuth,
-  controller.handleApproval
-);
-
-// Audit logs
-router.get('/audit/logs', optionalAuth, controller.getAuditLogs);
+router.post('/approvals/action', requirePermission('approvals.endorse', 'approvals.authorize'), controller.handleApproval);
 
 export default router;

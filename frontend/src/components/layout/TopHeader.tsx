@@ -91,15 +91,21 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
   const dateInfo = getTodayGcAndEc();
 
+  const canEndorse = user?.permissions?.includes('approvals.endorse') ?? (role === UserRole.TEAM_LEADER);
+  const canAuthorize = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD);
+  const isApprover = canEndorse || canAuthorize;
+
   const fetchNotificationItems = async () => {
     try {
       setLoadingNotifications(true);
       const data = await api.getApprovals(ApprovalStatus.PENDING);
       let relevant = data;
-      if (role === UserRole.TEAM_LEADER) {
+      if (canEndorse && !canAuthorize) {
         relevant = data.filter((a) => (a.currentStage ?? 1) === 1);
-      } else if (role === UserRole.DEPARTMENT_HEAD) {
+      } else if (canAuthorize && !canEndorse) {
         relevant = data.filter((a) => a.currentStage === 2);
+      } else if (!canEndorse && !canAuthorize) {
+        relevant = [];
       }
       setNotifications(relevant);
     } catch {
@@ -110,24 +116,26 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   };
 
   useEffect(() => {
-    if (role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) {
+    if (isApprover) {
       fetchNotificationItems();
     }
-  }, [role, user?.id]);
+  }, [isApprover, user?.id]);
 
   useEffect(() => {
-    if (showNotifications) {
+    if (showNotifications && isApprover) {
       fetchNotificationItems();
     }
-  }, [showNotifications, role]);
+  }, [showNotifications, isApprover]);
 
   useEffect(() => {
     const handleUpdate = () => {
-      fetchNotificationItems();
+      if (isApprover) {
+        fetchNotificationItems();
+      }
     };
     window.addEventListener('moa_approvals_updated', handleUpdate);
     return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
-  }, [role]);
+  }, [isApprover]);
 
   const markAsRead = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -280,7 +288,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         </div> */}
 
         {/* Pending Approvals Bell & Interactive Notification Popover */}
-        {(role === UserRole.DEPARTMENT_HEAD || role === UserRole.TEAM_LEADER) && (
+        {isApprover && (
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => {

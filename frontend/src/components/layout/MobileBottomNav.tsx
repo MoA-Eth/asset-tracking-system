@@ -11,8 +11,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   activeTab,
   setActiveTab,
 }) => {
-  const { role } = useAuth();
-  const visibleTabs = getMobileNavItems(role).slice(0, 5);
+  const { user } = useAuth();
+  const visibleTabs = getMobileNavItems(user?.allowedTabs).slice(0, 5);
 
   return (
     <nav

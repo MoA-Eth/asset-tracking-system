@@ -22,6 +22,7 @@ import {
   AuthResponse,
   AuthUser,
   UserRole,
+  RoleDirectory,
 } from '../types/asset-management';
 
 const BASE_URL = '/api';
@@ -63,6 +64,10 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     }
 
     if (!response.ok) {
+      if (token === localStorage.getItem('moa_token')) {
+        if (response.status === 401 && endpoint !== '/auth/login') window.dispatchEvent(new Event('moa_session_expired'));
+        if (response.status === 403) window.dispatchEvent(new Event('moa_access_changed'));
+      }
       let errorMsg = `AMS server returned HTTP ${response.status}.`;
       try {
         const errorJson = await response.json();
@@ -88,6 +93,16 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  getRoles: () => request<RoleDirectory>('/roles'),
+  updateRolePermissions: (role: UserRole, permissions: string[]) =>
+    request<RoleDirectory>(`/roles/${role}/permissions`, {
+      method: 'PUT',
+      body: JSON.stringify({ permissions }),
+    }),
+  resetRolePermissions: (role: UserRole) =>
+    request<RoleDirectory>(`/roles/${role}/permissions/reset`, {
+      method: 'POST',
+    }),
   // Authentication
   login: (payload: LoginRequest) => {
     return request<AuthResponse>('/auth/login', {

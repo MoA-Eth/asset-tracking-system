@@ -57,7 +57,7 @@ describe('Asset Transfer approval workflow', () => {
     db.employee.findUnique.mockImplementation(async ({ where }: any) => ({
       id: where.id,
       fullNameEn: `Employee ${where.id}`,
-      role: 'DATA_ENCODER',
+      role: where.id === 'EMP-HEAD' ? 'DEPARTMENT_HEAD' : 'DATA_ENCODER',
     }));
     db.item.findUnique.mockResolvedValue({ ...issuedItem });
     db.item.update.mockResolvedValue({});
@@ -122,6 +122,22 @@ describe('Asset Transfer approval workflow', () => {
         assignedDepartmentId: 'DEP-02',
         storeLocationId: 'LOC-02',
       });
+    });
+
+    it.each(['DATA_ENCODER', 'TEAM_LEADER', 'MANAGER', 'SYSTEM_ADMIN'])('blocks %s from approving or rejecting Stage 2', async (role) => {
+      db.employee.findUnique.mockResolvedValue({ id: 'wrong-officer', role });
+      for (const action of ['APPROVE', 'REJECT']) {
+        await expect(store().handleApproval({ approvalId: 'appr-1', action, reviewedById: 'wrong-officer' } as any)).rejects.toMatchObject({ statusCode: 403 });
+      }
+      expect(db.transactionApproval.update).not.toHaveBeenCalled();
+    });
+
+    it('blocks a Department Head from endorsing or rejecting Stage 1', async () => {
+      db.transactionApproval.findUnique.mockResolvedValue({ ...pendingTransfer, currentStage: 1 });
+      for (const action of ['ENDORSE', 'REJECT']) {
+        await expect(store().handleApproval({ approvalId: 'appr-1', action, reviewedById: 'EMP-HEAD' } as any)).rejects.toMatchObject({ statusCode: 403 });
+      }
+      expect(db.transactionApproval.update).not.toHaveBeenCalled();
     });
 
     it('keeps the current custody and restores the status on rejection', async () => {

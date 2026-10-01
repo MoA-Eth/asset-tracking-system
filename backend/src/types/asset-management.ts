@@ -330,7 +330,7 @@ export interface AuditLogEntry {
   userName: string;
   userRole: UserRole;
   action: string;
-  entityType: 'ITEM' | 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'RETURN' | 'APPROVAL';
+  entityType: 'USER' | 'ITEM' | 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'RETURN' | 'APPROVAL';
   entityId: string;
   ifmisSlipNumber?: string;
   details: string;
@@ -593,6 +593,9 @@ export interface AuthUser {
   phone: string;
   role: UserRole;
   departmentId: string;
+  permissions?: string[];
+  allowedTabs?: string[];
+  landingTab?: string;
 }
 
 export interface LoginRequest {

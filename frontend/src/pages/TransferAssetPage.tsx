@@ -136,8 +136,15 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   onNavigate,
 }) => {
   const { user } = useAuth();
+  const canWrite = user?.permissions?.includes('transfers.write') ?? (currentRole === UserRole.DATA_ENCODER);
   const toast = useToast();
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'transfer' | 'return'>('all');
+
+  useEffect(() => {
+    if (!canWrite && activeSubTab !== 'all') {
+      setActiveSubTab('all');
+    }
+  }, [canWrite, activeSubTab]);
   const [items, setItems] = useState<ItemWithRelations[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -528,28 +535,32 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           >
             All Movements & Returns
           </button>
-          <button
-            onClick={() => switchTab('transfer')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-              activeSubTab === 'transfer'
-                ? btn.tabActive
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            Transfer Form (Model 21)
-          </button>
-          <button
-            onClick={() => switchTab('return')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-              activeSubTab === 'return'
-                ? btn.tabActive
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Return to Store (Model 21)
-          </button>
+          {canWrite && (
+            <>
+              <button
+                onClick={() => switchTab('transfer')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  activeSubTab === 'transfer'
+                    ? btn.tabActive
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+                Transfer Form (Model 21)
+              </button>
+              <button
+                onClick={() => switchTab('return')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  activeSubTab === 'return'
+                    ? btn.tabActive
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Return to Store (Model 21)
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -938,11 +949,11 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                           {pendingByItem.get(item.id) ? (
                             <>
                               <PendingRequestChip request={pendingByItem.get(item.id)!} />
-                              {canEdit && ['TRANSFER', 'RETURN'].includes(pendingByItem.get(item.id)!.transactionType) && (
+                              {canWrite && ['TRANSFER', 'RETURN'].includes(pendingByItem.get(item.id)!.transactionType) && (
                                 <EditRequestButton request={pendingByItem.get(item.id)!} onEdit={openEditRequest} />
                               )}
                             </>
-                          ) : (
+                          ) : canWrite ? (
                             <button
                               onClick={() => setReturnItem(item)}
                               className={btn.row}
@@ -950,7 +961,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                               <RotateCcw className="w-3.5 h-3.5" />
                               Return (M21)
                             </button>
-                          )}
+                          ) : null}
                         </div>
                       </td>
                     </tr>

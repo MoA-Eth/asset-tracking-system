@@ -77,6 +77,24 @@ describe('item balance', () => {
   });
 });
 
+describe('segregation of duties', () => {
+  it("doesn't let a reviewer decide a request they submitted", async () => {
+    db.transactionApproval.findUnique.mockResolvedValue({
+      id: 'so-own',
+      transactionType: 'STOCK_OUT',
+      itemId: 'item-1',
+      itemCode: batch.itemCode,
+      requestedById: 'EMP-HEAD',
+      status: 'PENDING',
+      currentStage: 2,
+    });
+    await expect(
+      store().handleApproval({ approvalId: 'so-own', action: 'APPROVE', reviewedById: 'EMP-HEAD' } as any)
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(db.transactionApproval.update).not.toHaveBeenCalled();
+  });
+});
+
 describe('partial Stock-Out', () => {
   const request = {
     itemId: 'item-1',

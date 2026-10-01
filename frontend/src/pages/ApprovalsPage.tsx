@@ -58,9 +58,11 @@ type TabFilter = 'MY_QUEUE' | 'STAGE_1' | 'STAGE_2' | 'APPROVED' | 'REJECTED' | 
  * Queue tabs shown to a role. Stage approvers only get their own queue
  * ("Pending my action"); the other stage's queue is one they cannot act on.
  */
-export function getVisibleQueueTabs(role: UserRole): TabFilter[] {
-  const isStageApprover = role === UserRole.TEAM_LEADER || role === UserRole.DEPARTMENT_HEAD;
-  return isStageApprover
+export function getVisibleQueueTabs(role: UserRole, permissions?: string[]): TabFilter[] {
+  const canEndorse = permissions ? permissions.includes('approvals.endorse') : (role === UserRole.TEAM_LEADER);
+  const canAuthorize = permissions ? permissions.includes('approvals.authorize') : (role === UserRole.DEPARTMENT_HEAD);
+  const isSingleStageApprover = (canEndorse && !canAuthorize) || (!canEndorse && canAuthorize);
+  return isSingleStageApprover
     ? ['MY_QUEUE', 'APPROVED', 'REJECTED', 'ALL']
     : ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'REJECTED', 'ALL'];
 }
@@ -83,8 +85,8 @@ const approvalUnits = (a: TransactionApproval): string | null => {
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefreshPendingCount }) => {
   const { user, role } = useAuth();
   const toast = useToast();
-  const canEndorse = role === UserRole.TEAM_LEADER;
-  const canApprove = role === UserRole.DEPARTMENT_HEAD;
+  const canEndorse = user?.permissions?.includes('approvals.endorse') ?? (role === UserRole.TEAM_LEADER);
+  const canApprove = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD);
   const canReview = canEndorse || canApprove;
 
   const [approvals, setApprovals] = useState<TransactionApproval[]>([]);
@@ -145,8 +147,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     const rejected = approvals.filter((a) => a.status === ApprovalStatus.REJECTED);
 
     let myQueueCount = 0;
-    if (role === UserRole.TEAM_LEADER) myQueueCount = stage1.length;
-    else if (role === UserRole.DEPARTMENT_HEAD) myQueueCount = stage2.length;
+    if (canEndorse) myQueueCount = stage1.length;
+    else if (canApprove) myQueueCount = stage2.length;
     else myQueueCount = pending.length;
 
     return {
@@ -157,7 +159,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       rejectedCount: rejected.length,
       totalCount: approvals.length,
     };
-  }, [approvals, role]);
+  }, [approvals, canEndorse, canApprove]);
 
   // Filtered approvals list
   const filteredApprovals = useMemo(() => {
@@ -165,8 +167,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       // 1. Tab Status Filter
       if (activeTab === 'MY_QUEUE') {
         if (item.status !== ApprovalStatus.PENDING) return false;
-        if (role === UserRole.TEAM_LEADER && (item.currentStage ?? 1) !== 1) return false;
-        if (role === UserRole.DEPARTMENT_HEAD && item.currentStage !== 2) return false;
+        if (canEndorse && (item.currentStage ?? 1) !== 1) return false;
+        if (canApprove && item.currentStage !== 2) return false;
       } else if (activeTab === 'STAGE_1') {
         if (item.status !== ApprovalStatus.PENDING || (item.currentStage ?? 1) !== 1) return false;
       } else if (activeTab === 'STAGE_2') {
@@ -203,11 +205,11 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const actionablePendingItems = useMemo(() => {
     return filteredApprovals.filter((a) => {
       if (a.status !== ApprovalStatus.PENDING) return false;
-      if (role === UserRole.TEAM_LEADER) return (a.currentStage ?? 1) === 1;
-      if (role === UserRole.DEPARTMENT_HEAD) return a.currentStage === 2;
-      return true;
+      if (canEndorse) return (a.currentStage ?? 1) === 1;
+      if (canApprove) return a.currentStage === 2;
+      return canReview;
     });
-  }, [filteredApprovals, role]);
+  }, [filteredApprovals, canEndorse, canApprove, canReview]);
 
   const isAllSelected =
     actionablePendingItems.length > 0 &&
@@ -257,7 +259,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     setActionLoading(true);
     const approverId =
       user?.id ||
-      (role === UserRole.TEAM_LEADER
+      (canEndorse
         ? employees.find((e) => e.role === UserRole.TEAM_LEADER)?.id
         : employees.find((e) => e.role === UserRole.DEPARTMENT_HEAD)?.id) ||
       employees[0]?.id;
@@ -328,7 +330,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     setBatchProcessing(true);
     const approverId =
       user?.id ||
-      (role === UserRole.TEAM_LEADER
+      (canEndorse
         ? employees.find((e) => e.role === UserRole.TEAM_LEADER)?.id
         : employees.find((e) => e.role === UserRole.DEPARTMENT_HEAD)?.id) ||
       employees[0]?.id;
@@ -532,29 +534,24 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
           <span>
             Active Role: <strong className="font-bold text-slate-900">{role.replace(/_/g, ' ')}</strong>.
-            {role === UserRole.TEAM_LEADER && (
+            {canEndorse && canApprove && (
+              <span className="ml-1 text-slate-700 font-medium">
+                You are authorized for both <strong>Stage 1 Endorsements</strong> and <strong>Stage 2 Authorizations</strong>.
+              </span>
+            )}
+            {canEndorse && !canApprove && (
               <span className="ml-1 text-slate-700 font-medium">
                 You are authorized to review and record <strong>Stage 1 Technical Endorsements</strong>.
               </span>
             )}
-            {role === UserRole.DEPARTMENT_HEAD && (
+            {canApprove && !canEndorse && (
               <span className="ml-1 text-slate-700 font-medium">
                 You hold final signing authority to grant <strong>Stage 2 Store Issue Authorizations</strong>.
               </span>
             )}
-            {role === UserRole.MANAGER && (
+            {!canReview && (
               <span className="ml-1 text-slate-700 font-medium">
-                Management Oversight: Full visibility into active approval throughput.
-              </span>
-            )}
-            {role === UserRole.SYSTEM_ADMIN && (
-              <span className="ml-1 text-slate-700 font-medium">
-                Segregation of Duties (SOD): Read-only governance mode. Approvals require civil service operational roles.
-              </span>
-            )}
-            {role === UserRole.DATA_ENCODER && (
-              <span className="ml-1 text-slate-700 font-medium">
-                Store Custodian: Tracking submitted vouchers and issue statuses.
+                Oversight & Monitoring: View-only access to transaction requests and statuses.
               </span>
             )}
           </span>
@@ -605,7 +602,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             { id: 'REJECTED', label: 'Rejected', count: metrics.rejectedCount },
             { id: 'ALL', label: 'All Records', count: metrics.totalCount },
           ]
-            .filter((tab) => getVisibleQueueTabs(role).includes(tab.id as TabFilter))
+            .filter((tab) => getVisibleQueueTabs(role, user?.permissions).includes(tab.id as TabFilter))
             .map((tab) => (
             <button
               key={tab.id}
@@ -683,8 +680,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   const stage = appr.currentStage ?? 1;
                   const isActionableForMe =
                     isPending &&
-                    ((role === UserRole.TEAM_LEADER && stage === 1) ||
-                      (role === UserRole.DEPARTMENT_HEAD && stage === 2));
+                    ((canEndorse && stage === 1) ||
+                      (canApprove && stage === 2));
 
                   return (
                     <tr
@@ -818,8 +815,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             const stage = appr.currentStage ?? 1;
             const isActionableForMe =
               isPending &&
-              ((role === UserRole.TEAM_LEADER && stage === 1) ||
-                (role === UserRole.DEPARTMENT_HEAD && stage === 2));
+              ((canEndorse && stage === 1) ||
+                (canApprove && stage === 2));
 
             return (
               <div
@@ -937,7 +934,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           <div className="h-5 w-px bg-slate-800" />
 
           <div className="flex items-center gap-2">
-            {role === UserRole.TEAM_LEADER ? (
+            {canEndorse ? (
               <button
                 onClick={() => handleOpenBatchModal('ENDORSE')}
                 className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
@@ -945,7 +942,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Batch Endorse ({selectedIds.length})</span>
               </button>
-            ) : role === UserRole.DEPARTMENT_HEAD ? (
+            ) : canApprove ? (
               <button
                 onClick={() => handleOpenBatchModal('APPROVE')}
                 className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
@@ -1125,33 +1122,46 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 Cancel
               </button>
 
-              <button
-                type="button"
-                disabled={actionLoading}
-                onClick={() => handleAction(selectedApproval.id, 'REJECT')}
-                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-              >
-                <XCircle className="w-4 h-4" /> Reject
-              </button>
+              {selectedApproval.currentStage === 1 && canEndorse && (
+                <>
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => handleAction(selectedApproval.id, 'REJECT')}
+                    className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <XCircle className="w-4 h-4" /> Reject
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => handleAction(selectedApproval.id, 'ENDORSE')}
+                    className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" /> Endorse (Stage 1)
+                  </button>
+                </>
+              )}
 
-              {selectedApproval.currentStage === 1 ? (
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => handleAction(selectedApproval.id, 'ENDORSE')}
-                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                >
-                  <CheckCircle2 className="w-4 h-4" /> Endorse (Stage 1)
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => handleAction(selectedApproval.id, 'APPROVE')}
-                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                >
-                  <CheckCircle2 className="w-4 h-4" /> Authorize & Sign-Off
-                </button>
+              {selectedApproval.currentStage === 2 && canApprove && (
+                <>
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => handleAction(selectedApproval.id, 'REJECT')}
+                    className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <XCircle className="w-4 h-4" /> Reject
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => handleAction(selectedApproval.id, 'APPROVE')}
+                    className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" /> Authorize & Sign-Off
+                  </button>
+                </>
               )}
             </div>
           </div>
