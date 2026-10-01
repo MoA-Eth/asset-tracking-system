@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Layers,
   CheckCircle2,
@@ -7,7 +7,6 @@ import {
   AlertCircle,
   Warehouse,
   UserCheck,
-  Sparkles,
   Banknote,
   ShieldCheck,
   Building2,
@@ -21,6 +20,7 @@ import {
   FileText,
   XCircle,
   Eye,
+  BarChart3,
   LucideIcon,
 } from 'lucide-react';
 import { api } from '../api/client';
@@ -143,17 +143,17 @@ const StatTile: React.FC<{
   footer: React.ReactNode;
   meterPct?: number;
 }> = ({ label, labelAm, icon: Icon, value, footer, meterPct }) => (
-  <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+  <div className="flex flex-col rounded-2xl border border-b-2 border-slate-200 border-b-slate-300 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_20px_-6px_rgba(15,23,42,0.12)] transition duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_14px_28px_-8px_rgba(15,23,42,0.18)]">
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
-        <p className="text-xs font-medium text-slate-600">{label}</p>
+        <p className="text-xs font-semibold text-slate-700">{label}</p>
         <p className="text-[10px] text-slate-400">{labelAm}</p>
       </div>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm">
         <Icon className="h-4 w-4" />
       </span>
     </div>
-    <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
+    <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
     <div className="mt-auto space-y-1.5 pt-3">
       {meterPct !== undefined && <Meter pct={meterPct} />}
       <p className="text-[11px] text-slate-500">{footer}</p>
@@ -171,22 +171,22 @@ const WorkTile: React.FC<{
   note?: string;
 }> = ({ label, count, icon: Icon, onClick, tone = 'neutral', note }) => {
   const iconTone =
-    tone === 'warning' ? 'bg-amber-50 text-amber-700' : tone === 'critical' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600';
+    tone === 'warning' ? 'bg-amber-100 text-amber-700' : tone === 'critical' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700';
   const content = (
     <>
-      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconTone}`}>
-        <Icon className="h-4 w-4" />
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconTone}`}>
+        <Icon className="h-5 w-5" />
       </span>
       <span className="min-w-0">
-        <span className="block text-lg font-semibold leading-tight text-slate-900">{count}</span>
-        <span className="block text-[11px] text-slate-600">{label}</span>
+        <span className="block text-xl font-bold leading-tight text-slate-900">{count}</span>
+        <span className="block text-xs font-medium text-slate-700">{label}</span>
         {note && <span className={`block text-[10px] font-medium ${tone === 'critical' ? 'text-rose-700' : 'text-amber-700'}`}>{note}</span>}
       </span>
     </>
   );
-  const cls = 'flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xs';
+  const cls = 'flex items-center gap-3 rounded-xl border border-b-2 border-slate-200 border-b-slate-300 bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),0_4px_12px_-4px_rgba(15,23,42,0.10)]';
   return onClick ? (
-    <button onClick={onClick} className={`${cls} transition hover:border-slate-300 hover:bg-slate-50 cursor-pointer`}>
+    <button onClick={onClick} className={`${cls} transition duration-200 hover:border-emerald-300 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_10px_20px_-6px_rgba(15,23,42,0.16)] cursor-pointer`}>
       {content}
     </button>
   ) : (
@@ -237,6 +237,157 @@ const EmptyState: React.FC<{ icon: LucideIcon; children: React.ReactNode }> = ({
     <p className="text-xs">{children}</p>
   </div>
 );
+
+// ─── Stock movement chart ───────────────────────────────────────────────────
+
+type MovementMonth = { month: string; received: number; issued: number };
+
+// Validated categorical pair (light surface): series colours follow the entity, never its rank
+const MOVEMENT_SERIES = [
+  { key: 'received' as const, label: 'Received', color: '#eb6834' },
+  { key: 'issued' as const, label: 'Issued', color: '#2a78d6' },
+];
+
+const monthLabel = (month: string, withYear = false) =>
+  new Date(`${month}-01T00:00:00`).toLocaleDateString('en-US', withYear ? { month: 'long', year: 'numeric' } : { month: 'short' });
+
+/** Rounded-up axis maximum with 4 even steps */
+const niceAxis = (max: number) => {
+  if (max <= 0) return { top: 4, step: 1 };
+  const rough = max / 4;
+  const mag = 10 ** Math.floor(Math.log10(rough));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((c) => c >= rough) ?? 10 * mag;
+  return { top: step * 4, step };
+};
+
+/** Bar with a 4px rounded top, anchored square to the baseline */
+const barPath = (x: number, y: number, w: number, h: number) => {
+  const r = Math.min(4, w / 2, h);
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+};
+
+const StockMovementChart: React.FC<{ months: MovementMonth[] }> = ({ months }) => {
+  const [hover, setHover] = useState<number | null>(null);
+  // Draw at the container's real width so text and bars keep their pixel sizes
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(640);
+  const totals = MOVEMENT_SERIES.map((sr) => months.reduce((sum, m) => sum + m[sr.key], 0));
+  const empty = months.length === 0 || totals.every((t) => t === 0);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setW(Math.max(280, Math.round(entry.contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [empty]);
+  if (empty) {
+    return <EmptyState icon={BarChart3}>No stock was received or issued in the last {months.length || 6} months.</EmptyState>;
+  }
+
+  const H = 220, left = 36, right = 8, top = 10, bottom = 26;
+  const plotW = W - left - right, plotH = H - top - bottom;
+  const { top: axisTop, step } = niceAxis(Math.max(...months.map((m) => Math.max(m.received, m.issued))));
+  const ticks = Array.from({ length: 5 }, (_, i) => i * step);
+  const y = (v: number) => top + plotH - (v / axisTop) * plotH;
+  const groupW = plotW / months.length;
+  const barW = Math.min(28, (groupW * 0.56 - 2) / 2);
+  const gap = 2;
+  const hovered = hover === null ? null : months[hover];
+
+  return (
+    <div className="space-y-3">
+      {/* Legend with 6-month totals */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        {MOVEMENT_SERIES.map((sr, i) => (
+          <div key={sr.key} className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: sr.color }} aria-hidden />
+            <span className="text-xs text-slate-600">{sr.label}</span>
+            <span className="text-sm font-semibold tabular-nums text-slate-900">{totals[i].toLocaleString()}</span>
+            <span className="text-[11px] text-slate-400">units</span>
+          </div>
+        ))}
+      </div>
+
+      <div ref={boxRef} className="relative" onMouseLeave={() => setHover(null)}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block max-w-full" aria-hidden>
+          {ticks.map((t) => (
+            <g key={t}>
+              <line x1={left} x2={W - right} y1={y(t)} y2={y(t)} stroke={t === 0 ? '#cbd5e1' : '#f1f5f9'} strokeWidth={1} />
+              <text x={left - 8} y={y(t)} dy="0.32em" textAnchor="end" className="fill-slate-400 text-[10px] tabular-nums">
+                {t.toLocaleString()}
+              </text>
+            </g>
+          ))}
+          {months.map((m, i) => {
+            const cx = left + groupW * i + groupW / 2;
+            return (
+              <g key={m.month}>
+                {hover === i && <rect x={left + groupW * i + 4} y={top} width={groupW - 8} height={plotH} rx={6} fill="#f8fafc" />}
+                {MOVEMENT_SERIES.map((sr, k) => {
+                  const v = m[sr.key];
+                  if (v <= 0) return null;
+                  const x = k === 0 ? cx - gap / 2 - barW : cx + gap / 2;
+                  return <path key={sr.key} d={barPath(x, y(v), barW, y(0) - y(v))} fill={sr.color} />;
+                })}
+                <text x={cx} y={H - 8} textAnchor="middle" className={`text-[11px] ${hover === i ? 'fill-slate-700 font-semibold' : 'fill-slate-500'}`}>
+                  {monthLabel(m.month)}
+                </text>
+                {/* Hit target: the whole month column */}
+                <rect
+                  x={left + groupW * i}
+                  y={top}
+                  width={groupW}
+                  height={plotH + bottom}
+                  fill="transparent"
+                  onMouseEnter={() => setHover(i)}
+                />
+              </g>
+            );
+          })}
+        </svg>
+
+        {hovered && hover !== null && (
+          <div
+            className="pointer-events-none absolute top-0 z-10 w-40 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg"
+            style={{ left: `${((left + groupW * hover + groupW / 2) / W) * 100}%` }}
+          >
+            <p className="mb-1 text-[11px] font-semibold text-slate-900">{monthLabel(hovered.month, true)}</p>
+            {MOVEMENT_SERIES.map((sr) => (
+              <p key={sr.key} className="flex items-center justify-between gap-3 text-[11px] text-slate-600">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: sr.color }} />
+                  {sr.label}
+                </span>
+                <span className="font-semibold tabular-nums text-slate-900">{hovered[sr.key].toLocaleString()}</span>
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Same figures as a table for screen readers */}
+      <table className="sr-only">
+        <caption>Units received and issued per month</caption>
+        <thead>
+          <tr>
+            <th scope="col">Month</th>
+            <th scope="col">Received</th>
+            <th scope="col">Issued</th>
+          </tr>
+        </thead>
+        <tbody>
+          {months.map((m) => (
+            <tr key={m.month}>
+              <th scope="row">{monthLabel(m.month, true)}</th>
+              <td>{m.received}</td>
+              <td>{m.issued}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
@@ -321,6 +472,13 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
     .filter((c: any) => c.condition === 'NEEDS_REPAIR' || c.condition === 'DAMAGED')
     .reduce((s: number, c: any) => s + c.count, 0);
 
+  // Items that should have been distributed: in store longer than the limit (30 days)
+  const stale = data?.staleInStore || { thresholdDays: 30, itemCount: 0, units: 0, valueETB: 0, items: [] };
+  const staleItems: any[] = stale.items || [];
+  const showStale = () => document.getElementById('stale-in-store')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const stockMovement: MovementMonth[] = data?.stockMovement || [];
+
   const topAssets: any[] = (data?.topValuationAssets || []).slice(0, 6);
   const storeLocations: any[] = data?.locationUtilization || [];
   const activeLocations = storeLocations.filter((l: any) => l.itemCount > 0).length;
@@ -329,42 +487,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
 
-      {/* ── Banner ──────────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 border border-emerald-800/60 p-4 text-white shadow-md">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-[10px] font-semibold text-emerald-100 tracking-wide">
-                <Sparkles className="w-3 h-3 text-[#FCDD09]" /> Executive dashboard
-              </span>
-              <span className="text-[11px] text-emerald-100/70 font-mono">FY 2017 E.C. (2024/2025 G.C.)</span>
-            </div>
-            <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-snug">
-              Ministry of Agriculture <span className="text-[#FCDD09]">asset oversight</span>
-            </h1>
-            <p className="text-[11px] text-emerald-100/70 leading-tight">
-              የኢትዮጵያ ፌዴራላዊ ዲሞክራሲያዊ ሪፐብሊክ የግብርና ሚኒስቴር — የሀብትና ንብረት ቁጥጥር
-            </p>
-          </div>
-          {pendingApprovals > 0 && (
-            <button
-              onClick={() => onNavigate('approvals')}
-              className="flex items-center gap-2.5 shrink-0 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-left transition hover:bg-white/15 cursor-pointer"
-            >
-              <span className="flex h-7 min-w-7 items-center justify-center rounded-lg bg-[#FCDD09] px-1.5 text-xs font-bold text-emerald-950">
-                {pendingApprovals}
-              </span>
-              <span className="leading-tight">
-                <span className="block text-[10px] font-semibold uppercase tracking-wider text-emerald-100/70">Action required</span>
-                <span className="block text-xs font-semibold text-white">Pending approvals</span>
-              </span>
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* ── Row 1: KPI tiles ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label="Total valuation"
           labelAm="ጠቅላላ የካፒታል ንብረት ዋጋ"
@@ -376,7 +500,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           label="Total assets"
           labelAm="በመዝገብ ላይ ያለ ጠቅላላ ንብረት"
           icon={Layers}
-          value={totalItems.toLocaleString()}
+          value={<>{totalItems.toLocaleString()}<span className="ml-1 text-sm font-normal text-slate-400">units</span></>}
           footer={unassignedCount > 0 ? `${unassignedCount} not assigned to a directorate` : 'All assets assigned'}
         />
         <StatTile
@@ -398,8 +522,13 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
       </div>
 
       {/* ── Row 2: Workflow counts ──────────────────────────────────────────── */}
-      {(pendingApprovals > 0 || pendingStockIn > 0 || pendingStockOut > 0 || pendingTransfer > 0 || atRiskCount > 0) && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      {(pendingApprovals > 0 || pendingStockIn > 0 || pendingStockOut > 0 || pendingTransfer > 0 || atRiskCount > 0 || stale.itemCount > 0) && (
+        <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-xs">
+          <h2 className="mb-3 flex items-baseline gap-2 text-sm font-bold text-slate-800">
+            Needs attention
+            <span className="text-[10px] font-normal text-slate-400">ትኩረት የሚሹ</span>
+          </h2>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
           {pendingApprovals > 0 && (
             <WorkTile label="Pending approvals" count={pendingApprovals} icon={Clock} tone="warning" note="Needs action" onClick={() => onNavigate('approvals')} />
           )}
@@ -415,8 +544,118 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           {atRiskCount > 0 && (
             <WorkTile label="At-risk assets" count={atRiskCount} icon={AlertTriangle} tone="critical" note="Damaged or needs repair" />
           )}
+          {stale.itemCount > 0 && (
+            <WorkTile
+              label={`In store over ${stale.thresholdDays} days`}
+              count={stale.itemCount}
+              icon={Warehouse}
+              tone="warning"
+              note={`${stale.units} units · distribute`}
+              onClick={showStale}
+            />
+          )}
         </div>
+        </section>
       )}
+
+      {/* ── Items in store too long ─────────────────────────────────────────── */}
+      <div id="stale-in-store" className="scroll-mt-20">
+        <Panel
+          title={`In store over ${stale.thresholdDays} days`}
+          subtitle={`ከ${stale.thresholdDays} ቀን በላይ በመጋዘን የቆዩ ዕቃዎች · items should be distributed within a month of arriving`}
+          icon={Clock}
+        >
+          {staleItems.length === 0 ? (
+            <EmptyState icon={CheckCircle2}>Nothing has been in store for more than {stale.thresholdDays} days.</EmptyState>
+          ) : (
+            <div className="space-y-4">
+              {/* Summary: what is overdue in total */}
+              <div className="flex flex-col gap-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                    <AlertTriangle className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">These items should have been distributed by now</p>
+                    <p className="text-[11px] text-amber-800/80">
+                      Each has stayed in store longer than {stale.thresholdDays} days since it arrived.
+                    </p>
+                  </div>
+                </div>
+                <dl className="grid grid-cols-3 gap-4 sm:gap-6 text-right">
+                  {[
+                    { label: stale.itemCount === 1 ? 'Item' : 'Items', value: stale.itemCount.toLocaleString() },
+                    { label: 'Units', value: stale.units.toLocaleString() },
+                    { label: 'Value', value: formatETB(stale.valueETB) },
+                  ].map((s) => (
+                    <div key={s.label}>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-amber-800/70">{s.label}</dt>
+                      <dd className="text-base font-semibold text-slate-900 whitespace-nowrap">{s.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+
+              {/* One row per item, oldest first */}
+              <ul className="max-h-[26rem] divide-y divide-slate-100 overflow-auto">
+                {staleItems.map((i: any) => {
+                  const overdue = Math.max(0, i.daysInStore - stale.thresholdDays);
+                  // Bar fills over a further month past the limit
+                  const overduePct = Math.min(100, Math.round((overdue / stale.thresholdDays) * 100));
+                  const arrived = i.inStoreSinceGc
+                    ? new Date(`${i.inStoreSinceGc}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                    : '—';
+                  return (
+                    <li key={i.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:gap-4">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                          <Package className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-900">{i.name}</p>
+                          <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
+                            <span className="font-mono">{i.itemCode}</span>
+                            <span>· Arrived {arrived}</span>
+                            {i.issuePending && (
+                              <span className="rounded-full border border-slate-200 bg-white px-1.5 py-px text-[10px] font-medium text-slate-600">
+                                Issue requested
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="w-full sm:w-44">
+                        <div className="flex items-baseline justify-between text-[11px]">
+                          <span className="font-semibold text-amber-800">
+                            Overdue by {overdue} {overdue === 1 ? 'day' : 'days'}
+                          </span>
+                          <span className="text-slate-400">{i.daysInStore}d</span>
+                        </div>
+                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-amber-100">
+                          <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.max(6, overduePct)}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 items-baseline justify-between gap-4 sm:w-40 sm:flex-col sm:items-end sm:gap-0">
+                        <span className="font-mono text-xs font-semibold text-slate-900">
+                          {i.unitsInStore} {i.uom}
+                        </span>
+                        <span className="text-[11px] text-slate-500">{formatETB(i.valueETB)}</span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      {/* ── Stock movement ─────────────────────────────────────────────────── */}
+      <Panel title="Stock movement" subtitle="የዕቃ እንቅስቃሴ · units received and issued per month, last 6 months" icon={BarChart3}>
+        <StockMovementChart months={stockMovement} />
+      </Panel>
 
       {/* ── Row 3: Directorates + categories ───────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -642,43 +881,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
         )}
       </Panel>
 
-      {/* ── Row 6: Store summary + recent activity ─────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      {/* ── Row 6: Recent activity ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-5">
         <Panel
-          className="lg:col-span-5"
-          title="Store locations"
-          subtitle={`${storeLocations.length} configured store${storeLocations.length !== 1 ? 's' : ''}`}
-          icon={Warehouse}
-        >
-          {storeLocations.length === 0 ? (
-            <EmptyState icon={Warehouse}>No store locations configured yet.</EmptyState>
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {storeLocations.map((loc: any) => (
-                <li key={loc.id} className="flex items-center justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate text-xs font-semibold text-slate-900">{loc.siteName}</span>
-                      {loc.isCentralStore && (
-                        <span className="shrink-0 rounded border border-slate-200 bg-slate-50 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-slate-600">
-                          Central
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-slate-500">{loc.building} — {loc.roomNumber}</p>
-                  </div>
-                  <div className="shrink-0 text-right leading-tight">
-                    <span className="block text-sm font-semibold text-slate-900">{loc.itemCount ?? 0} {(loc.itemCount ?? 0) === 1 ? 'unit' : 'units'}</span>
-                    <span className="text-[11px] text-slate-500">{formatETB(loc.totalValueETB || 0)}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-
-        <Panel
-          className="lg:col-span-7"
           title="Recent activity"
           subtitle="ቅርብ ጊዜ የስርዓት ድርጊቶች"
           icon={ShieldCheck}
