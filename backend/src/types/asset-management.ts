@@ -370,6 +370,36 @@ export interface CreateStockInRequest {
   }>;
 }
 
+/** Corrections to a Stock-In registration while it still waits for Stage 1 endorsement. */
+export interface UpdateStockInRequest {
+  name: string;
+  category: AssetCategory;
+  serialNumber?: string;
+  unitCostETB: number;
+  condition?: ItemCondition;
+  storeLocationId: string;
+  ifmisSlipNumber: string;
+  ifmisSlipDateGc: string;
+  /** New slip upload; omit to keep the current attachment */
+  ifmisSlipAttachmentUrl?: string;
+
+  poNumber?: string;
+  transactionType?: string;
+  source?: string;
+  buyer?: string;
+  programName?: string;
+  uom?: string;
+  subInventory?: string;
+  itemCategoryDisplay?: string;
+  lotBatchNo?: string;
+  printedPadFrom?: string;
+  printedPadTo?: string;
+  quantity?: number;
+  deliveredBy?: string;
+  receivedBy?: string;
+  remark?: string;
+}
+
 export interface CreateStockOutRequest {
   itemId: string;
   recipientEmployeeId: string;
@@ -391,6 +421,18 @@ export interface CreateStockOutRequest {
   unitPrice?: number;
   totalAmount?: number;
   transportationCost?: number;
+  remark?: string;
+}
+
+/** Corrections to a Stock-Out request while it still waits for Stage 1 endorsement. The item itself can't change. */
+export interface UpdateStockOutRequest {
+  recipientEmployeeId: string;
+  targetDepartmentId: string;
+  ifmisSlipNumber: string;
+  ifmisSlipDateGc: string;
+  /** New slip upload; omit to keep the current attachment */
+  ifmisSlipAttachmentUrl?: string;
+  purpose: string;
   remark?: string;
 }
 

@@ -14,6 +14,7 @@ import {
   Car,
   Tag,
   ShieldCheck,
+  Clock,
 } from 'lucide-react';
 import { api } from '../api/client';
 import {
@@ -25,6 +26,7 @@ import {
   Location,
   Model21Voucher,
   Model21LineItem,
+  TransactionApproval,
 } from '../types/asset-management';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
 import {
@@ -42,6 +44,38 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
 
+const ITEM_STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  [ItemStatus.AVAILABLE]: { label: 'In store', className: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+  [ItemStatus.ISSUED]: { label: 'Issued', className: 'bg-purple-100 text-purple-800 border-purple-300' },
+  [ItemStatus.UNDER_TRANSFER]: { label: 'Under transfer', className: 'bg-amber-100 text-amber-800 border-amber-300' },
+  [ItemStatus.PENDING_STOCK_IN]: { label: 'Stock-In pending', className: 'bg-amber-100 text-amber-800 border-amber-300' },
+  [ItemStatus.PENDING_STOCK_OUT]: { label: 'Stock-Out pending', className: 'bg-amber-100 text-amber-800 border-amber-300' },
+  [ItemStatus.DISPOSED]: { label: 'Disposed', className: 'bg-slate-100 text-slate-600 border-slate-300' },
+};
+
+const REQUEST_TYPE_LABELS: Record<string, string> = {
+  STOCK_IN: 'Stock-In',
+  STOCK_OUT: 'Stock-Out',
+  TRANSFER: 'Transfer',
+  RETURN: 'Return',
+};
+
+const STAGE_LABELS: Record<number, string> = {
+  1: 'Awaiting Team Leader',
+  2: 'Awaiting Dept. Head',
+};
+
+/** Open request on an item, e.g. "Return · Awaiting Dept. Head" */
+const PendingRequestChip: React.FC<{ request: TransactionApproval }> = ({ request }) => (
+  <span
+    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-800 border-amber-300 whitespace-nowrap"
+    title="This item already has an open request. A new transfer or return can be submitted once it is approved or rejected."
+  >
+    <Clock className="w-3 h-3" />
+    {REQUEST_TYPE_LABELS[request.transactionType] ?? request.transactionType} · {STAGE_LABELS[request.currentStage] ?? 'Pending'}
+  </span>
+);
+
 interface TransferAssetPageProps {
   currentRole: UserRole;
   onNavigate: (tab: string) => void;
@@ -58,6 +92,8 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  // Open request per item, so a second transfer/return isn't offered while one waits for approval
+  const [pendingByItem, setPendingByItem] = useState<Map<string, TransactionApproval>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -96,13 +132,15 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const [itemsRes, deptsRes, empsRes, locsRes] = await Promise.all([
+      const [itemsRes, deptsRes, empsRes, locsRes, approvalsRes] = await Promise.all([
         api.getItems(),
         api.getDepartments(),
         api.getEmployees(),
         api.getLocations(),
+        api.getApprovals(),
       ]);
       setItems(itemsRes);
+      setPendingByItem(new Map(approvalsRes.filter((a) => a.status === 'PENDING').map((a) => [a.itemId, a])));
       setDepartments(deptsRes);
       setEmployees(empsRes);
       setLocations(locsRes);
@@ -446,11 +484,15 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       <option value="">Choose an asset to transfer…</option>
                       {items
                         .filter((i) => i.status === ItemStatus.ISSUED)
-                        .map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.itemCode} — {item.name} ({item.currentCustodian?.fullNameEn || 'assigned'})
-                          </option>
-                        ))}
+                        .map((item) => {
+                          const pending = pendingByItem.get(item.id);
+                          return (
+                            <option key={item.id} value={item.id} disabled={!!pending}>
+                              {item.itemCode} — {item.name} ({item.currentCustodian?.fullNameEn || 'assigned'})
+                              {pending ? ` — ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}
+                            </option>
+                          );
+                        })}
                     </select>
                   </Field>
 
@@ -721,13 +763,17 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                             <Printer className="w-3.5 h-3.5 text-amber-700" />
                             <span>Print M21</span>
                           </button>
-                          <button
-                            onClick={() => setReturnItem(item)}
-                            className="px-3 py-1 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-lg text-xs transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            Return (M21)
-                          </button>
+                          {pendingByItem.get(item.id) ? (
+                            <PendingRequestChip request={pendingByItem.get(item.id)!} />
+                          ) : (
+                            <button
+                              onClick={() => setReturnItem(item)}
+                              className="px-3 py-1 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-lg text-xs transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              Return (M21)
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -778,17 +824,16 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                     <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">{item.itemCode}</td>
                     <td className="p-3 text-slate-800">{item.name}</td>
                     <td className="p-3 whitespace-nowrap">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                          item.status === ItemStatus.AVAILABLE
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                            : item.status === ItemStatus.ISSUED
-                            ? 'bg-purple-100 text-purple-800 border-purple-300'
-                            : 'bg-amber-100 text-amber-800 border-amber-300'
-                        }`}
-                      >
-                        {item.status}
-                      </span>
+                      <div className="flex flex-col items-start gap-1">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                            (ITEM_STATUS_LABELS[item.status] ?? ITEM_STATUS_LABELS[ItemStatus.UNDER_TRANSFER]).className
+                          }`}
+                        >
+                          {ITEM_STATUS_LABELS[item.status]?.label ?? item.status}
+                        </span>
+                        {pendingByItem.get(item.id) && <PendingRequestChip request={pendingByItem.get(item.id)!} />}
+                      </div>
                     </td>
                     <td className="p-3 text-slate-700">
                       {item.currentCustodian?.fullNameEn || item.assignedDepartment?.nameEn || 'Store Stock'}
@@ -804,7 +849,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                           <Printer className="w-3.5 h-3.5 text-amber-700" />
                           <span>Print M21</span>
                         </button>
-                        {item.status === ItemStatus.ISSUED && (
+                        {item.status === ItemStatus.ISSUED && !pendingByItem.has(item.id) && (
                           <button
                             onClick={() => setReturnItem(item)}
                             className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 rounded-lg text-xs font-bold transition cursor-pointer inline-flex items-center gap-1"

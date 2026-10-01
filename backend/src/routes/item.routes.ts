@@ -19,10 +19,23 @@ router.post(
   optionalAuth, // allows backward compatibility while enforcing if user provided
   controller.registerStockIn
 );
+// Corrections are only for the encoder, and only before Stage 1 endorsement (checked in the service)
+router.put(
+  '/:id/stock-in',
+  requireAuth,
+  requireRole(UserRole.DATA_ENCODER),
+  controller.updateStockIn
+);
 router.post(
   '/stock-out',
   optionalAuth,
   controller.registerStockOut
+);
+router.put(
+  '/stock-out/:approvalId',
+  requireAuth,
+  requireRole(UserRole.DATA_ENCODER),
+  controller.updateStockOut
 );
 router.post(
   '/return-to-store',
