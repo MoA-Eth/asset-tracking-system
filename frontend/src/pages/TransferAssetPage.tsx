@@ -55,6 +55,21 @@ const ITEM_STATUS_LABELS: Record<string, { label: string; className: string }> =
   [ItemStatus.DISPOSED]: { label: 'Disposed', className: 'bg-slate-100 text-slate-600 border-slate-300' },
 };
 
+const statusStyleOf = (item: ItemWithRelations) =>
+  item.balance && item.balance.issued > 0 && item.balance.available > 0
+    ? { label: 'Partly issued', className: 'bg-sky-100 text-sky-800 border-sky-300' }
+    : ITEM_STATUS_LABELS[item.status] ?? { label: item.status, className: ITEM_STATUS_LABELS[ItemStatus.UNDER_TRANSFER].className };
+
+/** Units on this record, and how many the registration received when it has been split */
+const UnitsCell: React.FC<{ item: ItemWithRelations }> = ({ item }) => (
+  <td className="p-3 font-mono text-slate-800 whitespace-nowrap text-right">
+    {item.quantity || 1} {item.uom || 'EA'}
+    {!item.parentItemId && item.balance && item.balance.total > (item.quantity || 1) && (
+      <span className="block text-[10px] text-slate-400">of {item.balance.total} received</span>
+    )}
+  </td>
+);
+
 const REQUEST_TYPE_LABELS: Record<string, string> = {
   STOCK_IN: 'Stock-In',
   STOCK_OUT: 'Stock-Out',
@@ -200,7 +215,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     const item = items.find((i) => i.id === itemId);
     if (item) {
       setDepreciation(0);
-      setBookValue(item.unitCostETB || 0);
+      setBookValue((item.unitCostETB || 0) * (Number(item.quantity) || 1));
       setChassisNumber(item.serialNumber || '');
       setPlateNo('');
       setEngineNo('');
@@ -354,7 +369,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         engineNo: engineNo.trim() || undefined,
         accessories,
         tireNos: tireList,
-        origCost: selectedItem?.unitCostETB,
+        origCost: (selectedItem?.unitCostETB || 0) * (Number(selectedItem?.quantity) || 1),
         depreciation,
         bookValue,
         remark: defectRemark.trim() || undefined,
@@ -374,9 +389,9 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             tagNumber: selectedItem?.itemCode || 'TAG-001',
             serialNumber: selectedItem?.serialNumber || '',
             chassisNumber: chassisNumber.trim() || undefined,
-            uom: 'EA',
-            unit: 1,
-            origCost: selectedItem?.unitCostETB || 0,
+            uom: selectedItem?.uom || 'EA',
+            unit: Number(selectedItem?.quantity) || 1,
+            origCost: (selectedItem?.unitCostETB || 0) * (Number(selectedItem?.quantity) || 1),
             depreciation,
             bookValue,
             dateGc: todayGc,
@@ -420,7 +435,8 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     const todayEc = formatGcToEc(todayGc);
     const custodian = item.currentCustodian;
     const loc = item.storeLocation?.siteName || 'MoA Gurd Sholla';
-    const cost = item.unitCostETB || 0;
+    const units = Number(item.quantity) || 1;
+    const cost = (item.unitCostETB || 0) * units;
 
     const voucher: Model21Voucher = {
       model21No: item.ifmisSlipNumber || '0004386',
@@ -436,8 +452,8 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           tagNumber: item.itemCode,
           serialNumber: item.serialNumber || '',
           chassisNumber: item.serialNumber || undefined,
-          uom: 'EA',
-          unit: 1,
+          uom: item.uom || 'EA',
+          unit: units,
           origCost: cost,
           depreciation: 0,
           bookValue: cost,
@@ -636,7 +652,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                           const pending = pendingByItem.get(item.id);
                           return (
                             <option key={item.id} value={item.id} disabled={!!pending}>
-                              {item.itemCode} — {item.name} ({item.currentCustodian?.fullNameEn || 'assigned'})
+                              {item.itemCode} — {item.name} · {item.quantity || 1} {item.uom || 'EA'} ({item.currentCustodian?.fullNameEn || 'assigned'})
                               {pending ? ` — ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}
                             </option>
                           );
@@ -651,7 +667,11 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                         { label: 'Tag number', value: selectedItemObj.itemCode, mono: true },
                         { label: 'Description', value: selectedItemObj.name },
                         { label: 'Current location', value: selectedItemObj.storeLocation?.siteName },
-                        { label: 'Original cost', value: formatETB(selectedItemObj.unitCostETB), mono: true },
+                        {
+                          label: `Original cost (${selectedItemObj.quantity || 1} ${selectedItemObj.uom || 'EA'})`,
+                          value: formatETB((selectedItemObj.unitCostETB || 0) * (Number(selectedItemObj.quantity) || 1)),
+                          mono: true,
+                        },
                       ]}
                     />
                   )}
@@ -676,7 +696,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                         onChange={(e) => {
                           const val = parseFloat(e.target.value) || 0;
                           setDepreciation(val);
-                          setBookValue(Math.max(0, (selectedItemObj?.unitCostETB || 0) - val));
+                          setBookValue(Math.max(0, (selectedItemObj?.unitCostETB || 0) * (Number(selectedItemObj?.quantity) || 1) - val));
                         }}
                         className={input({ mono: true, align: 'right' })}
                       />
@@ -886,6 +906,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                 <tr>
                   <th className="p-3 w-36 whitespace-nowrap">Asset Code</th>
                   <th className="p-3 min-w-[180px]">Item Description</th>
+                  <th className="p-3 w-24 text-right whitespace-nowrap">Qty</th>
                   <th className="p-3 min-w-[150px]">Current Custodian</th>
                   <th className="p-3 w-32">Location</th>
                   <th className="p-3 w-48 text-right whitespace-nowrap">Actions</th>
@@ -898,6 +919,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                     <tr key={item.id} className="hover:bg-slate-50 transition">
                       <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">{item.itemCode}</td>
                       <td className="p-3 text-slate-800">{item.name}</td>
+                      <UnitsCell item={item} />
                       <td className="p-3 text-slate-700">
                         {item.currentCustodian?.fullNameEn || 'Assigned Staff'}
                       </td>
@@ -966,6 +988,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                 <tr>
                   <th className="p-3 w-36 whitespace-nowrap">Asset Code</th>
                   <th className="p-3 min-w-[180px]">Item Name</th>
+                  <th className="p-3 w-24 text-right whitespace-nowrap">Qty</th>
                   <th className="p-3 w-32 whitespace-nowrap">Current Status</th>
                   <th className="p-3 min-w-[160px]">Custodian / Department</th>
                   <th className="p-3 w-32">Store Location</th>
@@ -977,14 +1000,15 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                   <tr key={item.id} className="hover:bg-slate-50 transition">
                     <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">{item.itemCode}</td>
                     <td className="p-3 text-slate-800">{item.name}</td>
+                      <UnitsCell item={item} />
                     <td className="p-3 whitespace-nowrap">
                       <div className="flex flex-col items-start gap-1">
                         <span
                           className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                            (ITEM_STATUS_LABELS[item.status] ?? ITEM_STATUS_LABELS[ItemStatus.UNDER_TRANSFER]).className
+                            statusStyleOf(item).className
                           }`}
                         >
-                          {ITEM_STATUS_LABELS[item.status]?.label ?? item.status}
+                          {statusStyleOf(item).label}
                         </span>
                         {pendingByItem.get(item.id) && <PendingRequestChip request={pendingByItem.get(item.id)!} />}
                       </div>

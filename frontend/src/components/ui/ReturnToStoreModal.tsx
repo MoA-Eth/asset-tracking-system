@@ -80,7 +80,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
   useEffect(() => {
     if (item) {
       setDepreciation(0);
-      setBookValue(item.unitCostETB || 0);
+      setBookValue((item.unitCostETB || 0) * (Number(item.quantity) || 1));
       setChassisNumber(item.serialNumber || '');
       setPlateNo('');
       setEngineNo('');
@@ -237,7 +237,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
         engineNo: engineNo.trim() || undefined,
         accessories,
         tireNos: tireList,
-        origCost: item.unitCostETB,
+        origCost: (item.unitCostETB || 0) * (Number(item.quantity) || 1),
         depreciation,
         bookValue,
         defectRemark: defectRemark.trim() || undefined,
@@ -258,9 +258,9 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
             tagNumber: item.itemCode,
             serialNumber: item.serialNumber || '',
             chassisNumber: chassisNumber.trim() || undefined,
-            uom: 'EA',
-            unit: 1,
-            origCost: item.unitCostETB || 0,
+            uom: item.uom || 'EA',
+            unit: Number(item.quantity) || 1,
+            origCost: (item.unitCostETB || 0) * (Number(item.quantity) || 1),
             depreciation,
             bookValue,
             dateGc: todayGc,
@@ -358,7 +358,11 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
                 { label: 'Tag number', value: item.itemCode, mono: true },
                 { label: 'Description', value: item.name },
                 { label: 'Current custodian', value: item.currentCustodian?.fullNameEn },
-                { label: 'Original cost', value: formatETB(item.unitCostETB), mono: true },
+                {
+                  label: `Original cost (${item.quantity || 1} ${item.uom || 'EA'})`,
+                  value: formatETB((item.unitCostETB || 0) * (Number(item.quantity) || 1)),
+                  mono: true,
+                },
               ]}
             />
 
@@ -395,7 +399,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
                   onChange={(e) => {
                     const val = parseFloat(e.target.value) || 0;
                     setDepreciation(val);
-                    setBookValue(Math.max(0, (item.unitCostETB || 0) - val));
+                    setBookValue(Math.max(0, (item.unitCostETB || 0) * (Number(item.quantity) || 1) - val));
                   }}
                   className={input({ mono: true, align: 'right' })}
                 />

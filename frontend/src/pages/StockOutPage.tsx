@@ -109,6 +109,8 @@ interface StockOutFormProps {
   onSuccess: (result: TransactionApproval, voucher?: Model22Voucher) => void;
   /** When set, the form corrects this pending request instead of creating a new one */
   editApproval?: TransactionApproval;
+  /** The item of the request being corrected (it is not in the available list while pending) */
+  editItem?: ItemWithRelations;
 }
 
 /** Splits the stored "purpose (Remark: remark)" text back into its two fields */
@@ -124,6 +126,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   onCancel,
   onSuccess,
   editApproval,
+  editItem,
 }) => {
   const { user } = useAuth();
   const toast = useToast();
@@ -162,7 +165,9 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   const [serialNo, setSerialNo] = useState<string>(initialItem?.serialNumber ?? '');
   const [printedPadFrom, setPrintedPadFrom] = useState<string>(initialItem?.printedPadFrom ?? '');
   const [printedPadTo, setPrintedPadTo] = useState<string>(initialItem?.printedPadTo ?? '');
-  const [quantity, setQuantity] = useState<number>(1);
+  const [quantity, setQuantity] = useState<number>(
+    Number(editApproval?.requestDetails?.quantity) || Number(editItem?.quantity) || Number(initialItem?.quantity) || 1
+  );
   const [unitPrice, setUnitPrice] = useState<number>(initialItem?.unitCostETB ?? 18963.5);
   const [transportationCost, setTransportationCost] = useState<number>(0);
   const [remark, setRemark] = useState<string>(editNotes.remark);
@@ -179,6 +184,8 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     setSelectedItemId(id);
     const item = availableItems.find((i) => i.id === id);
     if (item) {
+      // Default to issuing everything in store; lower it to issue part of the batch
+      setQuantity(Number(item.quantity) || 1);
       setItemCode(item.itemCode || '');
       setItemDescription(item.name || '');
       setUom(item.uom || 'EA');
@@ -232,7 +239,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     setSerialNo(it?.serialNumber ?? '');
     setPrintedPadFrom(it?.printedPadFrom ?? '');
     setPrintedPadTo(it?.printedPadTo ?? '');
-    setQuantity(1);
+    setQuantity(Number(it?.quantity) || 1);
     setUnitPrice(it?.unitCostETB ?? 18963.5);
     setTransportationCost(0);
     setRemark('');
@@ -242,6 +249,9 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     setFormError(null);
   };
 
+  const quantityItem = editItem ?? availableItems.find((i) => i.id === selectedItemId);
+  const inStore = Number(quantityItem?.quantity) || 1;
+  const inStoreUom = quantityItem?.uom || uom || 'EA';
   const totalAmount = quantity * unitPrice;
   const grandTotal = totalAmount + transportationCost;
   const ethDate = formatGcToEc(issuedDateGc);
@@ -260,6 +270,12 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       const msg = 'Model 22 Voucher Number is mandatory.';
       setFormError(msg);
       toast.warning('Voucher Required', msg);
+      return;
+    }
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
+      const msg = `Quantity must be a whole number from 1 to ${inStore} (${inStoreUom} in store).`;
+      setFormError(msg);
+      toast.warning('Check Quantity', msg);
       return;
     }
     if (!recipientEmployeeId) {
@@ -291,6 +307,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       try {
         const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
         const res = await api.updateStockOut(editApproval.id, {
+          quantity,
           recipientEmployeeId,
           targetDepartmentId: destinationDepartmentId,
           ifmisSlipNumber: model22No.trim(),
@@ -445,6 +462,17 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
             <Field label="Item description" span="sm:col-span-2">
               <ReadOnlyValue>{editApproval.itemName}</ReadOnlyValue>
             </Field>
+            <Field label="Quantity to issue" required hint={`${inStore} ${inStoreUom} in store`}>
+              <input
+                type="number"
+                min="1"
+                max={inStore}
+                required
+                value={quantity}
+                onChange={(e) => setQuantity(Math.min(inStore, Math.max(1, parseInt(e.target.value) || 1)))}
+                className={input({ mono: true, align: 'right' })}
+              />
+            </Field>
           </FieldGrid>
         ) : (
         <div className="space-y-3.5">
@@ -459,7 +487,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
               ) : (
                 availableItems.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.itemCode} — {item.name} ({formatETB(item.unitCostETB)})
+                    {item.itemCode} — {item.name} · {item.quantity || 1} {item.uom || 'EA'} in store ({formatETB(item.unitCostETB)} each)
                   </option>
                 ))
               )}
@@ -534,13 +562,14 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
 
           {/* Quantity & cost */}
           <FieldGrid cols={4}>
-            <Field label="Quantity" required>
+            <Field label="Quantity to issue" required hint={`${inStore} ${inStoreUom} in store`}>
               <input
                 type="number"
                 min="1"
+                max={inStore}
                 required
                 value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) => setQuantity(Math.min(inStore, Math.max(1, parseInt(e.target.value) || 1)))}
                 className={input({ mono: true, align: 'right' })}
               />
             </Field>
@@ -719,6 +748,8 @@ interface StockOutTableProps {
   onPrintModel22?: (approval: TransactionApproval) => void;
   /** Only the Data Encoder can correct a request */
   canEdit: boolean;
+  /** All items, for each request's item balance */
+  items: ItemWithRelations[];
   /** Items with an open transfer or return request, which can't be returned again yet */
   busyItemIds: Set<string>;
   onEdit: (approval: TransactionApproval) => void;
@@ -734,6 +765,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
   onOpenReturn,
   onPrintModel22,
   canEdit,
+  items,
   busyItemIds,
   onEdit,
   highlightApprovalId,
@@ -759,6 +791,8 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
       <ArrowDown className="w-3 h-3 text-blue-700 font-bold shrink-0" />
     );
   };
+
+  const itemsById = new Map(items.map((i) => [i.id, i]));
 
   const q = search.trim().toLowerCase();
   const filtered = approvals.filter((a) => {
@@ -833,7 +867,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full text-xs min-w-[840px]">
+          <table className="w-full text-xs min-w-[1040px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-left">
                 <th
@@ -853,6 +887,18 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                     <span>Item Name</span>
                     {renderSortIcon('itemName')}
                   </div>
+                </th>
+                <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-right whitespace-nowrap" title="Units in this request">
+                  Qty
+                </th>
+                <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-right whitespace-nowrap" title="All units received">
+                  Received
+                </th>
+                <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-right whitespace-nowrap" title="Units with custodians">
+                  Issued
+                </th>
+                <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-right whitespace-nowrap" title="Units in store">
+                  In Store
                 </th>
                 <th
                   onClick={() => handleSort('ifmisSlipNumber')}
@@ -915,6 +961,18 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                     </td>
                     <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[170px] max-w-[220px] truncate">
                       {approval.itemName}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-right font-bold text-slate-900 whitespace-nowrap w-16">
+                      {approval.requestDetails?.quantity ?? '—'}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-right text-slate-700 whitespace-nowrap w-16">
+                      {itemsById.get(approval.itemId)?.balance?.total ?? '—'}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-right text-slate-700 whitespace-nowrap w-16">
+                      {itemsById.get(approval.itemId)?.balance?.issued ?? '—'}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-right text-emerald-800 font-semibold whitespace-nowrap w-16">
+                      {itemsById.get(approval.itemId)?.balance?.available ?? '—'}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-slate-600 whitespace-nowrap w-36">
                       {approval.ifmisSlipNumber || '—'}
@@ -999,6 +1057,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
   const { user } = useAuth();
   const toast = useToast();
   const [availableItems, setAvailableItems] = useState<ItemWithRelations[]>([]);
+  const [allItems, setAllItems] = useState<ItemWithRelations[]>([]);
   const [stockOutApprovals, setStockOutApprovals] = useState<TransactionApproval[]>([]);
   const [busyItemIds, setBusyItemIds] = useState<Set<string>>(new Set());
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -1068,7 +1127,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     const issuedDateGc = approval.createdAtGc ? approval.createdAtGc.split('T')[0] : new Date().toISOString().split('T')[0];
     const issuedDateEc = approval.createdAtEc || formatGcToEc(issuedDateGc);
     const unitPrice = itemDetails?.unitCostETB || 0;
-    const qty = 1;
+    const qty = Number(approval.requestDetails?.quantity) || Number(itemDetails?.quantity) || 1;
     const totalAmount = unitPrice * qty;
 
     const voucher: Model22Voucher = {
@@ -1114,12 +1173,13 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     setError(null);
     try {
       const [items, deps, emps, approvals] = await Promise.all([
-        api.getItems({ status: ItemStatus.AVAILABLE }),
+        api.getItems(),
         api.getDepartments(),
         api.getEmployees(),
         api.getApprovals(),
       ]);
-      setAvailableItems(items);
+      setAllItems(items);
+      setAvailableItems(items.filter((i) => i.status === ItemStatus.AVAILABLE));
       setDepartments(deps);
       setEmployees(emps);
       setStockOutApprovals(approvals.filter((a) => a.transactionType === 'STOCK_OUT'));
@@ -1292,6 +1352,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
           onPrintModel22={handlePrintModel22}
           onOpenReturn={(code) => handleOpenReturnByCode(code)}
           canEdit={currentRole === UserRole.DATA_ENCODER}
+          items={allItems}
           busyItemIds={busyItemIds}
           onEdit={openEdit}
           highlightApprovalId={lastSubmitted?.id}
@@ -1320,6 +1381,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
             onCancel={closeModal}
             onSuccess={handleSuccess}
             editApproval={editApproval ?? undefined}
+            editItem={editApproval ? allItems.find((i) => i.id === editApproval.itemId) : undefined}
           />
         ) : (
           <div className="py-8 text-center text-xs text-slate-500">

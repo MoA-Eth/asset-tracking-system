@@ -5,7 +5,7 @@ const db = vi.hoisted(() => {
   const client: any = {
     employee: { findUnique: vi.fn() },
     department: { findUnique: vi.fn() },
-    item: { update: vi.fn() },
+    item: { findUnique: vi.fn(), update: vi.fn() },
     transactionApproval: { findUnique: vi.fn(), update: vi.fn() },
     auditLog: { create: vi.fn() },
   };
@@ -62,6 +62,8 @@ describe('Stock-Out correction before Stage 1 endorsement', () => {
     db.department.findUnique.mockImplementation(async ({ where }: any) => departments[where.id] ?? null);
     db.transactionApproval.update.mockImplementation(async ({ data }: any) => ({ ...stage1Request, ...data }));
     db.item.update.mockResolvedValue({});
+    // A batch of 10 laptops in store, of which the request issues all 10
+    db.item.findUnique.mockResolvedValue({ id: 'item-1', itemCode: 'MOA-IT-2024-0001', notes: JSON.stringify({ quantity: 10, uom: 'EA' }) });
     db.auditLog.create.mockResolvedValue({});
   });
 
@@ -90,6 +92,15 @@ describe('Stock-Out correction before Stage 1 endorsement', () => {
   it('does nothing when no field changed', async () => {
     await store().updateStockOut('appr-1', { ...edit, recipientEmployeeId: 'EMP-A', targetDepartmentId: 'DEP-1', remark: '' }, 'EMP-ENC');
     expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('can change how many units are issued, within what is in store', async () => {
+    await store().updateStockOut('appr-1', { ...edit, quantity: 4 }, 'EMP-ENC');
+    expect(db.transactionApproval.update.mock.calls[0][0].data.requestDetails).toMatchObject({ quantity: 4, uom: 'EA' });
+    expect(db.item.update.mock.calls[0][0].data.history.create.notes).toMatch(/quantity 10 → 4/);
+
+    await expect(store().updateStockOut('appr-1', { ...edit, quantity: 11 }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(store().updateStockOut('appr-1', { ...edit, quantity: 0 }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
   });
 
   it('is refused once the Team Leader has endorsed (Stage 2)', async () => {

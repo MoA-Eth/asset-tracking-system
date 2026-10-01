@@ -250,7 +250,23 @@ export interface Model21Voucher {
   reportTakenDate?: string;
 }
 
+/** Units of one registered item across the records split off it by partial Stock-Outs */
+export interface ItemBalance {
+  /** All units received, not counting rejected registrations */
+  total: number;
+  /** Units with a custodian (issued or being transferred) */
+  issued: number;
+  /** Units in store, including units requested by a pending Stock-Out */
+  available: number;
+  /** Units of a registration still waiting for approval */
+  pending: number;
+}
+
 export interface ItemWithRelations extends Item {
+  /** Set on a record split off a batch by a partial Stock-Out */
+  parentItemId?: string;
+  /** For a registration: totals across its split-off records. For a split-off record: its own units. */
+  balance?: ItemBalance;
   storeLocation?: Location;
   currentCustodian?: Employee | null;
   assignedDepartment?: Department | null;
@@ -279,6 +295,9 @@ export interface TransactionApproval {
   purposeOrRemarks: string;
   /** Model 21 particulars, for transfer and return requests */
   requestDetails?: Model21RequestDetails;
+  /** Units currently on the request's item record, and their unit of measure */
+  itemUnits?: number;
+  itemUom?: string;
   
   // Multi-Stage Workflow Status
   status: ApprovalStatus;
@@ -436,6 +455,8 @@ export interface UpdateStockOutRequest {
   ifmisSlipAttachmentUrl?: string;
   purpose: string;
   remark?: string;
+  /** Units to issue; omit to keep the current quantity */
+  quantity?: number;
 }
 
 export interface CreateReturnRequest {
@@ -486,8 +507,14 @@ export interface CreateTransferRequest {
   remark?: string;
 }
 
-/** Model 21 particulars of a transfer or return request */
+/** Model 21 particulars of a transfer or return request, or the quantity of a Stock-Out */
 export interface Model21RequestDetails {
+  /** Stock-Out: units requested */
+  quantity?: number;
+  /** Stock-Out: unit of measure of the requested units */
+  uom?: string;
+  /** Stock-Out: code of the record split off for a partial issue, set on approval */
+  issuedItemCode?: string;
   /** Transfer reason or return reason */
   reason?: string;
   /** Transfer remark or return defects / missing parts */

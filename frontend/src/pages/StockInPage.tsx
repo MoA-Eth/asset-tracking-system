@@ -85,10 +85,15 @@ const PENDING_STAGE_LABELS: Record<number, string> = {
   2: 'Awaiting Dept. Head',
 };
 
-const StatusBadge: React.FC<{ status: ItemStatus; stage?: number }> = ({ status, stage }) => {
+const StatusBadge: React.FC<{ status: ItemStatus; stage?: number; partlyIssued?: boolean }> = ({ status, stage, partlyIssued }) => {
   const base = STATUS_STYLES[status] ?? { label: status, className: 'bg-slate-100 text-slate-700 border-slate-200' };
   const stageLabel = status === ItemStatus.PENDING_STOCK_IN && stage ? PENDING_STAGE_LABELS[stage] : undefined;
-  const style = stageLabel ? { ...base, label: stageLabel } : base;
+  // Some units are with custodians while the rest are still in store
+  const style = stageLabel
+    ? { ...base, label: stageLabel }
+    : partlyIssued
+      ? { label: 'Partly issued', className: 'bg-sky-100 text-sky-800 border-sky-200' }
+      : base;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${style.className}`}>
       {style.label}
@@ -868,7 +873,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full text-xs min-w-[880px]">
+          <table className="w-full text-xs min-w-[1000px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-left">
                 <th
@@ -901,8 +906,14 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-center whitespace-nowrap">
                   UOM
                 </th>
-                <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-right whitespace-nowrap">
-                  Qty
+                <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-right whitespace-nowrap" title="All units received">
+                  Received
+                </th>
+                <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-right whitespace-nowrap" title="Units with custodians">
+                  Issued
+                </th>
+                <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-right whitespace-nowrap" title="Units in store">
+                  In Store
                 </th>
                 <th
                   onClick={() => handleSort('ifmisSlipNumber')}
@@ -979,7 +990,13 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       {item.uom || 'EA'}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-right text-slate-900 font-bold whitespace-nowrap w-16">
-                      {item.quantity || 1}
+                      {item.balance?.total ?? item.quantity ?? 1}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-right text-slate-700 whitespace-nowrap w-16">
+                      {item.balance?.issued ?? 0}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-right text-emerald-800 font-semibold whitespace-nowrap w-16">
+                      {item.balance?.available ?? 0}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap w-36">
                       {item.ifmisSlipNumber || '—'}
@@ -991,7 +1008,11 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       {formatETB(item.unitCostETB)}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap w-28">
-                      <StatusBadge status={item.status} stage={pendingStages.get(item.id)} />
+                      <StatusBadge
+                        status={item.status}
+                        stage={pendingStages.get(item.id)}
+                        partlyIssued={(item.balance?.issued ?? 0) > 0 && (item.balance?.available ?? 0) > 0}
+                      />
                     </td>
                     <td className="px-3 py-2.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
@@ -1112,7 +1133,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
       ]);
       setLocations(locs);
       setEmployees(emps);
-      setItems(allItems);
+      setItems(allItems.filter((i) => !i.parentItemId));
       // Stage 1 rows can still be corrected; Stage 2 rows are locked
       setPendingStages(
         new Map(
@@ -1173,9 +1194,9 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
       serialNo: it.serialNumber || '',
       printedPadFrom: it.printedPadFrom || '',
       printedPadTo: it.printedPadTo || '',
-      quantity: Number(it.quantity) || 1,
+      quantity: it.balance?.total || Number(it.quantity) || 1,
       unitPrice: Number(it.unitCostETB) || 0,
-      totalAmount: Number(it.totalAmount) || (Number(it.unitCostETB) * (Number(it.quantity) || 1)),
+      totalAmount: (Number(it.unitCostETB) || 0) * (it.balance?.total || Number(it.quantity) || 1),
       remark: it.remark || it.notes || '',
     }));
 
