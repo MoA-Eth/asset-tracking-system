@@ -22,6 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { Modal } from '../components/ui/Modal';
 import {
   FormSection,
@@ -65,15 +66,15 @@ interface StockOutPageProps {
 const APPROVAL_STATUS_STYLES: Record<string, { label: string; className: string }> = {
   [ApprovalStatus.PENDING]: {
     label: 'Pending Approval',
-    className: 'bg-amber-100 text-amber-800 border-amber-200',
+    className: statusTone.pending,
   },
   [ApprovalStatus.APPROVED]: {
     label: 'Approved / Issued',
-    className: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    className: statusTone.approved,
   },
   [ApprovalStatus.REJECTED]: {
     label: 'Rejected',
-    className: 'bg-red-100 text-red-800 border-red-200',
+    className: statusTone.rejected,
   },
 };
 
@@ -86,13 +87,13 @@ const PENDING_STAGE_LABELS: Record<number, string> = {
 const ApprovalStatusBadge: React.FC<{ status: ApprovalStatus; stage?: number }> = ({ status, stage }) => {
   const base = APPROVAL_STATUS_STYLES[status] ?? {
     label: status,
-    className: 'bg-slate-100 text-slate-700 border-slate-200',
+    className: statusTone.neutral,
   };
   const stageLabel = status === ApprovalStatus.PENDING && stage ? PENDING_STAGE_LABELS[stage] : undefined;
   const style = stageLabel ? { ...base, label: stageLabel } : base;
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${style.className}`}
+      className={`${pill} ${style.className}`}
     >
       {style.label}
     </span>
@@ -109,6 +110,8 @@ interface StockOutFormProps {
   onSuccess: (result: TransactionApproval, voucher?: Model22Voucher) => void;
   /** When set, the form corrects this pending request instead of creating a new one */
   editApproval?: TransactionApproval;
+  /** The item of the request being corrected (it is not in the available list while pending) */
+  editItem?: ItemWithRelations;
 }
 
 /** Splits the stored "purpose (Remark: remark)" text back into its two fields */
@@ -124,6 +127,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   onCancel,
   onSuccess,
   editApproval,
+  editItem,
 }) => {
   const { user } = useAuth();
   const toast = useToast();
@@ -162,7 +166,9 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   const [serialNo, setSerialNo] = useState<string>(initialItem?.serialNumber ?? '');
   const [printedPadFrom, setPrintedPadFrom] = useState<string>(initialItem?.printedPadFrom ?? '');
   const [printedPadTo, setPrintedPadTo] = useState<string>(initialItem?.printedPadTo ?? '');
-  const [quantity, setQuantity] = useState<number>(1);
+  const [quantity, setQuantity] = useState<number>(
+    Number(editApproval?.requestDetails?.quantity) || Number(editItem?.quantity) || Number(initialItem?.quantity) || 1
+  );
   const [unitPrice, setUnitPrice] = useState<number>(initialItem?.unitCostETB ?? 18963.5);
   const [transportationCost, setTransportationCost] = useState<number>(0);
   const [remark, setRemark] = useState<string>(editNotes.remark);
@@ -179,6 +185,8 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     setSelectedItemId(id);
     const item = availableItems.find((i) => i.id === id);
     if (item) {
+      // Default to issuing everything in store; lower it to issue part of the batch
+      setQuantity(Number(item.quantity) || 1);
       setItemCode(item.itemCode || '');
       setItemDescription(item.name || '');
       setUom(item.uom || 'EA');
@@ -232,7 +240,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     setSerialNo(it?.serialNumber ?? '');
     setPrintedPadFrom(it?.printedPadFrom ?? '');
     setPrintedPadTo(it?.printedPadTo ?? '');
-    setQuantity(1);
+    setQuantity(Number(it?.quantity) || 1);
     setUnitPrice(it?.unitCostETB ?? 18963.5);
     setTransportationCost(0);
     setRemark('');
@@ -242,6 +250,9 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     setFormError(null);
   };
 
+  const quantityItem = editItem ?? availableItems.find((i) => i.id === selectedItemId);
+  const inStore = Number(quantityItem?.quantity) || 1;
+  const inStoreUom = quantityItem?.uom || uom || 'EA';
   const totalAmount = quantity * unitPrice;
   const grandTotal = totalAmount + transportationCost;
   const ethDate = formatGcToEc(issuedDateGc);
@@ -260,6 +271,12 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       const msg = 'Model 22 Voucher Number is mandatory.';
       setFormError(msg);
       toast.warning('Voucher Required', msg);
+      return;
+    }
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
+      const msg = `Quantity must be a whole number from 1 to ${inStore} (${inStoreUom} in store).`;
+      setFormError(msg);
+      toast.warning('Check Quantity', msg);
       return;
     }
     if (!recipientEmployeeId) {
@@ -291,6 +308,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       try {
         const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
         const res = await api.updateStockOut(editApproval.id, {
+          quantity,
           recipientEmployeeId,
           targetDepartmentId: destinationDepartmentId,
           ifmisSlipNumber: model22No.trim(),
@@ -391,7 +409,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     }
   };
 
-  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('blue', opts);
+  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
   const isAttachmentReq = getSystemSettings().historicalDataAttachmentPolicy === 'REQUIRED';
 
   return (
@@ -399,7 +417,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       <FormError message={formError} />
 
       {/* ── Section 1: Voucher details ── */}
-      <FormSection step={1} title="Voucher details" subtitle="የወጪ ማዘዣ መረጃ · Model 22 header" icon={FileText} accent="blue">
+      <FormSection step={1} title="Voucher details" subtitle="የወጪ ማዘዣ መረጃ · Model 22 header" icon={FileText} accent="emerald">
         <FieldGrid>
           <Field label="Model 22 No." required>
             <input
@@ -436,7 +454,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       </FormSection>
 
       {/* ── Section 2: Item issued ── */}
-      <FormSection step={2} title="Item issued" subtitle="የሚወጣው ዕቃ ዝርዝር መረጃ" icon={PackageMinus} accent="blue">
+      <FormSection step={2} title="Item issued" subtitle="የሚወጣው ዕቃ ዝርዝር መረጃ" icon={PackageMinus} accent="emerald">
         {editApproval ? (
           <FieldGrid>
             <Field label="Item code" hint="The item can't be changed. To issue a different item, ask an approver to reject this request.">
@@ -444,6 +462,17 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
             </Field>
             <Field label="Item description" span="sm:col-span-2">
               <ReadOnlyValue>{editApproval.itemName}</ReadOnlyValue>
+            </Field>
+            <Field label="Quantity to issue" required hint={`${inStore} ${inStoreUom} in store`}>
+              <input
+                type="number"
+                min="1"
+                max={inStore}
+                required
+                value={quantity}
+                onChange={(e) => setQuantity(Math.min(inStore, Math.max(1, parseInt(e.target.value) || 1)))}
+                className={input({ mono: true, align: 'right' })}
+              />
             </Field>
           </FieldGrid>
         ) : (
@@ -459,7 +488,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
               ) : (
                 availableItems.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.itemCode} — {item.name} ({formatETB(item.unitCostETB)})
+                    {item.itemCode} — {item.name} · {item.quantity || 1} {item.uom || 'EA'} in store ({formatETB(item.unitCostETB)} each)
                   </option>
                 ))
               )}
@@ -534,13 +563,14 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
 
           {/* Quantity & cost */}
           <FieldGrid cols={4}>
-            <Field label="Quantity" required>
+            <Field label="Quantity to issue" required hint={`${inStore} ${inStoreUom} in store`}>
               <input
                 type="number"
                 min="1"
+                max={inStore}
                 required
                 value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) => setQuantity(Math.min(inStore, Math.max(1, parseInt(e.target.value) || 1)))}
                 className={input({ mono: true, align: 'right' })}
               />
             </Field>
@@ -605,7 +635,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
             </Field>
 
             <Field label="Grand total (ETB)" hint="Item total + transport">
-              <TotalValue accent="blue">{formatETB(grandTotal)}</TotalValue>
+              <TotalValue accent="emerald">{formatETB(grandTotal)}</TotalValue>
             </Field>
           </FieldGrid>
         </div>
@@ -618,7 +648,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
         title="Recipient & custody"
         subtitle="ማረጋገጫ እና ፊርማዎች"
         icon={User}
-        accent="blue"
+        accent="emerald"
         aside={
           <span
             className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
@@ -687,7 +717,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
 
           <FileDropField
             label="Scanned issue voucher"
-            accent="blue"
+            accent="emerald"
             required={isAttachmentReq}
             fileName={attachmentFileName}
             accept={SLIP_ACCEPT_ATTR}
@@ -697,7 +727,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       </FormSection>
 
       <FormFooter
-        accent="blue"
+        accent="emerald"
         submitting={submitting}
         submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
         onCancel={onCancel}
@@ -719,6 +749,8 @@ interface StockOutTableProps {
   onPrintModel22?: (approval: TransactionApproval) => void;
   /** Only the Data Encoder can correct a request */
   canEdit: boolean;
+  /** All items, for each request's item balance */
+  items: ItemWithRelations[];
   /** Items with an open transfer or return request, which can't be returned again yet */
   busyItemIds: Set<string>;
   onEdit: (approval: TransactionApproval) => void;
@@ -734,6 +766,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
   onOpenReturn,
   onPrintModel22,
   canEdit,
+  items,
   busyItemIds,
   onEdit,
   highlightApprovalId,
@@ -754,11 +787,13 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
   const renderSortIcon = (field: StockOutSortField) => {
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3 text-slate-400 opacity-60 shrink-0" />;
     return sortDirection === 'asc' ? (
-      <ArrowUp className="w-3 h-3 text-blue-700 font-bold shrink-0" />
+      <ArrowUp className="w-3 h-3 text-emerald-700 font-bold shrink-0" />
     ) : (
-      <ArrowDown className="w-3 h-3 text-blue-700 font-bold shrink-0" />
+      <ArrowDown className="w-3 h-3 text-emerald-700 font-bold shrink-0" />
     );
   };
+
+  const itemsById = new Map(items.map((i) => [i.id, i]));
 
   const q = search.trim().toLowerCase();
   const filtered = approvals.filter((a) => {
@@ -799,7 +834,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
             placeholder="Search by item name, code, IFMIS slip, recipient..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-500"
+            className={table.search}
           />
           {search && (
             <button
@@ -812,7 +847,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
           )}
         </div>
         {search.trim() && (
-          <span className="text-[11px] text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1.5 rounded-xl font-medium shrink-0">
+          <span className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-xl font-medium shrink-0">
             {filtered.length} of {approvals.length} found
           </span>
         )}
@@ -833,12 +868,12 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full text-xs min-w-[840px]">
+          <table className="w-full text-xs min-w-[1040px]">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-left">
+              <tr className={table.headRow}>
                 <th
                   onClick={() => handleSort('itemCode')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-32 whitespace-nowrap"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-32 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Item Code</span>
@@ -847,16 +882,28 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('itemName')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition min-w-[170px]"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition min-w-[170px]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Item Name</span>
                     {renderSortIcon('itemName')}
                   </div>
                 </th>
+                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="Units in this request">
+                  Qty
+                </th>
+                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="All units received">
+                  Received
+                </th>
+                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="Units with custodians">
+                  Issued
+                </th>
+                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="Units in store">
+                  In Store
+                </th>
                 <th
                   onClick={() => handleSort('ifmisSlipNumber')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-36 whitespace-nowrap"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-36 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Model 22 / Slip No.</span>
@@ -865,7 +912,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('purposeOrRemarks')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition min-w-[150px] max-w-[200px]"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition min-w-[150px] max-w-[200px]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Purpose / Remark</span>
@@ -874,7 +921,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('createdAtGc')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Date (G.C.)</span>
@@ -883,14 +930,14 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('status')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Status</span>
                     {renderSortIcon('status')}
                   </div>
                 </th>
-                <th className="px-3 py-2.5 font-semibold text-slate-600 text-right w-44 whitespace-nowrap">Actions</th>
+                <th className="px-3 py-2.5 text-right w-44 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -900,14 +947,14 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                   <tr
                     key={approval.id}
                     className={`transition ${
-                      isJustSubmitted ? 'bg-blue-50/90 border-l-4 border-blue-600 font-medium' : 'hover:bg-slate-50'
+                      isJustSubmitted ? `${table.rowHighlight} font-medium` : table.row
                     }`}
                   >
-                    <td className="px-3 py-2.5 font-mono font-bold text-blue-700 whitespace-nowrap w-32">
+                    <td className={`px-3 py-2.5 ${table.code} whitespace-nowrap w-32`}>
                       <div className="flex items-center gap-1.5">
                         <span>{approval.itemCode}</span>
                         {isJustSubmitted && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-blue-700 text-white tracking-wider animate-pulse">
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-700 text-white tracking-wider animate-pulse">
                             New
                           </span>
                         )}
@@ -915,6 +962,18 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                     </td>
                     <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[170px] max-w-[220px] truncate">
                       {approval.itemName}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-right font-bold text-slate-900 whitespace-nowrap w-16">
+                      {approval.requestDetails?.quantity ?? '—'}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-right text-slate-700 whitespace-nowrap w-16">
+                      {itemsById.get(approval.itemId)?.balance?.total ?? '—'}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-right text-slate-700 whitespace-nowrap w-16">
+                      {itemsById.get(approval.itemId)?.balance?.issued ?? '—'}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-right text-emerald-800 font-semibold whitespace-nowrap w-16">
+                      {itemsById.get(approval.itemId)?.balance?.available ?? '—'}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-slate-600 whitespace-nowrap w-36">
                       {approval.ifmisSlipNumber || '—'}
@@ -933,18 +992,18 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                         {canEdit && approval.status === ApprovalStatus.PENDING && approval.currentStage === 1 && (
                           <button
                             onClick={() => onEdit(approval)}
-                            className="px-2 py-1 bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-800 border border-slate-300 hover:border-blue-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                            className={btn.row}
                             title="Correct this request (allowed until the Team Leader endorses it)"
                             aria-label={`Edit ${approval.itemCode}`}
                           >
-                            <Pencil className="w-3.5 h-3.5 text-blue-700" />
+                            <Pencil className={btn.rowIcon} />
                             <span>Edit</span>
                           </button>
                         )}
                         {canEdit && approval.status === ApprovalStatus.PENDING && approval.currentStage === 2 && (
                           <button
                             disabled
-                            className="px-2 py-1 bg-slate-50 text-slate-400 border border-slate-200 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 cursor-not-allowed"
+                            className={btn.rowLocked}
                             title="Locked: the Team Leader has already endorsed this request. To correct it, ask an approver to reject it and submit it again."
                             aria-label={`Edit ${approval.itemCode} (locked after Team Leader endorsement)`}
                           >
@@ -954,16 +1013,16 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                         )}
                         <button
                           onClick={() => (onPrintModel22 ? onPrintModel22(approval) : onOpenVoucher(approval))}
-                          className="px-2 py-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-800 border border-slate-300 hover:border-blue-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                          className={btn.row}
                           title="Print Official Model 22 Receipt"
                         >
-                          <Printer className="w-3.5 h-3.5 text-blue-700" />
+                          <Printer className={btn.rowIcon} />
                           <span>Print M22</span>
                         </button>
                         {approval.status === ApprovalStatus.APPROVED && !busyItemIds.has(approval.itemId) && (
                           <button
                             onClick={() => onOpenReturn(approval.itemCode)}
-                            className="px-2 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 transition cursor-pointer font-bold text-[10px] flex items-center gap-1 border border-purple-300"
+                            className={btn.row}
                             title="Return Issued Item to Store (Model 22)"
                           >
                             <RotateCcw className="w-3 h-3" />
@@ -979,16 +1038,6 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
           </table>
         </div>
       )}
-
-      {/* Pending nudge */}
-      {approvals.some((a) => a.status === ApprovalStatus.PENDING) && (
-        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-2 text-xs text-amber-800">
-          <Clock className="w-4 h-4 shrink-0" />
-          <span>
-            Some stock-out requests are awaiting approval. Track their stage and status in the register above.
-          </span>
-        </div>
-      )}
     </div>
   );
 };
@@ -999,6 +1048,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
   const { user } = useAuth();
   const toast = useToast();
   const [availableItems, setAvailableItems] = useState<ItemWithRelations[]>([]);
+  const [allItems, setAllItems] = useState<ItemWithRelations[]>([]);
   const [stockOutApprovals, setStockOutApprovals] = useState<TransactionApproval[]>([]);
   const [busyItemIds, setBusyItemIds] = useState<Set<string>>(new Set());
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -1068,7 +1118,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     const issuedDateGc = approval.createdAtGc ? approval.createdAtGc.split('T')[0] : new Date().toISOString().split('T')[0];
     const issuedDateEc = approval.createdAtEc || formatGcToEc(issuedDateGc);
     const unitPrice = itemDetails?.unitCostETB || 0;
-    const qty = 1;
+    const qty = Number(approval.requestDetails?.quantity) || Number(itemDetails?.quantity) || 1;
     const totalAmount = unitPrice * qty;
 
     const voucher: Model22Voucher = {
@@ -1114,12 +1164,13 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     setError(null);
     try {
       const [items, deps, emps, approvals] = await Promise.all([
-        api.getItems({ status: ItemStatus.AVAILABLE }),
+        api.getItems(),
         api.getDepartments(),
         api.getEmployees(),
         api.getApprovals(),
       ]);
-      setAvailableItems(items);
+      setAllItems(items);
+      setAvailableItems(items.filter((i) => i.status === ItemStatus.AVAILABLE));
       setDepartments(deps);
       setEmployees(emps);
       setStockOutApprovals(approvals.filter((a) => a.transactionType === 'STOCK_OUT'));
@@ -1169,7 +1220,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-xs text-slate-400">
-        <RefreshCw className="w-5 h-5 animate-spin mr-2 text-blue-400" />
+        <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-400" />
         Loading stock availability...
       </div>
     );
@@ -1198,7 +1249,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-            <PackageMinus className="w-5 h-5 text-blue-700" />
+            <PackageMinus className="w-5 h-5 text-emerald-700" />
             {headerConfig.title}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -1213,7 +1264,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
           <button
             onClick={openIssue}
             disabled={availableItems.length === 0}
-            className="px-5 py-2.5 bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-2 cursor-pointer shrink-0"
+            className={btn.primary}
           >
             <Plus className="w-4 h-4" />
             {headerConfig.buttonLabel}
@@ -1243,12 +1294,12 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
 
       {/* ── Last Submission Banner ── */}
       {lastSubmitted && (
-        <div className="p-4 rounded-2xl bg-blue-50 border border-blue-300 flex items-start gap-3 animate-fadeIn">
-          <CheckCircle2 className="w-5 h-5 text-blue-700 shrink-0 mt-0.5" />
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 flex items-start gap-3 animate-fadeIn">
+          <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
           <div className="flex-1 text-xs">
-            <p className="font-bold text-blue-900">Stock-Out Request Submitted for Approval!</p>
+            <p className="font-bold text-emerald-900">Stock-Out Request Submitted for Approval!</p>
             <p className="text-slate-700 mt-0.5">
-              <span className="font-mono font-bold text-blue-800">{lastSubmitted.itemCode}</span>{' '}
+              <span className="font-mono font-bold text-emerald-800">{lastSubmitted.itemCode}</span>{' '}
               — {lastSubmitted.itemName} is now{' '}
               <span className="font-bold text-amber-800 bg-amber-100 px-1 rounded font-mono">PENDING</span> Department
               Head approval.
@@ -1278,7 +1329,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
             <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-bold">
               {stockOutApprovals.filter((a) => a.status === ApprovalStatus.APPROVED).length} Approved
             </span>
-            <span className="bg-blue-100 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded font-bold">
+            <span className={`${statusTone.issued} border px-1.5 py-0.5 rounded font-bold`}>
               {stockOutApprovals.filter((a) => a.status === ApprovalStatus.APPROVED).length} Issued
             </span>
           </div>
@@ -1292,6 +1343,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
           onPrintModel22={handlePrintModel22}
           onOpenReturn={(code) => handleOpenReturnByCode(code)}
           canEdit={currentRole === UserRole.DATA_ENCODER}
+          items={allItems}
           busyItemIds={busyItemIds}
           onEdit={openEdit}
           highlightApprovalId={lastSubmitted?.id}
@@ -1308,7 +1360,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
             ? 'You can correct this request until the Team Leader endorses it. Each change is recorded in the item history.'
             : 'The item stays in store until the Team Leader endorses and the Department Head approves the issue.'
         }
-        accentColor="blue"
+        accentColor="emerald"
         size="xl"
       >
         {editApproval || availableItems.length > 0 ? (
@@ -1320,6 +1372,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
             onCancel={closeModal}
             onSuccess={handleSuccess}
             editApproval={editApproval ?? undefined}
+            editItem={editApproval ? allItems.find((i) => i.id === editApproval.itemId) : undefined}
           />
         ) : (
           <div className="py-8 text-center text-xs text-slate-500">

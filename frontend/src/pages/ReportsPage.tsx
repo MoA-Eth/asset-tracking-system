@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { table, statusTone } from '../components/ui/theme';
 import {
   ItemWithRelations,
   Department,
@@ -50,7 +51,9 @@ const formatDateOnly = (d: Date): string => {
 
 export const ReportsPage: React.FC = () => {
   const toast = useToast();
+  // One row per registration; records split off it by partial Stock-Outs are kept separately
   const [items, setItems] = useState<ItemWithRelations[]>([]);
+  const [splitRecords, setSplitRecords] = useState<ItemWithRelations[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,7 +112,8 @@ export const ReportsPage: React.FC = () => {
         api.getDepartments(),
         api.getLocations(),
       ]);
-      setItems(itemsData);
+      setItems(itemsData.filter((i) => !i.parentItemId));
+      setSplitRecords(itemsData.filter((i) => i.parentItemId));
       setDepartments(deptsData);
       setLocations(locsData);
     } catch (err: any) {
@@ -126,17 +130,46 @@ export const ReportsPage: React.FC = () => {
     loadData();
   }, []);
 
+  const splitsByRoot = useMemo(() => {
+    const map = new Map<string, ItemWithRelations[]>();
+    for (const split of splitRecords) {
+      map.set(split.parentItemId!, [...(map.get(split.parentItemId!) ?? []), split]);
+    }
+    return map;
+  }, [splitRecords]);
+
+  const balanceOf = (item: ItemWithRelations) =>
+    item.balance ?? { total: Number(item.quantity) || 1, issued: 0, available: 0, pending: 0 };
+
+/** Status wording for a registration; "Partly issued" when units are both out and in store */
+  const statusLabel = (item: ItemWithRelations) => {
+    const b = balanceOf(item);
+    return b.issued > 0 && b.available > 0 ? 'Partly issued' : item.status.replace(/_/g, ' ');
+  };
+
+  /** Units a row contributes to this report: in store, issued, or all of them */
+  const reportUnits = (item: ItemWithRelations) => {
+    const b = balanceOf(item);
+    return reportType === 'available' ? b.available : reportType === 'issued' ? b.issued : b.total;
+  };
+
   // Filter items based on report type, timeframe, category, location, and search
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       // 1. Report Type Filter
+      // Rows are registrations, so filter on where their units are, not on one record's status
       if (reportType === 'available') {
-        if (item.status !== ItemStatus.AVAILABLE) return false;
+        if (balanceOf(item).available === 0) return false;
       } else if (reportType === 'issued') {
-        if (item.status !== ItemStatus.ISSUED) return false;
+        if (balanceOf(item).issued === 0) return false;
       } else if (reportType === 'transferred') {
         const hasTransfer =
           item.status === ItemStatus.UNDER_TRANSFER ||
+          (splitsByRoot.get(item.id) ?? []).some(
+            (split) =>
+              split.status === ItemStatus.UNDER_TRANSFER ||
+              (split.history || []).some((h) => /TRANSFER|RETURN/i.test(h.action))
+          ) ||
           (item.history || []).some(
             (h) =>
               h.action.toUpperCase().includes('TRANSFER') ||
@@ -196,6 +229,7 @@ export const ReportsPage: React.FC = () => {
     });
   }, [
     items,
+    splitsByRoot,
     reportType,
     timeframe,
     customFrom,
@@ -220,8 +254,20 @@ export const ReportsPage: React.FC = () => {
 
   // Aggregate Total Valuation
   const totalValuation = useMemo(() => {
-    return filteredItems.reduce((sum, item) => sum + item.unitCostETB, 0);
-  }, [filteredItems]);
+    return filteredItems.reduce((sum, item) => sum + item.unitCostETB * reportUnits(item), 0);
+  }, [filteredItems, reportType]);
+
+  const unitTotals = useMemo(
+    () =>
+      filteredItems.reduce(
+        (acc, item) => {
+          const b = balanceOf(item);
+          return { total: acc.total + b.total, issued: acc.issued + b.issued, available: acc.available + b.available };
+        },
+        { total: 0, issued: 0, available: 0 }
+      ),
+    [filteredItems]
+  );
 
   const getTimeframeLabel = () => {
     switch (timeframe) {
@@ -291,7 +337,12 @@ export const ReportsPage: React.FC = () => {
         'Department / Directorate',
         'Store Location',
         'Serial Number',
+        'UoM',
+        'Received Qty',
+        'Issued Qty',
+        'In Store Qty',
         'Unit Cost (ETB)',
+        'Value (ETB)',
       ];
 
       const rows = filteredItems.map((item, index) => [
@@ -299,7 +350,7 @@ export const ReportsPage: React.FC = () => {
         item.itemCode,
         `"${item.name.replace(/"/g, '""')}"`,
         item.category,
-        item.status,
+        statusLabel(item),
         item.ifmisSlipNumber,
         `"${item.ifmisSlipDateEc || item.createdAtEc}"`,
         `"${item.ifmisSlipDateGc || item.createdAtGc}"`,
@@ -307,7 +358,12 @@ export const ReportsPage: React.FC = () => {
         `"${item.assignedDepartment?.nameEn || ''}"`,
         `"${item.storeLocation?.siteName || ''}"`,
         `"${item.serialNumber || 'N/A'}"`,
+        item.uom || 'EA',
+        balanceOf(item).total,
+        balanceOf(item).issued,
+        balanceOf(item).available,
         item.unitCostETB,
+        item.unitCostETB * reportUnits(item),
       ]);
 
       const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
@@ -364,7 +420,7 @@ export const ReportsPage: React.FC = () => {
       doc.text('FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA', 24, 18);
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text('MINISTRY OF AGRICULTURE (MoA) • FIXED ASSET MANAGEMENT SYSTEM', 24, 32);
+      doc.text('MINISTRY OF AGRICULTURE (MoA) • FIXED ASSET TRACKING SYSTEM', 24, 32);
 
       doc.setFontSize(8);
       doc.text(`Generated: ${dateInfo.gc} (G.C.) / ${dateInfo.ecFormattedAm}`, pw - 24, 25, { align: 'right' });
@@ -379,18 +435,21 @@ export const ReportsPage: React.FC = () => {
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(71, 85, 105);
       doc.text(
-        `Timeframe: ${getTimeframeLabel()}  |  Category: ${selectedCategory.replace(/_/g, ' ')}  |  Total Assets: ${filteredItems.length}  |  Total Valuation: ${formatETB(totalValuation)}`,
+        `Timeframe: ${getTimeframeLabel()}  |  Category: ${selectedCategory.replace(/_/g, ' ')}  |  Registrations: ${filteredItems.length}  |  Units: ${unitTotals.total} received, ${unitTotals.issued} issued, ${unitTotals.available} in store  |  Total Valuation: ${formatETB(totalValuation)}`,
         24,
         82
       );
 
-      const tableHead = [['#', 'Tracking Code', 'Asset Name', 'Category', 'Status', 'IFMIS Slip #', 'Date (E.C.)', 'Custodian / Dept', 'Unit Cost (ETB)']];
+      const tableHead = [['#', 'Tracking Code', 'Asset Name', 'Category', 'Status', 'Received', 'Issued', 'In Store', 'IFMIS Slip #', 'Date (E.C.)', 'Custodian / Dept', 'Unit Cost (ETB)']];
       const tableBody = filteredItems.map((item, idx) => [
         idx + 1,
         item.itemCode,
         item.name,
         item.category.replace(/_/g, ' '),
-        item.status.replace(/_/g, ' '),
+        statusLabel(item),
+        balanceOf(item).total,
+        balanceOf(item).issued,
+        balanceOf(item).available,
         item.ifmisSlipNumber,
         item.ifmisSlipDateEc || item.createdAtEc,
         item.currentCustodian?.fullNameEn || item.assignedDepartment?.code || item.storeLocation?.siteName || 'In Store',
@@ -728,14 +787,17 @@ export const ReportsPage: React.FC = () => {
 
         {/* Data Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[960px]">
-            <thead className="bg-slate-50 text-slate-700 uppercase font-bold text-[10px] border-b border-slate-200">
+          <table className="w-full text-left text-xs min-w-[1140px]">
+            <thead className={table.headRow}>
               <tr>
                 <th className="py-2.5 px-3 w-10 text-center shrink-0">#</th>
                 <th className="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap">Tracking Code</th>
                 <th className="py-2.5 px-3 min-w-[180px] max-w-[260px]">Asset Item</th>
                 <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Category</th>
                 <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Status</th>
+                <th className="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap" title="All units received">Received</th>
+                <th className="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap" title="Units with custodians">Issued</th>
+                <th className="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap" title="Units in store">In Store</th>
                 <th className="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap">IFMIS Slip #</th>
                 <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Date (E.C.)</th>
                 <th className="py-2.5 px-3 min-w-[150px] max-w-[220px]">Custodian / Location</th>
@@ -745,7 +807,7 @@ export const ReportsPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-slate-400 space-y-1">
+                  <td colSpan={12} className="py-16 text-center text-slate-400 space-y-1">
                     <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto" />
                     <p className="font-bold text-slate-700 text-sm">No Assets Found</p>
                     <p className="text-xs text-slate-400">
@@ -755,7 +817,8 @@ export const ReportsPage: React.FC = () => {
                 </tr>
               ) : (
                 filteredItems.map((item, idx) => {
-                  const isAvailable = item.status === ItemStatus.AVAILABLE;
+                  const isPartly = statusLabel(item) === 'Partly issued';
+                  const isAvailable = !isPartly && item.status === ItemStatus.AVAILABLE;
                   const isIssued = item.status === ItemStatus.ISSUED;
 
                   return (
@@ -763,7 +826,7 @@ export const ReportsPage: React.FC = () => {
                       <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px] w-10 shrink-0">
                         {idx + 1}
                       </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-800 whitespace-nowrap w-32 shrink-0">
+                      <td className={`py-2.5 px-3 ${table.code} whitespace-nowrap w-32 shrink-0`}>
                         {item.itemCode}
                       </td>
                       <td className="py-2.5 px-3 min-w-[180px] max-w-[260px]">
@@ -785,15 +848,26 @@ export const ReportsPage: React.FC = () => {
                       <td className="py-2.5 px-3 whitespace-nowrap w-28 shrink-0">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                            isAvailable
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            isPartly
+                              ? statusTone.partly
+                              : isAvailable
+                              ? statusTone.inStore
                               : isIssued
-                              ? 'bg-blue-50 text-blue-800 border-blue-200'
-                              : 'bg-amber-50 text-amber-800 border-amber-200'
+                              ? statusTone.issued
+                              : statusTone.pending
                           }`}
                         >
-                          {item.status.replace(/_/g, ' ')}
+                          {statusLabel(item)}
                         </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap w-16 shrink-0">
+                        {balanceOf(item).total} <span className="text-[10px] font-normal text-slate-400">{item.uom || 'EA'}</span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono text-slate-700 whitespace-nowrap w-16 shrink-0">
+                        {balanceOf(item).issued}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono font-semibold text-emerald-800 whitespace-nowrap w-16 shrink-0">
+                        {balanceOf(item).available}
                       </td>
                       <td className="py-2.5 px-3 font-mono font-bold text-amber-900 whitespace-nowrap w-32 shrink-0">
                         {item.ifmisSlipNumber}
@@ -808,6 +882,21 @@ export const ReportsPage: React.FC = () => {
                             title={item.currentCustodian.fullNameEn}
                           >
                             {item.currentCustodian.fullNameEn}
+                          </div>
+                        ) : (splitsByRoot.get(item.id) ?? []).some((s) => s.currentCustodian) ? (
+                          <div
+                            className="font-semibold text-slate-900 truncate"
+                            title={(splitsByRoot.get(item.id) ?? [])
+                              .filter((s) => s.currentCustodian)
+                              .map((s) => `${s.currentCustodian!.fullNameEn} (${s.quantity || 1} ${s.uom || 'EA'})`)
+                              .join(', ')}
+                          >
+                            {(() => {
+                              const holders = (splitsByRoot.get(item.id) ?? []).filter((s) => s.currentCustodian);
+                              return holders.length === 1
+                                ? holders[0].currentCustodian!.fullNameEn
+                                : `${holders.length} custodians`;
+                            })()}
                           </div>
                         ) : item.assignedDepartment ? (
                           <div
@@ -837,7 +926,7 @@ export const ReportsPage: React.FC = () => {
         {filteredItems.length > 0 && (
           <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-mono">
             <div>
-              Showing {filteredItems.length} of {items.length} total records
+              Showing {filteredItems.length} of {items.length} registrations · Units: {unitTotals.total} received, {unitTotals.issued} issued, {unitTotals.available} in store
             </div>
             <div className="font-bold text-slate-800">
               Total: <span className="text-emerald-800">{formatETB(totalValuation)}</span>

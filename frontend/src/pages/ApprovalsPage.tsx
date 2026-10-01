@@ -30,6 +30,7 @@ import {
   ArrowRightLeft,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { table } from '../components/ui/theme';
 import {
   ApprovalStatus,
   TransactionApproval,
@@ -62,6 +63,20 @@ export function getVisibleQueueTabs(role: UserRole): TabFilter[] {
     : ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'REJECTED', 'ALL'];
 }
 type ViewMode = 'table' | 'cards';
+
+/**
+ * Units a request covers. Stock-Out keeps its requested quantity; other requests use the units on the
+ * item record, which only stays meaningful while the request is pending (a later partial issue changes it).
+ */
+const approvalUnits = (a: TransactionApproval): string | null => {
+  const uom = a.requestDetails?.uom || a.itemUom || 'EA';
+  if (a.transactionType === 'STOCK_OUT' && a.requestDetails?.quantity) {
+    const partOf =
+      a.status === 'PENDING' && a.itemUnits && a.requestDetails.quantity < a.itemUnits ? ` of ${a.itemUnits} in store` : '';
+    return `Qty ${a.requestDetails.quantity} ${uom}${partOf}`;
+  }
+  return a.status === 'PENDING' && a.itemUnits ? `Qty ${a.itemUnits} ${uom}` : null;
+};
 
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefreshPendingCount }) => {
   const { user, role } = useAuth();
@@ -637,7 +652,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs min-w-[940px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                <tr className={table.headRow}>
                   {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
                     <th className="py-3 px-3 w-10 text-center shrink-0">
                       <input
@@ -703,6 +718,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                           <span className="font-medium text-slate-900 line-clamp-1 group-hover:text-emerald-900 transition">
                             {appr.itemName}
                           </span>
+                          {approvalUnits(appr) && (
+                            <span className="text-[11px] font-mono font-semibold text-sky-800">{approvalUnits(appr)}</span>
+                          )}
                         </div>
                       </td>
 
@@ -821,6 +839,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
                   <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{appr.itemName}</h3>
                   <p className="text-xs font-mono text-slate-700 font-bold mt-0.5">{appr.itemCode}</p>
+                  {approvalUnits(appr) && (
+                    <p className="text-[11px] font-mono font-semibold text-sky-800">{approvalUnits(appr)}</p>
+                  )}
 
                   <div className="mt-2.5 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-1 text-xs">
                     <div className="flex items-center justify-between">
@@ -956,6 +977,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   {getTypeBadge(selectedApproval.transactionType)}
                 </div>
                 <p className="font-mono text-slate-800 font-bold">{selectedApproval.itemCode}</p>
+                {approvalUnits(selectedApproval) && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Quantity:</span>
+                    <span className="font-mono font-semibold text-sky-800">{approvalUnits(selectedApproval)!.replace(/^Qty /, '')}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between pt-1 border-t border-slate-200">
                   <span className="text-slate-500">IFMIS Slip:</span>
                   <span className="font-mono text-slate-800 font-semibold bg-white border border-slate-200 px-1.5 py-0.5 rounded">

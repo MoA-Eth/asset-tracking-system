@@ -182,7 +182,7 @@ const AuthenticatedPortal: React.FC = () => {
 
         {/* Page Content with Generous Whitespace */}
         {/* Page Content - Strictly Gated to Authorized Role */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-24 lg:pb-8">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:px-5 lg:py-6 max-w-7xl w-full mx-auto pb-24 lg:pb-8">
           {activeTab === 'dashboard' && (
             <ExecutiveDashboardPage
               onNavigate={handleTabChange}

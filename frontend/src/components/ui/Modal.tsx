@@ -9,7 +9,8 @@ interface ModalProps {
   children: React.ReactNode;
   /** Width class — defaults to lg */
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
-  accentColor?: 'emerald' | 'blue' | 'amber' | 'teal';
+  /** Brand green only, so every modal looks the same */
+  accentColor?: 'emerald';
 }
 
 const SIZE_CLASS: Record<string, string> = {
@@ -22,9 +23,6 @@ const SIZE_CLASS: Record<string, string> = {
 
 const ACCENT_BORDER: Record<string, string> = {
   emerald: 'border-emerald-500',
-  blue: 'border-blue-500',
-  amber: 'border-amber-500',
-  teal: 'border-teal-600',
 };
 
 export const Modal: React.FC<ModalProps> = ({

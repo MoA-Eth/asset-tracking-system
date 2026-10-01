@@ -32,6 +32,9 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
   const serialNo = item?.serialNumber || 'N/A';
   const category = item?.category?.replace(/_/g, ' ') || 'EQUIPMENT';
   const unitCost = item?.unitCostETB || 0;
+  // A Stock-Out may issue part of a batch; otherwise the record's own units
+  const quantity = Number(approval?.requestDetails?.quantity) || Number(item?.quantity) || approval?.itemUnits || 1;
+  const uom = approval?.requestDetails?.uom || item?.uom || approval?.itemUom || 'EA';
   const condition = item?.condition || 'NEW';
 
   const isReturn = voucherType === 'MODEL_22_RETURN' || approval?.transactionType === 'RETURN';
@@ -161,19 +164,25 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
                     <th className="py-2.5 px-3 w-28 whitespace-nowrap">Category</th>
                     <th className="py-2.5 px-3 w-28 whitespace-nowrap">Serial No</th>
                     <th className="py-2.5 px-3 w-24 whitespace-nowrap">Condition</th>
+                    <th className="py-2.5 px-3 w-20 text-right whitespace-nowrap">Qty</th>
                     <th className="py-2.5 px-3 w-28 text-right whitespace-nowrap">Unit Cost (ETB)</th>
+                    <th className="py-2.5 px-3 w-28 text-right whitespace-nowrap">Total (ETB)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="divide-x divide-slate-200">
-                    <td className="py-3 px-3 font-mono font-bold text-emerald-800 whitespace-nowrap w-32">{itemCode}</td>
+                    <td className="py-3 px-3 font-mono font-bold text-slate-800 whitespace-nowrap w-32">{itemCode}</td>
                     <td className="py-3 px-3 font-semibold text-slate-900 min-w-[140px]">{itemName}</td>
                     <td className="py-3 px-3 text-slate-600 whitespace-nowrap w-28">{category}</td>
                     <td className="py-3 px-3 font-mono text-slate-800 whitespace-nowrap w-28">{serialNo}</td>
                     <td className="py-3 px-3 whitespace-nowrap w-24">
                       <ConditionBadge condition={condition} />
                     </td>
+                    <td className="py-3 px-3 text-right font-mono text-slate-900 whitespace-nowrap w-20">
+                      {quantity} {uom}
+                    </td>
                     <td className="py-3 px-3 text-right font-bold text-slate-900 whitespace-nowrap w-28">{formatETB(unitCost)}</td>
+                    <td className="py-3 px-3 text-right font-bold text-slate-900 whitespace-nowrap w-28">{formatETB(unitCost * quantity)}</td>
                   </tr>
                 </tbody>
               </table>

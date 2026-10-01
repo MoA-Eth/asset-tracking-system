@@ -151,6 +151,9 @@ model Item {
   isHistoricalData       Boolean @default(false)
   notes                  String?
 
+  // Set on records split off a batch by a partial Stock-Out; points at the original registration
+  parentItemId String?
+
   // Metadata
   registeredById String
   approvedById   String?
@@ -165,6 +168,8 @@ model Item {
   assignedDepartment Department? @relation("AssignedDepartment", fields: [assignedDepartmentId], references: [id])
   registeredBy       Employee    @relation("RegisteredBy", fields: [registeredById], references: [id])
   approvedBy         Employee?   @relation("ApprovedBy", fields: [approvedById], references: [id])
+  parentItem         Item?       @relation("ItemSplits", fields: [parentItemId], references: [id])
+  splitItems         Item[]      @relation("ItemSplits")
 
   // Child tables
   history             ItemHistory[]

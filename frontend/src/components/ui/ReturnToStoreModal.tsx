@@ -80,7 +80,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
   useEffect(() => {
     if (item) {
       setDepreciation(0);
-      setBookValue(item.unitCostETB || 0);
+      setBookValue((item.unitCostETB || 0) * (Number(item.quantity) || 1));
       setChassisNumber(item.serialNumber || '');
       setPlateNo('');
       setEngineNo('');
@@ -237,7 +237,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
         engineNo: engineNo.trim() || undefined,
         accessories,
         tireNos: tireList,
-        origCost: item.unitCostETB,
+        origCost: (item.unitCostETB || 0) * (Number(item.quantity) || 1),
         depreciation,
         bookValue,
         defectRemark: defectRemark.trim() || undefined,
@@ -258,9 +258,9 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
             tagNumber: item.itemCode,
             serialNumber: item.serialNumber || '',
             chassisNumber: chassisNumber.trim() || undefined,
-            uom: 'EA',
-            unit: 1,
-            origCost: item.unitCostETB || 0,
+            uom: item.uom || 'EA',
+            unit: Number(item.quantity) || 1,
+            origCost: (item.unitCostETB || 0) * (Number(item.quantity) || 1),
             depreciation,
             bookValue,
             dateGc: todayGc,
@@ -295,7 +295,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
     }
   };
 
-  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('teal', opts);
+  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
 
   return (
     <Modal
@@ -307,14 +307,14 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
           ? 'You can correct this return until the Team Leader endorses it. Each change is recorded in the item history.'
           : 'The item stays with its custodian until the Team Leader endorses and the Department Head approves the return.'
       }
-      accentColor="teal"
+      accentColor="emerald"
       size="xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormError message={formError} />
 
         {/* ── Section 1: Return voucher ── */}
-        <FormSection step={1} title="Return voucher" subtitle="የመመለሻ ሰነድ · Model 21 register" icon={FileText} accent="teal">
+        <FormSection step={1} title="Return voucher" subtitle="የመመለሻ ሰነድ · Model 21 register" icon={FileText} accent="emerald">
           <FieldGrid>
             <Field label="Model 21 No." required>
               <input
@@ -351,14 +351,18 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
         </FormSection>
 
         {/* ── Section 2: Asset & condition ── */}
-        <FormSection step={2} title="Asset & condition" subtitle="የንብረቱ ሁኔታ" icon={Tag} accent="teal">
+        <FormSection step={2} title="Asset & condition" subtitle="የንብረቱ ሁኔታ" icon={Tag} accent="emerald">
           <div className="space-y-3.5">
             <SummaryGrid
               items={[
                 { label: 'Tag number', value: item.itemCode, mono: true },
                 { label: 'Description', value: item.name },
                 { label: 'Current custodian', value: item.currentCustodian?.fullNameEn },
-                { label: 'Original cost', value: formatETB(item.unitCostETB), mono: true },
+                {
+                  label: `Original cost (${item.quantity || 1} ${item.uom || 'EA'})`,
+                  value: formatETB((item.unitCostETB || 0) * (Number(item.quantity) || 1)),
+                  mono: true,
+                },
               ]}
             />
 
@@ -395,7 +399,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
                   onChange={(e) => {
                     const val = parseFloat(e.target.value) || 0;
                     setDepreciation(val);
-                    setBookValue(Math.max(0, (item.unitCostETB || 0) - val));
+                    setBookValue(Math.max(0, (item.unitCostETB || 0) * (Number(item.quantity) || 1) - val));
                   }}
                   className={input({ mono: true, align: 'right' })}
                 />
@@ -419,7 +423,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
                 value={defectRemark}
                 onChange={(e) => setDefectRemark(e.target.value)}
                 placeholder="e.g. The right side mirror is missing. Both rear lights are broken."
-                className={textareaClass('teal')}
+                className={textareaClass('emerald')}
               />
             </Field>
           </div>
@@ -431,7 +435,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
           title="Custody handover"
           subtitle="ርክክብ"
           icon={UserCheck}
-          accent="teal"
+          accent="emerald"
           aside={
             <span
               className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
@@ -470,7 +474,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
 
             <FileDropField
               label="Scanned return slip"
-              accent="teal"
+              accent="emerald"
               required={isAttachmentReq}
               fileName={attachmentFileName}
               accept={SLIP_ACCEPT_ATTR}
@@ -485,7 +489,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
           title="Vehicle & machinery details"
           subtitle="Plate, engine, accessories and tires · only for vehicles and machinery"
           icon={Car}
-          accent="teal"
+          accent="emerald"
           collapsible
           defaultOpen={isVehicleLike}
         >
@@ -557,7 +561,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
         </FormSection>
 
         <FormFooter
-          accent="teal"
+          accent="emerald"
           submitting={submitting}
           submitLabel={editApproval ? 'Save changes' : 'Submit return for approval'}
           onCancel={onClose}

@@ -19,6 +19,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { btn, table, statusTone, pill } from '../components/ui/theme';
 import {
   ItemWithRelations,
   ItemStatus,
@@ -47,13 +48,28 @@ import { useAuth } from '../context/AuthContext';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
 
 const ITEM_STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  [ItemStatus.AVAILABLE]: { label: 'In store', className: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-  [ItemStatus.ISSUED]: { label: 'Issued', className: 'bg-purple-100 text-purple-800 border-purple-300' },
-  [ItemStatus.UNDER_TRANSFER]: { label: 'Under transfer', className: 'bg-amber-100 text-amber-800 border-amber-300' },
-  [ItemStatus.PENDING_STOCK_IN]: { label: 'Stock-In pending', className: 'bg-amber-100 text-amber-800 border-amber-300' },
-  [ItemStatus.PENDING_STOCK_OUT]: { label: 'Stock-Out pending', className: 'bg-amber-100 text-amber-800 border-amber-300' },
-  [ItemStatus.DISPOSED]: { label: 'Disposed', className: 'bg-slate-100 text-slate-600 border-slate-300' },
+  [ItemStatus.AVAILABLE]: { label: 'In store', className: statusTone.inStore },
+  [ItemStatus.ISSUED]: { label: 'Issued', className: statusTone.issued },
+  [ItemStatus.UNDER_TRANSFER]: { label: 'Under transfer', className: statusTone.pending },
+  [ItemStatus.PENDING_STOCK_IN]: { label: 'Stock-In pending', className: statusTone.pending },
+  [ItemStatus.PENDING_STOCK_OUT]: { label: 'Stock-Out pending', className: statusTone.pending },
+  [ItemStatus.DISPOSED]: { label: 'Disposed', className: statusTone.neutral },
 };
+
+const statusStyleOf = (item: ItemWithRelations) =>
+  item.balance && item.balance.issued > 0 && item.balance.available > 0
+    ? { label: 'Partly issued', className: statusTone.partly }
+    : ITEM_STATUS_LABELS[item.status] ?? { label: item.status, className: ITEM_STATUS_LABELS[ItemStatus.UNDER_TRANSFER].className };
+
+/** Units on this record, and how many the registration received when it has been split */
+const UnitsCell: React.FC<{ item: ItemWithRelations }> = ({ item }) => (
+  <td className="p-3 font-mono text-slate-800 whitespace-nowrap text-right">
+    {item.quantity || 1} {item.uom || 'EA'}
+    {!item.parentItemId && item.balance && item.balance.total > (item.quantity || 1) && (
+      <span className="block text-[10px] text-slate-400">of {item.balance.total} received</span>
+    )}
+  </td>
+);
 
 const REQUEST_TYPE_LABELS: Record<string, string> = {
   STOCK_IN: 'Stock-In',
@@ -70,7 +86,7 @@ const STAGE_LABELS: Record<number, string> = {
 /** Open request on an item, e.g. "Return · Awaiting Dept. Head" */
 const PendingRequestChip: React.FC<{ request: TransactionApproval }> = ({ request }) => (
   <span
-    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-800 border-amber-300 whitespace-nowrap"
+    className={`${pill} ${statusTone.pending}`}
     title="This item already has an open request. A new transfer or return can be submitted once it is approved or rejected."
   >
     <Clock className="w-3 h-3" />
@@ -88,11 +104,11 @@ const EditRequestButton: React.FC<{ request: TransactionApproval; onEdit: (reque
     return (
       <button
         onClick={() => onEdit(request)}
-        className="px-2.5 py-1 bg-white hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-300 hover:border-amber-300 rounded-lg text-xs font-bold transition cursor-pointer inline-flex items-center gap-1"
+        className={btn.row}
         title={`Correct this ${label} request (allowed until the Team Leader endorses it)`}
         aria-label={`Edit ${label} for ${request.itemCode}`}
       >
-        <Pencil className="w-3.5 h-3.5 text-amber-700" />
+        <Pencil className={btn.rowIcon} />
         Edit
       </button>
     );
@@ -100,7 +116,7 @@ const EditRequestButton: React.FC<{ request: TransactionApproval; onEdit: (reque
   return (
     <button
       disabled
-      className="px-2.5 py-1 bg-slate-50 text-slate-400 border border-slate-200 rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-not-allowed"
+      className={btn.rowLocked}
       title={`Locked: the Team Leader has already endorsed this ${label}. To correct it, ask an approver to reject it and submit it again.`}
       aria-label={`Edit ${label} for ${request.itemCode} (locked after Team Leader endorsement)`}
     >
@@ -200,7 +216,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     const item = items.find((i) => i.id === itemId);
     if (item) {
       setDepreciation(0);
-      setBookValue(item.unitCostETB || 0);
+      setBookValue((item.unitCostETB || 0) * (Number(item.quantity) || 1));
       setChassisNumber(item.serialNumber || '');
       setPlateNo('');
       setEngineNo('');
@@ -354,7 +370,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         engineNo: engineNo.trim() || undefined,
         accessories,
         tireNos: tireList,
-        origCost: selectedItem?.unitCostETB,
+        origCost: (selectedItem?.unitCostETB || 0) * (Number(selectedItem?.quantity) || 1),
         depreciation,
         bookValue,
         remark: defectRemark.trim() || undefined,
@@ -374,9 +390,9 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             tagNumber: selectedItem?.itemCode || 'TAG-001',
             serialNumber: selectedItem?.serialNumber || '',
             chassisNumber: chassisNumber.trim() || undefined,
-            uom: 'EA',
-            unit: 1,
-            origCost: selectedItem?.unitCostETB || 0,
+            uom: selectedItem?.uom || 'EA',
+            unit: Number(selectedItem?.quantity) || 1,
+            origCost: (selectedItem?.unitCostETB || 0) * (Number(selectedItem?.quantity) || 1),
             depreciation,
             bookValue,
             dateGc: todayGc,
@@ -420,7 +436,8 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     const todayEc = formatGcToEc(todayGc);
     const custodian = item.currentCustodian;
     const loc = item.storeLocation?.siteName || 'MoA Gurd Sholla';
-    const cost = item.unitCostETB || 0;
+    const units = Number(item.quantity) || 1;
+    const cost = (item.unitCostETB || 0) * units;
 
     const voucher: Model21Voucher = {
       model21No: item.ifmisSlipNumber || '0004386',
@@ -436,8 +453,8 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           tagNumber: item.itemCode,
           serialNumber: item.serialNumber || '',
           chassisNumber: item.serialNumber || undefined,
-          uom: 'EA',
-          unit: 1,
+          uom: item.uom || 'EA',
+          unit: units,
           origCost: cost,
           depreciation: 0,
           bookValue: cost,
@@ -476,14 +493,14 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   const selectedIsVehicleLike =
     selectedItemObj?.category === 'VEHICLE' || selectedItemObj?.category === 'AGRI_MACHINERY';
   const todayGc = new Date().toISOString().split('T')[0];
-  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('amber', opts);
+  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-16">
       {/* Top Banner Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center shadow-md">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shadow-md">
             <ArrowRightLeft className="w-6 h-6" />
           </div>
           <div>
@@ -515,7 +532,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             onClick={() => switchTab('transfer')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
               activeSubTab === 'transfer'
-                ? 'bg-amber-600 text-white shadow-xs'
+                ? btn.tabActive
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -526,7 +543,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             onClick={() => switchTab('return')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
               activeSubTab === 'return'
-                ? 'bg-teal-700 text-white shadow-xs'
+                ? btn.tabActive
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -543,7 +560,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           <div className="flex flex-col gap-1 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                <ArrowRightLeft className="h-5 w-5 text-amber-600" />
+                <ArrowRightLeft className="h-5 w-5 text-emerald-600" />
                 {editTransfer ? `Edit transfer · ${editTransfer.itemCode}` : 'New transfer · Model 21'}
               </h2>
               <p className="mt-0.5 text-xs text-slate-500">
@@ -575,7 +592,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
 
             <form onSubmit={handleTransferSubmit} className="space-y-4">
               {/* ── Section 1: Transfer voucher ── */}
-              <FormSection step={1} title="Transfer voucher" subtitle="የዝውውር ሰነድ · Model 21 register" icon={FileText} accent="amber">
+              <FormSection step={1} title="Transfer voucher" subtitle="የዝውውር ሰነድ · Model 21 register" icon={FileText} accent="emerald">
                 <FieldGrid>
                   <Field label="Model 21 No." required>
                     <input
@@ -613,7 +630,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
               </FormSection>
 
               {/* ── Section 2: Asset ── */}
-              <FormSection step={2} title="Asset" subtitle="የሚዛወረው ንብረት" icon={Tag} accent="amber">
+              <FormSection step={2} title="Asset" subtitle="የሚዛወረው ንብረት" icon={Tag} accent="emerald">
                 <div className="space-y-3.5">
                   {editTransfer ? (
                     <Field label="Issued asset" hint="The asset can't be changed. To transfer a different asset, ask an approver to reject this request.">
@@ -636,7 +653,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                           const pending = pendingByItem.get(item.id);
                           return (
                             <option key={item.id} value={item.id} disabled={!!pending}>
-                              {item.itemCode} — {item.name} ({item.currentCustodian?.fullNameEn || 'assigned'})
+                              {item.itemCode} — {item.name} · {item.quantity || 1} {item.uom || 'EA'} ({item.currentCustodian?.fullNameEn || 'assigned'})
                               {pending ? ` — ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}
                             </option>
                           );
@@ -651,7 +668,11 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                         { label: 'Tag number', value: selectedItemObj.itemCode, mono: true },
                         { label: 'Description', value: selectedItemObj.name },
                         { label: 'Current location', value: selectedItemObj.storeLocation?.siteName },
-                        { label: 'Original cost', value: formatETB(selectedItemObj.unitCostETB), mono: true },
+                        {
+                          label: `Original cost (${selectedItemObj.quantity || 1} ${selectedItemObj.uom || 'EA'})`,
+                          value: formatETB((selectedItemObj.unitCostETB || 0) * (Number(selectedItemObj.quantity) || 1)),
+                          mono: true,
+                        },
                       ]}
                     />
                   )}
@@ -676,7 +697,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                         onChange={(e) => {
                           const val = parseFloat(e.target.value) || 0;
                           setDepreciation(val);
-                          setBookValue(Math.max(0, (selectedItemObj?.unitCostETB || 0) - val));
+                          setBookValue(Math.max(0, (selectedItemObj?.unitCostETB || 0) * (Number(selectedItemObj?.quantity) || 1) - val));
                         }}
                         className={input({ mono: true, align: 'right' })}
                       />
@@ -686,7 +707,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
               </FormSection>
 
               {/* ── Section 3: Transfer to ── */}
-              <FormSection step={3} title="Transfer to" subtitle="ተረካቢ" icon={UserCheck} accent="amber">
+              <FormSection step={3} title="Transfer to" subtitle="ተረካቢ" icon={UserCheck} accent="emerald">
                 <div className="space-y-3.5">
                   <FieldGrid cols={2}>
                     <Field label="From (current custodian)">
@@ -761,7 +782,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       value={defectRemark}
                       onChange={(e) => setDefectRemark(e.target.value)}
                       placeholder="e.g. The right side mirror is missing. Both rear lights are broken."
-                      className={textareaClass('amber')}
+                      className={textareaClass('emerald')}
                     />
                   </Field>
                 </div>
@@ -774,7 +795,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                 title="Vehicle & machinery details"
                 subtitle="Plate, engine, accessories and tires · only for vehicles and machinery"
                 icon={Car}
-                accent="amber"
+                accent="emerald"
                 collapsible
                 defaultOpen={selectedIsVehicleLike}
               >
@@ -846,7 +867,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
               </FormSection>
 
               <FormFooter
-                accent="amber"
+                accent="emerald"
                 submitting={submittingTransfer}
                 submitLabel={editTransfer ? 'Save changes' : 'Submit transfer for approval'}
                 onCancel={() => switchTab('all')}
@@ -861,7 +882,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <RotateCcw className="w-5 h-5 text-teal-700" />
+                <RotateCcw className="w-5 h-5 text-emerald-700" />
                 Model 21 Store Asset Returns (የዕቃ መመለሻ መረከቢያ)
               </h2>
               <p className="text-xs text-slate-500">
@@ -875,17 +896,18 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search issued items..."
-                className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-teal-600 w-64"
+                className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-emerald-600 w-64"
               />
             </div>
           </div>
 
           <div className="overflow-x-auto border border-slate-200 rounded-xl">
             <table className="w-full text-left text-xs min-w-[760px]">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+              <thead className={table.headRow}>
                 <tr>
                   <th className="p-3 w-36 whitespace-nowrap">Asset Code</th>
                   <th className="p-3 min-w-[180px]">Item Description</th>
+                  <th className="p-3 w-24 text-right whitespace-nowrap">Qty</th>
                   <th className="p-3 min-w-[150px]">Current Custodian</th>
                   <th className="p-3 w-32">Location</th>
                   <th className="p-3 w-48 text-right whitespace-nowrap">Actions</th>
@@ -896,8 +918,9 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                   .filter((i) => i.status === ItemStatus.ISSUED)
                   .map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50 transition">
-                      <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">{item.itemCode}</td>
+                      <td className={`p-3 ${table.code} whitespace-nowrap`}>{item.itemCode}</td>
                       <td className="p-3 text-slate-800">{item.name}</td>
+                      <UnitsCell item={item} />
                       <td className="p-3 text-slate-700">
                         {item.currentCustodian?.fullNameEn || 'Assigned Staff'}
                       </td>
@@ -906,10 +929,10 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handlePrintModel21(item)}
-                            className="px-2.5 py-1 bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-300 hover:border-amber-300 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                            className={btn.row}
                             title="Print Model 21 Transfer / Return Voucher"
                           >
-                            <Printer className="w-3.5 h-3.5 text-amber-700" />
+                            <Printer className={btn.rowIcon} />
                             <span>Print M21</span>
                           </button>
                           {pendingByItem.get(item.id) ? (
@@ -922,7 +945,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                           ) : (
                             <button
                               onClick={() => setReturnItem(item)}
-                              className="px-3 py-1 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-lg text-xs transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                              className={btn.row}
                             >
                               <RotateCcw className="w-3.5 h-3.5" />
                               Return (M21)
@@ -954,7 +977,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search ledger..."
-                  className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-amber-600 w-64"
+                  className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-emerald-600 w-64"
                 />
               </div>
             </div>
@@ -962,10 +985,11 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
 
           <div className="overflow-x-auto border border-slate-200 rounded-xl">
             <table className="w-full text-left text-xs min-w-[840px]">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+              <thead className={table.headRow}>
                 <tr>
                   <th className="p-3 w-36 whitespace-nowrap">Asset Code</th>
                   <th className="p-3 min-w-[180px]">Item Name</th>
+                  <th className="p-3 w-24 text-right whitespace-nowrap">Qty</th>
                   <th className="p-3 w-32 whitespace-nowrap">Current Status</th>
                   <th className="p-3 min-w-[160px]">Custodian / Department</th>
                   <th className="p-3 w-32">Store Location</th>
@@ -975,16 +999,17 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
               <tbody className="divide-y divide-slate-200 bg-white font-medium">
                 {filteredItems.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50 transition">
-                    <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">{item.itemCode}</td>
+                    <td className={`p-3 ${table.code} whitespace-nowrap`}>{item.itemCode}</td>
                     <td className="p-3 text-slate-800">{item.name}</td>
+                      <UnitsCell item={item} />
                     <td className="p-3 whitespace-nowrap">
                       <div className="flex flex-col items-start gap-1">
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                            (ITEM_STATUS_LABELS[item.status] ?? ITEM_STATUS_LABELS[ItemStatus.UNDER_TRANSFER]).className
+                          className={`${pill} ${
+                            statusStyleOf(item).className
                           }`}
                         >
-                          {ITEM_STATUS_LABELS[item.status]?.label ?? item.status}
+                          {statusStyleOf(item).label}
                         </span>
                         {pendingByItem.get(item.id) && <PendingRequestChip request={pendingByItem.get(item.id)!} />}
                       </div>
@@ -997,10 +1022,10 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handlePrintModel21(item)}
-                          className="px-2.5 py-1 bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-300 hover:border-amber-300 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                          className={btn.row}
                           title="Print Official Model 21 Internal Transfer Form"
                         >
-                          <Printer className="w-3.5 h-3.5 text-amber-700" />
+                          <Printer className={btn.rowIcon} />
                           <span>Print M21</span>
                         </button>
                         {canEdit &&
@@ -1011,7 +1036,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                         {item.status === ItemStatus.ISSUED && !pendingByItem.has(item.id) && (
                           <button
                             onClick={() => setReturnItem(item)}
-                            className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 rounded-lg text-xs font-bold transition cursor-pointer inline-flex items-center gap-1"
+                            className={btn.row}
                             title="Return to Central Store (Model 21)"
                           >
                             <RotateCcw className="w-3 h-3" />
