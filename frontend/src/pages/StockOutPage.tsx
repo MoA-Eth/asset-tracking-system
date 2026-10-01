@@ -21,6 +21,17 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { Modal } from '../components/ui/Modal';
+import {
+  FormSection,
+  FieldGrid,
+  Field,
+  ReadOnlyValue,
+  TotalValue,
+  FormError,
+  FileDropField,
+  FormFooter,
+  inputClass,
+} from '../components/ui/FormKit';
 import { CustodyVoucherModal } from '../components/ui/CustodyVoucherModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
@@ -320,436 +331,305 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     }
   };
 
-  const inputClass =
-    'w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-500';
+  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('blue', opts);
+  const isAttachmentReq = getSystemSettings().historicalDataAttachmentPolicy === 'REQUIRED';
 
   return (
     <form id="stock-out-form" onSubmit={handleSubmit} className="space-y-4">
-      {/* Inline Form Error Alert */}
-      {formError && (
-        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 animate-fadeIn">
-          <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-          <span>{formError}</span>
-        </div>
-      )}
+      <FormError message={formError} />
 
-      {/* ── Section 1: Header / Document Details ── */}
-      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-          <FileText className="w-3.5 h-3.5 text-blue-700" />
-          1. Issue Voucher Header Information
-        </h4>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Model 22 No. *
-            </label>
+      {/* ── Section 1: Voucher details ── */}
+      <FormSection step={1} title="Voucher details" subtitle="የወጪ ማዘዣ መረጃ · Model 22 header" icon={FileText} accent="blue">
+        <FieldGrid>
+          <Field label="Model 22 No." required>
             <input
               type="text"
               required
               placeholder="e.g. 0004653/A Inventory"
               value={model22No}
               onChange={(e) => setModel22No(e.target.value)}
-              className={`${inputClass} font-mono font-bold text-blue-950`}
+              className={`${input({ mono: true })} font-semibold`}
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Issued Date (G.C.) *
-            </label>
-            <div className="relative">
-              <input
-                type="date"
-                required
-                value={issuedDateGc}
-                onChange={(e) => setIssuedDateGc(e.target.value)}
-                className={inputClass}
-              />
-              <span className="text-[10px] text-slate-500 font-mono block mt-1">
-                E.C.: {ethDate}
-              </span>
-            </div>
-          </div>
+          <Field label="Issued date (G.C.)" required hint={`${ethDate} E.C.`}>
+            <input
+              type="date"
+              required
+              value={issuedDateGc}
+              onChange={(e) => setIssuedDateGc(e.target.value)}
+              className={input()}
+            />
+          </Field>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Transaction Type *
-            </label>
-            <select
-              value={transactionType}
-              onChange={(e) => setTransactionType(e.target.value)}
-              className={inputClass}
-            >
+          <Field label="Transaction type" required>
+            <select value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
               <option value="Move Order Issue">Move Order Issue</option>
               <option value="Direct Store Issue">Direct Store Issue</option>
               <option value="Department Assignment">Department Assignment</option>
               <option value="Project Allocation">Project Allocation</option>
             </select>
-          </div>
+          </Field>
+        </FieldGrid>
+      </FormSection>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Destination Directorate *
-            </label>
+      {/* ── Section 2: Item issued ── */}
+      <FormSection step={2} title="Item issued" subtitle="የሚወጣው ዕቃ ዝርዝር መረጃ" icon={PackageMinus} accent="blue">
+        <div className="space-y-3.5">
+          <Field label="Store item" required hint="Only items currently available in store are listed.">
             <select
-              value={destinationDepartmentId}
-              onChange={(e) => setDestinationDepartmentId(e.target.value)}
-              className={inputClass}
+              value={selectedItemId}
+              onChange={(e) => handleItemSelect(e.target.value)}
+              className={`${input()} font-medium`}
             >
-              {departments.map((dept) => (
-                <option key={dept.id} value={dept.id}>
-                  {dept.nameEn} ({dept.code})
-                </option>
-              ))}
+              {availableItems.length === 0 ? (
+                <option value="">No items available in store</option>
+              ) : (
+                availableItems.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.itemCode} — {item.name} ({formatETB(item.unitCostETB)})
+                  </option>
+                ))
+              )}
             </select>
-          </div>
-        </div>
-      </div>
+          </Field>
 
-      {/* ── Section 2: Flat Single-Item Particulars ── */}
-      <div className="p-4 rounded-xl bg-white border border-slate-300 shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-            <PackageMinus className="w-3.5 h-3.5 text-blue-700" />
-            2. Issued Item Particulars (የሚወጣው ዕቃ ዝርዝር መረጃ)
-          </h4>
-          <span className="text-[10px] text-blue-800 font-bold bg-blue-100 px-2 py-0.5 rounded border border-blue-200">
-            Single Item Flat Mode
-          </span>
-        </div>
-
-        {/* Available item selector */}
-        <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200">
-          <label className="block text-xs font-bold text-blue-950 mb-1">
-            Select Available Store Item to Issue *
-          </label>
-          <select
-            value={selectedItemId}
-            onChange={(e) => handleItemSelect(e.target.value)}
-            className="w-full px-3 py-2 bg-white border border-blue-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            {availableItems.length === 0 ? (
-              <option value="">No items available in store</option>
-            ) : (
-              availableItems.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.itemCode} — {item.name} ({formatETB(item.unitCostETB)})
-                </option>
-              ))
-            )}
-          </select>
-        </div>
-
-        {/* Flat Grid matching provided document columns */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="sm:col-span-2">
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Item Description *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Battery 12v - 70 Amp"
-              value={itemDescription}
-              onChange={(e) => setItemDescription(e.target.value)}
-              className={`${inputClass} font-medium`}
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Item Code (Inventory Code) *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. 103108101.0004"
-              value={itemCode}
-              onChange={(e) => setItemCode(e.target.value)}
-              className={`${inputClass} font-mono font-bold text-blue-800`}
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              UOM (Unit of Measure) *
-            </label>
-            <input
-              type="text"
-              value={uom}
-              onChange={(e) => setUom(e.target.value.toUpperCase())}
-              className={`${inputClass} font-mono uppercase text-center`}
-              placeholder="EA"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Sub Inventory *
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Spareparts / General Store"
-              value={subInventory}
-              onChange={(e) => setSubInventory(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Item Category *
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Spare parts / IT Equipment"
-              value={itemCategory}
-              onChange={(e) => setItemCategory(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Lot / Batch No.
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. LOT-2026"
-              value={lotBatchNo}
-              onChange={(e) => setLotBatchNo(e.target.value)}
-              className={`${inputClass} font-mono`}
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Serial Number
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. SN-49202"
-              value={serialNo}
-              onChange={(e) => setSerialNo(e.target.value)}
-              className={`${inputClass} font-mono`}
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Sequence # Printed Pad (From / To)
-            </label>
-            <div className="grid grid-cols-2 gap-2">
+          <FieldGrid>
+            <Field label="Item description" required span="sm:col-span-2">
               <input
                 type="text"
-                placeholder="From"
+                required
+                placeholder="e.g. Battery 12v - 70 Amp"
+                value={itemDescription}
+                onChange={(e) => setItemDescription(e.target.value)}
+                className={input()}
+              />
+            </Field>
+
+            <Field label="Item code" required>
+              <input
+                type="text"
+                required
+                placeholder="e.g. 103108101.0004"
+                value={itemCode}
+                onChange={(e) => setItemCode(e.target.value)}
+                className={`${input({ mono: true })} font-semibold`}
+              />
+            </Field>
+          </FieldGrid>
+
+          <FieldGrid cols={4}>
+            <Field label="Category" required>
+              <input
+                type="text"
+                placeholder="e.g. IT Equipment"
+                value={itemCategory}
+                onChange={(e) => setItemCategory(e.target.value)}
+                className={input()}
+              />
+            </Field>
+
+            <Field label="Sub inventory" required>
+              <input
+                type="text"
+                placeholder="e.g. Spareparts"
+                value={subInventory}
+                onChange={(e) => setSubInventory(e.target.value)}
+                className={input()}
+              />
+            </Field>
+
+            <Field label="Serial number" optional>
+              <input
+                type="text"
+                placeholder="e.g. SN-49202"
+                value={serialNo}
+                onChange={(e) => setSerialNo(e.target.value)}
+                className={input({ mono: true })}
+              />
+            </Field>
+
+            <Field label="Lot / batch no." optional>
+              <input
+                type="text"
+                placeholder="e.g. LOT-2026"
+                value={lotBatchNo}
+                onChange={(e) => setLotBatchNo(e.target.value)}
+                className={input({ mono: true })}
+              />
+            </Field>
+          </FieldGrid>
+
+          {/* Quantity & cost */}
+          <FieldGrid cols={4}>
+            <Field label="Quantity" required>
+              <input
+                type="number"
+                min="1"
+                required
+                value={quantity}
+                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                className={input({ mono: true, align: 'right' })}
+              />
+            </Field>
+
+            <Field label="Unit of measure" required>
+              <input
+                type="text"
+                value={uom}
+                onChange={(e) => setUom(e.target.value.toUpperCase())}
+                className={`${input({ mono: true })} uppercase`}
+                placeholder="EA"
+              />
+            </Field>
+
+            <Field label="Unit price (ETB)" required>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                required
+                value={unitPrice}
+                onChange={(e) => setUnitPrice(Math.max(0, parseFloat(e.target.value) || 0))}
+                className={input({ mono: true, align: 'right' })}
+              />
+            </Field>
+
+            <Field label="Transport cost (ETB)" optional>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={transportationCost}
+                onChange={(e) => setTransportationCost(Math.max(0, parseFloat(e.target.value) || 0))}
+                className={input({ mono: true, align: 'right' })}
+              />
+            </Field>
+          </FieldGrid>
+
+          <FieldGrid cols={4}>
+            <Field label="Printed pad from" optional>
+              <input
+                type="text"
+                placeholder="From #"
                 value={printedPadFrom}
                 onChange={(e) => setPrintedPadFrom(e.target.value)}
-                className={`${inputClass} font-mono text-center`}
+                className={input({ mono: true })}
               />
+            </Field>
+
+            <Field label="Printed pad to" optional>
               <input
                 type="text"
-                placeholder="To"
+                placeholder="To #"
                 value={printedPadTo}
                 onChange={(e) => setPrintedPadTo(e.target.value)}
-                className={`${inputClass} font-mono text-center`}
+                className={input({ mono: true })}
               />
-            </div>
-          </div>
+            </Field>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Quantity *
-            </label>
-            <input
-              type="number"
-              min="1"
-              required
-              value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-              className={`${inputClass} font-mono text-right font-bold`}
-            />
-          </div>
+            <Field label="Item total (ETB)">
+              <ReadOnlyValue mono align="right">{formatETB(totalAmount)}</ReadOnlyValue>
+            </Field>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Unit Price (ETB) *
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              required
-              value={unitPrice}
-              onChange={(e) => setUnitPrice(Math.max(0, parseFloat(e.target.value) || 0))}
-              className={`${inputClass} font-mono text-right font-bold text-slate-900`}
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Transportation Cost (ETB)
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={transportationCost}
-              onChange={(e) => setTransportationCost(Math.max(0, parseFloat(e.target.value) || 0))}
-              className={`${inputClass} font-mono text-right`}
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Total Amount (ETB)
-            </label>
-            <div className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-mono font-bold text-right text-slate-900">
-              {formatETB(totalAmount)}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Grand Total (ETB)
-            </label>
-            <div className="px-3 py-2 bg-blue-50 border border-blue-300 rounded-xl text-xs font-mono font-black text-right text-blue-950">
-              {formatETB(grandTotal)}
-            </div>
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Remark / Notes
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Routine maintenance issue for central pool"
-              value={remark}
-              onChange={(e) => setRemark(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Requisition Purpose / Reason *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Move Order Issue for Agricultural Operations"
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value)}
-              className={inputClass}
-            />
-          </div>
+            <Field label="Grand total (ETB)" hint="Item total + transport">
+              <TotalValue accent="blue">{formatETB(grandTotal)}</TotalValue>
+            </Field>
+          </FieldGrid>
         </div>
-      </div>
+      </FormSection>
 
-      {/* ── Section 3: Signatures & Custody ── */}
-      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-          <User className="w-3.5 h-3.5 text-blue-700" />
-          3. Custody & Signatures (ማረጋገጫ እና ፊርማዎች)
-        </h4>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Issued By : Name (Store Custodian)
-            </label>
-            <div className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs text-slate-700 font-medium flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>{user?.fullNameEn || 'Current User (Store Keeper)'}</span>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Received By : Name (Recipient Staff Member) *
-            </label>
-            <select
-              value={recipientEmployeeId}
-              onChange={(e) => handleEmployeeChange(e.target.value)}
-              className={inputClass}
-            >
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.fullNameEn} ({emp.payrollId})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="sm:col-span-2">
-            {(() => {
-              const policy = getSystemSettings().historicalDataAttachmentPolicy;
-              const isAttachmentReq = policy === 'REQUIRED';
-              return (
-                <>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Attach Scanned Issue Voucher {isAttachmentReq ? '*' : <span className="text-slate-400 font-normal">(Optional)</span>}
-                  </label>
-                  <div className={`flex items-center gap-2 p-2.5 rounded-xl border border-dashed bg-white ${
-                    isAttachmentReq && !attachmentFileName ? 'border-amber-400' : 'border-slate-300'
-                  }`}>
-                    <Upload className="w-4 h-4 text-blue-700 shrink-0" />
-                    <span className="text-xs text-slate-600 flex-1 truncate">
-                      {attachmentFileName || (
-                        <span className={isAttachmentReq ? 'text-amber-700 font-medium' : 'text-slate-400'}>
-                          {isAttachmentReq ? 'Required — upload scanned slip' : 'No file chosen (Optional)'}
-                        </span>
-                      )}
-                    </span>
-                    <label className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-[11px] font-semibold cursor-pointer transition">
-                      Browse
-                      <input
-                        type="file"
-                        onChange={handleSlipSelected}
-                        className="hidden"
-                        accept={SLIP_ACCEPT_ATTR}
-                      />
-                    </label>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      </div>
-
-      {/* Form Action Buttons */}
-      <div className="flex items-center justify-between pt-3 border-t border-slate-200">
-        <button
-          type="button"
-          onClick={handleReset}
-          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl border border-slate-300 transition flex items-center gap-1.5 cursor-pointer"
-        >
-          <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-          Reset Form
-        </button>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 font-semibold text-xs rounded-xl border border-slate-300 transition flex items-center gap-1.5 cursor-pointer"
+      {/* ── Section 3: Recipient & custody ── */}
+      <FormSection
+        step={3}
+        title="Recipient & custody"
+        subtitle="ማረጋገጫ እና ፊርማዎች"
+        icon={User}
+        accent="blue"
+        aside={
+          <span
+            className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+              isAttachmentReq ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+            }`}
           >
-            <X className="w-3.5 h-3.5 text-slate-500" />
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="px-5 py-2 bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-2 cursor-pointer"
-          >
-            {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-            Submit Model 22 Issue Voucher
-          </button>
+            Slip {isAttachmentReq ? 'required' : 'optional'}
+          </span>
+        }
+      >
+        <div className="space-y-3.5">
+          <FieldGrid cols={2}>
+            <Field label="Received by (recipient)" required hint="Selecting a recipient fills in their directorate.">
+              <select
+                value={recipientEmployeeId}
+                onChange={(e) => handleEmployeeChange(e.target.value)}
+                className={input()}
+              >
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.fullNameEn} ({emp.payrollId})
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Destination directorate" required>
+              <select
+                value={destinationDepartmentId}
+                onChange={(e) => setDestinationDepartmentId(e.target.value)}
+                className={input()}
+              >
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.nameEn} ({dept.code})
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Purpose of issue" required>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Move Order Issue for Agricultural Operations"
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                className={input()}
+              />
+            </Field>
+
+            <Field label="Remark" optional>
+              <input
+                type="text"
+                placeholder="e.g. Routine maintenance issue for central pool"
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+                className={input()}
+              />
+            </Field>
+
+            <Field label="Issued by (store custodian)">
+              <ReadOnlyValue>{user?.fullNameEn || 'Current user'}</ReadOnlyValue>
+            </Field>
+          </FieldGrid>
+
+          <FileDropField
+            label="Scanned issue voucher"
+            accent="blue"
+            required={isAttachmentReq}
+            fileName={attachmentFileName}
+            accept={SLIP_ACCEPT_ATTR}
+            onChange={handleSlipSelected}
+          />
         </div>
-      </div>
+      </FormSection>
+
+      <FormFooter
+        accent="blue"
+        submitting={submitting}
+        submitLabel="Submit for approval"
+        onCancel={onCancel}
+        onReset={handleReset}
+      />
     </form>
   );
 };
@@ -1300,8 +1180,8 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Issue Item from Store — Receipt For Articles Or Property Issued (Model 22)"
-        subtitle="The Federal Democratic Republic of Ethiopia • Ministry of Agriculture"
+        title="Issue item from store · Model 22"
+        subtitle="The item stays in store until the Team Leader endorses and the Department Head approves the issue."
         accentColor="blue"
         size="xl"
       >

@@ -1,17 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  RotateCcw,
-  AlertCircle,
-  RefreshCw,
-  FileText,
-  Upload,
-  CheckCircle2,
-  X,
-  Car,
-  Tag,
-  UserCheck,
-  ShieldAlert,
-} from 'lucide-react';
+import { FileText, Car, Tag, UserCheck } from 'lucide-react';
 import { api } from '../../api/client';
 import {
   ItemWithRelations,
@@ -21,6 +9,18 @@ import {
   Model21LineItem,
 } from '../../types/asset-management';
 import { Modal } from './Modal';
+import {
+  FormSection,
+  FieldGrid,
+  Field,
+  ReadOnlyValue,
+  SummaryGrid,
+  FormError,
+  FileDropField,
+  FormFooter,
+  inputClass,
+  textareaClass,
+} from './FormKit';
 import { getSystemSettings } from '../../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
@@ -70,23 +70,22 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const isVehicleLike = item?.category === 'VEHICLE' || item?.category === 'AGRI_MACHINERY';
+
+  // Start every return from the item's own data; nothing is pre-filled with sample values
   useEffect(() => {
     if (item) {
-      const cost = item.unitCostETB || 0;
-      setDepreciation(cost);
-      setBookValue(0);
-      setChassisNumber(item.serialNumber ? `CH-${item.serialNumber}` : '');
-      if (item.category === 'VEHICLE') {
-        setPlateNo('4-23794');
-        setEngineNo('1HZ-0641864');
-        setTireSerials('R240514711, R240504703, R240504594, R240504595, YY0219');
-        setDefectRemark('The right side mirror is missing.\nBoth rear lights are broken.');
-      } else {
-        setPlateNo('');
-        setEngineNo('');
-        setTireSerials('');
-        setDefectRemark(item.notes || '');
-      }
+      setDepreciation(0);
+      setBookValue(item.unitCostETB || 0);
+      setChassisNumber(item.serialNumber || '');
+      setPlateNo('');
+      setEngineNo('');
+      setTireSerials('');
+      setDefectRemark('');
+      const vehicle = item.category === 'VEHICLE' || item.category === 'AGRI_MACHINERY';
+      setJackQty(vehicle ? 1 : 0);
+      setTireWrenchQty(vehicle ? 1 : 0);
+      setKeyQty(vehicle ? 2 : 0);
     }
   }, [item]);
 
@@ -234,373 +233,270 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
     }
   };
 
-  const inputClass =
-    'w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-500';
+  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('teal', opts);
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Return Item to Central Store — Fixed Asset Internal Return (Model/21)"
-      subtitle={`The Federal Democratic Republic of Ethiopia • Ministry of Agriculture • Asset ${item.itemCode}`}
-      accentColor="amber"
+      title={`Return to store · Model 21 · ${item.itemCode}`}
+      subtitle="The item stays with its custodian until the Team Leader endorses and the Department Head approves the return."
+      accentColor="teal"
       size="xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-5 text-xs">
-        {formError && (
-          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-            <span>{formError}</span>
-          </div>
-        )}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <FormError message={formError} />
 
-        {/* Workflow Info Banner */}
-        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2.5">
-          <RotateCcw className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-          <div className="text-amber-950 leading-relaxed text-[11px]">
-            <strong>Model 21 Return Procedure:</strong> When returning an asset to the central store, custody is discharged from the current custodian and held as{' '}
-            <span className="bg-amber-100 text-amber-800 px-1 py-0.5 rounded font-bold font-mono">PENDING_RETURN</span> until approved by the Directorate Head.
-            Upon sign-off, the asset transitions back to <span className="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold font-mono">AVAILABLE</span> store inventory.
-          </div>
-        </div>
-
-        {/* ── Section 1: Document Reference & Register Book ── */}
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 space-y-3">
-          <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-            <FileText className="w-3.5 h-3.5 text-teal-700" />
-            1. Document Reference & Register Book (Model 21)
-          </h4>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Model/21 Number (Slip #) *
-              </label>
+        {/* ── Section 1: Return voucher ── */}
+        <FormSection step={1} title="Return voucher" subtitle="የመመለሻ ሰነድ · Model 21 register" icon={FileText} accent="teal">
+          <FieldGrid>
+            <Field label="Model 21 No." required>
               <input
                 type="text"
                 required
                 value={model21No}
                 onChange={(e) => setModel21No(e.target.value)}
                 placeholder="e.g. 0004386"
-                className={`${inputClass} font-mono font-bold text-amber-950`}
+                className={`${input({ mono: true })} font-semibold`}
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Book (Register Category) *
-              </label>
+            <Field label="Register book" required>
               <input
                 type="text"
                 required
                 value={book}
                 onChange={(e) => setBook(e.target.value)}
-                placeholder="e.g. MOA MC BOOK / Fixed Asset Book"
-                className={inputClass}
+                placeholder="e.g. MOA MC BOOK"
+                className={input()}
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Return Date (G.C.) *
-              </label>
+            <Field label="Return date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`}>
               <input
                 type="date"
                 required
                 value={ifmisSlipDateGc}
                 onChange={(e) => setIfmisSlipDateGc(e.target.value)}
-                className={`${inputClass} font-mono`}
+                className={input()}
               />
-            </div>
+            </Field>
+          </FieldGrid>
+        </FormSection>
+
+        {/* ── Section 2: Asset & condition ── */}
+        <FormSection step={2} title="Asset & condition" subtitle="የንብረቱ ሁኔታ" icon={Tag} accent="teal">
+          <div className="space-y-3.5">
+            <SummaryGrid
+              items={[
+                { label: 'Tag number', value: item.itemCode, mono: true },
+                { label: 'Description', value: item.name },
+                { label: 'Current custodian', value: item.currentCustodian?.fullNameEn },
+                { label: 'Original cost', value: formatETB(item.unitCostETB), mono: true },
+              ]}
+            />
+
+            <FieldGrid>
+              <Field label="Condition on return" required>
+                <select value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} className={input()}>
+                  <option value={ItemCondition.GOOD}>Good · fully functional</option>
+                  <option value={ItemCondition.FAIR}>Fair · minor wear</option>
+                  <option value={ItemCondition.NEEDS_REPAIR}>Needs repair</option>
+                  <option value={ItemCondition.DAMAGED}>Damaged / defective</option>
+                </select>
+              </Field>
+
+              <Field label="Chassis / serial number" optional>
+                <input
+                  type="text"
+                  placeholder="e.g. JTEBB71JX07008920"
+                  value={chassisNumber}
+                  onChange={(e) => setChassisNumber(e.target.value)}
+                  className={input({ mono: true })}
+                />
+              </Field>
+
+              <Field
+                label="Accumulated depreciation (ETB)"
+                optional
+                hint={`Net book value: ${formatETB(bookValue)}`}
+              >
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={depreciation}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setDepreciation(val);
+                    setBookValue(Math.max(0, (item.unitCostETB || 0) - val));
+                  }}
+                  className={input({ mono: true, align: 'right' })}
+                />
+              </Field>
+            </FieldGrid>
+
+            <Field label="Reason for return" required>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Project field work completed, returning asset to store"
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+                className={input()}
+              />
+            </Field>
+
+            <Field label="Defects / missing parts" optional>
+              <textarea
+                rows={2}
+                value={defectRemark}
+                onChange={(e) => setDefectRemark(e.target.value)}
+                placeholder="e.g. The right side mirror is missing. Both rear lights are broken."
+                className={textareaClass('teal')}
+              />
+            </Field>
           </div>
-        </div>
+        </FormSection>
 
-        {/* ── Section 2: From / To Custody (Returning Custodian → Store Custodian) ── */}
-        <div className="p-4 rounded-xl bg-white border border-slate-300 space-y-3 shadow-2xs">
-          <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-            <UserCheck className="w-3.5 h-3.5 text-teal-700" />
-            2. From / To Custody (Returning Staff → Store Receiver)
-          </h4>
+        {/* ── Section 3: Custody handover ── */}
+        <FormSection
+          step={3}
+          title="Custody handover"
+          subtitle="ርክክብ"
+          icon={UserCheck}
+          accent="teal"
+          aside={
+            <span
+              className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                isAttachmentReq ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              Slip {isAttachmentReq ? 'required' : 'optional'}
+            </span>
+          }
+        >
+          <div className="space-y-3.5">
+            <FieldGrid>
+              <Field label="Returned by">
+                <ReadOnlyValue>
+                  {item.currentCustodian
+                    ? `${item.currentCustodian.fullNameEn} (${item.currentCustodian.payrollId})`
+                    : 'No custodian on record'}
+                </ReadOnlyValue>
+              </Field>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* From: Returning Custodian */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-300 space-y-2">
-              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block border-b pb-1">
-                From: Returning Employee (Transferor)
-              </span>
-              <div>
-                <span className="text-[10px] text-slate-500 block">From Employee Name</span>
-                <span className="font-bold text-slate-900 block text-xs">
-                  {item.currentCustodian?.fullNameEn || 'Current Staff Custodian'}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-500 block">From Employee ID</span>
-                <span className="font-mono font-semibold text-slate-800 block text-xs">
-                  {item.currentCustodian?.payrollId || '110895'}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-500 block">From Location</span>
-                <span className="text-slate-800 font-medium block text-xs">
-                  {item.storeLocation?.siteName || 'Head Office (MoA Central)'}
-                </span>
-              </div>
-            </div>
+              <Field label="Returns to store">
+                <ReadOnlyValue>{item.storeLocation?.siteName || 'Central store'}</ReadOnlyValue>
+              </Field>
 
-            {/* To: Store Receiver */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-300 space-y-2">
-              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block border-b pb-1">
-                To: Central Store Receiver (Recipient)
-              </span>
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-700 mb-0.5">
-                  Receiving Store Custodian / FAMU Accountant *
-                </label>
-                <select
-                  value={storeReceiverId}
-                  onChange={(e) => setStoreReceiverId(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="">-- Central Store Custodian (Default) --</option>
+              <Field label="Received by (store custodian)" optional hint="Defaults to the central store custodian.">
+                <select value={storeReceiverId} onChange={(e) => setStoreReceiverId(e.target.value)} className={input()}>
+                  <option value="">Central store custodian (default)</option>
                   {employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.fullNameEn} ({emp.payrollId})
                     </option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-500 block">Destination Store</span>
-                <span className="font-semibold text-emerald-900 block text-xs">
-                  Central Store Depot — Gurd Sholla
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+              </Field>
+            </FieldGrid>
 
-        {/* ── Section 3: Asset Details & Valuation ── */}
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 space-y-3">
-          <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-            <Tag className="w-3.5 h-3.5 text-teal-700" />
-            3. Returned Asset Details & Condition
-          </h4>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-white rounded-xl border border-slate-200">
-            <div>
-              <span className="text-[10px] text-slate-500 block">Tag Number</span>
-              <span className="font-mono font-bold text-slate-900">{item.itemCode}</span>
-            </div>
-            <div className="sm:col-span-2">
-              <span className="text-[10px] text-slate-500 block">Description</span>
-              <span className="font-bold text-slate-900 truncate block">{item.name}</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-500 block">Original Cost</span>
-              <span className="font-mono font-bold text-slate-900">{formatETB(item.unitCostETB)}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Physical Condition Upon Return *
-              </label>
-              <select
-                value={condition}
-                onChange={(e) => setCondition(e.target.value as ItemCondition)}
-                className={inputClass}
-              >
-                <option value={ItemCondition.GOOD}>Good / Fully Functional</option>
-                <option value={ItemCondition.FAIR}>Fair / Minor Wear</option>
-                <option value={ItemCondition.NEEDS_REPAIR}>Needs Technical Repair / Workshop Service</option>
-                <option value={ItemCondition.DAMAGED}>Damaged / Defective</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Chassis / Serial Number</label>
-              <input
-                type="text"
-                placeholder="e.g. JTEBB71JX07008920"
-                value={chassisNumber}
-                onChange={(e) => setChassisNumber(e.target.value)}
-                className={`${inputClass} font-mono`}
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Accumulated Depreciation (ETB)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={depreciation}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value) || 0;
-                  setDepreciation(val);
-                  setBookValue(Math.max(0, (item.unitCostETB || 0) - val));
-                }}
-                className={`${inputClass} font-mono text-right`}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              Official Reason for Return *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Project survey field work completed, returning asset to central store"
-              value={returnReason}
-              onChange={(e) => setReturnReason(e.target.value)}
-              className={inputClass}
+            <FileDropField
+              label="Scanned return slip"
+              accent="teal"
+              required={isAttachmentReq}
+              fileName={attachmentFileName}
+              accept={SLIP_ACCEPT_ATTR}
+              onChange={handleSlipSelected}
             />
           </div>
-        </div>
+        </FormSection>
 
-        {/* ── Section 4: Vehicle / Machinery Accessories & Defect Breakdown ── */}
-        <div className="p-4 rounded-xl bg-white border border-slate-300 space-y-3 shadow-2xs">
-          <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-            <Car className="w-3.5 h-3.5 text-teal-700" />
-            4. Accessories Checklist & Defect Inspection (Model 21 Photo Breakdown)
-          </h4>
+        {/* ── Section 4: Vehicle & machinery details (optional) ── */}
+        <FormSection
+          step={4}
+          title="Vehicle & machinery details"
+          subtitle="Plate, engine, accessories and tires · only for vehicles and machinery"
+          icon={Car}
+          accent="teal"
+          collapsible
+          defaultOpen={isVehicleLike}
+        >
+          <div className="space-y-3.5">
+            <FieldGrid cols={2}>
+              <Field label="Plate number" optional>
+                <input
+                  type="text"
+                  placeholder="e.g. 4-23794"
+                  value={plateNo}
+                  onChange={(e) => setPlateNo(e.target.value)}
+                  className={input({ mono: true })}
+                />
+              </Field>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Plate Number</label>
+              <Field label="Engine number" optional>
+                <input
+                  type="text"
+                  placeholder="e.g. 1HZ-0641864"
+                  value={engineNo}
+                  onChange={(e) => setEngineNo(e.target.value)}
+                  className={input({ mono: true })}
+                />
+              </Field>
+            </FieldGrid>
+
+            <FieldGrid>
+              <Field label="Jack with handle (qty)">
+                <input
+                  type="number"
+                  min="0"
+                  value={jackQty}
+                  onChange={(e) => setJackQty(parseInt(e.target.value) || 0)}
+                  className={input({ mono: true, align: 'right' })}
+                />
+              </Field>
+
+              <Field label="Tire wrench (qty)">
+                <input
+                  type="number"
+                  min="0"
+                  value={tireWrenchQty}
+                  onChange={(e) => setTireWrenchQty(parseInt(e.target.value) || 0)}
+                  className={input({ mono: true, align: 'right' })}
+                />
+              </Field>
+
+              <Field label="Keys (qty)">
+                <input
+                  type="number"
+                  min="0"
+                  value={keyQty}
+                  onChange={(e) => setKeyQty(parseInt(e.target.value) || 0)}
+                  className={input({ mono: true, align: 'right' })}
+                />
+              </Field>
+            </FieldGrid>
+
+            <Field label="Tire serial numbers" optional hint="Separate with commas">
               <input
                 type="text"
-                placeholder="e.g. 4-23794"
-                value={plateNo}
-                onChange={(e) => setPlateNo(e.target.value)}
-                className={`${inputClass} font-mono font-bold`}
+                placeholder="e.g. R240514711, R240504703, YY0219"
+                value={tireSerials}
+                onChange={(e) => setTireSerials(e.target.value)}
+                className={input({ mono: true })}
               />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Engine Number</label>
-              <input
-                type="text"
-                placeholder="e.g. 1HZ-0641864"
-                value={engineNo}
-                onChange={(e) => setEngineNo(e.target.value)}
-                className={`${inputClass} font-mono`}
-              />
-            </div>
+            </Field>
           </div>
+        </FormSection>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Jack with Handle (Qty)</label>
-              <input
-                type="number"
-                min="0"
-                value={jackQty}
-                onChange={(e) => setJackQty(parseInt(e.target.value) || 0)}
-                className={`${inputClass} font-mono text-center`}
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Tire Wrench (Qty)</label>
-              <input
-                type="number"
-                min="0"
-                value={tireWrenchQty}
-                onChange={(e) => setTireWrenchQty(parseInt(e.target.value) || 0)}
-                className={`${inputClass} font-mono text-center`}
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Key (Qty)</label>
-              <input
-                type="number"
-                min="0"
-                value={keyQty}
-                onChange={(e) => setKeyQty(parseInt(e.target.value) || 0)}
-                className={`${inputClass} font-mono text-center`}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              Tire Serials (comma separated)
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. R240514711, R240504703, R240504594, R240504595, YY0219"
-              value={tireSerials}
-              onChange={(e) => setTireSerials(e.target.value)}
-              className={`${inputClass} font-mono`}
-            />
-          </div>
-
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              Defects / Missing Parts Inspection Remark *
-            </label>
-            <textarea
-              rows={2}
-              value={defectRemark}
-              onChange={(e) => setDefectRemark(e.target.value)}
-              placeholder="e.g. The right side mirror is missing. Both rear lights are broken."
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              Attach Scanned Slip {isAttachmentReq ? '*' : <span className="text-slate-400 font-normal">(Optional)</span>}
-            </label>
-            <div className="flex items-center gap-2 p-2 rounded-xl border border-dashed border-slate-300 bg-white">
-              <Upload className="w-4 h-4 text-teal-700 shrink-0" />
-              <span className="text-[11px] text-slate-600 flex-1 truncate">
-                {attachmentFileName || 'No file chosen (Optional)'}
-              </span>
-              <label className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-[10px] font-semibold cursor-pointer">
-                Browse
-                <input type="file" onChange={handleSlipSelected} className="hidden" accept={SLIP_ACCEPT_ATTR} />
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-200">
-          <button
-            type="button"
-            onClick={handleReset}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl border border-slate-300 transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-            Reset Form
-          </button>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 font-semibold rounded-xl border border-slate-300 transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5 text-slate-500" />
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-6 py-2 bg-teal-700 hover:bg-teal-800 disabled:bg-slate-300 text-white font-bold rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer active:scale-95"
-            >
-              {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              Submit Model 21 Store Return
-            </button>
-          </div>
-        </div>
+        <FormFooter
+          accent="teal"
+          submitting={submitting}
+          submitLabel="Submit return for approval"
+          onCancel={onClose}
+          onReset={handleReset}
+        />
       </form>
     </Modal>
   );
