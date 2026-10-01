@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthUser, UserRole } from '../types/asset-management';
-import { api } from '../api/client';
+import { api, getErrorStatus } from '../api/client';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -12,6 +12,8 @@ interface AuthContextType {
   loginAsPersona: (role: UserRole) => Promise<void>;
   logout: () => void;
   hasRole: (...roles: UserRole[]) => boolean;
+  /** Why the user was signed out, shown on the login page */
+  sessionNotice: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
 
   // Validate active token on initial load
   useEffect(() => {
@@ -71,8 +74,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem(USER_KEY, JSON.stringify(normalized));
         }
       } catch (err) {
-        console.warn('Session verification failed, clearing auth:', err);
-        logout();
+        // Only a rejected session signs the user out; an outage keeps them signed in to retry later
+        const status = getErrorStatus(err);
+        if (status === 401 || status === 404) {
+          console.warn('Session no longer valid, clearing auth:', err);
+          logout();
+          setSessionNotice('Your session has ended. Please sign in again.');
+        } else {
+          console.warn('Could not verify the session; keeping the saved sign-in:', err);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -81,38 +91,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     verifySession();
   }, []);
 
+  // Signing in doesn't touch isLoading: that would swap the login page for the loading screen and lose its error message
   const login = async (usernameOrEmail: string, password?: string) => {
-    setIsLoading(true);
-    try {
-      const res = await api.login({ usernameOrEmail, password });
-      const normalizedUser = normalizeUser(res.user);
-      setUser(normalizedUser);
-      setToken(res.token);
-      localStorage.setItem(TOKEN_KEY, res.token);
-      if (normalizedUser) {
-        localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
-      }
-      localStorage.removeItem('moa_active_tab');
-    } finally {
-      setIsLoading(false);
+    const res = await api.login({ usernameOrEmail, password });
+    setSessionNotice(null);
+    const normalizedUser = normalizeUser(res.user);
+    setUser(normalizedUser);
+    setToken(res.token);
+    localStorage.setItem(TOKEN_KEY, res.token);
+    if (normalizedUser) {
+      localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
     }
+    localStorage.removeItem('moa_active_tab');
   };
 
   const loginAsPersona = async (role: UserRole) => {
-    setIsLoading(true);
-    try {
-      const res = await api.login({ usernameOrEmail: '', personaRole: role });
-      const normalizedUser = normalizeUser(res.user);
-      setUser(normalizedUser);
-      setToken(res.token);
-      localStorage.setItem(TOKEN_KEY, res.token);
-      if (normalizedUser) {
-        localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
-      }
-      localStorage.removeItem('moa_active_tab');
-    } finally {
-      setIsLoading(false);
+    const res = await api.login({ usernameOrEmail: '', personaRole: role });
+    setSessionNotice(null);
+    const normalizedUser = normalizeUser(res.user);
+    setUser(normalizedUser);
+    setToken(res.token);
+    localStorage.setItem(TOKEN_KEY, res.token);
+    if (normalizedUser) {
+      localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
     }
+    localStorage.removeItem('moa_active_tab');
   };
 
   const logout = () => {
@@ -139,6 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loginAsPersona,
     logout,
     hasRole,
+    sessionNotice,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

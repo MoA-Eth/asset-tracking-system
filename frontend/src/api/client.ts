@@ -26,6 +26,13 @@ const BASE_URL = '/api';
 // Generous enough for a 10 MB slip upload on a slow connection
 const REQUEST_TIMEOUT_MS = 30000;
 
+/** HTTP status of a failed AMS request, or undefined when the server could not be reached */
+export const getErrorStatus = (err: unknown): number | undefined => {
+  // Read the field rather than using instanceof: Vite can load this module twice in development
+  const status = (err as { status?: unknown } | null)?.status;
+  return typeof status === 'number' ? status : undefined;
+};
+
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
   const token = localStorage.getItem('moa_token');

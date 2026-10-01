@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { getErrorStatus } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import {
   Lock,
@@ -11,11 +12,13 @@ import {
 import { Button } from '../components/ui';
 
 export const LoginPage: React.FC = () => {
-  const { login, isLoading } = useAuth();
+  const { login, sessionNotice } = useAuth();
   const toast = useToast();
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+  // Starts with the reason the user was signed out, if any
+  const [errorMsg, setErrorMsg] = useState<string | null>(sessionNotice);
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,13 +29,19 @@ export const LoginPage: React.FC = () => {
       return;
     }
     setErrorMsg(null);
+    setSigningIn(true);
     try {
       await login(usernameOrEmail.trim(), password);
       toast.success('Welcome Back', 'Your credentials are verified. Logging in...');
     } catch (err: any) {
       const msg = err.message || 'Authentication failed. Please verify credentials.';
       setErrorMsg(msg);
-      toast.error('Authentication Failed', msg);
+      // Wrong email or password is the user's to fix; anything else is the system's
+      const status = getErrorStatus(err);
+      const isCredentialProblem = status !== undefined && status < 500;
+      toast.error(isCredentialProblem ? 'Sign-in Failed' : "Can't Sign In Right Now", msg);
+    } finally {
+      setSigningIn(false);
     }
   };
 
@@ -126,7 +135,7 @@ export const LoginPage: React.FC = () => {
               type="submit"
               variant="primary"
               size="lg"
-              isLoading={isLoading}
+              isLoading={signingIn}
               className="w-full bg-[#125835] hover:bg-[#186D42] text-white py-3 border border-amber-400/30 text-xs font-bold shadow-lg mt-2 cursor-pointer"
               rightIcon={<ArrowRight className="w-4 h-4" />}
             >
