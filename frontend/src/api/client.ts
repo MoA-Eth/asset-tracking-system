@@ -61,7 +61,9 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
       } catch {
         // A disconnected development proxy or gateway may return non-JSON errors
       }
-      throw new Error(errorMsg);
+      const error = new Error(errorMsg) as any;
+      error.status = response.status;
+      throw error;
     }
 
     let json: ApiResponse<T>;

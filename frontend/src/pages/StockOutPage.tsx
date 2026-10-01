@@ -719,6 +719,8 @@ interface StockOutTableProps {
   onPrintModel22?: (approval: TransactionApproval) => void;
   /** Only the Data Encoder can correct a request */
   canEdit: boolean;
+  /** Items with an open transfer or return request, which can't be returned again yet */
+  busyItemIds: Set<string>;
   onEdit: (approval: TransactionApproval) => void;
   highlightApprovalId?: string;
 }
@@ -732,6 +734,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
   onOpenReturn,
   onPrintModel22,
   canEdit,
+  busyItemIds,
   onEdit,
   highlightApprovalId,
 }) => {
@@ -957,7 +960,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                           <Printer className="w-3.5 h-3.5 text-blue-700" />
                           <span>Print M22</span>
                         </button>
-                        {approval.status === ApprovalStatus.APPROVED && (
+                        {approval.status === ApprovalStatus.APPROVED && !busyItemIds.has(approval.itemId) && (
                           <button
                             onClick={() => onOpenReturn(approval.itemCode)}
                             className="px-2 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 transition cursor-pointer font-bold text-[10px] flex items-center gap-1 border border-purple-300"
@@ -997,6 +1000,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
   const toast = useToast();
   const [availableItems, setAvailableItems] = useState<ItemWithRelations[]>([]);
   const [stockOutApprovals, setStockOutApprovals] = useState<TransactionApproval[]>([]);
+  const [busyItemIds, setBusyItemIds] = useState<Set<string>>(new Set());
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1119,6 +1123,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
       setDepartments(deps);
       setEmployees(emps);
       setStockOutApprovals(approvals.filter((a) => a.transactionType === 'STOCK_OUT'));
+      setBusyItemIds(new Set(approvals.filter((a) => a.status === ApprovalStatus.PENDING).map((a) => a.itemId)));
     } catch (err: any) {
       console.error('Failed to load stock-out data:', err);
       setError(err.message || 'Failed to load stock availability and approvals.');
@@ -1287,6 +1292,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
           onPrintModel22={handlePrintModel22}
           onOpenReturn={(code) => handleOpenReturnByCode(code)}
           canEdit={currentRole === UserRole.DATA_ENCODER}
+          busyItemIds={busyItemIds}
           onEdit={openEdit}
           highlightApprovalId={lastSubmitted?.id}
         />

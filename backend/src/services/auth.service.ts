@@ -1,5 +1,11 @@
 import { AuthUser, LoginRequest, AuthResponse, UserRole } from '../types/asset-management';
-import { UnauthorizedError, NotFoundError } from '../errors/app-error';
+import {
+  UnauthorizedError,
+  NotFoundError,
+  ServiceUnavailableError,
+  DATABASE_UNAVAILABLE_MESSAGE,
+  isDatabaseUnavailableError,
+} from '../errors/app-error';
 import { prisma } from '../lib/prisma';
 
 export class AuthService {
@@ -78,6 +84,8 @@ export class AuthService {
       return this.toAuthUser(employee);
     } catch (err: any) {
       if (err instanceof UnauthorizedError || err instanceof NotFoundError) throw err;
+      // A database outage is not a bad session; don't make the user think they were signed out
+      if (isDatabaseUnavailableError(err)) throw new ServiceUnavailableError(DATABASE_UNAVAILABLE_MESSAGE);
       throw new UnauthorizedError('Invalid or expired authentication token.');
     }
   }
