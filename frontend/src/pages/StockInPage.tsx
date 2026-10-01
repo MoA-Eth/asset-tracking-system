@@ -18,6 +18,7 @@ import {
   X,
   Printer,
   Pencil,
+  Lock,
   Trash2,
 } from 'lucide-react';
 import { api } from '../api/client';
@@ -78,8 +79,16 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   },
 };
 
-const StatusBadge: React.FC<{ status: ItemStatus }> = ({ status }) => {
-  const style = STATUS_STYLES[status] ?? { label: status, className: 'bg-slate-100 text-slate-700 border-slate-200' };
+/** Who the Stock-In request is waiting on, so two "pending" rows are told apart */
+const PENDING_STAGE_LABELS: Record<number, string> = {
+  1: 'Awaiting Team Leader',
+  2: 'Awaiting Dept. Head',
+};
+
+const StatusBadge: React.FC<{ status: ItemStatus; stage?: number }> = ({ status, stage }) => {
+  const base = STATUS_STYLES[status] ?? { label: status, className: 'bg-slate-100 text-slate-700 border-slate-200' };
+  const stageLabel = status === ItemStatus.PENDING_STOCK_IN && stage ? PENDING_STAGE_LABELS[stage] : undefined;
+  const style = stageLabel ? { ...base, label: stageLabel } : base;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${style.className}`}>
       {style.label}
@@ -730,8 +739,10 @@ interface ItemsTableProps {
   refreshing: boolean;
   onNavigate: (tab: string) => void;
   onPrintModel19: (item: ItemWithRelations) => void;
-  /** Items still waiting for Stage 1 endorsement, which the encoder may correct */
-  editableItemIds: Set<string>;
+  /** Approval stage (1 or 2) of each item with a pending Stock-In request */
+  pendingStages: Map<string, number>;
+  /** Only the Data Encoder can correct a registration */
+  canEdit: boolean;
   onEdit: (item: ItemWithRelations) => void;
   highlightItemId?: string;
 }
@@ -742,7 +753,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   refreshing,
   onNavigate,
   onPrintModel19,
-  editableItemIds,
+  pendingStages,
+  canEdit,
   onEdit,
   highlightItemId,
 }) => {
@@ -979,11 +991,11 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       {formatETB(item.unitCostETB)}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap w-28">
-                      <StatusBadge status={item.status} />
+                      <StatusBadge status={item.status} stage={pendingStages.get(item.id)} />
                     </td>
                     <td className="px-3 py-2.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
-                        {editableItemIds.has(item.id) && (
+                        {canEdit && pendingStages.get(item.id) === 1 && (
                           <button
                             onClick={() => onEdit(item)}
                             className="px-2 py-1 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-300 hover:border-emerald-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
@@ -991,6 +1003,17 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                             aria-label={`Edit ${item.itemCode}`}
                           >
                             <Pencil className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>Edit</span>
+                          </button>
+                        )}
+                        {canEdit && pendingStages.get(item.id) === 2 && (
+                          <button
+                            disabled
+                            className="px-2 py-1 bg-slate-50 text-slate-400 border border-slate-200 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 cursor-not-allowed"
+                            title="Locked: the Team Leader has already endorsed this registration. To correct it, ask an approver to reject it and register it again."
+                            aria-label={`Edit ${item.itemCode} (locked after Team Leader endorsement)`}
+                          >
+                            <Lock className="w-3.5 h-3.5" />
                             <span>Edit</span>
                           </button>
                         )}
@@ -1038,7 +1061,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
   const [lastRegistered, setLastRegistered] = useState<any | null>(null);
   // Registration being corrected (null = registering a new item)
   const [editItem, setEditItem] = useState<ItemWithRelations | null>(null);
-  const [editableItemIds, setEditableItemIds] = useState<Set<string>>(new Set());
+  const [pendingStages, setPendingStages] = useState<Map<string, number>>(new Map());
 
   const openRegister = () => {
     setEditItem(null);
@@ -1090,12 +1113,12 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
       setLocations(locs);
       setEmployees(emps);
       setItems(allItems);
-      // Only registrations still waiting for the Team Leader can be corrected
-      setEditableItemIds(
-        new Set(
+      // Stage 1 rows can still be corrected; Stage 2 rows are locked
+      setPendingStages(
+        new Map(
           approvals
-            .filter((a) => a.transactionType === 'STOCK_IN' && a.status === 'PENDING' && (a.currentStage ?? 1) === 1)
-            .map((a) => a.itemId)
+            .filter((a) => a.transactionType === 'STOCK_IN' && a.status === 'PENDING')
+            .map((a) => [a.itemId, a.currentStage ?? 1] as [string, number])
         )
       );
     } catch (err: any) {
@@ -1284,7 +1307,8 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
           refreshing={refreshing}
           onNavigate={onNavigate}
           onPrintModel19={handlePrintItem}
-          editableItemIds={editableItemIds}
+          pendingStages={pendingStages}
+          canEdit={currentRole === UserRole.DATA_ENCODER}
           onEdit={openEdit}
           highlightItemId={lastRegistered?.item?.id || lastRegistered?.item?.itemCode}
         />
