@@ -47,8 +47,8 @@ const ALLOWED_TABS_FOR_ROLE: Record<string, string[]> = {
   [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', ...SETTINGS_TABS],
   [UserRole.TEAM_LEADER]: ['approvals', 'reports', 'audit'],
   [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', ...SETTINGS_TABS],
-  [UserRole.MANAGER]: ['dashboard'],
-  'TOP_MANAGEMENT': ['dashboard'],
+  [UserRole.MANAGER]: ['dashboard', 'reports'],
+  'TOP_MANAGEMENT': ['dashboard', 'reports'],
 };
 
 const AuthenticatedPortal: React.FC = () => {

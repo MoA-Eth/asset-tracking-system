@@ -25,7 +25,7 @@ const ALLOWED_TABS_FOR_ROLE: Record<UserRole, string[]> = {
   [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', ...SETTINGS_TABS],
   [UserRole.TEAM_LEADER]: ['approvals', 'reports', 'audit'],
   [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', ...SETTINGS_TABS],
-  [UserRole.MANAGER]: ['dashboard'],
+  [UserRole.MANAGER]: ['dashboard', 'reports'],
 };
 
 export const getValidTabForRole = (currentRole: UserRole, candidateTab?: string | null): string => {
@@ -77,9 +77,12 @@ describe('Role-Based Access Control & Segregation of Duties (SOD)', () => {
       expect(allowed).toContain('approvals');
     });
 
-    it('MANAGER is strictly restricted to dashboard read-only analytics', () => {
+    it('MANAGER is restricted to read-only dashboard and reports', () => {
       const allowed = ALLOWED_TABS_FOR_ROLE[UserRole.MANAGER];
-      expect(allowed).toEqual(['dashboard']);
+      expect(allowed).toEqual(['dashboard', 'reports']);
+      expect(getValidTabForRole(UserRole.MANAGER, 'reports')).toBe('reports');
+      expect(getValidTabForRole(UserRole.MANAGER, 'audit')).toBe('dashboard');
+      expect(getValidTabForRole(UserRole.MANAGER, 'approvals')).toBe('dashboard');
       expect(getValidTabForRole(UserRole.MANAGER, 'settings-users')).toBe('dashboard');
     });
 
