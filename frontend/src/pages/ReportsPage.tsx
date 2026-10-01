@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { table, statusTone } from '../components/ui/theme';
 import {
   ItemWithRelations,
   Department,
@@ -419,7 +420,7 @@ export const ReportsPage: React.FC = () => {
       doc.text('FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA', 24, 18);
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text('MINISTRY OF AGRICULTURE (MoA) • FIXED ASSET MANAGEMENT SYSTEM', 24, 32);
+      doc.text('MINISTRY OF AGRICULTURE (MoA) • FIXED ASSET TRACKING SYSTEM', 24, 32);
 
       doc.setFontSize(8);
       doc.text(`Generated: ${dateInfo.gc} (G.C.) / ${dateInfo.ecFormattedAm}`, pw - 24, 25, { align: 'right' });
@@ -787,7 +788,7 @@ export const ReportsPage: React.FC = () => {
         {/* Data Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs min-w-[1140px]">
-            <thead className="bg-slate-50 text-slate-700 uppercase font-bold text-[10px] border-b border-slate-200">
+            <thead className={table.headRow}>
               <tr>
                 <th className="py-2.5 px-3 w-10 text-center shrink-0">#</th>
                 <th className="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap">Tracking Code</th>
@@ -825,7 +826,7 @@ export const ReportsPage: React.FC = () => {
                       <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px] w-10 shrink-0">
                         {idx + 1}
                       </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-800 whitespace-nowrap w-32 shrink-0">
+                      <td className={`py-2.5 px-3 ${table.code} whitespace-nowrap w-32 shrink-0`}>
                         {item.itemCode}
                       </td>
                       <td className="py-2.5 px-3 min-w-[180px] max-w-[260px]">
@@ -848,12 +849,12 @@ export const ReportsPage: React.FC = () => {
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
                             isPartly
-                              ? 'bg-sky-50 text-sky-800 border-sky-200'
+                              ? statusTone.partly
                               : isAvailable
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              ? statusTone.inStore
                               : isIssued
-                              ? 'bg-blue-50 text-blue-800 border-blue-200'
-                              : 'bg-amber-50 text-amber-800 border-amber-200'
+                              ? statusTone.issued
+                              : statusTone.pending
                           }`}
                         >
                           {statusLabel(item)}

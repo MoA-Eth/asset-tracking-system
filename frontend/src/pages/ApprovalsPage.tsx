@@ -30,6 +30,7 @@ import {
   ArrowRightLeft,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { table } from '../components/ui/theme';
 import {
   ApprovalStatus,
   TransactionApproval,
@@ -651,7 +652,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs min-w-[940px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                <tr className={table.headRow}>
                   {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
                     <th className="py-3 px-3 w-10 text-center shrink-0">
                       <input

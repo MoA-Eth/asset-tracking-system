@@ -1,7 +1,7 @@
 {
   "name": "moa-ams-workspace",
   "version": "1.0.0",
-  "description": "Ethiopian Ministry of Agriculture - Fixed Asset Management System (MoA-AMS) Mobile-First PWA & Express API",
+  "description": "Ethiopian Ministry of Agriculture - Fixed Asset Tracking System (MoA-AMS) Mobile-First PWA & Express API",
   "private": true,
   "scripts": {
     "dev": "concurrently -k -p \"[{name}]\" -n \"BACKEND,FRONTEND\" -c \"blue,green\" \"npm run dev:backend\" \"npm run dev:frontend\"",

@@ -7,7 +7,8 @@ import { AlertCircle, ChevronDown, CheckCircle2, LucideIcon, Paperclip, RefreshC
  * Class strings are spelled out in full so Tailwind can see them.
  */
 
-export type FormAccent = 'emerald' | 'blue' | 'amber' | 'teal';
+/** Forms use the brand green only; status colors live in theme.ts */
+export type FormAccent = 'emerald';
 
 const ACCENT = {
   emerald: {
@@ -17,30 +18,6 @@ const ACCENT = {
     button: 'bg-emerald-700 hover:bg-emerald-800 focus-visible:ring-emerald-500/40',
     dropHover: 'hover:border-emerald-400 hover:bg-emerald-50/40',
     total: 'bg-emerald-50 border-emerald-200 text-emerald-900',
-  },
-  blue: {
-    step: 'bg-blue-600 text-white',
-    icon: 'text-blue-700',
-    focus: 'focus:border-blue-600 focus:ring-blue-500/30',
-    button: 'bg-blue-700 hover:bg-blue-800 focus-visible:ring-blue-500/40',
-    dropHover: 'hover:border-blue-400 hover:bg-blue-50/40',
-    total: 'bg-blue-50 border-blue-200 text-blue-900',
-  },
-  amber: {
-    step: 'bg-amber-500 text-white',
-    icon: 'text-amber-600',
-    focus: 'focus:border-amber-500 focus:ring-amber-500/30',
-    button: 'bg-amber-600 hover:bg-amber-700 focus-visible:ring-amber-500/40',
-    dropHover: 'hover:border-amber-400 hover:bg-amber-50/40',
-    total: 'bg-amber-50 border-amber-200 text-amber-900',
-  },
-  teal: {
-    step: 'bg-teal-600 text-white',
-    icon: 'text-teal-700',
-    focus: 'focus:border-teal-600 focus:ring-teal-500/30',
-    button: 'bg-teal-700 hover:bg-teal-800 focus-visible:ring-teal-500/40',
-    dropHover: 'hover:border-teal-400 hover:bg-teal-50/40',
-    total: 'bg-teal-50 border-teal-200 text-teal-900',
   },
 } as const;
 
