@@ -32,5 +32,8 @@
     "gofamm"
   ],
   "author": "Ministry of Agriculture, Ethiopia",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^7.10.0"
+  }
 }

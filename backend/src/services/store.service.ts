@@ -26,7 +26,10 @@ import {
 } from '../types/asset-management';
 import { prisma } from '../lib/prisma';
 import { getTodayGcAndEc, formatGcToEc } from '../utils/eth-date';
-import { BadRequestError, ConflictError, NotFoundError } from '../errors/app-error';
+import { BadRequestError, ConflictError, NotFoundError, ForbiddenError } from '../errors/app-error';
+
+import { assignEmployeeRole } from './roles.service';
+import { hasPermission } from '../security/role-policy';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1345,6 +1348,13 @@ export class StoreService {
 
     const today = getTodayGcAndEc();
     const reviewer = payload.reviewedById ? await prisma.employee.findUnique({ where: { id: payload.reviewedById } }) : null;
+    if (!['ENDORSE', 'APPROVE', 'REJECT'].includes(payload.action)) throw new BadRequestError('Invalid approval action.');
+    const permission = approval.currentStage === 1 ? 'approvals.endorse' : 'approvals.authorize';
+    if (!hasPermission(reviewer?.role, permission)) throw new ForbiddenError('Your role cannot review this approval stage.');
+    if ((payload.action === 'ENDORSE' && approval.currentStage !== 1) ||
+        (payload.action === 'APPROVE' && approval.currentStage !== 2)) {
+      throw new BadRequestError('This action does not match the current approval stage.');
+    }
     const reviewerName = reviewer ? `${reviewer.fullNameEn} (${reviewer.role})` : 'Reviewer';
 
     // ── STAGE 1 ACTION: ENDORSE (Team Leader) ──────────────────────────────
@@ -1775,21 +1785,7 @@ export class StoreService {
   }
 
   public async updateEmployeeRole(id: string, role: UserRole, actorId?: string): Promise<Employee> {
-    const prev = await prisma.employee.findUnique({ where: { id } });
-    const updated = await prisma.employee.update({
-      where: { id },
-      data: { role: role as any },
-    });
-    if (actorId) {
-      await addAuditLog(
-        actorId,
-        'UPDATE_STAFF_ROLE',
-        'APPROVAL',
-        id,
-        `Role for ${prev?.fullNameEn || id} updated from ${prev?.role || 'N/A'} to ${role}`
-      );
-    }
-    return mapEmployee(updated);
+    return mapEmployee(await assignEmployeeRole(id, role, actorId));
   }
 
   // ── Executive Dashboard ─────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { AuthService } from '../services/auth.service';
 import { UnauthorizedError, ForbiddenError } from '../errors/app-error';
 import { UserRole, AuthUser } from '../types/asset-management';
 import { asyncHandler } from './async-handler';
+import { hasPermission, Permission } from '../security/role-policy';
 
 declare global {
   namespace Express {
@@ -13,6 +14,16 @@ declare global {
 }
 
 const authService = AuthService.getInstance();
+
+export const requirePermission = (...permissions: Permission[]) => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    if (!req.user) throw new UnauthorizedError('Authentication is required.');
+    if (!permissions.some((permission) => hasPermission(req.user!.role, permission))) {
+      throw new ForbiddenError('Your role does not permit this action.');
+    }
+    next();
+  };
+};
 
 export const optionalAuth = asyncHandler(async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   const authHeader = req.headers.authorization;

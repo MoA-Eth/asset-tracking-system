@@ -1,6 +1,6 @@
 import express, { Router, Request, Response, NextFunction } from 'express';
 import { UploadController } from '../controllers/upload.controller';
-import { requireAuth, requireRole } from '../middleware/auth.middleware';
+import { requireAuth, requirePermission } from '../middleware/auth.middleware';
 import { UserRole } from '../types/asset-management';
 import { MAX_SLIP_BYTES } from '../lib/uploads';
 import { AppError } from '../errors/app-error';
@@ -12,7 +12,7 @@ const controller = new UploadController();
 router.post(
   '/slips',
   requireAuth,
-  requireRole(UserRole.DATA_ENCODER),
+  requirePermission('slips.upload'),
   express.raw({ type: () => true, limit: MAX_SLIP_BYTES }),
   controller.uploadSlip
 );

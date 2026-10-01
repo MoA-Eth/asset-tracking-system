@@ -1,8 +1,10 @@
+import { hashPassword } from '../src/security/credentials';
 import { PrismaClient, UserRole, AssetCategory, ItemStatus, TransactionType, ApprovalStatus, AuditEntityType } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  const seedPassword = await hashPassword('moaams2024');
   console.log('🌱 Seeding MoA-AMS database...');
 
   // ── Departments ───────────────────────────────────────────────────────────
@@ -60,8 +62,8 @@ async function main() {
     // System Administrator (SYSTEM_ADMIN)
     prisma.employee.upsert({
       where: { id: 'EMP-ADMIN-01' },
-      update: { role: UserRole.SYSTEM_ADMIN, email: 'sysadmin@moa.gov.et', password: 'moaams2024' },
-      create: { id: 'EMP-ADMIN-01', payrollId: 'MOA/ADMIN-001', fullNameEn: 'System Administrator', fullNameAm: 'ሲስተም አድሚኒስትሬተር', departmentId: 'DEP-04', email: 'sysadmin@moa.gov.et', phone: '+251911000000', role: UserRole.SYSTEM_ADMIN, password: 'moaams2024' },
+      update: { role: UserRole.SYSTEM_ADMIN, email: 'sysadmin@moa.gov.et', password: seedPassword },
+      create: { id: 'EMP-ADMIN-01', payrollId: 'MOA/ADMIN-001', fullNameEn: 'System Administrator', fullNameAm: 'ሲስተም አድሚኒስትሬተር', departmentId: 'DEP-04', email: 'sysadmin@moa.gov.et', phone: '+251911000000', role: UserRole.SYSTEM_ADMIN, password: seedPassword },
     }),
     // General Manager (MANAGER)
     prisma.employee.upsert({
@@ -72,7 +74,7 @@ async function main() {
         fullNameAm: 'ሥራ አስኪያጅ',
         email: 'manager@moa.gov.et',
         role: UserRole.MANAGER,
-        password: 'moaams2024',
+        password: seedPassword,
       },
       create: {
         id: 'EMP-MIN-01',
@@ -83,67 +85,67 @@ async function main() {
         email: 'manager@moa.gov.et',
         phone: '+251911000001',
         role: UserRole.MANAGER,
-        password: 'moaams2024',
+        password: seedPassword,
       },
     }),
     // Team Leaders (TEAM_LEADER / Stage 1 Endorser)
     prisma.employee.upsert({
       where: { id: 'EMP-TL-00' },
-      update: { role: UserRole.TEAM_LEADER, email: 'teamleader@moa.gov.et', password: 'moaams2024' },
-      create: { id: 'EMP-TL-00', payrollId: 'MOA/TL-000', fullNameEn: 'Team Leader (Stage 1 Endorser)', fullNameAm: 'የቡድን መሪ', departmentId: 'DEP-03', email: 'teamleader@moa.gov.et', phone: '+251921000000', role: UserRole.TEAM_LEADER, password: 'moaams2024' },
+      update: { role: UserRole.TEAM_LEADER, email: 'teamleader@moa.gov.et', password: seedPassword },
+      create: { id: 'EMP-TL-00', payrollId: 'MOA/TL-000', fullNameEn: 'Team Leader (Stage 1 Endorser)', fullNameAm: 'የቡድን መሪ', departmentId: 'DEP-03', email: 'teamleader@moa.gov.et', phone: '+251921000000', role: UserRole.TEAM_LEADER, password: seedPassword },
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-TL-01' },
-      update: { role: UserRole.TEAM_LEADER, password: 'moaams2024' },
-      create: { id: 'EMP-TL-01', payrollId: 'MOA/TL-005', fullNameEn: 'Mulugeta Berhanu (Property Team Leader)', fullNameAm: 'ሙሉጌታ ብርሃኑ (የቡድን መሪ)', departmentId: 'DEP-03', email: 'mulugeta.b@moa.gov.et', phone: '+251921112233', role: UserRole.TEAM_LEADER, password: 'moaams2024' },
+      update: { role: UserRole.TEAM_LEADER, password: seedPassword },
+      create: { id: 'EMP-TL-01', payrollId: 'MOA/TL-005', fullNameEn: 'Mulugeta Berhanu (Property Team Leader)', fullNameAm: 'ሙሉጌታ ብርሃኑ (የቡድን መሪ)', departmentId: 'DEP-03', email: 'mulugeta.b@moa.gov.et', phone: '+251921112233', role: UserRole.TEAM_LEADER, password: seedPassword },
     }),
     // Department Heads (DEPARTMENT_HEAD / Approver)
     prisma.employee.upsert({
       where: { id: 'EMP-HEAD-00' },
-      update: { email: 'depthead@moa.gov.et', password: 'moaams2024' },
-      create: { id: 'EMP-HEAD-00', payrollId: 'MOA/DIR-000', fullNameEn: 'Department Head (Approver)', fullNameAm: 'የዳይሬክቶሬት ኃላፊ', departmentId: 'DEP-03', email: 'depthead@moa.gov.et', phone: '+251922000000', role: UserRole.DEPARTMENT_HEAD, password: 'moaams2024' },
+      update: { email: 'depthead@moa.gov.et', password: seedPassword },
+      create: { id: 'EMP-HEAD-00', payrollId: 'MOA/DIR-000', fullNameEn: 'Department Head (Approver)', fullNameAm: 'የዳይሬክቶሬት ኃላፊ', departmentId: 'DEP-03', email: 'depthead@moa.gov.et', phone: '+251922000000', role: UserRole.DEPARTMENT_HEAD, password: seedPassword },
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-HEAD-01' },
-      update: { password: 'moaams2024' },
-      create: { id: 'EMP-HEAD-01', payrollId: 'MOA/DIR-012', fullNameEn: 'Tigist Haile (Extension Director)', fullNameAm: 'ትዕግስት ኃይሌ (ዳይሬክተር)', departmentId: 'DEP-01', email: 'tigist.h@moa.gov.et', phone: '+251922334455', role: UserRole.DEPARTMENT_HEAD, password: 'moaams2024' },
+      update: { password: seedPassword },
+      create: { id: 'EMP-HEAD-01', payrollId: 'MOA/DIR-012', fullNameEn: 'Tigist Haile (Extension Director)', fullNameAm: 'ትዕግስት ኃይሌ (ዳይሬክተር)', departmentId: 'DEP-01', email: 'tigist.h@moa.gov.et', phone: '+251922334455', role: UserRole.DEPARTMENT_HEAD, password: seedPassword },
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-HEAD-03' },
-      update: { fullNameEn: 'Kassahun Tolosa (Property Director)', fullNameAm: 'ካሳሁን ቶሎሳ (የንብረት ዳይሬክተር)', email: 'kassahun.t@moa.gov.et', password: 'moaams2024' },
-      create: { id: 'EMP-HEAD-03', payrollId: 'MOA/DIR-008', fullNameEn: 'Kassahun Tolosa (Property Director)', fullNameAm: 'ካሳሁን ቶሎሳ (የንብረት ዳይሬክተር)', departmentId: 'DEP-03', email: 'kassahun.t@moa.gov.et', phone: '+251933445566', role: UserRole.DEPARTMENT_HEAD, password: 'moaams2024' },
+      update: { fullNameEn: 'Kassahun Tolosa (Property Director)', fullNameAm: 'ካሳሁን ቶሎሳ (የንብረት ዳይሬክተር)', email: 'kassahun.t@moa.gov.et', password: seedPassword },
+      create: { id: 'EMP-HEAD-03', payrollId: 'MOA/DIR-008', fullNameEn: 'Kassahun Tolosa (Property Director)', fullNameAm: 'ካሳሁን ቶሎሳ (የንብረት ዳይሬክተር)', departmentId: 'DEP-03', email: 'kassahun.t@moa.gov.et', phone: '+251933445566', role: UserRole.DEPARTMENT_HEAD, password: seedPassword },
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-HEAD-04' },
-      update: { password: 'moaams2024' },
-      create: { id: 'EMP-HEAD-04', payrollId: 'MOA/DIR-019', fullNameEn: 'Selamawit Bekele (ICT Director)', fullNameAm: 'ሰላማዊት በቀለ (ICT ዳይሬክተር)', departmentId: 'DEP-04', email: 'selamawit.b@moa.gov.et', phone: '+251944556677', role: UserRole.DEPARTMENT_HEAD, password: 'moaams2024' },
+      update: { password: seedPassword },
+      create: { id: 'EMP-HEAD-04', payrollId: 'MOA/DIR-019', fullNameEn: 'Selamawit Bekele (ICT Director)', fullNameAm: 'ሰላማዊት በቀለ (ICT ዳይሬክተር)', departmentId: 'DEP-04', email: 'selamawit.b@moa.gov.et', phone: '+251944556677', role: UserRole.DEPARTMENT_HEAD, password: seedPassword },
     }),
     // Data Encoders / Store Custodians (DATA_ENCODER)
     prisma.employee.upsert({
       where: { id: 'EMP-ENC-00' },
-      update: { password: 'moaams2024' },
-      create: { id: 'EMP-ENC-00', payrollId: 'MOA/STR-000', fullNameEn: 'Store Encoder (Data Encoder)', fullNameAm: 'የመጋዘን ዳታ ኢንኮደር', departmentId: 'DEP-03', email: 'encoder@moa.gov.et', phone: '+251955000000', role: UserRole.DATA_ENCODER, password: 'moaams2024' },
+      update: { password: seedPassword },
+      create: { id: 'EMP-ENC-00', payrollId: 'MOA/STR-000', fullNameEn: 'Store Encoder (Data Encoder)', fullNameAm: 'የመጋዘን ዳታ ኢንኮደር', departmentId: 'DEP-03', email: 'encoder@moa.gov.et', phone: '+251955000000', role: UserRole.DATA_ENCODER, password: seedPassword },
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-ENC-01' },
-      update: { fullNameEn: 'Bikila Desta (Store Custodian)', fullNameAm: 'ቢኪላ ደስታ (የመጋዘን ሃላፊ)', email: 'bikila.d@moa.gov.et', password: 'moaams2024' },
-      create: { id: 'EMP-ENC-01', payrollId: 'MOA/STR-045', fullNameEn: 'Bikila Desta (Store Custodian)', fullNameAm: 'ቢኪላ ደስታ (የመጋዘን ሃላፊ)', departmentId: 'DEP-03', email: 'bikila.d@moa.gov.et', phone: '+251955667788', role: UserRole.DATA_ENCODER, password: 'moaams2024' },
+      update: { fullNameEn: 'Bikila Desta (Store Custodian)', fullNameAm: 'ቢኪላ ደስታ (የመጋዘን ሃላፊ)', email: 'bikila.d@moa.gov.et', password: seedPassword },
+      create: { id: 'EMP-ENC-01', payrollId: 'MOA/STR-045', fullNameEn: 'Bikila Desta (Store Custodian)', fullNameAm: 'ቢኪላ ደስታ (የመጋዘን ሃላፊ)', departmentId: 'DEP-03', email: 'bikila.d@moa.gov.et', phone: '+251955667788', role: UserRole.DATA_ENCODER, password: seedPassword },
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-ENC-02' },
-      update: { password: 'moaams2024' },
-      create: { id: 'EMP-ENC-02', payrollId: 'MOA/STR-046', fullNameEn: 'Meron Alemu (Store Officer)', fullNameAm: 'ሜሮን አለሙ (የመጋዘን ሹም)', departmentId: 'DEP-03', email: 'meron.a@moa.gov.et', phone: '+251966778899', role: UserRole.DATA_ENCODER, password: 'moaams2024' },
+      update: { password: seedPassword },
+      create: { id: 'EMP-ENC-02', payrollId: 'MOA/STR-046', fullNameEn: 'Meron Alemu (Store Officer)', fullNameAm: 'ሜሮን አለሙ (የመጋዘን ሹም)', departmentId: 'DEP-03', email: 'meron.a@moa.gov.et', phone: '+251966778899', role: UserRole.DATA_ENCODER, password: seedPassword },
     }),
     // Regular staff (recipients)
     prisma.employee.upsert({
       where: { id: 'EMP-STAFF-01' },
-      update: { password: 'moaams2024' },
-      create: { id: 'EMP-STAFF-01', payrollId: 'MOA/EXT-078', fullNameEn: 'Kebede Alemu (Field Officer)', fullNameAm: 'ከበደ አለሙ (የሜዳ ሹም)', departmentId: 'DEP-01', email: 'kebede.a@moa.gov.et', phone: '+251977889900', role: UserRole.DATA_ENCODER, password: 'moaams2024' },
+      update: { password: seedPassword },
+      create: { id: 'EMP-STAFF-01', payrollId: 'MOA/EXT-078', fullNameEn: 'Kebede Alemu (Field Officer)', fullNameAm: 'ከበደ አለሙ (የሜዳ ሹም)', departmentId: 'DEP-01', email: 'kebede.a@moa.gov.et', phone: '+251977889900', role: UserRole.DATA_ENCODER, password: seedPassword },
     }),
     prisma.employee.upsert({
       where: { id: 'EMP-STAFF-02' },
-      update: { password: 'moaams2024' },
-      create: { id: 'EMP-STAFF-02', payrollId: 'MOA/ICT-023', fullNameEn: 'Hiwot Tesfaye (Systems Analyst)', fullNameAm: 'ህይወት ተስፋዬ (የስርዓት ተንታኝ)', departmentId: 'DEP-04', email: 'hiwot.t@moa.gov.et', phone: '+251988990011', role: UserRole.DATA_ENCODER, password: 'moaams2024' },
+      update: { password: seedPassword },
+      create: { id: 'EMP-STAFF-02', payrollId: 'MOA/ICT-023', fullNameEn: 'Hiwot Tesfaye (Systems Analyst)', fullNameAm: 'ህይወት ተስፋዬ (የስርዓት ተንታኝ)', departmentId: 'DEP-04', email: 'hiwot.t@moa.gov.et', phone: '+251988990011', role: UserRole.DATA_ENCODER, password: seedPassword },
     }),
   ]);
   console.log(`  ✅ ${employees.length} employees seeded`);

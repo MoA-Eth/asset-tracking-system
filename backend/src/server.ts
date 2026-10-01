@@ -5,6 +5,7 @@ import itemRoutes from './routes/item.routes';
 import referenceRoutes from './routes/reference.routes';
 import authRoutes from './routes/auth.routes';
 import uploadRoutes from './routes/upload.routes';
+import rolesRoutes from './routes/roles.routes';
 import { SLIP_PUBLIC_PATH, SLIP_UPLOAD_DIR } from './lib/uploads';
 import { errorHandler } from './middleware/error-handler';
 import { sendError } from './utils/api-response';
@@ -82,6 +83,7 @@ app.use(
 
 // Primary API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/roles', rolesRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/reference', referenceRoutes);
 app.use('/api/uploads', uploadRoutes);

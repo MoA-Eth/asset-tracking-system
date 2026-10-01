@@ -16,7 +16,14 @@ import {
 } from '../types/asset-management';
 import { asyncHandler } from '../middleware/async-handler';
 import { sendSuccess } from '../utils/api-response';
-import { BadRequestError, NotFoundError, ForbiddenError } from '../errors/app-error';
+import { BadRequestError, NotFoundError, ForbiddenError, UnauthorizedError } from '../errors/app-error';
+
+import { hasPermission, Permission } from '../security/role-policy';
+
+function assertPermission(req: Request, permission: Permission) {
+  if (!req.user) throw new UnauthorizedError('Authentication is required.');
+  if (!hasPermission(req.user.role, permission)) throw new ForbiddenError('Your role does not permit this action.');
+}
 
 export class ItemController {
   private store = StoreService.getInstance();
@@ -64,9 +71,7 @@ export class ItemController {
    * Scenario 2.1: Inbound goods registration mirrored from IFMIS Model 19.
    */
   public registerStockIn = asyncHandler(async (req: Request, res: Response) => {
-    if (req.user && req.user.role === UserRole.SYSTEM_ADMIN) {
-      throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
-    }
+    assertPermission(req, 'stock-in.write');
     const payload: CreateStockInRequest = req.body;
     // Authenticated user identity strictly claims the registration activity
     if (req.user) {
@@ -106,9 +111,7 @@ export class ItemController {
    * Scenario 2.2: Outbound store issue mirrored from IFMIS Model 20/22.
    */
   public registerStockOut = asyncHandler(async (req: Request, res: Response) => {
-    if (req.user && req.user.role === UserRole.SYSTEM_ADMIN) {
-      throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
-    }
+    assertPermission(req, 'stock-out.write');
     const payload: CreateStockOutRequest = req.body;
     // Authenticated user identity strictly claims the requisition activity
     if (req.user) {
@@ -140,9 +143,7 @@ export class ItemController {
    * Scenario 2.3: Model 22 Return Slip (Issued item returned to central store).
    */
   public registerReturn = asyncHandler(async (req: Request, res: Response) => {
-    if (req.user && req.user.role === UserRole.SYSTEM_ADMIN) {
-      throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
-    }
+    assertPermission(req, 'transfers.write');
     const payload = req.body;
     // Authenticated user identity strictly claims the return activity
     if (req.user) {
@@ -185,9 +186,7 @@ export class ItemController {
    * Reassignment / transfer between custodians or physical store depots.
    */
   public transferItem = asyncHandler(async (req: Request, res: Response) => {
-    if (req.user && req.user.role === UserRole.SYSTEM_ADMIN) {
-      throw new ForbiddenError('System Administrators are restricted from operational store transactions under Segregation of Duties.');
-    }
+    assertPermission(req, 'transfers.write');
     const payload: CreateTransferRequest = req.body;
     // Authenticated user identity strictly claims the transfer activity
     if (req.user) {
@@ -220,42 +219,14 @@ export class ItemController {
   public handleApproval = asyncHandler(async (req: Request, res: Response) => {
     const payload: ApprovalActionRequest = req.body;
     
-    // Auto-populate reviewing officer if authenticated
-    if (req.user) {
-      if (req.user.role === UserRole.SYSTEM_ADMIN) {
-        throw new ForbiddenError('System Administrators are restricted from signing off approval workflows to maintain Segregation of Duties.');
-      }
-      if (req.user.role === UserRole.DATA_ENCODER) {
-        throw new ForbiddenError('Data Encoders are restricted from signing off approval workflows under Segregation of Duties.');
-      }
-      // Review action is strictly claimed by the authenticated officer
-      payload.reviewedById = req.user.id;
-
-      // Enforce role clearance based on 2-stage approval action
-      if (payload.action === 'ENDORSE') {
-        if (
-          req.user.role !== UserRole.TEAM_LEADER &&
-          req.user.role !== UserRole.DEPARTMENT_HEAD
-        ) {
-          throw new ForbiddenError('Only Team Leaders can endorse Stage 1 requests.');
-        }
-      } else if (payload.action === 'APPROVE') {
-        if (
-          req.user.role !== UserRole.DEPARTMENT_HEAD &&
-          req.user.role !== UserRole.MANAGER
-        ) {
-          throw new ForbiddenError('Only Department Heads or General Managers can grant Stage 2 final approval.');
-        }
-      } else if (payload.action === 'REJECT') {
-        if (
-          req.user.role !== UserRole.TEAM_LEADER &&
-          req.user.role !== UserRole.DEPARTMENT_HEAD &&
-          req.user.role !== UserRole.MANAGER
-        ) {
-          throw new ForbiddenError('You do not have authorization to reject this approval workflow.');
-        }
-      }
+    if (!['ENDORSE', 'APPROVE', 'REJECT'].includes(payload.action)) throw new BadRequestError('Invalid approval action.');
+    if (!req.user) throw new UnauthorizedError('Authentication is required.');
+    if (payload.action === 'ENDORSE') assertPermission(req, 'approvals.endorse');
+    else if (payload.action === 'APPROVE') assertPermission(req, 'approvals.authorize');
+    else if (!hasPermission(req.user.role, 'approvals.endorse') && !hasPermission(req.user.role, 'approvals.authorize')) {
+      throw new ForbiddenError('Your role cannot reject requests.');
     }
+    payload.reviewedById = req.user.id;
 
     if (!payload.approvalId || !payload.action || !payload.reviewedById) {
       throw new BadRequestError('Approval ID, Action, and Reviewing Officer are required.');

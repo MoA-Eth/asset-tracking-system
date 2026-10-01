@@ -1066,6 +1066,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
 
 export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavigate, mode = 'stock-out' }) => {
   const { user } = useAuth();
+  const canWrite = user?.permissions?.includes('stock-out.write') ?? (currentRole === UserRole.DATA_ENCODER);
   const toast = useToast();
   const [availableItems, setAvailableItems] = useState<ItemWithRelations[]>([]);
   const [allItems, setAllItems] = useState<ItemWithRelations[]>([]);
@@ -1281,14 +1282,16 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
           <span className="font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 text-xs whitespace-nowrap shrink-0 hidden sm:inline-block">
             {availableItems.length} Available in Store
           </span>
-          <button
-            onClick={openIssue}
-            disabled={availableItems.length === 0}
-            className={btn.primary}
-          >
-            <Plus className="w-4 h-4" />
-            {headerConfig.buttonLabel}
-          </button>
+          {canWrite && (
+            <button
+              onClick={openIssue}
+              disabled={availableItems.length === 0}
+              className={btn.primary}
+            >
+              <Plus className="w-4 h-4" />
+              {headerConfig.buttonLabel}
+            </button>
+          )}
         </div>
       </div>
 
@@ -1362,7 +1365,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
           onOpenVoucher={(appr) => setSelectedVoucherApproval(appr)}
           onPrintModel22={handlePrintModel22}
           onOpenReturn={(code) => handleOpenReturnByCode(code)}
-          canEdit={currentRole === UserRole.DATA_ENCODER}
+          canEdit={canWrite}
           items={allItems}
           busyItemIds={busyItemIds}
           onEdit={openEdit}

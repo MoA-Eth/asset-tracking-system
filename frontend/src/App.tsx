@@ -23,80 +23,51 @@ import { ToastProvider } from './context/ToastContext';
 import { UserRole } from './types/asset-management';
 import { api } from './api/client';
 
-const SETTINGS_TABS = [
-  'settings-users',
-  'settings-roles',
-  'settings-employees',
-  'settings-departments',
-  'settings-locations',
-  'settings-stores',
-  'settings-system',
-];
-
-const DEFAULT_TAB_FOR_ROLE: Record<string, string> = {
-  [UserRole.SYSTEM_ADMIN]: 'dashboard',
-  [UserRole.DATA_ENCODER]: 'stock-in',
-  [UserRole.TEAM_LEADER]: 'approvals',
-  [UserRole.DEPARTMENT_HEAD]: 'approvals',
-  [UserRole.MANAGER]: 'dashboard',
-  'TOP_MANAGEMENT': 'dashboard',
-};
-
-const ALLOWED_TABS_FOR_ROLE: Record<string, string[]> = {
-  [UserRole.SYSTEM_ADMIN]: ['dashboard', 'reports', 'audit', ...SETTINGS_TABS],
-  [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', ...SETTINGS_TABS],
-  [UserRole.TEAM_LEADER]: ['approvals', 'reports', 'audit'],
-  [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', ...SETTINGS_TABS],
-  [UserRole.MANAGER]: ['dashboard', 'reports'],
-  'TOP_MANAGEMENT': ['dashboard', 'reports'],
-};
+import { getValidTab, getSettingsGroups } from './components/layout/navigation';
 
 const AuthenticatedPortal: React.FC = () => {
   const { user, role, isAuthenticated, isLoading } = useAuth();
 
-  const getValidTabForRole = (currentRole: UserRole, candidateTab?: string | null): string => {
-    const allowed = ALLOWED_TABS_FOR_ROLE[currentRole] || [];
-    if (candidateTab && allowed.includes(candidateTab)) {
-      return candidateTab;
-    }
-    return DEFAULT_TAB_FOR_ROLE[currentRole] || 'reports';
-  };
-
-  const [activeTab, setActiveTab] = useState<string>(() => {
-    const saved = localStorage.getItem('moa_active_tab');
-    return getValidTabForRole(role, saved);
-  });
+  const [requestedTab, setRequestedTab] = useState<string>(() => localStorage.getItem('moa_active_tab') || '');
+  const activeTab = getValidTab(user, requestedTab);
+  const [usersRoleFilter, setUsersRoleFilter] = useState<UserRole | 'ALL'>('ALL');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number>(0);
   const [selectedCenter, setSelectedCenter] = useState<string>('ALL');
 
+  useEffect(() => {
+    setRequestedTab(localStorage.getItem('moa_active_tab') || '');
+    setUsersRoleFilter('ALL');
+  }, [user?.id]);
+
   const handleTabChange = (tab: string) => {
-    const valid = getValidTabForRole(role, tab);
-    setActiveTab(valid);
+    const valid = getValidTab(user, tab);
+    if (tab === 'settings-users') setUsersRoleFilter('ALL');
+    setRequestedTab(valid);
     localStorage.setItem('moa_active_tab', valid);
   };
-
-  // Strictly align activeTab whenever role or user changes
-  useEffect(() => {
-    const saved = localStorage.getItem('moa_active_tab');
-    const valid = getValidTabForRole(role, saved || activeTab);
-    if (valid !== activeTab) {
-      setActiveTab(valid);
-      localStorage.setItem('moa_active_tab', valid);
-    }
-  }, [role, user?.id]);
+  const viewRoleUsers = (code: UserRole) => {
+    setUsersRoleFilter(code);
+    setRequestedTab('settings-users');
+    localStorage.setItem('moa_active_tab', 'settings-users');
+  };
 
   const fetchPending = async () => {
+    if (!user?.permissions?.includes('approvals.read')) { setPendingApprovalsCount(0); return; }
     try {
       const data = await api.getApprovals();
       const pending = data.filter((a) => a.status === 'PENDING');
       let count = 0;
-      if (role === UserRole.TEAM_LEADER) {
+      const canEndorse = user?.permissions?.includes('approvals.endorse') ?? (role === UserRole.TEAM_LEADER);
+      const canAuthorize = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD);
+      if (canEndorse && !canAuthorize) {
         count = pending.filter((a) => (a.currentStage ?? 1) === 1).length;
-      } else if (role === UserRole.DEPARTMENT_HEAD) {
+      } else if (canAuthorize && !canEndorse) {
         count = pending.filter((a) => a.currentStage === 2).length;
-      } else {
+      } else if (canEndorse && canAuthorize) {
         count = pending.length;
+      } else {
+        count = 0;
       }
       setPendingApprovalsCount(count);
     } catch {
@@ -183,6 +154,17 @@ const AuthenticatedPortal: React.FC = () => {
         {/* Page Content with Generous Whitespace */}
         {/* Page Content - Strictly Gated to Authorized Role */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:px-5 lg:py-6 max-w-7xl w-full mx-auto pb-24 lg:pb-8">
+          {!activeTab && <p className="text-sm text-slate-600">No pages are available for this account. Contact your System Administrator.</p>}
+          {activeTab.startsWith('settings-') && (
+            <nav aria-label="Settings pages" className="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-4 border-b border-slate-200">
+              {getSettingsGroups(user?.allowedTabs).flatMap(group => group.items).map(item => (
+                <button key={item.id} onClick={() => handleTabChange(item.id)} aria-current={activeTab === item.id ? 'page' : undefined}
+                  className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold ${activeTab === item.id ? 'bg-emerald-700 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          )}
           {activeTab === 'dashboard' && (
             <ExecutiveDashboardPage
               onNavigate={handleTabChange}
@@ -217,9 +199,10 @@ const AuthenticatedPortal: React.FC = () => {
             <SettingsPage
               currentRole={role}
               userEmail={user?.email}
+              initialRoleFilter={usersRoleFilter}
             />
           )}
-          {activeTab === 'settings-roles' && <RolesPage />}
+          {activeTab === 'settings-roles' && <RolesPage onViewUsers={viewRoleUsers} />}
           {activeTab === 'settings-employees' && <EmployeesPage />}
           {activeTab === 'settings-departments' && <DepartmentsPage />}
           {activeTab === 'settings-locations' && <LocationsPage />}

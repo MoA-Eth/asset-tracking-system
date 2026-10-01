@@ -1,71 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { UserRole } from '../../types/asset-management';
-import { canSeeSettings, getMobileNavItems, getNavSectionsForRole } from './navigation';
+import { getSettingsGroups, getMobileNavItems, getNavSections } from './navigation';
+import { getRoleAccess } from '../../../../backend/src/security/role-policy';
 
-const ALL_ROLES = [
-  UserRole.SYSTEM_ADMIN,
-  UserRole.DATA_ENCODER,
-  UserRole.TEAM_LEADER,
-  UserRole.DEPARTMENT_HEAD,
-  UserRole.MANAGER,
-];
+const allowed = (role: string) => getRoleAccess(role).allowedTabs;
+const settings = (role: string) => getSettingsGroups(allowed(role)).flatMap(group => group.items.map(item => item.id));
 
-// Mirrors ALLOWED_TABS_FOR_ROLE in App.tsx
-const SETTINGS_TABS = [
-  'settings-users',
-  'settings-roles',
-  'settings-employees',
-  'settings-departments',
-  'settings-locations',
-  'settings-stores',
-  'settings-system',
-];
-const ALLOWED_TABS_FOR_ROLE: Record<UserRole, string[]> = {
-  [UserRole.SYSTEM_ADMIN]: ['dashboard', 'reports', 'audit', ...SETTINGS_TABS],
-  [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', ...SETTINGS_TABS],
-  [UserRole.TEAM_LEADER]: ['approvals', 'reports', 'audit'],
-  [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', ...SETTINGS_TABS],
-  [UserRole.MANAGER]: ['dashboard', 'reports'],
-};
-
-const sidebarTabs = (role: UserRole) => getNavSectionsForRole(role).flatMap((s) => s.items.map((i) => i.id));
-
-describe('Navigation menu per role', () => {
-  it.each(ALL_ROLES)('%s only sees menu items it is allowed to open', (role) => {
-    const tabs = [...sidebarTabs(role), ...getMobileNavItems(role).map((i) => i.id)];
-    for (const tab of tabs) {
-      expect(ALLOWED_TABS_FOR_ROLE[role]).toContain(tab);
+describe('Navigation consumes the server policy', () => {
+  it.each(['SYSTEM_ADMIN', 'DATA_ENCODER', 'TEAM_LEADER', 'DEPARTMENT_HEAD', 'MANAGER'])('%s only sees permitted tabs on desktop and mobile', role => {
+    const tabs = [...getNavSections(allowed(role)).flatMap(section => section.items), ...getMobileNavItems(allowed(role))];
+    for (const tab of tabs) expect(allowed(role)).toContain(tab.id);
+  });
+  it('restricts Users and Roles to administrators while preserving other Settings access', () => {
+    expect(settings('SYSTEM_ADMIN')).toContain('settings-roles');
+    expect(settings('SYSTEM_ADMIN')).toContain('settings-users');
+    for (const role of ['DATA_ENCODER', 'DEPARTMENT_HEAD']) {
+      expect(settings(role)).not.toContain('settings-roles');
+      expect(settings(role)).not.toContain('settings-users');
+      expect(settings(role)).toContain('settings-employees');
+      expect(getMobileNavItems(allowed(role)).find(item => item.label === 'Settings')?.id).toBe('settings-employees');
     }
   });
-
-  it('gives the Data Encoder store operations and settings, not reports or audit', () => {
-    expect(sidebarTabs(UserRole.DATA_ENCODER)).toEqual(['stock-in', 'stock-out', 'transfer-asset']);
-    expect(canSeeSettings(UserRole.DATA_ENCODER)).toBe(true);
-    expect(getMobileNavItems(UserRole.DATA_ENCODER).map((i) => i.label)).toEqual([
-      'Stock-In',
-      'Stock-Out',
-      'Transfers',
-      'Settings',
-    ]);
+  it('has no settings for Managers or Team Leaders and no navigation without access', () => {
+    expect(settings('MANAGER')).toEqual([]);
+    expect(settings('TEAM_LEADER')).toEqual([]);
+    expect(getMobileNavItems()).toEqual([]);
   });
-
-  it('gives approvers the approvals queue and oversight pages', () => {
-    expect(sidebarTabs(UserRole.TEAM_LEADER)).toEqual(['approvals', 'reports', 'audit']);
-    expect(canSeeSettings(UserRole.TEAM_LEADER)).toBe(false);
-    expect(sidebarTabs(UserRole.DEPARTMENT_HEAD)).toEqual(['approvals', 'reports', 'audit']);
-    expect(canSeeSettings(UserRole.DEPARTMENT_HEAD)).toBe(true);
-  });
-
-  it('gives the Manager the dashboard and reports only', () => {
-    expect(sidebarTabs(UserRole.MANAGER)).toEqual(['dashboard', 'reports']);
-    expect(canSeeSettings(UserRole.MANAGER)).toBe(false);
-    expect(getMobileNavItems(UserRole.MANAGER).map((i) => i.id)).toEqual(['dashboard', 'reports']);
-  });
-
-  it('marks the mobile Settings tab active on every settings page', () => {
-    const settings = getMobileNavItems(UserRole.SYSTEM_ADMIN).find((i) => i.label === 'Settings')!;
-    expect(settings.matches('settings-system')).toBe(true);
-    expect(settings.matches('settings-users')).toBe(true);
-    expect(settings.matches('reports')).toBe(false);
+  it('marks Settings active on its child pages', () => {
+    expect(getMobileNavItems(allowed('SYSTEM_ADMIN')).find(item => item.label === 'Settings')?.matches('settings-roles')).toBe(true);
   });
 });

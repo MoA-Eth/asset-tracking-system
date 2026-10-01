@@ -1094,6 +1094,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigate, mode = 'stock-in' }) => {
+  const { user } = useAuth();
+  const canWrite = user?.permissions?.includes('stock-in.write') ?? (currentRole === UserRole.DATA_ENCODER);
   const [locations, setLocations] = useState<Location[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [items, setItems] = useState<ItemWithRelations[]>([]);
@@ -1306,15 +1308,17 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={openRegister}
-            className={btn.primary}
-          >
-            <Plus className="w-4 h-4" />
-            {headerConfig.buttonLabel}
-          </button>
-        </div>
+        {canWrite && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={openRegister}
+              className={btn.primary}
+            >
+              <Plus className="w-4 h-4" />
+              {headerConfig.buttonLabel}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Last Registration Banner ── */}
@@ -1394,7 +1398,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
           onNavigate={onNavigate}
           onPrintModel19={handlePrintItem}
           pendingStages={pendingStages}
-          canEdit={currentRole === UserRole.DATA_ENCODER}
+          canEdit={canWrite}
           onEdit={openEdit}
           onViewSlip={setViewingSlipUrl}
           highlightItemId={lastRegistered?.item?.id || lastRegistered?.item?.itemCode}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
-import { SETTINGS_NAV, canSeeSettings, getNavSectionsForRole, NavItem } from './navigation';
+import { SETTINGS_NAV, getSettingsGroups, getNavSections, NavItem } from './navigation';
 
 interface DesktopSidebarProps {
   activeTab: string;
@@ -48,7 +48,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
     if (isSettingsActive) setSettingsOpen(true);
   }, [isSettingsActive]);
 
-  const sections = getNavSectionsForRole(role);
+  const sections = getNavSections(user?.allowedTabs);
+  const settingsGroups = getSettingsGroups(user?.allowedTabs);
   const roleTitle = ROLE_TITLES[role] || 'Civil Officer';
 
   const itemClass = (isActive: boolean) =>
@@ -151,7 +152,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           </div>
         ))}
 
-        {canSeeSettings(role) && (
+        {settingsGroups.length > 0 && (
           <div className="mt-4">
             {collapsed ? (
               <div aria-hidden="true" className="mx-3 mb-3 border-t border-white/[0.07]" />
@@ -162,7 +163,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             )}
 
             <button
-              onClick={() => (collapsed ? setActiveTab('settings-users') : setSettingsOpen((o) => !o))}
+              onClick={() => (collapsed ? setActiveTab(settingsGroups[0].items[0].id) : setSettingsOpen((o) => !o))}
               className={itemClass(isSettingsActive && (collapsed || !settingsOpen))}
               title={collapsed ? SETTINGS_NAV.label : undefined}
               aria-expanded={collapsed ? undefined : settingsOpen}
@@ -181,7 +182,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
             {!collapsed && settingsOpen && (
               <div className="mt-1 ml-[21px] pl-3 border-l border-white/[0.08] space-y-2.5 pb-1">
-                {SETTINGS_NAV.groups.map((group) => (
+                {settingsGroups.map((group) => (
                   <div key={group.label}>
                     <p className="px-2 pt-1 pb-1 text-[10px] font-medium text-emerald-200/35">{group.label}</p>
                     <div className="space-y-0.5">
