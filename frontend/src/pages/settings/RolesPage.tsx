@@ -223,7 +223,6 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
   );
   const selectedRole = roles.find((role) => role.code === selected);
   const members = employees.filter((employee) => employee.role === selected);
-  const userCount = roles.reduce((sum, role) => sum + role.memberCount, 0);
   const totalPermissions = permissionGroups.reduce((acc, g) => acc + g.permissions.length, 0);
 
   // Helper to resolve permission label from key
@@ -305,28 +304,6 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
         </div>
       ) : (
         <>
-          {/* Top Metric Cards */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            {[
-              { label: 'System roles', value: roles.length, icon: Shield },
-              { label: 'Assigned users', value: userCount, icon: Users },
-              { label: 'Approval stages', value: 2, icon: CheckCircle2 },
-            ].map(({ label, value, icon: Icon }) => (
-              <div
-                key={label}
-                className="bg-white rounded-2xl border border-slate-200 p-3 sm:px-5 sm:py-4 flex justify-between items-center shadow-xs"
-              >
-                <div>
-                  <p className="text-[10px] sm:text-xs text-slate-500">{label}</p>
-                  <p className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{value}</p>
-                </div>
-                <div className="hidden sm:block rounded-xl p-3 bg-emerald-50 text-emerald-700">
-                  <Icon className="w-5 h-5" />
-                </div>
-              </div>
-            ))}
-          </div>
-
           {/* Staged Changes Notification Banner */}
           {totalUnsavedChanges > 0 && (
             <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 border border-amber-300 p-4 shadow-xs animate-fadeIn">
@@ -352,14 +329,6 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
               </div>
             </div>
           )}
-
-          {/* Institutional Policy Guidance Notice */}
-          <div className="flex items-start gap-3 rounded-xl bg-emerald-50/70 border border-emerald-100 p-4">
-            <LockKeyhole className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-            <p className="text-xs leading-relaxed text-emerald-950">
-              System roles preserve the separation between recording, reviewing, and authorizing transactions. System Administrators can toggle operational permissions below. Core administrative privileges are locked to prevent accidental lockout.
-            </p>
-          </div>
 
           {/* Permission Matrix Section */}
           <section aria-label="System roles" className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
