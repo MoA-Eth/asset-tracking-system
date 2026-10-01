@@ -25,7 +25,7 @@ const ALLOWED_TABS_FOR_ROLE: Record<UserRole, string[]> = {
   [UserRole.DATA_ENCODER]: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', ...SETTINGS_TABS],
   [UserRole.TEAM_LEADER]: ['approvals', 'reports', 'audit'],
   [UserRole.DEPARTMENT_HEAD]: ['approvals', 'reports', 'audit', ...SETTINGS_TABS],
-  [UserRole.MANAGER]: ['dashboard'],
+  [UserRole.MANAGER]: ['dashboard', 'reports'],
 };
 
 const sidebarTabs = (role: UserRole) => getNavSectionsForRole(role).flatMap((s) => s.items.map((i) => i.id));
@@ -56,10 +56,10 @@ describe('Navigation menu per role', () => {
     expect(canSeeSettings(UserRole.DEPARTMENT_HEAD)).toBe(true);
   });
 
-  it('limits the Manager to the dashboard', () => {
-    expect(sidebarTabs(UserRole.MANAGER)).toEqual(['dashboard']);
+  it('gives the Manager the dashboard and reports only', () => {
+    expect(sidebarTabs(UserRole.MANAGER)).toEqual(['dashboard', 'reports']);
     expect(canSeeSettings(UserRole.MANAGER)).toBe(false);
-    expect(getMobileNavItems(UserRole.MANAGER).map((i) => i.id)).toEqual(['dashboard']);
+    expect(getMobileNavItems(UserRole.MANAGER).map((i) => i.id)).toEqual(['dashboard', 'reports']);
   });
 
   it('marks the mobile Settings tab active on every settings page', () => {

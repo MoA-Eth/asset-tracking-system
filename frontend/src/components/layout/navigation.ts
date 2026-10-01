@@ -71,7 +71,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'insights',
     label: 'Insights',
     items: [
-      { id: 'reports', label: 'Reports', icon: FileSpreadsheet, roles: OVERSIGHT_ROLES },
+      { id: 'reports', label: 'Reports', icon: FileSpreadsheet, roles: [...OVERSIGHT_ROLES, UserRole.MANAGER, TOP_MANAGEMENT] },
       { id: 'audit', label: 'Audit Log', icon: ShieldCheck, roles: OVERSIGHT_ROLES },
     ],
   },
