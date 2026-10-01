@@ -2,6 +2,7 @@ import React from 'react';
 import { Printer, X, FileText, CheckCircle2 } from 'lucide-react';
 import { Model19Voucher, Model19LineItem } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
+import { MoaLogo } from './MoaLogo';
 
 interface Model19PrintModalProps {
   isOpen: boolean;
@@ -74,17 +75,9 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({
           <div className="relative z-10 space-y-6">
             {/* Top Official Letterhead */}
             <div className="text-center relative pt-1">
-              {/* National Emblem SVG */}
+              {/* Ministry of Agriculture logo */}
               <div className="flex justify-center mb-2">
-                <svg viewBox="0 0 100 100" className="w-14 h-14 drop-shadow-xs">
-                  <circle cx="50" cy="50" r="46" fill="#0A3F24" stroke="#FCDD09" strokeWidth="3" />
-                  <path d="M50 16 L50 82" stroke="#FCDD09" strokeWidth="3.5" strokeLinecap="round" />
-                  <path d="M50 28 Q66 22 68 34 Q58 38 50 34" fill="#FCDD09" />
-                  <path d="M50 42 Q68 36 70 48 Q60 52 50 48" fill="#FCDD09" />
-                  <path d="M50 28 Q34 22 32 34 Q42 38 50 34" fill="#FCDD09" />
-                  <path d="M50 42 Q32 36 30 48 Q40 52 50 48" fill="#FCDD09" />
-                  <circle cx="50" cy="50" r="4" fill="#FCDD09" />
-                </svg>
+                <MoaLogo className="w-14 h-14" />
               </div>
 
               <h1 className="text-xs sm:text-sm font-semibold tracking-wide text-slate-800">

@@ -9,6 +9,7 @@ import {
   Search,
   Filter,
   Eye,
+  FileSearch,
   AlertTriangle,
   User,
   ShieldAlert,
@@ -30,7 +31,8 @@ import {
   ArrowRightLeft,
 } from 'lucide-react';
 import { api } from '../api/client';
-import { table } from '../components/ui/theme';
+import { table, btn } from '../components/ui/theme';
+import { RecordDetailModal } from '../components/ui/RecordDetailModal';
 import {
   ApprovalStatus,
   TransactionApproval,
@@ -104,6 +106,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
   // Single Item Review Modal State
   const [selectedApproval, setSelectedApproval] = useState<TransactionApproval | null>(null);
+  // Read-only view of a request and its item
+  const [viewingApproval, setViewingApproval] = useState<TransactionApproval | null>(null);
   const [reviewRemarks, setReviewRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -770,6 +774,16 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       <td className="py-3 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
+                            type="button"
+                            onClick={() => setViewingApproval(appr)}
+                            className={btn.row}
+                            title="View the full record"
+                          >
+                            <FileSearch className={btn.rowIcon} />
+                            View
+                          </button>
+                          {isActionableForMe && (
+                          <button
                             onClick={() => {
                               setSelectedApproval(appr);
                               setReviewRemarks('');
@@ -781,14 +795,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                             }`}
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            <span>
-                              {isActionableForMe
-                                ? stage === 1
-                                  ? 'Endorse'
-                                  : 'Authorize'
-                                : 'Inspect'}
-                            </span>
+                            <span>{stage === 1 ? 'Endorse' : 'Authorize'}</span>
                           </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -879,6 +888,17 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   <span className="text-[10px] text-slate-400">
                     {appr.createdAtEc} E.C.
                   </span>
+                  <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setViewingApproval(appr)}
+                    className={btn.row}
+                    title="View the full record"
+                  >
+                    <FileSearch className={btn.rowIcon} />
+                    View
+                  </button>
+                  {isActionableForMe && (
                   <button
                     onClick={() => {
                       setSelectedApproval(appr);
@@ -891,8 +911,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     }`}
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    <span>{isActionableForMe ? (stage === 1 ? 'Endorse' : 'Authorize') : 'Inspect'}</span>
+                    <span>{stage === 1 ? 'Endorse' : 'Authorize'}</span>
                   </button>
+                  )}
+                  </div>
                 </div>
               </div>
             );
@@ -952,6 +974,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       )}
 
       {/* ── 6. Single Item Review & Inspection Modal ── */}
+      {viewingApproval && (
+        <RecordDetailModal
+          itemId={viewingApproval.itemId}
+          approval={viewingApproval}
+          onClose={() => setViewingApproval(null)}
+        />
+      )}
+
       {selectedApproval && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl text-slate-900 my-auto">

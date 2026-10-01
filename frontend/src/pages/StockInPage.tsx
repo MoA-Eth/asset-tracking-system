@@ -139,15 +139,15 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
   const [ifmisSlipNumber, setIfmisSlipNumber] = useState(editItem?.ifmisSlipNumber ?? '');
   const [poNumber, setPoNumber] = useState(editItem?.poNumber ?? '');
   const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(editItem?.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
-  const [transactionType, setTransactionType] = useState(editItem?.transactionType || 'PO Receipt');
+  const [transactionType, setTransactionType] = useState(editItem?.transactionType || '');
   const [source, setSource] = useState(editItem?.source ?? '');
   const [buyer, setBuyer] = useState(editItem?.buyer ?? '');
   const [programName, setProgramName] = useState(editItem?.programName ?? 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa');
-  const [storeLocationId, setStoreLocationId] = useState(editItem?.storeLocationId ?? locations[0]?.id ?? '');
+  const [storeLocationId, setStoreLocationId] = useState(editItem?.storeLocationId ?? '');
 
   // Section 2: Single-Item Particulars
   const [name, setName] = useState(editItem?.name ?? '');
-  const [category, setCategory] = useState<AssetCategory>(editItem?.category ?? AssetCategory.IT_EQUIPMENT);
+  const [category, setCategory] = useState<AssetCategory | ''>(editItem?.category ?? '');
   const [itemCode, setItemCode] = useState(editItem?.itemCode ?? '');
   const [uom, setUom] = useState(editItem?.uom || 'EA');
   const [subInventory, setSubInventory] = useState(editItem?.subInventory ?? 'General Store');
@@ -157,7 +157,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
   const [printedPadTo, setPrintedPadTo] = useState(editItem?.printedPadTo ?? '');
   const [quantity, setQuantity] = useState<number>(Number(editItem?.quantity) || 1);
   const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? 0);
-  const [condition, setCondition] = useState<ItemCondition>(editItem?.condition ?? ItemCondition.NEW);
+  const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? '');
   const [remark, setRemark] = useState(editItem?.remark ?? '');
 
   // Section 3: Signatures & Document Scan
@@ -169,12 +169,6 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
   );
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!storeLocationId && locations.length > 0) {
-      setStoreLocationId(locations[0].id);
-    }
-  }, [locations, storeLocationId]);
 
   useEffect(() => {
     if (user?.fullNameEn && !receivedBy) {
@@ -191,12 +185,12 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
     setIfmisSlipNumber('');
     setPoNumber('');
     setIfmisSlipDateGc(new Date().toISOString().split('T')[0]);
-    setTransactionType('PO Receipt');
+    setTransactionType('');
     setSource('');
     setBuyer('');
-    setStoreLocationId(locations[0]?.id ?? '');
+    setStoreLocationId('');
     setName('');
-    setCategory(AssetCategory.IT_EQUIPMENT);
+    setCategory('');
     setItemCode('');
     setUom('EA');
     setSubInventory('General Store');
@@ -206,7 +200,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
     setPrintedPadTo('');
     setQuantity(1);
     setUnitCostETB(0);
-    setCondition(ItemCondition.NEW);
+    setCondition('');
     setRemark('');
     setDeliveredBy('');
     setReceivedBy(user?.fullNameEn || '');
@@ -233,6 +227,19 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+
+    const unchosen = [
+      !transactionType && 'transaction type',
+      !storeLocationId && 'receiving store',
+      !category && 'category',
+      !condition && 'physical condition',
+    ].filter(Boolean);
+    if (unchosen.length > 0) {
+      const msg = `Please select the ${unchosen.join(', ')}.`;
+      setFormError(msg);
+      toast.warning('Selection Required', msg);
+      return;
+    }
 
     const slipNo = ifmisSlipNumber.trim();
     if (!slipNo) {
@@ -279,10 +286,10 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
         const res = await api.updateStockIn(editItem.id, {
           name: name.trim(),
-          category,
+          category: category as AssetCategory,
           serialNumber: serialNumber.trim() || undefined,
           unitCostETB: Number(unitCostETB) || 0,
-          condition,
+          condition: condition as ItemCondition,
           storeLocationId,
           ifmisSlipNumber: slipNo,
           ifmisSlipDateGc,
@@ -320,10 +327,10 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
       const itemsPayload = [{
         itemCode: itemCode.trim() || undefined,
         name: name.trim(),
-        category,
+        category: category as AssetCategory,
         serialNumber: serialNumber.trim() || undefined,
         unitCostETB: Number(unitCostETB) || 0,
-        condition,
+        condition: condition as ItemCondition,
         uom: uom.trim() || 'EA',
         subInventory: subInventory.trim() || undefined,
         itemCategoryDisplay: selectedCat?.label,
@@ -339,10 +346,10 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
 
       const res = await api.registerStockIn({
         name: name.trim(),
-        category,
+        category: category as AssetCategory,
         serialNumber: serialNumber.trim() || '',
         unitCostETB: Number(unitCostETB) || 0,
-        condition,
+        condition: condition as ItemCondition,
         storeLocationId,
         ifmisSlipNumber: slipNo,
         ifmisSlipDateGc,
@@ -459,7 +466,8 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
           </Field>
 
           <Field label="Transaction type" required>
-            <select value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
+            <select required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
+              <option value="" disabled>Select…</option>
               <option value="PO Receipt">PO Receipt</option>
               <option value="Direct Delivery">Direct Delivery</option>
               <option value="Donation / Grant Receipt">Donation / Grant Receipt</option>
@@ -500,7 +508,8 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
           </Field>
 
           <Field label="Receiving store" required>
-            <select value={storeLocationId} onChange={(e) => setStoreLocationId(e.target.value)} className={input()}>
+            <select required value={storeLocationId} onChange={(e) => setStoreLocationId(e.target.value)} className={input()}>
+              <option value="" disabled>Select…</option>
               {locations.map((loc) => (
                 <option key={loc.id} value={loc.id}>
                   {loc.siteName} {loc.roomNumber ? `(${loc.roomNumber})` : ''}
@@ -527,7 +536,8 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
             </Field>
 
             <Field label="Category" required>
-              <select value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} className={input()}>
+              <select required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} className={input()}>
+                <option value="" disabled>Select…</option>
                 {COMMON_CATEGORIES.map((c) => (
                   <option key={c.value} value={c.value}>
                     {c.label}
@@ -563,7 +573,8 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
             </Field>
 
             <Field label="Physical condition" required>
-              <select value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} className={input()}>
+              <select required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} className={input()}>
+                <option value="" disabled>Select…</option>
                 <option value={ItemCondition.NEW}>New (አዲስ)</option>
                 <option value={ItemCondition.GOOD}>Good (ጥሩ)</option>
                 <option value={ItemCondition.FAIR}>Fair (መካከለኛ)</option>

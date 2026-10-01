@@ -54,7 +54,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
   const [model21No, setModel21No] = useState('0004386');
   const [book, setBook] = useState('MOA MC BOOK');
   const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(new Date().toISOString().split('T')[0]);
-  const [condition, setCondition] = useState<ItemCondition>(ItemCondition.GOOD);
+  const [condition, setCondition] = useState<ItemCondition | ''>('');
   const [returnReason, setReturnReason] = useState('Official project assignment completed, returning to central store');
   const [storeReceiverId, setStoreReceiverId] = useState('');
   
@@ -96,7 +96,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
       setModel21No(editApproval.ifmisSlipNumber || '');
       setBook(d.book ?? '');
       setIfmisSlipDateGc(editApproval.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
-      setCondition((d.condition as ItemCondition) ?? ItemCondition.GOOD);
+      setCondition((d.condition as ItemCondition) ?? '');
       setReturnReason(d.reason ?? '');
       setDefectRemark(d.remark ?? '');
       setStoreReceiverId(d.storeRecipientId ?? '');
@@ -142,7 +142,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
     setModel21No('0004386');
     setBook('MOA MC BOOK');
     setIfmisSlipDateGc(new Date().toISOString().split('T')[0]);
-    setCondition(ItemCondition.GOOD);
+    setCondition('');
     setReturnReason('Official project assignment completed, returning to central store');
     setAttachmentFileName('');
     setAttachmentFile(null);
@@ -155,6 +155,10 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
 
     if (!model21No.trim()) {
       setFormError('Return Voucher (Model 21) Slip Number is mandatory.');
+      return;
+    }
+    if (!condition) {
+      setFormError('Please select the condition on return.');
       return;
     }
     if (!returnReason.trim()) {
@@ -193,7 +197,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
           ifmisSlipDateGc: todayGc,
           ifmisSlipAttachmentUrl: slipUrl,
           returnReason: returnReason.trim(),
-          condition,
+          condition: condition as ItemCondition,
           book: book.trim() || undefined,
           chassisNumber: chassisNumber.trim() || undefined,
           plateNo: plateNo.trim() || undefined,
@@ -227,7 +231,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
         ifmisSlipDateGc: todayGc,
         ifmisSlipAttachmentUrl: slipUrl,
         returnReason: returnReason.trim(),
-        condition,
+        condition: condition as ItemCondition,
         returningEmployeeId: item.currentCustodianId || undefined,
         registeredById,
         model21No: model21No.trim(),
@@ -368,7 +372,8 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
 
             <FieldGrid>
               <Field label="Condition on return" required>
-                <select value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} className={input()}>
+                <select required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} className={input()}>
+                  <option value="" disabled>Select…</option>
                   <option value={ItemCondition.GOOD}>Good · fully functional</option>
                   <option value={ItemCondition.FAIR}>Fair · minor wear</option>
                   <option value={ItemCondition.NEEDS_REPAIR}>Needs repair</option>
@@ -462,7 +467,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
 
               <Field label="Received by (store custodian)" optional hint="Defaults to the central store custodian.">
                 <select value={storeReceiverId} onChange={(e) => setStoreReceiverId(e.target.value)} className={input()}>
-                  <option value="">Central store custodian (default)</option>
+                  <option value="">Select…</option>
                   {employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.fullNameEn} ({emp.payrollId})
