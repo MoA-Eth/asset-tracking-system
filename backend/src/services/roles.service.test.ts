@@ -1,15 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { assignEmployeeRole, getRoleDirectory, updateRolePermissions, resetRolePermissionsToDefault } from './roles.service';
+import { assignEmployeeRole, getRoleDirectory, updateRolePermissions, resetRolePermissionsToDefault, initRolePermissions } from './roles.service';
+import { getEffectiveRolePermissions, resetAllRolePermissions } from '../security/role-policy';
 import { UserRole } from '../types/asset-management';
 
 const db = vi.hoisted(() => ({
   employee: { findUnique: vi.fn(), update: vi.fn(), count: vi.fn(), groupBy: vi.fn() },
   auditLog: { create: vi.fn() }, $transaction: vi.fn(),
+  rolePermissionSet: { upsert: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn() },
 }));
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
 beforeEach(() => {
   vi.resetAllMocks();
+  resetAllRolePermissions();
   db.$transaction.mockImplementation(fn => fn(db));
   db.employee.findUnique.mockImplementation(({ where }) => Promise.resolve({
     id: where.id, fullNameEn: where.id, role: where.id === 'admin' ? 'SYSTEM_ADMIN' : 'DATA_ENCODER',
@@ -113,6 +116,39 @@ describe('Role assignments', () => {
       });
       const manager = reset.roles.find((r) => r.code === UserRole.MANAGER);
       expect(manager?.permissions).not.toContain('stock-in.write');
+    });
+
+    it('saves a change to the database, and a reset removes the saved set', async () => {
+      db.employee.groupBy.mockResolvedValue([]);
+      await updateRolePermissions(UserRole.MANAGER, ['dashboard.read', 'inventory.read'], 'admin');
+      expect(db.rolePermissionSet.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        where: { role: UserRole.MANAGER },
+        create: expect.objectContaining({ permissions: ['dashboard.read', 'inventory.read'], updatedById: 'admin' }),
+      }));
+      await resetRolePermissionsToDefault(UserRole.MANAGER, 'admin');
+      expect(db.rolePermissionSet.deleteMany).toHaveBeenCalledWith({ where: { role: UserRole.MANAGER } });
+    });
+
+    it.each([
+      ['an encoder who could also authorize', UserRole.DATA_ENCODER, ['stock-out.write', 'approvals.authorize']],
+      ['a System Administrator who could register stock', UserRole.SYSTEM_ADMIN, ['roles.assign', 'roles.read', 'stock-in.write']],
+      ['a System Administrator who could approve', UserRole.SYSTEM_ADMIN, ['roles.assign', 'roles.read', 'approvals.endorse']],
+      ['a Team Leader who could also raise transfers', UserRole.TEAM_LEADER, ['approvals.endorse', 'transfers.write']],
+    ])('refuses %s, whatever the matrix says', async (_name, role, permissions) => {
+      await expect(updateRolePermissions(role, permissions, 'admin')).rejects.toMatchObject({ statusCode: 400 });
+      expect(db.rolePermissionSet.upsert).not.toHaveBeenCalled();
+    });
+
+    it('loads saved sets at startup and ignores any that break the rules', async () => {
+      db.rolePermissionSet.findMany.mockResolvedValue([
+        { role: UserRole.MANAGER, permissions: ['dashboard.read'] },
+        { role: UserRole.DATA_ENCODER, permissions: ['stock-in.write', 'approvals.authorize'] },
+      ]);
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      await initRolePermissions();
+      expect(getEffectiveRolePermissions(UserRole.MANAGER)).toEqual(['dashboard.read']);
+      expect(getEffectiveRolePermissions(UserRole.DATA_ENCODER)).not.toContain('approvals.authorize');
+      warn.mockRestore();
     });
   });
 });

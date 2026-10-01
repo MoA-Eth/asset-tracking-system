@@ -78,6 +78,50 @@ export const PROTECTED_ROLE_PERMISSIONS: Partial<Record<UserRole, Permission[]>>
   SYSTEM_ADMIN: ['roles.assign', 'roles.read'],
 };
 
+/** Permissions for raising stock requests, and for deciding on them */
+const REQUEST_PERMISSIONS: Permission[] = ['stock-in.write', 'stock-out.write', 'transfers.write'];
+const DECISION_PERMISSIONS: Permission[] = ['approvals.endorse', 'approvals.authorize'];
+
+/**
+ * Segregation-of-duties rules that hold whatever the matrix says. Returns one message per broken rule.
+ * - The System Administrator never operates the store or approves requests.
+ * - A role that raises stock requests can't also endorse or authorize them.
+ * - Assigning roles can't be combined with store or approval work.
+ */
+export function segregationViolations(role: UserRole, permissions: readonly string[]): string[] {
+  const has = (p: Permission) => permissions.includes(p);
+  const violations: string[] = [];
+  if (role === UserRole.SYSTEM_ADMIN) {
+    const operational = [...REQUEST_PERMISSIONS, 'slips.upload' as Permission, ...DECISION_PERMISSIONS].filter(has);
+    if (operational.length > 0) {
+      violations.push(`The System Administrator can't hold store or approval permissions (${operational.join(', ')}).`);
+    }
+  }
+  if (REQUEST_PERMISSIONS.some(has) && DECISION_PERMISSIONS.some(has)) {
+    violations.push(`${ROLE_POLICY[role]?.name ?? role} can't both raise stock requests and endorse or authorize them.`);
+  }
+  if (role !== UserRole.SYSTEM_ADMIN && has('roles.assign') && (REQUEST_PERMISSIONS.some(has) || DECISION_PERMISSIONS.some(has))) {
+    violations.push(`${ROLE_POLICY[role]?.name ?? role} can't assign roles while also doing store or approval work.`);
+  }
+  return violations;
+}
+
+/** Replace the in-memory overrides with the sets saved in the database; unsafe saved sets are ignored */
+export function loadSavedRolePermissions(rows: { role: string; permissions: string[] }[]): void {
+  resetAllRolePermissions();
+  const known = new Set<string>(PERMISSION_GROUPS.flatMap((g) => g.permissions.map((p) => p.key)));
+  for (const row of rows) {
+    if (!isUserRole(row.role)) continue;
+    const permissions = row.permissions.filter((p) => known.has(p)) as Permission[];
+    const violations = segregationViolations(row.role, permissions);
+    if (violations.length > 0) {
+      console.warn(`Ignoring saved permissions for ${row.role}: ${violations.join(' ')}`);
+      continue;
+    }
+    setRolePermissions(row.role, permissions);
+  }
+}
+
 export function getEffectiveRolePermissions(role: UserRole): Permission[] {
   if (dynamicPermissions[role]) {
     return [...dynamicPermissions[role]!];

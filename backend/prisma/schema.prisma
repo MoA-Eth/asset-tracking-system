@@ -256,6 +256,16 @@ model TransactionApproval {
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 
+/// Saved changes to a role's permissions. Roles without a row use the built-in defaults.
+model RolePermissionSet {
+  role        UserRole @id
+  permissions String[]
+  updatedById String
+  updatedAt   DateTime @updatedAt
+
+  @@map("role_permissions")
+}
+
 model AuditLog {
   id             String          @id @default(uuid())
   timestampGc    String

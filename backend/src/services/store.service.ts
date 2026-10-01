@@ -1351,6 +1351,10 @@ export class StoreService {
     if (!['ENDORSE', 'APPROVE', 'REJECT'].includes(payload.action)) throw new BadRequestError('Invalid approval action.');
     const permission = approval.currentStage === 1 ? 'approvals.endorse' : 'approvals.authorize';
     if (!hasPermission(reviewer?.role, permission)) throw new ForbiddenError('Your role cannot review this approval stage.');
+    // Segregation of duties: whoever submitted a request can't endorse, approve or reject it
+    if (approval.requestedById && approval.requestedById === payload.reviewedById) {
+      throw new ForbiddenError("You can't endorse, approve or reject a request you submitted.");
+    }
     if ((payload.action === 'ENDORSE' && approval.currentStage !== 1) ||
         (payload.action === 'APPROVE' && approval.currentStage !== 2)) {
       throw new BadRequestError('This action does not match the current approval stage.');

@@ -11,8 +11,19 @@ import {
   resetRolePermissions,
   PROTECTED_ROLE_PERMISSIONS,
   Permission,
+  segregationViolations,
+  loadSavedRolePermissions,
 } from '../security/role-policy';
 import { UserRole } from '../types/asset-management';
+
+/** Load the saved matrix at startup; if the database isn't ready yet, the built-in defaults apply */
+export async function initRolePermissions(): Promise<void> {
+  try {
+    loadSavedRolePermissions(await prisma.rolePermissionSet.findMany());
+  } catch (err: any) {
+    console.warn('Saved role permissions could not be loaded; using the built-in defaults.', err?.message ?? err);
+  }
+}
 
 export async function getRoleDirectory() {
   const counts = await prisma.employee.groupBy({ by: ['role'], _count: { _all: true } });
@@ -95,12 +106,23 @@ export async function updateRolePermissions(
     }
   }
 
+  const violations = segregationViolations(role, permissions as string[]);
+  if (violations.length > 0) {
+    throw new BadRequestError(violations.join(' '));
+  }
+
   const actor = await prisma.employee.findUnique({ where: { id: actorId } });
   if (!actor || !hasPermission(actor.role, 'roles.assign')) {
     throw new ForbiddenError('Only System Administrators may modify role permissions.');
   }
 
   const previousPermissions = getEffectiveRolePermissions(role);
+  // Save first, so the running policy never differs from what is stored
+  await prisma.rolePermissionSet.upsert({
+    where: { role },
+    create: { role, permissions: permissions as string[], updatedById: actor.id },
+    update: { permissions: permissions as string[], updatedById: actor.id },
+  });
   setRolePermissions(role, permissions as Permission[]);
 
   try {
@@ -141,6 +163,7 @@ export async function resetRolePermissionsToDefault(
   }
 
   const previousPermissions = getEffectiveRolePermissions(role);
+  await prisma.rolePermissionSet.deleteMany({ where: { role } });
   const defaultPermissions = resetRolePermissions(role);
 
   try {

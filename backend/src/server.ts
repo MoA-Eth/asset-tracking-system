@@ -6,6 +6,7 @@ import referenceRoutes from './routes/reference.routes';
 import authRoutes from './routes/auth.routes';
 import uploadRoutes from './routes/upload.routes';
 import rolesRoutes from './routes/roles.routes';
+import { initRolePermissions } from './services/roles.service';
 import { SLIP_PUBLIC_PATH, SLIP_UPLOAD_DIR } from './lib/uploads';
 import { errorHandler } from './middleware/error-handler';
 import { sendError } from './utils/api-response';
@@ -105,14 +106,14 @@ app.use((req: Request, res: Response) => {
 // Centralized error handling middleware
 app.use(errorHandler);
 
-// Start server
-app.listen(PORT, () => {
+// Start server once the saved permission matrix is loaded
+void initRolePermissions().then(() => app.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(` Federal Democratic Republic of Ethiopia - MoA AMS `);
   console.log(` IFMIS Store-Level Tracking & Executive Visibility API `);
   console.log(` REST API running on: http://localhost:${PORT}`);
   console.log(` Health check: http://localhost:${PORT}/api/health`);
   console.log(`=======================================================`);
-});
+}));
 
 export default app;

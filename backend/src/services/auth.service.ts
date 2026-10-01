@@ -76,29 +76,13 @@ export class AuthService {
   public async verifyToken(tokenString: string): Promise<AuthUser> {
     if (!tokenString) throw new UnauthorizedError('Authentication token missing.');
 
-    let userId: string;
-    let isLegacy = false;
-    try {
-      userId = readSessionToken(tokenString);
-    } catch (tokenErr) {
-      // Backward compatibility with legacy base64 format (e.g. userId:role:timestamp)
-      try {
-        const decoded = Buffer.from(tokenString, 'base64').toString('utf8');
-        const [extracted] = decoded.split(':');
-        if (!extracted) throw tokenErr;
-        userId = extracted;
-        isLegacy = true;
-      } catch {
-        throw tokenErr;
-      }
-    }
+    // Only signed tokens are accepted. Older unsigned tokens could be made by hand for any user,
+    // so anyone still holding one is asked to sign in again (401).
+    const userId = readSessionToken(tokenString);
 
     try {
       const employee = await prisma.employee.findUnique({ where: { id: userId } });
       if (!employee) {
-        if (isLegacy) {
-          throw new NotFoundError('User associated with token no longer exists.');
-        }
         throw new UnauthorizedError('This account is no longer available. Please sign in again.');
       }
 
