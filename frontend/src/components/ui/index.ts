@@ -6,4 +6,5 @@ export * from './Select';
 export * from './StatCard';
 export * from './Modal';
 export * from './Toast';
+export * from './CustodyVoucherModal';
 export * from './theme';

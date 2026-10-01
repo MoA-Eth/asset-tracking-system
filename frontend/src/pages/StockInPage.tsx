@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   PackagePlus,
+  Package,
+  Warehouse,
+  UserCheck,
+  Paperclip,
   FileText,
   Upload,
   CheckCircle2,
@@ -23,7 +27,8 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
-import { Modal } from '../components/ui/Modal';
+import { Modal, StatCard } from '../components/ui';
+import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import {
   FormSection,
   FieldGrid,
@@ -750,6 +755,7 @@ interface ItemsTableProps {
   /** Only the Data Encoder can correct a registration */
   canEdit: boolean;
   onEdit: (item: ItemWithRelations) => void;
+  onViewSlip: (url: string) => void;
   highlightItemId?: string;
 }
 
@@ -762,6 +768,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   pendingStages,
   canEdit,
   onEdit,
+  onViewSlip,
   highlightItemId,
 }) => {
   const [search, setSearch] = useState('');
@@ -1000,7 +1007,20 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       {item.balance?.available ?? 0}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap w-36">
-                      {item.ifmisSlipNumber || '—'}
+                      <div className="flex items-center gap-1.5">
+                        <span>{item.ifmisSlipNumber || '—'}</span>
+                        {item.ifmisSlipAttachmentUrl && (
+                          <button
+                            type="button"
+                            onClick={() => onViewSlip(item.ifmisSlipAttachmentUrl!)}
+                            className="p-1 rounded text-emerald-700 hover:bg-emerald-50 transition cursor-pointer"
+                            title="View scanned Model 19 slip"
+                            aria-label={`View scanned slip for ${item.itemCode}`}
+                          >
+                            <Paperclip className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2.5 font-mono text-slate-600 whitespace-nowrap w-28 text-[11px]">
                       {item.ifmisSlipDateGc || item.createdAtGc || '—'}
@@ -1073,6 +1093,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
   const [lastRegistered, setLastRegistered] = useState<any | null>(null);
   // Registration being corrected (null = registering a new item)
   const [editItem, setEditItem] = useState<ItemWithRelations | null>(null);
+  const [viewingSlipUrl, setViewingSlipUrl] = useState<string | null>(null);
   const [pendingStages, setPendingStages] = useState<Map<string, number>>(new Map());
 
   const openRegister = () => {
@@ -1241,6 +1262,25 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
     );
   }
 
+  // Summary in units, from each registration's balance. Registrations still waiting for approval
+  // aren't counted as received or valued until they are approved.
+  const totals = items.reduce(
+    (acc, i) => {
+      const b = i.balance ?? { total: 0, issued: 0, available: 0, pending: 0 };
+      const received = b.issued + b.available;
+      return {
+        received: acc.received + received,
+        issued: acc.issued + b.issued,
+        inStore: acc.inStore + b.available,
+        value: acc.value + (Number(i.unitCostETB) || 0) * received,
+      };
+    },
+    { received: 0, issued: 0, inStore: 0, value: 0 }
+  );
+  const awaitingApproval = items.filter((i) => i.status === ItemStatus.PENDING_STOCK_IN);
+  const awaitingUnits = awaitingApproval.reduce((acc, i) => acc + (i.balance?.pending ?? (Number(i.quantity) || 1)), 0);
+  const inStorePct = totals.received > 0 ? Math.round((totals.inStore / totals.received) * 100) : 0;
+
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
       {/* ── Page Header ── */}
@@ -1300,6 +1340,34 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
         </div>
       )}
 
+      {/* ── Summary cards (units) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Received"
+          value={totals.received.toLocaleString()}
+          subtitle={`Approved units · ${formatETB(totals.value)}`}
+          icon={<Package className="w-5 h-5" />}
+        />
+        <StatCard
+          label="In Store"
+          value={totals.inStore.toLocaleString()}
+          subtitle={`${inStorePct}% of received · ready to issue`}
+          icon={<Warehouse className="w-5 h-5" />}
+        />
+        <StatCard
+          label="Issued"
+          value={totals.issued.toLocaleString()}
+          subtitle="Units with custodians"
+          icon={<UserCheck className="w-5 h-5" />}
+        />
+        <StatCard
+          label="Awaiting approval"
+          value={awaitingApproval.length}
+          subtitle={`${awaitingApproval.length === 1 ? 'Registration' : 'Registrations'} · ${awaitingUnits} units not yet received`}
+          icon={<Clock className="w-5 h-5" />}
+        />
+      </div>
+
       {/* ── Items Table ── */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-3">
         <div className="flex items-center justify-between">
@@ -1307,11 +1375,6 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
             <Eye className="w-4 h-4 text-slate-500" />
             Registered Items ({items.length})
           </h3>
-          <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
-            <span className="bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-bold">
-              {items.filter((i) => i.status === ItemStatus.PENDING_STOCK_IN).length} Pending
-            </span>
-          </div>
         </div>
         <ItemsTable
           items={items}
@@ -1322,9 +1385,12 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
           pendingStages={pendingStages}
           canEdit={currentRole === UserRole.DATA_ENCODER}
           onEdit={openEdit}
+          onViewSlip={setViewingSlipUrl}
           highlightItemId={lastRegistered?.item?.id || lastRegistered?.item?.itemCode}
         />
       </div>
+
+      {viewingSlipUrl && <SlipViewerModal url={viewingSlipUrl} onClose={() => setViewingSlipUrl(null)} />}
 
       {/* ── Stock-In Modal ── */}
       <Modal
