@@ -120,6 +120,9 @@ const splitPurposeAndRemark = (text: string): { purpose: string; remark: string 
   return match ? { purpose: match[1], remark: match[2] } : { purpose: text || '', remark: '' };
 };
 
+/** Most stock-outs are move orders, so that is the starting choice */
+const DEFAULT_TRANSACTION_TYPE = 'Move Order Issue';
+
 const StockOutForm: React.FC<StockOutFormProps> = ({
   availableItems,
   departments,
@@ -144,7 +147,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   const [issuedDateGc, setIssuedDateGc] = useState<string>(
     editApproval?.ifmisSlipDateGc || editApproval?.createdAtGc?.split('T')[0] || new Date().toISOString().split('T')[0]
   );
-  const [transactionType, setTransactionType] = useState<string>('');
+  const [transactionType, setTransactionType] = useState<string>(DEFAULT_TRANSACTION_TYPE);
   const [destinationDepartmentId, setDestinationDepartmentId] = useState<string>(
     editApproval?.targetDepartmentId ?? ''
   );
@@ -227,7 +230,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     setSelectedItemId('');
     setModel22No('0004653/A Inventory');
     setIssuedDateGc(new Date().toISOString().split('T')[0]);
-    setTransactionType('');
+    setTransactionType(DEFAULT_TRANSACTION_TYPE);
     setDestinationDepartmentId('');
     setRecipientEmployeeId('');
     setItemCode('');
