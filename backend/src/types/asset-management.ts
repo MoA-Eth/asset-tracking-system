@@ -277,6 +277,8 @@ export interface TransactionApproval {
   targetDepartmentId?: string;
   targetLocationId?: string;
   purposeOrRemarks: string;
+  /** Model 21 particulars, for transfer and return requests */
+  requestDetails?: Model21RequestDetails;
   
   // Multi-Stage Workflow Status
   status: ApprovalStatus;
@@ -482,6 +484,64 @@ export interface CreateTransferRequest {
   depreciation?: number;
   bookValue?: number;
   remark?: string;
+}
+
+/** Model 21 particulars of a transfer or return request */
+export interface Model21RequestDetails {
+  /** Transfer reason or return reason */
+  reason?: string;
+  /** Transfer remark or return defects / missing parts */
+  remark?: string;
+  /** Condition on return (applied to the item when the return is approved) */
+  condition?: ItemCondition;
+  book?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
+  origCost?: number;
+  depreciation?: number;
+  bookValue?: number;
+  storeRecipientId?: string;
+}
+
+/** Corrections to a transfer request while it still waits for Stage 1 endorsement. The item can't change. */
+export interface UpdateTransferRequest {
+  model21No: string;
+  toEmployeeId: string;
+  toDepartmentId?: string;
+  toLocationId?: string;
+  reason: string;
+  book?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
+  depreciation?: number;
+  bookValue?: number;
+  remark?: string;
+}
+
+/** Corrections to a return request while it still waits for Stage 1 endorsement. The item can't change. */
+export interface UpdateReturnRequest {
+  model21No: string;
+  ifmisSlipDateGc: string;
+  /** New slip upload; omit to keep the current attachment */
+  ifmisSlipAttachmentUrl?: string;
+  returnReason: string;
+  condition: ItemCondition;
+  book?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
+  depreciation?: number;
+  bookValue?: number;
+  defectRemark?: string;
+  storeRecipientId?: string;
 }
 
 export interface ApprovalActionRequest {

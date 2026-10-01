@@ -15,6 +15,8 @@ import {
   Tag,
   ShieldCheck,
   Clock,
+  Pencil,
+  Lock,
 } from 'lucide-react';
 import { api } from '../api/client';
 import {
@@ -76,6 +78,38 @@ const PendingRequestChip: React.FC<{ request: TransactionApproval }> = ({ reques
   </span>
 );
 
+/** Edit for a transfer or return still waiting for the Team Leader; locked once endorsed */
+const EditRequestButton: React.FC<{ request: TransactionApproval; onEdit: (request: TransactionApproval) => void }> = ({
+  request,
+  onEdit,
+}) => {
+  const label = REQUEST_TYPE_LABELS[request.transactionType]?.toLowerCase() ?? 'request';
+  if (request.currentStage === 1) {
+    return (
+      <button
+        onClick={() => onEdit(request)}
+        className="px-2.5 py-1 bg-white hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-300 hover:border-amber-300 rounded-lg text-xs font-bold transition cursor-pointer inline-flex items-center gap-1"
+        title={`Correct this ${label} request (allowed until the Team Leader endorses it)`}
+        aria-label={`Edit ${label} for ${request.itemCode}`}
+      >
+        <Pencil className="w-3.5 h-3.5 text-amber-700" />
+        Edit
+      </button>
+    );
+  }
+  return (
+    <button
+      disabled
+      className="px-2.5 py-1 bg-slate-50 text-slate-400 border border-slate-200 rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-not-allowed"
+      title={`Locked: the Team Leader has already endorsed this ${label}. To correct it, ask an approver to reject it and submit it again.`}
+      aria-label={`Edit ${label} for ${request.itemCode} (locked after Team Leader endorsement)`}
+    >
+      <Lock className="w-3.5 h-3.5" />
+      Edit
+    </button>
+  );
+};
+
 interface TransferAssetPageProps {
   currentRole: UserRole;
   onNavigate: (tab: string) => void;
@@ -100,6 +134,10 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
 
   // Selected item for Return to Store Modal
   const [returnItem, setReturnItem] = useState<ItemWithRelations | null>(null);
+  // Pending requests being corrected (only before Team Leader endorsement)
+  const [editTransfer, setEditTransfer] = useState<TransactionApproval | null>(null);
+  const [editReturn, setEditReturn] = useState<TransactionApproval | null>(null);
+  const canEdit = currentRole === UserRole.DATA_ENCODER;
 
   // Model 21 Printable Voucher Modal State
   const [activeVoucher, setActiveVoucher] = useState<Model21Voucher | null>(null);
@@ -175,6 +213,63 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     }
   };
 
+  const resetTransferForm = () => {
+    setSelectedItemId('');
+    setModel21No('0004386');
+    setBook('MOA MC BOOK');
+    setTargetEmployeeId('');
+    setTargetDepartmentId('');
+    setTargetLocationId('');
+    setTransferReason('Fixed asset internal custody reassignment');
+    setDefectRemark('');
+  };
+
+  /** Switching tabs leaves an unfinished correction */
+  const switchTab = (tab: 'all' | 'transfer' | 'return') => {
+    if (editTransfer) {
+      setEditTransfer(null);
+      resetTransferForm();
+    }
+    setActiveSubTab(tab);
+  };
+
+  const openEditRequest = (request: TransactionApproval) => {
+    const item = items.find((i) => i.id === request.itemId);
+    if (!item) {
+      toast.error('Item Not Found', `Could not load ${request.itemCode}. Refresh the page and try again.`);
+      return;
+    }
+    if (request.transactionType === 'RETURN') {
+      setEditReturn(request);
+      setReturnItem(item);
+      return;
+    }
+    const d = request.requestDetails ?? {};
+    handleItemSelect(item.id);
+    setModel21No(request.ifmisSlipNumber || '');
+    setBook(d.book ?? '');
+    setTargetEmployeeId(request.recipientEmployeeId ?? '');
+    setTargetDepartmentId(request.targetDepartmentId ?? '');
+    setTargetLocationId(request.targetLocationId ?? '');
+    setTransferReason(d.reason ?? '');
+    setDefectRemark(d.remark ?? '');
+    if (d.chassisNumber !== undefined) setChassisNumber(d.chassisNumber);
+    setPlateNo(d.plateNo ?? '');
+    setEngineNo(d.engineNo ?? '');
+    if (d.depreciation !== undefined) setDepreciation(d.depreciation);
+    if (d.bookValue !== undefined) setBookValue(d.bookValue);
+    if (d.accessories) {
+      const qty = (name: string) => d.accessories?.find((a) => a.name === name)?.quantity ?? 0;
+      setJackQty(qty('jack with handle'));
+      setTireWrenchQty(qty('tire wrench'));
+      setKeyQty(qty('key'));
+    }
+    setTireSerials(d.tireNos?.join(', ') ?? '');
+    setTransferSuccessMsg(null);
+    setEditTransfer(request);
+    setActiveSubTab('transfer');
+  };
+
   const handleTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItemId) {
@@ -187,6 +282,43 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     }
     setSubmittingTransfer(true);
     setTransferSuccessMsg(null);
+
+    if (editTransfer) {
+      try {
+        const accessories = [
+          { name: 'jack with handle', quantity: jackQty },
+          { name: 'tire wrench', quantity: tireWrenchQty },
+          { name: 'key', quantity: keyQty },
+        ].filter((a) => a.quantity > 0);
+        await api.updateTransfer(editTransfer.id, {
+          model21No: model21No.trim(),
+          toEmployeeId: targetEmployeeId,
+          toDepartmentId: targetDepartmentId || undefined,
+          toLocationId: targetLocationId || undefined,
+          reason: transferReason.trim(),
+          book: book.trim() || undefined,
+          chassisNumber: chassisNumber.trim() || undefined,
+          plateNo: plateNo.trim() || undefined,
+          engineNo: engineNo.trim() || undefined,
+          accessories,
+          tireNos: tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean),
+          depreciation,
+          bookValue,
+          remark: defectRemark.trim() || undefined,
+        });
+        toast.success('Transfer Updated', `The transfer of ${editTransfer.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
+        setEditTransfer(null);
+        resetTransferForm();
+        setActiveSubTab('all');
+        fetchData();
+      } catch (err: any) {
+        toast.error('Transfer Update Failed', err.message || 'Failed to update the transfer.');
+      } finally {
+        setSubmittingTransfer(false);
+      }
+      return;
+    }
+
     try {
       const selectedItem = items.find((i) => i.id === selectedItemId);
       const fromCustodian = selectedItem?.currentCustodian;
@@ -370,7 +502,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         {/* Quick Action Navigation Pills */}
         <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
           <button
-            onClick={() => setActiveSubTab('all')}
+            onClick={() => switchTab('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               activeSubTab === 'all'
                 ? 'bg-white text-emerald-950 shadow-xs'
@@ -380,7 +512,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             All Movements & Returns
           </button>
           <button
-            onClick={() => setActiveSubTab('transfer')}
+            onClick={() => switchTab('transfer')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
               activeSubTab === 'transfer'
                 ? 'bg-amber-600 text-white shadow-xs'
@@ -391,7 +523,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             Transfer Form (Model 21)
           </button>
           <button
-            onClick={() => setActiveSubTab('return')}
+            onClick={() => switchTab('return')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
               activeSubTab === 'return'
                 ? 'bg-teal-700 text-white shadow-xs'
@@ -412,10 +544,12 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             <div>
               <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
                 <ArrowRightLeft className="h-5 w-5 text-amber-600" />
-                New transfer · Model 21
+                {editTransfer ? `Edit transfer · ${editTransfer.itemCode}` : 'New transfer · Model 21'}
               </h2>
               <p className="mt-0.5 text-xs text-slate-500">
-                Custody moves to the new holder only after the Team Leader endorses and the Department Head approves it.
+                {editTransfer
+                  ? 'You can correct this transfer until the Team Leader endorses it. Each change is recorded in the item history.'
+                  : 'Custody moves to the new holder only after the Team Leader endorses and the Department Head approves it.'}
               </p>
             </div>
           </div>
@@ -465,8 +599,15 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                     />
                   </Field>
 
-                  <Field label="Transfer date (G.C.)" hint={`${formatGcToEc(todayGc)} E.C. · recorded as today`}>
-                    <ReadOnlyValue mono>{todayGc}</ReadOnlyValue>
+                  <Field
+                    label="Transfer date (G.C.)"
+                    hint={
+                      editTransfer
+                        ? `${formatGcToEc(editTransfer.ifmisSlipDateGc)} E.C. · date the transfer was requested`
+                        : `${formatGcToEc(todayGc)} E.C. · recorded as today`
+                    }
+                  >
+                    <ReadOnlyValue mono>{editTransfer ? editTransfer.ifmisSlipDateGc : todayGc}</ReadOnlyValue>
                   </Field>
                 </FieldGrid>
               </FormSection>
@@ -474,6 +615,13 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
               {/* ── Section 2: Asset ── */}
               <FormSection step={2} title="Asset" subtitle="የሚዛወረው ንብረት" icon={Tag} accent="amber">
                 <div className="space-y-3.5">
+                  {editTransfer ? (
+                    <Field label="Issued asset" hint="The asset can't be changed. To transfer a different asset, ask an approver to reject this request.">
+                      <ReadOnlyValue mono>
+                        {editTransfer.itemCode} — {editTransfer.itemName}
+                      </ReadOnlyValue>
+                    </Field>
+                  ) : (
                   <Field label="Issued asset" required hint="Only assets currently issued to a custodian are listed.">
                     <select
                       value={selectedItemId}
@@ -495,6 +643,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                         })}
                     </select>
                   </Field>
+                  )}
 
                   {selectedItemObj && (
                     <SummaryGrid
@@ -699,8 +848,8 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
               <FormFooter
                 accent="amber"
                 submitting={submittingTransfer}
-                submitLabel="Submit transfer for approval"
-                onCancel={() => setActiveSubTab('all')}
+                submitLabel={editTransfer ? 'Save changes' : 'Submit transfer for approval'}
+                onCancel={() => switchTab('all')}
                 sticky={false}
               />
             </form>
@@ -764,7 +913,12 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                             <span>Print M21</span>
                           </button>
                           {pendingByItem.get(item.id) ? (
-                            <PendingRequestChip request={pendingByItem.get(item.id)!} />
+                            <>
+                              <PendingRequestChip request={pendingByItem.get(item.id)!} />
+                              {canEdit && ['TRANSFER', 'RETURN'].includes(pendingByItem.get(item.id)!.transactionType) && (
+                                <EditRequestButton request={pendingByItem.get(item.id)!} onEdit={openEditRequest} />
+                              )}
+                            </>
                           ) : (
                             <button
                               onClick={() => setReturnItem(item)}
@@ -849,6 +1003,11 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                           <Printer className="w-3.5 h-3.5 text-amber-700" />
                           <span>Print M21</span>
                         </button>
+                        {canEdit &&
+                          pendingByItem.get(item.id) &&
+                          ['TRANSFER', 'RETURN'].includes(pendingByItem.get(item.id)!.transactionType) && (
+                            <EditRequestButton request={pendingByItem.get(item.id)!} onEdit={openEditRequest} />
+                          )}
                         {item.status === ItemStatus.ISSUED && !pendingByItem.has(item.id) && (
                           <button
                             onClick={() => setReturnItem(item)}
@@ -882,9 +1041,14 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           isOpen={!!returnItem}
           item={returnItem}
           employees={employees}
-          onClose={() => setReturnItem(null)}
+          editApproval={editReturn ?? undefined}
+          onClose={() => {
+            setReturnItem(null);
+            setEditReturn(null);
+          }}
           onSuccess={(voucher) => {
             setReturnItem(null);
+            setEditReturn(null);
             fetchData();
             if (voucher) {
               setActiveVoucher(voucher);

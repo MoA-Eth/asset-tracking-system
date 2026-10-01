@@ -42,10 +42,22 @@ router.post(
   optionalAuth,
   controller.registerReturn
 );
+router.put(
+  '/return-to-store/:approvalId',
+  requireAuth,
+  requireRole(UserRole.DATA_ENCODER),
+  controller.updateReturn
+);
 router.post(
   '/transfer',
   optionalAuth,
   controller.transferItem
+);
+router.put(
+  '/transfer/:approvalId',
+  requireAuth,
+  requireRole(UserRole.DATA_ENCODER),
+  controller.updateTransfer
 );
 
 // Approvals (Executive / Department Head sign-off only)

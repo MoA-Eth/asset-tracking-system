@@ -7,6 +7,7 @@ import {
   Employee,
   Model21Voucher,
   Model21LineItem,
+  TransactionApproval,
 } from '../../types/asset-management';
 import { Modal } from './Modal';
 import {
@@ -22,7 +23,7 @@ import {
   textareaClass,
 } from './FormKit';
 import { getSystemSettings } from '../../utils/system-settings';
-import { validateSlipFile, SLIP_ACCEPT_ATTR } from '../../utils/slip-upload';
+import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
@@ -33,6 +34,8 @@ interface ReturnToStoreModalProps {
   item: ItemWithRelations | null;
   employees: Employee[];
   onSuccess: (voucher?: Model21Voucher) => void;
+  /** When set, the modal corrects this pending return instead of creating a new one */
+  editApproval?: TransactionApproval;
 }
 
 export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
@@ -41,6 +44,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
   item,
   employees,
   onSuccess,
+  editApproval,
 }) => {
   const { user } = useAuth();
   const toast = useToast();
@@ -87,7 +91,32 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
       setTireWrenchQty(vehicle ? 1 : 0);
       setKeyQty(vehicle ? 2 : 0);
     }
-  }, [item]);
+    if (item && editApproval) {
+      const d = editApproval.requestDetails ?? {};
+      setModel21No(editApproval.ifmisSlipNumber || '');
+      setBook(d.book ?? '');
+      setIfmisSlipDateGc(editApproval.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
+      setCondition((d.condition as ItemCondition) ?? ItemCondition.GOOD);
+      setReturnReason(d.reason ?? '');
+      setDefectRemark(d.remark ?? '');
+      setStoreReceiverId(d.storeRecipientId ?? '');
+      if (d.chassisNumber !== undefined) setChassisNumber(d.chassisNumber);
+      setPlateNo(d.plateNo ?? '');
+      setEngineNo(d.engineNo ?? '');
+      if (d.depreciation !== undefined) setDepreciation(d.depreciation);
+      if (d.bookValue !== undefined) setBookValue(d.bookValue);
+      if (d.accessories) {
+        const qty = (name: string) => d.accessories?.find((a) => a.name === name)?.quantity ?? 0;
+        setJackQty(qty('jack with handle'));
+        setTireWrenchQty(qty('tire wrench'));
+        setKeyQty(qty('key'));
+      }
+      setTireSerials(d.tireNos?.join(', ') ?? '');
+      setAttachmentFile(null);
+      setAttachmentFileName(editApproval.ifmisSlipAttachmentUrl ? getSlipDisplayName(editApproval.ifmisSlipAttachmentUrl) : '');
+      setFormError(null);
+    }
+  }, [item, editApproval]);
 
   if (!item) return null;
 
@@ -155,6 +184,39 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
       .split(/[,\n]/)
       .map((s) => s.trim())
       .filter(Boolean);
+
+    if (editApproval) {
+      try {
+        const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
+        await api.updateReturn(editApproval.id, {
+          model21No: model21No.trim(),
+          ifmisSlipDateGc: todayGc,
+          ifmisSlipAttachmentUrl: slipUrl,
+          returnReason: returnReason.trim(),
+          condition,
+          book: book.trim() || undefined,
+          chassisNumber: chassisNumber.trim() || undefined,
+          plateNo: plateNo.trim() || undefined,
+          engineNo: engineNo.trim() || undefined,
+          accessories,
+          tireNos: tireList,
+          depreciation,
+          bookValue,
+          defectRemark: defectRemark.trim() || undefined,
+          storeRecipientId: storeReceiverId || undefined,
+        });
+        toast.success('Return Updated', `The return of ${item.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
+        onSuccess();
+        onClose();
+      } catch (err: any) {
+        const errMsg = err.message || 'Server error';
+        setFormError(`Update failed: ${errMsg}`);
+        toast.error('Return Update Failed', errMsg);
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
 
     try {
       const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
@@ -239,8 +301,12 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Return to store · Model 21 · ${item.itemCode}`}
-      subtitle="The item stays with its custodian until the Team Leader endorses and the Department Head approves the return."
+      title={editApproval ? `Edit return · ${item.itemCode}` : `Return to store · Model 21 · ${item.itemCode}`}
+      subtitle={
+        editApproval
+          ? 'You can correct this return until the Team Leader endorses it. Each change is recorded in the item history.'
+          : 'The item stays with its custodian until the Team Leader endorses and the Department Head approves the return.'
+      }
       accentColor="teal"
       size="xl"
     >
@@ -493,9 +559,9 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
         <FormFooter
           accent="teal"
           submitting={submitting}
-          submitLabel="Submit return for approval"
+          submitLabel={editApproval ? 'Save changes' : 'Submit return for approval'}
           onCancel={onClose}
-          onReset={handleReset}
+          onReset={editApproval ? undefined : handleReset}
         />
       </form>
     </Modal>

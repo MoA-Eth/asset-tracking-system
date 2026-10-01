@@ -13,6 +13,8 @@ import {
   UpdateStockInRequest,
   CreateStockOutRequest,
   UpdateStockOutRequest,
+  UpdateTransferRequest,
+  UpdateReturnRequest,
   CreateReturnRequest,
   CreateTransferRequest,
   ApprovalActionRequest,
@@ -145,6 +147,20 @@ export const api = {
   // Allowed only while the item waits for Stage 1 endorsement
   updateStockIn: (itemId: string, payload: UpdateStockInRequest) => {
     return request<{ item: ItemWithRelations }>(`/items/${encodeURIComponent(itemId)}/stock-in`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateTransfer: (approvalId: string, payload: UpdateTransferRequest) => {
+    return request<{ approval: TransactionApproval }>(`/items/transfer/${encodeURIComponent(approvalId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateReturn: (approvalId: string, payload: UpdateReturnRequest) => {
+    return request<{ approval: TransactionApproval }>(`/items/return-to-store/${encodeURIComponent(approvalId)}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
