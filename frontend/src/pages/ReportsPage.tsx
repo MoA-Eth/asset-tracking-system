@@ -420,7 +420,7 @@ export const ReportsPage: React.FC = () => {
       doc.text('FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA', 24, 18);
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text('MINISTRY OF AGRICULTURE (MoA) • FIXED ASSET MANAGEMENT SYSTEM', 24, 32);
+      doc.text('MINISTRY OF AGRICULTURE (MoA) • FIXED ASSET TRACKING SYSTEM', 24, 32);
 
       doc.setFontSize(8);
       doc.text(`Generated: ${dateInfo.gc} (G.C.) / ${dateInfo.ecFormattedAm}`, pw - 24, 25, { align: 'right' });

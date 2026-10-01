@@ -130,7 +130,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               <span className="block font-extrabold text-sm text-white tracking-tight">
                 MoA<span className="text-[#FCDD09]">-AMS</span>
               </span>
-              <span className="block text-[11px] text-emerald-100/60 truncate">Asset Management System</span>
+              <span className="block text-[11px] text-emerald-100/60 truncate">Asset Tracking System</span>
             </div>
           )}
         </div>
