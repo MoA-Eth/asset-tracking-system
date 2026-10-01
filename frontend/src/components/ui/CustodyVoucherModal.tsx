@@ -156,7 +156,7 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
                 </thead>
                 <tbody>
                   <tr className="divide-x divide-slate-200">
-                    <td className="py-3 px-3 font-mono font-bold text-emerald-800 whitespace-nowrap w-32">{itemCode}</td>
+                    <td className="py-3 px-3 font-mono font-bold text-slate-800 whitespace-nowrap w-32">{itemCode}</td>
                     <td className="py-3 px-3 font-semibold text-slate-900 min-w-[140px]">{itemName}</td>
                     <td className="py-3 px-3 text-slate-600 whitespace-nowrap w-28">{category}</td>
                     <td className="py-3 px-3 font-mono text-slate-800 whitespace-nowrap w-28">{serialNo}</td>

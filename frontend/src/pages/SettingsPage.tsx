@@ -9,6 +9,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { table } from '../components/ui/theme';
 import { UserRole, Employee, Department } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
 
@@ -187,7 +188,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs min-w-[860px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                <tr className={table.headRow}>
                   <th className="py-3 px-4 min-w-[200px]">Civil Servant / User</th>
                   <th className="py-3 px-4 w-48 whitespace-nowrap">Official Email</th>
                   <th className="py-3 px-4 min-w-[180px]">Directorate / Dept</th>

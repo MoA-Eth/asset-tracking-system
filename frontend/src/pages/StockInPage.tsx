@@ -22,6 +22,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { Modal } from '../components/ui/Modal';
 import {
   FormSection,
@@ -63,19 +64,19 @@ interface StockInPageProps {
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   [ItemStatus.PENDING_STOCK_IN]: {
     label: 'Pending Approval',
-    className: 'bg-amber-100 text-amber-800 border-amber-200',
+    className: statusTone.pending,
   },
   [ItemStatus.AVAILABLE]: {
     label: 'Available (In Store)',
-    className: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    className: statusTone.inStore,
   },
   [ItemStatus.PENDING_STOCK_OUT]: {
     label: 'Pending Stock-Out',
-    className: 'bg-blue-100 text-blue-800 border-blue-200',
+    className: statusTone.pending,
   },
   [ItemStatus.ISSUED]: {
     label: 'Issued',
-    className: 'bg-blue-100 text-blue-800 border-blue-200',
+    className: statusTone.issued,
   },
 };
 
@@ -86,16 +87,16 @@ const PENDING_STAGE_LABELS: Record<number, string> = {
 };
 
 const StatusBadge: React.FC<{ status: ItemStatus; stage?: number; partlyIssued?: boolean }> = ({ status, stage, partlyIssued }) => {
-  const base = STATUS_STYLES[status] ?? { label: status, className: 'bg-slate-100 text-slate-700 border-slate-200' };
+  const base = STATUS_STYLES[status] ?? { label: status, className: statusTone.neutral };
   const stageLabel = status === ItemStatus.PENDING_STOCK_IN && stage ? PENDING_STAGE_LABELS[stage] : undefined;
   // Some units are with custodians while the rest are still in store
   const style = stageLabel
     ? { ...base, label: stageLabel }
     : partlyIssued
-      ? { label: 'Partly issued', className: 'bg-sky-100 text-sky-800 border-sky-200' }
+      ? { label: 'Partly issued', className: statusTone.partly }
       : base;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${style.className}`}>
+    <span className={`${pill} ${style.className}`}>
       {style.label}
     </span>
   );
@@ -875,10 +876,10 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full text-xs min-w-[1000px]">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-left">
+              <tr className={table.headRow}>
                 <th
                   onClick={() => handleSort('itemCode')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-32 whitespace-nowrap"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-32 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Item Code</span>
@@ -887,7 +888,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('name')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition min-w-[180px]"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition min-w-[180px]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Name / Description</span>
@@ -896,28 +897,28 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('category')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Category</span>
                     {renderSortIcon('category')}
                   </div>
                 </th>
-                <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-center whitespace-nowrap">
+                <th className="px-3 py-2.5 w-16 text-center whitespace-nowrap">
                   UOM
                 </th>
-                <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-right whitespace-nowrap" title="All units received">
+                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="All units received">
                   Received
                 </th>
-                <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-right whitespace-nowrap" title="Units with custodians">
+                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="Units with custodians">
                   Issued
                 </th>
-                <th className="px-3 py-2.5 font-semibold text-slate-600 w-16 text-right whitespace-nowrap" title="Units in store">
+                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="Units in store">
                   In Store
                 </th>
                 <th
                   onClick={() => handleSort('ifmisSlipNumber')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-36 whitespace-nowrap"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-36 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Model 19 / IFMIS</span>
@@ -926,7 +927,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('createdAt')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Date (G.C.)</span>
@@ -935,7 +936,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('unitCostETB')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-28 text-right whitespace-nowrap"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 text-right whitespace-nowrap"
                 >
                   <div className="flex items-center justify-end gap-1.5">
                     <span>Unit Cost</span>
@@ -944,14 +945,14 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('status')}
-                  className="px-3 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Status</span>
                     {renderSortIcon('status')}
                   </div>
                 </th>
-                <th className="px-3 py-2.5 font-semibold text-slate-600 text-center w-24 whitespace-nowrap">
+                <th className="px-3 py-2.5 text-center w-24 whitespace-nowrap">
                   Action
                 </th>
               </tr>
@@ -966,11 +967,11 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                     key={item.id}
                     className={`transition ${
                       isJustRegistered
-                        ? 'bg-emerald-50/90 border-l-4 border-emerald-600 font-medium'
-                        : 'hover:bg-slate-50'
+                        ? `${table.rowHighlight} font-medium`
+                        : table.row
                     }`}
                   >
-                    <td className="px-3 py-2.5 font-mono font-bold text-emerald-700 whitespace-nowrap w-32">
+                    <td className={`px-3 py-2.5 ${table.code} whitespace-nowrap w-32`}>
                       <div className="flex items-center gap-1.5">
                         <span>{item.itemCode}</span>
                         {isJustRegistered && (
@@ -1019,18 +1020,18 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                         {canEdit && pendingStages.get(item.id) === 1 && (
                           <button
                             onClick={() => onEdit(item)}
-                            className="px-2 py-1 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-300 hover:border-emerald-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                            className={btn.row}
                             title="Correct this registration (allowed until the Team Leader endorses it)"
                             aria-label={`Edit ${item.itemCode}`}
                           >
-                            <Pencil className="w-3.5 h-3.5 text-emerald-700" />
+                            <Pencil className={btn.rowIcon} />
                             <span>Edit</span>
                           </button>
                         )}
                         {canEdit && pendingStages.get(item.id) === 2 && (
                           <button
                             disabled
-                            className="px-2 py-1 bg-slate-50 text-slate-400 border border-slate-200 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 cursor-not-allowed"
+                            className={btn.rowLocked}
                             title="Locked: the Team Leader has already endorsed this registration. To correct it, ask an approver to reject it and register it again."
                             aria-label={`Edit ${item.itemCode} (locked after Team Leader endorsement)`}
                           >
@@ -1040,10 +1041,10 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                         )}
                         <button
                           onClick={() => onPrintModel19(item)}
-                          className="px-2 py-1 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-300 hover:border-emerald-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                          className={btn.row}
                           title="Print Official Model 19 Report"
                         >
-                          <Printer className="w-3.5 h-3.5 text-emerald-700" />
+                          <Printer className={btn.rowIcon} />
                           <span>Print M19</span>
                         </button>
                       </div>
@@ -1053,16 +1054,6 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
               })}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Approval nudge */}
-      {items.some((i) => i.status === ItemStatus.PENDING_STOCK_IN) && (
-        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-2 text-xs text-amber-800">
-          <Clock className="w-4 h-4 shrink-0" />
-          <span>
-            Some items are awaiting Team Leader endorsement or Department Head approval. Their current status appears in the inventory above.
-          </span>
         </div>
       )}
     </div>
@@ -1267,7 +1258,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
         <div className="flex items-center gap-3">
           <button
             onClick={openRegister}
-            className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-2 cursor-pointer shrink-0"
+            className={btn.primary}
           >
             <Plus className="w-4 h-4" />
             {headerConfig.buttonLabel}
