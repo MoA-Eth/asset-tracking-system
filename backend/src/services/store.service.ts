@@ -1811,7 +1811,7 @@ export class StoreService {
   // ── Executive Dashboard ─────────────────────────────────────────────────
 
   public async getExecutiveDashboard() {
-    const [allItemsRaw, departments, locations, pendingApprovals, recentLogs] = await Promise.all([
+    const [allItemsRaw, departments, locations, pendingApprovals, recentLogs, approvedStockOuts] = await Promise.all([
       prisma.item.findMany({
         include: ITEM_INCLUDES,
         orderBy: { unitCostETB: 'desc' },
@@ -1820,6 +1820,10 @@ export class StoreService {
       prisma.location.findMany({ orderBy: { siteName: 'asc' } }),
       prisma.transactionApproval.count({ where: { status: 'PENDING' } }),
       prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 8 }),
+      prisma.transactionApproval.findMany({
+        where: { transactionType: 'STOCK_OUT' as any, status: 'APPROVED' as any },
+        select: { itemId: true, reviewedAtGc: true, createdAtGc: true, requestDetails: true },
+      }),
     ]);
 
     const allItems = allItemsRaw.map(mapItem);
@@ -1878,6 +1882,34 @@ export class StoreService {
       })
       .filter((i) => i.daysInStore > STALE_IN_STORE_DAYS)
       .sort((a, b) => b.daysInStore - a.daysInStore);
+
+    // Units received and issued per month, for the last 6 months including this one
+    const [thisYear, thisMonth] = getTodayGcAndEc().gc.split('-').map(Number);
+    const movementMonths = Array.from({ length: 6 }, (_, k) =>
+      new Date(Date.UTC(thisYear, thisMonth - 1 - (5 - k), 1)).toISOString().slice(0, 7)
+    );
+    const receivedByMonth = new Map<string, number>();
+    const issuedByMonth = new Map<string, number>();
+    // Received: each approved registration with the units split off it, by its receiving (Model 19) month
+    for (const reg of allItems.filter((i) => !i.parentItemId && i.status !== 'PENDING_STOCK_IN' && i.status !== 'DISPOSED')) {
+      const month = (reg.ifmisSlipDateGc || reg.createdAtGc || '').slice(0, 7);
+      const unitsReceived = unitsOf(reg) + units(allItems.filter((c) => c.parentItemId === reg.id && c.status !== 'DISPOSED'));
+      receivedByMonth.set(month, (receivedByMonth.get(month) ?? 0) + unitsReceived);
+    }
+    // Issued: each approved Stock-Out by the month it was approved (a partial issue counts its own units)
+    const itemsById = new Map(allItems.map((i) => [i.id, i]));
+    for (const so of approvedStockOuts) {
+      const month = (so.reviewedAtGc || so.createdAtGc || '').slice(0, 7);
+      const requested = Number((so.requestDetails as Record<string, any> | null)?.quantity);
+      const item = itemsById.get(so.itemId);
+      const unitsIssued = Number.isFinite(requested) && requested > 0 ? requested : item ? unitsOf(item) : 1;
+      issuedByMonth.set(month, (issuedByMonth.get(month) ?? 0) + unitsIssued);
+    }
+    const stockMovement = movementMonths.map((month) => ({
+      month,
+      received: receivedByMonth.get(month) ?? 0,
+      issued: issuedByMonth.get(month) ?? 0,
+    }));
 
     const conditionDistribution = ['NEW', 'GOOD', 'FAIR', 'NEEDS_REPAIR', 'DAMAGED'].map((cond) => {
       const matching = allItems.filter((i) => i.condition === cond);
@@ -1942,6 +1974,7 @@ export class StoreService {
       unassignedItemsCount: units(unassignedItems),
       unassignedValuationETB: sum(unassignedItems),
       unassignedItems,
+      stockMovement,
       staleInStore: {
         thresholdDays: STALE_IN_STORE_DAYS,
         itemCount: staleItems.length,

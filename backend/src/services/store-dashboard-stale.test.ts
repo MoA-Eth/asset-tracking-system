@@ -5,7 +5,7 @@ const db = vi.hoisted(() => ({
   item: { findMany: vi.fn() },
   department: { findMany: vi.fn() },
   location: { findMany: vi.fn() },
-  transactionApproval: { count: vi.fn() },
+  transactionApproval: { count: vi.fn(), findMany: vi.fn() },
   auditLog: { findMany: vi.fn() },
 }));
 
@@ -38,6 +38,7 @@ beforeEach(() => {
   db.department.findMany.mockResolvedValue([]);
   db.location.findMany.mockResolvedValue([]);
   db.transactionApproval.count.mockResolvedValue(0);
+  db.transactionApproval.findMany.mockResolvedValue([]);
   db.auditLog.findMany.mockResolvedValue([]);
 });
 
@@ -66,5 +67,29 @@ describe('dashboard: items in store longer than 30 days', () => {
     db.item.findMany.mockResolvedValue([record('NEW', 'AVAILABLE', 3), record('ISSUED', 'ISSUED', 300)]);
     const { staleInStore } = await StoreService.getInstance().getExecutiveDashboard();
     expect(staleInStore).toMatchObject({ itemCount: 0, units: 0, items: [] });
+  });
+});
+
+describe('dashboard: stock movement', () => {
+  it('adds up units received and issued per month over the last 6 months', async () => {
+    const thisMonth = getTodayGcAndEc().gc.slice(0, 7);
+    db.item.findMany.mockResolvedValue([
+      // a registration of 4 packs received this month, 1 of which was split off when issued
+      record('BATCH', 'AVAILABLE', 0, { notes: JSON.stringify({ quantity: 3, uom: 'PKT' }) }),
+      record('BATCH-1', 'ISSUED', 0, { parentItemId: 'BATCH', notes: JSON.stringify({ quantity: 1, uom: 'PKT' }) }),
+      // still waiting for approval: not received yet
+      record('PENDING', 'PENDING_STOCK_IN', 0),
+      // received long before the window
+      record('ANCIENT', 'AVAILABLE', 400),
+    ]);
+    db.transactionApproval.findMany.mockResolvedValue([
+      { itemId: 'BATCH', reviewedAtGc: getTodayGcAndEc().gc, createdAtGc: getTodayGcAndEc().gc, requestDetails: { quantity: 1 } },
+    ]);
+
+    const { stockMovement } = await StoreService.getInstance().getExecutiveDashboard();
+
+    expect(stockMovement).toHaveLength(6);
+    expect(stockMovement[5]).toEqual({ month: thisMonth, received: 4, issued: 1 });
+    expect(stockMovement.slice(0, 5).every((m: any) => m.received === 0 && m.issued === 0)).toBe(true);
   });
 });
