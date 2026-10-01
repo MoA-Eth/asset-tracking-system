@@ -27,6 +27,16 @@ import {
   Model21LineItem,
 } from '../types/asset-management';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
+import {
+  FormSection,
+  FieldGrid,
+  Field,
+  ReadOnlyValue,
+  SummaryGrid,
+  FormFooter,
+  inputClass,
+  textareaClass,
+} from '../components/ui/FormKit';
 import { Model21PrintModal } from '../components/ui/Model21PrintModal';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -113,21 +123,17 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     setSelectedItemId(itemId);
     const item = items.find((i) => i.id === itemId);
     if (item) {
-      const cost = item.unitCostETB || 0;
-      setDepreciation(cost);
-      setBookValue(0);
-      setChassisNumber(item.serialNumber ? `CH-${item.serialNumber}` : '');
-      if (item.category === 'VEHICLE') {
-        setPlateNo('4-23794');
-        setEngineNo('1HZ-0641864');
-        setTireSerials('R240514711, R240504703, R240504594, R240504595, YY0219');
-        setDefectRemark('The right side mirror is missing.\nBoth rear lights are broken.');
-      } else {
-        setPlateNo('');
-        setEngineNo('');
-        setTireSerials('');
-        setDefectRemark(item.notes || '');
-      }
+      setDepreciation(0);
+      setBookValue(item.unitCostETB || 0);
+      setChassisNumber(item.serialNumber || '');
+      setPlateNo('');
+      setEngineNo('');
+      setTireSerials('');
+      setDefectRemark('');
+      const vehicle = item.category === 'VEHICLE' || item.category === 'AGRI_MACHINERY';
+      setJackQty(vehicle ? 1 : 0);
+      setTireWrenchQty(vehicle ? 1 : 0);
+      setKeyQty(vehicle ? 2 : 0);
     }
   };
 
@@ -248,38 +254,28 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
 
     const voucher: Model21Voucher = {
       model21No: item.ifmisSlipNumber || '0004386',
-      fromEmployeeName: custodian?.fullNameEn || 'Mekonnen, Abayneh Belachew',
-      fromEmployeeId: custodian?.payrollId || '110895',
+      fromEmployeeName: custodian?.fullNameEn || '—',
+      fromEmployeeId: custodian?.payrollId || '—',
       book: 'MOA MC BOOK',
-      toEmployeeName: 'Ayele, Marta Mekete',
-      toEmployeeId: '109856',
+      toEmployeeName: '—',
+      toEmployeeId: '—',
       items: [
         {
           sNo: 1,
           description: item.name,
           tagNumber: item.itemCode,
           serialNumber: item.serialNumber || '',
-          chassisNumber: item.serialNumber ? `JTEBB71J${item.serialNumber}` : 'JTEBB71JX07008920',
+          chassisNumber: item.serialNumber || undefined,
           uom: 'EA',
           unit: 1,
           origCost: cost,
-          depreciation: cost,
-          bookValue: 0,
+          depreciation: 0,
+          bookValue: cost,
           dateGc: todayGc,
           dateEc: todayEc,
           fromLocation: loc,
           toLocation: loc,
-          plateNo: item.category === 'VEHICLE' ? '4-23794' : undefined,
-          engineNo: item.category === 'VEHICLE' ? '1HZ-0641864' : undefined,
-          accessories: item.category === 'VEHICLE' ? [
-            { name: 'jack with handle', quantity: 1 },
-            { name: 'tire wrench', quantity: 1 },
-            { name: 'key', quantity: 2 },
-          ] : undefined,
-          tireNos: item.category === 'VEHICLE' ? [
-            'R240514711', 'R240504703', 'R240504594', 'R240504595', 'YY0219'
-          ] : undefined,
-          remark: item.notes || 'The right side mirror is missing.\nBoth rear lights are broken.',
+          remark: '',
         },
       ],
       famuAccountantName: 'FAMU Reviewer',
@@ -307,6 +303,10 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   });
 
   const selectedItemObj = items.find((i) => i.id === selectedItemId);
+  const selectedIsVehicleLike =
+    selectedItemObj?.category === 'VEHICLE' || selectedItemObj?.category === 'AGRI_MACHINERY';
+  const todayGc = new Date().toISOString().split('T')[0];
+  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('amber', opts);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-16">
@@ -320,11 +320,11 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               Fixed Asset Internal Transfer & Return
               <span className="text-xs font-normal text-emerald-800 font-amharic">
-                (የንብረት ዝውውር - ሞዴል 21 እና መመለሻ - ሞዴል 22)
+                (የንብረት ዝውውር እና መመለሻ - ሞዴል 21)
               </span>
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Official FDRE Ministry of Agriculture Model 21 Internal Transfer Vouchers and Model 22 Store Returns.
+              Model 21 internal transfers between custodians and returns to store.
             </p>
           </div>
         </div>
@@ -361,7 +361,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             }`}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Return to Store (Model 22)
+            Return to Store (Model 21)
           </button>
         </div>
       </div>
@@ -369,396 +369,298 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
       {/* Main Content Sections */}
       {activeSubTab === 'transfer' ? (
         /* ── Model 21 Fixed Asset Internal Transfer Form ──────────────────── */
-        <div className="space-y-5">
-          <div className="p-6 rounded-2xl bg-white border border-slate-300 shadow-xs space-y-6">
-            {/* Form Top Title Box */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
-                  Model 21 • የንብረት ዝውውር ፎርም
-                </span>
-                <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2 mt-1">
-                  <ArrowRightLeft className="w-5 h-5 text-amber-600" />
-                  Fixed Asset Internal Transfer Form (Model/21)
-                </h2>
-                <p className="text-xs text-slate-500">
-                  The Federal Democratic Republic of Ethiopia • Ministry of Agriculture
-                </p>
-              </div>
-
-              <div className="flex items-center gap-4 text-xs">
-                <div className="text-right">
-                  <span className="text-[10px] text-slate-500 block">Document Designation</span>
-                  <span className="font-bold text-slate-900 font-mono text-sm">Model/21</span>
-                </div>
-              </div>
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-xs">
+          <div className="flex flex-col gap-1 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <ArrowRightLeft className="h-5 w-5 text-amber-600" />
+                New transfer · Model 21
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Custody moves to the new holder only after the Team Leader endorses and the Department Head approves it.
+              </p>
             </div>
+          </div>
 
+          <div className="space-y-4 px-6 py-5">
             {transferSuccessMsg && (
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-semibold flex items-center justify-between gap-2 animate-fadeIn">
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900 animate-fadeIn">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
                   <span>{transferSuccessMsg}</span>
                 </div>
                 {activeVoucher && (
                   <button
                     onClick={() => setActiveVoucher(activeVoucher)}
-                    className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-lg text-xs flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                    className="flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-800 cursor-pointer"
                   >
-                    <Printer className="w-3.5 h-3.5" />
+                    <Printer className="h-3.5 w-3.5" />
                     Print Model 21
                   </button>
                 )}
               </div>
             )}
 
-            <form onSubmit={handleTransferSubmit} className="space-y-6 text-xs">
-              {/* ── Document Metadata & Header Block (Matching Photo) ── */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 space-y-4">
-                <h3 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-amber-700" />
-                  1. Document Reference & Register Book
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">
-                      Model # (Transfer Slip No.) *
-                    </label>
+            <form onSubmit={handleTransferSubmit} className="space-y-4">
+              {/* ── Section 1: Transfer voucher ── */}
+              <FormSection step={1} title="Transfer voucher" subtitle="የዝውውር ሰነድ · Model 21 register" icon={FileText} accent="amber">
+                <FieldGrid>
+                  <Field label="Model 21 No." required>
                     <input
                       type="text"
                       required
                       value={model21No}
                       onChange={(e) => setModel21No(e.target.value)}
                       placeholder="e.g. 0004386"
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-amber-950 focus:outline-none focus:border-amber-600"
+                      className={`${input({ mono: true })} font-semibold`}
                     />
-                  </div>
+                  </Field>
 
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">
-                      Book (Register Category) *
-                    </label>
+                  <Field label="Register book" required>
                     <input
                       type="text"
                       required
                       value={book}
                       onChange={(e) => setBook(e.target.value)}
-                      placeholder="e.g. MOA MC BOOK / Fixed Asset Book"
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-amber-600"
+                      placeholder="e.g. MOA MC BOOK"
+                      className={input()}
                     />
-                  </div>
+                  </Field>
 
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">
-                      Transfer Date (G.C.)
-                    </label>
-                    <input
-                      type="date"
-                      value={new Date().toISOString().split('T')[0]}
-                      readOnly
-                      className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-mono text-slate-700"
+                  <Field label="Transfer date (G.C.)" hint={`${formatGcToEc(todayGc)} E.C. · recorded as today`}>
+                    <ReadOnlyValue mono>{todayGc}</ReadOnlyValue>
+                  </Field>
+                </FieldGrid>
+              </FormSection>
+
+              {/* ── Section 2: Asset ── */}
+              <FormSection step={2} title="Asset" subtitle="የሚዛወረው ንብረት" icon={Tag} accent="amber">
+                <div className="space-y-3.5">
+                  <Field label="Issued asset" required hint="Only assets currently issued to a custodian are listed.">
+                    <select
+                      value={selectedItemId}
+                      onChange={(e) => handleItemSelect(e.target.value)}
+                      className={`${input()} font-medium`}
+                      required
+                    >
+                      <option value="">Choose an asset to transfer…</option>
+                      {items
+                        .filter((i) => i.status === ItemStatus.ISSUED)
+                        .map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.itemCode} — {item.name} ({item.currentCustodian?.fullNameEn || 'assigned'})
+                          </option>
+                        ))}
+                    </select>
+                  </Field>
+
+                  {selectedItemObj && (
+                    <SummaryGrid
+                      items={[
+                        { label: 'Tag number', value: selectedItemObj.itemCode, mono: true },
+                        { label: 'Description', value: selectedItemObj.name },
+                        { label: 'Current location', value: selectedItemObj.storeLocation?.siteName },
+                        { label: 'Original cost', value: formatETB(selectedItemObj.unitCostETB), mono: true },
+                      ]}
                     />
-                  </div>
+                  )}
+
+                  <FieldGrid cols={2}>
+                    <Field label="Chassis / serial number" optional>
+                      <input
+                        type="text"
+                        placeholder="e.g. JTEBB71JX07008920"
+                        value={chassisNumber}
+                        onChange={(e) => setChassisNumber(e.target.value)}
+                        className={input({ mono: true })}
+                      />
+                    </Field>
+
+                    <Field label="Accumulated depreciation (ETB)" optional hint={`Net book value: ${formatETB(bookValue)}`}>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={depreciation}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setDepreciation(val);
+                          setBookValue(Math.max(0, (selectedItemObj?.unitCostETB || 0) - val));
+                        }}
+                        className={input({ mono: true, align: 'right' })}
+                      />
+                    </Field>
+                  </FieldGrid>
                 </div>
-              </div>
+              </FormSection>
 
-              {/* ── Asset Selection & Particulars (Matching photo grid) ── */}
-              <div className="p-4 rounded-xl bg-white border border-slate-300 space-y-4 shadow-2xs">
-                <h3 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-amber-700" />
-                  2. Transferred Asset Particulars
-                </h3>
+              {/* ── Section 3: Transfer to ── */}
+              <FormSection step={3} title="Transfer to" subtitle="ተረካቢ" icon={UserCheck} accent="amber">
+                <div className="space-y-3.5">
+                  <FieldGrid cols={2}>
+                    <Field label="From (current custodian)">
+                      <ReadOnlyValue>
+                        {selectedItemObj?.currentCustodian
+                          ? `${selectedItemObj.currentCustodian.fullNameEn} (${selectedItemObj.currentCustodian.payrollId})`
+                          : 'Select an asset first'}
+                      </ReadOnlyValue>
+                    </Field>
 
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">
-                    Select Issued Asset to Transfer *
-                  </label>
-                  <select
-                    value={selectedItemId}
-                    onChange={(e) => handleItemSelect(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-amber-600"
-                    required
-                  >
-                    <option value="">-- Choose Issued Asset to Transfer --</option>
-                    {items
-                      .filter((i) => i.status === ItemStatus.ISSUED)
-                      .map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.itemCode} — {item.name} (Current Custodian: {item.currentCustodian?.fullNameEn || 'Assigned'})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                {selectedItemObj && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-amber-50/60 rounded-xl border border-amber-200">
-                    <div>
-                      <span className="text-[10px] text-slate-500 block">Tag Number</span>
-                      <span className="font-mono font-bold text-amber-950">{selectedItemObj.itemCode}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 block">Description</span>
-                      <span className="font-bold text-slate-900 truncate block">{selectedItemObj.name}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 block">Orig. Cost (ETB)</span>
-                      <span className="font-mono font-bold text-slate-900">{formatETB(selectedItemObj.unitCostETB)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 block">Current Location</span>
-                      <span className="font-semibold text-slate-800">{selectedItemObj.storeLocation?.siteName || 'Head office'}</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Chassis Number</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. JTEBB71JX07008920"
-                      value={chassisNumber}
-                      onChange={(e) => setChassisNumber(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-amber-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Accumulated Depreciation (ETB)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={depreciation}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setDepreciation(val);
-                        setBookValue(Math.max(0, (selectedItemObj?.unitCostETB || 0) - val));
-                      }}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-right focus:outline-none focus:border-amber-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Net Book Value (ETB)</label>
-                    <div className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-mono font-bold text-right text-slate-900">
-                      {formatETB(bookValue)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── From / To Custodians & Locations (Matching Photo Box) ── */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 space-y-4">
-                <h3 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-amber-700" />
-                  3. From / To Custodians & Locations
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* From Box */}
-                  <div className="p-3.5 bg-white rounded-xl border border-slate-300 space-y-3">
-                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block border-b pb-1.5">
-                      From (Current Custodian)
-                    </span>
-                    <div>
-                      <span className="text-[10px] text-slate-500 block">From Employee Name</span>
-                      <span className="font-bold text-slate-900 block text-xs">
-                        {selectedItemObj?.currentCustodian?.fullNameEn || 'Central Store Custodian'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 block">From Employee ID</span>
-                      <span className="font-mono font-bold text-slate-700 block text-xs">
-                        {selectedItemObj?.currentCustodian?.payrollId || '110895'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 block">From Location</span>
-                      <span className="font-semibold text-slate-800 block text-xs">
-                        {selectedItemObj?.storeLocation?.siteName || 'MoA Gurd Sholla (Central Store)'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* To Box */}
-                  <div className="p-3.5 bg-white rounded-xl border border-slate-300 space-y-3">
-                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block border-b pb-1.5">
-                      To (Recipient Custodian)
-                    </span>
-                    <div>
-                      <label className="block text-slate-700 font-bold mb-1">
-                        To Employee Name & ID *
-                      </label>
+                    <Field label="To employee" required>
                       <select
                         value={targetEmployeeId}
                         onChange={(e) => setTargetEmployeeId(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-amber-600"
+                        className={input()}
                         required
                       >
-                        <option value="">-- Select Recipient Employee --</option>
+                        <option value="">Select the new custodian…</option>
                         {employees.map((emp) => (
                           <option key={emp.id} value={emp.id}>
-                            {emp.fullNameEn} (ID: {emp.payrollId})
+                            {emp.fullNameEn} ({emp.payrollId})
                           </option>
                         ))}
                       </select>
-                    </div>
+                    </Field>
 
-                    <div>
-                      <label className="block text-slate-700 font-bold mb-1">
-                        To Directorate / Department
-                      </label>
+                    <Field label="To directorate" optional hint="Leave blank to keep the current directorate.">
                       <select
                         value={targetDepartmentId}
                         onChange={(e) => setTargetDepartmentId(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:outline-none focus:border-amber-600"
+                        className={input()}
                       >
-                        <option value="">-- Select Target Directorate --</option>
+                        <option value="">Keep current directorate</option>
                         {departments.map((dep) => (
                           <option key={dep.id} value={dep.id}>
                             {dep.nameEn} ({dep.code})
                           </option>
                         ))}
                       </select>
-                    </div>
+                    </Field>
 
-                    <div>
-                      <label className="block text-slate-700 font-bold mb-1">
-                        To Physical Location
-                      </label>
+                    <Field label="To location" optional hint="Leave blank to keep the current location.">
                       <select
                         value={targetLocationId}
                         onChange={(e) => setTargetLocationId(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:outline-none focus:border-amber-600"
+                        className={input()}
                       >
-                        <option value="">-- Same Location / Select New Location --</option>
+                        <option value="">Keep current location</option>
                         {locations.map((loc) => (
                           <option key={loc.id} value={loc.id}>
                             {loc.siteName} {loc.building ? `(${loc.building})` : ''}
                           </option>
                         ))}
                       </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                    </Field>
+                  </FieldGrid>
 
-              {/* ── Vehicle / Equipment Special Particulars (Matching photo lower block) ── */}
-              <div className="p-4 rounded-xl bg-white border border-slate-300 space-y-4 shadow-2xs">
-                <h3 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                  <Car className="w-3.5 h-3.5 text-amber-700" />
-                  4. Vehicle / Machinery Accessories & Defect Remarks (Photo Fields)
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Plate Number</label>
+                  <Field label="Reason for transfer" required>
                     <input
                       type="text"
-                      placeholder="e.g. 4-23794"
-                      value={plateNo}
-                      onChange={(e) => setPlateNo(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold focus:outline-none focus:border-amber-600"
+                      required
+                      value={transferReason}
+                      onChange={(e) => setTransferReason(e.target.value)}
+                      placeholder="e.g. Reassigned for field survey work"
+                      className={input()}
                     />
-                  </div>
+                  </Field>
 
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Engine Number</label>
+                  <Field label="Defects / remarks" optional>
+                    <textarea
+                      rows={2}
+                      value={defectRemark}
+                      onChange={(e) => setDefectRemark(e.target.value)}
+                      placeholder="e.g. The right side mirror is missing. Both rear lights are broken."
+                      className={textareaClass('amber')}
+                    />
+                  </Field>
+                </div>
+              </FormSection>
+
+              {/* ── Section 4: Vehicle & machinery details (optional) ── */}
+              <FormSection
+                key={selectedIsVehicleLike ? 'vehicle' : 'other'}
+                step={4}
+                title="Vehicle & machinery details"
+                subtitle="Plate, engine, accessories and tires · only for vehicles and machinery"
+                icon={Car}
+                accent="amber"
+                collapsible
+                defaultOpen={selectedIsVehicleLike}
+              >
+                <div className="space-y-3.5">
+                  <FieldGrid cols={2}>
+                    <Field label="Plate number" optional>
+                      <input
+                        type="text"
+                        placeholder="e.g. 4-23794"
+                        value={plateNo}
+                        onChange={(e) => setPlateNo(e.target.value)}
+                        className={input({ mono: true })}
+                      />
+                    </Field>
+
+                    <Field label="Engine number" optional>
+                      <input
+                        type="text"
+                        placeholder="e.g. 1HZ-0641864"
+                        value={engineNo}
+                        onChange={(e) => setEngineNo(e.target.value)}
+                        className={input({ mono: true })}
+                      />
+                    </Field>
+                  </FieldGrid>
+
+                  <FieldGrid>
+                    <Field label="Jack with handle (qty)">
+                      <input
+                        type="number"
+                        min="0"
+                        value={jackQty}
+                        onChange={(e) => setJackQty(parseInt(e.target.value) || 0)}
+                        className={input({ mono: true, align: 'right' })}
+                      />
+                    </Field>
+
+                    <Field label="Tire wrench (qty)">
+                      <input
+                        type="number"
+                        min="0"
+                        value={tireWrenchQty}
+                        onChange={(e) => setTireWrenchQty(parseInt(e.target.value) || 0)}
+                        className={input({ mono: true, align: 'right' })}
+                      />
+                    </Field>
+
+                    <Field label="Keys (qty)">
+                      <input
+                        type="number"
+                        min="0"
+                        value={keyQty}
+                        onChange={(e) => setKeyQty(parseInt(e.target.value) || 0)}
+                        className={input({ mono: true, align: 'right' })}
+                      />
+                    </Field>
+                  </FieldGrid>
+
+                  <Field label="Tire serial numbers" optional hint="Separate with commas or new lines">
                     <input
                       type="text"
-                      placeholder="e.g. 1HZ-0641864"
-                      value={engineNo}
-                      onChange={(e) => setEngineNo(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-amber-600"
+                      placeholder="e.g. R240514711, R240504703, YY0219"
+                      value={tireSerials}
+                      onChange={(e) => setTireSerials(e.target.value)}
+                      className={input({ mono: true })}
                     />
-                  </div>
+                  </Field>
                 </div>
+              </FormSection>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Jack with Handle (Qty)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={jackQty}
-                      onChange={(e) => setJackQty(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-center focus:outline-none focus:border-amber-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Tire Wrench (Qty)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={tireWrenchQty}
-                      onChange={(e) => setTireWrenchQty(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-center focus:outline-none focus:border-amber-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Key (Qty)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={keyQty}
-                      onChange={(e) => setKeyQty(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-center focus:outline-none focus:border-amber-600"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">
-                    Tire Numbers (comma or newline separated)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. R240514711, R240504703, R240504594, R240504595, YY0219"
-                    value={tireSerials}
-                    onChange={(e) => setTireSerials(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-amber-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">
-                    Remark / Defect Summary *
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={defectRemark}
-                    onChange={(e) => setDefectRemark(e.target.value)}
-                    placeholder="e.g. The right side mirror is missing. Both rear lights are broken."
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:outline-none focus:border-amber-600"
-                  />
-                </div>
-              </div>
-
-              {/* Form Action Buttons */}
-              <div className="pt-2 flex items-center justify-between border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setActiveSubTab('all')}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingTransfer}
-                  className="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white font-bold rounded-xl transition cursor-pointer flex items-center gap-2 shadow-md active:scale-95"
-                >
-                  {submittingTransfer ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="w-4 h-4" />
-                  )}
-                  Submit Model 21 Transfer for Approval
-                </button>
-              </div>
+              <FormFooter
+                accent="amber"
+                submitting={submittingTransfer}
+                submitLabel="Submit transfer for approval"
+                onCancel={() => setActiveSubTab('all')}
+                sticky={false}
+              />
             </form>
           </div>
         </div>
@@ -906,7 +808,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                           <button
                             onClick={() => setReturnItem(item)}
                             className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 rounded-lg text-xs font-bold transition cursor-pointer inline-flex items-center gap-1"
-                            title="Return to Central Store (Model 22)"
+                            title="Return to Central Store (Model 21)"
                           >
                             <RotateCcw className="w-3 h-3" />
                             Return
