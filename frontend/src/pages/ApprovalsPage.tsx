@@ -26,6 +26,8 @@ import {
   Layers,
   ChevronRight,
   ShieldCheck,
+  Paperclip,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { api } from '../api/client';
 import {
@@ -38,6 +40,8 @@ import {
 import { getTodayGcAndEc } from '../utils/eth-date';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { SlipViewerModal } from '../components/ui/SlipViewerModal';
+import { getSlipDisplayName } from '../utils/slip-upload';
 
 interface ApprovalsPageProps {
   currentRole?: UserRole;
@@ -46,6 +50,17 @@ interface ApprovalsPageProps {
 }
 
 type TabFilter = 'MY_QUEUE' | 'STAGE_1' | 'STAGE_2' | 'APPROVED' | 'REJECTED' | 'ALL';
+
+/**
+ * Queue tabs shown to a role. Stage approvers only get their own queue
+ * ("Pending my action"); the other stage's queue is one they cannot act on.
+ */
+export function getVisibleQueueTabs(role: UserRole): TabFilter[] {
+  const isStageApprover = role === UserRole.TEAM_LEADER || role === UserRole.DEPARTMENT_HEAD;
+  return isStageApprover
+    ? ['MY_QUEUE', 'APPROVED', 'REJECTED', 'ALL']
+    : ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'REJECTED', 'ALL'];
+}
 type ViewMode = 'table' | 'cards';
 
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefreshPendingCount }) => {
@@ -60,11 +75,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const [employees, setEmployees] = useState<Employee[]>([]);
 
   // Navigation & View Controls
-  const [activeTab, setActiveTab] = useState<TabFilter>(() => {
-    if (role === UserRole.TEAM_LEADER) return 'STAGE_1';
-    if (role === UserRole.DEPARTMENT_HEAD) return 'STAGE_2';
-    return 'MY_QUEUE';
-  });
+  const [activeTab, setActiveTab] = useState<TabFilter>('MY_QUEUE');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | TransactionType>('ALL');
@@ -81,6 +92,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const [reviewRemarks, setReviewRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Scanned IFMIS slip preview (opens above the review modal)
+  const [viewingSlipUrl, setViewingSlipUrl] = useState<string | null>(null);
 
   const fetchApprovals = async () => {
     setLoading(true);
@@ -216,8 +230,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       target?.transactionType === 'STOCK_IN'
         ? 'Model 19 Stock-In'
         : target?.transactionType === 'STOCK_OUT'
-        ? 'Model 20 Stock-Out'
-        : 'Model 22 Return';
+        ? 'Model 22 Stock-Out'
+        : target?.transactionType === 'TRANSFER'
+        ? 'Model 21 Transfer'
+        : 'Model 21 Return';
 
     setActionLoading(true);
     const approverId =
@@ -253,6 +269,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             ? 'Asset is now AVAILABLE in Central Store.'
             : target?.transactionType === 'STOCK_OUT'
             ? 'Asset is now ISSUED to staff custodian.'
+            : target?.transactionType === 'TRANSFER'
+            ? 'Custody has moved to the new custodian.'
             : 'Asset is now RETURNED to store inventory.';
         toast.success(
           'Authorization Approved',
@@ -356,14 +374,21 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-50 text-sky-800 border border-sky-200">
             <PackageMinus className="w-3 h-3 text-sky-700" />
-            Model 20 (OUT)
+            Model 22 (OUT)
           </span>
         );
       case TransactionType.RETURN:
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-900 border border-amber-200">
             <RotateCcw className="w-3 h-3 text-amber-700" />
-            Model 22 (RET)
+            Model 21 (RET)
+          </span>
+        );
+      case TransactionType.TRANSFER:
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-violet-50 text-violet-800 border border-violet-200">
+            <ArrowRightLeft className="w-3 h-3 text-violet-700" />
+            Model 21 (TRF)
           </span>
         );
       default:
@@ -544,8 +569,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             >
               <option value="ALL">All Statutory Forms</option>
               <option value={TransactionType.STOCK_IN}>Model 19 (Stock-In Receipt)</option>
-              <option value={TransactionType.STOCK_OUT}>Model 20 (Stock-Out Issue)</option>
-              <option value={TransactionType.RETURN}>Model 22 (Return to Store)</option>
+              <option value={TransactionType.STOCK_OUT}>Model 22 (Stock-Out Issue)</option>
+              <option value={TransactionType.RETURN}>Model 21 (Return to Store)</option>
+              <option value={TransactionType.TRANSFER}>Model 21 (Asset Transfer)</option>
             </select>
           </div>
         </div>
@@ -559,7 +585,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             { id: 'APPROVED', label: 'Approved History', count: metrics.approvedCount },
             { id: 'REJECTED', label: 'Rejected', count: metrics.rejectedCount },
             { id: 'ALL', label: 'All Records', count: metrics.totalCount },
-          ].map((tab) => (
+          ]
+            .filter((tab) => getVisibleQueueTabs(role).includes(tab.id as TabFilter))
+            .map((tab) => (
             <button
               key={tab.id}
               onClick={() => {
@@ -681,9 +709,22 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       {/* IFMIS Slip Number & Slip Date */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         <div className="flex flex-col">
-                          <span className="font-mono font-medium text-slate-800 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded w-fit text-[11px]">
-                            {appr.ifmisSlipNumber}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="font-mono font-medium text-slate-800 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded w-fit text-[11px]">
+                              {appr.ifmisSlipNumber}
+                            </span>
+                            {appr.ifmisSlipAttachmentUrl && (
+                              <button
+                                type="button"
+                                onClick={() => setViewingSlipUrl(appr.ifmisSlipAttachmentUrl ?? null)}
+                                className="p-1 rounded text-emerald-700 hover:bg-emerald-50 transition cursor-pointer"
+                                title="View attached slip"
+                                aria-label={`View attached slip for ${appr.ifmisSlipNumber}`}
+                              >
+                                <Paperclip className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                           <span className="text-[10px] text-slate-400 mt-0.5">
                             {appr.ifmisSlipDateEc} E.C.
                           </span>
@@ -784,8 +825,21 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   <div className="mt-2.5 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-1 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">IFMIS Slip:</span>
-                      <span className="font-mono text-slate-800 font-semibold bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[11px]">
-                        {appr.ifmisSlipNumber}
+                      <span className="flex items-center gap-1">
+                        <span className="font-mono text-slate-800 font-semibold bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[11px]">
+                          {appr.ifmisSlipNumber}
+                        </span>
+                        {appr.ifmisSlipAttachmentUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setViewingSlipUrl(appr.ifmisSlipAttachmentUrl ?? null)}
+                            className="p-1 rounded text-emerald-700 hover:bg-emerald-50 transition cursor-pointer"
+                            title="View attached slip"
+                            aria-label={`View attached slip for ${appr.ifmisSlipNumber}`}
+                          >
+                            <Paperclip className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -943,23 +997,40 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 </div>
               )}
 
-              {/* Simulated IFMIS Attachment Document Badge */}
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-emerald-700" />
+              {/* Scanned IFMIS Slip Attachment */}
+              {selectedApproval.ifmisSlipAttachmentUrl ? (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-5 h-5 text-emerald-700 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 truncate">
+                        {getSlipDisplayName(selectedApproval.ifmisSlipAttachmentUrl)}
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        Scanned IFMIS slip attached by the requester
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setViewingSlipUrl(selectedApproval.ifmisSlipAttachmentUrl ?? null)}
+                    className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    View Slip
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-slate-50 border border-dashed border-slate-300 flex items-center gap-2 text-xs">
+                  <FileText className="w-5 h-5 text-slate-400 shrink-0" />
                   <div>
-                    <p className="font-bold text-slate-900">
-                      {selectedApproval.ifmisSlipNumber}.pdf
-                    </p>
+                    <p className="font-bold text-slate-700">No scanned slip attached</p>
                     <p className="text-[10px] text-slate-500">
-                      Official Scanned Government Voucher
+                      This request was submitted without an IFMIS slip attachment.
                     </p>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-white text-slate-700 border border-slate-200 font-bold">
-                  Verified
-                </span>
-              </div>
+              )}
 
               {actionError && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 animate-fadeIn">
@@ -978,7 +1049,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   type="text"
                   placeholder={
                     selectedApproval.currentStage === 1
-                      ? 'e.g. Verified asset specifications against Model 19/20 voucher.'
+                      ? 'e.g. Verified asset specifications against the attached Model 19 / 21 / 22 voucher.'
                       : 'e.g. Authorized for release under official store custody directive.'
                   }
                   value={reviewRemarks}
@@ -1028,6 +1099,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             </div>
           </div>
         </div>
+      )}
+
+      {viewingSlipUrl && (
+        <SlipViewerModal url={viewingSlipUrl} onClose={() => setViewingSlipUrl(null)} />
       )}
 
       {/* ── 7. Multi-Item Batch Confirmation Modal ── */}

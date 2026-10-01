@@ -40,11 +40,13 @@ pnpm-debug.log*
 Thumbs.db
 
 # Database & SQLite files
-.local/
 *.sqlite
 *.sqlite-journal
 *.db
 backend/prisma/*.db
+
+# Uploaded IFMIS slip files (runtime data)
+backend/uploads/
 
 # Temporary scratch & test files
 scratch/

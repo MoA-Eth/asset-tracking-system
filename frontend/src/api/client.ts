@@ -9,7 +9,6 @@ import {
   Department,
   Employee,
   Location,
-  LocationInput,
   CreateStockInRequest,
   CreateStockOutRequest,
   CreateReturnRequest,
@@ -22,7 +21,8 @@ import {
 } from '../types/asset-management';
 
 const BASE_URL = '/api';
-const REQUEST_TIMEOUT_MS = 15000;
+// Generous enough for a 10 MB slip upload on a slow connection
+const REQUEST_TIMEOUT_MS = 30000;
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
@@ -41,16 +41,14 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   try {
     let response: Response;
     try {
-      response = await fetch(url, {
-        ...options,
-        headers,
-        signal,
-      });
+      response = await fetch(url, { ...options, headers, signal });
     } catch (error) {
       if (options?.signal?.aborted) throw error;
-      throw new Error(controller.signal.aborted
-        ? 'The AMS server took too long to respond. Check your connection and try again.'
-        : 'Cannot reach the AMS server. Check your connection and that the app is running.');
+      throw new Error(
+        controller.signal.aborted
+          ? 'The AMS server took too long to respond. Check your connection and try again.'
+          : 'Cannot reach the AMS server. Check your connection and that the app is running.'
+      );
     }
 
     if (!response.ok) {
@@ -59,7 +57,7 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
         const errorJson = await response.json();
         errorMsg = errorJson.message || errorJson.error?.message || errorMsg;
       } catch {
-        // A disconnected development proxy or network gateway may return non-JSON errors.
+        // A disconnected development proxy or gateway may return non-JSON errors
       }
       throw new Error(errorMsg);
     }
@@ -121,6 +119,18 @@ export const api = {
   },
 
   // Workflows
+  // Uploads a scanned IFMIS slip; the returned url is saved as ifmisSlipAttachmentUrl
+  uploadSlip: (file: File) => {
+    return request<{ url: string; fileName: string; contentType: string; size: number }>('/uploads/slips', {
+      method: 'POST',
+      headers: {
+        'Content-Type': file.type,
+        'X-File-Name': encodeURIComponent(file.name),
+      },
+      body: file,
+    });
+  },
+
   registerStockIn: (payload: CreateStockInRequest) => {
     return request<{ item: ItemWithRelations; items?: ItemWithRelations[]; approval?: TransactionApproval }>(
       '/items/stock-in',
@@ -145,8 +155,9 @@ export const api = {
     });
   },
 
+  // Creates a TRANSFER approval; custody changes only after Stage 2 sign-off
   transferItem: (payload: CreateTransferRequest) => {
-    return request<ItemWithRelations>('/items/transfer', {
+    return request<TransactionApproval>('/items/transfer', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -179,18 +190,6 @@ export const api = {
   getLocations: () => {
     return request<Location[]>('/reference/locations');
   },
-
-  createLocation: (payload: LocationInput) => request<Location>('/reference/locations', {
-    method: 'POST', body: JSON.stringify(payload),
-  }),
-
-  updateLocation: (id: string, payload: LocationInput) => request<Location>(`/reference/locations/${encodeURIComponent(id)}`, {
-    method: 'PUT', body: JSON.stringify(payload),
-  }),
-
-  deleteLocation: (id: string) => request<Location>(`/reference/locations/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  }),
 
   getEmployees: (departmentId?: string) => {
     return request<Employee[]>(

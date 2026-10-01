@@ -5,8 +5,6 @@ import {
   PanelLeftOpen,
   Bell,
   Building2,
-  MapPin,
-  Warehouse,
   UserCheck2,
   LogOut,
   PackagePlus,
@@ -16,6 +14,11 @@ import {
   ShieldCheck,
   FileSpreadsheet,
   Settings,
+  Sliders,
+  Shield,
+  UserCheck,
+  MapPin,
+  Warehouse,
   ArrowRightLeft,
   X,
   CheckCircle2,
@@ -175,27 +178,29 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       case 'stock-in':
         return { title: 'Stock-In', am: 'የዕቃ መረከቢያ (ሞዴል 19)', icon: PackagePlus, iconColor: 'text-emerald-700' };
       case 'stock-out':
-        return { title: 'Stock-Out', am: 'የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 20)', icon: PackageMinus, iconColor: 'text-blue-700' };
+        return { title: 'Stock-Out', am: 'የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 22)', icon: PackageMinus, iconColor: 'text-blue-700' };
       case 'approvals':
         return { title: 'Approvals', am: 'የማረጋገጫና ፈቃድ መስጫ', icon: FileCheck2, iconColor: 'text-amber-600' };
       case 'audit':
-        return { title: 'Audit Logs', am: 'የኦዲት መዝገብ', icon: ShieldCheck, iconColor: 'text-purple-700' };
+        return { title: 'Audit Log', am: 'የኦዲት መዝገብ', icon: ShieldCheck, iconColor: 'text-purple-700' };
       case 'reports':
         return { title: 'Reports', am: 'የሪፖርት መዝገብ', icon: FileSpreadsheet, iconColor: 'text-emerald-700' };
       case 'transfer-asset':
-        return { title: 'Asset Transfer', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 22)', icon: ArrowRightLeft, iconColor: 'text-amber-600' };
-      case 'settings-employees':
-        return { title: 'Employees', am: 'ሠራተኞች', icon: UserCheck2, iconColor: 'text-emerald-700' };
+        return { title: 'Transfers & Returns', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 21)', icon: ArrowRightLeft, iconColor: 'text-amber-600' };
       case 'settings-users':
-        return { title: 'User Accounts', am: 'የተጠቃሚ መለያዎች', icon: ShieldCheck, iconColor: 'text-emerald-700' };
-      case 'settings-system':
-        return { title: 'System Settings', am: 'ቅንብሮች', icon: Settings, iconColor: 'text-emerald-700' };
+        return { title: 'Users & Permissions', am: 'ተጠቃሚዎች እና ፈቃዶች', icon: Settings, iconColor: 'text-emerald-700' };
+      case 'settings-roles':
+        return { title: 'Roles', am: 'ሚናዎች', icon: Shield, iconColor: 'text-emerald-700' };
+      case 'settings-employees':
+        return { title: 'Employees', am: 'ሰራተኞች', icon: UserCheck, iconColor: 'text-emerald-700' };
       case 'settings-departments':
         return { title: 'Departments', am: 'ዳይሬክቶሬቶች', icon: Building2, iconColor: 'text-emerald-700' };
       case 'settings-locations':
-        return { title: 'Locations', am: 'ቦታዎች', icon: MapPin, iconColor: 'text-emerald-700' };
+        return { title: 'Locations', am: 'አድራሻዎች', icon: MapPin, iconColor: 'text-emerald-700' };
       case 'settings-stores':
         return { title: 'Stores', am: 'መጋዘኖች', icon: Warehouse, iconColor: 'text-emerald-700' };
+      case 'settings-system':
+        return { title: 'System Settings', am: 'የስርዓት ቅንብሮች', icon: Sliders, iconColor: 'text-emerald-700' };
       default:
         return { title: 'AMS Portal', am: 'የግብርና ሚኒስቴር', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
     }
@@ -356,7 +361,13 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       const isStockIn = item.transactionType === TransactionType.STOCK_IN;
                       const isStockOut = item.transactionType === TransactionType.STOCK_OUT;
                       const stage = item.currentStage ?? 1;
-                      const typeLabel = isStockIn ? 'Stock In' : isStockOut ? 'Stock Out' : 'Asset Transfer';
+                      const typeLabel = isStockIn
+                        ? 'Stock In'
+                        : isStockOut
+                        ? 'Stock Out'
+                        : item.transactionType === TransactionType.RETURN
+                        ? 'Return to Store'
+                        : 'Asset Transfer';
                       const stageText = stage === 1 ? 'Endorsement' : 'Authorization';
                       const isRead = readIds.includes(item.id);
 
@@ -427,3 +438,4 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     </header>
   );
 };
+

@@ -27,8 +27,6 @@ asset-tracking-system/
 
 ## 🚀 Setup & Running Instructions
 
-See [Page implementation inventory](docs/PAGE_STATUS.md) for built pages and remaining page gaps. The Departments page is available under **Settings → Departments** (or **Departments** on mobile) and shows directorate staff and live asset allocations.
-
 ### Prerequisites
 - **Node.js**: `v20.x` or higher
 - **PostgreSQL**: `v15.x` or higher
@@ -43,18 +41,6 @@ cd asset-tracking-system
 ```
 
 ### Step 2: Configure Environment Variables
-For an isolated local development setup with PostgreSQL already installed, install dependencies with `npm run install:all`, then run:
-```bash
-npm run setup:local
-npm run build
-npm start
-```
-This creates a project-owned database in ignored `.local/` on loopback port **5433**, generates `backend/.env` with a random database password, applies the schema, and seeds the demo accounts. It leaves any existing PostgreSQL installation's databases and credentials intact. `npm start` and `npm run dev` restart this local database when needed. `npm run db:local:stop` stops it. If the PostgreSQL tools are not on your PATH, set `POSTGRES_BIN` to their `bin` directory.
-
-The built app and API share **http://localhost:3000**. Use `npm run dev` instead when editing; the development frontend is on port **3001**. Prisma client generation runs automatically before backend development, builds, and tests. Once built, starting the app requires no dependency downloads.
-
-For an existing or hosted database, follow the manual configuration below. Set `DATABASE_URL` to its real connection string; the template password is only an example. The local setup command refuses to seed a different configured database.
-
 Copy `.env.example` templates to `.env` in both `backend/` and `frontend/`:
 ```bash
 # Backend environment setup
@@ -100,37 +86,21 @@ npm run dev
   npm run dev:frontend
   ```
 
-### Access over organization Wi-Fi
-
-Keep the app running on the host computer. From another device on the same network, open the **Network** URL printed by the server, for example `http://<host-wifi-ip>:3000` for `npm start`, or `http://<host-wifi-ip>:3001` for development. `localhost` always refers to the device opening the page, so it cannot be used to reach another computer. The host IP may change when switching Wi-Fi networks.
-
-The backend binds to `0.0.0.0` by default (configurable with `HOST`), and Vite binds to all IPv4 interfaces with a fixed port. All browser API requests use `/api` on the page's own origin; other devices do not need direct database access or a separate backend URL. The page uses installed system fonts and has no Google Fonts network dependency. The health endpoint, `http://<host-wifi-ip>:3000/api/health`, returns **503** when the database is unavailable.
-
-If the Network URL works on the host but cannot load on another Wi-Fi device, ask organization IT to confirm that the devices can reach each other and permit inbound TCP to the app port on the host. Some organization or guest Wi-Fi networks isolate devices or restrict ports. For organization-wide hosting, IT can put the single-server app behind an approved HTTPS reverse proxy on port 443, routing both the page and `/api` to the same backend. Development demo accounts should be used only for testing.
-
 ---
 
 ## 🧪 Testing with Vitest (Unit & Integration Tests)
 
 The system utilizes **[Vitest](https://vitest.dev/)** as the unified, high-performance unit test runner for both the frontend and backend, structured in alignment with the **Livescan** test architecture standard.
 
-### Test Suites Overview (247 Unit/API Tests + 121 Integration Assertions)
+### Test Suites Overview (114 Unit Tests + 87 Integration Assertions)
 
-- **Backend Unit/API Tests (`backend/src/**/*.test.ts`)** — *111 Tests / 9 Suites*:
-  - **Location Management** (`location.service.test.ts`, `access-control.test.ts`): Administrator-only writes, field validation, duplicate checks, linked-asset deletion protection, concurrency conflicts, and transactional audits.
-  - **Approved API Access** (`access-control.test.ts`, `store-authorization.test.ts`): HTTP permissions for all five roles, session requirements, encoder submission scope, actual store approval-stage guards, and transactional role/audit writes.
-  - **App Availability** (`app.test.ts`): Database-aware health checks, resolved persona responses, and JSON API errors.
+- **Backend Unit Tests (`backend/src/**/*.test.ts`)** — *36 Tests / 5 Suites (~400ms)*:
   - **Store Service Invariants** (`store-rules.test.ts`): Model 19 mandatory IFMIS slip validation, 2-stage sequential approval transitions (Stage 1 Team Leader endorsement, Stage 2 Dept Head sign-off), and atomic status transitions (`AVAILABLE`, `ISSUED`, `DISPOSED`).
   - **Auth Middleware & SOD** (`auth.middleware.test.ts`): Strict Segregation of Duties guards blocking Data Encoders from approvals and System Admins from operational transactions.
   - **Authentication Service** (`auth.service.test.ts`): Singleton lifecycle, token decoding, and malformed token rejection.
   - **Ethiopian Date Engine** (`eth-date.test.ts`): Julian Day Number calculations, Pagume leap year rules, and GC ↔ EC conversions.
 
-- **Frontend Unit Tests (`frontend/src/**/*.{test,spec}.{ts,tsx}`)** — *136 Tests / 15 Suites*:
-  - **Stores** (`StoresPage.test.tsx`): Existing store designation and detail management, correct available-stock totals, pending movements, inventory search/status filtering, role restrictions, preservation of location/asset records, and desktop/mobile routing.
-  - **Locations** (`LocationsPage.test.tsx`): Live totals/details, search/filter/sort, administrator editing, delete confirmation/protection, read-only roles, retries, and real desktop/mobile routing.
-  - **Approved Navigation & Settings Access** (`navigation.test.tsx`, `SettingsPage.test.tsx`): Desktop/mobile parity, access to all permitted links, hidden unbuilt pages, read-only employee views, and administrator role controls.
-  - **Departments** (`DepartmentsPage.test.tsx`): Live allocation totals, bilingual search, staff and asset details, retry states, and desktop/mobile navigation.
-  - **API Connectivity** (`client.test.ts`): Same-origin login, connection failures, request timeouts, and gateway responses.
+- **Frontend Unit Tests (`frontend/src/**/*.{test,spec}.{ts,tsx}`)** — *78 Tests / 9 Suites (~4s)*:
   - **Dual Calendar Engine** (`eth-date.test.ts`): Bidirectional Gregorian ↔ Ethiopian calendar transformations, Meskerem 1 New Year boundary, Pagume 5 vs 6 days, and ETB currency formatting.
   - **System Settings** (`system-settings.test.ts`): Attachment policy persistence (`localStorage`) and custom event broadcasting.
   - **Role-Based Access & SOD** (`role-guards.test.ts`): Role tab navigation, landing tab resolution, and privilege restrictions.
@@ -139,10 +109,9 @@ The system utilizes **[Vitest](https://vitest.dev/)** as the unified, high-perfo
   - **Toast Notifications** (`ToastContext.test.tsx` & `Toast.test.tsx`): Context hook, auto-dismiss countdown, and UI presentation.
   - **Status & Condition Badges** (`Badge.test.tsx`): Ethiopian MoA asset status and condition badge mappings.
 
-- **Backend Integration Tests (`backend/test-*.js`)** — *121 Assertions*:
+- **Backend Integration Tests (`backend/test-*.js`)** — *87 Assertions*:
   - `test-critical-flows.js`: End-to-end 2-stage inbound stock-in, outbound stock-out, custody transfer, and SOD enforcement.
   - `test-status-consistency.js`: Atomic status lifecycle, stage sequencing, concurrency locks, and audit trail permanence.
-  - `test-locations.js`: Live location create/edit/delete, role restrictions, case-insensitive and concurrent duplicate protection, linked-asset deletion guard, and retained audit history. Creates temporary location records and removes unused test records afterward.
 
 ---
 
@@ -192,7 +161,6 @@ Ensure the PostgreSQL database and backend server are running, then execute from
 ```bash
 npm run test:integration
 ```
-To verify the API through a Wi-Fi address, set `AMS_API_BASE_URL` to `http://<host-wifi-ip>:3000/api` when running this command. Integration tests create test assets and audit records; run them against a development database.
 
 ---
 
@@ -264,15 +232,13 @@ All test accounts use uniform password **`moaams2024`**.
 
 > **5 statutory roles** implement strict Segregation of Duties (SOD) — operational entry, technical endorsement, statutory authorization, and platform governance are strictly decoupled.
 
-The user-approved [page and role access map](docs/ROLE_ACCESS.md) is the detailed navigation policy. The table below lists currently available destinations; [page status](docs/PAGE_STATUS.md) distinguishes existing controls from planned management pages. After updating an existing installation, run `npm run db:push` to apply the audit-subject schema fix without resetting data.
-
 | # | Role | Email Login | Title | Default View | Accessible Tabs | Access Scope & Responsibilities |
 | :- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 1 | **`DATA_ENCODER`** | `encoder@moa.gov.et` | Store Custodian / Encoder | Stock-In | `Stock-In`, `Stock-Out`, `Asset Transfer`, `Employees`, `Departments`, `Locations`, `Stores` | Registers Model 19, submits Model 20, initiates transfers and Model 22 returns. Reference data is read-only; no approval or account-management actions. |
+| 1 | **`DATA_ENCODER`** | `encoder@moa.gov.et` | Store Custodian / Encoder | Stock-In | `Stock-In`, `Stock-Out`, `Asset Transfer`, `Settings` | **Operational Ingestion & Requisition**: Registers Model 19 (GRN), submits Model 20 (Issue), initiates inter-store transfers & Model 22 Returns. *(Strict SOD: Forbidden from approving vouchers).* |
 | 2 | **`TEAM_LEADER`** | `teamleader@moa.gov.et` | Team Leader | Approvals | `Approvals`, `Reports`, `Audit Log` | **Stage 1 Endorsement**: Verifies technical specs and endorses pending vouchers before forwarding to Stage 2. Full read access to operational reports and audit trail. |
-| 3 | **`DEPARTMENT_HEAD`** | `depthead@moa.gov.et` | Directorate Head | Approvals | `Dashboard`, `Approvals`, `Reports`, `Audit Log`, `Employees`, `Departments`, `Locations`, `Stores` | Stage 2 final approval/rejection, oversight, and read-only reference data. Department-scoped settings are planned; account and global policy controls are administrator-only. |
-| 4 | **`MANAGER`** | `manager@moa.gov.et` | Manager | Dashboard | `Dashboard`, `Reports`, `Audit Log`, `Departments` | Read-only executive oversight, reports/exports, audit visibility, and department allocations. No operations or approval actions. |
-| 5 | **`SYSTEM_ADMIN`** | `sysadmin@moa.gov.et` | System Administrator | Dashboard | `Dashboard`, `Reports`, `Audit Log`, `Employees`, `Departments`, `Locations`, `Stores`, `User Accounts`, `System Settings` | Location/store designation management, staff role management, and browser-local policy controls. Remaining registry/account management and the approval-matrix page remain planned. Blocked from stock operations and approval actions. |
+| 3 | **`DEPARTMENT_HEAD`** | `depthead@moa.gov.et` | Directorate Head | Approvals | `Approvals`, `Reports`, `Audit Log`, `Settings` | **Stage 2 Final Authorization**: Final statutory sign-off that commits stock transitions (`AVAILABLE`, `ISSUED`). Full access to reports, audit trail, and department settings. |
+| 4 | **`MANAGER`** | `manager@moa.gov.et` | Manager | Dashboard | `Dashboard`, `Reports` | **Executive Oversight**: Read-only executive view over total ministry portfolio valuation, directorate allocations, custodian ratios, and store capacities, plus read-only operational reports. Isolated from operations. |
+| 5 | **`SYSTEM_ADMIN`** | `sysadmin@moa.gov.et` | System Administrator | Dashboard | `Dashboard`, `Reports`, `Audit Log`, `Settings` | **IT & Security Governance**: Manages user accounts, assigns roles, configures approval matrix tiers and system settings. *(Strict SOD: Blocked from store operations & approvals).* |
 
 ---
 

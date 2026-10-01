@@ -36,7 +36,7 @@ export class AuthController {
    * Return predefined Ministry role personas for 1-click test login.
    */
   public getPersonas = asyncHandler(async (_req: Request, res: Response) => {
-    const personas = await this.authService.getPersonas();
+    const personas = this.authService.getPersonas();
     return sendSuccess(res, personas, 'Personas retrieved');
   });
 }

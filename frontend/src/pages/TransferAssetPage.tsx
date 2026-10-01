@@ -4,13 +4,16 @@ import {
   RotateCcw,
   Search,
   RefreshCw,
-  FileCheck2,
   Building2,
   UserCheck,
-  Package,
   AlertCircle,
   CheckCircle2,
   Send,
+  Printer,
+  FileText,
+  Car,
+  Tag,
+  ShieldCheck,
 } from 'lucide-react';
 import { api } from '../api/client';
 import {
@@ -19,10 +22,25 @@ import {
   UserRole,
   Department,
   Employee,
+  Location,
+  Model21Voucher,
+  Model21LineItem,
 } from '../types/asset-management';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
+import {
+  FormSection,
+  FieldGrid,
+  Field,
+  ReadOnlyValue,
+  SummaryGrid,
+  FormFooter,
+  inputClass,
+  textareaClass,
+} from '../components/ui/FormKit';
+import { Model21PrintModal } from '../components/ui/Model21PrintModal';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { formatETB, formatGcToEc } from '../utils/eth-date';
 
 interface TransferAssetPageProps {
   currentRole: UserRole;
@@ -39,6 +57,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   const [items, setItems] = useState<ItemWithRelations[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,11 +65,30 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   // Selected item for Return to Store Modal
   const [returnItem, setReturnItem] = useState<ItemWithRelations | null>(null);
 
-  // Transfer Form State
+  // Model 21 Printable Voucher Modal State
+  const [activeVoucher, setActiveVoucher] = useState<Model21Voucher | null>(null);
+
+  // Model 21 Transfer Form State
   const [selectedItemId, setSelectedItemId] = useState('');
+  const [model21No, setModel21No] = useState('0004386');
+  const [book, setBook] = useState('MOA MC BOOK');
   const [targetEmployeeId, setTargetEmployeeId] = useState('');
   const [targetDepartmentId, setTargetDepartmentId] = useState('');
-  const [transferReason, setTransferReason] = useState('');
+  const [targetLocationId, setTargetLocationId] = useState('');
+  const [transferReason, setTransferReason] = useState('Fixed asset internal custody reassignment');
+  
+  // Technical / Vehicle Details (Model 21 document particulars)
+  const [chassisNumber, setChassisNumber] = useState('');
+  const [plateNo, setPlateNo] = useState('');
+  const [engineNo, setEngineNo] = useState('');
+  const [depreciation, setDepreciation] = useState<number>(0);
+  const [bookValue, setBookValue] = useState<number>(0);
+  const [jackQty, setJackQty] = useState(1);
+  const [tireWrenchQty, setTireWrenchQty] = useState(1);
+  const [keyQty, setKeyQty] = useState(2);
+  const [tireSerials, setTireSerials] = useState('');
+  const [defectRemark, setDefectRemark] = useState('');
+
   const [submittingTransfer, setSubmittingTransfer] = useState(false);
   const [transferSuccessMsg, setTransferSuccessMsg] = useState<string | null>(null);
 
@@ -58,14 +96,16 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const [itemsRes, deptsRes, empsRes] = await Promise.all([
+      const [itemsRes, deptsRes, empsRes, locsRes] = await Promise.all([
         api.getItems(),
         api.getDepartments(),
         api.getEmployees(),
+        api.getLocations(),
       ]);
       setItems(itemsRes);
       setDepartments(deptsRes);
       setEmployees(empsRes);
+      setLocations(locsRes);
     } catch (err: any) {
       console.error('Failed to load transfer asset data:', err);
       setError(err.message || 'Failed to load assets for transfer.');
@@ -77,6 +117,25 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   useEffect(() => {
     fetchData();
   }, []);
+
+  // When selected item changes, auto-populate technical & valuation details
+  const handleItemSelect = (itemId: string) => {
+    setSelectedItemId(itemId);
+    const item = items.find((i) => i.id === itemId);
+    if (item) {
+      setDepreciation(0);
+      setBookValue(item.unitCostETB || 0);
+      setChassisNumber(item.serialNumber || '');
+      setPlateNo('');
+      setEngineNo('');
+      setTireSerials('');
+      setDefectRemark('');
+      const vehicle = item.category === 'VEHICLE' || item.category === 'AGRI_MACHINERY';
+      setJackQty(vehicle ? 1 : 0);
+      setTireWrenchQty(vehicle ? 1 : 0);
+      setKeyQty(vehicle ? 2 : 0);
+    }
+  };
 
   const handleTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,23 +151,91 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     setTransferSuccessMsg(null);
     try {
       const selectedItem = items.find((i) => i.id === selectedItemId);
+      const fromCustodian = selectedItem?.currentCustodian;
       const targetEmp = employees.find((e) => e.id === targetEmployeeId);
+      const fromLoc = selectedItem?.storeLocation?.siteName || 'Central Store';
+      const toLocObj = locations.find((l) => l.id === targetLocationId);
+      const toLoc = toLocObj ? toLocObj.siteName : 'Regional Directorate';
+      const todayGc = new Date().toISOString().split('T')[0];
+      const todayEc = formatGcToEc(todayGc);
+
+      const accessories = [
+        { name: 'jack with handle', quantity: jackQty },
+        { name: 'tire wrench', quantity: tireWrenchQty },
+        { name: 'key', quantity: keyQty },
+      ].filter((a) => a.quantity > 0);
+
+      const tireList = tireSerials
+        .split(/[,\n]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
 
       await api.transferItem({
         itemId: selectedItemId,
         toEmployeeId: targetEmployeeId,
         toDepartmentId: targetDepartmentId || undefined,
+        toLocationId: targetLocationId || undefined,
         reason: transferReason || 'Official custody reassignment',
         performedById: user?.id || employees[0]?.id || '',
+        model21No: model21No.trim(),
+        book: book.trim(),
+        chassisNumber: chassisNumber.trim() || undefined,
+        plateNo: plateNo.trim() || undefined,
+        engineNo: engineNo.trim() || undefined,
+        accessories,
+        tireNos: tireList,
+        origCost: selectedItem?.unitCostETB,
+        depreciation,
+        bookValue,
+        remark: defectRemark.trim() || undefined,
       });
 
-      const msg = `Asset ${selectedItem?.itemCode || selectedItemId} transferred to ${targetEmp?.fullNameEn || 'new custodian'}.`;
+      const voucher: Model21Voucher = {
+        model21No: model21No.trim(),
+        fromEmployeeName: fromCustodian?.fullNameEn || 'Store Custodian',
+        fromEmployeeId: fromCustodian?.payrollId || '110895',
+        book: book.trim() || 'MOA MC BOOK',
+        toEmployeeName: targetEmp?.fullNameEn || 'Recipient Staff',
+        toEmployeeId: targetEmp?.payrollId || '109856',
+        items: [
+          {
+            sNo: 1,
+            description: selectedItem?.name || 'Asset Item',
+            tagNumber: selectedItem?.itemCode || 'TAG-001',
+            serialNumber: selectedItem?.serialNumber || '',
+            chassisNumber: chassisNumber.trim() || undefined,
+            uom: 'EA',
+            unit: 1,
+            origCost: selectedItem?.unitCostETB || 0,
+            depreciation,
+            bookValue,
+            dateGc: todayGc,
+            dateEc: todayEc,
+            fromLocation: fromLoc,
+            toLocation: toLoc,
+            plateNo: plateNo.trim() || undefined,
+            engineNo: engineNo.trim() || undefined,
+            accessories: accessories.length > 0 ? accessories : undefined,
+            tireNos: tireList.length > 0 ? tireList : undefined,
+            remark: defectRemark.trim() || undefined,
+          },
+        ],
+        famuAccountantName: 'FAMU Reviewer',
+        reportTakenBy: user?.payrollId || 'lidlyats',
+        reportTakenDate: `${todayGc} @ ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`,
+      };
+
+      const msg = `Model 21 transfer of ${selectedItem?.itemCode || selectedItemId} to ${targetEmp?.fullNameEn || 'new custodian'} submitted for Team Leader endorsement. Custody changes after Stage 2 approval.`;
       setTransferSuccessMsg(msg);
-      toast.success('Custody Handover Completed', msg);
+      toast.success('Transfer Submitted for Approval', msg);
+      setActiveVoucher(voucher);
+
+      // Reset form
       setSelectedItemId('');
       setTargetEmployeeId('');
       setTargetDepartmentId('');
-      setTransferReason('');
+      setTargetLocationId('');
+      setTransferReason('Fixed asset internal custody reassignment');
       fetchData();
     } catch (err: any) {
       const errMsg = err.message || 'Failed to process transfer.';
@@ -116,6 +243,46 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     } finally {
       setSubmittingTransfer(false);
     }
+  };
+
+  const handlePrintModel21 = (item: ItemWithRelations) => {
+    const todayGc = new Date().toISOString().split('T')[0];
+    const todayEc = formatGcToEc(todayGc);
+    const custodian = item.currentCustodian;
+    const loc = item.storeLocation?.siteName || 'MoA Gurd Sholla';
+    const cost = item.unitCostETB || 0;
+
+    const voucher: Model21Voucher = {
+      model21No: item.ifmisSlipNumber || '0004386',
+      fromEmployeeName: custodian?.fullNameEn || '—',
+      fromEmployeeId: custodian?.payrollId || '—',
+      book: 'MOA MC BOOK',
+      toEmployeeName: '—',
+      toEmployeeId: '—',
+      items: [
+        {
+          sNo: 1,
+          description: item.name,
+          tagNumber: item.itemCode,
+          serialNumber: item.serialNumber || '',
+          chassisNumber: item.serialNumber || undefined,
+          uom: 'EA',
+          unit: 1,
+          origCost: cost,
+          depreciation: 0,
+          bookValue: cost,
+          dateGc: todayGc,
+          dateEc: todayEc,
+          fromLocation: loc,
+          toLocation: loc,
+          remark: '',
+        },
+      ],
+      famuAccountantName: 'FAMU Reviewer',
+      reportTakenBy: user?.payrollId || 'lidlyats',
+      reportTakenDate: `${todayGc} @ ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`,
+    };
+    setActiveVoucher(voucher);
   };
 
   const filteredItems = items.filter((item) => {
@@ -135,6 +302,12 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     return matchesSearch;
   });
 
+  const selectedItemObj = items.find((i) => i.id === selectedItemId);
+  const selectedIsVehicleLike =
+    selectedItemObj?.category === 'VEHICLE' || selectedItemObj?.category === 'AGRI_MACHINERY';
+  const todayGc = new Date().toISOString().split('T')[0];
+  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('amber', opts);
+
   return (
     <div className="space-y-6 animate-fadeIn pb-16">
       {/* Top Banner Header */}
@@ -145,13 +318,13 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           </div>
           <div>
             <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              Transfer Asset
+              Fixed Asset Internal Transfer & Return
               <span className="text-xs font-normal text-emerald-800 font-amharic">
-                (የንብረት ዝውውር እና የዕቃ መመለሻ መረከቢያ - ሞዴል 22)
+                (የንብረት ዝውውር እና መመለሻ - ሞዴል 21)
               </span>
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Unified custody transfer, regional store relocation, and Model 22 store return vouchers.
+              Model 21 internal transfers between custodians and returns to store.
             </p>
           </div>
         </div>
@@ -177,7 +350,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             }`}
           >
             <ArrowRightLeft className="w-3.5 h-3.5" />
-            Transfer Custody
+            Transfer Form (Model 21)
           </button>
           <button
             onClick={() => setActiveSubTab('return')}
@@ -188,142 +361,307 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             }`}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Return to Store (Model 22)
+            Return to Store (Model 21)
           </button>
         </div>
       </div>
 
       {/* Main Content Sections */}
       {activeSubTab === 'transfer' ? (
-        /* ── Transfer Custody Form ────────────────────────────────────────── */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <ArrowRightLeft className="w-5 h-5 text-amber-600" />
-                Initiate Custody Transfer (የንብረት ዝውውር)
+        /* ── Model 21 Fixed Asset Internal Transfer Form ──────────────────── */
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-xs">
+          <div className="flex flex-col gap-1 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <ArrowRightLeft className="h-5 w-5 text-amber-600" />
+                New transfer · Model 21
               </h2>
-              <span className="text-xs text-slate-400 font-mono">Transfer Request</span>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Custody moves to the new holder only after the Team Leader endorses and the Department Head approves it.
+              </p>
             </div>
+          </div>
 
+          <div className="space-y-4 px-6 py-5">
             {transferSuccessMsg && (
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>{transferSuccessMsg}</span>
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900 animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
+                  <span>{transferSuccessMsg}</span>
+                </div>
+                {activeVoucher && (
+                  <button
+                    onClick={() => setActiveVoucher(activeVoucher)}
+                    className="flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-800 cursor-pointer"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    Print Model 21
+                  </button>
+                )}
               </div>
             )}
 
-            <form onSubmit={handleTransferSubmit} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">
-                  Select Active Issued Asset *
-                </label>
-                <select
-                  value={selectedItemId}
-                  onChange={(e) => setSelectedItemId(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-amber-600"
-                  required
-                >
-                  <option value="">-- Choose Issued Asset --</option>
-                  {items
-                    .filter((i) => i.status === ItemStatus.ISSUED)
-                    .map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.itemCode} - {item.name} (Custodian:{' '}
-                        {item.currentCustodian?.fullNameEn || 'Assigned'})
-                      </option>
-                    ))}
-                </select>
-              </div>
+            <form onSubmit={handleTransferSubmit} className="space-y-4">
+              {/* ── Section 1: Transfer voucher ── */}
+              <FormSection step={1} title="Transfer voucher" subtitle="የዝውውር ሰነድ · Model 21 register" icon={FileText} accent="amber">
+                <FieldGrid>
+                  <Field label="Model 21 No." required>
+                    <input
+                      type="text"
+                      required
+                      value={model21No}
+                      onChange={(e) => setModel21No(e.target.value)}
+                      placeholder="e.g. 0004386"
+                      className={`${input({ mono: true })} font-semibold`}
+                    />
+                  </Field>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">
-                    New Target Custodian / Employee
-                  </label>
-                  <select
-                    value={targetEmployeeId}
-                    onChange={(e) => setTargetEmployeeId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-amber-600"
-                  >
-                    <option value="">-- Select Recipient Employee --</option>
-                    {employees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.fullNameEn} ({emp.payrollId})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <Field label="Register book" required>
+                    <input
+                      type="text"
+                      required
+                      value={book}
+                      onChange={(e) => setBook(e.target.value)}
+                      placeholder="e.g. MOA MC BOOK"
+                      className={input()}
+                    />
+                  </Field>
 
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">
-                    Target Directorate / Department
-                  </label>
-                  <select
-                    value={targetDepartmentId}
-                    onChange={(e) => setTargetDepartmentId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-amber-600"
-                  >
-                    <option value="">-- Select Target Directorate --</option>
-                    {departments.map((dep) => (
-                      <option key={dep.id} value={dep.id}>
-                        {dep.nameEn} ({dep.code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                  <Field label="Transfer date (G.C.)" hint={`${formatGcToEc(todayGc)} E.C. · recorded as today`}>
+                    <ReadOnlyValue mono>{todayGc}</ReadOnlyValue>
+                  </Field>
+                </FieldGrid>
+              </FormSection>
 
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">
-                  Reason for Transfer & Remarks
-                </label>
-                <textarea
-                  rows={3}
-                  value={transferReason}
-                  onChange={(e) => setTransferReason(e.target.value)}
-                  placeholder="Specify official reasons for custody transfer..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-amber-600"
-                />
-              </div>
+              {/* ── Section 2: Asset ── */}
+              <FormSection step={2} title="Asset" subtitle="የሚዛወረው ንብረት" icon={Tag} accent="amber">
+                <div className="space-y-3.5">
+                  <Field label="Issued asset" required hint="Only assets currently issued to a custodian are listed.">
+                    <select
+                      value={selectedItemId}
+                      onChange={(e) => handleItemSelect(e.target.value)}
+                      className={`${input()} font-medium`}
+                      required
+                    >
+                      <option value="">Choose an asset to transfer…</option>
+                      {items
+                        .filter((i) => i.status === ItemStatus.ISSUED)
+                        .map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.itemCode} — {item.name} ({item.currentCustodian?.fullNameEn || 'assigned'})
+                          </option>
+                        ))}
+                    </select>
+                  </Field>
 
-              <div className="pt-2 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setActiveSubTab('all')}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingTransfer}
-                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm"
-                >
-                  {submittingTransfer ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
+                  {selectedItemObj && (
+                    <SummaryGrid
+                      items={[
+                        { label: 'Tag number', value: selectedItemObj.itemCode, mono: true },
+                        { label: 'Description', value: selectedItemObj.name },
+                        { label: 'Current location', value: selectedItemObj.storeLocation?.siteName },
+                        { label: 'Original cost', value: formatETB(selectedItemObj.unitCostETB), mono: true },
+                      ]}
+                    />
                   )}
-                  Submit Transfer Request
-                </button>
-              </div>
-            </form>
-          </div>
 
-          <div className="p-5 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-3">
-            <h3 className="text-sm font-bold text-amber-950 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-700" />
-              Transfer Guidelines
-            </h3>
-            <p className="text-xs text-amber-900 leading-relaxed">
-              Custody transfers reassign asset liability directly from one employee or department to another without returning the item to central store stock.
-            </p>
-            <ul className="text-xs text-amber-900/90 space-y-1.5 list-disc list-inside font-medium">
-              <li>Requires Directorate Head approval sign-off.</li>
-              <li>Updates custodian record upon approval.</li>
-              <li>Generates an inter-departmental Transfer Slip.</li>
-            </ul>
+                  <FieldGrid cols={2}>
+                    <Field label="Chassis / serial number" optional>
+                      <input
+                        type="text"
+                        placeholder="e.g. JTEBB71JX07008920"
+                        value={chassisNumber}
+                        onChange={(e) => setChassisNumber(e.target.value)}
+                        className={input({ mono: true })}
+                      />
+                    </Field>
+
+                    <Field label="Accumulated depreciation (ETB)" optional hint={`Net book value: ${formatETB(bookValue)}`}>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={depreciation}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setDepreciation(val);
+                          setBookValue(Math.max(0, (selectedItemObj?.unitCostETB || 0) - val));
+                        }}
+                        className={input({ mono: true, align: 'right' })}
+                      />
+                    </Field>
+                  </FieldGrid>
+                </div>
+              </FormSection>
+
+              {/* ── Section 3: Transfer to ── */}
+              <FormSection step={3} title="Transfer to" subtitle="ተረካቢ" icon={UserCheck} accent="amber">
+                <div className="space-y-3.5">
+                  <FieldGrid cols={2}>
+                    <Field label="From (current custodian)">
+                      <ReadOnlyValue>
+                        {selectedItemObj?.currentCustodian
+                          ? `${selectedItemObj.currentCustodian.fullNameEn} (${selectedItemObj.currentCustodian.payrollId})`
+                          : 'Select an asset first'}
+                      </ReadOnlyValue>
+                    </Field>
+
+                    <Field label="To employee" required>
+                      <select
+                        value={targetEmployeeId}
+                        onChange={(e) => setTargetEmployeeId(e.target.value)}
+                        className={input()}
+                        required
+                      >
+                        <option value="">Select the new custodian…</option>
+                        {employees.map((emp) => (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.fullNameEn} ({emp.payrollId})
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field label="To directorate" optional hint="Leave blank to keep the current directorate.">
+                      <select
+                        value={targetDepartmentId}
+                        onChange={(e) => setTargetDepartmentId(e.target.value)}
+                        className={input()}
+                      >
+                        <option value="">Keep current directorate</option>
+                        {departments.map((dep) => (
+                          <option key={dep.id} value={dep.id}>
+                            {dep.nameEn} ({dep.code})
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field label="To location" optional hint="Leave blank to keep the current location.">
+                      <select
+                        value={targetLocationId}
+                        onChange={(e) => setTargetLocationId(e.target.value)}
+                        className={input()}
+                      >
+                        <option value="">Keep current location</option>
+                        {locations.map((loc) => (
+                          <option key={loc.id} value={loc.id}>
+                            {loc.siteName} {loc.building ? `(${loc.building})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </FieldGrid>
+
+                  <Field label="Reason for transfer" required>
+                    <input
+                      type="text"
+                      required
+                      value={transferReason}
+                      onChange={(e) => setTransferReason(e.target.value)}
+                      placeholder="e.g. Reassigned for field survey work"
+                      className={input()}
+                    />
+                  </Field>
+
+                  <Field label="Defects / remarks" optional>
+                    <textarea
+                      rows={2}
+                      value={defectRemark}
+                      onChange={(e) => setDefectRemark(e.target.value)}
+                      placeholder="e.g. The right side mirror is missing. Both rear lights are broken."
+                      className={textareaClass('amber')}
+                    />
+                  </Field>
+                </div>
+              </FormSection>
+
+              {/* ── Section 4: Vehicle & machinery details (optional) ── */}
+              <FormSection
+                key={selectedIsVehicleLike ? 'vehicle' : 'other'}
+                step={4}
+                title="Vehicle & machinery details"
+                subtitle="Plate, engine, accessories and tires · only for vehicles and machinery"
+                icon={Car}
+                accent="amber"
+                collapsible
+                defaultOpen={selectedIsVehicleLike}
+              >
+                <div className="space-y-3.5">
+                  <FieldGrid cols={2}>
+                    <Field label="Plate number" optional>
+                      <input
+                        type="text"
+                        placeholder="e.g. 4-23794"
+                        value={plateNo}
+                        onChange={(e) => setPlateNo(e.target.value)}
+                        className={input({ mono: true })}
+                      />
+                    </Field>
+
+                    <Field label="Engine number" optional>
+                      <input
+                        type="text"
+                        placeholder="e.g. 1HZ-0641864"
+                        value={engineNo}
+                        onChange={(e) => setEngineNo(e.target.value)}
+                        className={input({ mono: true })}
+                      />
+                    </Field>
+                  </FieldGrid>
+
+                  <FieldGrid>
+                    <Field label="Jack with handle (qty)">
+                      <input
+                        type="number"
+                        min="0"
+                        value={jackQty}
+                        onChange={(e) => setJackQty(parseInt(e.target.value) || 0)}
+                        className={input({ mono: true, align: 'right' })}
+                      />
+                    </Field>
+
+                    <Field label="Tire wrench (qty)">
+                      <input
+                        type="number"
+                        min="0"
+                        value={tireWrenchQty}
+                        onChange={(e) => setTireWrenchQty(parseInt(e.target.value) || 0)}
+                        className={input({ mono: true, align: 'right' })}
+                      />
+                    </Field>
+
+                    <Field label="Keys (qty)">
+                      <input
+                        type="number"
+                        min="0"
+                        value={keyQty}
+                        onChange={(e) => setKeyQty(parseInt(e.target.value) || 0)}
+                        className={input({ mono: true, align: 'right' })}
+                      />
+                    </Field>
+                  </FieldGrid>
+
+                  <Field label="Tire serial numbers" optional hint="Separate with commas or new lines">
+                    <input
+                      type="text"
+                      placeholder="e.g. R240514711, R240504703, YY0219"
+                      value={tireSerials}
+                      onChange={(e) => setTireSerials(e.target.value)}
+                      className={input({ mono: true })}
+                    />
+                  </Field>
+                </div>
+              </FormSection>
+
+              <FormFooter
+                accent="amber"
+                submitting={submittingTransfer}
+                submitLabel="Submit transfer for approval"
+                onCancel={() => setActiveSubTab('all')}
+                sticky={false}
+              />
+            </form>
           </div>
         </div>
       ) : activeSubTab === 'return' ? (
@@ -333,10 +671,10 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <RotateCcw className="w-5 h-5 text-teal-700" />
-                Model 22 Store Asset Returns (የዕቃ መመለሻ መረከቢያ)
+                Model 21 Store Asset Returns (የዕቃ መመለሻ መረከቢያ)
               </h2>
               <p className="text-xs text-slate-500">
-                Select an active issued item below to process Model 22 return and clear custodian liability.
+                Select an active issued item below to process Model 21 return and clear custodian liability.
               </p>
             </div>
             <div className="relative">
@@ -352,14 +690,14 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           </div>
 
           <div className="overflow-x-auto border border-slate-200 rounded-xl">
-            <table className="w-full text-left text-xs min-w-[720px]">
+            <table className="w-full text-left text-xs min-w-[760px]">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
                 <tr>
                   <th className="p-3 w-36 whitespace-nowrap">Asset Code</th>
                   <th className="p-3 min-w-[180px]">Item Description</th>
                   <th className="p-3 min-w-[150px]">Current Custodian</th>
                   <th className="p-3 w-32">Location</th>
-                  <th className="p-3 w-36 text-right whitespace-nowrap">Action</th>
+                  <th className="p-3 w-48 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white font-medium">
@@ -374,13 +712,23 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       </td>
                       <td className="p-3 text-slate-600">{item.storeLocation?.siteName || 'Head office'}</td>
                       <td className="p-3 text-right">
-                        <button
-                          onClick={() => setReturnItem(item)}
-                          className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-lg text-xs transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          Return Model 22
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handlePrintModel21(item)}
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-300 hover:border-amber-300 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                            title="Print Model 21 Transfer / Return Voucher"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Print M21</span>
+                          </button>
+                          <button
+                            onClick={() => setReturnItem(item)}
+                            className="px-3 py-1 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-lg text-xs transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Return (M21)
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -395,7 +743,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900">Transfer & Return Ledger</h2>
               <p className="text-xs text-slate-500">
-                Complete inventory tracking ledger for custody transfers, store returns, and relocations.
+                Complete inventory tracking ledger for Model 21 custody transfers, store returns, and relocations.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -413,7 +761,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           </div>
 
           <div className="overflow-x-auto border border-slate-200 rounded-xl">
-            <table className="w-full text-left text-xs min-w-[800px]">
+            <table className="w-full text-left text-xs min-w-[840px]">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
                 <tr>
                   <th className="p-3 w-36 whitespace-nowrap">Asset Code</th>
@@ -421,7 +769,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                   <th className="p-3 w-32 whitespace-nowrap">Current Status</th>
                   <th className="p-3 min-w-[160px]">Custodian / Department</th>
                   <th className="p-3 w-32">Store Location</th>
-                  <th className="p-3 w-32 text-right whitespace-nowrap">Quick Action</th>
+                  <th className="p-3 w-48 text-right whitespace-nowrap">Voucher Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white font-medium">
@@ -447,17 +795,26 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                     </td>
                     <td className="p-3 text-slate-600">{item.storeLocation?.siteName || 'Head office'}</td>
                     <td className="p-3 text-right whitespace-nowrap">
-                      {item.status === ItemStatus.ISSUED ? (
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
-                          onClick={() => setReturnItem(item)}
-                          className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 rounded-lg text-xs font-bold transition cursor-pointer inline-flex items-center gap-1"
+                          onClick={() => handlePrintModel21(item)}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-300 hover:border-amber-300 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                          title="Print Official Model 21 Internal Transfer Form"
                         >
-                          <RotateCcw className="w-3 h-3" />
-                          Return
+                          <Printer className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Print M21</span>
                         </button>
-                      ) : (
-                        <span className="text-slate-400 text-[11px]">In Store</span>
-                      )}
+                        {item.status === ItemStatus.ISSUED && (
+                          <button
+                            onClick={() => setReturnItem(item)}
+                            className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 rounded-lg text-xs font-bold transition cursor-pointer inline-flex items-center gap-1"
+                            title="Return to Central Store (Model 21)"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Return
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -467,16 +824,26 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         </div>
       )}
 
-      {/* Model 22 Return Modal */}
+      {/* Model 21 Printable Voucher Modal */}
+      <Model21PrintModal
+        isOpen={!!activeVoucher}
+        voucher={activeVoucher}
+        onClose={() => setActiveVoucher(null)}
+      />
+
+      {/* Model 21 / 22 Return Modal */}
       {returnItem && (
         <ReturnToStoreModal
           isOpen={!!returnItem}
           item={returnItem}
           employees={employees}
           onClose={() => setReturnItem(null)}
-          onSuccess={() => {
+          onSuccess={(voucher) => {
             setReturnItem(null);
             fetchData();
+            if (voucher) {
+              setActiveVoucher(voucher);
+            }
           }}
         />
       )}

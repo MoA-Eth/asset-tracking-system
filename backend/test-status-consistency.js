@@ -4,7 +4,7 @@
  * and rejection rollbacks across all scenarios.
  */
 
-const BASE_URL = (process.env.AMS_API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');
+const BASE_URL = 'http://localhost:3000/api';
 
 let passed = 0;
 let failed = 0;
@@ -218,7 +218,7 @@ async function runStatusConsistencyTests() {
     console.log('\n▶ [Scenario 4] Model 20 Stock-Out Rejection (Atomic Reversion to AVAILABLE)');
     const ts4 = Date.now().toString().slice(-6);
 
-    // Create another available item directly (historical stock-in)
+    // Historical stock-in: slip attachment is waived, but it must still pass Stage 1/2 approval
     const histRes = await request('/items/stock-in', {
       method: 'POST',
       body: {
@@ -234,7 +234,13 @@ async function runStatusConsistencyTests() {
       },
     }, encoderToken);
     const item4Id = histRes.data.item.id;
-    assert(histRes.data.item.status === 'AVAILABLE', 'Historical asset created directly with status AVAILABLE');
+    assert(histRes.data.item.status === 'PENDING_STOCK_IN', 'Historical asset still starts as PENDING_STOCK_IN');
+    assert(histRes.data.approval && histRes.data.approval.currentStage === 1, 'Historical asset gets a Stage 1 approval request');
+
+    await request('/items/approvals/action', { method: 'POST', body: { approvalId: histRes.data.approval.id, action: 'ENDORSE' } }, teamleadToken);
+    await request('/items/approvals/action', { method: 'POST', body: { approvalId: histRes.data.approval.id, action: 'APPROVE' } }, headToken);
+    const item4Approved = await request(`/items/${item4Id}`, {}, encoderToken);
+    assert(item4Approved.data.status === 'AVAILABLE', 'Historical asset becomes AVAILABLE only after Stage 2 approval');
 
     // Request Stock-Out
     const out4Res = await request('/items/stock-out', {
@@ -355,10 +361,18 @@ async function runStatusConsistencyTests() {
         itemId: item4Id,
         toEmployeeId: emp2.id,
         reason: 'Handover to regional surveyor',
+        model21No: `M21-XFER-${ts5}`,
       },
     }, encoderToken);
-    assert(transferValid.ok, 'Custody transfer executed successfully');
-    assert(transferValid.data.currentCustodianId === emp2.id, `Custody liability transferred to ${emp2.fullNameEn}`);
+    assert(transferValid.ok, 'Custody transfer request submitted');
+    const item4InTransfer = await request(`/items/${item4Id}`, {}, encoderToken);
+    assert(item4InTransfer.data.status === 'UNDER_TRANSFER', 'Item held UNDER_TRANSFER while pending');
+    assert(item4InTransfer.data.currentCustodianId === emp1.id, 'Custody unchanged until Stage 2 approval');
+
+    await request('/items/approvals/action', { method: 'POST', body: { approvalId: transferValid.data.id, action: 'ENDORSE' } }, teamleadToken);
+    await request('/items/approvals/action', { method: 'POST', body: { approvalId: transferValid.data.id, action: 'APPROVE' } }, headToken);
+    const item4Transferred = await request(`/items/${item4Id}`, {}, encoderToken);
+    assert(item4Transferred.data.currentCustodianId === emp2.id, `Custody liability transferred to ${emp2.fullNameEn} after approval`);
 
     // =========================================================================
     // SCENARIO 7: Complete Audit Log & Historical Traceability

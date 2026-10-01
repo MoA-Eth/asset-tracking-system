@@ -61,13 +61,6 @@ export interface Location {
   isCentralStore?: boolean;
 }
 
-export interface LocationInput {
-  siteName: string;
-  building: string;
-  roomNumber: string;
-  isCentralStore: boolean;
-}
-
 export interface Employee {
   id: string;
   payrollId: string;
@@ -179,6 +172,84 @@ export interface Model19Voucher {
   grandTotal: number;
 }
 
+export interface Model22LineItem {
+  id?: string;
+  sNo: number;
+  itemCode: string;
+  itemDescription: string;
+  uom: string;
+  subInventory?: string;
+  itemCategory: string;
+  lotBatchNo?: string;
+  serialNo?: string;
+  printedPadFrom?: string;
+  printedPadTo?: string;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  remark?: string;
+}
+
+export interface Model22Voucher {
+  model22No: string;
+  issuedDateGc: string;
+  issuedDateEc?: string;
+  transactionType: string;
+  destination: string;
+  destinationDepartmentId?: string;
+  subInventory?: string;
+  issuedByName?: string;
+  receivedByName?: string;
+  receivedByEmployeeId?: string;
+  items: Model22LineItem[];
+  total: number;
+  transportationCost?: number;
+  grandTotal: number;
+  reportPrintedBy?: string;
+  reportPrintedDate?: string;
+}
+
+export interface Model21Accessory {
+  name: string;
+  quantity: number;
+}
+
+export interface Model21LineItem {
+  id?: string;
+  sNo: number;
+  description: string;
+  tagNumber: string;
+  serialNumber?: string;
+  chassisNumber?: string;
+  uom?: string;
+  unit: number;
+  origCost: number;
+  depreciation: number;
+  bookValue: number;
+  dateGc: string;
+  dateEc?: string;
+  fromLocation: string;
+  toLocation: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
+  remark?: string;
+}
+
+export interface Model21Voucher {
+  model21No: string;
+  fromEmployeeName: string;
+  fromEmployeeId: string;
+  book: string;
+  toEmployeeName: string;
+  toEmployeeId: string;
+  items: Model21LineItem[];
+  famuAccountantName?: string;
+  reportTakenBy?: string;
+  reportTakenDate?: string;
+}
+
 export interface ItemWithRelations extends Item {
   storeLocation?: Location;
   currentCustodian?: Employee | null;
@@ -238,7 +309,7 @@ export interface AuditLogEntry {
   userName: string;
   userRole: UserRole;
   action: string;
-  entityType: 'ITEM' | 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'RETURN' | 'APPROVAL' | 'EMPLOYEE' | 'LOCATION';
+  entityType: 'ITEM' | 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'APPROVAL';
   entityId: string;
   ifmisSlipNumber?: string;
   details: string;
@@ -308,6 +379,19 @@ export interface CreateStockOutRequest {
   ifmisSlipAttachmentUrl?: string;
   purpose: string;
   registeredById: string;
+
+  // Extended Model 22 fields
+  transactionType?: string;
+  destination?: string;
+  subInventory?: string;
+  lotBatchNo?: string;
+  printedPadFrom?: string;
+  printedPadTo?: string;
+  quantity?: number;
+  unitPrice?: number;
+  totalAmount?: number;
+  transportationCost?: number;
+  remark?: string;
 }
 
 export interface CreateReturnRequest {
@@ -320,6 +404,20 @@ export interface CreateReturnRequest {
   returningEmployeeId?: string;
   targetStoreLocationId?: string;
   registeredById: string;
+
+  // Extended Model 21 Return fields
+  model21No?: string;
+  book?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
+  origCost?: number;
+  depreciation?: number;
+  bookValue?: number;
+  defectRemark?: string;
+  storeRecipientId?: string;
 }
 
 export interface CreateTransferRequest {
@@ -329,6 +427,19 @@ export interface CreateTransferRequest {
   toLocationId?: string;
   reason: string;
   performedById: string;
+
+  // Extended Model 21 fields
+  model21No?: string;
+  book?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
+  origCost?: number;
+  depreciation?: number;
+  bookValue?: number;
+  remark?: string;
 }
 
 export interface ApprovalActionRequest {

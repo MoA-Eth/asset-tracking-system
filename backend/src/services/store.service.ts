@@ -19,7 +19,6 @@ import {
 } from '../types/asset-management';
 import { prisma } from '../lib/prisma';
 import { getTodayGcAndEc, formatGcToEc } from '../utils/eth-date';
-import { BadRequestError, ForbiddenError, NotFoundError } from '../errors/app-error';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -56,10 +55,11 @@ function mapItem(raw: any): ItemWithRelations {
     createdAtGc: raw.createdAtGc,
     createdAtEc: raw.createdAtEc,
     storeLocation: raw.storeLocation ?? undefined,
+    // Map employees explicitly so stored credentials never leave the API
     currentCustodian: raw.currentCustodian ? mapEmployee(raw.currentCustodian) : null,
     assignedDepartment: raw.assignedDepartment ?? null,
-    registeredBy: raw.registeredBy ?? undefined,
-    approvedBy: raw.approvedBy ?? undefined,
+    registeredBy: raw.registeredBy ? mapEmployee(raw.registeredBy) : undefined,
+    approvedBy: raw.approvedBy ? mapEmployee(raw.approvedBy) : undefined,
 
     // Model 19 fields
     poNumber: model19Meta.poNumber || raw.poNumber || undefined,
@@ -220,6 +220,23 @@ async function addAuditLog(
   });
 }
 
+// ─── Workflow Guards ──────────────────────────────────────────────────────────
+
+/** An item may only have one open request at a time (stock-out, return or transfer). */
+async function assertNoPendingApproval(item: { id: string; itemCode: string }) {
+  const pending = await prisma.transactionApproval.findFirst({
+    where: { itemId: item.id, status: 'PENDING' },
+  });
+  if (pending) {
+    throw new Error(`Item ${item.itemCode} already has a pending ${pending.transactionType} approval (${pending.ifmisSlipNumber}).`);
+  }
+}
+
+/** Resting status for an item once no request is in flight. */
+function statusForCustodian(custodianId: string | null): 'ISSUED' | 'AVAILABLE' {
+  return custodianId ? 'ISSUED' : 'AVAILABLE';
+}
+
 // ─── StoreService ─────────────────────────────────────────────────────────────
 
 export class StoreService {
@@ -297,7 +314,9 @@ export class StoreService {
 
     const today = getTodayGcAndEc();
     const currentYear = new Date().getFullYear();
-    const initialStatus = payload.isHistoricalData ? ItemStatus.AVAILABLE : ItemStatus.PENDING_STOCK_IN;
+    // Every registration, historical or not, waits for Stage 1/2 approval before becoming AVAILABLE.
+    // isHistoricalData only waives the slip attachment requirement above.
+    const initialStatus = ItemStatus.PENDING_STOCK_IN;
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
@@ -365,7 +384,7 @@ export class StoreService {
           ifmisSlipNumber: payload.ifmisSlipNumber,
           ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
           ifmisSlipDateEc: slipDateEc,
-          ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl || '/slips/sample-ifmis-slip.png',
+          ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl || null,
           isHistoricalData: payload.isHistoricalData || false,
           registeredById: payload.registeredById,
           createdAtGc: today.gc,
@@ -377,7 +396,7 @@ export class StoreService {
               dateEc: today.ec,
               action: payload.isHistoricalData ? 'HISTORICAL_STOCK_IN' : 'STOCK_IN_REGISTERED',
               fromEntity: `IFMIS Slip ${payload.ifmisSlipNumber}`,
-              toEntity: payload.isHistoricalData ? 'Central Store (Available)' : 'Store (Pending Approval)',
+              toEntity: 'Store (Pending Approval)',
               performedBy: user ? user.fullNameEn : payload.registeredById,
               performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
               ifmisSlipNumber: payload.ifmisSlipNumber,
@@ -388,27 +407,25 @@ export class StoreService {
         include: ITEM_INCLUDES,
       });
 
-      if (!payload.isHistoricalData) {
-        const createdApproval = await prisma.transactionApproval.create({
-          data: {
-            transactionType: 'STOCK_IN' as any,
-            itemId: newItem.id,
-            itemCode: newItem.itemCode,
-            itemName: newItem.name,
-            ifmisSlipNumber: payload.ifmisSlipNumber,
-            ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
-            ifmisSlipDateEc: slipDateEc,
-            ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
-            requestedById: payload.registeredById,
-            purposeOrRemarks: lineItem.remark || payload.notes || `Stock-in inbound receipt (Model 19 #${payload.ifmisSlipNumber})`,
-            status: 'PENDING' as any,
-            createdAtGc: today.gc,
-            createdAtEc: today.ec,
-          },
-        });
-        if (!primaryApproval) {
-          primaryApproval = mapApproval(createdApproval);
-        }
+      const createdApproval = await prisma.transactionApproval.create({
+        data: {
+          transactionType: 'STOCK_IN' as any,
+          itemId: newItem.id,
+          itemCode: newItem.itemCode,
+          itemName: newItem.name,
+          ifmisSlipNumber: payload.ifmisSlipNumber,
+          ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
+          ifmisSlipDateEc: slipDateEc,
+          ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
+          requestedById: payload.registeredById,
+          purposeOrRemarks: lineItem.remark || payload.notes || `Stock-in inbound receipt (Model 19 #${payload.ifmisSlipNumber})`,
+          status: 'PENDING' as any,
+          createdAtGc: today.gc,
+          createdAtEc: today.ec,
+        },
+      });
+      if (!primaryApproval) {
+        primaryApproval = mapApproval(createdApproval);
       }
 
       await addAuditLog(
@@ -434,12 +451,17 @@ export class StoreService {
     if (item.status !== 'AVAILABLE') {
       throw new Error(`Item ${item.itemCode} must be AVAILABLE to register Stock-Out. Current: ${item.status}`);
     }
+    await assertNoPendingApproval(item);
     if (!payload.ifmisSlipNumber.trim()) throw new Error('IFMIS Slip Number is mandatory for Stock-Out.');
 
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const recipient = payload.recipientEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }) : null;
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
+
+    const notesText = payload.remark
+      ? `${payload.purpose} (Remark: ${payload.remark})`
+      : payload.purpose;
 
     await prisma.item.update({
       where: { id: item.id },
@@ -455,7 +477,7 @@ export class StoreService {
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
             ifmisSlipNumber: payload.ifmisSlipNumber,
-            notes: payload.purpose,
+            notes: notesText,
           },
         },
       },
@@ -474,7 +496,7 @@ export class StoreService {
         requestedById: payload.registeredById,
         recipientEmployeeId: payload.recipientEmployeeId,
         targetDepartmentId: payload.targetDepartmentId,
-        purposeOrRemarks: payload.purpose,
+        purposeOrRemarks: notesText,
         status: 'PENDING' as any,
         createdAtGc: today.gc,
         createdAtEc: today.ec,
@@ -501,17 +523,24 @@ export class StoreService {
     if (item.status !== 'ISSUED' && item.status !== 'AVAILABLE') {
       throw new Error(`Item ${item.itemCode} cannot be returned to store. Current status: ${item.status}`);
     }
-    const pendingApproval = await prisma.transactionApproval.findFirst({
-      where: { itemId: item.id, status: 'PENDING' },
-    });
-    if (pendingApproval) {
-      throw new Error(`Item ${item.itemCode} already has a pending ${pendingApproval.transactionType} approval (${pendingApproval.ifmisSlipNumber}).`);
-    }
-    if (!payload.ifmisSlipNumber.trim()) throw new Error('IFMIS Return Slip Number (Model 22) is mandatory.');
+    await assertNoPendingApproval(item);
+    const effectiveSlipNo = (payload.model21No || payload.ifmisSlipNumber).trim();
+    if (!effectiveSlipNo) throw new Error('Return Voucher (Model 21 / 22) Slip Number is mandatory.');
 
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
+
+    const model21Details = [
+      `Return Reason: ${payload.returnReason}`,
+      `Condition: ${payload.condition}`,
+      payload.model21No ? `[Model/21 # ${payload.model21No}]` : '',
+      payload.book ? `Book: ${payload.book}` : '',
+      payload.chassisNumber ? `Chassis: ${payload.chassisNumber}` : '',
+      payload.plateNo ? `Plate: ${payload.plateNo}` : '',
+      payload.engineNo ? `Engine: ${payload.engineNo}` : '',
+      payload.defectRemark ? `Defects: ${payload.defectRemark}` : '',
+    ].filter(Boolean).join(' | ');
 
     await prisma.item.update({
       where: { id: item.id },
@@ -526,8 +555,8 @@ export class StoreService {
             toEntity: 'Central Store (Pending Return Approval)',
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
-            ifmisSlipNumber: payload.ifmisSlipNumber,
-            notes: `Return Reason: ${payload.returnReason}. Condition: ${payload.condition}`,
+            ifmisSlipNumber: effectiveSlipNo,
+            notes: model21Details,
           },
         },
       },
@@ -539,13 +568,13 @@ export class StoreService {
         itemId: item.id,
         itemCode: item.itemCode,
         itemName: item.name,
-        ifmisSlipNumber: payload.ifmisSlipNumber,
+        ifmisSlipNumber: effectiveSlipNo,
         ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
         ifmisSlipDateEc: slipDateEc,
         ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
         requestedById: payload.registeredById,
         recipientEmployeeId: payload.returningEmployeeId || item.currentCustodianId || undefined,
-        purposeOrRemarks: `[Model 22 Return - Condition: ${payload.condition}] ${payload.returnReason}`,
+        purposeOrRemarks: model21Details,
         status: 'PENDING' as any,
         createdAtGc: today.gc,
         createdAtEc: today.ec,
@@ -557,8 +586,8 @@ export class StoreService {
       'REGISTER_RETURN',
       'RETURN',
       item.id,
-      `Model 22 Return requested for ${item.itemCode}. Condition: ${payload.condition}. IFMIS: ${payload.ifmisSlipNumber}`,
-      payload.ifmisSlipNumber,
+      `Return to store requested for ${item.itemCode}. ${model21Details}. Slip: ${effectiveSlipNo}`,
+      effectiveSlipNo,
     );
 
     return mapApproval(approval);
@@ -573,17 +602,6 @@ export class StoreService {
 
     const today = getTodayGcAndEc();
     const reviewer = payload.reviewedById ? await prisma.employee.findUnique({ where: { id: payload.reviewedById } }) : null;
-    if (!['ENDORSE', 'APPROVE', 'REJECT'].includes(payload.action)) {
-      throw new BadRequestError('Unknown approval action.');
-    }
-    const requiredRole = approval.currentStage === 1 ? UserRole.TEAM_LEADER : UserRole.DEPARTMENT_HEAD;
-    if (![1, 2].includes(approval.currentStage) || reviewer?.role !== requiredRole) {
-      throw new ForbiddenError(`Stage ${approval.currentStage} must be reviewed by ${requiredRole}.`);
-    }
-    if ((approval.currentStage === 1 && payload.action === 'APPROVE') ||
-        (approval.currentStage === 2 && payload.action === 'ENDORSE')) {
-      throw new BadRequestError('Stage 1 requires endorsement; Stage 2 requires final approval.');
-    }
     const reviewerName = reviewer ? `${reviewer.fullNameEn} (${reviewer.role})` : 'Reviewer';
 
     // ── STAGE 1 ACTION: ENDORSE (Team Leader) ──────────────────────────────
@@ -667,6 +685,7 @@ export class StoreService {
     let histNote: string;
     let custodianId: string | null = item.currentCustodianId;
     let departmentId: string | null = item.assignedDepartmentId;
+    let locationId: string = item.storeLocationId;
     let approvedById: string | null = item.approvedById;
 
     if (isApprove) {
@@ -685,6 +704,21 @@ export class StoreService {
         histNote = payload.reviewRemarks || 'Model 22 Return approved. Item returned to Central Store (AVAILABLE).';
         custodianId = null;
         departmentId = null;
+        approvedById = payload.reviewedById;
+      } else if (approval.transactionType === 'TRANSFER') {
+        // Apply the custody / department / location change only now, after Stage 2 sign-off
+        custodianId = approval.recipientEmployeeId ?? item.currentCustodianId;
+        departmentId = approval.targetDepartmentId ?? item.assignedDepartmentId;
+        locationId = approval.targetLocationId ?? item.storeLocationId;
+        newItemStatus = statusForCustodian(custodianId);
+        historyAction = 'TRANSFER_APPROVED';
+        const [fromEmp, toEmp] = await Promise.all([
+          item.currentCustodianId ? prisma.employee.findUnique({ where: { id: item.currentCustodianId } }) : null,
+          custodianId ? prisma.employee.findUnique({ where: { id: custodianId } }) : null,
+        ]);
+        fromEntity = fromEmp ? fromEmp.fullNameEn : 'Store';
+        toEntity = toEmp ? toEmp.fullNameEn : 'Store';
+        histNote = payload.reviewRemarks || `Model 21 transfer approved: ${approval.purposeOrRemarks}`;
         approvedById = payload.reviewedById;
       } else {
         newItemStatus = 'ISSUED';
@@ -707,11 +741,19 @@ export class StoreService {
         toEntity = 'Rejected / Returned to Supplier';
         histNote = payload.reviewRemarks || 'Rejected by Department Head';
       } else if (approval.transactionType === 'RETURN') {
-        newItemStatus = 'ISSUED';
+        // Returns can be raised for AVAILABLE items too, so fall back to the item's actual custody
+        newItemStatus = statusForCustodian(item.currentCustodianId);
         historyAction = 'RETURN_REJECTED';
         fromEntity = 'Pending Return';
         toEntity = 'Staff Custodian (Retained)';
         histNote = payload.reviewRemarks || 'Model 22 Return request rejected by Department Head';
+      } else if (approval.transactionType === 'TRANSFER') {
+        // Nothing was moved while pending, so the item simply keeps its current custody
+        newItemStatus = statusForCustodian(item.currentCustodianId);
+        historyAction = 'TRANSFER_REJECTED';
+        fromEntity = 'Pending Transfer';
+        toEntity = 'Current Custodian (Retained)';
+        histNote = payload.reviewRemarks || 'Model 21 transfer request rejected by Department Head';
       } else {
         newItemStatus = 'AVAILABLE';
         historyAction = 'STOCK_OUT_REJECTED';
@@ -727,6 +769,7 @@ export class StoreService {
         status: newItemStatus as any,
         currentCustodianId: custodianId,
         assignedDepartmentId: departmentId,
+        storeLocationId: locationId,
         approvedById,
         history: {
           create: {
@@ -759,18 +802,15 @@ export class StoreService {
 
   // ── Transfer ────────────────────────────────────────────────────────────
 
-  public async transferItem(payload: CreateTransferRequest): Promise<ItemWithRelations> {
+  public async transferItem(payload: CreateTransferRequest): Promise<TransactionApproval> {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
     if (!item) throw new Error(`Item ${payload.itemId} not found.`);
-    if (item.status === 'DISPOSED') {
-      throw new Error(`Item ${item.itemCode} is DISPOSED and cannot be transferred.`);
+    if (item.status !== 'ISSUED' && item.status !== 'AVAILABLE') {
+      throw new Error(`Item ${item.itemCode} cannot be transferred. Current status: ${item.status}`);
     }
-    if (item.status === 'PENDING_STOCK_IN') {
-      throw new Error(`Item ${item.itemCode} is pending Stock-In approval and cannot be transferred.`);
-    }
-    if (item.status === 'PENDING_STOCK_OUT') {
-      throw new Error(`Item ${item.itemCode} is pending Stock-Out approval and cannot be transferred.`);
-    }
+    await assertNoPendingApproval(item);
+    const slipNo = (payload.model21No || '').trim();
+    if (!slipNo) throw new Error('Transfer Voucher (Model 21) number is mandatory.');
 
     const today = getTodayGcAndEc();
     const prevCustodian = item.currentCustodianId
@@ -781,43 +821,73 @@ export class StoreService {
       : prevCustodian;
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
 
-    const updated = await prisma.item.update({
+    const model21Details = [
+      payload.reason,
+      `[Model/21 # ${slipNo}]`,
+      payload.book ? `Book: ${payload.book}` : '',
+      payload.chassisNumber ? `Chassis: ${payload.chassisNumber}` : '',
+      payload.plateNo ? `Plate: ${payload.plateNo}` : '',
+      payload.engineNo ? `Engine: ${payload.engineNo}` : '',
+      payload.remark ? `Remark: ${payload.remark}` : '',
+    ].filter(Boolean).join(' | ');
+
+    // Nothing moves yet: the item is held UNDER_TRANSFER until Stage 2 approval applies the change
+    await prisma.item.update({
       where: { id: item.id },
       data: {
-        currentCustodianId: payload.toEmployeeId ?? item.currentCustodianId,
-        assignedDepartmentId: payload.toDepartmentId ?? item.assignedDepartmentId,
-        storeLocationId: payload.toLocationId ?? item.storeLocationId,
+        status: 'UNDER_TRANSFER' as any,
         history: {
           create: {
             dateGc: today.gc,
             dateEc: today.ec,
-            action: 'ITEM_TRANSFERRED',
+            action: 'TRANSFER_REQUESTED',
             fromEntity: prevCustodian || 'Store',
-            toEntity: newCustodian || 'New Location',
+            toEntity: `${newCustodian || 'New Location'} (Pending Approval)`,
             performedBy: performer ? performer.fullNameEn : payload.performedById,
             performedByRole: (performer?.role ?? 'DATA_ENCODER') as any,
-            notes: payload.reason,
+            ifmisSlipNumber: slipNo,
+            notes: model21Details,
           },
         },
       },
-      include: ITEM_INCLUDES,
+    });
+
+    const approval = await prisma.transactionApproval.create({
+      data: {
+        transactionType: 'TRANSFER' as any,
+        itemId: item.id,
+        itemCode: item.itemCode,
+        itemName: item.name,
+        ifmisSlipNumber: slipNo,
+        ifmisSlipDateGc: today.gc,
+        ifmisSlipDateEc: today.ec,
+        requestedById: payload.performedById,
+        recipientEmployeeId: payload.toEmployeeId,
+        targetDepartmentId: payload.toDepartmentId,
+        targetLocationId: payload.toLocationId,
+        purposeOrRemarks: `Transfer from ${prevCustodian} to ${newCustodian}. ${model21Details}`,
+        status: 'PENDING' as any,
+        createdAtGc: today.gc,
+        createdAtEc: today.ec,
+      },
     });
 
     await addAuditLog(
       payload.performedById,
-      'TRANSFER_ITEM',
+      'REGISTER_TRANSFER',
       'TRANSFER',
       item.id,
-      `Item ${item.itemCode} transferred from ${prevCustodian} to ${newCustodian}. Reason: ${payload.reason}`,
+      `Transfer requested for ${item.itemCode} from ${prevCustodian} to ${newCustodian}. ${model21Details}`,
+      slipNo,
     );
 
-    return mapItem(updated);
+    return mapApproval(approval);
   }
 
   // ── Queries ─────────────────────────────────────────────────────────────
 
-  public async getApprovals(status?: ApprovalStatus, requestedById?: string): Promise<TransactionApproval[]> {
-    const where = { ...(status ? { status } : {}), ...(requestedById ? { requestedById } : {}) };
+  public async getApprovals(status?: ApprovalStatus): Promise<TransactionApproval[]> {
+    const where: any = status ? { status } : {};
     const rows = await prisma.transactionApproval.findMany({
       where,
       include: APPROVAL_INCLUDES,
@@ -874,34 +944,21 @@ export class StoreService {
   }
 
   public async updateEmployeeRole(id: string, role: UserRole, actorId?: string): Promise<Employee> {
-    if (!Object.values(UserRole).includes(role)) {
-      throw new BadRequestError('A valid system role is required.');
-    }
-    return prisma.$transaction(async tx => {
-      const actor = actorId ? await tx.employee.findUnique({ where: { id: actorId } }) : null;
-      if (actor?.role !== UserRole.SYSTEM_ADMIN) {
-        throw new ForbiddenError('Only System Administrators can change user roles.');
-      }
-      const previous = await tx.employee.findUnique({ where: { id } });
-      if (!previous) throw new NotFoundError('Employee not found.');
-      const updated = await tx.employee.update({ where: { id }, data: { role } });
-      const today = getTodayGcAndEc();
-      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-      await tx.auditLog.create({ data: {
-        timestampGc: `${today.gc} ${time}`,
-        timestampEc: `${today.ec} ${time}`,
-        userId: actor.id,
-        userName: actor.fullNameEn,
-        userRole: actor.role,
-        action: 'UPDATE_STAFF_ROLE',
-        entityType: 'EMPLOYEE',
-        entityId: id,
-        details: `Role for ${previous.fullNameEn} updated from ${previous.role} to ${role}`,
-        previousState: { role: previous.role },
-        newState: { role },
-      } });
-      return mapEmployee(updated);
+    const prev = await prisma.employee.findUnique({ where: { id } });
+    const updated = await prisma.employee.update({
+      where: { id },
+      data: { role: role as any },
     });
+    if (actorId) {
+      await addAuditLog(
+        actorId,
+        'UPDATE_STAFF_ROLE',
+        'APPROVAL',
+        id,
+        `Role for ${prev?.fullNameEn || id} updated from ${prev?.role || 'N/A'} to ${role}`
+      );
+    }
+    return mapEmployee(updated);
   }
 
   // ── Executive Dashboard ─────────────────────────────────────────────────
@@ -924,6 +981,7 @@ export class StoreService {
     const issued = allItems.filter((i) => i.status === 'ISSUED');
     const pendingIn = allItems.filter((i) => i.status === 'PENDING_STOCK_IN');
     const pendingOut = allItems.filter((i) => i.status === 'PENDING_STOCK_OUT');
+    const inTransfer = allItems.filter((i) => i.status === 'UNDER_TRANSFER');
     const active = allItems.filter((i) => i.status !== 'DISPOSED');
 
     const sum = (arr: typeof allItems) => arr.reduce((s, i) => s + (i.unitCostETB || 0), 0);
@@ -957,6 +1015,17 @@ export class StoreService {
 
     const locationUtilization = locations.map((loc) => {
       const locItems = allItems.filter((i) => i.storeLocationId === loc.id);
+      const locAvailable = locItems.filter((i) => i.status === 'AVAILABLE');
+      const locIssued    = locItems.filter((i) => i.status === 'ISSUED');
+      const locPending   = locItems.filter((i) =>
+        i.status === 'PENDING_STOCK_IN' || i.status === 'PENDING_STOCK_OUT' || i.status === 'UNDER_TRANSFER',
+      );
+      // category breakdown per location
+      const locCategoryBreakdown = Object.values(AssetCategory).map((cat) => {
+        const matching = locItems.filter((i) => i.category === cat);
+        return { category: cat, count: matching.length, totalValueETB: sum(matching) };
+      }).filter((c) => c.count > 0);
+
       return {
         id: loc.id,
         siteName: loc.siteName,
@@ -965,8 +1034,15 @@ export class StoreService {
         isCentralStore: loc.isCentralStore,
         itemCount: locItems.length,
         totalValueETB: sum(locItems),
+        availableCount: locAvailable.length,
+        availableValueETB: sum(locAvailable),
+        issuedCount: locIssued.length,
+        issuedValueETB: sum(locIssued),
+        pendingCount: locPending.length,
+        categoryBreakdown: locCategoryBreakdown,
       };
     });
+
 
     const categoryBreakdown = Object.values(AssetCategory).map((cat) => {
       const matching = allItems.filter((i) => i.category === cat);
@@ -986,6 +1062,7 @@ export class StoreService {
       issuedValuationETB: sum(issued),
       pendingStockInCount: pendingIn.length,
       pendingStockOutCount: pendingOut.length,
+      pendingTransferCount: inTransfer.length,
       pendingApprovalsCount: pendingApprovals,
       totalValuationETB: sum(active),
       unassignedItemsCount: unassignedItems.length,

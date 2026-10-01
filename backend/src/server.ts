@@ -1,51 +1,116 @@
-import app from './app';
+import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import itemRoutes from './routes/item.routes';
+import referenceRoutes from './routes/reference.routes';
+import authRoutes from './routes/auth.routes';
+import uploadRoutes from './routes/upload.routes';
+import { SLIP_PUBLIC_PATH, SLIP_UPLOAD_DIR } from './lib/uploads';
+import { errorHandler } from './middleware/error-handler';
+import { sendError } from './utils/api-response';
 import { prisma } from './lib/prisma';
-import { networkInterfaces } from 'os';
 
-const port = Number(process.env.PORT || 3000);
-const host = process.env.HOST || '0.0.0.0';
+dotenv.config();
 
-async function start() {
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error('PORT must be a number between 1 and 65535.');
-  }
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is missing. Run npm run setup:local from the repository root, or configure backend/.env.');
-  }
-  // Fail visibly instead of serving a login screen backed by an unusable database.
-  await prisma.employee.count();
-  const server = app.listen(port, host, () => {
-    console.log(`MoA AMS listening on ${host}:${port}`);
-    console.log(`Local: http://localhost:${port}`);
-    if (host === '0.0.0.0' || host === '::') {
-      for (const addresses of Object.values(networkInterfaces())) {
-        for (const address of addresses || []) {
-          if (address.family === 'IPv4' && !address.internal) {
-            console.log(`Network: http://${address.address}:${port}`);
-          }
-        }
-      }
-    }
-    console.log(`Health: http://localhost:${port}/api/health`);
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Security & Parsing Middleware
+app.use(
+  cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+app.use(express.json());
+
+// Request logging in development
+if (process.env.NODE_ENV !== 'test') {
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+    next();
   });
-  server.on('error', (error: NodeJS.ErrnoException) => {
-    console.error(error.code === 'EADDRINUSE' ? `Port ${port} is already in use. Stop the other server or change PORT in backend/.env.` : error.message);
-    void prisma.$disconnect().finally(() => process.exit(1));
-  });
-  const shutdown = () => {
-    server.close(() => {
-      void prisma.$disconnect().finally(() => process.exit(0));
-    });
-  };
-  process.once('SIGINT', shutdown);
-  process.once('SIGTERM', shutdown);
 }
 
-void start().catch(async (error) => {
-  console.error('MoA AMS could not start:', error.message);
-  console.error('Check backend/.env and PostgreSQL. For a new local setup, run npm run setup:local.');
-  await prisma.$disconnect();
-  process.exit(1);
+// Health check endpoint (also confirms the database answers)
+app.get('/api/health', async (_req: Request, res: Response) => {
+  try {
+    await prisma.employee.count();
+  } catch {
+    res.status(503).json({
+      status: 'unhealthy',
+      database: 'unavailable',
+      message: 'The application database is unavailable or has not been initialized.',
+    });
+    return;
+  }
+  res.json({
+    status: 'healthy',
+    database: 'connected',
+    system: 'MoA Fixed Asset & Store Management (IFMIS Mirror)',
+    scope: 'Store-level processing, tracking, and executive management dashboard',
+    version: '2.0.0',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+import path from 'path';
+
+// Serve client static dist files (built web app & PWA)
+const clientDistPath = path.join(__dirname, '../../frontend/dist');
+app.use(
+  express.static(clientDistPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    },
+  })
+);
+
+// Uploaded IFMIS slips (file names are random UUIDs; nosniff stops browsers re-typing content)
+app.use(
+  SLIP_PUBLIC_PATH,
+  express.static(SLIP_UPLOAD_DIR, {
+    index: false,
+    setHeaders: (res) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    },
+  })
+);
+
+// Primary API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/items', itemRoutes);
+app.use('/api/reference', referenceRoutes);
+app.use('/api/uploads', uploadRoutes);
+
+// SPA catch-all fallback for frontend client routing (non-API GET requests)
+app.get('*', (req: Request, res: Response, next: NextFunction) => {
+  if (req.originalUrl.startsWith('/api')) {
+    return next();
+  }
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(clientDistPath, 'index.html'));
+});
+
+// Catch-all 404 handler for undefined API routes
+app.use((req: Request, res: Response) => {
+  sendError(res, `Endpoint ${req.method} ${req.originalUrl} not found`, 404);
+});
+
+// Centralized error handling middleware
+app.use(errorHandler);
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`=======================================================`);
+  console.log(` Federal Democratic Republic of Ethiopia - MoA AMS `);
+  console.log(` IFMIS Store-Level Tracking & Executive Visibility API `);
+  console.log(` REST API running on: http://localhost:${PORT}`);
+  console.log(` Health check: http://localhost:${PORT}/api/health`);
+  console.log(`=======================================================`);
 });
 
 export default app;

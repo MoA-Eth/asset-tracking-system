@@ -5,6 +5,7 @@ import {
   TransactionType,
   UserRole,
 } from '../types/asset-management';
+import { getVisibleQueueTabs } from '../pages/ApprovalsPage';
 
 // Reusable mock factory
 function createMockApproval(
@@ -224,6 +225,27 @@ describe('Two-Stage Approval Workflow & Queue Logic', () => {
         .map((item) => item.id);
 
       expect(actionableForDeptHead).toEqual(['002']);
+    });
+  });
+
+  describe('Queue tabs per role', () => {
+    it.each([UserRole.TEAM_LEADER, UserRole.DEPARTMENT_HEAD])(
+      '%s only sees its own queue plus history, not the other stage',
+      (role) => {
+        const tabs = getVisibleQueueTabs(role);
+        expect(tabs).toEqual(['MY_QUEUE', 'APPROVED', 'REJECTED', 'ALL']);
+        expect(tabs).not.toContain('STAGE_1');
+        expect(tabs).not.toContain('STAGE_2');
+      }
+    );
+
+    it("a Team Leader's queue holds only Stage 1 items; a Department Head's only Stage 2", () => {
+      const items = [
+        createMockApproval('001', { currentStage: 1 }),
+        createMockApproval('002', { currentStage: 2 }),
+      ];
+      expect(filterApprovals(items, { activeTab: 'MY_QUEUE', role: UserRole.TEAM_LEADER }).map((i) => i.id)).toEqual(['001']);
+      expect(filterApprovals(items, { activeTab: 'MY_QUEUE', role: UserRole.DEPARTMENT_HEAD }).map((i) => i.id)).toEqual(['002']);
     });
   });
 });

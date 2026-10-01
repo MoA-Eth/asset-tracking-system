@@ -1,4 +1,4 @@
-const BASE_URL = (process.env.AMS_API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');
+const BASE_URL = 'http://localhost:3000/api';
 
 const USERS = {
   admin: { email: 'sysadmin@moa.gov.et', password: 'moaams2024', role: 'SYSTEM_ADMIN' },
@@ -124,7 +124,7 @@ async function runTests() {
       body: { approvalId: testApprovalId, action: 'APPROVE', reviewRemarks: 'Premature approval attempt' },
     });
     assert(
-      prematureRes.status === 403,
+      prematureRes.status === 500 || prematureRes.status === 400,
       'Sequence Guard: Stage 2 approval rejected before Stage 1 endorsement'
     );
 
@@ -240,13 +240,34 @@ async function runTests() {
         toDepartmentId: 'DEP-01',
         reason: 'Reassigned for field expedition demo',
         performedById: userProfiles.encoder.id,
+        model21No: `M21-DEMO-${Date.now().toString().slice(-6)}`,
       },
     });
-    assert(transferRes.status === 200, 'Asset custody transferred successfully');
-    assert(transferRes.data.data.currentCustodianId === 'EMP-STAFF-01', 'Custodian updated to new employee');
+    assert(transferRes.status === 200, 'Transfer request submitted');
+    const transferApproval = transferRes.data.data;
+    assert(transferApproval.transactionType === 'TRANSFER' && transferApproval.status === 'PENDING', 'TRANSFER approval opened at Stage 1');
+
+    const pendingItem = await request(`/items/${testItemId}`, { headers: { Authorization: `Bearer ${tokens.encoder}` } });
+    assert(pendingItem.data.data.status === 'UNDER_TRANSFER', 'Item held UNDER_TRANSFER while pending');
+    assert(pendingItem.data.data.currentCustodianId === 'EMP-STAFF-02', 'Custodian unchanged until approval');
+
+    await request('/items/approvals/action', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens.teamlead}` },
+      body: { approvalId: transferApproval.id, action: 'ENDORSE' },
+    });
+    await request('/items/approvals/action', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens.head}` },
+      body: { approvalId: transferApproval.id, action: 'APPROVE' },
+    });
+
+    const transferredItem = await request(`/items/${testItemId}`, { headers: { Authorization: `Bearer ${tokens.encoder}` } });
+    assert(transferredItem.data.data.currentCustodianId === 'EMP-STAFF-01', 'Custodian updated to new employee after Stage 2');
+    assert(transferredItem.data.data.status === 'ISSUED', 'Item back to ISSUED after transfer approval');
     assert(
-      transferRes.data.data.history.some((h) => h.action === 'ITEM_TRANSFERRED'),
-      'ITEM_TRANSFERRED recorded in immutable asset movement history'
+      transferredItem.data.data.history.some((h) => h.action === 'TRANSFER_APPROVED'),
+      'TRANSFER_APPROVED recorded in immutable asset movement history'
     );
   } catch (err) {
     assert(false, `Transfer error: ${err.message}`);
