@@ -1417,7 +1417,6 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
             ? 'Corrections are allowed until the Team Leader endorses it. Every change is recorded in the item history and audit log.'
             : 'The item is held as pending until the Team Leader endorses and the Department Head approves it.'
         }
-        accentColor="emerald"
         size="2xl"
       >
         {locations.length > 0 && employees.length > 0 ? (

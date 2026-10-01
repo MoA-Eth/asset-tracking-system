@@ -311,7 +311,6 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
           ? 'You can correct this return until the Team Leader endorses it. Each change is recorded in the item history.'
           : 'The item stays with its custodian until the Team Leader endorses and the Department Head approves the return.'
       }
-      accentColor="emerald"
       size="xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
