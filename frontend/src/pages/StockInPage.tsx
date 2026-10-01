@@ -17,6 +17,7 @@ import {
   RotateCcw,
   X,
   Printer,
+  Pencil,
   Trash2,
 } from 'lucide-react';
 import { api } from '../api/client';
@@ -26,6 +27,7 @@ import {
   FieldGrid,
   Field,
   TotalValue,
+  ReadOnlyValue,
   FormError,
   FileDropField,
   FormFooter,
@@ -45,7 +47,7 @@ import {
 } from '../types/asset-management';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
 import { getSystemSettings } from '../utils/system-settings';
-import { validateSlipFile, SLIP_ACCEPT_ATTR } from '../utils/slip-upload';
+import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../utils/slip-upload';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -103,42 +105,48 @@ interface StockInFormProps {
   employees: Employee[];
   onCancel: () => void;
   onSuccess: (result: any, voucher?: Model19Voucher) => void;
+  /** When set, the form corrects this registration instead of creating a new one */
+  editItem?: ItemWithRelations;
 }
 
-const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess }) => {
+const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const isEdit = !!editItem;
 
   // Section 1: Document Voucher Header Metadata
-  const [ifmisSlipNumber, setIfmisSlipNumber] = useState('');
-  const [poNumber, setPoNumber] = useState('');
-  const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(new Date().toISOString().split('T')[0]);
-  const [transactionType, setTransactionType] = useState('PO Receipt');
-  const [source, setSource] = useState('');
-  const [buyer, setBuyer] = useState('');
-  const [programName, setProgramName] = useState('MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa');
-  const [storeLocationId, setStoreLocationId] = useState(locations[0]?.id ?? '');
+  const [ifmisSlipNumber, setIfmisSlipNumber] = useState(editItem?.ifmisSlipNumber ?? '');
+  const [poNumber, setPoNumber] = useState(editItem?.poNumber ?? '');
+  const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(editItem?.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
+  const [transactionType, setTransactionType] = useState(editItem?.transactionType || 'PO Receipt');
+  const [source, setSource] = useState(editItem?.source ?? '');
+  const [buyer, setBuyer] = useState(editItem?.buyer ?? '');
+  const [programName, setProgramName] = useState(editItem?.programName ?? 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa');
+  const [storeLocationId, setStoreLocationId] = useState(editItem?.storeLocationId ?? locations[0]?.id ?? '');
 
   // Section 2: Single-Item Particulars
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState<AssetCategory>(AssetCategory.IT_EQUIPMENT);
-  const [itemCode, setItemCode] = useState('');
-  const [uom, setUom] = useState('EA');
-  const [subInventory, setSubInventory] = useState('General Store');
-  const [lotBatchNo, setLotBatchNo] = useState('');
-  const [serialNumber, setSerialNumber] = useState('');
-  const [printedPadFrom, setPrintedPadFrom] = useState('');
-  const [printedPadTo, setPrintedPadTo] = useState('');
-  const [quantity, setQuantity] = useState<number>(1);
-  const [unitCostETB, setUnitCostETB] = useState<number>(0);
-  const [condition, setCondition] = useState<ItemCondition>(ItemCondition.NEW);
-  const [remark, setRemark] = useState('');
+  const [name, setName] = useState(editItem?.name ?? '');
+  const [category, setCategory] = useState<AssetCategory>(editItem?.category ?? AssetCategory.IT_EQUIPMENT);
+  const [itemCode, setItemCode] = useState(editItem?.itemCode ?? '');
+  const [uom, setUom] = useState(editItem?.uom || 'EA');
+  const [subInventory, setSubInventory] = useState(editItem?.subInventory ?? 'General Store');
+  const [lotBatchNo, setLotBatchNo] = useState(editItem?.lotBatchNo ?? '');
+  const [serialNumber, setSerialNumber] = useState(editItem?.serialNumber ?? '');
+  const [printedPadFrom, setPrintedPadFrom] = useState(editItem?.printedPadFrom ?? '');
+  const [printedPadTo, setPrintedPadTo] = useState(editItem?.printedPadTo ?? '');
+  const [quantity, setQuantity] = useState<number>(Number(editItem?.quantity) || 1);
+  const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? 0);
+  const [condition, setCondition] = useState<ItemCondition>(editItem?.condition ?? ItemCondition.NEW);
+  const [remark, setRemark] = useState(editItem?.remark ?? '');
 
   // Section 3: Signatures & Document Scan
-  const [deliveredBy, setDeliveredBy] = useState('');
-  const [receivedBy, setReceivedBy] = useState(user?.fullNameEn || '');
-  const [attachmentFileName, setAttachmentFileName] = useState('');
+  const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? '');
+  const [receivedBy, setReceivedBy] = useState(editItem?.receivedBy || user?.fullNameEn || '');
+  // In edit mode the current slip is kept unless a new file is chosen
+  const [attachmentFileName, setAttachmentFileName] = useState(
+    editItem?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editItem.ifmisSlipAttachmentUrl) : ''
+  );
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -244,6 +252,48 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
 
     setSubmitting(true);
     const registeredById = user?.id || employees[0]?.id || '';
+
+    if (editItem) {
+      try {
+        const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
+        const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
+        const res = await api.updateStockIn(editItem.id, {
+          name: name.trim(),
+          category,
+          serialNumber: serialNumber.trim() || undefined,
+          unitCostETB: Number(unitCostETB) || 0,
+          condition,
+          storeLocationId,
+          ifmisSlipNumber: slipNo,
+          ifmisSlipDateGc,
+          ifmisSlipAttachmentUrl: slipUrl,
+          poNumber: poNumber.trim() || undefined,
+          transactionType,
+          source: source.trim() || undefined,
+          buyer: buyer.trim() || undefined,
+          programName: programName.trim() || undefined,
+          uom: uom.trim() || 'EA',
+          subInventory: subInventory.trim() || undefined,
+          itemCategoryDisplay: selectedCat?.label,
+          lotBatchNo: lotBatchNo.trim() || undefined,
+          printedPadFrom: printedPadFrom.trim() || undefined,
+          printedPadTo: printedPadTo.trim() || undefined,
+          quantity: Number(quantity) || 1,
+          deliveredBy: deliveredBy.trim() || undefined,
+          receivedBy: receivedBy.trim() || undefined,
+          remark: remark.trim() || undefined,
+        });
+        toast.success('Stock-In Updated', `${editItem.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
+        onSuccess(res);
+      } catch (err: any) {
+        const errMsg = err.message || 'Server error';
+        setFormError(`Update failed: ${errMsg}`);
+        toast.error('Stock-In Update Failed', errMsg);
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
 
     try {
       const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
@@ -466,15 +516,21 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
               </select>
             </Field>
 
-            <Field label="Item code" optional hint="Leave blank to generate one automatically">
-              <input
-                type="text"
-                placeholder="e.g. 107101102.4336"
-                value={itemCode}
-                onChange={(e) => setItemCode(e.target.value)}
-                className={input({ mono: true })}
-              />
-            </Field>
+            {isEdit ? (
+              <Field label="Item code" hint="The item code can't be changed after registration">
+                <ReadOnlyValue mono>{itemCode}</ReadOnlyValue>
+              </Field>
+            ) : (
+              <Field label="Item code" optional hint="Leave blank to generate one automatically">
+                <input
+                  type="text"
+                  placeholder="e.g. 107101102.4336"
+                  value={itemCode}
+                  onChange={(e) => setItemCode(e.target.value)}
+                  className={input({ mono: true })}
+                />
+              </Field>
+            )}
 
             <Field label="Serial number" optional>
               <input
@@ -656,9 +712,9 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
       <FormFooter
         accent="emerald"
         submitting={submitting}
-        submitLabel="Register Model 19 item"
+        submitLabel={isEdit ? 'Save changes' : 'Register Model 19 item'}
         onCancel={onCancel}
-        onReset={handleReset}
+        onReset={isEdit ? undefined : handleReset}
       />
     </form>
   );
@@ -674,6 +730,9 @@ interface ItemsTableProps {
   refreshing: boolean;
   onNavigate: (tab: string) => void;
   onPrintModel19: (item: ItemWithRelations) => void;
+  /** Items still waiting for Stage 1 endorsement, which the encoder may correct */
+  editableItemIds: Set<string>;
+  onEdit: (item: ItemWithRelations) => void;
   highlightItemId?: string;
 }
 
@@ -683,6 +742,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   refreshing,
   onNavigate,
   onPrintModel19,
+  editableItemIds,
+  onEdit,
   highlightItemId,
 }) => {
   const [search, setSearch] = useState('');
@@ -920,15 +981,28 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                     <td className="px-3 py-2.5 whitespace-nowrap w-28">
                       <StatusBadge status={item.status} />
                     </td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap w-24">
-                      <button
-                        onClick={() => onPrintModel19(item)}
-                        className="px-2 py-1 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-300 hover:border-emerald-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                        title="Print Official Model 19 Report"
-                      >
-                        <Printer className="w-3.5 h-3.5 text-emerald-700" />
-                        <span>Print M19</span>
-                      </button>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {editableItemIds.has(item.id) && (
+                          <button
+                            onClick={() => onEdit(item)}
+                            className="px-2 py-1 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-300 hover:border-emerald-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                            title="Correct this registration (allowed until the Team Leader endorses it)"
+                            aria-label={`Edit ${item.itemCode}`}
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>Edit</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onPrintModel19(item)}
+                          className="px-2 py-1 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-300 hover:border-emerald-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                          title="Print Official Model 19 Report"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>Print M19</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -962,6 +1036,22 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
   const [refreshing, setRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [lastRegistered, setLastRegistered] = useState<any | null>(null);
+  // Registration being corrected (null = registering a new item)
+  const [editItem, setEditItem] = useState<ItemWithRelations | null>(null);
+  const [editableItemIds, setEditableItemIds] = useState<Set<string>>(new Set());
+
+  const openRegister = () => {
+    setEditItem(null);
+    setIsModalOpen(true);
+  };
+  const openEdit = (item: ItemWithRelations) => {
+    setEditItem(item);
+    setIsModalOpen(true);
+  };
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditItem(null);
+  };
 
   // Model 19 Print Modal State
   const [activeVoucher, setActiveVoucher] = useState<Model19Voucher | null>(null);
@@ -991,14 +1081,23 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
     else setLoading(true);
     setError(null);
     try {
-      const [locs, emps, allItems] = await Promise.all([
+      const [locs, emps, allItems, approvals] = await Promise.all([
         api.getLocations(),
         api.getEmployees(),
         api.getItems(),
+        api.getApprovals(),
       ]);
       setLocations(locs);
       setEmployees(emps);
       setItems(allItems);
+      // Only registrations still waiting for the Team Leader can be corrected
+      setEditableItemIds(
+        new Set(
+          approvals
+            .filter((a) => a.transactionType === 'STOCK_IN' && a.status === 'PENDING' && (a.currentStage ?? 1) === 1)
+            .map((a) => a.itemId)
+        )
+      );
     } catch (err: any) {
       console.error('Failed to load stock-in data:', err);
       setError(err.message || 'Failed to load store parameters and inventory items.');
@@ -1015,6 +1114,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
   const handleSuccess = (result: any, voucher?: Model19Voucher) => {
     setLastRegistered(result);
     setIsModalOpen(false);
+    setEditItem(null);
 
     // Optimistically prepend registered item to table immediately
     if (result?.item) {
@@ -1122,7 +1222,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={openRegister}
             className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-2 cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
@@ -1184,6 +1284,8 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
           refreshing={refreshing}
           onNavigate={onNavigate}
           onPrintModel19={handlePrintItem}
+          editableItemIds={editableItemIds}
+          onEdit={openEdit}
           highlightItemId={lastRegistered?.item?.id || lastRegistered?.item?.itemCode}
         />
       </div>
@@ -1191,17 +1293,23 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
       {/* ── Stock-In Modal ── */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Register goods received · Model 19"
-        subtitle="The item is held as pending until the Team Leader endorses and the Department Head approves it."
+        onClose={closeModal}
+        title={editItem ? `Edit registration · ${editItem.itemCode}` : 'Register goods received · Model 19'}
+        subtitle={
+          editItem
+            ? 'Corrections are allowed until the Team Leader endorses it. Every change is recorded in the item history and audit log.'
+            : 'The item is held as pending until the Team Leader endorses and the Department Head approves it.'
+        }
         accentColor="emerald"
         size="2xl"
       >
         {locations.length > 0 && employees.length > 0 ? (
           <StockInForm
+            key={editItem?.id ?? 'new'}
             locations={locations}
             employees={employees}
-            onCancel={() => setIsModalOpen(false)}
+            editItem={editItem ?? undefined}
+            onCancel={closeModal}
             onSuccess={handleSuccess}
           />
         ) : (

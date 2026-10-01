@@ -10,6 +10,7 @@ import {
   Employee,
   Location,
   CreateStockInRequest,
+  UpdateStockInRequest,
   CreateStockOutRequest,
   CreateReturnRequest,
   CreateTransferRequest,
@@ -128,6 +129,14 @@ export const api = {
         'X-File-Name': encodeURIComponent(file.name),
       },
       body: file,
+    });
+  },
+
+  // Allowed only while the item waits for Stage 1 endorsement
+  updateStockIn: (itemId: string, payload: UpdateStockInRequest) => {
+    return request<{ item: ItemWithRelations }>(`/items/${encodeURIComponent(itemId)}/stock-in`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
     });
   },
 

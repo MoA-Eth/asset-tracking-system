@@ -12,6 +12,7 @@ import {
   TransactionType,
   ApprovalStatus,
   CreateStockInRequest,
+  UpdateStockInRequest,
   CreateStockOutRequest,
   CreateTransferRequest,
   CreateReturnRequest,
@@ -19,6 +20,7 @@ import {
 } from '../types/asset-management';
 import { prisma } from '../lib/prisma';
 import { getTodayGcAndEc, formatGcToEc } from '../utils/eth-date';
+import { BadRequestError, ConflictError, NotFoundError } from '../errors/app-error';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -441,6 +443,172 @@ export class StoreService {
     }
 
     return { item: createdItems[0], items: createdItems, approval: primaryApproval };
+  }
+
+  // ── Stock-In Correction (before Stage 1 endorsement) ────────────────────
+
+  public async updateStockIn(itemId: string, payload: UpdateStockInRequest, actorId: string): Promise<ItemWithRelations> {
+    const item = await prisma.item.findUnique({ where: { id: itemId } });
+    if (!item) throw new NotFoundError(`Item ${itemId} not found.`);
+
+    const approval = await prisma.transactionApproval.findFirst({
+      where: { itemId, transactionType: 'STOCK_IN', status: 'PENDING' },
+    });
+    // Once the Team Leader has endorsed (or the request is decided) the registration is locked
+    if (item.status !== 'PENDING_STOCK_IN' || !approval || approval.currentStage !== 1) {
+      throw new ConflictError(
+        `Item ${item.itemCode} can only be edited while it is waiting for Team Leader endorsement. Ask an approver to reject it and register it again.`
+      );
+    }
+
+    const slipNo = (payload.ifmisSlipNumber || '').trim();
+    const name = (payload.name || '').trim();
+    const unitCost = Number(payload.unitCostETB);
+    const quantity = Number(payload.quantity ?? 1);
+    if (!slipNo) throw new BadRequestError('IFMIS Slip Number is always mandatory.');
+    if (!name) throw new BadRequestError('Item description is required.');
+    if (!payload.storeLocationId) throw new BadRequestError('Receiving store is required.');
+    if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price cannot be negative.');
+    if (!Number.isInteger(quantity) || quantity < 1) throw new BadRequestError('Quantity must be at least 1.');
+
+    const attachmentUrl = payload.ifmisSlipAttachmentUrl || item.ifmisSlipAttachmentUrl;
+    if (!item.isHistoricalData && !attachmentUrl) {
+      throw new BadRequestError('A scanned IFMIS slip attachment is required for new (non-historical) registrations.');
+    }
+
+    let previousMeta: any = {};
+    try {
+      previousMeta = item.notes ? JSON.parse(item.notes) : {};
+    } catch {
+      previousMeta = {};
+    }
+    const remark = payload.remark?.trim() || undefined;
+    const meta = {
+      ...previousMeta,
+      poNumber: payload.poNumber?.trim() || undefined,
+      transactionType: payload.transactionType || previousMeta.transactionType || 'PO Receipt',
+      source: payload.source?.trim() || undefined,
+      buyer: payload.buyer?.trim() || undefined,
+      programName: payload.programName?.trim() || previousMeta.programName,
+      uom: payload.uom?.trim() || 'EA',
+      subInventory: payload.subInventory?.trim() || undefined,
+      itemCategoryDisplay: payload.itemCategoryDisplay || previousMeta.itemCategoryDisplay,
+      lotBatchNo: payload.lotBatchNo?.trim() || undefined,
+      printedPadFrom: payload.printedPadFrom?.trim() || undefined,
+      printedPadTo: payload.printedPadTo?.trim() || undefined,
+      quantity,
+      totalAmount: unitCost * quantity,
+      deliveredBy: payload.deliveredBy?.trim() || undefined,
+      receivedBy: payload.receivedBy?.trim() || previousMeta.receivedBy,
+      remark,
+      userNotes: remark,
+    };
+
+    const slipDateGc = payload.ifmisSlipDateGc || item.ifmisSlipDateGc;
+    const before = {
+      name: item.name,
+      category: item.category,
+      serialNumber: item.serialNumber,
+      unitCostETB: item.unitCostETB,
+      condition: item.condition,
+      storeLocationId: item.storeLocationId,
+      ifmisSlipNumber: item.ifmisSlipNumber,
+      ifmisSlipDateGc: item.ifmisSlipDateGc,
+      ifmisSlipAttachmentUrl: item.ifmisSlipAttachmentUrl,
+      quantity: previousMeta.quantity ?? 1,
+    };
+    const after = {
+      name,
+      category: payload.category || item.category,
+      serialNumber: payload.serialNumber?.trim() || item.serialNumber,
+      unitCostETB: unitCost,
+      condition: payload.condition || item.condition,
+      storeLocationId: payload.storeLocationId,
+      ifmisSlipNumber: slipNo,
+      ifmisSlipDateGc: slipDateGc,
+      ifmisSlipAttachmentUrl: attachmentUrl,
+      quantity,
+    };
+    const changed = (Object.keys(after) as (keyof typeof after)[]).filter((k) => String(before[k] ?? '') !== String(after[k] ?? ''));
+    const metaChanged = JSON.stringify(previousMeta) !== JSON.stringify(meta);
+    if (changed.length === 0 && !metaChanged) {
+      const unchanged = await prisma.item.findUnique({ where: { id: itemId }, include: ITEM_INCLUDES });
+      return mapItem(unchanged);
+    }
+
+    const actor = await prisma.employee.findUnique({ where: { id: actorId } });
+    const today = getTodayGcAndEc();
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const summary = changed.length
+      ? `Corrected before endorsement: ${changed.map((k) => `${k} ${before[k] ?? '—'} → ${after[k] ?? '—'}`).join('; ')}`
+      : 'Corrected voucher details before endorsement';
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const saved = await tx.item.update({
+        where: { id: itemId },
+        data: {
+          name: after.name,
+          category: after.category as any,
+          serialNumber: after.serialNumber,
+          unitCostETB: after.unitCostETB,
+          condition: after.condition as any,
+          storeLocationId: after.storeLocationId,
+          ifmisSlipNumber: after.ifmisSlipNumber,
+          ifmisSlipDateGc: after.ifmisSlipDateGc,
+          ifmisSlipDateEc: formatGcToEc(after.ifmisSlipDateGc),
+          ifmisSlipAttachmentUrl: after.ifmisSlipAttachmentUrl,
+          notes: JSON.stringify(meta),
+          history: {
+            create: {
+              dateGc: today.gc,
+              dateEc: today.ec,
+              action: 'STOCK_IN_EDITED',
+              fromEntity: 'Store (Pending Approval)',
+              toEntity: 'Store (Pending Approval)',
+              performedBy: actor ? actor.fullNameEn : actorId,
+              performedByRole: (actor?.role ?? 'DATA_ENCODER') as any,
+              ifmisSlipNumber: after.ifmisSlipNumber,
+              notes: summary,
+            },
+          },
+        },
+        include: ITEM_INCLUDES,
+      });
+
+      // Keep the approval request showing the corrected details
+      await tx.transactionApproval.update({
+        where: { id: approval.id },
+        data: {
+          itemName: after.name,
+          ifmisSlipNumber: after.ifmisSlipNumber,
+          ifmisSlipDateGc: after.ifmisSlipDateGc,
+          ifmisSlipDateEc: formatGcToEc(after.ifmisSlipDateGc),
+          ifmisSlipAttachmentUrl: after.ifmisSlipAttachmentUrl,
+          purposeOrRemarks: remark || `Stock-in inbound receipt (Model 19 #${after.ifmisSlipNumber})`,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          timestampGc: `${today.gc} ${time}`,
+          timestampEc: `${today.ec} ${time}`,
+          userId: actorId,
+          userName: actor ? actor.fullNameEn : 'System',
+          userRole: (actor?.role ?? 'DATA_ENCODER') as any,
+          action: 'EDIT_STOCK_IN',
+          entityType: 'STOCK_IN' as any,
+          entityId: itemId,
+          ifmisSlipNumber: after.ifmisSlipNumber,
+          details: `Item ${item.itemCode}: ${summary}`,
+          previousState: before as any,
+          newState: after as any,
+        },
+      });
+
+      return saved;
+    });
+
+    return mapItem(updated);
   }
 
   // ── Stock-Out Registration ──────────────────────────────────────────────

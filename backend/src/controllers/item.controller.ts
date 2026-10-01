@@ -5,6 +5,7 @@ import {
   ItemStatus,
   ApprovalStatus,
   CreateStockInRequest,
+  UpdateStockInRequest,
   CreateStockOutRequest,
   CreateTransferRequest,
   ApprovalActionRequest,
@@ -84,6 +85,17 @@ export class ItemController {
     }
     const result = await this.store.registerStockIn(payload);
     return sendSuccess(res, result, 'Stock-In registered successfully', 201);
+  });
+
+  /**
+   * PUT /api/items/:id/stock-in
+   * Corrects a Stock-In registration while it still waits for Stage 1 endorsement.
+   */
+  public updateStockIn = asyncHandler(async (req: Request, res: Response) => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const payload: UpdateStockInRequest = req.body;
+    const item = await this.store.updateStockIn(id, payload, req.user!.id);
+    return sendSuccess(res, { item }, 'Stock-In registration updated');
   });
 
   /**
