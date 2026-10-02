@@ -17,6 +17,7 @@ import { UserRole, Employee, Department } from '../types/asset-management';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { departmentLabel } from '../utils/department';
+import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu } from '../components/ui/RowActionsMenu';
 import { ConfirmDialog } from './settings/reference-ui';
 import { AddUserModal, ResetPasswordModal, ROLE_LABELS } from './settings/UserAccessModals';
@@ -122,6 +123,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
     // Users are employees who can sign in; staff without a role are managed under Settings → Employees
     return emp.isActive && !!emp.role && matchesSearch && matchesDept && (roleFilter === 'ALL' || emp.role === roleFilter);
   });
+
+  const pager = usePagination(filteredEmployees, { resetKey: `${searchTerm}|${selectedDeptFilter}|${roleFilter}` });
 
   if (!canAssign) return <p role="alert" className="text-sm text-slate-600">Only System Administrators can manage user roles.</p>;
 
@@ -245,7 +248,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredEmployees.map((emp) => {
+                {pager.pageItems.map((emp) => {
                   const dept = departments.find((d) => d.id === emp.departmentId);
                   const isUpdating = updatingId === emp.id;
 
@@ -331,6 +334,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
               </tbody>
             </table>
           </div>
+          <Pagination pager={pager} label="users" />
         </div>
       </div>
 

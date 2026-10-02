@@ -22,6 +22,7 @@ import { api } from '../api/client';
 import { storeLocationLabel } from '../utils/location';
 import { table, statusTone, btn } from '../components/ui/theme';
 import { RecordDetailModal } from '../components/ui/RecordDetailModal';
+import { Pagination, usePagination } from '../components/ui/Pagination';
 import {
   ItemWithRelations,
   Department,
@@ -504,6 +505,9 @@ export const ReportsPage: React.FC = () => {
     { id: 'transferred', label: 'Transferred & Returned', icon: ArrowRightLeft },
   ];
 
+  // Exports still use every filtered row; only the table on screen is paged
+  const pager = usePagination(filteredItems, { resetKey: `${searchTerm}|${timeframe}` });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24 text-xs text-slate-400">
@@ -822,7 +826,7 @@ export const ReportsPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item, idx) => {
+                pager.pageItems.map((item, idx) => {
                   const isPartly = statusLabel(item) === 'Partly issued';
                   const isAvailable = !isPartly && item.status === ItemStatus.AVAILABLE;
                   const isIssued = item.status === ItemStatus.ISSUED;
@@ -830,7 +834,7 @@ export const ReportsPage: React.FC = () => {
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/80 transition">
                       <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px] w-10 shrink-0">
-                        {idx + 1}
+                        {pager.from + idx}
                       </td>
                       <td className={`py-2.5 px-3 ${table.code} whitespace-nowrap w-32 shrink-0`}>
                         {item.itemCode}
@@ -938,6 +942,7 @@ export const ReportsPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <Pagination pager={pager} label="assets" />
 
         {/* Table Footer */}
         {filteredItems.length > 0 && (

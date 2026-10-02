@@ -38,6 +38,7 @@ import {
 import { CustodyVoucherModal } from '../components/ui/CustodyVoucherModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
+import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu } from '../components/ui/RowActionsMenu';
 import { RecordDetailModal } from '../components/ui/RecordDetailModal';
 import { ConditionBadge } from '../components/ui/Badge';
@@ -853,6 +854,8 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
     return 0;
   });
 
+  const pager = usePagination(sorted, { resetKey: `${search}|${sortField}|${sortDirection}` });
+
   return (
     <div className="space-y-3">
       {/* Toolbar */}
@@ -962,7 +965,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {sorted.map((approval) => {
+              {pager.pageItems.map((approval) => {
                 const isJustSubmitted = highlightApprovalId && highlightApprovalId === approval.id;
                 return (
                   <tr
@@ -1038,6 +1041,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
               })}
             </tbody>
           </table>
+          <Pagination pager={pager} label="requests" />
         </div>
       )}
       {viewing && <RecordDetailModal itemId={viewing.itemId} approval={viewing} onClose={() => setViewing(null)} />}

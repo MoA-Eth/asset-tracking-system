@@ -13,6 +13,7 @@ import {
 import { api } from '../api/client';
 import { AuditLogEntry } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
+import { Pagination, usePagination } from '../components/ui/Pagination';
 
 export const AuditLogsPage: React.FC = () => {
   const toast = useToast();
@@ -140,6 +141,9 @@ export const AuditLogsPage: React.FC = () => {
     if (action.includes('TRANSFER')) return 'bg-purple-100 text-purple-900 border-purple-300 font-bold';
     return 'bg-slate-100 text-slate-800 border-slate-300 font-bold';
   };
+
+  // The export still uses every filtered entry; only the list on screen is paged
+  const pager = usePagination(filteredLogs, { pageSize: 25, resetKey: `${searchTerm}|${dateFilter}` });
 
   if (loading) {
     return (
@@ -282,7 +286,7 @@ export const AuditLogsPage: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-2.5">
-          {filteredLogs.map((log) => {
+          {pager.pageItems.map((log) => {
             const isExpanded = expandedLogId === log.id;
 
             return (
@@ -378,6 +382,7 @@ export const AuditLogsPage: React.FC = () => {
               </div>
             );
           })}
+          <Pagination pager={pager} label="entries" className="rounded-2xl border border-slate-200" />
         </div>
       )}
     </div>
