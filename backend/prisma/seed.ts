@@ -4,6 +4,10 @@ import { PrismaClient, UserRole, AssetCategory, ItemStatus, TransactionType, App
 const prisma = new PrismaClient();
 
 async function main() {
+  // Demo data and a shared password: never for a real installation (use db:seed:production there)
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('The demo seed is disabled when NODE_ENV=production. Run "npm run db:seed:production" instead.');
+  }
   const seedPassword = await hashPassword('moaams2024');
   console.log('🌱 Seeding MoA-AMS database...');
 

@@ -23,7 +23,7 @@ export const LoginPage: React.FC = () => {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!usernameOrEmail.trim()) {
-      const msg = 'Please enter your MoA official email or civil service payroll ID.';
+      const msg = 'Enter your email or employee ID.';
       setErrorMsg(msg);
       toast.warning('Credentials Required', msg);
       return;
@@ -98,7 +98,7 @@ export const LoginPage: React.FC = () => {
             {/* Email / Payroll ID Field */}
             <div>
               <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
-                Official Email or Payroll ID
+                Email or employee ID
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -107,7 +107,7 @@ export const LoginPage: React.FC = () => {
                   required
                   value={usernameOrEmail}
                   onChange={(e) => setUsernameOrEmail(e.target.value)}
-                  placeholder="e.g. sysadmin@moa.gov.et or MOA/STORE-102"
+                  placeholder="e.g. name@moa.gov.et or 00123456"
                   className="w-full pl-9 pr-3 py-2.5 bg-[#05160E] border border-emerald-900/80 rounded-xl text-xs text-white placeholder-emerald-700/60 focus:outline-none focus:border-amber-400 font-mono"
                 />
               </div>

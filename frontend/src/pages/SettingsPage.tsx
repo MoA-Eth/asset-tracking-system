@@ -7,6 +7,9 @@ import {
   RefreshCw,
   Search,
   SlidersHorizontal,
+  UserPlus,
+  KeyRound,
+  UserX,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { table } from '../components/ui/theme';
@@ -14,6 +17,9 @@ import { UserRole, Employee, Department } from '../types/asset-management';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { departmentLabel } from '../utils/department';
+import { RowActionsMenu } from '../components/ui/RowActionsMenu';
+import { ConfirmDialog } from './settings/reference-ui';
+import { AddUserModal, ResetPasswordModal, ROLE_LABELS } from './settings/UserAccessModals';
 
 interface SettingsPageProps {
   currentRole: UserRole;
@@ -37,6 +43,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('ALL');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [resetting, setResetting] = useState<Employee | null>(null);
+  const [removing, setRemoving] = useState<Employee | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
+
+  const applyUpdate = (updated: Employee) => setEmployees((prev) => prev.map((emp) => (emp.id === updated.id ? { ...emp, ...updated } : emp)));
+
+  const removeSignIn = async () => {
+    if (!removing) return;
+    setRemoveBusy(true);
+    try {
+      applyUpdate(await api.removeAccess(removing.id));
+      toast.success('Sign-in removed', `${removing.fullNameEn} can no longer sign in.`);
+      setRemoving(null);
+    } catch (err: any) {
+      toast.error('Could not remove sign-in', err.message);
+    } finally {
+      setRemoveBusy(false);
+    }
+  };
 
   const fetchData = async () => {
     if (!canAssign) { setLoading(false); return; }
@@ -143,10 +169,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
             Users (ተጠቃሚዎች)
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage civil service authorization roles across directorates.
+            The people who can sign in, and their roles. Staff are added under Settings → Employees; give them sign-in here.
           </p>
         </div>
 
+        <button onClick={() => setAdding(true)} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5">
+          <UserPlus className="w-3.5 h-3.5" />
+          Add user
+        </button>
         <button
           onClick={fetchData}
           className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
@@ -227,7 +257,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                             {emp.fullNameEn.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">{emp.fullNameEn}</p>
+                            <p className="font-bold text-slate-900">
+                              {emp.fullNameEn}
+                              {emp.mustChangePassword && (
+                                <span className="ml-2 rounded-full border border-amber-200 bg-amber-100 px-1.5 py-px text-[10px] font-semibold text-amber-800" title="They haven't chosen their own password yet">
+                                  Temporary password
+                                </span>
+                              )}
+                            </p>
                             <p className="text-[10px] text-slate-500">{emp.fullNameAm}</p>
                           </div>
                         </div>
@@ -259,13 +296,32 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                             onChange={(e) => handleRoleChange(emp.id, e.target.value as UserRole)}
                             className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-emerald-600 disabled:opacity-50 cursor-pointer"
                           >
-                            <option value={UserRole.SYSTEM_ADMIN}>System Administrator</option>
-                            <option value={UserRole.DATA_ENCODER}>Store Custodian / Encoder</option>
-                            <option value={UserRole.TEAM_LEADER}>Team Leader</option>
-                            <option value={UserRole.DEPARTMENT_HEAD}>Directorate Head / Approver</option>
-                            <option value={UserRole.MANAGER}>Manager</option>
+                            {Object.values(UserRole).map((r) => (
+                              <option key={r} value={r}>
+                                {ROLE_LABELS[r]}
+                              </option>
+                            ))}
                           </select>
                           {isUpdating && <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />}
+                          <RowActionsMenu
+                            label={emp.fullNameEn}
+                            actions={[
+                              {
+                                label: 'Reset password',
+                                icon: KeyRound,
+                                onClick: () => setResetting(emp),
+                                disabled: emp.id === user?.id,
+                                reason: emp.id === user?.id ? 'Use "Change password" in the sidebar for your own.' : undefined,
+                              },
+                              {
+                                label: 'Remove sign-in',
+                                icon: UserX,
+                                onClick: () => setRemoving(emp),
+                                disabled: emp.id === user?.id,
+                                reason: emp.id === user?.id ? "You can't remove your own sign-in." : undefined,
+                              },
+                            ]}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -277,6 +333,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
           </div>
         </div>
       </div>
+
+      <AddUserModal isOpen={adding} employees={employees} onClose={() => setAdding(false)} onSaved={applyUpdate} />
+      <ResetPasswordModal employee={resetting} onClose={() => setResetting(null)} onSaved={applyUpdate} />
+      <ConfirmDialog
+        isOpen={!!removing}
+        title={`Remove sign-in for ${removing?.fullNameEn ?? ''}?`}
+        confirmLabel="Remove sign-in"
+        danger
+        busy={removeBusy}
+        onConfirm={removeSignIn}
+        onClose={() => setRemoving(null)}
+      >
+        They will be signed out and can no longer sign in. They stay on the staff list and keep any items they hold.
+      </ConfirmDialog>
     </div>
   );
 };

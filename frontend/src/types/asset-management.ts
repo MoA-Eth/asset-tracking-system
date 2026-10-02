@@ -108,6 +108,8 @@ export interface Employee {
   /** System role; null when the employee can't sign in */
   role: UserRole | null;
   isActive: boolean;
+  /** Their password is temporary (only for people who manage employees) */
+  mustChangePassword?: boolean;
   /** Items the employee holds (only for people who manage employees) */
   heldItemCount?: number;
 }
@@ -670,12 +672,13 @@ export interface AuthUser {
   permissions?: string[];
   allowedTabs?: string[];
   landingTab?: string;
+  /** Their password is temporary: the app only shows the "choose a new password" screen */
+  mustChangePassword?: boolean;
 }
 
 export interface LoginRequest {
   usernameOrEmail: string;
   password?: string;
-  personaRole?: UserRole;
 }
 
 export interface AuthResponse {

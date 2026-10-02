@@ -140,7 +140,7 @@ describe('Sign-in for deactivated staff and staff without a role', () => {
     db.employee.findFirst.mockResolvedValue({ ...ENCODER, password: 'pw', isActive: false });
     await expect(auth.login({ usernameOrEmail: 'encoder', password: 'pw' })).rejects.toThrow('deactivated');
     db.employee.findFirst.mockResolvedValue({ ...STAFF, password: null });
-    await expect(auth.login({ usernameOrEmail: 'MOA/100', password: 'pw' })).rejects.toThrow('Invalid credentials.');
+    await expect(auth.login({ usernameOrEmail: 'MOA/100', password: 'pw' })).rejects.toThrow('is not correct');
   });
 
   it('ends existing sessions', async () => {

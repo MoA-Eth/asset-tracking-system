@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ExternalLink, FileText, FileX, RefreshCw, X } from 'lucide-react';
-import { getSlipDisplayName } from '../../utils/slip-upload';
+import { getSlipDisplayName, fetchSlip } from '../../utils/slip-upload';
 
 interface SlipViewerModalProps {
   url: string;
@@ -27,7 +27,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, onClose }
 
     (async () => {
       try {
-        const res = await fetch(url);
+        const res = await fetchSlip(url);
         const contentType = res.headers.get('content-type') || '';
         const kind = contentType.startsWith('application/pdf')
           ? 'pdf'
@@ -81,7 +81,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, onClose }
           <div className="flex items-center gap-1.5 shrink-0">
             {state.status === 'ready' && (
               <a
-                href={url}
+                href={state.objectUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 flex items-center gap-1.5"
