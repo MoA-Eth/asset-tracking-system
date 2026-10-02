@@ -25,12 +25,12 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
   if (!isOpen || (!approval && !item)) return null;
 
   const today = new Date().toISOString().split('T')[0];
-  const slipNo = approval?.ifmisSlipNumber || item?.ifmisSlipNumber || 'IFMIS-VOUCHER-2024';
+  const slipNo = approval?.ifmisSlipNumber || item?.ifmisSlipNumber || '—';
   const slipDateGc = approval?.ifmisSlipDateGc || item?.ifmisSlipDateGc || today;
   const slipDateEc = approval?.ifmisSlipDateEc || item?.ifmisSlipDateEc || formatGcToEc(slipDateGc);
-  const itemName = approval?.itemName || item?.name || 'Fixed Asset Item';
+  const itemName = approval?.itemName || item?.name || '—';
   const itemCode = approval?.itemCode || item?.itemCode || 'MOA-ASSET-001';
-  const serialNo = item?.serialNumber || 'N/A';
+  const serialNo = item?.serialNumber || '—';
   const category = item?.category?.replace(/_/g, ' ') || 'EQUIPMENT';
   const unitCost = item?.unitCostETB || 0;
   // A Stock-Out may issue part of a batch; otherwise the record's own units

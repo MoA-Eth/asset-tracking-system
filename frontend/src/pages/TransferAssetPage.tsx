@@ -152,12 +152,12 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
 
   // Model 21 Transfer Form State
   const [selectedItemId, setSelectedItemId] = useState('');
-  const [model21No, setModel21No] = useState('0004386');
-  const [book, setBook] = useState('MOA MC BOOK');
+  const [model21No, setModel21No] = useState('');
+  const [book, setBook] = useState('');
   const [targetEmployeeId, setTargetEmployeeId] = useState('');
   const [targetDepartmentId, setTargetDepartmentId] = useState('');
   const [targetLocationId, setTargetLocationId] = useState('');
-  const [transferReason, setTransferReason] = useState('Fixed asset internal custody reassignment');
+  const [transferReason, setTransferReason] = useState('');
   
   // Technical / Vehicle Details (Model 21 document particulars)
   const [chassisNumber, setChassisNumber] = useState('');
@@ -223,12 +223,12 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
 
   const resetTransferForm = () => {
     setSelectedItemId('');
-    setModel21No('0004386');
-    setBook('MOA MC BOOK');
+    setModel21No('');
+    setBook('');
     setTargetEmployeeId('');
     setTargetDepartmentId('');
     setTargetLocationId('');
-    setTransferReason('Fixed asset internal custody reassignment');
+    setTransferReason('');
     setDefectRemark('');
   };
 
@@ -286,6 +286,14 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     }
     if (!targetEmployeeId) {
       toast.warning('Recipient Required', 'Please select a recipient employee.');
+      return;
+    }
+    if (!model21No.trim()) {
+      toast.warning('Voucher Required', 'Please enter the Model 21 voucher number.');
+      return;
+    }
+    if (!transferReason.trim()) {
+      toast.warning('Reason Required', 'Please enter the reason for the transfer.');
       return;
     }
     setSubmittingTransfer(true);
@@ -354,7 +362,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         toEmployeeId: targetEmployeeId,
         toDepartmentId: targetDepartmentId || undefined,
         toLocationId: targetLocationId || undefined,
-        reason: transferReason || 'Official custody reassignment',
+        reason: transferReason.trim(),
         performedById: user?.id || '',
         model21No: model21No.trim(),
         book: book.trim(),
@@ -373,14 +381,14 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         model21No: model21No.trim(),
         fromEmployeeName: fromCustodian?.fullNameEn || '—',
         fromEmployeeId: fromCustodian?.payrollId || '—',
-        book: book.trim() || 'MOA MC BOOK',
+        book: book.trim() || '—',
         toEmployeeName: targetEmp?.fullNameEn || '—',
         toEmployeeId: targetEmp?.payrollId || '—',
         items: [
           {
             sNo: 1,
-            description: selectedItem?.name || 'Asset Item',
-            tagNumber: selectedItem?.itemCode || 'TAG-001',
+            description: selectedItem?.name || '—',
+            tagNumber: selectedItem?.itemCode || '—',
             serialNumber: selectedItem?.serialNumber || '',
             chassisNumber: chassisNumber.trim() || undefined,
             uom: selectedItem?.uom || 'EA',
@@ -414,7 +422,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
       setTargetEmployeeId('');
       setTargetDepartmentId('');
       setTargetLocationId('');
-      setTransferReason('Fixed asset internal custody reassignment');
+      setTransferReason('');
       fetchData();
     } catch (err: any) {
       const errMsg = err.message || 'Failed to process transfer.';
@@ -433,10 +441,10 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     const cost = (item.unitCostETB || 0) * units;
 
     const voucher: Model21Voucher = {
-      model21No: item.ifmisSlipNumber || '0004386',
+      model21No: item.ifmisSlipNumber || '—',
       fromEmployeeName: custodian?.fullNameEn || '—',
       fromEmployeeId: custodian?.payrollId || '—',
-      book: 'MOA MC BOOK',
+      book: '—',
       toEmployeeName: '—',
       toEmployeeId: '—',
       items: [
@@ -597,7 +605,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       required
                       value={model21No}
                       onChange={(e) => setModel21No(e.target.value)}
-                      placeholder="e.g. 0004386"
+                      placeholder="Number on the Model 21 form"
                       className={`${input({ mono: true })} font-semibold`}
                     />
                   </Field>
@@ -608,7 +616,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       required
                       value={book}
                       onChange={(e) => setBook(e.target.value)}
-                      placeholder="e.g. MOA MC BOOK"
+                      placeholder="Book the form comes from"
                       className={input()}
                     />
                   </Field>

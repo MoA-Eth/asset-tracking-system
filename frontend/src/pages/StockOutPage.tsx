@@ -178,7 +178,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   const [unitPrice, setUnitPrice] = useState<number>(0);
   const [transportationCost, setTransportationCost] = useState<number>(0);
   const [remark, setRemark] = useState<string>(editNotes.remark);
-  const [purpose, setPurpose] = useState<string>(isEdit ? editNotes.purpose : 'Move Order Issue for Ministry Operations');
+  const [purpose, setPurpose] = useState<string>(isEdit ? editNotes.purpose : '');
   // In edit mode the current slip is kept unless a new file is chosen
   const [attachmentFileName, setAttachmentFileName] = useState<string>(
     editApproval?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editApproval.ifmisSlipAttachmentUrl) : ''
@@ -197,7 +197,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       setItemDescription(item.name || '');
       setUom(item.uom || 'EA');
       setSubInventory(item.subInventory || item.storeLocation?.roomNumber || '');
-      setItemCategory(item.itemCategoryDisplay || item.category?.replace(/_/g, ' ') || 'Spare parts');
+      setItemCategory(item.itemCategoryDisplay || item.category?.replace(/_/g, ' ') || '');
       setLotBatchNo(item.lotBatchNo || '');
       setSerialNo(item.serialNumber || '');
       setPrintedPadFrom(item.printedPadFrom || '');
@@ -249,7 +249,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     setUnitPrice(0);
     setTransportationCost(0);
     setRemark('');
-    setPurpose('Move Order Issue for Ministry Operations');
+    setPurpose('');
     setAttachmentFileName('');
     setAttachmentFile(null);
     setFormError(null);
@@ -288,6 +288,12 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       const msg = 'Please select the transaction type.';
       setFormError(msg);
       toast.warning('Selection Required', msg);
+      return;
+    }
+    if (!purpose.trim()) {
+      const msg = 'Please enter the purpose of issue.';
+      setFormError(msg);
+      toast.warning('Purpose Required', msg);
       return;
     }
     if (!destinationDepartmentId) {
@@ -361,7 +367,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
         ifmisSlipNumber: model22No.trim(),
         ifmisSlipDateGc: issuedDateGc,
         ifmisSlipAttachmentUrl: slipUrl,
-        purpose: purpose.trim() || 'Move Order Issue for Ministry Operations',
+        purpose: purpose.trim(),
         registeredById,
         transactionType,
         destination: dept ? departmentLabel(dept) : destinationDepartmentId,
@@ -1137,7 +1143,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
           itemDescription: approval.itemName,
           uom: itemDetails?.uom || 'EA',
           subInventory: itemDetails?.subInventory || itemDetails?.storeLocation?.roomNumber || '—',
-          itemCategory: itemDetails?.itemCategoryDisplay || (itemDetails?.category as string) || 'Spare parts',
+          itemCategory: itemDetails?.itemCategoryDisplay || (itemDetails?.category as string) || '—',
           lotBatchNo: itemDetails?.lotBatchNo || undefined,
           serialNo: itemDetails?.serialNumber || undefined,
           quantity: qty,

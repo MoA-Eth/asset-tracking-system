@@ -114,4 +114,18 @@ describe('Model19PrintModal Component', () => {
 
     expect(handleClose).toHaveBeenCalled();
   });
+
+  it('prints only what was recorded: no program line, a dash for a missing type, and no IFMIS database name', () => {
+    render(
+      <Model19PrintModal
+        isOpen
+        onClose={vi.fn()}
+        voucher={{ ...mockVoucher, programName: '', transactionType: '' as any, reportTakenBy: '' }}
+      />
+    );
+    expect(screen.queryByText(/MoA-Program to Build Resilience/)).toBeNull();
+    expect(screen.queryByText(/ifmisdb/)).toBeNull();
+    expect(screen.getByText(/from the Asset Tracking System/)).toBeTruthy();
+    expect(screen.queryByText('PO Receipt')).toBeNull();
+  });
 });

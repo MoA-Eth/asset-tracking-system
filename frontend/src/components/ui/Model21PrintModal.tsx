@@ -147,7 +147,7 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
 
               <div className="p-2 flex items-center gap-2">
                 <span className="font-bold text-slate-900 whitespace-nowrap min-w-[130px]">Book :</span>
-                <span className="font-semibold text-slate-950">{voucher.book || 'MOA MC BOOK'}</span>
+                <span className="font-semibold text-slate-950">{voucher.book || '—'}</span>
               </div>
             </div>
 
