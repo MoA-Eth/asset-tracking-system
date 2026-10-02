@@ -854,7 +854,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     <div className="space-y-3">
       {/* Toolbar */}
       <div className="flex items-center gap-3">
-        <div className="relative flex-1">
+        <div className="relative min-w-0 flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input
             type="text"
@@ -894,7 +894,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
           {search ? 'No items match your search.' : 'No items registered yet. Click "Register New Item" to begin.'}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <div tabIndex={0} role="region" aria-label="Registered items — scroll horizontally" className="min-w-0 max-w-full focus-visible:outline-emerald-600 overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full text-xs min-w-[1000px]">
             <thead>
               <tr className={table.headRow}>
@@ -1274,10 +1274,10 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
       {/* ── Page Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
-        <div>
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+        <div className="min-w-0">
           <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-            <PackagePlus className="w-5 h-5 text-emerald-700" />
+            <PackagePlus className="w-5 h-5 shrink-0 text-emerald-700" />
             {headerConfig.title}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -1286,10 +1286,10 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
         </div>
 
         {canWrite && (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
             <button
               onClick={openRegister}
-              className={btn.primary}
+              className={`${btn.primary} max-w-full`}
             >
               <Plus className="w-4 h-4" />
               {headerConfig.buttonLabel}
@@ -1302,7 +1302,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
       {lastRegistered && (
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 flex items-start gap-3 animate-fadeIn">
           <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
-          <div className="flex-1 text-xs">
+          <div className="min-w-0 flex-1 text-xs wrap-anywhere">
             <p className="font-bold text-emerald-900">Stock-In Voucher Successfully Registered!</p>
             <p className="text-slate-700 mt-0.5">
               <span className="font-mono font-bold text-emerald-800">
@@ -1333,7 +1333,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
       )}
 
       {/* ── Summary cards (units) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           label="Received"
           value={totals.received.toLocaleString()}

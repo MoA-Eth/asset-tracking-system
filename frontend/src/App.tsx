@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TopHeader } from './components/layout/TopHeader';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
+import { MobileNavigation } from './components/layout/MobileNavigation';
 import { DesktopSidebar } from './components/layout/DesktopSidebar';
 import { OfflineBanner } from './components/layout/OfflineBanner';
 import { ExecutiveDashboardPage } from './pages/ExecutiveDashboardPage';
@@ -32,6 +33,7 @@ const AuthenticatedPortal: React.FC = () => {
   const activeTab = getValidTab(user, requestedTab);
   const [usersRoleFilter, setUsersRoleFilter] = useState<UserRole | 'ALL'>('ALL');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number>(0);
   const [selectedCenter, setSelectedCenter] = useState<string>('ALL');
 
@@ -41,6 +43,7 @@ const AuthenticatedPortal: React.FC = () => {
   }, [user?.id]);
 
   const handleTabChange = (tab: string) => {
+    setMobileNavigationOpen(false);
     const valid = getValidTab(user, tab);
     if (tab === 'settings-users') setUsersRoleFilter('ALL');
     setRequestedTab(valid);
@@ -92,7 +95,7 @@ const AuthenticatedPortal: React.FC = () => {
   // Loading state with MoA branding
   if (isLoading) {
     return (
-      <div className="h-screen w-screen bg-[#071911] text-white flex flex-col items-center justify-center p-4">
+      <div className="h-dvh w-full overflow-auto bg-[#071911] text-white flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4 text-center max-w-sm animate-pulse">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0F4A2B] to-[#04180E] border border-amber-400/50 flex items-center justify-center p-2.5 shadow-xl">
             <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow">
@@ -124,7 +127,7 @@ const AuthenticatedPortal: React.FC = () => {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#F8FAFC] text-slate-800 flex flex-row font-sans selection:bg-emerald-600 selection:text-white antialiased">
+    <div className="app-shell h-dvh w-full overflow-hidden bg-[#F8FAFC] text-slate-800 flex flex-row font-sans selection:bg-emerald-600 selection:text-white antialiased">
       {/* Desktop Sidebar (lg screens) */}
       <DesktopSidebar
         activeTab={activeTab}
@@ -136,7 +139,7 @@ const AuthenticatedPortal: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden">
         {/* Offline Banner & PWA Install Alert */}
         <OfflineBanner />
 
@@ -145,6 +148,7 @@ const AuthenticatedPortal: React.FC = () => {
           activeTab={activeTab}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onOpenNavigation={() => setMobileNavigationOpen(true)}
           onNavigate={handleTabChange}
           selectedCenter={selectedCenter}
           setSelectedCenter={setSelectedCenter}
@@ -153,7 +157,7 @@ const AuthenticatedPortal: React.FC = () => {
 
         {/* Page Content with Generous Whitespace */}
         {/* Page Content - Strictly Gated to Authorized Role */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:px-5 lg:py-6 max-w-7xl w-full mx-auto pb-24 lg:pb-8">
+        <main className="app-content flex-1 min-h-0 min-w-0 overflow-y-auto p-3 sm:p-5 lg:py-6 max-w-7xl w-full mx-auto">
           {!activeTab && <p className="text-sm text-slate-600">No pages are available for this account. Contact your System Administrator.</p>}
           {activeTab.startsWith('settings-') && (
             <nav aria-label="Settings pages" className="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-4 border-b border-slate-200">
@@ -216,6 +220,13 @@ const AuthenticatedPortal: React.FC = () => {
         <MobileBottomNav
           activeTab={activeTab}
           setActiveTab={handleTabChange}
+          onOpenNavigation={() => setMobileNavigationOpen(true)}
+        />
+        <MobileNavigation
+          isOpen={mobileNavigationOpen}
+          onClose={() => setMobileNavigationOpen(false)}
+          activeTab={activeTab}
+          onNavigate={handleTabChange}
         />
       </div>
     </div>

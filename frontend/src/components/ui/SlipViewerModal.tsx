@@ -61,7 +61,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, onClose }
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-3 bg-black/70 backdrop-blur-xs animate-fadeIn"
+      className="dialog-overlay fixed inset-0 z-[60] flex items-center justify-center p-3 bg-black/70 backdrop-blur-xs animate-fadeIn"
       role="dialog"
       aria-modal="true"
       aria-label={`IFMIS slip ${fileName}`}
@@ -69,7 +69,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, onClose }
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="dialog-panel bg-white rounded-2xl min-w-0 w-full max-w-4xl flex flex-col shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <FileText className="w-4 h-4 text-emerald-700 shrink-0" />
@@ -101,7 +101,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, onClose }
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto bg-slate-100">
+        <div className="min-h-0 flex-1 overflow-auto bg-slate-100">
           {state.status === 'loading' && (
             <div className="flex items-center justify-center py-24 text-xs text-slate-500">
               <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
@@ -110,11 +110,11 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, onClose }
           )}
 
           {state.status === 'ready' && state.kind === 'image' && (
-            <img src={state.objectUrl} alt={`IFMIS slip ${fileName}`} className="block max-h-[78vh] mx-auto object-contain" />
+            <img src={state.objectUrl} alt={`IFMIS slip ${fileName}`} className="block max-w-full max-h-[78dvh] mx-auto object-contain" />
           )}
 
           {state.status === 'ready' && state.kind === 'pdf' && (
-            <iframe src={state.objectUrl} title={`IFMIS slip ${fileName}`} className="w-full h-[78vh] border-0 bg-white" />
+            <iframe src={state.objectUrl} title={`IFMIS slip ${fileName}`} className="w-full h-[78dvh] border-0 bg-white" />
           )}
 
           {state.status === 'missing' && (

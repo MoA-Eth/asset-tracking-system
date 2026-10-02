@@ -6,7 +6,6 @@ import {
   AlertCircle,
   RefreshCw,
   Search,
-  SlidersHorizontal,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { table } from '../components/ui/theme';
@@ -166,7 +165,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
       <div className="space-y-4 animate-fadeIn">
         {/* Search & Filter Bar */}
         <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative w-full min-w-0 sm:min-w-[200px] flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
@@ -177,8 +176,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
+          <div className="grid w-full min-w-0 grid-cols-1 sm:grid-cols-2 gap-2">
             <select aria-label="Filter users by role" value={roleFilter} onChange={e => setRoleFilter(e.target.value as UserRole | 'ALL')}
               className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800">
               <option value="ALL">All roles</option>
@@ -201,7 +199,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
 
         {/* Users Permission Table */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Users — scroll horizontally" className="min-w-0 max-w-full focus-visible:outline-emerald-600 overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs min-w-[860px]">
               <thead>
                 <tr className={table.headRow}>

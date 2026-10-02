@@ -39,9 +39,9 @@ const ITEM_STATUS: Record<string, { label: string; tone: keyof typeof statusTone
 
 /** Label / value pair; empty values show a dash */
 const Row: React.FC<{ label: string; children?: React.ReactNode; mono?: boolean }> = ({ label, children, mono }) => (
-  <div className="flex items-start justify-between gap-3 py-1.5 border-b border-slate-100 last:border-b-0">
+  <div className="flex flex-col sm:flex-row items-start justify-between gap-1 sm:gap-3 py-1.5 border-b border-slate-100 last:border-b-0">
     <span className="text-slate-500 shrink-0">{label}</span>
-    <span className={`text-right text-slate-900 font-medium break-words ${mono ? 'font-mono' : ''}`}>
+    <span className={`min-w-0 max-w-full sm:text-right text-slate-900 font-medium wrap-anywhere ${mono ? 'font-mono' : ''}`}>
       {children === undefined || children === null || children === '' ? '—' : children}
     </span>
   </div>

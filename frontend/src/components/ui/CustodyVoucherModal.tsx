@@ -52,18 +52,18 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-      <div className="bg-white border border-slate-300 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh]">
+    <div role="dialog" aria-modal="true" aria-label="Custody certificate preview" className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+      <div className="dialog-panel bg-white border border-slate-300 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col">
         {/* Modal Action Header (Non-printable controls) */}
-        <div className="p-4 bg-slate-900 text-white flex items-center justify-between print:hidden shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 print:hidden shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
             <FileCheck className="w-5 h-5 text-emerald-400" />
             <div>
               <h3 className="text-sm font-bold text-white">Official MoA Store Handover Certificate</h3>
               <p className="text-[11px] text-slate-300">IFMIS Mirrored Printable Statutory Document</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {(approval?.ifmisSlipAttachmentUrl || item?.ifmisSlipAttachmentUrl) && (
               <a
                 href={approval?.ifmisSlipAttachmentUrl || item?.ifmisSlipAttachmentUrl}
@@ -92,10 +92,10 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
         </div>
 
         {/* Printable Certificate Document Body */}
-        <div className="p-6 sm:p-8 overflow-y-auto space-y-6 text-slate-900 font-sans print:p-0 print:overflow-visible">
+        <div className="voucher-content min-h-0 min-w-0 p-3 sm:p-8 overflow-y-auto space-y-6 text-slate-900 font-sans print:p-0 print:overflow-visible">
           {/* Official Letterhead */}
           <div className="border-b-2 border-emerald-900 pb-4 text-center relative">
-            <div className="flex justify-between items-start mb-2">
+            <div className="flex flex-col sm:flex-row print:flex-row justify-between items-center sm:items-start gap-3 mb-2">
               <div className="text-left text-[10px] font-mono text-slate-600">
                 <p>Ref No: <span className="font-bold text-slate-900">{slipNo}</span></p>
                 <p>Date (G.C.): {slipDateGc}</p>
@@ -210,7 +210,7 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
           </div>
 
           {/* Signature & Seal Block */}
-          <div className="pt-6 border-t border-slate-300 grid grid-cols-3 gap-4 text-xs font-medium">
+          <div className="pt-6 border-t border-slate-300 grid grid-cols-1 sm:grid-cols-3 print:grid-cols-3 gap-4 text-xs font-medium">
             <div className="space-y-6">
               <div>
                 <p className="text-[10px] font-bold uppercase text-slate-500">Issued By (Store Keeper):</p>

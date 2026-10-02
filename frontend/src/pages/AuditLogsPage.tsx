@@ -315,7 +315,7 @@ export const AuditLogsPage: React.FC = () => {
 
                     <p className="text-slate-900 font-semibold leading-relaxed">{log.details}</p>
 
-                    <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-0.5">
+                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 pt-0.5">
                       <span className="flex items-center gap-1">
                         <User className="w-3.5 h-3.5 text-slate-400" />
                         <strong className="text-slate-800">{log.userName}</strong> ({log.userRole.replace(/_/g, ' ')})
@@ -341,7 +341,7 @@ export const AuditLogsPage: React.FC = () => {
                 {/* Expandable Raw JSON Payload View */}
                 {isExpanded && (
                   <div className="p-3.5 bg-slate-50 border-t border-slate-200 text-xs space-y-3 animate-fadeIn">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 border-b border-slate-200 pb-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-slate-700 border-b border-slate-200 pb-1.5">
                       <span>Immutable Security Log Payload</span>
                       <span className="font-mono text-slate-500 text-[10px]">Anti-Tamper Cryptographic Log</span>
                     </div>

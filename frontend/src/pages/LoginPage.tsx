@@ -46,9 +46,9 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#071911] text-white flex flex-col justify-between selection:bg-emerald-600 selection:text-white">
+    <div className="h-dvh w-full overflow-y-auto bg-[#071911] text-white flex flex-col selection:bg-emerald-600 selection:text-white pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       {/* Main Single Centered Login Card */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
+      <div className="flex-1 shrink-0 flex items-center justify-center p-4 sm:p-6">
         <div className="max-w-md w-full animate-fadeIn">
           {/* Brand Header */}
           <div className="text-center space-y-3 mb-6">

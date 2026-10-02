@@ -532,7 +532,7 @@ export const ReportsPage: React.FC = () => {
   return (
     <div className="space-y-4 animate-fadeIn pb-16">
       {/* 1. Header Bar with Direct Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 border-b border-slate-200 pb-3">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
@@ -548,7 +548,7 @@ export const ReportsPage: React.FC = () => {
           </h2>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button
             onClick={handleExportCSV}
             className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
@@ -586,7 +586,7 @@ export const ReportsPage: React.FC = () => {
       {/* 2. Simple, Unified Filter & Search Bar */}
       <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
         {/* Row 1: Search + Timeframe + Category + Location */}
-        <div className="flex flex-col lg:flex-row items-center gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
           {/* Search Box */}
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -600,12 +600,12 @@ export const ReportsPage: React.FC = () => {
           </div>
 
           {/* Timeframe Dropdown */}
-          <div className="flex items-center gap-1.5 w-full sm:w-auto shrink-0">
+          <div className="flex min-w-0 items-center gap-1.5 w-full">
             <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
             <select
               value={timeframe}
               onChange={(e) => setTimeframe(e.target.value as TimeframePreset)}
-              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
+              className="w-full min-w-0 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
             >
               <option value="ALL_TIME">All Time</option>
               <option value="TODAY">Today</option>
@@ -624,7 +624,7 @@ export const ReportsPage: React.FC = () => {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer w-full sm:w-auto"
+            className="w-full min-w-0 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
           >
             <option value="ALL">All Categories</option>
             {Object.values(AssetCategory).map((cat) => (
@@ -638,7 +638,7 @@ export const ReportsPage: React.FC = () => {
           <select
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer w-full sm:w-auto"
+            className="w-full min-w-0 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
           >
             <option value="ALL">All Locations</option>
             {locations.map((loc) => (
@@ -790,7 +790,7 @@ export const ReportsPage: React.FC = () => {
         </div>
 
         {/* Data Table */}
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Asset reports — scroll horizontally" className="min-w-0 max-w-full focus-visible:outline-emerald-600 overflow-x-auto">
           <table className="w-full text-left text-xs min-w-[1140px]">
             <thead className={table.headRow}>
               <tr>
@@ -940,7 +940,7 @@ export const ReportsPage: React.FC = () => {
 
         {/* Table Footer */}
         {filteredItems.length > 0 && (
-          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-mono">
+          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 font-mono">
             <div>
               Showing {filteredItems.length} of {items.length} registrations · Units: {unitTotals.total} received, {unitTotals.issued} issued, {unitTotals.available} in store
             </div>

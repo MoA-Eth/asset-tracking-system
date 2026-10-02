@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Calendar,
+  Menu,
   PanelLeftClose,
   PanelLeftOpen,
   Bell,
@@ -34,6 +35,7 @@ interface TopHeaderProps {
   activeTab: string;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
+  onOpenNavigation: () => void;
   currentRole?: UserRole;
   setCurrentRole?: (role: UserRole) => void;
   onNavigate: (tab: string) => void;
@@ -46,6 +48,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   activeTab,
   sidebarCollapsed,
   onToggleSidebar,
+  onOpenNavigation,
   onNavigate,
   selectedCenter,
   setSelectedCenter,
@@ -218,9 +221,13 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const PageIcon = pageInfo.icon;
 
   return (
-    <header className="no-print bg-white border-b border-slate-200/90 sticky top-0 z-20 px-4 sm:px-5 py-3 flex items-center justify-between gap-4">
+    <header className="app-header no-print shrink-0 bg-white border-b border-slate-200/90 relative z-20 px-3 sm:px-5 py-2 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
       {/* Left: Sidebar Toggle & Page Title */}
       <div className="flex items-center gap-3 min-w-0 flex-1">
+        <button onClick={onOpenNavigation} aria-label="Open navigation" aria-haspopup="dialog"
+          className="lg:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-emerald-900 hover:bg-slate-100">
+          <Menu className="h-5 w-5" />
+        </button>
         <button
           onClick={onToggleSidebar}
           className="hidden lg:flex items-center justify-center p-2 shrink-0 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
@@ -237,7 +244,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         <div className="hidden lg:block w-px h-5 bg-slate-200 shrink-0" />
 
         {/* Mobile Mini Emblem */}
-        <div className="lg:hidden flex items-center shrink-0">
+        <div className="hidden sm:flex lg:hidden items-center shrink-0">
           <div className="w-7 h-7 rounded-lg bg-emerald-900 border border-amber-400/40 flex items-center justify-center p-0.5">
             <svg viewBox="0 0 100 100" className="w-full h-full">
               <circle cx="50" cy="50" r="46" fill="#0A3F24" stroke="#FCDD09" strokeWidth="4" />
@@ -311,9 +318,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
             {/* Floating Notification Popover (YouTube-style clean drawer) */}
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800">
+              <div className="fixed left-3 right-3 top-[calc(4.5rem+env(safe-area-inset-top))] sm:absolute sm:left-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-96 max-h-[calc(100dvh-10rem)] flex flex-col bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800">
                 {/* Header */}
-                <div className="px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between">
+                <div className="px-3 sm:px-4 py-3 bg-white border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 shrink-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm text-slate-900">Notifications</span>
                     {unreadCount > 0 ? (
@@ -348,7 +355,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 </div>
 
                 {/* Notification Items List */}
-                <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
+                <div className="min-h-0 max-h-[380px] overflow-y-auto divide-y divide-slate-100">
                   {loadingNotifications ? (
                     <div className="py-12 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
                       <Clock className="w-4 h-4 animate-spin text-slate-400" />
@@ -446,4 +453,3 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     </header>
   );
 };
-

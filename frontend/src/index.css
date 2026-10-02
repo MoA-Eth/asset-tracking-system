@@ -24,6 +24,8 @@
   --color-border-light: #e2e8f0;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 
 * {
@@ -91,7 +93,72 @@ body,
 
 /* Mobile Bottom Navigation Bar */
 .mobile-nav-bar {
-  padding-bottom: calc(0.5rem + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  padding-left: max(0.5rem, var(--safe-left));
+  padding-right: max(0.5rem, var(--safe-right));
+}
+
+.app-header {
+  padding-top: max(0.5rem, var(--safe-top));
+}
+
+.app-content {
+  overscroll-behavior-y: contain;
+  padding-left: max(0.75rem, var(--safe-left));
+  padding-right: max(0.75rem, var(--safe-right));
+}
+
+/* Grid children and form controls must shrink within cards and dialog columns. */
+:where(.grid) > * {
+  min-width: 0;
+}
+
+input, select, textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Preserve readable text and touch targets without triggering iOS focus zoom. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  button:not([role="switch"]), a[download] {
+    min-height: 44px;
+  }
+  /* Expand a switch's hit area without stretching its track and thumb. */
+  button[role="switch"]::before {
+    content: "";
+    position: absolute;
+    inset: -10px 0;
+  }
+}
+
+@media (min-width: 640px) {
+  .app-content {
+    padding-left: max(1.25rem, var(--safe-left));
+    padding-right: max(1.25rem, var(--safe-right));
+  }
+}
+
+.dialog-overlay {
+  padding-top: max(0.5rem, var(--safe-top));
+  padding-bottom: max(0.5rem, var(--safe-bottom));
+  padding-left: max(0.5rem, var(--safe-left));
+  padding-right: max(0.5rem, var(--safe-right));
+}
+
+.dialog-panel {
+  max-height: calc(100dvh - max(1rem, var(--safe-top)) - max(1rem, var(--safe-bottom)));
+}
+
+.voucher-content {
+  overflow-wrap: anywhere;
+}
+
+.voucher-content table {
+  overflow-wrap: normal;
 }
 
 /* Print Styles */
@@ -173,4 +240,3 @@ body,
     animation: none;
   }
 }
-

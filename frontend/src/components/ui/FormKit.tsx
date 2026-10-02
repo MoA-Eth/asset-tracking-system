@@ -24,7 +24,7 @@ const ACCENT = {
 /** Text input / select styling. Pass `mono` for codes and numbers. */
 export const inputClass = (accent: FormAccent, opts: { mono?: boolean; align?: 'left' | 'right' | 'center' } = {}) =>
   [
-    'w-full h-9 px-3 bg-white border border-slate-300 rounded-lg text-[13px] text-slate-900 placeholder:text-slate-400',
+    'min-w-0 w-full h-9 px-3 bg-white border border-slate-300 rounded-lg text-[13px] text-slate-900 placeholder:text-slate-400',
     'focus:outline-none focus:ring-2 transition disabled:bg-slate-50 disabled:text-slate-500',
     ACCENT[accent].focus,
     opts.mono ? 'font-mono' : '',
@@ -121,7 +121,7 @@ interface FieldProps {
 }
 
 export const Field: React.FC<FieldProps> = ({ label, required, optional, hint, span = '', htmlFor, children }) => (
-  <div className={span}>
+  <div className={`min-w-0 ${span}`}>
     <label htmlFor={htmlFor} className="mb-1 block text-xs font-medium text-slate-700">
       {label}
       {required && <span className="ml-0.5 text-rose-600">*</span>}
@@ -249,7 +249,7 @@ interface FormFooterProps {
 export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true }) => (
   <div
     className={`flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white py-3 ${
-      sticky ? 'sticky -bottom-5 z-10 -mx-6 -mb-5 px-6' : 'pt-4'
+      sticky ? 'sm:sticky sm:-bottom-5 z-10 -mx-4 sm:-mx-6 -mb-5 px-4 sm:px-6' : 'pt-4'
     }`}
   >
     {onReset ? (
@@ -264,7 +264,7 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
     ) : (
       <span />
     )}
-    <div className="flex items-center gap-2">
+    <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
       <button
         type="button"
         onClick={onCancel}

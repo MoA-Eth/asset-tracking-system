@@ -471,7 +471,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   };
 
   return (
-    <div className="space-y-4 animate-fadeIn pb-24">
+    <div className={`space-y-4 animate-fadeIn ${selectedIds.length > 0 && canReview ? 'pb-52 sm:pb-28' : 'pb-4'}`}>
       {/* ── 1. Page Header & Live Role Alert Banner ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
         <div>
@@ -650,7 +650,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
            HIGH-DENSITY DATA TABLE (Enterprise Standard)
            ══════════════════════════════════════════════════════════════════════ */
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Transaction requests — scroll horizontally" className="min-w-0 max-w-full focus-visible:outline-emerald-600 overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs min-w-[940px]">
               <thead>
                 <tr className={table.headRow}>
@@ -808,7 +808,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         /* ══════════════════════════════════════════════════════════════════════
            COMPACT CARDS GRID (Clean, Light & Simple Alternative)
            ══════════════════════════════════════════════════════════════════════ */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
           {filteredApprovals.map((appr) => {
             const isSelected = selectedIds.includes(appr.id);
             const isPending = appr.status === ApprovalStatus.PENDING;
@@ -921,7 +921,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
       {/* ── 5. Sticky Floating Batch Action Bar ── */}
       {selectedIds.length > 0 && canReview && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl border border-slate-800 flex items-center gap-4 animate-slideUp">
+        <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] lg:bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-2xl z-40 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl border border-slate-800 flex flex-wrap items-center justify-between gap-2 animate-slideUp">
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">
               {selectedIds.length}
@@ -931,9 +931,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             </span>
           </div>
 
-          <div className="h-5 w-px bg-slate-800" />
+          <div className="hidden sm:block h-5 w-px bg-slate-800" />
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {canEndorse ? (
               <button
                 onClick={() => handleOpenBatchModal('ENDORSE')}
@@ -980,8 +980,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       )}
 
       {selectedApproval && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl text-slate-900 my-auto">
+        <div role="dialog" aria-modal="true" aria-label="Review transaction" className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+          <div className="dialog-panel min-w-0 wrap-anywhere overflow-y-auto bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-4 sm:p-5 space-y-4 shadow-2xl text-slate-900 my-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <FileCheck2 className="w-4 h-4 text-emerald-800" />
@@ -991,7 +991,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               </h3>
               <button
                 onClick={() => setSelectedApproval(null)}
-                className="text-slate-400 hover:text-slate-700 font-bold p-1 rounded-lg"
+                aria-label="Close review"
+                className="shrink-0 flex h-11 w-11 items-center justify-center text-slate-400 hover:text-slate-700 font-bold p-1 rounded-lg"
               >
                 ✕
               </button>
@@ -1010,13 +1011,13 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     <span className="font-mono font-semibold text-sky-800">{approvalUnits(selectedApproval)!.replace(/^Qty /, '')}</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between pt-1 border-t border-slate-200">
+                <div className="flex flex-wrap items-center justify-between gap-1 pt-1 border-t border-slate-200">
                   <span className="text-slate-500">IFMIS Slip:</span>
                   <span className="font-mono text-slate-800 font-semibold bg-white border border-slate-200 px-1.5 py-0.5 rounded">
                     {selectedApproval.ifmisSlipNumber}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-1">
                   <span className="text-slate-500">Slip Date:</span>
                   <span className="text-slate-800">
                     {selectedApproval.ifmisSlipDateEc} E.C. ({selectedApproval.ifmisSlipDateGc})
@@ -1113,7 +1114,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-slate-200">
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2.5 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setSelectedApproval(null)}
@@ -1174,8 +1175,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
       {/* ── 7. Multi-Item Batch Confirmation Modal ── */}
       {isBatchModalOpen && batchActionType && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl text-slate-900">
+        <div role="dialog" aria-modal="true" aria-label="Confirm batch review" className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="dialog-panel overflow-y-auto bg-white border border-slate-200 rounded-2xl w-full max-w-md p-4 sm:p-5 space-y-4 shadow-2xl text-slate-900">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Layers className="w-4 h-4 text-emerald-800" />
@@ -1183,7 +1184,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               </h3>
               <button
                 onClick={() => setIsBatchModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 font-bold"
+                aria-label="Close batch review"
+                className="shrink-0 flex h-11 w-11 items-center justify-center text-slate-400 hover:text-slate-700 font-bold"
               >
                 ✕
               </button>
@@ -1209,7 +1211,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setIsBatchModalOpen(false)}

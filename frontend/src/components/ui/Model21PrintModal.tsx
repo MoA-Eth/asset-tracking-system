@@ -28,11 +28,11 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
   const printTimestamp = voucher.reportTakenDate || `${dateStr} @ ${timeStr}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-      <div className="bg-white border border-slate-300 rounded-2xl w-full max-w-6xl overflow-hidden shadow-2xl flex flex-col max-h-[96vh]">
+    <div role="dialog" aria-modal="true" aria-label="Model 21 preview" className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+      <div className="dialog-panel bg-white border border-slate-300 rounded-2xl w-full max-w-6xl overflow-hidden shadow-2xl flex flex-col">
         {/* Top Action Toolbar (Hidden during actual paper printing) */}
-        <div className="p-3.5 bg-slate-900 text-white flex items-center justify-between print:hidden shrink-0">
-          <div className="flex items-center gap-2.5">
+        <div className="p-3.5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 print:hidden shrink-0">
+          <div className="flex min-w-0 flex-1 basis-full sm:basis-0 items-center gap-2.5">
             <FileText className="w-5 h-5 text-amber-400" />
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -43,7 +43,7 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handlePrint}
               className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
@@ -65,7 +65,7 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
         {/* Printable Paper Canvas (Styled to replicate Ethiopian Government physical voucher) */}
         <div
           ref={printAreaRef}
-          className="p-6 sm:p-10 overflow-y-auto font-sans text-slate-950 bg-white relative print:p-0 print:overflow-visible print:text-black"
+          className="voucher-content min-h-0 min-w-0 p-3 sm:p-10 overflow-y-auto font-sans text-slate-950 bg-white relative print:p-0 print:overflow-visible print:text-black"
         >
           {/* Subtle Watermark for authenticity */}
           <div
@@ -79,7 +79,7 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
 
           <div className="relative z-10 space-y-4 text-xs">
             {/* ── Document Top Header ── */}
-            <div className="flex items-start justify-between border-b border-slate-900 pb-3">
+            <div className="flex flex-col sm:flex-row print:flex-row items-center sm:items-start justify-between gap-3 border-b border-slate-900 pb-3">
               {/* Left: Ethiopian National Emblem */}
               <div className="w-16 h-16 shrink-0 flex items-center justify-center">
                 <svg viewBox="0 0 100 100" className="w-14 h-14 text-slate-800" fill="currentColor">
@@ -111,7 +111,7 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
               </div>
 
               {/* Right: Model 21 & Number */}
-              <div className="text-right shrink-0 min-w-[130px]">
+              <div className="text-center sm:text-right print:text-right shrink-0 sm:min-w-[130px]">
                 <div className="font-bold text-xs sm:text-sm text-slate-900">
                   Model/21
                 </div>

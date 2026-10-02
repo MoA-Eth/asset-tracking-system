@@ -31,11 +31,11 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({
   const printedBy = voucher.reportPrintedBy || 'store.keeper';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-      <div className="bg-white border border-slate-300 rounded-2xl w-full max-w-6xl overflow-hidden shadow-2xl flex flex-col max-h-[96vh]">
+    <div role="dialog" aria-modal="true" aria-label="Model 22 preview" className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+      <div className="dialog-panel bg-white border border-slate-300 rounded-2xl w-full max-w-6xl overflow-hidden shadow-2xl flex flex-col">
         {/* Modal Controls Header (Hidden in Print) */}
-        <div className="p-3.5 bg-slate-900 text-white flex items-center justify-between print:hidden shrink-0">
-          <div className="flex items-center gap-2.5">
+        <div className="p-3.5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 print:hidden shrink-0">
+          <div className="flex min-w-0 flex-1 basis-full sm:basis-0 items-center gap-2.5">
             <FileText className="w-5 h-5 text-blue-400" />
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -46,7 +46,7 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handlePrint}
               className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
@@ -66,7 +66,7 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({
         </div>
 
         {/* Printable Official Paper Container */}
-        <div className="p-6 sm:p-10 overflow-y-auto font-sans text-slate-950 bg-white relative print:p-0 print:overflow-visible print:text-black">
+        <div className="voucher-content min-h-0 min-w-0 p-3 sm:p-10 overflow-y-auto font-sans text-slate-950 bg-white relative print:p-0 print:overflow-visible print:text-black">
           {/* Authentic IFMIS Background Watermark */}
           <div
             className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden z-0"
@@ -98,22 +98,22 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({
 
             {/* Document Header Metadata Block (Aligned Right as in photo) */}
             <div className="flex justify-end pt-1 pb-1">
-              <div className="w-full sm:w-auto min-w-[360px] text-xs space-y-1 bg-slate-50/70 print:bg-transparent p-3 rounded-lg border border-slate-200 print:border-none font-medium">
-                <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+              <div className="w-full sm:w-auto min-w-0 sm:min-w-[340px] text-xs space-y-1 bg-slate-50/70 print:bg-transparent p-3 rounded-lg border border-slate-200 print:border-none font-medium">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:grid-cols-[140px_minmax(0,1fr)] print:grid-cols-[140px_1fr] gap-2 items-center">
                   <span className="font-bold text-slate-800 text-right">Model 22 No. :</span>
                   <span className="font-mono font-bold text-slate-950">{voucher.model22No}</span>
                 </div>
-                <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:grid-cols-[140px_minmax(0,1fr)] print:grid-cols-[140px_1fr] gap-2 items-center">
                   <span className="font-bold text-slate-800 text-right">Issued Date :</span>
                   <span className="text-slate-950">
                     {voucher.issuedDateGc} {voucher.issuedDateEc ? `(${voucher.issuedDateEc} E.C.)` : ''}
                   </span>
                 </div>
-                <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:grid-cols-[140px_minmax(0,1fr)] print:grid-cols-[140px_1fr] gap-2 items-center">
                   <span className="font-bold text-slate-800 text-right">Transaction Type :</span>
                   <span className="font-semibold text-slate-950">{voucher.transactionType || 'Move Order Issue'}</span>
                 </div>
-                <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:grid-cols-[140px_minmax(0,1fr)] print:grid-cols-[140px_1fr] gap-2 items-center">
                   <span className="font-bold text-slate-800 text-right">Destination :</span>
                   <span className="font-semibold text-slate-950">{voucher.destination || '—'}</span>
                 </div>

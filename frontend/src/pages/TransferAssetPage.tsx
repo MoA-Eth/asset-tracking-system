@@ -488,13 +488,13 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   return (
     <div className="space-y-6 animate-fadeIn pb-16">
       {/* Top Banner Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shadow-md">
+          <div className="w-11 h-11 shrink-0 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shadow-md">
             <ArrowRightLeft className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <h1 className="text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
               Fixed Asset Internal Transfer & Return
               <span className="text-xs font-normal text-emerald-800 font-amharic">
                 (የንብረት ዝውውር እና መመለሻ - ሞዴል 21)
@@ -507,7 +507,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         </div>
 
         {/* Quick Action Navigation Pills */}
-        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+        <div className="flex flex-wrap items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
           <button
             onClick={() => switchTab('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
@@ -872,7 +872,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         </div>
       ) : activeSubTab === 'return' ? (
         /* ── Return to Store Table / Selection ────────────────────────────── */
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4">
+        <div className="p-3 sm:p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -890,12 +890,12 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search issued items..."
-                className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-emerald-600 w-64"
+                className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-emerald-600 w-full sm:w-64"
               />
             </div>
           </div>
 
-          <div className="overflow-x-auto border border-slate-200 rounded-xl">
+          <div tabIndex={0} role="region" aria-label="Transfer and return ledger — scroll horizontally" className="min-w-0 max-w-full focus-visible:outline-emerald-600 overflow-x-auto border border-slate-200 rounded-xl">
             <table className="w-full text-left text-xs min-w-[760px]">
               <thead className={table.headRow}>
                 <tr>
@@ -946,7 +946,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         </div>
       ) : (
         /* ── All Movements & Returns Ledger ────────────────────────────────── */
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4">
+        <div className="p-3 sm:p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-base font-bold text-slate-900">Transfer & Return Ledger</h2>
@@ -962,13 +962,13 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search ledger..."
-                  className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-emerald-600 w-64"
+                  className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-emerald-600 w-full sm:w-64"
                 />
               </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto border border-slate-200 rounded-xl">
+          <div tabIndex={0} role="region" aria-label="Transfer and return ledger — scroll horizontally" className="min-w-0 max-w-full focus-visible:outline-emerald-600 overflow-x-auto border border-slate-200 rounded-xl">
             <table className="w-full text-left text-xs min-w-[840px]">
               <thead className={table.headRow}>
                 <tr>

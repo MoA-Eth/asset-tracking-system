@@ -113,10 +113,10 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+    <div role="dialog" aria-modal="true" aria-label="Barcode scanner" className="dialog-overlay fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+      <div className="dialog-panel bg-white border border-slate-200 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="p-4 bg-emerald-800 border-b border-emerald-900 flex items-center justify-between text-white">
+        <div className="shrink-0 p-4 bg-emerald-800 border-b border-emerald-900 flex items-center justify-between text-white">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-white/10 text-white">
               <Barcode className="w-5 h-5" />
@@ -138,7 +138,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-y-auto space-y-4">
+        <div className="min-h-0 p-4 overflow-y-auto space-y-4">
           {isScanningCamera ? (
             <div className="relative rounded-xl overflow-hidden bg-black aspect-video border-2 border-emerald-500/50 flex items-center justify-center">
               <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
@@ -284,7 +284,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
           )}
         </div>
 
-        <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <div className="shrink-0 p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
           <button
             onClick={() => {
               stopCamera();

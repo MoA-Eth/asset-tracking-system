@@ -306,7 +306,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
         <>
           {/* Staged Changes Notification Banner */}
           {totalUnsavedChanges > 0 && (
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 border border-amber-300 p-4 shadow-xs animate-fadeIn">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-amber-50 border border-amber-300 p-4 shadow-xs animate-fadeIn">
               <div className="flex items-center gap-2.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
                 <span className="text-xs font-bold text-amber-950">
@@ -333,9 +333,9 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
           {/* Permission Matrix Section */}
           <section aria-label="System roles" className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
             {/* Search & Matrix Legend Header */}
-            <div className="p-4 flex flex-col md:flex-row justify-between gap-4 md:items-center border-b border-slate-200 bg-slate-50/50">
+            <div className="p-4 flex flex-col justify-between gap-4 border-b border-slate-200 bg-slate-50/50">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 flex flex-wrap items-center gap-2">
                   <span>Interactive Permission Matrix</span>
                   <span className="text-xs text-slate-400 font-normal">
                     ({filtered.length} of {roles.length} roles, {totalPermissions} capabilities)
@@ -348,7 +348,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
 
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 {/* Matrix Legend */}
-                <div className="flex items-center gap-3 text-[11px] text-slate-600 bg-white px-3 py-1.5 rounded-xl border border-slate-200/80">
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600 bg-white px-3 py-1.5 rounded-xl border border-slate-200/80">
                   <span className="flex items-center gap-1 font-semibold text-emerald-800">
                     <span className="w-2 h-2 rounded-full bg-emerald-600" />
                     Allowed
@@ -380,7 +380,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
             </div>
 
             {/* Matrix Table */}
-            <div className="overflow-x-auto">
+            <div tabIndex={0} role="region" aria-label="Role permissions — scroll horizontally" className="min-w-0 max-w-full focus-visible:outline-emerald-600 overflow-x-auto">
               <table className="w-full text-left text-xs min-w-[780px] border-collapse">
                 <thead>
                   <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">

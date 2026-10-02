@@ -98,8 +98,8 @@ const Panel: React.FC<{
   className?: string;
   children: React.ReactNode;
 }> = ({ title, subtitle, icon: Icon, action, className = '', children }) => (
-  <section className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-xs ${className}`}>
-    <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+  <section className={`min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs ${className}`}>
+    <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
       <div className="min-w-0">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           <Icon className="h-4 w-4 shrink-0 text-emerald-700" />
@@ -153,7 +153,7 @@ const StatTile: React.FC<{
         <Icon className="h-4 w-4" />
       </span>
     </div>
-    <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
+    <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900 wrap-anywhere">{value}</p>
     <div className="mt-auto space-y-1.5 pt-3">
       {meterPct !== undefined && <Meter pct={meterPct} />}
       <p className="text-[11px] text-slate-500">{footer}</p>
@@ -488,7 +488,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
     <div className="space-y-5 animate-fadeIn pb-16">
 
       {/* ── Row 1: KPI tiles ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatTile
           label="Total valuation"
           labelAm="ጠቅላላ የካፒታል ንብረት ዋጋ"
@@ -658,9 +658,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
       </Panel>
 
       {/* ── Row 3: Directorates + categories ───────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
         <Panel
-          className="lg:col-span-7"
+          className="xl:col-span-7"
           title="Directorate allocation"
           subtitle={deptRows.length > 0 ? 'Asset value held by each directorate' : 'No assets assigned to directorates yet'}
           icon={Building2}
@@ -692,7 +692,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           )}
         </Panel>
 
-        <Panel className="lg:col-span-5" title="Asset categories" subtitle="የንብረት አይነት ስርጭት" icon={Award}>
+        <Panel className="xl:col-span-5" title="Asset categories" subtitle="የንብረት አይነት ስርጭት" icon={Award}>
           {categoryRows.length === 0 ? (
             <EmptyState icon={Package}>No items registered yet.</EmptyState>
           ) : (
@@ -731,8 +731,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
       </div>
 
       {/* ── Row 4: Condition + top assets ──────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <Panel className="lg:col-span-5" title="Asset condition" subtitle="የንብረቶች ጤንነት ሁኔታ" icon={Activity}>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+        <Panel className="xl:col-span-5" title="Asset condition" subtitle="የንብረቶች ጤንነት ሁኔታ" icon={Activity}>
           {atRiskCount > 0 && (
             <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-rose-200 bg-rose-50 p-3">
               <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
@@ -768,7 +768,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
         </Panel>
 
         <Panel
-          className="lg:col-span-7"
+          className="xl:col-span-7"
           title="Highest-value assets"
           subtitle="ከፍተኛ ዋጋ ያላቸው ንብረቶች"
           icon={TrendingUp}
@@ -779,14 +779,14 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           ) : (
             <ol className="divide-y divide-slate-100">
               {topAssets.map((asset: any, idx: number) => (
-                <li key={asset.id} className="flex items-center gap-3 py-2.5">
-                  <span className="w-4 shrink-0 text-xs font-medium text-slate-400">{idx + 1}</span>
-                  <div className="min-w-0 flex-1">
+                <li key={asset.id} className="grid grid-cols-[1rem_minmax(0,1fr)_auto] sm:flex items-center gap-x-3 gap-y-1 py-2.5">
+                  <span className="row-span-2 w-4 shrink-0 text-xs font-medium text-slate-400">{idx + 1}</span>
+                  <div className="col-span-2 min-w-0 flex-1">
                     <p className="truncate text-xs font-medium text-slate-900">{asset.name}</p>
-                    <p className="font-mono text-[10px] text-slate-500">{asset.itemCode}</p>
+                    <p className="wrap-anywhere font-mono text-[10px] text-slate-500">{asset.itemCode}</p>
                   </div>
                   <StatusTag status={asset.status} />
-                  <span className="w-28 shrink-0 text-right text-xs font-semibold text-slate-900">{formatETB(asset.unitCostETB)}</span>
+                  <span className="sm:w-28 shrink-0 text-right text-xs font-semibold text-slate-900">{formatETB(asset.unitCostETB)}</span>
                 </li>
               ))}
             </ol>
