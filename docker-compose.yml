@@ -1,0 +1,55 @@
+# Asset Tracking System: the app and its database.
+#
+#   cp .env.docker.example .env      # then fill in the passwords
+#   docker compose up -d --build
+#
+# See docs/DEPLOYMENT.md, "Docker".
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: moa_ams
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: moa_ams
+      TZ: ${TZ:-Africa/Addis_Ababa}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moa_ams -d moa_ams"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    # The database is reachable only by the app, not from outside the server
+
+  app:
+    build: .
+    image: moa-asset-tracking:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://moa_ams:${POSTGRES_PASSWORD}@db:5432/moa_ams?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      # "Today's date" on slips and in the audit log comes from this clock
+      TZ: ${TZ:-Africa/Addis_Ababa}
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      # Used once, to create the first System Administrator; ignored when one already exists
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_NAME: ${ADMIN_NAME:-System Administrator}
+      ADMIN_EMPLOYEE_ID: ${ADMIN_EMPLOYEE_ID:-ADMIN-001}
+    ports:
+      # Address and port on the server. The default listens only on the server itself,
+      # for a reverse proxy (nginx, IIS) that provides HTTPS. See .env.docker.example.
+      - "${APP_BIND:-127.0.0.1:3000}:3000"
+    volumes:
+      - slip-files:/app/backend/uploads
+
+volumes:
+  # The database, and the scanned slips. Back up both.
+  db-data:
+  slip-files:
