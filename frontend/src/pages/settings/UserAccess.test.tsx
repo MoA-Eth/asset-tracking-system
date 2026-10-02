@@ -46,13 +46,16 @@ describe('Users page: sign-in access', () => {
     render(<SettingsPage currentRole={UserRole.SYSTEM_ADMIN} />);
     await user.click(await screen.findByRole('button', { name: 'Add user' }));
     const dialog = screen.getByRole('dialog');
-    // A normal dropdown listing the registered employees who don't sign in yet
-    const dropdown = within(dialog).getByLabelText(/^Employee/) as HTMLSelectElement;
-    expect(dropdown.tagName).toBe('SELECT');
-    expect(dropdown.size).toBeLessThan(2);
-    expect(within(dropdown).getAllByRole('option').map((o) => o.textContent)).toEqual(['Select…', 'Getahun Bahiru (ID-staff)']);
-    expect(within(dialog).getByText("1 registered employee doesn't sign in yet.")).toBeInTheDocument();
-    await user.selectOptions(dropdown, 'staff');
+    // A searchable dropdown listing every registered employee
+    expect(within(dialog).getByText('3 registered employees: 1 can be added, 2 already sign in.')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('combobox', { name: /^Employee/ }));
+    const options = within(within(dialog).getByRole('listbox')).getAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual(['Getahun Bahiru (ID-staff)', 'Admin Person (ID-admin)System Administrator', 'Example Encoder (ID-encoder)Data Encoder']);
+    // People who already sign in are shown, but can't be picked
+    await user.click(within(dialog).getByRole('option', { name: /Example Encoder/ }));
+    expect(within(dialog).getByRole('combobox', { name: /^Employee/ })).toHaveTextContent('Select an employee…');
+    await user.click(within(dialog).getByRole('option', { name: /Getahun Bahiru/ }));
+    expect(within(dialog).getByRole('combobox', { name: /^Employee/ })).toHaveTextContent('Getahun Bahiru (ID-staff)');
     await user.selectOptions(within(dialog).getByLabelText(/^Role/), UserRole.TEAM_LEADER);
 
     await user.type(within(dialog).getByLabelText(/Temporary password/), 'weak');
@@ -130,21 +133,35 @@ describe('Changing your own password', () => {
   });
 });
 
-describe('Add user: the employee dropdown', () => {
-  it('lists every registered employee without sign-in, with a search box once the list is long', async () => {
+describe('Add user: the searchable employee dropdown', () => {
+  it('lists every registered employee and narrows as you type a name or an employee ID', async () => {
     const user = userEvent.setup();
     const many = Array.from({ length: 20 }, (_, i) => person(`s${i}`, `Staff Member ${String(i).padStart(2, '0')}`, null));
     vi.mocked(api.getEmployees).mockResolvedValue([admin, encoder, ...many] as any);
     render(<SettingsPage currentRole={UserRole.SYSTEM_ADMIN} />);
     await user.click(await screen.findByRole('button', { name: 'Add user' }));
     const dialog = screen.getByRole('dialog');
-    const dropdown = within(dialog).getByLabelText(/^Employee/);
-    // All 20, not a shortened list; people who already sign in are left out
-    expect(within(dropdown).getAllByRole('option')).toHaveLength(21);
-    expect(within(dropdown).queryByText(/Example Encoder/)).toBeNull();
+    await user.click(within(dialog).getByRole('combobox', { name: /^Employee/ }));
+    // All 22: the 20 who can be added and the 2 who already sign in
+    expect(within(within(dialog).getByRole('listbox')).getAllByRole('option')).toHaveLength(22);
+    expect(within(dialog).getByText('Can be added (20)')).toBeInTheDocument();
+    expect(within(dialog).getByText('Already users (2)')).toBeInTheDocument();
 
-    await user.type(within(dialog).getByLabelText('Search employees'), 'member 07');
-    expect(within(dropdown).getAllByRole('option').map((o) => o.textContent)).toEqual(['Select… (1 found)', 'Staff Member 07 (ID-s7)']);
+    const search = within(dialog).getByLabelText('Search the list');
+    await user.type(search, 'member 07');
+    expect(within(within(dialog).getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Staff Member 07 (ID-s7)']);
+    await user.clear(search);
+    await user.type(search, 'id-s12');
+    expect(within(within(dialog).getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Staff Member 12 (ID-s12)']);
+
+    // Enter picks the highlighted match and closes the list
+    await user.keyboard('{Enter}');
+    expect(within(dialog).getByRole('combobox', { name: /^Employee/ })).toHaveTextContent('Staff Member 12 (ID-s12)');
+    expect(within(dialog).queryByRole('listbox')).toBeNull();
+
+    await user.click(within(dialog).getByRole('combobox', { name: /^Employee/ }));
+    await user.type(within(dialog).getByLabelText('Search the list'), 'zzz');
+    expect(within(dialog).getByText(/Nothing matches/)).toBeInTheDocument();
   });
 
   it('explains what to do when every employee already signs in', async () => {
@@ -153,7 +170,7 @@ describe('Add user: the employee dropdown', () => {
     render(<SettingsPage currentRole={UserRole.SYSTEM_ADMIN} />);
     await user.click(await screen.findByRole('button', { name: 'Add user' }));
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText(/Every registered employee already signs in/)).toBeInTheDocument();
-    expect((within(dialog).getByLabelText(/^Employee/) as HTMLSelectElement).disabled).toBe(true);
+    expect(within(dialog).getByText(/All 2 registered employees already sign in/)).toBeInTheDocument();
+    expect((within(dialog).getByRole('button', { name: 'Add user' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

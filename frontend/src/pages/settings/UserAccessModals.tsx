@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { CheckCircle2, Copy, RefreshCw, Wand2 } from 'lucide-react';
 import { api } from '../../api/client';
 import { Modal } from '../../components/ui/Modal';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { Field, FormError, FormNotice, inputClass } from '../../components/ui/FormKit';
 import { PASSWORD_RULE, isAcceptablePassword } from '../../components/auth/ChangePasswordForm';
 import { useToast } from '../../context/ToastContext';
@@ -95,33 +96,41 @@ const Footer: React.FC<{ submitting: boolean; label: string; disabled?: boolean;
 /** Give an employee sign-in: pick them from the staff list, choose a role, set a temporary password */
 export const AddUserModal: React.FC<{
   isOpen: boolean;
-  /** Active employees; those who already sign in are left out of the list */
+  /** The registered employees; all active ones are listed, and those who already sign in can't be picked */
   employees: Employee[];
   onClose: () => void;
   onSaved: (updated: Employee) => void;
 }> = ({ isOpen, employees, onClose, onSaved }) => {
   const toast = useToast();
-  const [search, setSearch] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [role, setRole] = useState<UserRole | ''>('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Registered employees (Settings → Employees) who are active and don't sign in yet
-  const candidates = useMemo(
-    () => employees.filter((e) => e.isActive && !e.role).sort((a, b) => a.fullNameEn.localeCompare(b.fullNameEn)),
-    [employees],
+  // Every active registered employee (Settings → Employees) is listed, so the list matches the Employees page.
+  // Those who don't sign in yet can be picked; those who already do are shown, but can't be added twice.
+  const { candidates, existing } = useMemo(() => {
+    const active = employees.filter((e) => e.isActive).sort((a, b) => a.fullNameEn.localeCompare(b.fullNameEn));
+    return { candidates: active.filter((e) => !e.role), existing: active.filter((e) => !!e.role) };
+  }, [employees]);
+  const total = candidates.length + existing.length;
+  // Searching matches the name (English or Amharic) and the employee ID
+  const employeeGroups = useMemo(
+    () => [
+      {
+        label: 'Can be added',
+        options: candidates.map((e) => ({ value: e.id, label: `${e.fullNameEn} (${e.payrollId})`, note: e.fullNameAm || undefined })),
+      },
+      {
+        label: 'Already users',
+        options: existing.map((e) => ({ value: e.id, label: `${e.fullNameEn} (${e.payrollId})`, note: ROLE_LABELS[e.role as UserRole], disabled: true })),
+      },
+    ],
+    [candidates, existing],
   );
-  // With a long staff list, a search box above the dropdown narrows it
-  const showSearch = candidates.length > 12;
-  const matches = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return q ? candidates.filter((e) => [e.fullNameEn, e.fullNameAm, e.payrollId].some((v) => (v || '').toLowerCase().includes(q))) : candidates;
-  }, [candidates, search]);
 
   const close = () => {
-    setSearch('');
     setEmployeeId('');
     setRole('');
     setPassword('');
@@ -155,39 +164,18 @@ export const AddUserModal: React.FC<{
           htmlFor="add-user-employee"
           hint={
             candidates.length === 0
-              ? 'Every registered employee already signs in. Add staff under Settings → Employees first.'
-              : `${candidates.length} registered ${candidates.length === 1 ? "employee doesn't" : "employees don't"} sign in yet.`
+              ? `All ${total} registered employees already sign in. Add staff under Settings → Employees first.`
+              : `${total} registered employees: ${candidates.length} can be added, ${existing.length} already sign in.`
           }
         >
-          {showSearch && (
-            <input
-              id="add-user-search"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setEmployeeId('');
-              }}
-              placeholder="Type a name or employee ID to narrow the list…"
-              aria-label="Search employees"
-              className={`${inputClass('emerald')} mb-2`}
-            />
-          )}
-          <select
+          <SearchableSelect
             id="add-user-employee"
-            required
-            disabled={candidates.length === 0}
             value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-            className={inputClass('emerald')}
-            autoFocus={!showSearch}
-          >
-            <option value="">{showSearch && search.trim() ? `Select… (${matches.length} found)` : 'Select…'}</option>
-            {matches.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.fullNameEn} ({e.payrollId})
-              </option>
-            ))}
-          </select>
+            onChange={setEmployeeId}
+            groups={employeeGroups}
+            placeholder="Select an employee…"
+            searchPlaceholder="Type a name or employee ID…"
+          />
         </Field>
         <Field label="Role" required htmlFor="add-user-role">
           <select id="add-user-role" required value={role} onChange={(e) => setRole(e.target.value as UserRole)} className={inputClass('emerald')}>
