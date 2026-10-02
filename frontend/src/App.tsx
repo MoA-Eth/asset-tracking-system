@@ -13,7 +13,6 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SystemSettingsPage } from './pages/SystemSettingsPage';
 import { RolesPage } from './pages/settings/RolesPage';
 import { EmployeesPage } from './pages/settings/EmployeesPage';
-import { DepartmentsPage } from './pages/settings/DepartmentsPage';
 import { LocationsPage } from './pages/settings/LocationsPage';
 import { StoresPage } from './pages/settings/StoresPage';
 import { TransferAssetPage } from './pages/TransferAssetPage';
@@ -204,7 +203,6 @@ const AuthenticatedPortal: React.FC = () => {
           )}
           {activeTab === 'settings-roles' && <RolesPage onViewUsers={viewRoleUsers} />}
           {activeTab === 'settings-employees' && <EmployeesPage />}
-          {activeTab === 'settings-departments' && <DepartmentsPage />}
           {activeTab === 'settings-locations' && <LocationsPage />}
           {activeTab === 'settings-stores' && <StoresPage />}
           {activeTab === 'settings-system' && (

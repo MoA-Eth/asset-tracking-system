@@ -58,10 +58,11 @@ describe('Employees page', () => {
     await user.type(screen.getByLabelText(/Full name .English./), 'Hana Tesfaye');
     await user.type(screen.getByLabelText(/Full name .Amharic./), 'ሐና');
     await user.type(screen.getByLabelText(/Employee ID/), 'MOA/200');
-    await user.selectOptions(screen.getByLabelText(/^Department/), 'DEP-01');
+    await user.type(screen.getByLabelText(/^Department/), 'New Desk');
+    expect(screen.getByText('New department. It will be added when you save.')).toBeInTheDocument();
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add employee' }));
     const sent = vi.mocked(api.createEmployee).mock.calls[0][0];
-    expect(sent).toMatchObject({ payrollId: 'MOA/200', fullNameEn: 'Hana Tesfaye', departmentId: 'DEP-01' });
+    expect(sent).toMatchObject({ payrollId: 'MOA/200', fullNameEn: 'Hana Tesfaye', departmentName: 'New Desk' });
     expect(sent).not.toHaveProperty('role');
     expect(sent).not.toHaveProperty('password');
     expect(await screen.findByText('Hana Tesfaye')).toBeInTheDocument();

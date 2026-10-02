@@ -36,7 +36,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 type StatusFilter = 'ACTIVE' | 'INACTIVE' | 'ALL';
 
 const emptyForm = (): EmployeeInput => ({
-  departmentId: '',
+  departmentName: '',
   unit: '',
   fullNameAm: '',
   fullNameEn: '',
@@ -47,8 +47,8 @@ const emptyForm = (): EmployeeInput => ({
   email: '',
 });
 
-const formOf = (e: Employee): EmployeeInput => ({
-  departmentId: e.departmentId,
+const formOf = (e: Employee, departments: Department[]): EmployeeInput => ({
+  departmentName: departments.find((d) => d.id === e.departmentId)?.nameEn ?? '',
   unit: e.unit ?? '',
   fullNameAm: e.fullNameAm,
   fullNameEn: e.fullNameEn,
@@ -59,9 +59,9 @@ const formOf = (e: Employee): EmployeeInput => ({
   email: e.email ?? '',
 });
 
-/** Where each shared field lives on the form (the department is picked, so it is stored by id) */
+/** Where each shared field lives on the form (the department is sent by name, so a new one can be typed) */
 const FORM_KEY: Record<EmployeeField, keyof EmployeeInput> = {
-  department: 'departmentId',
+  department: 'departmentName',
   unit: 'unit',
   fullNameAm: 'fullNameAm',
   fullNameEn: 'fullNameEn',
@@ -73,6 +73,7 @@ const FORM_KEY: Record<EmployeeField, keyof EmployeeInput> = {
 };
 
 const PLACEHOLDERS: Partial<Record<EmployeeField, string>> = {
+  department: 'Choose from the list, or type a new one',
   unit: 'e.g. የትራንስፖርት ስምሪት አገልግሎት',
   fullNameAm: 'ሙሉ ስም',
   fullNameEn: 'e.g. Hana Tesfaye Bekele',
@@ -91,11 +92,16 @@ const EmployeeForm: React.FC<{
   onSaved: (saved: Employee) => void;
 }> = ({ departments, editing, onCancel, onSaved }) => {
   const toast = useToast();
-  const [form, setForm] = useState<EmployeeInput>(editing ? formOf(editing) : emptyForm());
+  const [form, setForm] = useState<EmployeeInput>(editing ? formOf(editing, departments) : emptyForm());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const set = (key: keyof EmployeeInput) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  // A name that matches no existing department will be created with the employee
+  const typedDepartment = form.departmentName.trim().replace(/\s+/g, ' ').toLowerCase();
+  const isNewDepartment =
+    typedDepartment !== '' && !departments.some((d) => [d.nameEn, d.nameAm, d.code].some((v) => (v || '').trim().replace(/\s+/g, ' ').toLowerCase() === typedDepartment));
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,16 +129,30 @@ const EmployeeForm: React.FC<{
             const id = `emp-${field.key}`;
             const common = { id, value: form[key] ?? '', onChange: set(key) };
             return (
-              <Field key={field.key} label={`${field.label} · ${field.heading}`} required={field.required} optional={!field.required} htmlFor={id}>
+              <Field
+                key={field.key}
+                label={`${field.label} · ${field.heading}`}
+                required={field.required}
+                optional={!field.required}
+                htmlFor={id}
+                hint={field.key === 'department' && isNewDepartment ? 'New department. It will be added when you save.' : undefined}
+              >
                 {field.key === 'department' ? (
-                  <select {...common} className={inputClass('emerald')} autoFocus={index === 0}>
-                    <option value="">Select…</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.nameEn}
-                      </option>
-                    ))}
-                  </select>
+                  <>
+                    <input
+                      {...common}
+                      list="emp-department-options"
+                      autoComplete="off"
+                      placeholder={PLACEHOLDERS.department}
+                      className={inputClass('emerald')}
+                      autoFocus={index === 0}
+                    />
+                    <datalist id="emp-department-options">
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.nameEn} />
+                      ))}
+                    </datalist>
+                  </>
                 ) : field.key === 'gender' ? (
                   <select {...common} className={inputClass('emerald')}>
                     <option value="">Select…</option>
@@ -242,6 +262,8 @@ export const EmployeesPage: React.FC = () => {
     });
     setFormOpen(false);
     setEditing(null);
+    // A new department may have been created with the employee
+    if (!departments.some((d) => d.id === saved.departmentId)) api.getDepartments().then(setDepartments).catch(() => {});
     if (saved.id === user?.id) await refreshSession();
   };
 

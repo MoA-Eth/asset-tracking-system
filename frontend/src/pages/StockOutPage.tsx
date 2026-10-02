@@ -54,6 +54,7 @@ import {
   Model22Voucher,
 } from '../types/asset-management';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
+import { departmentLabel } from '../utils/department';
 import { getSystemSettings } from '../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../utils/slip-upload';
 
@@ -363,7 +364,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
         purpose: purpose.trim() || 'Move Order Issue for Ministry Operations',
         registeredById,
         transactionType,
-        destination: dept ? `${dept.nameEn} (${dept.code})` : destinationDepartmentId,
+        destination: dept ? departmentLabel(dept) : destinationDepartmentId,
         subInventory,
         lotBatchNo,
         printedPadFrom,
@@ -380,7 +381,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
         issuedDateGc,
         issuedDateEc: ethDate,
         transactionType,
-        destination: dept ? `${dept.nameEn} (${dept.code})` : destinationDepartmentId,
+        destination: dept ? departmentLabel(dept) : destinationDepartmentId,
         destinationDepartmentId,
         subInventory,
         issuedByName: user?.fullNameEn || 'Store Custodian',
@@ -705,7 +706,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
                 <option value="" disabled>Select…</option>
                 {departments.map((dept) => (
                   <option key={dept.id} value={dept.id}>
-                    {dept.nameEn} ({dept.code})
+                    {departmentLabel(dept)}
                   </option>
                 ))}
               </select>
@@ -1108,7 +1109,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     }
 
     const targetDept = departments.find((d) => d.id === approval.targetDepartmentId);
-    const destination = targetDept ? `${targetDept.nameEn} (${targetDept.code})` : 'Central Operations';
+    const destination = targetDept ? departmentLabel(targetDept) : 'Central Operations';
     const recipient = employees.find((e) => e.id === approval.recipientEmployeeId) || approval.recipientEmployee;
     const requester = employees.find((e) => e.id === approval.requestedById) || approval.requestedBy;
 

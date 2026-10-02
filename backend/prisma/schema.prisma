@@ -61,6 +61,7 @@ enum ApprovalStatus {
 
 enum AuditEntityType {
   USER
+  REFERENCE
   ITEM
   STOCK_IN
   STOCK_OUT
@@ -94,7 +95,10 @@ model Location {
   siteName       String
   building       String
   roomNumber     String
+  /// A store receives and issues stock; other locations only hold assets
   isCentralStore Boolean @default(false)
+  /// Deactivated locations can't be picked on forms, but stay on past records
+  isActive       Boolean @default(true)
 
   // Relations
   items Item[] @relation("StoreLocation")

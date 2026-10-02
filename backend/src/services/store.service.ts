@@ -169,6 +169,13 @@ function mapEmployee(e: any): Employee {
   };
 }
 
+/** A location picked on a form must still be active */
+function assertActiveReference(row: { isActive?: boolean } | null, name: string | undefined, what: string): void {
+  if (row && row.isActive === false) {
+    throw new BadRequestError(`${name ?? 'This'} has been deactivated and can't be chosen as ${what}.`);
+  }
+}
+
 /** Someone picked on a form (recipient, new custodian, store receiver) must still be active */
 function assertActiveEmployee(e: { fullNameEn: string; isActive?: boolean } | null, what: string): void {
   if (e && e.isActive === false) {
@@ -500,6 +507,9 @@ export class StoreService {
     // Every registration, historical or not, waits for Stage 1/2 approval before becoming AVAILABLE.
     // isHistoricalData only waives the slip attachment requirement above.
     const initialStatus = ItemStatus.PENDING_STOCK_IN;
+    const receivingStore = payload.storeLocationId ? await prisma.location.findUnique({ where: { id: payload.storeLocationId } }) : null;
+    if (!receivingStore) throw new BadRequestError('The selected receiving store no longer exists.');
+    assertActiveReference(receivingStore, receivingStore.siteName, 'the receiving store');
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
@@ -651,6 +661,11 @@ export class StoreService {
     if (!payload.storeLocationId) throw new BadRequestError('Receiving store is required.');
     if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price cannot be negative.');
     if (!Number.isInteger(quantity) || quantity < 1) throw new BadRequestError('Quantity must be at least 1.');
+    if (payload.storeLocationId !== item.storeLocationId) {
+      const receivingStore = await prisma.location.findUnique({ where: { id: payload.storeLocationId } });
+      if (!receivingStore) throw new BadRequestError('The selected receiving store no longer exists.');
+      assertActiveReference(receivingStore, receivingStore.siteName, 'the receiving store');
+    }
 
     const attachmentUrl = payload.ifmisSlipAttachmentUrl || item.ifmisSlipAttachmentUrl;
     if (!item.isHistoricalData && !attachmentUrl) {
@@ -959,6 +974,10 @@ export class StoreService {
     const recipient = payload.recipientEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }) : null;
     if (payload.recipientEmployeeId && !recipient) throw new BadRequestError('The selected recipient no longer exists.');
     assertActiveEmployee(recipient, 'the recipient');
+    if (payload.targetDepartmentId) {
+      const targetDepartment = await prisma.department.findUnique({ where: { id: payload.targetDepartmentId } });
+      if (!targetDepartment) throw new BadRequestError('The selected directorate no longer exists.');
+    }
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
     const notesText = formatStockOutNotes(payload.purpose, payload.remark);
@@ -1214,6 +1233,7 @@ export class StoreService {
     assertActiveEmployee(recipient, 'the new custodian');
     if (payload.toDepartmentId && !department) throw new BadRequestError('The selected directorate no longer exists.');
     if (payload.toLocationId && !location) throw new BadRequestError('The selected location no longer exists.');
+    if (location && location.id !== approval.targetLocationId) assertActiveReference(location, location.siteName, 'the destination location');
 
     const previous = requestDetailsOf(approval) ?? {};
     const details: Model21RequestDetails = {
@@ -1692,6 +1712,15 @@ export class StoreService {
     const newCustodianRecord = payload.toEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.toEmployeeId } }) : null;
     if (payload.toEmployeeId && !newCustodianRecord) throw new BadRequestError('The selected new custodian no longer exists.');
     assertActiveEmployee(newCustodianRecord, 'the new custodian');
+    if (payload.toDepartmentId) {
+      const toDepartment = await prisma.department.findUnique({ where: { id: payload.toDepartmentId } });
+      if (!toDepartment) throw new BadRequestError('The selected directorate no longer exists.');
+    }
+    if (payload.toLocationId) {
+      const toLocation = await prisma.location.findUnique({ where: { id: payload.toLocationId } });
+      if (!toLocation) throw new BadRequestError('The selected location no longer exists.');
+      assertActiveReference(toLocation, toLocation.siteName, 'the destination location');
+    }
     const newCustodian = payload.toEmployeeId ? newCustodianRecord?.fullNameEn : prevCustodian;
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
 
@@ -1792,28 +1821,6 @@ export class StoreService {
       details: r.details,
       previousState: r.previousState ?? undefined,
       newState: r.newState ?? undefined,
-    }));
-  }
-
-  public async getDepartments(): Promise<Department[]> {
-    const rows = await prisma.department.findMany({ orderBy: { code: 'asc' } });
-    return rows.map((d) => ({
-      id: d.id,
-      code: d.code,
-      nameEn: d.nameEn,
-      nameAm: d.nameAm,
-      headEmployeeId: d.headEmployeeId ?? undefined,
-    }));
-  }
-
-  public async getLocations(): Promise<Location[]> {
-    const rows = await prisma.location.findMany({ orderBy: { siteName: 'asc' } });
-    return rows.map((l) => ({
-      id: l.id,
-      siteName: l.siteName,
-      building: l.building,
-      roomNumber: l.roomNumber,
-      isCentralStore: l.isCentralStore,
     }));
   }
 

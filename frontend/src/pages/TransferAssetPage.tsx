@@ -49,6 +49,7 @@ import { Model21PrintModal } from '../components/ui/Model21PrintModal';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
+import { departmentLabel } from '../utils/department';
 
 const ITEM_STATUS_LABELS: Record<string, { label: string; className: string }> = {
   [ItemStatus.AVAILABLE]: { label: 'In store', className: statusTone.inStore },
@@ -737,7 +738,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                         <option value="">Select…</option>
                         {departments.map((dep) => (
                           <option key={dep.id} value={dep.id}>
-                            {dep.nameEn} ({dep.code})
+                            {departmentLabel(dep)}
                           </option>
                         ))}
                       </select>

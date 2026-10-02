@@ -12,6 +12,8 @@ export interface EmployeeInput {
   fullNameEn?: unknown;
   fullNameAm?: unknown;
   departmentId?: unknown;
+  /** Used instead of departmentId: an existing department's name or code, or a new name to create */
+  departmentName?: unknown;
   jobTitle?: unknown;
   unit?: unknown;
   gender?: unknown;
@@ -194,21 +196,50 @@ function checkDetails(input: EmployeeInput) {
   return details;
 }
 
+/** A department row for a name the system doesn't have yet; `usedCodes` gains the generated code */
+function newDepartmentRow(name: string, usedCodes: Set<string>) {
+  let n = 1;
+  let code = '';
+  do code = `U${String(n++).padStart(3, '0')}`; while (usedCodes.has(code));
+  usedCodes.add(code);
+  // Departments are named in one language only (HR uses Amharic), so the name fills both until someone edits it
+  return { id: `DEP-${randomUUID().slice(0, 8).toUpperCase()}`, code, nameEn: name, nameAm: name };
+}
+
+/**
+ * The department for an employee form. Departments have no page of their own: the form sends a name,
+ * which is matched to an existing department (by name or code) or, when new, created here.
+ */
+async function resolveDepartment(tx: any, input: EmployeeInput): Promise<{ id: string; nameEn: string; isNew?: boolean }> {
+  const name = text(input.departmentName, 'Department', 160, false)?.replace(/\s+/g, ' ');
+  if (!name) {
+    const id = text(input.departmentId, 'Department', 40, true)!;
+    const department = await tx.department.findUnique({ where: { id } });
+    if (!department) throw new BadRequestError('The selected department no longer exists.');
+    return department;
+  }
+  const departments = await tx.department.findMany();
+  const wanted = matchKey(name);
+  const existing = departments.find((d: any) => [d.nameEn, d.nameAm, d.code].some((v) => v && matchKey(v) === wanted));
+  if (existing) return existing;
+  const row = newDepartmentRow(name, new Set<string>(departments.map((d: any) => String(d.code).toUpperCase())));
+  await tx.department.create({ data: row });
+  return { ...row, isNew: true };
+}
+
 /**
  * Checks and normalizes the form; `previous` is the saved employee when editing.
  * Sign-in (role, password) only changes when the request includes it, so editing staff details never touches it.
  */
 async function normalize(tx: any, input: EmployeeInput, previous?: any) {
-  const details = checkDetails(input);
+  const department = await resolveDepartment(tx, input);
+  const details = checkDetails({ ...input, departmentId: department.id });
   const data = {
     ...details,
     // The Amharic name is optional; the form saves a blank as empty
     fullNameAm: details.fullNameAm ?? '',
     role: input.role === undefined ? ((previous?.role ?? null) as UserRole | null) : roleOf(input.role),
   };
-  if (!(await tx.department.findUnique({ where: { id: data.departmentId } }))) {
-    throw new BadRequestError('The selected department no longer exists.');
-  }
 
   const password = text(input.password, 'Password', 128, false);
   if (password !== null && password.length < 8) throw new BadRequestError('The password must be at least 8 characters.');
@@ -218,17 +249,17 @@ async function normalize(tx: any, input: EmployeeInput, previous?: any) {
   if (data.role && !data.email) {
     throw new BadRequestError('People who sign in need an email address.');
   }
-  return { data, passwordHash: password ? await hashPassword(password) : undefined };
+  return { data, passwordHash: password ? await hashPassword(password) : undefined, newDepartment: department.isNew ? department.nameEn : undefined };
 }
 
 export async function createEmployee(input: EmployeeInput, actorId: string): Promise<EmployeeRecord> {
   return serializable(async (tx) => {
     const actor = await loadActor(tx, actorId);
-    const { data, passwordHash } = await normalize(tx, input);
+    const { data, passwordHash, newDepartment } = await normalize(tx, input);
     const created = await tx.employee.create({
       data: { id: `EMP-${randomUUID().slice(0, 8).toUpperCase()}`, ...data, password: passwordHash ?? null, isActive: true },
     });
-    await audit(tx, actor, 'CREATE_EMPLOYEE', created.id, `Added ${created.fullNameEn} (${created.payrollId}).`, undefined, auditView(created));
+    await audit(tx, actor, 'CREATE_EMPLOYEE', created.id, `Added ${created.fullNameEn} (${created.payrollId}).${newDepartment ? ` New department: ${newDepartment}.` : ''}`, undefined, auditView(created));
     return toRecord({ ...created, _count: { custodiedItems: 0 } }, true);
   });
 }
@@ -238,7 +269,7 @@ export async function updateEmployee(id: string, input: EmployeeInput, actorId: 
     const actor = await loadActor(tx, actorId);
     const previous = await tx.employee.findUnique({ where: { id } });
     if (!previous) throw new NotFoundError('Employee not found.');
-    const { data, passwordHash } = await normalize(tx, input, previous);
+    const { data, passwordHash, newDepartment } = await normalize(tx, input, previous);
 
     if (data.role !== (previous.role ?? null)) {
       if (id === actor.id) throw new ConflictError("You can't change your own role.");
@@ -255,7 +286,7 @@ export async function updateEmployee(id: string, input: EmployeeInput, actorId: 
     const changed = (Object.keys(after) as (keyof typeof after)[]).filter((k) => before[k] !== after[k]);
     if (changed.length > 0 || passwordHash) {
       const summary = [...changed, ...(passwordHash ? ['password'] : [])].join(', ');
-      await audit(tx, actor, 'UPDATE_EMPLOYEE', id, `Updated ${updated.fullNameEn}: ${summary}.`, before, {
+      await audit(tx, actor, 'UPDATE_EMPLOYEE', id, `Updated ${updated.fullNameEn}: ${summary}.${newDepartment ? ` New department: ${newDepartment}.` : ''}`, before, {
         ...after,
         ...(passwordHash ? { passwordChanged: true } : {}),
       });
@@ -396,13 +427,8 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
     // Departments the file names that don't exist yet, keyed like deptByKey
     const newDepts = new Map<string, any>();
     const usedCodes = new Set<string>(departments.map((d: any) => String(d.code).toUpperCase()));
-    let nextCode = 1;
     const planDepartment = (name: string) => {
-      let code = '';
-      do code = `U${String(nextCode++).padStart(3, '0')}`; while (usedCodes.has(code));
-      usedCodes.add(code);
-      // HR lists units in Amharic only, so the name is used for both languages until someone edits it
-      const dept = { id: `DEP-${randomUUID().slice(0, 8).toUpperCase()}`, code, nameEn: name, nameAm: name, isNew: true };
+      const dept = { ...newDepartmentRow(name, usedCodes), isNew: true };
       newDepts.set(matchKey(name), dept);
       deptByKey.set(matchKey(name), dept);
       return dept;

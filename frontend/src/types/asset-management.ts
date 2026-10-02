@@ -58,7 +58,18 @@ export interface Location {
   siteName: string;
   building: string;
   roomNumber: string;
+  /** A store receives and issues stock; other locations only hold assets */
   isCentralStore?: boolean;
+  isActive: boolean;
+  /** Item records currently in store here (only for people who manage reference data) */
+  itemCount?: number;
+}
+
+export interface LocationInput {
+  siteName: string;
+  building?: string;
+  roomNumber?: string;
+  isCentralStore: boolean;
 }
 
 export interface Employee {
@@ -106,7 +117,8 @@ export interface EmployeeInput {
   payrollId: string;
   fullNameEn: string;
   fullNameAm: string;
-  departmentId: string;
+  /** An existing department's name, or a new name: departments are created from employee data */
+  departmentName: string;
   unit?: string;
   gender?: 'MALE' | 'FEMALE' | '';
   jobTitle?: string;

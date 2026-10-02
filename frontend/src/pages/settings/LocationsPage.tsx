@@ -1,12 +1,5 @@
 import React from 'react';
-import { MapPin } from 'lucide-react';
-import { SettingsPlaceholderPage } from './SettingsPlaceholderPage';
+import { LocationsManager } from './LocationsManager';
 
-export const LocationsPage: React.FC = () => (
-  <SettingsPlaceholderPage
-    icon={MapPin}
-    title="Locations"
-    titleAm="አድራሻዎች"
-    description="Manage sites, buildings and rooms where assets are kept."
-  />
-);
+/** Every site, building and room where assets are kept */
+export const LocationsPage: React.FC = () => <LocationsManager mode="locations" />;

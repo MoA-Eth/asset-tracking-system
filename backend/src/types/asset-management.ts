@@ -59,6 +59,7 @@ export interface Location {
   building: string;
   roomNumber: string;
   isCentralStore?: boolean;
+  isActive: boolean;
 }
 
 export interface Employee {

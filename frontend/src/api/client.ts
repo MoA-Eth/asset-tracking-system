@@ -9,6 +9,7 @@ import {
   Department,
   Employee,
   EmployeeInput,
+  LocationInput,
   EmployeeImportResult,
   Location,
   CreateStockInRequest,
@@ -242,12 +243,30 @@ export const api = {
   },
 
   // Reference Data
+  /** Departments come from employee data (HR's import, or a new name on the employee form) */
   getDepartments: () => {
     return request<Department[]>('/reference/departments');
   },
 
-  getLocations: () => {
-    return request<Location[]>('/reference/locations');
+  /** Active locations and stores; with includeInactive, administrators also get deactivated ones */
+  getLocations: (opts: { includeInactive?: boolean } = {}) => {
+    return request<Location[]>(`/reference/locations${opts.includeInactive ? '?includeInactive=true' : ''}`);
+  },
+
+  createLocation: (input: LocationInput) => {
+    return request<Location>('/reference/locations', { method: 'POST', body: JSON.stringify(input) });
+  },
+
+  updateLocation: (id: string, input: LocationInput) => {
+    return request<Location>(`/reference/locations/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) });
+  },
+
+  setLocationActive: (id: string, active: boolean) => {
+    return request<Location>(`/reference/locations/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ active }) });
+  },
+
+  deleteLocation: (id: string) => {
+    return request<null>(`/reference/locations/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 
   /** Active staff; with includeInactive, administrators also get deactivated staff */

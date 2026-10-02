@@ -21,6 +21,7 @@ export const PERMISSION_GROUPS = [
   { name: 'Administration', permissions: [
     { key: 'references.read', label: 'View employees, departments, and locations' },
     { key: 'employees.manage', label: 'Add, edit and deactivate employees' },
+    { key: 'references.manage', label: 'Add, edit and deactivate locations and stores' },
     { key: 'roles.read', label: 'View role permissions and membership' },
     { key: 'roles.assign', label: 'Assign user roles' },
   ] },
@@ -28,7 +29,7 @@ export const PERMISSION_GROUPS = [
 
 export type Permission = typeof PERMISSION_GROUPS[number]['permissions'][number]['key'];
 
-const referenceTabs = ['settings-employees', 'settings-departments', 'settings-locations', 'settings-stores', 'settings-system'];
+const referenceTabs = ['settings-employees', 'settings-locations', 'settings-stores', 'settings-system'];
 const readPermissions: Permission[] = ['inventory.read', 'references.read'];
 
 // Authoritative policy for API guards, the role directory, and session navigation.
@@ -39,7 +40,7 @@ export const ROLE_POLICY: Record<UserRole, {
   SYSTEM_ADMIN: {
     name: 'System Administrator', description: 'Administers user access and platform governance.',
     approvalResponsibility: 'No approval authority',
-    permissions: [...readPermissions, 'dashboard.read', 'reports.read', 'audit.read', 'roles.read', 'roles.assign', 'employees.manage'],
+    permissions: [...readPermissions, 'dashboard.read', 'reports.read', 'audit.read', 'roles.read', 'roles.assign', 'employees.manage', 'references.manage'],
     allowedTabs: ['dashboard', 'reports', 'audit', 'settings-users', 'settings-roles', ...referenceTabs], landingTab: 'dashboard',
   },
   DATA_ENCODER: {
@@ -76,7 +77,7 @@ export function isUserRole(value: unknown): value is UserRole {
 const dynamicPermissions: Partial<Record<UserRole, Permission[]>> = {};
 
 export const PROTECTED_ROLE_PERMISSIONS: Partial<Record<UserRole, Permission[]>> = {
-  SYSTEM_ADMIN: ['roles.assign', 'roles.read', 'employees.manage'],
+  SYSTEM_ADMIN: ['roles.assign', 'roles.read', 'employees.manage', 'references.manage'],
 };
 
 /** Permissions for raising stock requests, and for deciding on them */

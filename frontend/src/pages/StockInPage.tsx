@@ -512,11 +512,14 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
           <Field label="Receiving store" required>
             <select required value={storeLocationId} onChange={(e) => setStoreLocationId(e.target.value)} className={input()}>
               <option value="" disabled>Select…</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.siteName} {loc.roomNumber ? `(${loc.roomNumber})` : ''}
-                </option>
-              ))}
+              {/* Goods are received into stores; when correcting, the item's current location stays selectable */}
+              {locations
+                .filter((loc) => loc.isCentralStore || loc.id === editItem?.storeLocationId)
+                .map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.siteName} {loc.roomNumber ? `(${loc.roomNumber})` : ''}
+                  </option>
+                ))}
             </select>
           </Field>
         </FieldGrid>
@@ -1408,7 +1411,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
         ) : (
           <div className="py-8 text-center text-xs text-slate-500">
             <AlertCircle className="w-6 h-6 mx-auto mb-2 text-amber-500" />
-            Failed to load reference data. Please reload the page.
+            No active store was found. Ask the System Administrator to add one under Settings → Stores, then reload.
           </div>
         )}
       </Modal>

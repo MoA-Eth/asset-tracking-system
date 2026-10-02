@@ -13,6 +13,7 @@ import { table } from '../components/ui/theme';
 import { UserRole, Employee, Department } from '../types/asset-management';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { departmentLabel } from '../utils/department';
 
 interface SettingsPageProps {
   currentRole: UserRole;
@@ -193,7 +194,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
               <option value="ALL">All Directorates ({departments.length})</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.code} — {d.nameEn}
+                  {departmentLabel(d)}
                 </option>
               ))}
             </select>
@@ -233,7 +234,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                       </td>
                       <td className="py-3 px-4 font-mono text-slate-700">{emp.email}</td>
                       <td className="py-3 px-4 text-slate-700 font-medium">
-                        {dept ? `${dept.code} — ${dept.nameEn}` : 'Ministry HQ'}
+                        {dept ? departmentLabel(dept) : '—'}
                       </td>
                       <td className="py-3 px-4">
                         <span
