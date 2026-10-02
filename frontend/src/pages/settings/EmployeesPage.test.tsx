@@ -7,7 +7,7 @@ import { api } from '../../api/client';
 import { UserRole } from '../../types/asset-management';
 
 const auth = vi.hoisted(() => ({ user: { id: 'admin', permissions: ['employees.manage'] as string[] }, refreshSession: vi.fn() }));
-const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
+const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn() }));
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../../context/ToastContext', () => ({ useToast: () => toast }));
 vi.mock('../../api/client', () => ({
@@ -94,10 +94,45 @@ describe('Employees page', () => {
       ],
       false,
     ]);
+    // Before importing, the window says the bad row will be skipped and the rest still imported
+    expect(screen.getByText(/1 row has problems and will be skipped; the rest will still be imported\./)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Import 1 employee' }));
     expect(vi.mocked(api.importEmployees).mock.calls[1][1]).toBe(true);
-    expect(toast.success).toHaveBeenCalledWith('Employees imported', '1 added, 0 updated, 1 department created');
     expect(api.getEmployees).toHaveBeenCalledTimes(2);
+
+    // The good row is saved; the window stays open on the skipped row and its reason
+    expect(toast.warning).toHaveBeenCalledWith('Imported, with rows skipped', '1 added, 0 updated, 1 department created. 1 row was skipped.');
+    expect(toast.success).not.toHaveBeenCalled();
+    const summary = await screen.findByRole('status');
+    expect(summary).toHaveTextContent('1 added and 0 updated. 1 row was skipped and is listed below with the reason.');
+    expect(screen.getByText('Gender must be Male or Female.')).toBeInTheDocument();
+    expect(screen.queryByText('Sara Ali')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Import \d/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('closes with a plain confirmation when every row was imported', async () => {
+    const user = userEvent.setup();
+    const preview = {
+      applied: false,
+      counts: { create: 1, update: 1, unchanged: 0, error: 0 },
+      newDepartments: [],
+      rows: [
+        { row: 2, payrollId: 'MOA/300', fullNameEn: 'Sara Ali', department: 'PROP', action: 'create' },
+        { row: 3, payrollId: 'MOA/301', fullNameEn: 'Dawit Bekele', department: 'PROP', action: 'update' },
+      ],
+    };
+    vi.mocked(api.importEmployees).mockResolvedValueOnce(preview as any).mockResolvedValueOnce({ ...preview, applied: true } as any);
+    render(<EmployeesPage />);
+    await user.click(await screen.findByRole('button', { name: 'Import from Excel' }));
+    const csv = 'Payroll ID,Full name (English),Department\nMOA/300,Sara Ali,PROP\nMOA/301,Dawit Bekele,PROP\n';
+    await user.upload(screen.getByLabelText(/Choose an Excel/), new File([csv], 'hr.csv', { type: 'text/csv' }));
+    await user.click(await screen.findByRole('button', { name: 'Import 2 employees' }));
+
+    expect(toast.success).toHaveBeenCalledWith('Employees imported', '1 added, 1 updated');
+    expect(toast.warning).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('is read-only without permission to manage employees', async () => {

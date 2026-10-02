@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Building2, CheckCircle2, Download, FileSpreadsheet, RefreshCw, Upload, Info } from 'lucide-react';
+import { Building2, CheckCircle2, Download, FileSpreadsheet, RefreshCw, Upload, Info, AlertTriangle } from 'lucide-react';
 import { api } from '../../api/client';
 import { Modal } from '../../components/ui/Modal';
 import { FormError, FormNotice } from '../../components/ui/FormKit';
@@ -31,6 +31,8 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
   const [busy, setBusy] = useState<'checking' | 'importing' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<EmployeeImportAction | 'ALL'>('ALL');
+  // Set once the import has run and some rows were skipped: the window stays open to show which, and why
+  const [imported, setImported] = useState<{ added: number; updated: number; skipped: number } | null>(null);
 
   const reset = () => {
     setFileName('');
@@ -38,6 +40,7 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
     setResult(null);
     setError(null);
     setFilter('ALL');
+    setImported(null);
     if (inputRef.current) inputRef.current.value = '';
   };
   const close = () => {
@@ -90,9 +93,19 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
     try {
       const done = await api.importEmployees(rows, true);
       const depts = done.newDepartments.length;
-      toast.success('Employees imported', `${done.counts.create} added, ${done.counts.update} updated${depts ? `, ${depts} ${depts === 1 ? 'department' : 'departments'} created` : ''}`);
+      const saved = `${done.counts.create} added, ${done.counts.update} updated${depts ? `, ${depts} ${depts === 1 ? 'department' : 'departments'} created` : ''}`;
       onImported();
-      close();
+      if (done.counts.error > 0) {
+        // The good rows are saved; keep the window open on the rows that were not, with the reason for each
+        const skipped = `${done.counts.error} ${done.counts.error === 1 ? 'row was' : 'rows were'} skipped`;
+        toast.warning('Imported, with rows skipped', `${saved}. ${skipped}.`);
+        setImported({ added: done.counts.create, updated: done.counts.update, skipped: done.counts.error });
+        setResult(done);
+        setFilter('error');
+      } else {
+        toast.success('Employees imported', saved);
+        close();
+      }
     } catch (err: any) {
       setError(err.message || 'The import failed. Nothing was saved.');
     } finally {
@@ -169,6 +182,17 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
 
         <FormError message={error} />
 
+        {imported && (
+          <div role="status" className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            <AlertTriangle className="mt-px h-4 w-4 shrink-0 text-amber-600" />
+            <span>
+              <b>{imported.added} added and {imported.updated} updated.</b> {imported.skipped} {imported.skipped === 1 ? 'row was' : 'rows were'} skipped and{' '}
+              {imported.skipped === 1 ? 'is' : 'are'} listed below with the reason. Correct {imported.skipped === 1 ? 'it' : 'them'} in the file and import it again;
+              rows already imported will not be duplicated.
+            </span>
+          </div>
+        )}
+
         {result && (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -203,7 +227,7 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
                 <b>
                   {result.newDepartments.length} new {result.newDepartments.length === 1 ? 'department' : 'departments'}
                 </b>{' '}
-                will be created from the file: {result.newDepartments.slice(0, 6).join(' · ')}
+                {imported ? (result.newDepartments.length === 1 ? 'was' : 'were') : 'will be'} created from the file: {result.newDepartments.slice(0, 6).join(' · ')}
                 {result.newDepartments.length > 6 && ` · and ${result.newDepartments.length - 6} more`}
               </FormNotice>
             )}
@@ -240,14 +264,16 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
               <p className="text-xs text-slate-600">
-                {toSave > 0 ? (
+                {imported ? (
+                  'The import is finished.'
+                ) : toSave > 0 ? (
                   <>
                     <b className="text-slate-900">{result.counts.create}</b> will be added and <b className="text-slate-900">{result.counts.update}</b> updated.
                   </>
                 ) : (
                   'Nothing to save: every row is unchanged or has a problem.'
                 )}
-                {result.counts.error > 0 && ` ${result.counts.error} ${result.counts.error === 1 ? 'row has' : 'rows have'} problems and will be skipped.`}
+                {!imported && result.counts.error > 0 && ` ${result.counts.error} ${result.counts.error === 1 ? 'row has' : 'rows have'} problems and will be skipped; the rest will still be imported.`}
               </p>
               <div className="flex items-center gap-2">
                 <button
@@ -259,10 +285,17 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
                   <Upload className="h-3.5 w-3.5" />
                   Choose another file
                 </button>
-                <button type="button" onClick={apply} disabled={toSave === 0 || busy !== null} className={btn.primary}>
-                  {busy === 'importing' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  Import {toSave} {toSave === 1 ? 'employee' : 'employees'}
-                </button>
+                {imported ? (
+                  <button type="button" onClick={close} className={btn.primary}>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Done
+                  </button>
+                ) : (
+                  <button type="button" onClick={apply} disabled={toSave === 0 || busy !== null} className={btn.primary}>
+                    {busy === 'importing' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    Import {toSave} {toSave === 1 ? 'employee' : 'employees'}
+                  </button>
+                )}
               </div>
             </div>
           </>
