@@ -144,7 +144,7 @@ describe('Asset Transfer approval workflow', () => {
     });
 
     it('keeps the current custody and restores the status on rejection', async () => {
-      await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD' } as any);
+      await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Wrong recipient' } as any);
 
       expect(itemUpdateData()).toMatchObject({
         status: 'ISSUED',
@@ -154,10 +154,35 @@ describe('Asset Transfer approval workflow', () => {
       });
     });
 
+    it.each([undefined, '', '   '])('refuses a rejection without a reason (%j)', async (reviewRemarks) => {
+      await expect(store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks } as any)).rejects.toMatchObject({
+        statusCode: 400,
+        message: 'Give a reason for rejecting, so the requester knows what to correct.',
+      });
+      expect(db.transactionApproval.update).not.toHaveBeenCalled();
+      expect(db.item.update).not.toHaveBeenCalled();
+    });
+
+    it('saves the reason, and the history names the stage and the person who rejected', async () => {
+      await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: '  Wrong recipient  ' } as any);
+
+      expect(db.transactionApproval.update.mock.calls[0][0].data).toMatchObject({ status: 'REJECTED', reviewRemarks: 'Wrong recipient', reviewedById: 'EMP-HEAD' });
+      expect(JSON.stringify(db.item.update.mock.calls[0][0])).toContain('Rejected at Stage 2 (Department Head) by Employee EMP-HEAD: Wrong recipient');
+    });
+
+    it('names the Team Leader when the rejection happens at Stage 1', async () => {
+      db.transactionApproval.findUnique.mockResolvedValue({ ...pendingTransfer, currentStage: 1 });
+      db.employee.findUnique.mockImplementation(async ({ where }: any) => ({ id: where.id, fullNameEn: 'Employee ' + where.id, role: where.id === 'EMP-TL' ? 'TEAM_LEADER' : 'DATA_ENCODER' }));
+
+      await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-TL', reviewRemarks: 'Slip number is missing' } as any);
+
+      expect(JSON.stringify(db.item.update.mock.calls[0][0])).toContain('Rejected at Stage 1 (Team Leader) by Employee EMP-TL: Slip number is missing');
+    });
+
     it('restores AVAILABLE when a store item without a custodian is rejected', async () => {
       db.item.findUnique.mockResolvedValue({ ...issuedItem, status: 'UNDER_TRANSFER', currentCustodianId: null });
 
-      await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD' } as any);
+      await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Wrong recipient' } as any);
 
       expect(itemUpdateData().status).toBe('AVAILABLE');
     });

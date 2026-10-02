@@ -1437,6 +1437,15 @@ export class StoreService {
     }
     const reviewerName = reviewer ? `${reviewer.fullNameEn} (${reviewer.role})` : 'Reviewer';
 
+    // A rejection must say why, so the requester knows what to correct
+    const rejectionReason = (payload.reviewRemarks ?? '').trim();
+    if (payload.action === 'REJECT') {
+      if (!rejectionReason) throw new BadRequestError('Give a reason for rejecting, so the requester knows what to correct.');
+      if (rejectionReason.length > 500) throw new BadRequestError('The reason must be 500 characters or fewer.');
+    }
+    // Either stage can reject: the history names the stage and the person who did
+    const rejectionNote = `Rejected at Stage ${approval.currentStage ?? 1} (${(approval.currentStage ?? 1) === 1 ? 'Team Leader' : 'Department Head'}) by ${reviewer?.fullNameEn ?? 'the reviewer'}: ${rejectionReason}`;
+
     // ── STAGE 1 ACTION: ENDORSE (Team Leader) ──────────────────────────────
     if (payload.action === 'ENDORSE') {
       if (approval.currentStage !== 1) {
@@ -1503,7 +1512,7 @@ export class StoreService {
       data: {
         status: newStatus as any,
         reviewedById: payload.reviewedById,
-        reviewRemarks: payload.reviewRemarks || (isApprove ? 'Approved by Department Head (Stage 2)' : 'Rejected'),
+        reviewRemarks: isApprove ? payload.reviewRemarks || 'Approved by Department Head (Stage 2)' : rejectionReason,
         reviewedAtGc: today.gc,
         reviewedAtEc: today.ec,
       },
@@ -1604,27 +1613,27 @@ export class StoreService {
         historyAction = 'STOCK_IN_REJECTED';
         fromEntity = 'Pending Approval';
         toEntity = 'Rejected / Returned to Supplier';
-        histNote = payload.reviewRemarks || 'Rejected by Department Head';
+        histNote = rejectionNote;
       } else if (approval.transactionType === 'RETURN') {
         // Returns can be raised for AVAILABLE items too, so fall back to the item's actual custody
         newItemStatus = statusForCustodian(item.currentCustodianId);
         historyAction = 'RETURN_REJECTED';
         fromEntity = 'Pending Return';
         toEntity = `${await holderName(item)} (Retained)`;
-        histNote = payload.reviewRemarks || 'Model 22 Return request rejected by Department Head';
+        histNote = rejectionNote;
       } else if (approval.transactionType === 'TRANSFER') {
         // Nothing was moved while pending, so the item simply keeps its current custody
         newItemStatus = statusForCustodian(item.currentCustodianId);
         historyAction = 'TRANSFER_REJECTED';
         fromEntity = 'Pending Transfer';
         toEntity = 'Current Custodian (Retained)';
-        histNote = payload.reviewRemarks || 'Model 21 transfer request rejected by Department Head';
+        histNote = rejectionNote;
       } else {
         newItemStatus = 'AVAILABLE';
         historyAction = 'STOCK_OUT_REJECTED';
         fromEntity = 'Pending Stock-Out';
         toEntity = `${storeName} (AVAILABLE)`;
-        histNote = payload.reviewRemarks || 'Stock-out request rejected by Department Head';
+        histNote = rejectionNote;
       }
     }
 
