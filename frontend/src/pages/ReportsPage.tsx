@@ -33,6 +33,7 @@ import {
 import { formatETB, getTodayGcAndEc } from '../utils/eth-date';
 import { useToast } from '../context/ToastContext';
 import { RefreshButton } from '../components/ui/RefreshButton';
+import { ReportCharts } from '../components/reports/ReportCharts';
 
 export type ReportType = 'all' | 'registered' | 'available' | 'issued' | 'transferred';
 export type TimeframePreset =
@@ -758,7 +759,10 @@ export const ReportsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Pure Clean Tabular Form */}
+      {/* 3. Charts of the same filtered rows */}
+      <ReportCharts items={filteredItems} splitsByRoot={splitsByRoot} departments={departments} unitsOf={reportUnits} />
+
+      {/* 4. The rows themselves */}
       <div className="rounded-2xl bg-white border border-slate-200 shadow-xs overflow-hidden">
         {/* Table Subheader showing active count and valuation */}
         <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
