@@ -251,7 +251,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
 
       const voucher: Model21Voucher = {
         model21No: model21No.trim(),
-        fromEmployeeName: fromCustodian?.fullNameEn || 'Assigned Staff Custodian',
+        fromEmployeeName: fromCustodian?.fullNameEn || '—',
         fromEmployeeId: fromCustodian?.payrollId || '—',
         book: book.trim() || 'MOA MC BOOK',
         toEmployeeName: receiver?.fullNameEn || '—',

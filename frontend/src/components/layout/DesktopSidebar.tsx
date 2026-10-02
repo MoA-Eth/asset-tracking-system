@@ -17,7 +17,7 @@ const ROLE_TITLES: Partial<Record<UserRole, string>> = {
   [UserRole.MANAGER]: 'Manager',
   [UserRole.DEPARTMENT_HEAD]: 'Directorate Head',
   [UserRole.TEAM_LEADER]: 'Team Leader',
-  [UserRole.DATA_ENCODER]: 'Store Custodian',
+  [UserRole.DATA_ENCODER]: 'Data Encoder',
   [UserRole.SYSTEM_ADMIN]: 'System Administrator',
 };
 
@@ -50,7 +50,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
   const sections = getNavSections(user?.allowedTabs);
   const settingsGroups = getSettingsGroups(user?.allowedTabs);
-  const roleTitle = ROLE_TITLES[role] || 'Civil Officer';
+  const roleTitle = ROLE_TITLES[role] || '';
 
   const itemClass = (isActive: boolean) =>
     `group relative w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2 rounded-lg text-[13px] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${

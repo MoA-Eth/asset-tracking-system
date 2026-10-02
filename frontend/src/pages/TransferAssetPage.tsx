@@ -371,10 +371,10 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
 
       const voucher: Model21Voucher = {
         model21No: model21No.trim(),
-        fromEmployeeName: fromCustodian?.fullNameEn || 'Store Custodian',
+        fromEmployeeName: fromCustodian?.fullNameEn || '—',
         fromEmployeeId: fromCustodian?.payrollId || '—',
         book: book.trim() || 'MOA MC BOOK',
-        toEmployeeName: targetEmp?.fullNameEn || 'Recipient Staff',
+        toEmployeeName: targetEmp?.fullNameEn || '—',
         toEmployeeId: targetEmp?.payrollId || '—',
         items: [
           {
@@ -925,7 +925,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       <td className="p-3 text-slate-800">{item.name}</td>
                       <UnitsCell item={item} />
                       <td className="p-3 text-slate-700">
-                        {item.currentCustodian?.fullNameEn || 'Assigned Staff'}
+                        {item.currentCustodian?.fullNameEn || '—'}
                       </td>
                       <td className="p-3 text-slate-600">{storeLocationLabel(item.storeLocation)}</td>
                       <td className={`p-3 ${table.actionsCell}`}>

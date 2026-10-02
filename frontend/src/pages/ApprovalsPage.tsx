@@ -751,7 +751,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       <td className="py-3 px-4 max-w-xs">
                         <div className="flex flex-col text-slate-600">
                           <span className="font-medium text-slate-800 truncate">
-                            {appr.requestedBy?.fullNameEn || 'Store Custodian'}
+                            {appr.requestedBy?.fullNameEn || '—'}
                           </span>
                           <span className="text-[11px] text-slate-500 italic truncate" title={appr.purposeOrRemarks}>
                             {appr.purposeOrRemarks || 'No remarks provided'}

@@ -384,8 +384,8 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
         destination: dept ? departmentLabel(dept) : destinationDepartmentId,
         destinationDepartmentId,
         subInventory,
-        issuedByName: user?.fullNameEn || 'Store Custodian',
-        receivedByName: recipient?.fullNameEn || 'Staff Recipient',
+        issuedByName: user?.fullNameEn || '—',
+        receivedByName: recipient?.fullNameEn || '—',
         receivedByEmployeeId: recipientEmployeeId,
         items: [
           {
@@ -734,7 +734,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
             </Field>
 
             <Field label="Issued by (store custodian)">
-              <ReadOnlyValue>{editApproval?.requestedBy?.fullNameEn || user?.fullNameEn || 'Current user'}</ReadOnlyValue>
+              <ReadOnlyValue>{editApproval?.requestedBy?.fullNameEn || user?.fullNameEn || '—'}</ReadOnlyValue>
             </Field>
           </FieldGrid>
 
@@ -1127,8 +1127,8 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
       destination,
       destinationDepartmentId: approval.targetDepartmentId,
       subInventory: itemDetails?.subInventory || itemDetails?.storeLocation?.roomNumber || '—',
-      issuedByName: requester?.fullNameEn || user?.fullNameEn || 'Store Custodian',
-      receivedByName: recipient?.fullNameEn || 'Recipient Staff Member',
+      issuedByName: requester?.fullNameEn || '—',
+      receivedByName: recipient?.fullNameEn || '—',
       receivedByEmployeeId: approval.recipientEmployeeId,
       items: [
         {

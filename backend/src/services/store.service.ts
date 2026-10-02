@@ -185,6 +185,17 @@ async function storeLabelOfItem(itemId: string): Promise<string> {
   return storeLabel(item?.storeLocationId);
 }
 
+/** Who holds an item, for its history: the custodian's own name, or the store it is in */
+async function holderName(item: { currentCustodianId?: string | null; storeLocationId?: string | null } | null): Promise<string> {
+  const custodian = item?.currentCustodianId ? await prisma.employee.findUnique({ where: { id: item.currentCustodianId } }) : null;
+  return custodian?.fullNameEn ?? storeLabel(item?.storeLocationId);
+}
+
+/** The same, for an item known only by its id */
+async function holderNameOfItem(itemId: string): Promise<string> {
+  return holderName(await prisma.item.findUnique({ where: { id: itemId }, select: { currentCustodianId: true, storeLocationId: true } }));
+}
+
 /** Someone picked on a form (recipient, new custodian, store receiver) must still be active */
 function assertActiveEmployee(e: { fullNameEn: string; isActive?: boolean } | null, what: string): void {
   if (e && e.isActive === false) {
@@ -1003,7 +1014,7 @@ export class StoreService {
             dateEc: today.ec,
             action: 'STOCK_OUT_REQUESTED',
             fromEntity: `${await storeLabel(item.storeLocationId)} (Available)`,
-            toEntity: recipient ? `${recipient.fullNameEn} (Pending Approval)` : 'Pending Staff Custodian',
+            toEntity: recipient ? `${recipient.fullNameEn} (Pending Approval)` : 'Recipient not set (Pending Approval)',
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
             ifmisSlipNumber: payload.ifmisSlipNumber,
@@ -1039,7 +1050,7 @@ export class StoreService {
       'REGISTER_STOCK_OUT',
       'STOCK_OUT',
       item.id,
-      `Stock-Out requested for ${item.itemCode} to ${recipient?.fullNameEn || 'Staff'}. IFMIS: ${payload.ifmisSlipNumber}`,
+      `Stock-Out requested for ${item.itemCode} to ${recipient?.fullNameEn || 'a recipient not yet set'}. IFMIS: ${payload.ifmisSlipNumber}`,
       payload.ifmisSlipNumber,
     );
 
@@ -1093,7 +1104,7 @@ export class StoreService {
             dateGc: today.gc,
             dateEc: today.ec,
             action: 'RETURN_REQUESTED',
-            fromEntity: 'Staff Custodian (Issued)',
+            fromEntity: await holderName(item),
             toEntity: `${await storeLabel(item.storeLocationId)} (Pending Return Approval)`,
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
@@ -1291,7 +1302,7 @@ export class StoreService {
       return mapApproval(await prisma.transactionApproval.findUnique({ where: { id: approvalId }, include: APPROVAL_INCLUDES }));
     }
 
-    const fromName = custodian?.fullNameEn ?? 'None';
+    const fromName = custodian?.fullNameEn ?? (await storeLabelOfItem(approval.itemId));
     return this.saveModel21Edit({
       approval,
       data: {
@@ -1394,7 +1405,7 @@ export class StoreService {
       historyAction: 'RETURN_EDITED',
       auditAction: 'EDIT_RETURN',
       entityType: 'RETURN',
-      fromEntity: 'Staff Custodian (Issued)',
+      fromEntity: await holderNameOfItem(approval.itemId),
       toEntity: `${await storeLabelOfItem(approval.itemId)} (Pending Return Approval)`,
       slipNo,
       changes,
@@ -1526,7 +1537,7 @@ export class StoreService {
       } else if (approval.transactionType === 'RETURN') {
         newItemStatus = 'AVAILABLE';
         historyAction = 'RETURN_APPROVED';
-        fromEntity = 'Staff Custodian (Issued)';
+        fromEntity = await holderName(item);
         toEntity = `${storeName} (AVAILABLE)`;
         histNote = payload.reviewRemarks || `Model 22 Return approved. Item returned to ${storeName} (AVAILABLE).`;
         // Older returns set the condition when submitted and have no requestDetails
@@ -1599,7 +1610,7 @@ export class StoreService {
         newItemStatus = statusForCustodian(item.currentCustodianId);
         historyAction = 'RETURN_REJECTED';
         fromEntity = 'Pending Return';
-        toEntity = 'Staff Custodian (Retained)';
+        toEntity = `${await holderName(item)} (Retained)`;
         histNote = payload.reviewRemarks || 'Model 22 Return request rejected by Department Head';
       } else if (approval.transactionType === 'TRANSFER') {
         // Nothing was moved while pending, so the item simply keeps its current custody
@@ -1719,9 +1730,10 @@ export class StoreService {
     if (!slipNo) throw new Error('Transfer Voucher (Model 21) number is mandatory.');
 
     const today = getTodayGcAndEc();
-    const prevCustodian = item.currentCustodianId
-      ? (await prisma.employee.findUnique({ where: { id: item.currentCustodianId } }))?.fullNameEn
-      : 'None';
+    // The current custodian, or the store the item is in
+    const prevCustodian = await holderName(item);
+    // Where the item goes when only its location changes
+    let destinationLabel: string | undefined;
     const newCustodianRecord = payload.toEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.toEmployeeId } }) : null;
     if (payload.toEmployeeId && !newCustodianRecord) throw new BadRequestError('The selected new custodian no longer exists.');
     assertActiveEmployee(newCustodianRecord, 'the new custodian');
@@ -1733,6 +1745,7 @@ export class StoreService {
       const toLocation = await prisma.location.findUnique({ where: { id: payload.toLocationId }, include: { store: true } });
       if (!toLocation) throw new BadRequestError('The selected location no longer exists.');
       assertUsableLocation(toLocation, 'the destination location');
+      destinationLabel = locationLabel(toLocation);
     }
     const newCustodian = payload.toEmployeeId ? newCustodianRecord?.fullNameEn : prevCustodian;
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
@@ -1762,8 +1775,8 @@ export class StoreService {
             dateGc: today.gc,
             dateEc: today.ec,
             action: 'TRANSFER_REQUESTED',
-            fromEntity: prevCustodian || 'Store',
-            toEntity: `${newCustodian || 'New Location'} (Pending Approval)`,
+            fromEntity: prevCustodian,
+            toEntity: `${(payload.toEmployeeId ? newCustodian : destinationLabel) || newCustodian} (Pending Approval)`,
             performedBy: performer ? performer.fullNameEn : payload.performedById,
             performedByRole: (performer?.role ?? 'DATA_ENCODER') as any,
             ifmisSlipNumber: slipNo,
