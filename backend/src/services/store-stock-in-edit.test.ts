@@ -7,7 +7,7 @@ const db = vi.hoisted(() => {
     employee: { findUnique: vi.fn() },
     // Any store location that is looked up exists and is active
     location: { findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, name: 'Store-01', isActive: true, store: { name: 'Kality', isActive: true } })) },
-    item: { findUnique: vi.fn(), update: vi.fn() },
+    item: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
     transactionApproval: { findFirst: vi.fn(), update: vi.fn() },
     auditLog: { create: vi.fn() },
   };
@@ -55,6 +55,7 @@ describe('Stock-In correction before Stage 1 endorsement', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     db.item.findUnique.mockResolvedValue({ ...pendingItem });
+    db.item.findFirst.mockResolvedValue(null);
     db.transactionApproval.findFirst.mockResolvedValue({ ...stage1Approval });
     db.employee.findUnique.mockResolvedValue({ id: 'EMP-ENC', fullNameEn: 'Store Encoder', role: 'DATA_ENCODER' });
     db.item.update.mockImplementation(async ({ data }: any) => ({ ...pendingItem, ...data, history: [] }));
@@ -89,6 +90,19 @@ describe('Stock-In correction before Stage 1 endorsement', () => {
     db.item.findUnique.mockResolvedValue({ ...pendingItem, status });
     db.transactionApproval.findFirst.mockResolvedValue(null);
     await expect(store().updateStockIn('item-1', edit as any, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('refuses changing the serial number to one another item has, but keeping its own is fine', async () => {
+    db.item.findFirst.mockResolvedValue({ itemCode: 'MOA-IT-2026-0007', name: 'Dell Latitude' });
+
+    await expect(store().updateStockIn('item-1', { ...edit, serialNumber: 'SN-2' } as any, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 409 });
+    expect(db.item.findFirst.mock.calls[0][0].where).toMatchObject({ id: { not: 'item-1' } });
+    expect(db.item.update).not.toHaveBeenCalled();
+
+    db.item.findFirst.mockClear();
+    await store().updateStockIn('item-1', { ...edit, serialNumber: 'SN-1' } as any, 'EMP-ENC');
+    expect(db.item.findFirst).not.toHaveBeenCalled();
+    expect(db.item.update).toHaveBeenCalled();
   });
 
   it('rejects invalid values with a 400', async () => {

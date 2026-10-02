@@ -266,6 +266,25 @@ function assertSlipDate(value: unknown, what = 'The slip date'): void {
   if (date.getTime() > Date.now() + 24 * 60 * 60 * 1000) throw new BadRequestError(what + " can't be in the future.");
 }
 
+/**
+ * A serial number identifies one physical item, so a typed one can't be registered twice.
+ * Blank serial numbers (bulk items) are not checked, and a rejected or disposed item frees its number.
+ */
+async function assertSerialNumberFree(serialNumber: unknown, exceptItemId?: string): Promise<void> {
+  if (isBlank(serialNumber)) return;
+  const other = await prisma.item.findFirst({
+    where: {
+      serialNumber: { equals: String(serialNumber).trim(), mode: 'insensitive' },
+      status: { not: 'DISPOSED' as any },
+      ...(exceptItemId ? { id: { not: exceptItemId } } : {}),
+    },
+    select: { itemCode: true, name: true },
+  });
+  if (other) {
+    throw new ConflictError('Serial number ' + String(serialNumber).trim() + ' is already registered on ' + other.itemCode + ' (' + other.name + '). Check the number, or leave it empty for items without one.');
+  }
+}
+
 /** One line of a Stock-In: description, category, price, quantity and condition */
 function assertStockInLine(line: any): void {
   if (isBlank(line.name)) throw new BadRequestError('Item description is required.');
@@ -592,6 +611,9 @@ export class StoreService {
         }];
     // Check every line before saving any, so a bad line can't leave half a slip registered
     for (const line of rawItems) assertStockInLine({ ...line, name: line.name || payload.name, category: line.category || payload.category });
+    const typedSerials = rawItems.map((line) => String(line.serialNumber ?? '').trim().toLowerCase()).filter(Boolean);
+    if (new Set(typedSerials).size !== typedSerials.length) throw new BadRequestError('Two lines on this slip have the same serial number.');
+    for (const line of rawItems) await assertSerialNumberFree(line.serialNumber);
 
     const createdItems: ItemWithRelations[] = [];
     let primaryApproval: TransactionApproval | undefined;
@@ -600,7 +622,7 @@ export class StoreService {
       const lineItem = rawItems[i];
       const category = (lineItem.category || payload.category || AssetCategory.IT_EQUIPMENT) as AssetCategory;
       const itemCode = lineItem.itemCode?.trim() || await generateItemCode(category, currentYear);
-      const serialNumber = lineItem.serialNumber || (rawItems.length > 1 ? `SN-${Date.now()}-${i + 1}` : `SN-${Date.now()}`);
+      const serialNumber = String(lineItem.serialNumber ?? '').trim() || (rawItems.length > 1 ? `SN-${Date.now()}-${i + 1}` : `SN-${Date.now()}`);
       const unitCost = Number(lineItem.unitCostETB) || 0;
       const quantity = Number(lineItem.quantity) || 1;
       const totalAmount = Number(lineItem.totalAmount) || (unitCost * quantity);
@@ -721,6 +743,7 @@ export class StoreService {
     if (!payload.storeLocationId) throw new BadRequestError('Receiving store is required.');
     if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price cannot be negative.');
     if (!Number.isInteger(quantity) || quantity < 1) throw new BadRequestError('Quantity must be at least 1.');
+    if (payload.serialNumber?.trim() && payload.serialNumber.trim() !== item.serialNumber) await assertSerialNumberFree(payload.serialNumber, itemId);
     if (payload.storeLocationId !== item.storeLocationId) {
       const receivingStore = await prisma.location.findUnique({ where: { id: payload.storeLocationId }, include: { store: true } });
       if (!receivingStore) throw new BadRequestError('The selected receiving store no longer exists.');
