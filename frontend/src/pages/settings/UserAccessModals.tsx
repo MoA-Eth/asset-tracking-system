@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { CheckCircle2, Copy, RefreshCw, Wand2 } from 'lucide-react';
 import { api } from '../../api/client';
 import { Modal } from '../../components/ui/Modal';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { Field, FormError, FormNotice, inputClass } from '../../components/ui/FormKit';
 import { PASSWORD_RULE, isAcceptablePassword } from '../../components/auth/ChangePasswordForm';
 import { useToast } from '../../context/ToastContext';
@@ -95,28 +96,41 @@ const Footer: React.FC<{ submitting: boolean; label: string; disabled?: boolean;
 /** Give an employee sign-in: pick them from the staff list, choose a role, set a temporary password */
 export const AddUserModal: React.FC<{
   isOpen: boolean;
-  /** Active employees; those who already sign in are left out of the list */
+  /** The registered employees; all active ones are listed, and those who already sign in can't be picked */
   employees: Employee[];
   onClose: () => void;
   onSaved: (updated: Employee) => void;
 }> = ({ isOpen, employees, onClose, onSaved }) => {
   const toast = useToast();
-  const [search, setSearch] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [role, setRole] = useState<UserRole | ''>('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const candidates = useMemo(() => employees.filter((e) => e.isActive && !e.role), [employees]);
-  const matches = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const list = q ? candidates.filter((e) => [e.fullNameEn, e.fullNameAm, e.payrollId].some((v) => (v || '').toLowerCase().includes(q))) : candidates;
-    return list.slice(0, 50);
-  }, [candidates, search]);
+  // Every active registered employee (Settings → Employees) is listed, so the list matches the Employees page.
+  // Those who don't sign in yet can be picked; those who already do are shown, but can't be added twice.
+  const { candidates, existing } = useMemo(() => {
+    const active = employees.filter((e) => e.isActive).sort((a, b) => a.fullNameEn.localeCompare(b.fullNameEn));
+    return { candidates: active.filter((e) => !e.role), existing: active.filter((e) => !!e.role) };
+  }, [employees]);
+  const total = candidates.length + existing.length;
+  // Searching matches the name (English or Amharic) and the employee ID
+  const employeeGroups = useMemo(
+    () => [
+      {
+        label: 'Can be added',
+        options: candidates.map((e) => ({ value: e.id, label: `${e.fullNameEn} (${e.payrollId})`, note: e.fullNameAm || undefined })),
+      },
+      {
+        label: 'Already users',
+        options: existing.map((e) => ({ value: e.id, label: `${e.fullNameEn} (${e.payrollId})`, note: ROLE_LABELS[e.role as UserRole], disabled: true })),
+      },
+    ],
+    [candidates, existing],
+  );
 
   const close = () => {
-    setSearch('');
     setEmployeeId('');
     setRole('');
     setPassword('');
@@ -144,30 +158,24 @@ export const AddUserModal: React.FC<{
   return (
     <Modal isOpen={isOpen} onClose={close} title="Add user" subtitle="Let an employee sign in. Employees are added under Settings → Employees." size="md">
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Employee" required htmlFor="add-user-search" hint={`${candidates.length} employees without sign-in. Type a name or employee ID to narrow the list.`}>
-          <input
-            id="add-user-search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or employee ID…"
-            className={inputClass('emerald')}
-            autoFocus
-          />
-          <select
+        <Field
+          label="Employee"
+          required
+          htmlFor="add-user-employee"
+          hint={
+            candidates.length === 0
+              ? `All ${total} registered employees already sign in. Add staff under Settings → Employees first.`
+              : `${total} registered employees: ${candidates.length} can be added, ${existing.length} already sign in.`
+          }
+        >
+          <SearchableSelect
             id="add-user-employee"
-            aria-label="Employee"
-            required
-            size={Math.min(6, Math.max(2, matches.length))}
             value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-1 text-[13px] text-slate-900 focus:border-emerald-600 focus:outline-none"
-          >
-            {matches.map((e) => (
-              <option key={e.id} value={e.id} className="rounded px-2 py-1">
-                {e.fullNameEn} ({e.payrollId})
-              </option>
-            ))}
-          </select>
+            onChange={setEmployeeId}
+            groups={employeeGroups}
+            placeholder="Select an employee…"
+            searchPlaceholder="Type a name or employee ID…"
+          />
         </Field>
         <Field label="Role" required htmlFor="add-user-role">
           <select id="add-user-role" required value={role} onChange={(e) => setRole(e.target.value as UserRole)} className={inputClass('emerald')}>
