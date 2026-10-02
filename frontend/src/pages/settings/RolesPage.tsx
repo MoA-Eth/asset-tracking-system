@@ -20,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { useToast } from '../../context/ToastContext';
+import { RefreshButton } from '../../components/ui/RefreshButton';
 import { Department, Employee, RoleDirectory, UserRole } from '../../types/asset-management';
 
 interface RolesPageProps {
@@ -242,6 +243,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
             What each role is allowed to do. Switch a permission on or off, then save; every change is recorded in the audit log.
           </p>
         </div>
+        <RefreshButton onClick={load} loading={loading} disabled={saving} label="roles" />
       </header>
 
       {loading ? (

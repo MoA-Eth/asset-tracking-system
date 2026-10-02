@@ -32,6 +32,7 @@ import {
 } from '../types/asset-management';
 import { formatETB, getTodayGcAndEc } from '../utils/eth-date';
 import { useToast } from '../context/ToastContext';
+import { RefreshButton } from '../components/ui/RefreshButton';
 
 export type ReportType = 'all' | 'registered' | 'available' | 'issued' | 'transferred';
 export type TimeframePreset =
@@ -570,6 +571,7 @@ export const ReportsPage: React.FC = () => {
             <Printer className="w-3.5 h-3.5 text-slate-500" />
             <span>Print</span>
           </button>
+          <RefreshButton onClick={loadData} loading={loading} label="report" />
         </div>
       </div>
 

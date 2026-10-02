@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Location, Store } from '../../types/asset-management';
 import { ActivePill, ConfirmDialog, StatusFilter, StatusTabs, matchesStatus } from './reference-ui';
+import { RefreshButton } from '../../components/ui/RefreshButton';
 
 /** What the add / edit window is working on */
 type Editing =
@@ -214,6 +215,7 @@ export const StoresPage: React.FC = () => {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {canManage && <StatusTabs value={statusFilter} onChange={setStatusFilter} active={activeStores.length} inactive={stores.length - activeStores.length} />}
+          <RefreshButton onClick={load} loading={loading} label="stores" />
         </div>
       </div>
 

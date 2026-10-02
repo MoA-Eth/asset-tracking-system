@@ -25,6 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Department, Employee, EmployeeInput, UserRole } from '../../types/asset-management';
 import { EMPLOYEE_FIELDS, EmployeeField } from '../../utils/employee-import';
+import { RefreshButton } from '../../components/ui/RefreshButton';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.SYSTEM_ADMIN]: 'System Administrator',
@@ -377,6 +378,7 @@ export const EmployeesPage: React.FC = () => {
               ))}
             </div>
           )}
+          <RefreshButton onClick={load} loading={loading} label="employees" />
         </div>
       </div>
 

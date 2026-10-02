@@ -60,6 +60,7 @@ import { useSystemSettings } from '../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../utils/slip-upload';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { RefreshButton } from '../components/ui/RefreshButton';
 
 interface StockInPageProps {
   currentRole: UserRole;
@@ -798,6 +799,8 @@ type SortField = 'createdAt' | 'itemCode' | 'name' | 'category' | 'ifmisSlipNumb
 
 interface ItemsTableProps {
   items: ItemWithRelations[];
+  onRefresh: () => void;
+  refreshing: boolean;
   onNavigate: (tab: string) => void;
   onPrintModel19: (item: ItemWithRelations) => void;
   /** Approval stage (1 or 2) of each item with a pending Stock-In request */
@@ -811,6 +814,8 @@ interface ItemsTableProps {
 
 const ItemsTable: React.FC<ItemsTableProps> = ({
   items,
+  onRefresh,
+  refreshing,
   onNavigate,
   onPrintModel19,
   pendingStages,
@@ -915,6 +920,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
             {filtered.length} of {items.length} found
           </span>
         )}
+        <RefreshButton onClick={onRefresh} loading={refreshing} label="items" />
       </div>
 
       {/* Table */}
@@ -1402,6 +1408,8 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
         </div>
         <ItemsTable
           items={items}
+          onRefresh={() => initData(true)}
+          refreshing={refreshing}
           onNavigate={onNavigate}
           onPrintModel19={handlePrintItem}
           pendingStages={pendingStages}

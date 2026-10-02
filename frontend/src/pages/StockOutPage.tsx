@@ -59,6 +59,7 @@ import { departmentLabel } from '../utils/department';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import { getSystemSettings, useSystemSettings } from '../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../utils/slip-upload';
+import { RefreshButton } from '../components/ui/RefreshButton';
 
 interface StockOutPageProps {
   currentRole: UserRole;
@@ -767,6 +768,8 @@ type StockOutSortField = 'itemCode' | 'itemName' | 'ifmisSlipNumber' | 'purposeO
 
 interface StockOutTableProps {
   approvals: TransactionApproval[];
+  onRefresh: () => void;
+  refreshing: boolean;
   onNavigate: (tab: string) => void;
   onOpenVoucher: (approval: TransactionApproval) => void;
   onOpenReturn: (itemCode: string) => void;
@@ -783,6 +786,8 @@ interface StockOutTableProps {
 
 const StockOutTable: React.FC<StockOutTableProps> = ({
   approvals,
+  onRefresh,
+  refreshing,
   onNavigate,
   onOpenVoucher,
   onOpenReturn,
@@ -876,6 +881,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
             {filtered.length} of {approvals.length} found
           </span>
         )}
+        <RefreshButton onClick={onRefresh} loading={refreshing} label="requests" />
       </div>
 
       {/* Table */}
@@ -1328,6 +1334,8 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
         </div>
         <StockOutTable
           approvals={stockOutApprovals}
+          onRefresh={() => fetchData(true)}
+          refreshing={refreshing}
           onNavigate={onNavigate}
           onOpenVoucher={(appr) => setSelectedVoucherApproval(appr)}
           onPrintModel22={handlePrintModel22}

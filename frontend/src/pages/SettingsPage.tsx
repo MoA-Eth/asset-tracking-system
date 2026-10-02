@@ -21,6 +21,7 @@ import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu } from '../components/ui/RowActionsMenu';
 import { ConfirmDialog } from './settings/reference-ui';
 import { AddUserModal, ResetPasswordModal, ROLE_LABELS } from './settings/UserAccessModals';
+import { RefreshButton } from '../components/ui/RefreshButton';
 
 interface SettingsPageProps {
   currentRole: UserRole;
@@ -172,6 +173,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
           <UserPlus className="w-3.5 h-3.5" />
           Add user
         </button>
+        <RefreshButton onClick={fetchData} label="users" />
       </div>
 
       {/* Success Notification */}

@@ -46,6 +46,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { getSlipDisplayName } from '../utils/slip-upload';
+import { RefreshButton } from '../components/ui/RefreshButton';
 
 interface ApprovalsPageProps {
   currentRole?: UserRole;
@@ -508,6 +509,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               <span className="hidden md:inline pr-1">Cards View</span>
             </button>
           </div>
+
+          <RefreshButton onClick={fetchApprovals} loading={loading} label="requests" />
         </div>
       </div>
 
