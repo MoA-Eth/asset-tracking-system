@@ -18,6 +18,7 @@ import { api } from '../../api/client';
 import { btn, table, pill, statusTone } from '../../components/ui/theme';
 import { Modal } from '../../components/ui/Modal';
 import { RowActionsMenu } from '../../components/ui/RowActionsMenu';
+import { Pagination, usePagination } from '../../components/ui/Pagination';
 import { EmployeeImportModal } from './EmployeeImportModal';
 import { Field, FieldGrid, FormError, FormFooter, FormNotice, FormSection, inputClass } from '../../components/ui/FormKit';
 import { useAuth } from '../../context/AuthContext';
@@ -245,6 +246,8 @@ export const EmployeesPage: React.FC = () => {
     [employees],
   );
 
+  const pager = usePagination(rows, { pageSize: 25, resetKey: `${search}|${deptFilter}|${statusFilter}` });
+
   const openAdd = () => {
     setEditing(null);
     setFormOpen(true);
@@ -433,7 +436,7 @@ export const EmployeesPage: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  rows.map((e) => {
+                  pager.pageItems.map((e) => {
                     const dept = deptById.get(e.departmentId);
                     return (
                       <tr key={e.id} className={`${table.row} ${e.isActive ? '' : 'text-slate-400'}`}>
@@ -512,6 +515,7 @@ export const EmployeesPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <Pagination pager={pager} label="employees" />
         </div>
       )}
 

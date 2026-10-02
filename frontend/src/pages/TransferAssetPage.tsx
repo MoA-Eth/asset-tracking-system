@@ -33,6 +33,7 @@ import {
   TransactionApproval,
 } from '../types/asset-management';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
+import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
 import { RecordDetailModal } from '../components/ui/RecordDetailModal';
 import {
@@ -489,6 +490,9 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     }
     return matchesSearch;
   });
+  const ledgerPager = usePagination(filteredItems, { resetKey: `${searchTerm}|${activeSubTab}` });
+  const issuedItems = items.filter((i) => i.status === ItemStatus.ISSUED);
+  const issuedPager = usePagination(issuedItems, { resetKey: activeSubTab });
 
   const selectedItemObj = items.find((i) => i.id === selectedItemId);
   const selectedIsVehicleLike =
@@ -925,9 +929,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white font-medium">
-                {items
-                  .filter((i) => i.status === ItemStatus.ISSUED)
-                  .map((item) => (
+                {issuedPager.pageItems.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50 transition">
                       <td className={`p-3 ${table.code} whitespace-nowrap`}>{item.itemCode}</td>
                       <td className="p-3 text-slate-800">{item.name}</td>
@@ -959,6 +961,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                   ))}
               </tbody>
             </table>
+            <Pagination pager={issuedPager} label="issued assets" />
           </div>
         </div>
       ) : (
@@ -999,7 +1002,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white font-medium">
-                {filteredItems.map((item) => (
+                {ledgerPager.pageItems.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50 transition">
                     <td className={`p-3 ${table.code} whitespace-nowrap`}>{item.itemCode}</td>
                     <td className="p-3 text-slate-800">{item.name}</td>
@@ -1040,6 +1043,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                 ))}
               </tbody>
             </table>
+            <Pagination pager={ledgerPager} label="assets" />
           </div>
         </div>
       )}

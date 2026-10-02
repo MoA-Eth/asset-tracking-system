@@ -29,6 +29,7 @@ import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { Modal, StatCard } from '../components/ui';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
+import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu } from '../components/ui/RowActionsMenu';
 import { RecordDetailModal } from '../components/ui/RecordDetailModal';
 import {
@@ -879,6 +880,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     return 0;
   });
 
+  const pager = usePagination(sorted, { resetKey: `${search}|${sortField}|${sortDirection}` });
+
   return (
     <div className="space-y-3">
       {/* Toolbar */}
@@ -997,7 +1000,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {sorted.map((item) => {
+              {pager.pageItems.map((item) => {
                 const isJustRegistered =
                   highlightItemId &&
                   (item.id === highlightItemId || item.itemCode === highlightItemId);
@@ -1090,6 +1093,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
               })}
             </tbody>
           </table>
+          <Pagination pager={pager} label="items" />
         </div>
       )}
       {viewingItemId && <RecordDetailModal itemId={viewingItemId} onClose={() => setViewingItemId(null)} />}

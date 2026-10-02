@@ -33,6 +33,7 @@ import {
 import { api } from '../api/client';
 import { table, btn } from '../components/ui/theme';
 import { RecordDetailModal } from '../components/ui/RecordDetailModal';
+import { Pagination, usePagination } from '../components/ui/Pagination';
 import {
   ApprovalStatus,
   TransactionApproval,
@@ -200,26 +201,29 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       return true;
     });
   }, [approvals, activeTab, typeFilter, searchTerm, role]);
+  const pager = usePagination(filteredApprovals, { resetKey: `${activeTab}|${typeFilter}|${searchTerm}` });
 
-  // Checkbox Selection logic
+  // Checkbox selection. "Select all" covers the page on screen, so nothing out of sight is approved in bulk.
   const actionablePendingItems = useMemo(() => {
-    return filteredApprovals.filter((a) => {
+    return pager.pageItems.filter((a) => {
       if (a.status !== ApprovalStatus.PENDING) return false;
       if (canEndorse) return (a.currentStage ?? 1) === 1;
       if (canApprove) return a.currentStage === 2;
       return canReview;
     });
-  }, [filteredApprovals, canEndorse, canApprove, canReview]);
+  }, [pager.pageItems, canEndorse, canApprove, canReview]);
 
   const isAllSelected =
     actionablePendingItems.length > 0 &&
     actionablePendingItems.every((item) => selectedIds.includes(item.id));
 
   const handleToggleSelectAll = () => {
+    const pageIds = actionablePendingItems.map((i) => i.id);
     if (isAllSelected) {
-      setSelectedIds([]);
+      // Requests picked on other pages stay selected
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
     } else {
-      setSelectedIds(actionablePendingItems.map((i) => i.id));
+      setSelectedIds((prev) => [...new Set([...prev, ...pageIds])]);
     }
   };
 
@@ -666,7 +670,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredApprovals.map((appr) => {
+                {pager.pageItems.map((appr) => {
                   const isSelected = selectedIds.includes(appr.id);
                   const isPending = appr.status === ApprovalStatus.PENDING;
                   const stage = appr.currentStage ?? 1;
@@ -801,7 +805,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
            COMPACT CARDS GRID (Clean, Light & Simple Alternative)
            ══════════════════════════════════════════════════════════════════════ */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {filteredApprovals.map((appr) => {
+          {pager.pageItems.map((appr) => {
             const isSelected = selectedIds.includes(appr.id);
             const isPending = appr.status === ApprovalStatus.PENDING;
             const stage = appr.currentStage ?? 1;
@@ -961,6 +965,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           </div>
         </div>
       )}
+
+      <Pagination pager={pager} label="requests" className="rounded-2xl border border-slate-200" />
 
       {/* ── 6. Single Item Review & Inspection Modal ── */}
       {viewingApproval && (
