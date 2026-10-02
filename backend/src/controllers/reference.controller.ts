@@ -8,6 +8,7 @@ import {
   listStores, createStore, updateStore, setStoreActive, deleteStore,
   listLocations, createLocation, updateLocation, setLocationActive, deleteLocation,
 } from '../services/reference.service';
+import { grantAccess, removeAccess, resetPassword } from '../services/access.service';
 
 const idParam = (req: Request) => String(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
 
@@ -137,5 +138,23 @@ export class ReferenceController {
     const actorId = req.user?.id;
     const updated = await this.store.updateEmployeeRole(id as string, role, actorId);
     return sendSuccess(res, updated, 'Employee role updated successfully');
+  });
+
+  /** PUT /api/reference/employees/:id/access  { role, password } — give sign-in, or change the role */
+  public grantAccess = asyncHandler(async (req: Request, res: Response) => {
+    const updated = await grantAccess(idParam(req), req.body ?? {}, req.user!.id);
+    return sendSuccess(res, updated, `${updated.fullNameEn} can sign in`);
+  });
+
+  /** DELETE /api/reference/employees/:id/access — take sign-in away */
+  public removeAccess = asyncHandler(async (req: Request, res: Response) => {
+    const updated = await removeAccess(idParam(req), req.user!.id);
+    return sendSuccess(res, updated, `${updated.fullNameEn} can no longer sign in`);
+  });
+
+  /** POST /api/reference/employees/:id/password  { password } — set a temporary password */
+  public resetPassword = asyncHandler(async (req: Request, res: Response) => {
+    const updated = await resetPassword(idParam(req), req.body?.password, req.user!.id);
+    return sendSuccess(res, updated, `Password reset for ${updated.fullNameEn}`);
   });
 }

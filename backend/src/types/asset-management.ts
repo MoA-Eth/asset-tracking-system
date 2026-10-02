@@ -93,6 +93,8 @@ export interface Employee {
   /** System role; null when the employee can't sign in */
   role: UserRole | null;
   isActive: boolean;
+  /** Their password is temporary (only sent to people who manage employees) */
+  mustChangePassword?: boolean;
 }
 
 export interface ItemMovementHistory {
@@ -619,12 +621,13 @@ export interface AuthUser {
   permissions?: string[];
   allowedTabs?: string[];
   landingTab?: string;
+  /** Their password is temporary: nothing else is allowed until they choose their own */
+  mustChangePassword?: boolean;
 }
 
 export interface LoginRequest {
   usernameOrEmail: string;
   password?: string;
-  personaRole?: UserRole;
 }
 
 export interface AuthResponse {

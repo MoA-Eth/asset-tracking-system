@@ -77,6 +77,7 @@ function toRecord(e: any, withContact: boolean): EmployeeRecord {
     record.gender = e.gender ?? null;
     record.email = e.email ?? null;
     record.phone = e.phone ?? null;
+    record.mustChangePassword = e.mustChangePassword === true;
     if (e._count) record.heldItemCount = e._count.custodiedItems;
   }
   return record;
@@ -278,7 +279,7 @@ export async function updateEmployee(id: string, input: EmployeeInput, actorId: 
 
     const updated = await tx.employee.update({
       where: { id },
-      data: { ...data, ...(passwordHash ? { password: passwordHash } : {}), ...(data.role ? {} : { password: null }) },
+      data: { ...data, ...(passwordHash ? { password: passwordHash } : {}), ...(passwordHash ? { mustChangePassword: true } : {}), ...(data.role ? {} : { password: null, mustChangePassword: false }) },
       include: { _count: { select: HELD_ITEMS } },
     });
     const before = auditView(previous);

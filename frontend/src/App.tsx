@@ -16,6 +16,7 @@ import { EmployeesPage } from './pages/settings/EmployeesPage';
 import { StoresPage } from './pages/settings/StoresPage';
 import { TransferAssetPage } from './pages/TransferAssetPage';
 import { LoginPage } from './pages/LoginPage';
+import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { UserRole } from './types/asset-management';
@@ -119,6 +120,11 @@ const AuthenticatedPortal: React.FC = () => {
   // Unauthenticated view: Render institutional login
   if (!isAuthenticated) {
     return <LoginPage />;
+  }
+
+  // A temporary password must be replaced before anything else
+  if (user?.mustChangePassword) {
+    return <ChangePasswordPage />;
   }
 
   return (

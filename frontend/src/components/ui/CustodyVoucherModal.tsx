@@ -4,6 +4,7 @@ import { TransactionApproval, ItemWithRelations } from '../../types/asset-manage
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { ConditionBadge } from './Badge';
 import { useToast } from '../../context/ToastContext';
+import { openSlipInNewTab } from '../../utils/slip-upload';
 
 interface CustodyVoucherModalProps {
   isOpen: boolean;
@@ -65,15 +66,14 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
           </div>
           <div className="flex items-center gap-2">
             {(approval?.ifmisSlipAttachmentUrl || item?.ifmisSlipAttachmentUrl) && (
-              <a
-                href={approval?.ifmisSlipAttachmentUrl || item?.ifmisSlipAttachmentUrl}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() => openSlipInNewTab((approval?.ifmisSlipAttachmentUrl || item?.ifmisSlipAttachmentUrl)!)}
                 className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm"
               >
                 <ExternalLink className="w-4 h-4 text-emerald-400" />
                 View Scanned Slip
-              </a>
+              </button>
             )}
             <button
               onClick={handlePrint}

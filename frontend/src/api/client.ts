@@ -120,8 +120,9 @@ export const api = {
     return request<AuthUser>('/auth/me');
   },
 
-  getPersonas: () => {
-    return request<AuthUser[]>('/auth/personas');
+  /** Replace your own password (also clears a temporary one) */
+  changePassword: (currentPassword: string, newPassword: string) => {
+    return request<null>('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
   },
 
   // Executive Dashboard
@@ -322,6 +323,21 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ active }),
     });
+  },
+
+  /** Give an employee sign-in with a role and a temporary password */
+  grantAccess: (id: string, role: UserRole, password: string) => {
+    return request<Employee>(`/reference/employees/${encodeURIComponent(id)}/access`, { method: 'PUT', body: JSON.stringify({ role, password }) });
+  },
+
+  /** Take sign-in away; the employee stays on the staff list */
+  removeAccess: (id: string) => {
+    return request<Employee>(`/reference/employees/${encodeURIComponent(id)}/access`, { method: 'DELETE' });
+  },
+
+  /** Set a new temporary password */
+  resetEmployeePassword: (id: string, password: string) => {
+    return request<Employee>(`/reference/employees/${encodeURIComponent(id)}/password`, { method: 'POST', body: JSON.stringify({ password }) });
   },
 
   updateEmployeeRole: (id: string, role: UserRole) => {

@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { ChevronDown, LogOut } from 'lucide-react';
+import { ChevronDown, KeyRound, LogOut } from 'lucide-react';
+import { Modal } from '../ui/Modal';
+import { ChangePasswordForm } from '../auth/ChangePasswordForm';
+import { useToast } from '../../context/ToastContext';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
 import { SETTINGS_NAV, getSettingsGroups, getNavSections, NavItem } from './navigation';
@@ -41,6 +44,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   onToggleCollapse,
 }) => {
   const { user, role, logout } = useAuth();
+  const toast = useToast();
+  const [changingPassword, setChangingPassword] = useState(false);
   const isSettingsActive = activeTab.startsWith('settings');
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
 
@@ -239,6 +244,14 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               <span className="block text-[11px] text-emerald-100/55 truncate">{roleTitle}</span>
             </div>
             <button
+              onClick={() => setChangingPassword(true)}
+              className="p-2 rounded-lg text-emerald-100/60 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60"
+              title="Change password"
+              aria-label="Change password"
+            >
+              <KeyRound className="w-4 h-4" />
+            </button>
+            <button
               onClick={logout}
               className="p-2 rounded-lg text-emerald-100/60 hover:text-white hover:bg-rose-500/20 transition cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60"
               title="Sign out"
@@ -266,6 +279,18 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           </div>
         )}
       </div>
+
+      <Modal isOpen={changingPassword} onClose={() => setChangingPassword(false)} title="Change password" subtitle={user?.fullNameEn} size="sm">
+        {changingPassword && (
+          <ChangePasswordForm
+            onCancel={() => setChangingPassword(false)}
+            onDone={() => {
+              setChangingPassword(false);
+              toast.success('Password changed', 'Use the new password next time you sign in.');
+            }}
+          />
+        )}
+      </Modal>
     </aside>
   );
 };

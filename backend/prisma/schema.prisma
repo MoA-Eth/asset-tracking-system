@@ -137,6 +137,8 @@ model Employee {
   /// System role; null means the employee can't sign in (custodians, recipients)
   role        UserRole?
   password    String? // scrypt hash; existing plaintext credentials are upgraded on login
+  /// Set when an administrator gives a temporary password; cleared when the person chooses their own
+  mustChangePassword Boolean @default(false)
   /// Deactivated employees can't sign in or be picked on forms, but stay in history
   isActive    Boolean  @default(true)
 

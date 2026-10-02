@@ -31,7 +31,18 @@ describe('<SlipViewerModal />', () => {
     expect(screen.getByText('Model-19-slip.pdf')).toBeInTheDocument();
     const frame = await screen.findByTitle('IFMIS slip Model-19-slip.pdf');
     expect(frame).toHaveAttribute('src', 'blob:slip-preview');
-    expect(screen.getByRole('link', { name: /open in new tab/i })).toHaveAttribute('href', SLIP_URL);
+    // Slips need the session token, so the new tab opens the file already loaded, not the bare address
+    expect(screen.getByRole('link', { name: /open in new tab/i })).toHaveAttribute('href', 'blob:slip-preview');
+  });
+
+  it('sends the session token when loading a slip', async () => {
+    const fetchMock = mockFetchResponse(200, 'application/pdf');
+    vi.stubGlobal('fetch', fetchMock);
+    localStorage.setItem('moa_token', 'session-token');
+    render(<SlipViewerModal url={SLIP_URL} onClose={vi.fn()} />);
+    await screen.findByTitle('IFMIS slip Model-19-slip.pdf');
+    expect(fetchMock).toHaveBeenCalledWith(SLIP_URL, { headers: { Authorization: 'Bearer session-token' } });
+    localStorage.removeItem('moa_token');
   });
 
   it('shows an image slip as an image', async () => {

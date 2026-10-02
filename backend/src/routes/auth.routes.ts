@@ -10,5 +10,6 @@ router.post('/login', controller.login);
 
 // Protected session check
 router.get('/me', requireAuth, controller.getMe);
+router.post('/change-password', requireAuth, controller.changePassword);
 
 export default router;

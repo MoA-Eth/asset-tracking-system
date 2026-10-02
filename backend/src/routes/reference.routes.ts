@@ -24,5 +24,8 @@ router.post('/employees/import', express.json({ limit: '5mb' }), requirePermissi
 router.put('/employees/:id', requirePermission('employees.manage'), controller.updateEmployee);
 router.patch('/employees/:id/status', requirePermission('employees.manage'), controller.setEmployeeStatus);
 router.put('/employees/:id/role', requirePermission('roles.assign'), controller.updateEmployeeRole);
+router.put('/employees/:id/access', requirePermission('roles.assign'), controller.grantAccess);
+router.delete('/employees/:id/access', requirePermission('roles.assign'), controller.removeAccess);
+router.post('/employees/:id/password', requirePermission('roles.assign'), controller.resetPassword);
 
 export default router;

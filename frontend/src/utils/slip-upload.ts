@@ -14,6 +14,24 @@ export function validateSlipFile(file: File): string | null {
   return null;
 }
 
+/** Loads a stored slip. Slips are only served to signed-in people, so the session token goes with the request. */
+export function fetchSlip(url: string): Promise<Response> {
+  const token = localStorage.getItem('moa_token');
+  return fetch(url, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
+}
+
+/** Opens a stored slip in a new tab (a plain link can't send the session token) */
+export async function openSlipInNewTab(url: string): Promise<boolean> {
+  try {
+    const res = await fetchSlip(url);
+    if (!res.ok) return false;
+    window.open(URL.createObjectURL(await res.blob()), '_blank', 'noopener');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const UUID_PREFIX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i;
 
 /** Human-readable name for a stored slip URL, e.g. "/api/uploads/slips/<uuid>-Model-19.pdf" → "Model-19.pdf". */

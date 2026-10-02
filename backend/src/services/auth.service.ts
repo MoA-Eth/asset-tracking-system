@@ -9,6 +9,7 @@ import {
 import { prisma } from '../lib/prisma';
 import { createSessionToken, readSessionToken, hashPassword, verifyPassword } from '../security/credentials';
 import { getRoleAccess } from '../security/role-policy';
+import { assertSignInAllowed, recordSignInFailure, recordSignInSuccess } from '../security/login-throttle';
 
 export class AuthService {
   private static instance: AuthService;
@@ -22,24 +23,15 @@ export class AuthService {
     return AuthService.instance;
   }
 
-  public async getPersonas(): Promise<AuthUser[]> {
-    const roles = [UserRole.MANAGER, UserRole.DEPARTMENT_HEAD, UserRole.DATA_ENCODER];
-    const employees = await Promise.all(
-      roles.map((role) =>
-        prisma.employee.findFirst({ where: { role: role as any, isActive: true } })
-      )
-    );
-    return employees
-      .filter((e): e is NonNullable<typeof e> => e !== null)
-      .map(this.toAuthUser);
-  }
-
-  public async login(req: LoginRequest): Promise<AuthResponse> {
+  /** `address` is the client's network address, used to limit repeated failed attempts */
+  public async login(req: LoginRequest, address = 'unknown'): Promise<AuthResponse> {
     let matched: any = null;
 
-    if (req.personaRole || typeof req.password !== 'string' || !req.password || req.password.length > 1024) {
+    if ((req as any).personaRole || typeof req.password !== 'string' || !req.password || req.password.length > 1024) {
       throw new UnauthorizedError('Email or payroll ID and password are required.');
     }
+    const username = typeof req.usernameOrEmail === 'string' ? req.usernameOrEmail : '';
+    assertSignInAllowed(username, address);
 
     // Then try email / payrollId
     if (typeof req.usernameOrEmail === 'string' && req.usernameOrEmail.trim()) {
@@ -54,13 +46,12 @@ export class AuthService {
       });
     }
 
-    if (!matched) {
-      throw new UnauthorizedError('Invalid credentials. Please provide a valid MoA email or payroll ID.');
+    // The same message whether the account or the password is wrong, so accounts can't be discovered
+    if (!matched || !matched.password || !await verifyPassword(req.password, matched.password)) {
+      recordSignInFailure(username, address);
+      throw new UnauthorizedError('The email / employee ID or password is not correct.');
     }
-
-    if (!matched.password || !await verifyPassword(req.password, matched.password)) {
-      throw new UnauthorizedError('Invalid credentials.');
-    }
+    recordSignInSuccess(username);
     // Checked after the password, so these messages don't reveal which accounts exist
     if (matched.isActive === false) {
       throw new UnauthorizedError('This account has been deactivated. Contact your System Administrator.');
@@ -120,6 +111,7 @@ export class AuthService {
       phone: emp.phone,
       role: emp.role as UserRole,
       departmentId: emp.departmentId,
+      mustChangePassword: emp.mustChangePassword === true,
       ...getRoleAccess(emp.role),
     };
   }

@@ -48,6 +48,9 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
   const token = authHeader.split(' ')[1];
   const user = await authService.verifyToken(token);
   req.user = user;
+  if (user.mustChangePassword && !req.originalUrl.startsWith('/api/auth/')) {
+    throw new ForbiddenError('Choose a new password before continuing.');
+  }
   next();
 });
 

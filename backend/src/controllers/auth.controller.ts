@@ -4,22 +4,23 @@ import { asyncHandler } from '../middleware/async-handler';
 import { sendSuccess } from '../utils/api-response';
 import { LoginRequest } from '../types/asset-management';
 import { BadRequestError } from '../errors/app-error';
+import { changeOwnPassword } from '../services/access.service';
 
 export class AuthController {
   private authService = AuthService.getInstance();
 
   /**
    * POST /api/auth/login
-   * Authenticate via email, payrollId, or quick persona role selection.
+   * Authenticate with email or employee ID, and password.
    */
   public login = asyncHandler(async (req: Request, res: Response) => {
     const payload: LoginRequest = req.body;
 
-    if (!payload.usernameOrEmail && !payload.personaRole) {
-      throw new BadRequestError('Either username/email or personaRole is required.');
+    if (!payload?.usernameOrEmail) {
+      throw new BadRequestError('Enter your email or employee ID.');
     }
 
-    const authResult = await this.authService.login(payload);
+    const authResult = await this.authService.login(payload, req.ip || 'unknown');
     return sendSuccess(res, authResult, 'Authenticated successfully');
   });
 
@@ -32,11 +33,11 @@ export class AuthController {
   });
 
   /**
-   * GET /api/auth/personas
-   * Return predefined Ministry role personas for 1-click test login.
+   * POST /api/auth/change-password  { currentPassword, newPassword }
+   * A signed-in person replaces their own password (required after a temporary one).
    */
-  public getPersonas = asyncHandler(async (_req: Request, res: Response) => {
-    const personas = await this.authService.getPersonas();
-    return sendSuccess(res, personas, 'Personas retrieved');
+  public changePassword = asyncHandler(async (req: Request, res: Response) => {
+    await changeOwnPassword(req.user!.id, req.body?.currentPassword, req.body?.newPassword);
+    return sendSuccess(res, null, 'Password changed');
   });
 }

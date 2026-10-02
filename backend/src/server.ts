@@ -11,20 +11,39 @@ import { SLIP_PUBLIC_PATH, SLIP_UPLOAD_DIR } from './lib/uploads';
 import { errorHandler } from './middleware/error-handler';
 import { sendError } from './utils/api-response';
 import { prisma } from './lib/prisma';
+import { requireAuth, requirePermission } from './middleware/auth.middleware';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Security & Parsing Middleware
-app.use(
-  cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+// Behind a reverse proxy (HTTPS in front of the app) the client's address comes from the proxy's header
+if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
+app.disable('x-powered-by');
+
+// Security headers
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Slips are previewed in a frame on our own pages only
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  if (process.env.NODE_ENV === 'production') res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+  next();
+});
+
+// The app is served from this same server, so other websites are not allowed to call the API.
+// To allow specific ones (e.g. a separate frontend address), list them in CORS_ORIGIN, comma-separated.
+const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map((o) => o.trim()).filter(Boolean);
+if (allowedOrigins.length > 0) {
+  app.use(
+    cors({
+      origin: allowedOrigins,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    })
+  );
+}
 // The staff import parses its own larger body (see reference.routes.ts)
 const jsonBody = express.json();
 app.use((req, res, next) => (req.path === '/api/reference/employees/import' ? next() : jsonBody(req, res, next)));
@@ -73,9 +92,11 @@ app.use(
   })
 );
 
-// Uploaded IFMIS slips (file names are random UUIDs; nosniff stops browsers re-typing content)
+// Uploaded IFMIS slips: only for signed-in people who can see the inventory
 app.use(
   SLIP_PUBLIC_PATH,
+  requireAuth,
+  requirePermission('inventory.read'),
   express.static(SLIP_UPLOAD_DIR, {
     index: false,
     setHeaders: (res) => {
