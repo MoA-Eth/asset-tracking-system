@@ -5,6 +5,8 @@ import { AssetCategory } from '../types/asset-management';
 const db = vi.hoisted(() => {
   const client: any = {
     employee: { findUnique: vi.fn() },
+    // Any store location that is looked up exists and is active
+    location: { findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, name: 'Store-01', isActive: true, store: { name: 'Kality', isActive: true } })) },
     item: { findUnique: vi.fn(), update: vi.fn() },
     transactionApproval: { findFirst: vi.fn(), update: vi.fn() },
     auditLog: { create: vi.fn() },

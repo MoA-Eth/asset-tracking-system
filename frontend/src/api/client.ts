@@ -9,6 +9,9 @@ import {
   Department,
   Employee,
   EmployeeInput,
+  LocationInput,
+  Store,
+  StoreInput,
   EmployeeImportResult,
   Location,
   CreateStockInRequest,
@@ -242,12 +245,51 @@ export const api = {
   },
 
   // Reference Data
+  /** Departments come from employee data (HR's import, or a new name on the employee form) */
   getDepartments: () => {
     return request<Department[]>('/reference/departments');
   },
 
+  /** Stores with their locations; with includeInactive, administrators also get deactivated ones */
+  getStores: (opts: { includeInactive?: boolean } = {}) => {
+    return request<Store[]>(`/reference/stores${opts.includeInactive ? '?includeInactive=true' : ''}`);
+  },
+
+  createStore: (input: StoreInput) => {
+    return request<Store>('/reference/stores', { method: 'POST', body: JSON.stringify(input) });
+  },
+
+  updateStore: (id: string, input: StoreInput) => {
+    return request<Store>(`/reference/stores/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) });
+  },
+
+  setStoreActive: (id: string, active: boolean) => {
+    return request<Store>(`/reference/stores/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ active }) });
+  },
+
+  deleteStore: (id: string) => {
+    return request<null>(`/reference/stores/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
+
+  /** Every active location in an active store, as a flat list for the forms */
   getLocations: () => {
     return request<Location[]>('/reference/locations');
+  },
+
+  createLocation: (storeId: string, input: LocationInput) => {
+    return request<Location>(`/reference/stores/${encodeURIComponent(storeId)}/locations`, { method: 'POST', body: JSON.stringify(input) });
+  },
+
+  updateLocation: (id: string, input: LocationInput) => {
+    return request<Location>(`/reference/locations/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) });
+  },
+
+  setLocationActive: (id: string, active: boolean) => {
+    return request<Location>(`/reference/locations/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ active }) });
+  },
+
+  deleteLocation: (id: string) => {
+    return request<null>(`/reference/locations/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 
   /** Active staff; with includeInactive, administrators also get deactivated staff */

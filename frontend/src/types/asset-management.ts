@@ -53,12 +53,43 @@ export interface Department {
   headEmployeeId?: string;
 }
 
+/** A store receives and issues stock; it contains one or more locations */
+export interface Store {
+  id: string;
+  name: string;
+  /** Building or address */
+  address: string;
+  isActive: boolean;
+  locations: Location[];
+  /** Item records in store across its locations (only for people who manage reference data) */
+  itemCount?: number;
+}
+
+/** A room, section or shelf inside a store */
 export interface Location {
   id: string;
+  storeId: string;
+  name: string;
+  storeName: string;
+  isActive: boolean;
+  /** Kept for screens and slips that show "store · location": the store's name, its address, and the location's name */
   siteName: string;
   building: string;
   roomNumber: string;
   isCentralStore?: boolean;
+  /** Item records currently in store here (only for people who manage reference data) */
+  itemCount?: number;
+}
+
+export interface StoreInput {
+  name: string;
+  address?: string;
+  /** Name of the first location, when adding a store */
+  locationName?: string;
+}
+
+export interface LocationInput {
+  name: string;
 }
 
 export interface Employee {
@@ -106,7 +137,8 @@ export interface EmployeeInput {
   payrollId: string;
   fullNameEn: string;
   fullNameAm: string;
-  departmentId: string;
+  /** An existing department's name, or a new name: departments are created from employee data */
+  departmentName: string;
   unit?: string;
   gender?: 'MALE' | 'FEMALE' | '';
   jobTitle?: string;

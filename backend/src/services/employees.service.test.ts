@@ -287,3 +287,28 @@ describe("HR's sheet", () => {
     expect(forAdmin).toMatchObject({ unit: 'Transport', gender: 'MALE' });
   });
 });
+
+describe('Department on the employee form', () => {
+  beforeEach(() => {
+    db.department.findMany.mockResolvedValue([{ id: 'DEP-01', code: 'U001', nameEn: 'የፋይናንስ ሥራ አስፈጻሚ', nameAm: 'የፋይናንስ ሥራ አስፈጻሚ' }]);
+    (db.department as any).create = vi.fn(({ data }: any) => Promise.resolve(data));
+  });
+
+  it('uses an existing department when its name is typed, whatever the spacing or case', async () => {
+    await createEmployee({ payrollId: 'MOA/300', fullNameEn: 'Hana', departmentName: ' የፋይናንስ   ሥራ አስፈጻሚ ' }, 'admin');
+    expect((db.department as any).create).not.toHaveBeenCalled();
+    expect(db.employee.create.mock.calls[0][0].data.departmentId).toBe('DEP-01');
+  });
+
+  it('creates the department when the name is new, and says so in the audit log', async () => {
+    await createEmployee({ payrollId: 'MOA/301', fullNameEn: 'Sara', departmentName: 'የግዥ ሥራ አስፈጻሚ' }, 'admin');
+    const dept = (db.department as any).create.mock.calls[0][0].data;
+    expect(dept).toMatchObject({ code: 'U002', nameEn: 'የግዥ ሥራ አስፈጻሚ', nameAm: 'የግዥ ሥራ አስፈጻሚ' });
+    expect(db.employee.create.mock.calls[0][0].data.departmentId).toBe(dept.id);
+    expect(db.auditLog.create.mock.calls[0][0].data.details).toContain('New department: የግዥ ሥራ አስፈጻሚ.');
+  });
+
+  it('needs a department either way', async () => {
+    await expect(createEmployee({ payrollId: 'MOA/302', fullNameEn: 'No Dept' }, 'admin')).rejects.toThrow('Department is required.');
+  });
+});

@@ -61,6 +61,7 @@ enum ApprovalStatus {
 
 enum AuditEntityType {
   USER
+  REFERENCE
   ITEM
   STOCK_IN
   STOCK_OUT
@@ -89,16 +90,34 @@ model Department {
   @@map("departments")
 }
 
-model Location {
-  id             String  @id
-  siteName       String
-  building       String
-  roomNumber     String
-  isCentralStore Boolean @default(false)
+/// A store receives and issues stock. It contains one or more locations.
+model Store {
+  id       String  @id
+  name     String  @unique
+  /// Building or address, shown under the name
+  address  String  @default("")
+  /// Deactivated stores can't be picked on forms, but stay on past records
+  isActive Boolean @default(true)
 
   // Relations
+  locations Location[]
+
+  @@map("stores")
+}
+
+/// A room, section or shelf inside a store, where items are kept.
+model Location {
+  id       String  @id
+  storeId  String
+  name     String
+  /// Deactivated locations can't be picked on forms, but stay on past records
+  isActive Boolean @default(true)
+
+  // Relations
+  store Store  @relation(fields: [storeId], references: [id])
   items Item[] @relation("StoreLocation")
 
+  @@unique([storeId, name])
   @@map("locations")
 }
 

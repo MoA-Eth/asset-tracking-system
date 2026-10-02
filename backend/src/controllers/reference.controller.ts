@@ -3,6 +3,11 @@ import { StoreService } from '../services/store.service';
 import { asyncHandler } from '../middleware/async-handler';
 import { sendSuccess } from '../utils/api-response';
 import { listEmployees, createEmployee, updateEmployee, setEmployeeActive, importEmployees } from '../services/employees.service';
+import {
+  listDepartments,
+  listStores, createStore, updateStore, setStoreActive, deleteStore,
+  listLocations, createLocation, updateLocation, setLocationActive, deleteLocation,
+} from '../services/reference.service';
 
 const idParam = (req: Request) => String(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
 
@@ -14,17 +19,74 @@ export class ReferenceController {
    * Retrieves active Ministry directorates and technical divisions.
    */
   public getDepartments = asyncHandler(async (_req: Request, res: Response) => {
-    const departments = await this.store.getDepartments();
+    const departments = await listDepartments();
     return sendSuccess(res, departments, 'Departments list retrieved');
   });
 
   /**
+   * GET /api/reference/stores?includeInactive=true
+   * Stores with their locations, for Settings and for the store / location pickers.
+   */
+  public getStores = asyncHandler(async (req: Request, res: Response) => {
+    const stores = await listStores(req.user?.role, { includeInactive: req.query.includeInactive === 'true' });
+    return sendSuccess(res, stores, 'Stores list retrieved');
+  });
+
+  /** POST /api/reference/stores  { name, address, locationName } */
+  public createStore = asyncHandler(async (req: Request, res: Response) => {
+    const created = await createStore(req.body ?? {}, req.user!.id);
+    return sendSuccess(res, created, `${created.name} added`, 201);
+  });
+
+  /** PUT /api/reference/stores/:id */
+  public updateStore = asyncHandler(async (req: Request, res: Response) => {
+    const updated = await updateStore(idParam(req), req.body ?? {}, req.user!.id);
+    return sendSuccess(res, updated, `${updated.name} updated`);
+  });
+
+  /** PATCH /api/reference/stores/:id/status  { active: boolean } */
+  public setStoreStatus = asyncHandler(async (req: Request, res: Response) => {
+    const updated = await setStoreActive(idParam(req), req.body?.active, req.user!.id);
+    return sendSuccess(res, updated, `${updated.name} ${updated.isActive ? 'reactivated' : 'deactivated'}`);
+  });
+
+  /** DELETE /api/reference/stores/:id — only when nothing has used the store */
+  public deleteStore = asyncHandler(async (req: Request, res: Response) => {
+    await deleteStore(idParam(req), req.user!.id);
+    return sendSuccess(res, null, 'Store deleted');
+  });
+
+  /**
    * GET /api/reference/locations
-   * Retrieves registered central stores, depots, and regional research centers.
+   * Every active location in an active store, as a flat list for the forms.
    */
   public getLocations = asyncHandler(async (_req: Request, res: Response) => {
-    const locations = await this.store.getLocations();
+    const locations = await listLocations();
     return sendSuccess(res, locations, 'Locations list retrieved');
+  });
+
+  /** POST /api/reference/stores/:id/locations  { name } */
+  public createLocation = asyncHandler(async (req: Request, res: Response) => {
+    const created = await createLocation(idParam(req), req.body ?? {}, req.user!.id);
+    return sendSuccess(res, created, `${created.name} added to ${created.storeName}`, 201);
+  });
+
+  /** PUT /api/reference/locations/:id  { name } */
+  public updateLocation = asyncHandler(async (req: Request, res: Response) => {
+    const updated = await updateLocation(idParam(req), req.body ?? {}, req.user!.id);
+    return sendSuccess(res, updated, `${updated.name} updated`);
+  });
+
+  /** PATCH /api/reference/locations/:id/status  { active: boolean } */
+  public setLocationStatus = asyncHandler(async (req: Request, res: Response) => {
+    const updated = await setLocationActive(idParam(req), req.body?.active, req.user!.id);
+    return sendSuccess(res, updated, `${updated.name} ${updated.isActive ? 'reactivated' : 'deactivated'}`);
+  });
+
+  /** DELETE /api/reference/locations/:id — only when nothing has used it */
+  public deleteLocation = asyncHandler(async (req: Request, res: Response) => {
+    await deleteLocation(idParam(req), req.user!.id);
+    return sendSuccess(res, null, 'Location deleted');
   });
 
   /**

@@ -201,10 +201,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         return { title: 'Roles', am: 'ሚናዎች', icon: Shield, iconColor: 'text-emerald-700' };
       case 'settings-employees':
         return { title: 'Employees', am: 'ሰራተኞች', icon: UserCheck, iconColor: 'text-emerald-700' };
-      case 'settings-departments':
-        return { title: 'Departments', am: 'ዳይሬክቶሬቶች', icon: Building2, iconColor: 'text-emerald-700' };
-      case 'settings-locations':
-        return { title: 'Locations', am: 'አድራሻዎች', icon: MapPin, iconColor: 'text-emerald-700' };
       case 'settings-stores':
         return { title: 'Stores', am: 'መጋዘኖች', icon: Warehouse, iconColor: 'text-emerald-700' };
       case 'settings-system':
@@ -262,7 +258,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       {/* Right: Clean, Uncluttered Controls */}
       <div className="flex items-center gap-2.5 text-xs shrink-0">
 
-        {/* Store Center Scope Selector */}
+        {/* Store scope selector: hidden until pages filter by the selected store. Its options come from Settings → Stores. */}
         {/* <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200">
           <Building2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
           <select
@@ -271,19 +267,11 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer pr-1"
           >
             <option value="ALL">All Stores</option>
-            {locations.length > 0 ? (
-              locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.siteName}
-                </option>
-              ))
-            ) : (
-              <>
-                <option value="LOC-01">Kality</option>
-                <option value="LOC-02">Saris</option>
-                <option value="LOC-03">Head office</option>
-              </>
-            )}
+            {[...new Map(locations.map((loc) => [loc.storeId, loc.storeName])).entries()].map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
           </select>
         </div> */}
 

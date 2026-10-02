@@ -283,7 +283,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       } else if (action === 'APPROVE') {
         const resultDesc =
           target?.transactionType === 'STOCK_IN'
-            ? 'Asset is now AVAILABLE in Central Store.'
+            ? 'The item is now available in store.'
             : target?.transactionType === 'STOCK_OUT'
             ? 'Asset is now ISSUED to staff custodian.'
             : target?.transactionType === 'TRANSFER'
