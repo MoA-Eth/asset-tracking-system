@@ -1105,6 +1105,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       : 'e.g. Authorized for release under official store custody directive.'
                   }
                   value={reviewRemarks}
+                  maxLength={500}
                   onChange={(e) => setReviewRemarks(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-700 text-xs"
                 />
@@ -1201,6 +1202,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   type="text"
                   placeholder="e.g. Batch verified under procurement directive."
                   value={batchRemarks}
+                  maxLength={500}
                   onChange={(e) => setBatchRemarks(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-700 text-xs"
                 />

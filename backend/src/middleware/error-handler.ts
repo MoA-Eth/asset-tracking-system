@@ -16,6 +16,16 @@ export const errorHandler = (
     return;
   }
 
+  // The request itself could not be read (broken JSON, body too large): the sender's mistake, not a server fault
+  if (err?.type === 'entity.parse.failed') {
+    sendError(res, 'The request could not be read. Check the data and try again.', 400);
+    return;
+  }
+  if (err?.type === 'entity.too.large') {
+    sendError(res, 'The request is too large.', 413);
+    return;
+  }
+
   const isProduction = process.env.NODE_ENV === 'production';
 
   // Database down or unreachable: tell the user plainly instead of showing the Prisma message

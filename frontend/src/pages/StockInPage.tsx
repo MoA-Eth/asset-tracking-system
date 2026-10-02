@@ -1232,7 +1232,8 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
       quantity: it.balance?.total || Number(it.quantity) || 1,
       unitPrice: Number(it.unitCostETB) || 0,
       totalAmount: (Number(it.unitCostETB) || 0) * (it.balance?.total || Number(it.quantity) || 1),
-      remark: it.remark || it.notes || '',
+      // Notes hold the saved form data for newer items: only plain-text notes belong on the slip
+      remark: it.remark || (it.notes && !it.notes.trim().startsWith('{') ? it.notes : ''),
     }));
 
     const grandTotal = voucherItems.reduce((acc, curr) => acc + curr.totalAmount, 0);

@@ -232,7 +232,8 @@ export class ItemController {
       throw new BadRequestError('Approval ID, Action, and Reviewing Officer are required.');
     }
     const result = await this.store.handleApproval(payload);
-    return sendSuccess(res, result, `Approval request ${payload.action.toLowerCase()}d successfully`);
+    const done = { ENDORSE: 'endorsed', APPROVE: 'approved', REJECT: 'rejected' }[payload.action];
+    return sendSuccess(res, result, `Request ${done}`);
   });
 
   /**

@@ -36,6 +36,12 @@ describe('errorHandler', () => {
     expect(body.message).not.toMatch(/prisma/i);
   });
 
+  it('answers a request body that cannot be read with 400, not a server error', () => {
+    const broken = Object.assign(new SyntaxError("Expected ',' or '}' after property value in JSON"), { type: 'entity.parse.failed', status: 400 });
+    expect(run(broken)).toMatchObject({ status: 400, body: { message: 'The request could not be read. Check the data and try again.' } });
+    expect(run(Object.assign(new Error('request entity too large'), { type: 'entity.too.large', status: 413 })).status).toBe(413);
+  });
+
   it('keeps the message of app errors and plain business-rule errors', () => {
     expect(run(new ConflictError('Already endorsed.'))).toMatchObject({ status: 409, body: { message: 'Already endorsed.' } });
     expect(run(new Error('Item must be AVAILABLE to register Stock-Out.')).body.message).toBe('Item must be AVAILABLE to register Stock-Out.');

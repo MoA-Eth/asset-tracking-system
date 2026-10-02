@@ -90,6 +90,24 @@ describe('Asset Transfer approval workflow', () => {
       expect(data).not.toHaveProperty('storeLocationId');
     });
 
+    it('refuses a transfer to the person who already holds the item', async () => {
+      await expect(store().transferItem({ ...transferPayload, toEmployeeId: 'EMP-A', toLocationId: undefined } as any)).rejects.toMatchObject({
+        statusCode: 400,
+        message: 'This person already holds the item. Choose a different custodian.',
+      });
+      expect(db.item.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses a transfer that names no new custodian and no new location', async () => {
+      await expect(store().transferItem({ ...transferPayload, toEmployeeId: '', toLocationId: '' } as any)).rejects.toMatchObject({ statusCode: 400 });
+      await expect(store().transferItem({ ...transferPayload, toEmployeeId: '', toLocationId: 'LOC-01' } as any)).rejects.toMatchObject({ statusCode: 400 });
+      expect(db.item.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses a transfer without a reason', async () => {
+      await expect(store().transferItem({ ...transferPayload, reason: '   ' } as any)).rejects.toMatchObject({ statusCode: 400, message: 'Reason for transfer is required.' });
+    });
+
     it('rejects a transfer while another request is pending for the item', async () => {
       db.transactionApproval.findFirst.mockResolvedValue({ transactionType: 'RETURN', ifmisSlipNumber: 'M21-9' });
 
@@ -177,6 +195,45 @@ describe('Asset Transfer approval workflow', () => {
       await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-TL', reviewRemarks: 'Slip number is missing' } as any);
 
       expect(JSON.stringify(db.item.update.mock.calls[0][0])).toContain('Rejected at Stage 1 (Team Leader) by Employee EMP-TL: Slip number is missing');
+    });
+
+    it.each([123, { text: 'x' }, ['x'], true])('refuses remarks that are not text (%j)', async (reviewRemarks) => {
+      await expect(store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks } as any)).rejects.toMatchObject({
+        statusCode: 400,
+        message: 'Remarks must be text.',
+      });
+      expect(db.transactionApproval.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses remarks longer than 500 characters', async () => {
+      await expect(
+        store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'x'.repeat(501) } as any),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    });
+
+    it.each(['APPROVED', 'REJECTED'])('refuses to decide a request that is already %s (409)', async (status) => {
+      db.transactionApproval.findUnique.mockResolvedValue({ ...pendingTransfer, status });
+      await expect(store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Late' } as any)).rejects.toMatchObject({ statusCode: 409 });
+      expect(db.item.update).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 when the request does not exist', async () => {
+      db.transactionApproval.findUnique.mockResolvedValue(null);
+      await expect(store().handleApproval({ approvalId: 'gone', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'x' } as any)).rejects.toMatchObject({ statusCode: 404 });
+    });
+
+    it('only decides a request that is still pending at the stage the reviewer saw', async () => {
+      await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Wrong recipient' } as any);
+      expect(db.transactionApproval.update.mock.calls[0][0].where).toEqual({ id: 'appr-1', status: 'PENDING', currentStage: 2 });
+    });
+
+    it('refuses the second of two decisions made at the same moment, and leaves the item alone', async () => {
+      db.transactionApproval.update.mockRejectedValue(Object.assign(new Error('Record to update not found.'), { code: 'P2025' }));
+      await expect(store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Wrong recipient' } as any)).rejects.toMatchObject({
+        statusCode: 409,
+        message: 'Someone else has just acted on this request. Refresh the list.',
+      });
+      expect(db.item.update).not.toHaveBeenCalled();
     });
 
     it('restores AVAILABLE when a store item without a custodian is rejected', async () => {
