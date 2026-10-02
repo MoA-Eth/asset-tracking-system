@@ -24,6 +24,8 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { ColumnChart, Donut } from '../components/ui/charts';
+import { withRoleNames } from '../utils/roles';
 import { formatETB } from '../utils/eth-date';
 import { UserRole } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
@@ -464,7 +466,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
   const categoryRows: any[] = (data?.categoryBreakdown || [])
     .filter((c: any) => c.count > 0)
     .sort((a: any, b: any) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category));
-  const catTotal = categoryRows.reduce((s: number, c: any) => s + c.count, 0) || 1;
 
   const condRows: any[] = data?.conditionDistribution || [];
   const condTotal = condRows.reduce((s: number, c: any) => s + c.count, 0) || 1;
@@ -696,36 +697,16 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           {categoryRows.length === 0 ? (
             <EmptyState icon={Package}>No items registered yet.</EmptyState>
           ) : (
-            <div className="space-y-4">
-              <SegmentBar
-                height="h-3"
-                segments={categoryRows.map((c: any) => ({
-                  key: c.category,
-                  label: CATEGORY_STYLE[c.category]?.en || c.category,
-                  count: c.count,
-                  color: CATEGORY_STYLE[c.category]?.color || '#cbd5e1',
-                }))}
-              />
-              <ul className="space-y-2">
-                {categoryRows.map((cat: any) => {
-                  const style = CATEGORY_STYLE[cat.category] || { en: cat.category, am: '', color: '#cbd5e1' };
-                  const pct = Math.round((cat.count / catTotal) * 100);
-                  return (
-                    <li key={cat.category} className="flex items-center justify-between gap-2 text-xs">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <Dot color={style.color} />
-                        <span className="truncate text-slate-700">{style.en}</span>
-                        <span className="hidden text-[10px] text-slate-400 sm:inline">{style.am}</span>
-                      </span>
-                      <span className="shrink-0 text-right">
-                        <span className="font-semibold text-slate-900">{cat.count}</span>
-                        <span className="text-slate-400"> · {pct}%</span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+            <Donut
+              label="Units by category"
+              empty="No items registered yet."
+              segments={categoryRows.map((c: any) => ({
+                key: c.category,
+                label: CATEGORY_STYLE[c.category]?.en || c.category,
+                color: CATEGORY_STYLE[c.category]?.color || '#cbd5e1',
+                value: c.count,
+              }))}
+            />
           )}
         </Panel>
       </div>
@@ -741,30 +722,21 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
               </p>
             </div>
           )}
-          <div className="space-y-3.5">
-            {condRows.map((cond: any) => {
-              const cfg = CONDITION_STYLE[cond.condition];
-              if (!cfg) return null;
-              const pct = Math.round((cond.count / condTotal) * 100);
-              return (
-                <div key={cond.condition} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-2 text-slate-700">
-                      <Dot color={cfg.color} />
-                      {cfg.label}
-                    </span>
-                    <span>
-                      <span className="font-semibold text-slate-900">{cond.count}</span>
-                      <span className="text-slate-400"> · {pct}%</span>
-                    </span>
-                  </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: cfg.color }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <ColumnChart
+            label="Units by condition"
+            empty="No items registered yet."
+            format={(value) => value.toLocaleString()}
+            axisFormat={(value) => value.toLocaleString()}
+            rows={condRows
+              .filter((cond: any) => CONDITION_STYLE[cond.condition])
+              .map((cond: any) => ({
+                key: cond.condition,
+                label: CONDITION_STYLE[cond.condition].label,
+                color: CONDITION_STYLE[cond.condition].color,
+                value: cond.count,
+                detail: Math.round((cond.count / condTotal) * 100) + '% of units',
+              }))}
+          />
         </Panel>
 
         <Panel
@@ -909,7 +881,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
                           <span className="shrink-0 font-mono text-[10px] text-slate-400">#{log.ifmisSlipNumber}</span>
                         )}
                       </div>
-                      <p className="truncate text-[11px] text-slate-500">{log.details}</p>
+                      <p className="truncate text-[11px] text-slate-500">{withRoleNames(log.details)}</p>
                       <p className="text-[10px] text-slate-400">{log.userName} · {log.timestampEc || log.timestampGc}</p>
                     </div>
                   </li>
