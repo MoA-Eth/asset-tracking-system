@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Camera, Barcode, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { api } from '../../api/client';
+import { storeLocationLabel } from '../../utils/location';
 import { ItemWithRelations } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
 import { useToast } from '../../context/ToastContext';
@@ -263,13 +264,13 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
                 <div>
                   <span className="text-slate-500">Custodian:</span>
                   <span className="text-slate-900 ml-1 truncate">
-                    {scannedItem.currentCustodian?.fullNameEn || scannedItem.storeLocation?.siteName || 'Head office'}
+                    {scannedItem.currentCustodian?.fullNameEn || storeLocationLabel(scannedItem.storeLocation)}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-500">Department:</span>
                   <span className="text-slate-900 ml-1 truncate">
-                    {scannedItem.assignedDepartment?.code || 'Store Pool'}
+                    {scannedItem.assignedDepartment?.nameEn || '—'}
                   </span>
                 </div>
               </div>

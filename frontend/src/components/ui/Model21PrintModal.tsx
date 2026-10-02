@@ -192,8 +192,8 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
                         {Number(item.bookValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                       <td className="p-1.5 border-r border-slate-900 text-center font-mono whitespace-nowrap">{item.dateGc}</td>
-                      <td className="p-1.5 border-r border-slate-900">{item.fromLocation || 'Central Store'}</td>
-                      <td className="p-1.5 border-r border-slate-900">{item.toLocation || 'Regional Directorate'}</td>
+                      <td className="p-1.5 border-r border-slate-900">{item.fromLocation || '—'}</td>
+                      <td className="p-1.5 border-r border-slate-900">{item.toLocation || '—'}</td>
                       <td className="p-1.5 text-center text-slate-600 italic">{item.remark || '—'}</td>
                     </tr>
                   ))}

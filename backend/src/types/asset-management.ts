@@ -53,13 +53,28 @@ export interface Department {
   headEmployeeId?: string;
 }
 
+/** A store receives and issues stock; it contains one or more locations */
+export interface Store {
+  id: string;
+  name: string;
+  /** Building or address */
+  address: string;
+  isActive: boolean;
+}
+
+/** A room, section or shelf inside a store */
 export interface Location {
   id: string;
+  storeId: string;
+  name: string;
+  storeName: string;
+  /** False when the location or its store has been deactivated */
+  isActive: boolean;
+  /** Kept for screens and slips that show "store · location": the store's name, its address, and the location's name */
   siteName: string;
   building: string;
   roomNumber: string;
   isCentralStore?: boolean;
-  isActive: boolean;
 }
 
 export interface Employee {

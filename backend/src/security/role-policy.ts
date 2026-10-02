@@ -21,7 +21,7 @@ export const PERMISSION_GROUPS = [
   { name: 'Administration', permissions: [
     { key: 'references.read', label: 'View employees, departments, and locations' },
     { key: 'employees.manage', label: 'Add, edit and deactivate employees' },
-    { key: 'references.manage', label: 'Add, edit and deactivate locations and stores' },
+    { key: 'references.manage', label: 'Add, edit and deactivate stores and their locations' },
     { key: 'roles.read', label: 'View role permissions and membership' },
     { key: 'roles.assign', label: 'Assign user roles' },
   ] },
@@ -29,7 +29,7 @@ export const PERMISSION_GROUPS = [
 
 export type Permission = typeof PERMISSION_GROUPS[number]['permissions'][number]['key'];
 
-const referenceTabs = ['settings-employees', 'settings-locations', 'settings-stores', 'settings-system'];
+const referenceTabs = ['settings-employees', 'settings-stores', 'settings-system'];
 const readPermissions: Permission[] = ['inventory.read', 'references.read'];
 
 // Authoritative policy for API guards, the role directory, and session navigation.

@@ -22,9 +22,9 @@ export const SEED_DEPARTMENTS: Department[] = [
 ];
 
 export const SEED_LOCATIONS: Location[] = [
-  { id: 'LOC-01', siteName: 'Kality', building: 'Kality Depot', roomNumber: 'Store-01', isCentralStore: true, isActive: true },
-  { id: 'LOC-02', siteName: 'Saris', building: 'Saris Storehouse', roomNumber: 'Store-02', isCentralStore: true, isActive: true },
-  { id: 'LOC-03', siteName: 'Head office', building: 'Main HQ Block', roomNumber: 'Central Store', isCentralStore: true, isActive: true },
+  { id: 'LOC-01', storeId: 'STR-01', name: 'Store-01', storeName: 'Kality', siteName: 'Kality', building: 'Kality Depot', roomNumber: 'Store-01', isCentralStore: true, isActive: true },
+  { id: 'LOC-02', storeId: 'STR-02', name: 'Store-02', storeName: 'Saris', siteName: 'Saris', building: 'Saris Storehouse', roomNumber: 'Store-02', isCentralStore: true, isActive: true },
+  { id: 'LOC-03', storeId: 'STR-03', name: 'Central Store', storeName: 'Head office', siteName: 'Head office', building: 'Main HQ Block', roomNumber: 'Central Store', isCentralStore: true, isActive: true },
 ];
 
 export const SEED_EMPLOYEES: Employee[] = [

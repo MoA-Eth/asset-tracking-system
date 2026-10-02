@@ -37,25 +37,28 @@ async function main() {
   ]);
   console.log(`  ✅ ${departments.length} departments seeded`);
 
-  // ── Locations ─────────────────────────────────────────────────────────────
-  const locations = await Promise.all([
-    prisma.location.upsert({
-      where: { id: 'LOC-01' },
-      update: { siteName: 'Kality', building: 'Kality Depot', roomNumber: 'Store-01', isCentralStore: true },
-      create: { id: 'LOC-01', siteName: 'Kality', building: 'Kality Depot', roomNumber: 'Store-01', isCentralStore: true },
-    }),
-    prisma.location.upsert({
-      where: { id: 'LOC-02' },
-      update: { siteName: 'Saris', building: 'Saris Storehouse', roomNumber: 'Store-02', isCentralStore: true },
-      create: { id: 'LOC-02', siteName: 'Saris', building: 'Saris Storehouse', roomNumber: 'Store-02', isCentralStore: true },
-    }),
-    prisma.location.upsert({
-      where: { id: 'LOC-03' },
-      update: { siteName: 'Head office', building: 'Main HQ Block', roomNumber: 'Central Store', isCentralStore: true },
-      create: { id: 'LOC-03', siteName: 'Head office', building: 'Main HQ Block', roomNumber: 'Central Store', isCentralStore: true },
-    }),
-  ]);
-  console.log(`  ✅ ${locations.length} locations seeded`);
+  // ── Stores and their locations ────────────────────────────────────────────
+  const storeSeeds = [
+    { id: 'STR-01', name: 'Kality', address: 'Kality Depot', location: { id: 'LOC-01', name: 'Store-01' } },
+    { id: 'STR-02', name: 'Saris', address: 'Saris Storehouse', location: { id: 'LOC-02', name: 'Store-02' } },
+    { id: 'STR-03', name: 'Head office', address: 'Main HQ Block', location: { id: 'LOC-03', name: 'Central Store' } },
+  ];
+  const locations = [];
+  for (const s of storeSeeds) {
+    await prisma.store.upsert({
+      where: { id: s.id },
+      update: { name: s.name, address: s.address },
+      create: { id: s.id, name: s.name, address: s.address },
+    });
+    locations.push(
+      await prisma.location.upsert({
+        where: { id: s.location.id },
+        update: { storeId: s.id, name: s.location.name },
+        create: { id: s.location.id, storeId: s.id, name: s.location.name },
+      }),
+    );
+  }
+  console.log(`  ✅ ${storeSeeds.length} stores and ${locations.length} locations seeded`);
 
   // ── Employees & Demo Accounts ─────────────────────────────────────────────
   const employees = await Promise.all([

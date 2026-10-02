@@ -146,13 +146,23 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
   const [buyer, setBuyer] = useState(editItem?.buyer ?? '');
   const [programName, setProgramName] = useState(editItem?.programName ?? 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa');
   const [storeLocationId, setStoreLocationId] = useState(editItem?.storeLocationId ?? '');
+  // The store is picked first; its locations then fill the second list
+  const [storeId, setStoreId] = useState(() => locations.find((l) => l.id === editItem?.storeLocationId)?.storeId ?? '');
+  const stores = [...new Map(locations.map((l) => [l.storeId, l.storeName])).entries()];
+  const storeLocations = locations.filter((l) => l.storeId === storeId);
+  const chooseStore = (id: string) => {
+    setStoreId(id);
+    const inStore = locations.filter((l) => l.storeId === id);
+    // A store with a single location needs no second choice
+    setStoreLocationId(inStore.length === 1 ? inStore[0].id : '');
+  };
 
   // Section 2: Single-Item Particulars
   const [name, setName] = useState(editItem?.name ?? '');
   const [category, setCategory] = useState<AssetCategory | ''>(editItem?.category ?? '');
   const [itemCode, setItemCode] = useState(editItem?.itemCode ?? '');
   const [uom, setUom] = useState(editItem?.uom || 'EA');
-  const [subInventory, setSubInventory] = useState(editItem?.subInventory ?? 'General Store');
+  const [subInventory, setSubInventory] = useState(editItem?.subInventory ?? '');
   const [lotBatchNo, setLotBatchNo] = useState(editItem?.lotBatchNo ?? '');
   const [serialNumber, setSerialNumber] = useState(editItem?.serialNumber ?? '');
   const [printedPadFrom, setPrintedPadFrom] = useState(editItem?.printedPadFrom ?? '');
@@ -191,11 +201,12 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
     setSource('');
     setBuyer('');
     setStoreLocationId('');
+    setStoreId('');
     setName('');
     setCategory('');
     setItemCode('');
     setUom('EA');
-    setSubInventory('General Store');
+    setSubInventory('');
     setLotBatchNo('');
     setSerialNumber('');
     setPrintedPadFrom('');
@@ -232,7 +243,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
 
     const unchosen = [
       !transactionType && 'transaction type',
-      !storeLocationId && 'receiving store',
+      !storeLocationId && (storeId ? 'location in the store' : 'receiving store'),
       !category && 'category',
       !condition && 'physical condition',
     ].filter(Boolean);
@@ -376,7 +387,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         itemCode: itemCode.trim() || (res.items?.[0]?.itemCode || res.item?.itemCode || '—'),
         itemDescription: name.trim(),
         uom: uom.trim() || 'EA',
-        subInventory: subInventory.trim() || 'General Store',
+        subInventory: subInventory.trim() || targetStore?.name || '',
         itemCategory: selectedCat?.label || category.replace(/_/g, ' '),
         lotBatchNo: lotBatchNo.trim() || '',
         serialNo: serialNumber.trim() || '',
@@ -509,17 +520,32 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
             />
           </Field>
 
-          <Field label="Receiving store" required>
-            <select required value={storeLocationId} onChange={(e) => setStoreLocationId(e.target.value)} className={input()}>
+          <Field label="Receiving store" required htmlFor="stock-in-store">
+            <select id="stock-in-store" required value={storeId} onChange={(e) => chooseStore(e.target.value)} className={input()}>
               <option value="" disabled>Select…</option>
-              {/* Goods are received into stores; when correcting, the item's current location stays selectable */}
-              {locations
-                .filter((loc) => loc.isCentralStore || loc.id === editItem?.storeLocationId)
-                .map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.siteName} {loc.roomNumber ? `(${loc.roomNumber})` : ''}
-                  </option>
-                ))}
+              {stores.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Location in store" required htmlFor="stock-in-location" hint={storeId ? undefined : 'Choose the store first.'}>
+            <select
+              id="stock-in-location"
+              required
+              disabled={!storeId}
+              value={storeLocationId}
+              onChange={(e) => setStoreLocationId(e.target.value)}
+              className={input()}
+            >
+              <option value="" disabled>Select…</option>
+              {storeLocations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
             </select>
           </Field>
         </FieldGrid>
@@ -638,7 +664,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
             <Field label="Sub inventory" optional>
               <input
                 type="text"
-                placeholder="e.g. General Store"
+                placeholder={locations.find((l) => l.id === storeLocationId)?.name || 'Defaults to the location in store'}
                 value={subInventory}
                 onChange={(e) => setSubInventory(e.target.value)}
                 className={input()}
@@ -1193,7 +1219,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
       itemCode: it.itemCode,
       itemDescription: it.name,
       uom: it.uom || 'EA',
-      subInventory: it.subInventory || 'General Store',
+      subInventory: it.subInventory || item.storeLocation?.roomNumber || '—',
       itemCategory: it.itemCategoryDisplay || it.category.replace(/_/g, ' '),
       lotBatchNo: it.lotBatchNo || '',
       serialNo: it.serialNumber || '',

@@ -201,8 +201,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         return { title: 'Roles', am: 'ሚናዎች', icon: Shield, iconColor: 'text-emerald-700' };
       case 'settings-employees':
         return { title: 'Employees', am: 'ሰራተኞች', icon: UserCheck, iconColor: 'text-emerald-700' };
-      case 'settings-locations':
-        return { title: 'Locations', am: 'አድራሻዎች', icon: MapPin, iconColor: 'text-emerald-700' };
       case 'settings-stores':
         return { title: 'Stores', am: 'መጋዘኖች', icon: Warehouse, iconColor: 'text-emerald-700' };
       case 'settings-system':
@@ -269,13 +267,11 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer pr-1"
           >
             <option value="ALL">All Stores</option>
-            {locations
-              .filter((loc) => loc.isCentralStore)
-              .map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.siteName}
-                </option>
-              ))}
+            {[...new Map(locations.map((loc) => [loc.storeId, loc.storeName])).entries()].map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
           </select>
         </div> */}
 

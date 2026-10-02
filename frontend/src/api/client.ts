@@ -10,6 +10,8 @@ import {
   Employee,
   EmployeeInput,
   LocationInput,
+  Store,
+  StoreInput,
   EmployeeImportResult,
   Location,
   CreateStockInRequest,
@@ -248,13 +250,34 @@ export const api = {
     return request<Department[]>('/reference/departments');
   },
 
-  /** Active locations and stores; with includeInactive, administrators also get deactivated ones */
-  getLocations: (opts: { includeInactive?: boolean } = {}) => {
-    return request<Location[]>(`/reference/locations${opts.includeInactive ? '?includeInactive=true' : ''}`);
+  /** Stores with their locations; with includeInactive, administrators also get deactivated ones */
+  getStores: (opts: { includeInactive?: boolean } = {}) => {
+    return request<Store[]>(`/reference/stores${opts.includeInactive ? '?includeInactive=true' : ''}`);
   },
 
-  createLocation: (input: LocationInput) => {
-    return request<Location>('/reference/locations', { method: 'POST', body: JSON.stringify(input) });
+  createStore: (input: StoreInput) => {
+    return request<Store>('/reference/stores', { method: 'POST', body: JSON.stringify(input) });
+  },
+
+  updateStore: (id: string, input: StoreInput) => {
+    return request<Store>(`/reference/stores/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) });
+  },
+
+  setStoreActive: (id: string, active: boolean) => {
+    return request<Store>(`/reference/stores/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ active }) });
+  },
+
+  deleteStore: (id: string) => {
+    return request<null>(`/reference/stores/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
+
+  /** Every active location in an active store, as a flat list for the forms */
+  getLocations: () => {
+    return request<Location[]>('/reference/locations');
+  },
+
+  createLocation: (storeId: string, input: LocationInput) => {
+    return request<Location>(`/reference/stores/${encodeURIComponent(storeId)}/locations`, { method: 'POST', body: JSON.stringify(input) });
   },
 
   updateLocation: (id: string, input: LocationInput) => {

@@ -50,6 +50,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
 import { departmentLabel } from '../utils/department';
+import { storeLocationLabel } from '../utils/location';
 
 const ITEM_STATUS_LABELS: Record<string, { label: string; className: string }> = {
   [ItemStatus.AVAILABLE]: { label: 'In store', className: statusTone.inStore },
@@ -330,9 +331,10 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
       const selectedItem = items.find((i) => i.id === selectedItemId);
       const fromCustodian = selectedItem?.currentCustodian;
       const targetEmp = employees.find((e) => e.id === targetEmployeeId);
-      const fromLoc = selectedItem?.storeLocation?.siteName || 'Central Store';
+      const fromLoc = storeLocationLabel(selectedItem?.storeLocation);
       const toLocObj = locations.find((l) => l.id === targetLocationId);
-      const toLoc = toLocObj ? toLocObj.siteName : 'Regional Directorate';
+      // No new location chosen: the item stays in the same store
+      const toLoc = toLocObj ? storeLocationLabel(toLocObj) : fromLoc;
       const todayGc = new Date().toISOString().split('T')[0];
       const todayEc = formatGcToEc(todayGc);
 
@@ -426,7 +428,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     const todayGc = new Date().toISOString().split('T')[0];
     const todayEc = formatGcToEc(todayGc);
     const custodian = item.currentCustodian;
-    const loc = item.storeLocation?.siteName || 'MoA Gurd Sholla';
+    const loc = storeLocationLabel(item.storeLocation);
     const units = Number(item.quantity) || 1;
     const cost = (item.unitCostETB || 0) * units;
 
@@ -751,10 +753,16 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                         className={input()}
                       >
                         <option value="">Select…</option>
-                        {locations.map((loc) => (
-                          <option key={loc.id} value={loc.id}>
-                            {loc.siteName} {loc.building ? `(${loc.building})` : ''}
-                          </option>
+                        {[...new Map(locations.map((loc) => [loc.storeId, loc.storeName])).entries()].map(([storeId, storeName]) => (
+                          <optgroup key={storeId} label={storeName}>
+                            {locations
+                              .filter((loc) => loc.storeId === storeId)
+                              .map((loc) => (
+                                <option key={loc.id} value={loc.id}>
+                                  {storeName} · {loc.name}
+                                </option>
+                              ))}
+                          </optgroup>
                         ))}
                       </select>
                     </Field>
@@ -919,7 +927,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       <td className="p-3 text-slate-700">
                         {item.currentCustodian?.fullNameEn || 'Assigned Staff'}
                       </td>
-                      <td className="p-3 text-slate-600">{item.storeLocation?.siteName || 'Head office'}</td>
+                      <td className="p-3 text-slate-600">{storeLocationLabel(item.storeLocation)}</td>
                       <td className={`p-3 ${table.actionsCell}`}>
                         <div className="flex items-center justify-end gap-2">
                           {pendingByItem.get(item.id) && <PendingRequestChip request={pendingByItem.get(item.id)!} />}
@@ -1001,9 +1009,9 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       </div>
                     </td>
                     <td className="p-3 text-slate-700">
-                      {item.currentCustodian?.fullNameEn || item.assignedDepartment?.nameEn || 'Store Stock'}
+                      {item.currentCustodian?.fullNameEn || item.assignedDepartment?.nameEn || 'In store'}
                     </td>
-                    <td className="p-3 text-slate-600">{item.storeLocation?.siteName || 'Head office'}</td>
+                    <td className="p-3 text-slate-600">{storeLocationLabel(item.storeLocation)}</td>
                     <td className={`p-3 ${table.actionsCell}`}>
                       <RowActionsMenu
                         label={item.itemCode}

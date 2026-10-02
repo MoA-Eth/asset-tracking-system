@@ -3,19 +3,7 @@ import { prisma } from '../lib/prisma';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors/app-error';
 import { getTodayGcAndEc } from '../utils/eth-date';
 import { hasPermission } from '../security/role-policy';
-import { Department, Location } from '../types/asset-management';
-
-/** A location as Settings shows it; `itemCount` is the number of item records kept there */
-export interface LocationRecord extends Location {
-  itemCount?: number;
-}
-
-export interface LocationInput {
-  siteName?: unknown;
-  building?: unknown;
-  roomNumber?: unknown;
-  isCentralStore?: unknown;
-}
+import { Department, Location, Store } from '../types/asset-management';
 
 /** Item records that are physically in a store (not yet issued, or waiting for approval) */
 const IN_STORE = ['AVAILABLE', 'PENDING_STOCK_IN', 'PENDING_STOCK_OUT'];
@@ -36,7 +24,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 async function loadActor(tx: any, actorId: string) {
   const actor = actorId ? await tx.employee.findUnique({ where: { id: actorId } }) : null;
   if (!actor || actor.isActive === false || !hasPermission(actor.role, 'references.manage')) {
-    throw new ForbiddenError('Only System Administrators can manage locations and stores.');
+    throw new ForbiddenError('Only System Administrators can manage stores and their locations.');
   }
   return actor;
 }
@@ -82,104 +70,239 @@ export async function listDepartments(): Promise<Department[]> {
   return rows.map((d) => ({ id: d.id, code: d.code, nameEn: d.nameEn, nameAm: d.nameAm, headEmployeeId: d.headEmployeeId ?? undefined }));
 }
 
-// ─── Locations and stores ────────────────────────────────────────────────────
+// ─── Stores and their locations ──────────────────────────────────────────────
+
+/** A store with its locations; `itemCount`s are only sent to people who manage reference data */
+export interface StoreRecord extends Store {
+  locations: LocationRecord[];
+  /** Item records in store across all of its locations */
+  itemCount?: number;
+}
+
+export interface LocationRecord extends Location {
+  /** Item records currently in store at this location */
+  itemCount?: number;
+}
+
+export interface StoreInput {
+  name?: unknown;
+  address?: unknown;
+  /** Name of the first location, when adding a store (defaults to "Main store") */
+  locationName?: unknown;
+}
+
+export interface LocationInput {
+  name?: unknown;
+}
 
 const LOCATION_COUNTS = { _count: { select: { items: { where: { status: { in: IN_STORE as any } } } } } };
+const STORE_INCLUDE = { locations: { include: LOCATION_COUNTS, orderBy: { name: 'asc' as const } } };
 
-function toLocation(l: any, withCounts: boolean): LocationRecord {
-  const record: LocationRecord = {
+/**
+ * A location as the rest of the system sees it. `siteName`, `building` and `roomNumber` are kept so the
+ * item screens and slips, which show "store · location", need no change.
+ */
+export function locationView(l: any, store: any = l?.store): Location {
+  return {
     id: l.id,
-    siteName: l.siteName,
-    building: l.building,
-    roomNumber: l.roomNumber,
-    isCentralStore: l.isCentralStore,
-    isActive: l.isActive !== false,
+    storeId: l.storeId,
+    name: l.name,
+    storeName: store?.name ?? '',
+    // Usable only while both the location and its store are active
+    isActive: l.isActive !== false && store?.isActive !== false,
+    siteName: store?.name ?? l.siteName ?? '',
+    building: store?.address ?? '',
+    roomNumber: l.name ?? '',
+    isCentralStore: true,
   };
-  if (withCounts && l._count) record.itemCount = l._count.items;
+}
+
+/** Throws when a location picked on a form (or its store) has been deactivated */
+export function assertUsableLocation(l: any, what: string): void {
+  if (!l) return;
+  if (l.isActive === false || l.store?.isActive === false) {
+    const label = [l.store?.name ?? l.siteName, l.name].filter(Boolean).join(' · ') || 'This location';
+    throw new BadRequestError(`${label} has been deactivated and can't be chosen as ${what}.`);
+  }
+}
+
+function toStore(s: any, withCounts: boolean): StoreRecord {
+  const locations: LocationRecord[] = (s.locations ?? []).map((l: any) => {
+    // Inside the Stores page a location shows its own status, not its store's
+    const record: LocationRecord = { ...locationView(l, s), isActive: l.isActive !== false };
+    if (withCounts && l._count) record.itemCount = l._count.items;
+    return record;
+  });
+  const record: StoreRecord = { id: s.id, name: s.name, address: s.address ?? '', isActive: s.isActive !== false, locations };
+  if (withCounts) record.itemCount = locations.reduce((sum, l) => sum + (l.itemCount ?? 0), 0);
   return record;
 }
 
-const locationView = (l: any) => ({
-  siteName: l.siteName,
-  building: l.building,
-  roomNumber: l.roomNumber,
-  isCentralStore: !!l.isCentralStore,
-  isActive: l.isActive !== false,
-});
+const storeAudit = (s: any) => ({ name: s.name, address: s.address ?? '', isActive: s.isActive !== false });
+const locationAudit = (l: any) => ({ storeId: l.storeId, name: l.name, isActive: l.isActive !== false });
 
-const locationLabel = (l: any) => [l.siteName, l.building, l.roomNumber].filter(Boolean).join(' · ');
-
-/** Active locations for the pickers; people who manage reference data can also ask for deactivated ones */
-export async function listLocations(viewerRole: unknown, opts: { includeInactive?: boolean } = {}): Promise<LocationRecord[]> {
+/** Stores with their locations. Pickers get active ones only; people who manage reference data can ask for all. */
+export async function listStores(viewerRole: unknown, opts: { includeInactive?: boolean } = {}): Promise<StoreRecord[]> {
   const canManage = hasPermission(viewerRole, 'references.manage');
-  const rows = await prisma.location.findMany({
-    where: opts.includeInactive && canManage ? {} : { isActive: true },
-    ...(canManage ? { include: LOCATION_COUNTS } : {}),
-    orderBy: [{ siteName: 'asc' }, { building: 'asc' }, { roomNumber: 'asc' }],
+  const all = opts.includeInactive && canManage;
+  const rows = await prisma.store.findMany({
+    where: all ? {} : { isActive: true },
+    include: {
+      locations: {
+        where: all ? {} : { isActive: true },
+        ...(canManage ? { include: LOCATION_COUNTS } : {}),
+        orderBy: { name: 'asc' },
+      },
+    },
+    orderBy: { name: 'asc' },
   });
-  return rows.map((l) => toLocation(l, canManage));
+  return rows.map((s) => toStore(s, canManage));
 }
 
-async function normalizeLocation(tx: any, input: LocationInput, id?: string) {
-  if (input.isCentralStore !== undefined && typeof input.isCentralStore !== 'boolean') {
-    throw new BadRequestError('Say whether this location is a store.');
-  }
-  const data = {
-    siteName: text(input.siteName, 'Site name', 120, true)!,
-    building: text(input.building, 'Building', 120, false) ?? '',
-    roomNumber: text(input.roomNumber, 'Room', 60, false) ?? '',
-    isCentralStore: input.isCentralStore === true,
-  };
-  const same = await tx.location.findFirst({
+/** Every active location in an active store, as a flat list for the forms */
+export async function listLocations(): Promise<Location[]> {
+  const rows = await prisma.location.findMany({
+    where: { isActive: true, store: { isActive: true } },
+    include: { store: true },
+    orderBy: [{ store: { name: 'asc' } }, { name: 'asc' }],
+  });
+  return rows.map((l) => locationView(l));
+}
+
+/** Stock is always received somewhere, so one active location in an active store must remain */
+async function assertSomewhereRemains(tx: any, excluding: { storeId?: string; locationId?: string }, name: string) {
+  const others = await tx.location.count({
     where: {
-      siteName: { equals: data.siteName, mode: 'insensitive' },
-      building: { equals: data.building, mode: 'insensitive' },
-      roomNumber: { equals: data.roomNumber, mode: 'insensitive' },
-      ...(id ? { NOT: { id } } : {}),
+      isActive: true,
+      store: { isActive: true, ...(excluding.storeId ? { NOT: { id: excluding.storeId } } : {}) },
+      ...(excluding.locationId ? { NOT: { id: excluding.locationId } } : {}),
     },
   });
-  if (same) throw new ConflictError(`"${locationLabel(same)}" already exists.`);
+  if (others === 0) throw new ConflictError(`${name} is the only place left to receive stock. Add or reactivate another one first.`);
+}
+
+async function normalizeStore(tx: any, input: StoreInput, id?: string) {
+  const data = {
+    name: text(input.name, 'Store name', 120, true)!,
+    address: text(input.address, 'Address', 160, false) ?? '',
+  };
+  const same = await tx.store.findFirst({ where: { name: { equals: data.name, mode: 'insensitive' }, ...(id ? { NOT: { id } } : {}) } });
+  if (same) throw new ConflictError(`A store named "${same.name}" already exists.`);
   return data;
 }
 
-/** Stock is always received into a store, so at least one must stay active */
-async function assertAnotherStoreRemains(tx: any, id: string, name: string) {
-  const others = await tx.location.count({ where: { isCentralStore: true, isActive: true, NOT: { id } } });
-  if (others === 0) throw new ConflictError(`${name} is the only active store. Add or reactivate another store first.`);
+async function normalizeLocation(tx: any, storeId: string, input: LocationInput, id?: string) {
+  const name = text(input.name, 'Location name', 80, true)!;
+  const same = await tx.location.findFirst({ where: { storeId, name: { equals: name, mode: 'insensitive' }, ...(id ? { NOT: { id } } : {}) } });
+  if (same) throw new ConflictError(`This store already has a location named "${same.name}".`);
+  return { name };
 }
 
-export async function createLocation(input: LocationInput, actorId: string): Promise<LocationRecord> {
+export async function createStore(input: StoreInput, actorId: string): Promise<StoreRecord> {
+  return change('A store with this name already exists.', async (tx) => {
+    const actor = await loadActor(tx, actorId);
+    const data = await normalizeStore(tx, input);
+    // A store needs somewhere to keep stock, so it starts with one location
+    const locationName = text(input.locationName, 'Location name', 80, false) ?? 'Main store';
+    const created = await tx.store.create({
+      data: {
+        id: `STR-${randomUUID().slice(0, 8).toUpperCase()}`,
+        ...data,
+        isActive: true,
+        locations: { create: [{ id: `LOC-${randomUUID().slice(0, 8).toUpperCase()}`, name: locationName, isActive: true }] },
+      },
+      include: STORE_INCLUDE,
+    });
+    await audit(tx, actor, 'CREATE_STORE', created.id, `Added store ${created.name} with location ${locationName}.`, undefined, storeAudit(created));
+    return toStore(created, true);
+  });
+}
+
+export async function updateStore(id: string, input: StoreInput, actorId: string): Promise<StoreRecord> {
+  return change('A store with this name already exists.', async (tx) => {
+    const actor = await loadActor(tx, actorId);
+    const previous = await tx.store.findUnique({ where: { id } });
+    if (!previous) throw new NotFoundError('Store not found.');
+    const data = await normalizeStore(tx, input, id);
+    const updated = await tx.store.update({ where: { id }, data, include: STORE_INCLUDE });
+    const before = storeAudit(previous);
+    const after = storeAudit(updated);
+    const changed = (Object.keys(after) as (keyof typeof after)[]).filter((k) => before[k] !== after[k]);
+    if (changed.length > 0) await audit(tx, actor, 'UPDATE_STORE', id, `Updated store ${updated.name}: ${changed.join(', ')}.`, before, after);
+    return toStore(updated, true);
+  });
+}
+
+export async function setStoreActive(id: string, active: unknown, actorId: string): Promise<StoreRecord> {
+  if (typeof active !== 'boolean') throw new BadRequestError('Say whether the store should be active.');
   return change('', async (tx) => {
     const actor = await loadActor(tx, actorId);
-    const data = await normalizeLocation(tx, input);
-    const created = await tx.location.create({ data: { id: `LOC-${randomUUID().slice(0, 8).toUpperCase()}`, ...data, isActive: true } });
-    await audit(tx, actor, data.isCentralStore ? 'CREATE_STORE' : 'CREATE_LOCATION', created.id, `Added ${data.isCentralStore ? 'store' : 'location'} ${locationLabel(created)}.`, undefined, locationView(created));
-    return toLocation({ ...created, _count: { items: 0 } }, true);
+    const previous = await tx.store.findUnique({ where: { id }, include: STORE_INCLUDE });
+    if (!previous) throw new NotFoundError('Store not found.');
+    if ((previous.isActive !== false) === active) return toStore(previous, true);
+
+    if (!active) {
+      const held = toStore(previous, true).itemCount ?? 0;
+      if (held > 0) throw new ConflictError(`${previous.name} still holds ${plural(held, 'item record')}. Issue or transfer ${held === 1 ? 'it' : 'them'} first.`);
+      const pending = await tx.transactionApproval.count({
+        where: { status: 'PENDING' as any, targetLocationId: { in: previous.locations.map((l: any) => l.id) } },
+      });
+      if (pending > 0) {
+        throw new ConflictError(`${previous.name} is the destination of ${plural(pending, 'pending request')}. Finish or reject ${pending === 1 ? 'it' : 'them'} first.`);
+      }
+      await assertSomewhereRemains(tx, { storeId: id }, previous.name);
+    }
+    const updated = await tx.store.update({ where: { id }, data: { isActive: active }, include: STORE_INCLUDE });
+    await audit(tx, actor, active ? 'REACTIVATE_STORE' : 'DEACTIVATE_STORE', id, `${active ? 'Reactivated' : 'Deactivated'} store ${updated.name}.`, { isActive: !active }, { isActive: active });
+    return toStore(updated, true);
+  });
+}
+
+/** Removes a store, with its locations, when nothing has ever used them; otherwise it is deactivated instead */
+export async function deleteStore(id: string, actorId: string): Promise<void> {
+  await change('', async (tx) => {
+    const actor = await loadActor(tx, actorId);
+    const previous = await tx.store.findUnique({ where: { id }, include: { locations: true } });
+    if (!previous) throw new NotFoundError('Store not found.');
+    const locationIds = previous.locations.map((l: any) => l.id);
+    const [items, requests] = await Promise.all([
+      tx.item.count({ where: { storeLocationId: { in: locationIds } } }),
+      tx.transactionApproval.count({ where: { targetLocationId: { in: locationIds } } }),
+    ]);
+    if (items + requests > 0) {
+      const used = [items && plural(items, 'item record'), requests && plural(requests, 'request')].filter(Boolean).join(', ');
+      throw new ConflictError(`${previous.name} can't be deleted because it is used by ${used}. Deactivate it instead.`);
+    }
+    if (previous.isActive !== false) await assertSomewhereRemains(tx, { storeId: id }, previous.name);
+    await tx.location.deleteMany({ where: { storeId: id } });
+    await tx.store.delete({ where: { id } });
+    await audit(tx, actor, 'DELETE_STORE', id, `Deleted store ${previous.name}.`, storeAudit(previous));
+  });
+}
+
+export async function createLocation(storeId: string, input: LocationInput, actorId: string): Promise<LocationRecord> {
+  return change('This store already has a location with this name.', async (tx) => {
+    const actor = await loadActor(tx, actorId);
+    const store = await tx.store.findUnique({ where: { id: storeId } });
+    if (!store) throw new NotFoundError('Store not found.');
+    const data = await normalizeLocation(tx, storeId, input);
+    const created = await tx.location.create({ data: { id: `LOC-${randomUUID().slice(0, 8).toUpperCase()}`, storeId, ...data, isActive: true } });
+    await audit(tx, actor, 'CREATE_LOCATION', created.id, `Added location ${created.name} to store ${store.name}.`, undefined, locationAudit(created));
+    return { ...locationView(created, store), isActive: true, itemCount: 0 };
   });
 }
 
 export async function updateLocation(id: string, input: LocationInput, actorId: string): Promise<LocationRecord> {
-  return change('', async (tx) => {
+  return change('This store already has a location with this name.', async (tx) => {
     const actor = await loadActor(tx, actorId);
-    const previous = await tx.location.findUnique({ where: { id }, include: LOCATION_COUNTS });
+    const previous = await tx.location.findUnique({ where: { id }, include: { store: true } });
     if (!previous) throw new NotFoundError('Location not found.');
-    const data = await normalizeLocation(tx, input, id);
-
-    // Turning a store into a plain location: it must not hold stock, and another store must remain
-    if (previous.isCentralStore && !data.isCentralStore && previous.isActive !== false) {
-      const held = previous._count.items;
-      if (held > 0) throw new ConflictError(`${previous.siteName} holds ${plural(held, 'item record')} in store, so it must stay a store.`);
-      await assertAnotherStoreRemains(tx, id, previous.siteName);
+    const data = await normalizeLocation(tx, previous.storeId, input, id);
+    const updated = await tx.location.update({ where: { id }, data, include: { store: true, ...LOCATION_COUNTS } });
+    if (updated.name !== previous.name) {
+      await audit(tx, actor, 'UPDATE_LOCATION', id, `Renamed location ${previous.name} to ${updated.name} in store ${previous.store.name}.`, locationAudit(previous), locationAudit(updated));
     }
-
-    const updated = await tx.location.update({ where: { id }, data, include: LOCATION_COUNTS });
-    const before = locationView(previous);
-    const after = locationView(updated);
-    const changed = (Object.keys(after) as (keyof typeof after)[]).filter((k) => before[k] !== after[k]);
-    if (changed.length > 0) {
-      await audit(tx, actor, 'UPDATE_LOCATION', id, `Updated location ${locationLabel(updated)}: ${changed.join(', ')}.`, before, after);
-    }
-    return toLocation(updated, true);
+    return { ...locationView(updated), isActive: updated.isActive !== false, itemCount: updated._count?.items ?? 0 };
   });
 }
 
@@ -187,51 +310,54 @@ export async function setLocationActive(id: string, active: unknown, actorId: st
   if (typeof active !== 'boolean') throw new BadRequestError('Say whether the location should be active.');
   return change('', async (tx) => {
     const actor = await loadActor(tx, actorId);
-    const previous = await tx.location.findUnique({ where: { id }, include: LOCATION_COUNTS });
+    const previous = await tx.location.findUnique({ where: { id }, include: { store: true, ...LOCATION_COUNTS } });
     if (!previous) throw new NotFoundError('Location not found.');
-    if ((previous.isActive !== false) === active) return toLocation(previous, true);
+    const view = (l: any): LocationRecord => ({ ...locationView(l), isActive: l.isActive !== false, itemCount: l._count?.items ?? 0 });
+    if ((previous.isActive !== false) === active) return view(previous);
 
     if (!active) {
-      const held = previous._count.items;
-      if (held > 0) {
-        throw new ConflictError(`${previous.siteName} still holds ${plural(held, 'item record')}. Issue or transfer ${held === 1 ? 'it' : 'them'} first.`);
-      }
+      const held = previous._count?.items ?? 0;
+      if (held > 0) throw new ConflictError(`${previous.name} still holds ${plural(held, 'item record')}. Issue or transfer ${held === 1 ? 'it' : 'them'} first.`);
       const pending = await tx.transactionApproval.count({ where: { status: 'PENDING' as any, targetLocationId: id } });
       if (pending > 0) {
-        throw new ConflictError(`${previous.siteName} is the destination of ${plural(pending, 'pending request')}. Finish or reject ${pending === 1 ? 'it' : 'them'} first.`);
+        throw new ConflictError(`${previous.name} is the destination of ${plural(pending, 'pending request')}. Finish or reject ${pending === 1 ? 'it' : 'them'} first.`);
       }
-      if (previous.isCentralStore) await assertAnotherStoreRemains(tx, id, previous.siteName);
+      if (previous.store.isActive !== false) await assertSomewhereRemains(tx, { locationId: id }, `${previous.store.name} · ${previous.name}`);
     }
-    const updated = await tx.location.update({ where: { id }, data: { isActive: active }, include: LOCATION_COUNTS });
+    const updated = await tx.location.update({ where: { id }, data: { isActive: active }, include: { store: true, ...LOCATION_COUNTS } });
     await audit(
       tx,
       actor,
       active ? 'REACTIVATE_LOCATION' : 'DEACTIVATE_LOCATION',
       id,
-      `${active ? 'Reactivated' : 'Deactivated'} ${updated.isCentralStore ? 'store' : 'location'} ${locationLabel(updated)}.`,
+      `${active ? 'Reactivated' : 'Deactivated'} location ${updated.name} in store ${updated.store.name}.`,
       { isActive: !active },
       { isActive: active },
     );
-    return toLocation(updated, true);
+    return view(updated);
   });
 }
 
-/** Removes a location nothing refers to; anything with history is deactivated instead */
+/** Removes a location nothing has ever used; a store always keeps at least one location */
 export async function deleteLocation(id: string, actorId: string): Promise<void> {
   await change('', async (tx) => {
     const actor = await loadActor(tx, actorId);
-    const previous = await tx.location.findUnique({ where: { id } });
+    const previous = await tx.location.findUnique({ where: { id }, include: { store: true } });
     if (!previous) throw new NotFoundError('Location not found.');
-    const [items, requests] = await Promise.all([
+    const [items, requests, siblings] = await Promise.all([
       tx.item.count({ where: { storeLocationId: id } }),
       tx.transactionApproval.count({ where: { targetLocationId: id } }),
+      tx.location.count({ where: { storeId: previous.storeId, NOT: { id } } }),
     ]);
     if (items + requests > 0) {
       const used = [items && plural(items, 'item record'), requests && plural(requests, 'request')].filter(Boolean).join(', ');
-      throw new ConflictError(`${previous.siteName} can't be deleted because it is used by ${used}. Deactivate it instead.`);
+      throw new ConflictError(`${previous.name} can't be deleted because it is used by ${used}. Deactivate it instead.`);
     }
-    if (previous.isCentralStore && previous.isActive !== false) await assertAnotherStoreRemains(tx, id, previous.siteName);
+    if (siblings === 0) throw new ConflictError(`${previous.name} is the only location in ${previous.store.name}. Delete the store instead.`);
+    if (previous.isActive !== false && previous.store.isActive !== false) {
+      await assertSomewhereRemains(tx, { locationId: id }, `${previous.store.name} · ${previous.name}`);
+    }
     await tx.location.delete({ where: { id } });
-    await audit(tx, actor, 'DELETE_LOCATION', id, `Deleted location ${locationLabel(previous)}.`, locationView(previous));
+    await audit(tx, actor, 'DELETE_LOCATION', id, `Deleted location ${previous.name} from store ${previous.store.name}.`, locationAudit(previous));
   });
 }

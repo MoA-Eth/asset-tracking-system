@@ -30,6 +30,7 @@ import { BadRequestError, ConflictError, NotFoundError, ForbiddenError } from '.
 
 import { assignEmployeeRole } from './roles.service';
 import { hasPermission } from '../security/role-policy';
+import { assertUsableLocation, locationView } from './reference.service';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ function mapItem(raw: any): ItemWithRelations {
     approvedById: raw.approvedById ?? undefined,
     createdAtGc: raw.createdAtGc,
     createdAtEc: raw.createdAtEc,
-    storeLocation: raw.storeLocation ?? undefined,
+    storeLocation: raw.storeLocation ? locationView(raw.storeLocation) : undefined,
     // Map employees explicitly so stored credentials never leave the API
     currentCustodian: raw.currentCustodian ? mapEmployee(raw.currentCustodian) : null,
     assignedDepartment: raw.assignedDepartment ?? null,
@@ -169,11 +170,19 @@ function mapEmployee(e: any): Employee {
   };
 }
 
-/** A location picked on a form must still be active */
-function assertActiveReference(row: { isActive?: boolean } | null, name: string | undefined, what: string): void {
-  if (row && row.isActive === false) {
-    throw new BadRequestError(`${name ?? 'This'} has been deactivated and can't be chosen as ${what}.`);
-  }
+/** "Store · Location" for audit text */
+const locationLabel = (l: any): string | undefined => (l ? [l.store?.name ?? l.siteName, l.name].filter(Boolean).join(' · ') || undefined : undefined);
+
+/** "Store · Location" where items are kept, read from the stores set up in Settings (for item history) */
+async function storeLabel(locationId?: string | null): Promise<string> {
+  const location = locationId ? await prisma.location.findUnique({ where: { id: locationId }, include: { store: true } }) : null;
+  return locationLabel(location) ?? 'Store';
+}
+
+/** The same, for an item known only by its id */
+async function storeLabelOfItem(itemId: string): Promise<string> {
+  const item = await prisma.item.findUnique({ where: { id: itemId }, select: { storeLocationId: true } });
+  return storeLabel(item?.storeLocationId);
 }
 
 /** Someone picked on a form (recipient, new custodian, store receiver) must still be active */
@@ -184,7 +193,7 @@ function assertActiveEmployee(e: { fullNameEn: string; isActive?: boolean } | nu
 }
 
 const ITEM_INCLUDES = {
-  storeLocation: true,
+  storeLocation: { include: { store: true } },
   currentCustodian: true,
   assignedDepartment: true,
   registeredBy: true,
@@ -507,9 +516,11 @@ export class StoreService {
     // Every registration, historical or not, waits for Stage 1/2 approval before becoming AVAILABLE.
     // isHistoricalData only waives the slip attachment requirement above.
     const initialStatus = ItemStatus.PENDING_STOCK_IN;
-    const receivingStore = payload.storeLocationId ? await prisma.location.findUnique({ where: { id: payload.storeLocationId } }) : null;
+    const receivingStore = payload.storeLocationId
+      ? await prisma.location.findUnique({ where: { id: payload.storeLocationId }, include: { store: true } })
+      : null;
     if (!receivingStore) throw new BadRequestError('The selected receiving store no longer exists.');
-    assertActiveReference(receivingStore, receivingStore.siteName, 'the receiving store');
+    assertUsableLocation(receivingStore, 'the receiving store');
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
@@ -589,7 +600,7 @@ export class StoreService {
               dateEc: today.ec,
               action: payload.isHistoricalData ? 'HISTORICAL_STOCK_IN' : 'STOCK_IN_REGISTERED',
               fromEntity: `IFMIS Slip ${payload.ifmisSlipNumber}`,
-              toEntity: 'Store (Pending Approval)',
+              toEntity: `${locationLabel(receivingStore) ?? 'Store'} (Pending Approval)`,
               performedBy: user ? user.fullNameEn : payload.registeredById,
               performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
               ifmisSlipNumber: payload.ifmisSlipNumber,
@@ -662,9 +673,9 @@ export class StoreService {
     if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price cannot be negative.');
     if (!Number.isInteger(quantity) || quantity < 1) throw new BadRequestError('Quantity must be at least 1.');
     if (payload.storeLocationId !== item.storeLocationId) {
-      const receivingStore = await prisma.location.findUnique({ where: { id: payload.storeLocationId } });
+      const receivingStore = await prisma.location.findUnique({ where: { id: payload.storeLocationId }, include: { store: true } });
       if (!receivingStore) throw new BadRequestError('The selected receiving store no longer exists.');
-      assertActiveReference(receivingStore, receivingStore.siteName, 'the receiving store');
+      assertUsableLocation(receivingStore, 'the receiving store');
     }
 
     const attachmentUrl = payload.ifmisSlipAttachmentUrl || item.ifmisSlipAttachmentUrl;
@@ -759,8 +770,8 @@ export class StoreService {
               dateGc: today.gc,
               dateEc: today.ec,
               action: 'STOCK_IN_EDITED',
-              fromEntity: 'Store (Pending Approval)',
-              toEntity: 'Store (Pending Approval)',
+              fromEntity: `${await storeLabel(item.storeLocationId)} (Pending Approval)`,
+              toEntity: `${await storeLabel(payload.storeLocationId)} (Pending Approval)`,
               performedBy: actor ? actor.fullNameEn : actorId,
               performedByRole: (actor?.role ?? 'DATA_ENCODER') as any,
               ifmisSlipNumber: after.ifmisSlipNumber,
@@ -916,7 +927,7 @@ export class StoreService {
               dateGc: today.gc,
               dateEc: today.ec,
               action: 'STOCK_OUT_EDITED',
-              fromEntity: 'Central Store (Available)',
+              fromEntity: `${await storeLabel(item.storeLocationId)} (Available)`,
               toEntity: `${recipient.fullNameEn} (Pending Approval)`,
               performedBy: actor ? actor.fullNameEn : actorId,
               performedByRole: (actor?.role ?? 'DATA_ENCODER') as any,
@@ -991,7 +1002,7 @@ export class StoreService {
             dateGc: today.gc,
             dateEc: today.ec,
             action: 'STOCK_OUT_REQUESTED',
-            fromEntity: 'Central Store (Available)',
+            fromEntity: `${await storeLabel(item.storeLocationId)} (Available)`,
             toEntity: recipient ? `${recipient.fullNameEn} (Pending Approval)` : 'Pending Staff Custodian',
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
@@ -1083,7 +1094,7 @@ export class StoreService {
             dateEc: today.ec,
             action: 'RETURN_REQUESTED',
             fromEntity: 'Staff Custodian (Issued)',
-            toEntity: 'Central Store (Pending Return Approval)',
+            toEntity: `${await storeLabel(item.storeLocationId)} (Pending Return Approval)`,
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
             ifmisSlipNumber: effectiveSlipNo,
@@ -1226,14 +1237,14 @@ export class StoreService {
       prisma.item.findUnique({ where: { id: approval.itemId } }),
       prisma.employee.findUnique({ where: { id: payload.toEmployeeId } }),
       payload.toDepartmentId ? prisma.department.findUnique({ where: { id: payload.toDepartmentId } }) : null,
-      payload.toLocationId ? prisma.location.findUnique({ where: { id: payload.toLocationId } }) : null,
+      payload.toLocationId ? prisma.location.findUnique({ where: { id: payload.toLocationId }, include: { store: true } }) : null,
     ]);
     if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
     if (!recipient) throw new BadRequestError('The selected new custodian no longer exists.');
     assertActiveEmployee(recipient, 'the new custodian');
     if (payload.toDepartmentId && !department) throw new BadRequestError('The selected directorate no longer exists.');
     if (payload.toLocationId && !location) throw new BadRequestError('The selected location no longer exists.');
-    if (location && location.id !== approval.targetLocationId) assertActiveReference(location, location.siteName, 'the destination location');
+    if (location && location.id !== approval.targetLocationId) assertUsableLocation(location, 'the destination location');
 
     const previous = requestDetailsOf(approval) ?? {};
     const details: Model21RequestDetails = {
@@ -1254,7 +1265,7 @@ export class StoreService {
     const [previousRecipient, previousDepartment, previousLocation, custodian] = await Promise.all([
       approval.recipientEmployeeId ? prisma.employee.findUnique({ where: { id: approval.recipientEmployeeId } }) : null,
       approval.targetDepartmentId ? prisma.department.findUnique({ where: { id: approval.targetDepartmentId } }) : null,
-      approval.targetLocationId ? prisma.location.findUnique({ where: { id: approval.targetLocationId } }) : null,
+      approval.targetLocationId ? prisma.location.findUnique({ where: { id: approval.targetLocationId }, include: { store: true } }) : null,
       item.currentCustodianId ? prisma.employee.findUnique({ where: { id: item.currentCustodianId } }) : null,
     ]);
     const view = (slip: string, to: string | undefined, dept: string | undefined, loc: string | undefined, d: Model21RequestDetails) => ({
@@ -1273,8 +1284,8 @@ export class StoreService {
       depreciation: d.depreciation,
       'book value': d.bookValue,
     });
-    const before = view(approval.ifmisSlipNumber, previousRecipient?.fullNameEn, previousDepartment?.nameEn, previousLocation?.siteName, previous);
-    const after = view(slipNo, recipient.fullNameEn, department?.nameEn, location?.siteName, details);
+    const before = view(approval.ifmisSlipNumber, previousRecipient?.fullNameEn, previousDepartment?.nameEn, locationLabel(previousLocation), previous);
+    const after = view(slipNo, recipient.fullNameEn, department?.nameEn, locationLabel(location), details);
     const changes = describeChanges(before, after);
     if (changes.length === 0) {
       return mapApproval(await prisma.transactionApproval.findUnique({ where: { id: approvalId }, include: APPROVAL_INCLUDES }));
@@ -1384,7 +1395,7 @@ export class StoreService {
       auditAction: 'EDIT_RETURN',
       entityType: 'RETURN',
       fromEntity: 'Staff Custodian (Issued)',
-      toEntity: 'Central Store (Pending Return Approval)',
+      toEntity: `${await storeLabelOfItem(approval.itemId)} (Pending Return Approval)`,
       slipNo,
       changes,
       before,
@@ -1497,6 +1508,8 @@ export class StoreService {
     let custodianId: string | null = item.currentCustodianId;
     let departmentId: string | null = item.assignedDepartmentId;
     let locationId: string = item.storeLocationId;
+    // The item's own store, for its history
+    const storeName = await storeLabel(item.storeLocationId);
     let approvedById: string | null = item.approvedById;
     let approvedCondition: string | undefined;
     // Set when a Stock-Out issues only part of the record's units
@@ -1507,15 +1520,15 @@ export class StoreService {
         newItemStatus = 'AVAILABLE';
         historyAction = 'STOCK_IN_APPROVED';
         fromEntity = 'Pending Approval';
-        toEntity = 'Central Store (AVAILABLE)';
+        toEntity = `${storeName} (AVAILABLE)`;
         histNote = payload.reviewRemarks || 'Stock-in approved. Item available for issuance.';
         approvedById = payload.reviewedById;
       } else if (approval.transactionType === 'RETURN') {
         newItemStatus = 'AVAILABLE';
         historyAction = 'RETURN_APPROVED';
         fromEntity = 'Staff Custodian (Issued)';
-        toEntity = 'Central Store (AVAILABLE)';
-        histNote = payload.reviewRemarks || 'Model 22 Return approved. Item returned to Central Store (AVAILABLE).';
+        toEntity = `${storeName} (AVAILABLE)`;
+        histNote = payload.reviewRemarks || `Model 22 Return approved. Item returned to ${storeName} (AVAILABLE).`;
         // Older returns set the condition when submitted and have no requestDetails
         approvedCondition = (approval.requestDetails as Model21RequestDetails | null)?.condition;
         custodianId = null;
@@ -1539,7 +1552,7 @@ export class StoreService {
       } else {
         newItemStatus = 'ISSUED';
         historyAction = 'STOCK_OUT_APPROVED';
-        fromEntity = 'Central Store';
+        fromEntity = storeName;
         const recipient = approval.recipientEmployeeId
           ? await prisma.employee.findUnique({ where: { id: approval.recipientEmployeeId } })
           : null;
@@ -1570,7 +1583,7 @@ export class StoreService {
           departmentId = item.assignedDepartmentId;
           approvedById = item.approvedById;
           fromEntity = 'Pending Stock-Out';
-          toEntity = 'Central Store (AVAILABLE)';
+          toEntity = `${storeName} (AVAILABLE)`;
           histNote = `Issued ${requested} of ${inStore} ${partialIssue.uom} as ${partialIssue.code} to ${partialIssue.recipientName}; ${partialIssue.remaining} ${partialIssue.uom} remain in store. Purpose: ${approval.purposeOrRemarks}`;
         }
       }
@@ -1599,7 +1612,7 @@ export class StoreService {
         newItemStatus = 'AVAILABLE';
         historyAction = 'STOCK_OUT_REJECTED';
         fromEntity = 'Pending Stock-Out';
-        toEntity = 'Central Store (AVAILABLE)';
+        toEntity = `${storeName} (AVAILABLE)`;
         histNote = payload.reviewRemarks || 'Stock-out request rejected by Department Head';
       }
     }
@@ -1660,7 +1673,7 @@ export class StoreService {
               dateGc: today.gc,
               dateEc: today.ec,
               action: 'STOCK_OUT_APPROVED',
-              fromEntity: `Central Store (${item.itemCode})`,
+              fromEntity: `${storeName} (${item.itemCode})`,
               toEntity: partialIssue.recipientName,
               performedBy: reviewerName,
               performedByRole: (reviewer ? reviewer.role : 'DEPARTMENT_HEAD') as any,
@@ -1717,9 +1730,9 @@ export class StoreService {
       if (!toDepartment) throw new BadRequestError('The selected directorate no longer exists.');
     }
     if (payload.toLocationId) {
-      const toLocation = await prisma.location.findUnique({ where: { id: payload.toLocationId } });
+      const toLocation = await prisma.location.findUnique({ where: { id: payload.toLocationId }, include: { store: true } });
       if (!toLocation) throw new BadRequestError('The selected location no longer exists.');
-      assertActiveReference(toLocation, toLocation.siteName, 'the destination location');
+      assertUsableLocation(toLocation, 'the destination location');
     }
     const newCustodian = payload.toEmployeeId ? newCustodianRecord?.fullNameEn : prevCustodian;
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
@@ -1837,7 +1850,7 @@ export class StoreService {
         orderBy: { unitCostETB: 'desc' },
       }),
       prisma.department.findMany({ orderBy: { code: 'asc' } }),
-      prisma.location.findMany({ orderBy: { siteName: 'asc' } }),
+      prisma.location.findMany({ include: { store: true }, orderBy: [{ store: { name: 'asc' } }, { name: 'asc' }] }),
       prisma.transactionApproval.count({ where: { status: 'PENDING' } }),
       prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 8 }),
       prisma.transactionApproval.findMany({
@@ -1953,10 +1966,10 @@ export class StoreService {
 
       return {
         id: loc.id,
-        siteName: loc.siteName,
-        building: loc.building,
-        roomNumber: loc.roomNumber,
-        isCentralStore: loc.isCentralStore,
+        siteName: locationView(loc).siteName,
+        building: locationView(loc).building,
+        roomNumber: locationView(loc).roomNumber,
+        isCentralStore: true,
         itemCount: units(locItems),
         totalValueETB: sum(locItems),
         availableCount: units(locAvailable),

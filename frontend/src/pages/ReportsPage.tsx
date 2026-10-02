@@ -19,6 +19,7 @@ import {
   FileSearch,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { storeLocationLabel } from '../utils/location';
 import { table, statusTone, btn } from '../components/ui/theme';
 import { RecordDetailModal } from '../components/ui/RecordDetailModal';
 import {
@@ -912,7 +913,7 @@ export const ReportsPage: React.FC = () => {
                           </div>
                         ) : (
                           <div className="text-slate-500 truncate">
-                            {item.storeLocation?.siteName || 'Head office'}
+                            {storeLocationLabel(item.storeLocation)}
                           </div>
                         )}
                       </td>

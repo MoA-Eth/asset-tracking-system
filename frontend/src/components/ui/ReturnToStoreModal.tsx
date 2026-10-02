@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Car, Tag, UserCheck } from 'lucide-react';
 import { api } from '../../api/client';
+import { storeLocationLabel } from '../../utils/location';
 import {
   ItemWithRelations,
   ItemCondition,
@@ -174,7 +175,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
     const registeredById = user?.id || '';
     const fromCustodian = item.currentCustodian;
     const receiver = employees.find((e) => e.id === storeReceiverId);
-    const loc = item.storeLocation?.siteName || 'MoA Gurd Sholla (Central Store)';
+    const loc = storeLocationLabel(item.storeLocation);
     const todayGc = ifmisSlipDateGc || new Date().toISOString().split('T')[0];
     const todayEc = formatGcToEc(todayGc);
 
@@ -253,7 +254,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
         fromEmployeeName: fromCustodian?.fullNameEn || 'Assigned Staff Custodian',
         fromEmployeeId: fromCustodian?.payrollId || '—',
         book: book.trim() || 'MOA MC BOOK',
-        toEmployeeName: receiver?.fullNameEn || 'Central Store Custodian',
+        toEmployeeName: receiver?.fullNameEn || '—',
         toEmployeeId: receiver?.payrollId || '—',
         items: [
           {
@@ -461,7 +462,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
               </Field>
 
               <Field label="Returns to store">
-                <ReadOnlyValue>{item.storeLocation?.siteName || 'Central store'}</ReadOnlyValue>
+                <ReadOnlyValue>{storeLocationLabel(item.storeLocation)}</ReadOnlyValue>
               </Field>
 
               <Field label="Received by (store custodian)" optional hint="The store staff member taking the item back, if known.">

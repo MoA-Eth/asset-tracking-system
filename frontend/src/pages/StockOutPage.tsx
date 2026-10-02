@@ -196,7 +196,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       setItemCode(item.itemCode || '');
       setItemDescription(item.name || '');
       setUom(item.uom || 'EA');
-      setSubInventory(item.subInventory || item.storeLocation?.siteName || 'Spareparts');
+      setSubInventory(item.subInventory || item.storeLocation?.roomNumber || '');
       setItemCategory(item.itemCategoryDisplay || item.category?.replace(/_/g, ' ') || 'Spare parts');
       setLotBatchNo(item.lotBatchNo || '');
       setSerialNo(item.serialNumber || '');
@@ -552,7 +552,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
             <Field label="Sub inventory" required>
               <input
                 type="text"
-                placeholder="e.g. Spareparts"
+                placeholder="Filled in from the item's location"
                 value={subInventory}
                 onChange={(e) => setSubInventory(e.target.value)}
                 className={input()}
@@ -1109,7 +1109,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     }
 
     const targetDept = departments.find((d) => d.id === approval.targetDepartmentId);
-    const destination = targetDept ? departmentLabel(targetDept) : 'Central Operations';
+    const destination = targetDept ? departmentLabel(targetDept) : '—';
     const recipient = employees.find((e) => e.id === approval.recipientEmployeeId) || approval.recipientEmployee;
     const requester = employees.find((e) => e.id === approval.requestedById) || approval.requestedBy;
 
@@ -1126,7 +1126,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
       transactionType: 'Move Order Issue',
       destination,
       destinationDepartmentId: approval.targetDepartmentId,
-      subInventory: itemDetails?.subInventory || 'Spareparts',
+      subInventory: itemDetails?.subInventory || itemDetails?.storeLocation?.roomNumber || '—',
       issuedByName: requester?.fullNameEn || user?.fullNameEn || 'Store Custodian',
       receivedByName: recipient?.fullNameEn || 'Recipient Staff Member',
       receivedByEmployeeId: approval.recipientEmployeeId,
@@ -1136,7 +1136,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
           itemCode: approval.itemCode,
           itemDescription: approval.itemName,
           uom: itemDetails?.uom || 'EA',
-          subInventory: itemDetails?.subInventory || 'Spareparts',
+          subInventory: itemDetails?.subInventory || itemDetails?.storeLocation?.roomNumber || '—',
           itemCategory: itemDetails?.itemCategoryDisplay || (itemDetails?.category as string) || 'Spare parts',
           lotBatchNo: itemDetails?.lotBatchNo || undefined,
           serialNo: itemDetails?.serialNumber || undefined,
