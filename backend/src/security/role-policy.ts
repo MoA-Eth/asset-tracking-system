@@ -29,7 +29,7 @@ export const PERMISSION_GROUPS = [
 
 export type Permission = typeof PERMISSION_GROUPS[number]['permissions'][number]['key'];
 
-const referenceTabs = ['settings-employees', 'settings-stores', 'settings-system'];
+const referenceTabs = ['settings-employees', 'settings-departments', 'settings-stores', 'settings-system'];
 const readPermissions: Permission[] = ['inventory.read', 'references.read'];
 
 // Authoritative policy for API guards, the role directory, and session navigation.
