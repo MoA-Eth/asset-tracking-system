@@ -67,9 +67,44 @@ export interface Employee {
   fullNameEn: string;
   fullNameAm: string;
   departmentId: string;
-  email: string;
-  phone: string;
-  role: UserRole;
+  jobTitle?: string | null;
+  /** Contact details are only sent to people who manage employees */
+  email?: string | null;
+  phone?: string | null;
+  /** System role; null when the employee can't sign in */
+  role: UserRole | null;
+  isActive: boolean;
+  /** Items the employee holds (only for people who manage employees) */
+  heldItemCount?: number;
+}
+
+export type EmployeeImportAction = 'create' | 'update' | 'unchanged' | 'error';
+
+/** What an HR spreadsheet import would do (or did, when applied) */
+export interface EmployeeImportResult {
+  applied: boolean;
+  counts: Record<EmployeeImportAction, number>;
+  rows: {
+    row: number;
+    payrollId: string;
+    fullNameEn: string;
+    department: string;
+    action: EmployeeImportAction;
+    changes?: string[];
+    message?: string;
+    inactive?: boolean;
+  }[];
+}
+
+/** Staff details from the Add / Edit employee form; sign-in is not changed from there */
+export interface EmployeeInput {
+  payrollId: string;
+  fullNameEn: string;
+  fullNameAm: string;
+  departmentId: string;
+  jobTitle?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface ItemMovementHistory {

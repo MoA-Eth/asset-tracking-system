@@ -280,7 +280,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
     }
 
     setSubmitting(true);
-    const registeredById = user?.id || employees[0]?.id || '';
+    const registeredById = user?.id || '';
 
     if (editItem) {
       try {
@@ -401,7 +401,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         storeLocationName: targetStore?.siteName,
         deliveredByName: deliveredBy.trim(),
         receivedByName: receivedBy.trim() || user?.fullNameEn,
-        reportTakenBy: user?.fullNameEn || 'azebmif',
+        reportTakenBy: user?.fullNameEn || '—',
         items: voucherItems,
         grandTotal: totalAmount,
       };
@@ -1217,7 +1217,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
       storeLocationName: item.storeLocation?.siteName,
       deliveredByName: item.deliveredBy,
       receivedByName: item.receivedBy || item.registeredBy?.fullNameEn,
-      reportTakenBy: item.registeredBy?.fullNameEn || 'azebmif',
+      reportTakenBy: item.registeredBy?.fullNameEn || '—',
       items: voucherItems,
       grandTotal,
     };
@@ -1396,7 +1396,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
         }
         size="2xl"
       >
-        {locations.length > 0 && employees.length > 0 ? (
+        {locations.length > 0 ? (
           <StockInForm
             key={editItem?.id ?? 'new'}
             locations={locations}

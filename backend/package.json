@@ -13,7 +13,8 @@
     "db:push": "prisma generate && prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:upgrade:roles": "prisma db execute --file prisma/migrations/202610010001_roles_audit/migration.sql --schema prisma/schema.prisma && prisma generate"
+    "db:upgrade:roles": "prisma db execute --file prisma/migrations/202610010001_roles_audit/migration.sql --schema prisma/schema.prisma && prisma generate",
+    "db:upgrade:employees": "prisma db execute --file prisma/migrations/202610020001_employee_registry/migration.sql --schema prisma/schema.prisma && prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.4.0",

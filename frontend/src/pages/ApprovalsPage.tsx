@@ -257,12 +257,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         : 'Model 21 Return';
 
     setActionLoading(true);
-    const approverId =
-      user?.id ||
-      (canEndorse
-        ? employees.find((e) => e.role === UserRole.TEAM_LEADER)?.id
-        : employees.find((e) => e.role === UserRole.DEPARTMENT_HEAD)?.id) ||
-      employees[0]?.id;
+    // The server records the signed-in reviewer
+    const approverId = user?.id;
 
     try {
       await api.handleApproval({
@@ -328,12 +324,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     }
 
     setBatchProcessing(true);
-    const approverId =
-      user?.id ||
-      (canEndorse
-        ? employees.find((e) => e.role === UserRole.TEAM_LEADER)?.id
-        : employees.find((e) => e.role === UserRole.DEPARTMENT_HEAD)?.id) ||
-      employees[0]?.id;
+    // The server records the signed-in reviewer
+    const approverId = user?.id;
 
     let successCount = 0;
     let failCount = 0;

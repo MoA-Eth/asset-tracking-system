@@ -25,7 +25,9 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
-app.use(express.json());
+// The staff import parses its own larger body (see reference.routes.ts)
+const jsonBody = express.json();
+app.use((req, res, next) => (req.path === '/api/reference/employees/import' ? next() : jsonBody(req, res, next)));
 
 // Request logging in development
 if (process.env.NODE_ENV !== 'test') {

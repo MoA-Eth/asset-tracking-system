@@ -162,10 +162,17 @@ function mapEmployee(e: any): Employee {
     fullNameEn: e.fullNameEn,
     fullNameAm: e.fullNameAm,
     departmentId: e.departmentId,
-    email: e.email,
-    phone: e.phone,
-    role: e.role as UserRole,
+    jobTitle: e.jobTitle ?? null,
+    role: (e.role ?? null) as UserRole | null,
+    isActive: e.isActive !== false,
   };
+}
+
+/** Someone picked on a form (recipient, new custodian, store receiver) must still be active */
+function assertActiveEmployee(e: { fullNameEn: string; isActive?: boolean } | null, what: string): void {
+  if (e && e.isActive === false) {
+    throw new BadRequestError(`${e.fullNameEn} has been deactivated and can't be chosen as ${what}.`);
+  }
 }
 
 const ITEM_INCLUDES = {
@@ -812,6 +819,7 @@ export class StoreService {
       prisma.department.findUnique({ where: { id: payload.targetDepartmentId } }),
     ]);
     if (!recipient) throw new BadRequestError('The selected recipient no longer exists.');
+    assertActiveEmployee(recipient, 'the recipient');
     if (!department) throw new BadRequestError('The selected directorate no longer exists.');
 
     const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
@@ -948,6 +956,8 @@ export class StoreService {
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const recipient = payload.recipientEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }) : null;
+    if (payload.recipientEmployeeId && !recipient) throw new BadRequestError('The selected recipient no longer exists.');
+    assertActiveEmployee(recipient, 'the recipient');
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
     const notesText = formatStockOutNotes(payload.purpose, payload.remark);
@@ -1020,6 +1030,11 @@ export class StoreService {
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
+    if (payload.storeRecipientId) {
+      const storeRecipient = await prisma.employee.findUnique({ where: { id: payload.storeRecipientId } });
+      if (!storeRecipient) throw new BadRequestError('The selected store receiver no longer exists.');
+      assertActiveEmployee(storeRecipient, 'the store receiver');
+    }
 
     const returnDetails: Model21RequestDetails = {
       reason: payload.returnReason,
@@ -1195,6 +1210,7 @@ export class StoreService {
     ]);
     if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
     if (!recipient) throw new BadRequestError('The selected new custodian no longer exists.');
+    assertActiveEmployee(recipient, 'the new custodian');
     if (payload.toDepartmentId && !department) throw new BadRequestError('The selected directorate no longer exists.');
     if (payload.toLocationId && !location) throw new BadRequestError('The selected location no longer exists.');
 
@@ -1284,6 +1300,7 @@ export class StoreService {
       ? await prisma.employee.findUnique({ where: { id: payload.storeRecipientId } })
       : null;
     if (payload.storeRecipientId && !storeRecipient) throw new BadRequestError('The selected store receiver no longer exists.');
+    assertActiveEmployee(storeRecipient, 'the store receiver');
 
     const previous = requestDetailsOf(approval) ?? {};
     const details: Model21RequestDetails = {
@@ -1671,9 +1688,10 @@ export class StoreService {
     const prevCustodian = item.currentCustodianId
       ? (await prisma.employee.findUnique({ where: { id: item.currentCustodianId } }))?.fullNameEn
       : 'None';
-    const newCustodian = payload.toEmployeeId
-      ? (await prisma.employee.findUnique({ where: { id: payload.toEmployeeId } }))?.fullNameEn
-      : prevCustodian;
+    const newCustodianRecord = payload.toEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.toEmployeeId } }) : null;
+    if (payload.toEmployeeId && !newCustodianRecord) throw new BadRequestError('The selected new custodian no longer exists.');
+    assertActiveEmployee(newCustodianRecord, 'the new custodian');
+    const newCustodian = payload.toEmployeeId ? newCustodianRecord?.fullNameEn : prevCustodian;
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
 
     const transferDetails: Model21RequestDetails = {
@@ -1796,12 +1814,6 @@ export class StoreService {
       roomNumber: l.roomNumber,
       isCentralStore: l.isCentralStore,
     }));
-  }
-
-  public async getEmployees(departmentId?: string): Promise<Employee[]> {
-    const where: any = departmentId ? { departmentId } : {};
-    const rows = await prisma.employee.findMany({ where, orderBy: { fullNameEn: 'asc' } });
-    return rows.map(mapEmployee);
   }
 
   public async updateEmployeeRole(id: string, role: UserRole, actorId?: string): Promise<Employee> {

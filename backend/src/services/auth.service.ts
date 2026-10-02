@@ -26,7 +26,7 @@ export class AuthService {
     const roles = [UserRole.MANAGER, UserRole.DEPARTMENT_HEAD, UserRole.DATA_ENCODER];
     const employees = await Promise.all(
       roles.map((role) =>
-        prisma.employee.findFirst({ where: { role: role as any } })
+        prisma.employee.findFirst({ where: { role: role as any, isActive: true } })
       )
     );
     return employees
@@ -58,8 +58,15 @@ export class AuthService {
       throw new UnauthorizedError('Invalid credentials. Please provide a valid MoA email or payroll ID.');
     }
 
-    if (!await verifyPassword(req.password, matched.password)) {
+    if (!matched.password || !await verifyPassword(req.password, matched.password)) {
       throw new UnauthorizedError('Invalid credentials.');
+    }
+    // Checked after the password, so these messages don't reveal which accounts exist
+    if (matched.isActive === false) {
+      throw new UnauthorizedError('This account has been deactivated. Contact your System Administrator.');
+    }
+    if (!matched.role) {
+      throw new UnauthorizedError('This employee has no system access. Ask your System Administrator for a role.');
     }
     if (!matched.password.startsWith('scrypt$')) {
       await prisma.employee.updateMany({
@@ -84,6 +91,10 @@ export class AuthService {
       const employee = await prisma.employee.findUnique({ where: { id: userId } });
       if (!employee) {
         throw new UnauthorizedError('This account is no longer available. Please sign in again.');
+      }
+      // Deactivating an employee or removing their role ends their sessions straight away
+      if (employee.isActive === false || !employee.role) {
+        throw new UnauthorizedError('This account no longer has system access.');
       }
 
       return this.toAuthUser(employee);

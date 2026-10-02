@@ -67,9 +67,13 @@ export interface Employee {
   fullNameEn: string;
   fullNameAm: string;
   departmentId: string;
-  email: string;
-  phone: string;
-  role: UserRole;
+  jobTitle?: string | null;
+  /** Contact details are only sent to people who manage employees */
+  email?: string | null;
+  phone?: string | null;
+  /** System role; null when the employee can't sign in */
+  role: UserRole | null;
+  isActive: boolean;
 }
 
 export interface ItemMovementHistory {

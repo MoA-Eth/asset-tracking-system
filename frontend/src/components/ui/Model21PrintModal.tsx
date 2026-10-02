@@ -21,7 +21,7 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
     window.print();
   };
 
-  const reportTakenBy = voucher.reportTakenBy || 'lidlyats';
+  const reportTakenBy = voucher.reportTakenBy || '—';
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();

@@ -352,7 +352,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         toDepartmentId: targetDepartmentId || undefined,
         toLocationId: targetLocationId || undefined,
         reason: transferReason || 'Official custody reassignment',
-        performedById: user?.id || employees[0]?.id || '',
+        performedById: user?.id || '',
         model21No: model21No.trim(),
         book: book.trim(),
         chassisNumber: chassisNumber.trim() || undefined,
@@ -369,10 +369,10 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
       const voucher: Model21Voucher = {
         model21No: model21No.trim(),
         fromEmployeeName: fromCustodian?.fullNameEn || 'Store Custodian',
-        fromEmployeeId: fromCustodian?.payrollId || '110895',
+        fromEmployeeId: fromCustodian?.payrollId || '—',
         book: book.trim() || 'MOA MC BOOK',
         toEmployeeName: targetEmp?.fullNameEn || 'Recipient Staff',
-        toEmployeeId: targetEmp?.payrollId || '109856',
+        toEmployeeId: targetEmp?.payrollId || '—',
         items: [
           {
             sNo: 1,
@@ -397,7 +397,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           },
         ],
         famuAccountantName: 'FAMU Reviewer',
-        reportTakenBy: user?.payrollId || 'lidlyats',
+        reportTakenBy: user?.payrollId || '—',
         reportTakenDate: `${todayGc} @ ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`,
       };
 
@@ -456,7 +456,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         },
       ],
       famuAccountantName: 'FAMU Reviewer',
-      reportTakenBy: user?.payrollId || 'lidlyats',
+      reportTakenBy: user?.payrollId || '—',
       reportTakenDate: `${todayGc} @ ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`,
     };
     setActiveVoucher(voucher);
