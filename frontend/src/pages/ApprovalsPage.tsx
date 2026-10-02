@@ -508,14 +508,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               <span className="hidden md:inline pr-1">Cards View</span>
             </button>
           </div>
-
-          <button
-            onClick={fetchApprovals}
-            className="p-2 rounded-xl bg-white text-slate-700 hover:text-slate-900 border border-slate-300 transition shadow-2xs cursor-pointer"
-            title="Refresh Approvals List"
-          >
-            <RefreshCw className={`w-4 h-4 text-emerald-700 ${loading ? 'animate-spin' : ''}`} />
-          </button>
         </div>
       </div>
 

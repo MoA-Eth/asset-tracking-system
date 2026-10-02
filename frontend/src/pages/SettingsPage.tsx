@@ -172,13 +172,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
           <UserPlus className="w-3.5 h-3.5" />
           Add user
         </button>
-        <button
-          onClick={fetchData}
-          className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
-        >
-          <RefreshCw className="w-3.5 h-3.5 text-emerald-700" />
-          Refresh Registry
-        </button>
       </div>
 
       {/* Success Notification */}

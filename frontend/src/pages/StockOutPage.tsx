@@ -767,8 +767,6 @@ type StockOutSortField = 'itemCode' | 'itemName' | 'ifmisSlipNumber' | 'purposeO
 
 interface StockOutTableProps {
   approvals: TransactionApproval[];
-  onRefresh: () => void;
-  refreshing: boolean;
   onNavigate: (tab: string) => void;
   onOpenVoucher: (approval: TransactionApproval) => void;
   onOpenReturn: (itemCode: string) => void;
@@ -785,8 +783,6 @@ interface StockOutTableProps {
 
 const StockOutTable: React.FC<StockOutTableProps> = ({
   approvals,
-  onRefresh,
-  refreshing,
   onNavigate,
   onOpenVoucher,
   onOpenReturn,
@@ -880,14 +876,6 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
             {filtered.length} of {approvals.length} found
           </span>
         )}
-        <button
-          onClick={onRefresh}
-          disabled={refreshing}
-          className="p-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-          title="Refresh"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-        </button>
       </div>
 
       {/* Table */}
@@ -1340,8 +1328,6 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
         </div>
         <StockOutTable
           approvals={stockOutApprovals}
-          onRefresh={() => fetchData(true)}
-          refreshing={refreshing}
           onNavigate={onNavigate}
           onOpenVoucher={(appr) => setSelectedVoucherApproval(appr)}
           onPrintModel22={handlePrintModel22}

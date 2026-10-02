@@ -214,15 +214,6 @@ export const StoresPage: React.FC = () => {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {canManage && <StatusTabs value={statusFilter} onChange={setStatusFilter} active={activeStores.length} inactive={stores.length - activeStores.length} />}
-          <button
-            type="button"
-            onClick={load}
-            aria-label="Refresh"
-            title="Refresh"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-600 transition hover:bg-slate-50 cursor-pointer"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
         </div>
       </div>
 

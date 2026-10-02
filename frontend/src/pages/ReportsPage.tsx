@@ -570,13 +570,6 @@ export const ReportsPage: React.FC = () => {
             <Printer className="w-3.5 h-3.5 text-slate-500" />
             <span>Print</span>
           </button>
-          <button
-            onClick={loadData}
-            className="p-1.5 rounded-xl bg-white text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
-            title="Refresh Data"
-          >
-            <RefreshCw className={`w-4 h-4 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
-          </button>
         </div>
       </div>
 

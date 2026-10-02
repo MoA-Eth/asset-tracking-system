@@ -798,8 +798,6 @@ type SortField = 'createdAt' | 'itemCode' | 'name' | 'category' | 'ifmisSlipNumb
 
 interface ItemsTableProps {
   items: ItemWithRelations[];
-  onRefresh: () => void;
-  refreshing: boolean;
   onNavigate: (tab: string) => void;
   onPrintModel19: (item: ItemWithRelations) => void;
   /** Approval stage (1 or 2) of each item with a pending Stock-In request */
@@ -813,8 +811,6 @@ interface ItemsTableProps {
 
 const ItemsTable: React.FC<ItemsTableProps> = ({
   items,
-  onRefresh,
-  refreshing,
   onNavigate,
   onPrintModel19,
   pendingStages,
@@ -919,14 +915,6 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
             {filtered.length} of {items.length} found
           </span>
         )}
-        <button
-          onClick={onRefresh}
-          disabled={refreshing}
-          className="p-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-          title="Refresh Inventory"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-        </button>
       </div>
 
       {/* Table */}
@@ -1414,8 +1402,6 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
         </div>
         <ItemsTable
           items={items}
-          onRefresh={() => initData(true)}
-          refreshing={refreshing}
           onNavigate={onNavigate}
           onPrintModel19={handlePrintItem}
           pendingStages={pendingStages}

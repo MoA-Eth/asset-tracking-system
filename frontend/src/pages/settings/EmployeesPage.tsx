@@ -377,15 +377,6 @@ export const EmployeesPage: React.FC = () => {
               ))}
             </div>
           )}
-          <button
-            type="button"
-            onClick={load}
-            aria-label="Refresh"
-            title="Refresh"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-600 transition hover:bg-slate-50 cursor-pointer"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
         </div>
       </div>
 
