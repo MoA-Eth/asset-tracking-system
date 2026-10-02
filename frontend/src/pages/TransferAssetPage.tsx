@@ -166,9 +166,10 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   const [engineNo, setEngineNo] = useState('');
   const [depreciation, setDepreciation] = useState<number>(0);
   const [bookValue, setBookValue] = useState<number>(0);
-  const [jackQty, setJackQty] = useState(1);
-  const [tireWrenchQty, setTireWrenchQty] = useState(1);
-  const [keyQty, setKeyQty] = useState(2);
+  // Accessories start at zero: the encoder enters what was actually handed over
+  const [jackQty, setJackQty] = useState(0);
+  const [tireWrenchQty, setTireWrenchQty] = useState(0);
+  const [keyQty, setKeyQty] = useState(0);
   const [tireSerials, setTireSerials] = useState('');
   const [defectRemark, setDefectRemark] = useState('');
 
@@ -215,10 +216,9 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
       setEngineNo('');
       setTireSerials('');
       setDefectRemark('');
-      const vehicle = item.category === 'VEHICLE' || item.category === 'AGRI_MACHINERY';
-      setJackQty(vehicle ? 1 : 0);
-      setTireWrenchQty(vehicle ? 1 : 0);
-      setKeyQty(vehicle ? 2 : 0);
+      setJackQty(0);
+      setTireWrenchQty(0);
+      setKeyQty(0);
     }
   };
 

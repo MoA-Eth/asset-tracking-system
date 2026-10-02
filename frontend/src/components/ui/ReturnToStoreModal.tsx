@@ -216,7 +216,6 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
       } catch (err: any) {
         const errMsg = err.message || 'Server error';
         setFormError(`Update failed: ${errMsg}`);
-        toast.error('Return Update Failed', errMsg);
       } finally {
         setSubmitting(false);
       }
@@ -294,7 +293,6 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
     } catch (err: any) {
       const errMsg = err.message || 'Server error';
       setFormError(`Return registration failed: ${errMsg}`);
-      toast.error('Return Request Failed', errMsg);
     } finally {
       setSubmitting(false);
     }

@@ -255,7 +255,7 @@ export const AuditLogsPage: React.FC = () => {
           {[
             { label: 'All Activities', value: 'ALL' },
             { label: 'Stock-In (M19)', value: 'STOCK_IN' },
-            { label: 'Stock-Out (M20)', value: 'STOCK_OUT' },
+            { label: 'Stock-Out (M22)', value: 'STOCK_OUT' },
             { label: 'Approvals & Sign-Offs', value: 'APPROVE' },
             { label: 'Rejections', value: 'REJECT' },
             { label: 'Transfers', value: 'TRANSFER' },

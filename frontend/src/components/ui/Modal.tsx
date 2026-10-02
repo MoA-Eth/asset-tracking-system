@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -28,16 +28,34 @@ export const Modal: React.FC<ModalProps> = ({
   size = 'lg',
 }) => {
   const overlayRef = useRef<HTMLDivElement>(null);
+  // Set once the user types or picks anything inside, so an accidental close can't discard it
+  const edited = useRef(false);
+  const [confirmingClose, setConfirmingClose] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      edited.current = false;
+      setConfirmingClose(false);
+    }
+  }, [isOpen]);
+
+  /** Escape, the X and a click outside all come here: ask first when something was typed */
+  const requestClose = useCallback(() => {
+    if (edited.current) setConfirmingClose(true);
+    else onClose();
+  }, [onClose]);
 
   // Close on Escape key
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (confirmingClose) setConfirmingClose(false);
+      else requestClose();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [isOpen, onClose]);
+  }, [isOpen, requestClose, confirmingClose]);
 
   // Prevent body scroll while open
   useEffect(() => {
@@ -50,7 +68,8 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === overlayRef.current) onClose();
+    // A click outside never discards typed data; it only closes an untouched window
+    if (e.target === overlayRef.current && !edited.current) onClose();
   };
 
   return (
@@ -63,6 +82,8 @@ export const Modal: React.FC<ModalProps> = ({
       aria-label={title}
     >
       <div
+        onInput={() => { edited.current = true; }}
+        onChange={() => { edited.current = true; }}
         className={`
           relative w-full ${SIZE_CLASS[size]} max-h-[90vh] flex flex-col
           bg-white rounded-2xl shadow-2xl
@@ -78,7 +99,8 @@ export const Modal: React.FC<ModalProps> = ({
             )}
           </div>
           <button
-            onClick={onClose}
+            type="button"
+            onClick={requestClose}
             className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer shrink-0 ml-4"
             aria-label="Close modal"
           >
@@ -88,6 +110,32 @@ export const Modal: React.FC<ModalProps> = ({
 
         {/* Modal Body — scrollable */}
         <div className="overflow-y-auto flex-1 px-6 py-5">{children}</div>
+
+        {confirmingClose && (
+          <div role="alertdialog" aria-label="Discard what you entered?" className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 p-6 backdrop-blur-[2px]">
+            <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+              <h3 className="text-sm font-extrabold text-slate-900">Discard what you entered?</h3>
+              <p className="mt-1 text-xs text-slate-600">Nothing has been saved yet. If you close this window, what you typed is lost.</p>
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => setConfirmingClose(false)}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  Keep editing
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-800 cursor-pointer"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

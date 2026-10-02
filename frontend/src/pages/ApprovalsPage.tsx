@@ -666,7 +666,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   <th className="py-3 px-4 w-36 whitespace-nowrap shrink-0">IFMIS Slip Reference</th>
                   <th className="py-3 px-4 w-36 whitespace-nowrap shrink-0">Workflow Stage</th>
                   <th className="py-3 px-4 min-w-[170px]">Requester / Justification</th>
-                  <th className="py-3 px-4 text-right w-36 whitespace-nowrap shrink-0">Review Action</th>
+                  <th className="sticky right-0 z-[1] bg-slate-50 py-3 px-4 text-right w-36 whitespace-nowrap shrink-0">Review Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -763,8 +763,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                         </div>
                       </td>
 
-                      {/* Review & Signing Button */}
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                      {/* Review & Signing Button: pinned to the right edge so it never needs sideways scrolling */}
+                      <td className="sticky right-0 z-[1] bg-white py-3 px-4 text-right whitespace-nowrap shadow-[-10px_0_10px_-10px_rgba(15,23,42,0.18)]">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"

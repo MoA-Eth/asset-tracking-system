@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { StoreService } from '../services/store.service';
+import { discardUnusedSlip } from '../lib/slip-cleanup';
 import {
   AssetCategory,
   ItemStatus,
@@ -91,7 +92,10 @@ export class ItemController {
     if (!payload.registeredById) {
       throw new BadRequestError('User identity is required to register stock-in.');
     }
-    const result = await this.store.registerStockIn(payload);
+    const result = await this.store.registerStockIn(payload).catch(async (err) => {
+      await discardUnusedSlip(payload.ifmisSlipAttachmentUrl);
+      throw err;
+    });
     return sendSuccess(res, result, 'Stock-In registered successfully', 201);
   });
 
@@ -123,7 +127,10 @@ export class ItemController {
     if (!payload.registeredById) {
       throw new BadRequestError('User identity is required to register stock-out.');
     }
-    const result = await this.store.registerStockOut(payload);
+    const result = await this.store.registerStockOut(payload).catch(async (err) => {
+      await discardUnusedSlip(payload.ifmisSlipAttachmentUrl);
+      throw err;
+    });
     return sendSuccess(res, result, 'Stock-out submitted for Department Head approval', 201);
   });
 
@@ -155,7 +162,10 @@ export class ItemController {
     if (!payload.registeredById) {
       throw new BadRequestError('User identity is required to register return.');
     }
-    const result = await this.store.registerReturn(payload);
+    const result = await this.store.registerReturn(payload).catch(async (err) => {
+      await discardUnusedSlip(payload.ifmisSlipAttachmentUrl);
+      throw err;
+    });
     return sendSuccess(res, result, 'Model 22 Return-to-Store registered and sent for approval', 201);
   });
 

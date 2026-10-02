@@ -147,7 +147,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   const [selectedItemId, setSelectedItemId] = useState<string>('');
 
   // Header fields matching photo
-  const [model22No, setModel22No] = useState<string>(editApproval?.ifmisSlipNumber ?? '0004653/A Inventory');
+  const [model22No, setModel22No] = useState<string>(editApproval?.ifmisSlipNumber ?? '');
   const [issuedDateGc, setIssuedDateGc] = useState<string>(
     editApproval?.ifmisSlipDateGc || editApproval?.createdAtGc?.split('T')[0] || new Date().toISOString().split('T')[0]
   );
@@ -232,7 +232,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
 
   const handleReset = () => {
     setSelectedItemId('');
-    setModel22No('0004653/A Inventory');
+    setModel22No('');
     setIssuedDateGc(new Date().toISOString().split('T')[0]);
     setTransactionType(DEFAULT_TRANSACTION_TYPE);
     setDestinationDepartmentId('');
@@ -346,7 +346,6 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       } catch (err: any) {
         const errMsg = err.message || 'Server error';
         setFormError(`Update failed: ${errMsg}`);
-        toast.error('Stock-Out Update Failed', errMsg);
       } finally {
         setSubmitting(false);
       }
@@ -427,7 +426,6 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
     } catch (err: any) {
       const errMsg = err.message || 'Server error';
       setFormError(`Stock-Out failed: ${errMsg}`);
-      toast.error('Stock-Out Failed', errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -1130,7 +1128,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     const totalAmount = unitPrice * qty;
 
     const voucher: Model22Voucher = {
-      model22No: approval.ifmisSlipNumber || '0004653/A Inventory',
+      model22No: approval.ifmisSlipNumber || '',
       issuedDateGc,
       issuedDateEc,
       transactionType: 'Move Order Issue',

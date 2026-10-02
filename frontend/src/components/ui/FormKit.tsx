@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ChevronDown, CheckCircle2, LucideIcon, Paperclip, RefreshCw, RotateCcw, Upload, X } from 'lucide-react';
 
 /**
@@ -168,13 +168,19 @@ export const SummaryGrid: React.FC<{ items: { label: string; value: React.ReactN
 
 // ─── Feedback ───────────────────────────────────────────────────────────────
 
-export const FormError: React.FC<{ message: string | null }> = ({ message }) =>
-  message ? (
-    <div role="alert" className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 animate-fadeIn">
+export const FormError: React.FC<{ message: string | null }> = ({ message }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  // Forms are long: bring the error into view instead of repeating it in a pop-up
+  useEffect(() => {
+    if (message) ref.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+  }, [message]);
+  return message ? (
+    <div ref={ref} role="alert" className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 animate-fadeIn">
       <AlertCircle className="mt-px h-4 w-4 shrink-0 text-rose-600" />
       <span>{message}</span>
     </div>
   ) : null;
+};
 
 export const FormNotice: React.FC<{ icon: LucideIcon; tone?: 'info' | 'warn'; children: React.ReactNode }> = ({
   icon: Icon,
