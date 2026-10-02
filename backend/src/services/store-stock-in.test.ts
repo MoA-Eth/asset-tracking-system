@@ -7,7 +7,7 @@ const db = vi.hoisted(() => ({
   // Any store or department that is picked exists and is active
   location: { findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, siteName: 'Store', isActive: true })) },
   department: { findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, nameEn: 'Directorate', isActive: true })) },
-  item: { findMany: vi.fn(), create: vi.fn() },
+  item: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn() },
   transactionApproval: { create: vi.fn() },
   auditLog: { create: vi.fn() },
 }));
@@ -32,6 +32,7 @@ describe('StoreService.registerStockIn approval gate', () => {
     vi.clearAllMocks();
     db.employee.findUnique.mockResolvedValue({ id: 'EMP-ENC-00', fullNameEn: 'Store Encoder', role: 'DATA_ENCODER' });
     db.item.findMany.mockResolvedValue([]);
+    db.item.findFirst.mockResolvedValue(null);
     db.item.create.mockImplementation(async ({ data }: any) => ({ id: 'item-1', ...data, history: [] }));
     db.transactionApproval.create.mockImplementation(async ({ data }: any) => ({ id: 'appr-1', currentStage: 1, ...data }));
     db.auditLog.create.mockResolvedValue({});
@@ -59,6 +60,50 @@ describe('StoreService.registerStockIn approval gate', () => {
 
     const created = db.item.create.mock.calls[0][0].data;
     expect(created.status).not.toBe(ItemStatus.AVAILABLE);
+  });
+
+  it('refuses a serial number that another item already has, and names that item', async () => {
+    db.item.findFirst.mockResolvedValue({ itemCode: 'MOA-IT-2026-0007', name: 'Dell Latitude' });
+
+    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, serialNumber: ' lap-001 ', isHistoricalData: true } as any)).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'Serial number lap-001 is already registered on MOA-IT-2026-0007 (Dell Latitude). Check the number, or leave it empty for items without one.',
+    });
+    // Compared without regard to case, and a rejected or disposed item frees its number
+    expect(db.item.findFirst.mock.calls[0][0].where).toMatchObject({ serialNumber: { equals: 'lap-001', mode: 'insensitive' }, status: { not: 'DISPOSED' } });
+    expect(db.item.create).not.toHaveBeenCalled();
+  });
+
+  it('does not check items registered without a serial number', async () => {
+    await StoreService.getInstance().registerStockIn({ ...basePayload, serialNumber: '', isHistoricalData: true } as any);
+
+    expect(db.item.findFirst).not.toHaveBeenCalled();
+    expect(db.item.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a slip whose lines repeat a serial number, before saving any line', async () => {
+    const items = [
+      { name: 'Laptop A', category: AssetCategory.IT_EQUIPMENT, serialNumber: 'SN-77', unitCostETB: 1 },
+      { name: 'Laptop B', category: AssetCategory.IT_EQUIPMENT, serialNumber: 'sn-77', unitCostETB: 1 },
+    ];
+    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, items, isHistoricalData: true } as any)).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Two lines on this slip have the same serial number.',
+    });
+    expect(db.item.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a negative price', { unitCostETB: -5 }],
+    ['a quantity of zero', { quantity: 0 }],
+    ['a slip date in the future', { ifmisSlipDateGc: '2999-01-01' }],
+    ['a slip date that is not a real day', { ifmisSlipDateGc: '2026-13-45' }],
+    ['an unknown category', { category: 'SPACESHIPS' }],
+    ['an unknown condition', { condition: 'SPARKLING' }],
+    ['a blank description', { name: '   ' }],
+  ])('refuses %s with a 400', async (_label, extra) => {
+    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, ...extra } as any)).rejects.toMatchObject({ statusCode: 400 });
+    expect(db.item.create).not.toHaveBeenCalled();
   });
 
   it('still requires a slip attachment for non-historical registrations', async () => {

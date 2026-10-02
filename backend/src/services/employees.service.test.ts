@@ -94,6 +94,13 @@ describe('Employee registry: adding and editing', () => {
     await expect(createEmployee(form(), 'admin')).rejects.toMatchObject({ statusCode: 409, message: 'Another employee already has this employee ID.' });
   });
 
+  it('refuses an employee ID that differs from an existing one only by letter case', async () => {
+    db.employee.findFirst.mockResolvedValueOnce({ id: 'other', payrollId: 'ab-100' });
+    await expect(createEmployee(form({ payrollId: 'AB-100' }), 'admin')).rejects.toMatchObject({ statusCode: 409, message: 'Another employee already has this employee ID.' });
+    expect(db.employee.findFirst.mock.calls.at(-1)[0].where).toMatchObject({ payrollId: { equals: 'AB-100', mode: 'insensitive' } });
+    expect(db.employee.create).not.toHaveBeenCalled();
+  });
+
   it('editing staff details without a role field keeps their sign-in', async () => {
     await updateEmployee('encoder', form({ email: 'e@moa.gov.et' }), 'admin');
     const data = db.employee.update.mock.calls[0][0].data;

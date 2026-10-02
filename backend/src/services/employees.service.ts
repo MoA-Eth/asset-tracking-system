@@ -253,10 +253,19 @@ async function normalize(tx: any, input: EmployeeInput, previous?: any) {
   return { data, passwordHash: password ? await hashPassword(password) : undefined, newDepartment: department.isNew ? department.nameEn : undefined };
 }
 
+/** Sign-in accepts an employee ID in any letter case, so two IDs that differ only by case would be ambiguous */
+async function assertEmployeeIdFree(tx: any, payrollId: string, exceptId?: string): Promise<void> {
+  const other = await tx.employee.findFirst({
+    where: { payrollId: { equals: payrollId, mode: 'insensitive' }, ...(exceptId ? { id: { not: exceptId } } : {}) },
+  });
+  if (other) throw new ConflictError('Another employee already has this employee ID.');
+}
+
 export async function createEmployee(input: EmployeeInput, actorId: string): Promise<EmployeeRecord> {
   return serializable(async (tx) => {
     const actor = await loadActor(tx, actorId);
     const { data, passwordHash, newDepartment } = await normalize(tx, input);
+    await assertEmployeeIdFree(tx, data.payrollId);
     const created = await tx.employee.create({
       data: { id: `EMP-${randomUUID().slice(0, 8).toUpperCase()}`, ...data, password: passwordHash ?? null, isActive: true },
     });
@@ -271,6 +280,7 @@ export async function updateEmployee(id: string, input: EmployeeInput, actorId: 
     const previous = await tx.employee.findUnique({ where: { id } });
     if (!previous) throw new NotFoundError('Employee not found.');
     const { data, passwordHash, newDepartment } = await normalize(tx, input, previous);
+    if (data.payrollId !== previous.payrollId) await assertEmployeeIdFree(tx, data.payrollId, id);
 
     if (data.role !== (previous.role ?? null)) {
       if (id === actor.id) throw new ConflictError("You can't change your own role.");

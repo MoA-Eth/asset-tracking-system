@@ -244,6 +244,59 @@ async function generateItemCode(category: AssetCategory, year: number): Promise<
 // ─── Audit Log Helper ─────────────────────────────────────────────────────────
 
 const RETURN_CONDITIONS = ['NEW', 'GOOD', 'FAIR', 'NEEDS_REPAIR', 'DAMAGED'];
+const ASSET_CATEGORIES = Object.values(AssetCategory) as string[];
+
+// ─── Request checks ───────────────────────────────────────────────────────────
+// The forms check these too; the server repeats them so nothing wrong is saved by another route
+
+const isBlank = (value: unknown): boolean => value === undefined || value === null || String(value).trim() === '';
+
+function assertMaxLength(value: unknown, max: number, what: string): void {
+  if (!isBlank(value) && String(value).length > max) throw new BadRequestError(what + ' must be ' + max + ' characters or fewer.');
+}
+
+/** A slip date must be a real calendar day and not in the future (one day of slack for time zones) */
+function assertSlipDate(value: unknown, what = 'The slip date'): void {
+  if (isBlank(value)) return;
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value).trim());
+  const date = parts ? new Date(Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))) : null;
+  if (!parts || !date || date.getUTCMonth() !== Number(parts[2]) - 1 || date.getUTCDate() !== Number(parts[3])) {
+    throw new BadRequestError(what + ' is not a valid date.');
+  }
+  if (date.getTime() > Date.now() + 24 * 60 * 60 * 1000) throw new BadRequestError(what + " can't be in the future.");
+}
+
+/**
+ * A serial number identifies one physical item, so a typed one can't be registered twice.
+ * Blank serial numbers (bulk items) are not checked, and a rejected or disposed item frees its number.
+ */
+async function assertSerialNumberFree(serialNumber: unknown, exceptItemId?: string): Promise<void> {
+  if (isBlank(serialNumber)) return;
+  const other = await prisma.item.findFirst({
+    where: {
+      serialNumber: { equals: String(serialNumber).trim(), mode: 'insensitive' },
+      status: { not: 'DISPOSED' as any },
+      ...(exceptItemId ? { id: { not: exceptItemId } } : {}),
+    },
+    select: { itemCode: true, name: true },
+  });
+  if (other) {
+    throw new ConflictError('Serial number ' + String(serialNumber).trim() + ' is already registered on ' + other.itemCode + ' (' + other.name + '). Check the number, or leave it empty for items without one.');
+  }
+}
+
+/** One line of a Stock-In: description, category, price, quantity and condition */
+function assertStockInLine(line: any): void {
+  if (isBlank(line.name)) throw new BadRequestError('Item description is required.');
+  assertMaxLength(line.name, 200, 'Item description');
+  assertMaxLength(line.serialNumber, 100, 'Serial number');
+  if (!isBlank(line.category) && !ASSET_CATEGORIES.includes(line.category)) throw new BadRequestError('Choose a valid asset category.');
+  const unitCost = isBlank(line.unitCostETB) ? 0 : Number(line.unitCostETB);
+  if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price must be a number, zero or more.');
+  const quantity = isBlank(line.quantity) ? 1 : Number(line.quantity);
+  if (!Number.isInteger(quantity) || quantity < 1) throw new BadRequestError('Quantity must be a whole number, at least 1.');
+  if (!isBlank(line.condition) && !RETURN_CONDITIONS.includes(line.condition)) throw new BadRequestError('Choose a valid item condition.');
+}
 
 /** Transfer summary shown to approvers, e.g. "Reassignment | [Model/21 # 0004386] | Book: MOA MC BOOK" */
 function formatTransferNotes(slipNo: string, d: Model21RequestDetails): string {
@@ -436,7 +489,7 @@ async function assertNoPendingApproval(item: { id: string; itemCode: string }) {
     where: { itemId: item.id, status: 'PENDING' },
   });
   if (pending) {
-    throw new Error(`Item ${item.itemCode} already has a pending ${pending.transactionType} approval (${pending.ifmisSlipNumber}).`);
+    throw new ConflictError(`Item ${item.itemCode} already has a pending ${pending.transactionType} approval (${pending.ifmisSlipNumber}).`);
   }
 }
 
@@ -515,11 +568,13 @@ export class StoreService {
   public async registerStockIn(
     payload: CreateStockInRequest,
   ): Promise<{ item: ItemWithRelations; items?: ItemWithRelations[]; approval?: TransactionApproval }> {
-    if (!payload.ifmisSlipNumber.trim()) {
-      throw new Error('IFMIS Slip Number is always mandatory.');
+    if (isBlank(payload.ifmisSlipNumber)) {
+      throw new BadRequestError('IFMIS Slip Number is always mandatory.');
     }
+    assertMaxLength(payload.ifmisSlipNumber, 100, 'IFMIS Slip Number');
+    assertSlipDate(payload.ifmisSlipDateGc);
     if (!payload.isHistoricalData && !payload.ifmisSlipAttachmentUrl) {
-      throw new Error('A scanned IFMIS slip attachment is required for new (non-historical) registrations.');
+      throw new BadRequestError('A scanned IFMIS slip attachment is required for new (non-historical) registrations.');
     }
 
     const today = getTodayGcAndEc();
@@ -550,10 +605,15 @@ export class StoreService {
           lotBatchNo: payload.lotBatchNo,
           printedPadFrom: payload.printedPadFrom,
           printedPadTo: payload.printedPadTo,
-          quantity: payload.quantity || 1,
+          quantity: payload.quantity ?? 1,
           totalAmount: payload.totalAmount || (payload.unitCostETB * (payload.quantity || 1)),
           remark: payload.remark,
         }];
+    // Check every line before saving any, so a bad line can't leave half a slip registered
+    for (const line of rawItems) assertStockInLine({ ...line, name: line.name || payload.name, category: line.category || payload.category });
+    const typedSerials = rawItems.map((line) => String(line.serialNumber ?? '').trim().toLowerCase()).filter(Boolean);
+    if (new Set(typedSerials).size !== typedSerials.length) throw new BadRequestError('Two lines on this slip have the same serial number.');
+    for (const line of rawItems) await assertSerialNumberFree(line.serialNumber);
 
     const createdItems: ItemWithRelations[] = [];
     let primaryApproval: TransactionApproval | undefined;
@@ -562,7 +622,7 @@ export class StoreService {
       const lineItem = rawItems[i];
       const category = (lineItem.category || payload.category || AssetCategory.IT_EQUIPMENT) as AssetCategory;
       const itemCode = lineItem.itemCode?.trim() || await generateItemCode(category, currentYear);
-      const serialNumber = lineItem.serialNumber || (rawItems.length > 1 ? `SN-${Date.now()}-${i + 1}` : `SN-${Date.now()}`);
+      const serialNumber = String(lineItem.serialNumber ?? '').trim() || (rawItems.length > 1 ? `SN-${Date.now()}-${i + 1}` : `SN-${Date.now()}`);
       const unitCost = Number(lineItem.unitCostETB) || 0;
       const quantity = Number(lineItem.quantity) || 1;
       const totalAmount = Number(lineItem.totalAmount) || (unitCost * quantity);
@@ -590,7 +650,7 @@ export class StoreService {
       const newItem = await prisma.item.create({
         data: {
           itemCode,
-          name: lineItem.name || payload.name,
+          name: String(lineItem.name || payload.name).trim(),
           category: category as any,
           serialNumber,
           unitCostETB: unitCost,
@@ -683,6 +743,7 @@ export class StoreService {
     if (!payload.storeLocationId) throw new BadRequestError('Receiving store is required.');
     if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price cannot be negative.');
     if (!Number.isInteger(quantity) || quantity < 1) throw new BadRequestError('Quantity must be at least 1.');
+    if (payload.serialNumber?.trim() && payload.serialNumber.trim() !== item.serialNumber) await assertSerialNumberFree(payload.serialNumber, itemId);
     if (payload.storeLocationId !== item.storeLocationId) {
       const receivingStore = await prisma.location.findUnique({ where: { id: payload.storeLocationId }, include: { store: true } });
       if (!receivingStore) throw new BadRequestError('The selected receiving store no longer exists.');
@@ -976,12 +1037,16 @@ export class StoreService {
 
   public async registerStockOut(payload: CreateStockOutRequest): Promise<TransactionApproval> {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
-    if (!item) throw new Error(`Item ${payload.itemId} not found.`);
+    if (!item) throw new NotFoundError(`Item ${payload.itemId} not found.`);
     if (item.status !== 'AVAILABLE') {
-      throw new Error(`Item ${item.itemCode} must be AVAILABLE to register Stock-Out. Current: ${item.status}`);
+      throw new ConflictError(`Item ${item.itemCode} must be AVAILABLE to register Stock-Out. Current: ${item.status}`);
     }
     await assertNoPendingApproval(item);
-    if (!payload.ifmisSlipNumber.trim()) throw new Error('IFMIS Slip Number is mandatory for Stock-Out.');
+    if (isBlank(payload.ifmisSlipNumber)) throw new BadRequestError('IFMIS Slip Number is mandatory for Stock-Out.');
+    if (isBlank(payload.purpose)) throw new BadRequestError('Purpose of issue is required.');
+    if (isBlank(payload.recipientEmployeeId)) throw new BadRequestError('Recipient staff member is required.');
+    assertMaxLength(payload.purpose, 500, 'Purpose of issue');
+    assertSlipDate(payload.ifmisSlipDateGc);
 
     // Issue the whole record unless fewer units are requested
     const inStore = quantityOf(item);
@@ -1061,13 +1126,25 @@ export class StoreService {
 
   public async registerReturn(payload: CreateReturnRequest): Promise<TransactionApproval> {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
-    if (!item) throw new Error(`Item ${payload.itemId} not found.`);
+    if (!item) throw new NotFoundError(`Item ${payload.itemId} not found.`);
     if (item.status !== 'ISSUED' && item.status !== 'AVAILABLE') {
-      throw new Error(`Item ${item.itemCode} cannot be returned to store. Current status: ${item.status}`);
+      throw new ConflictError(`Item ${item.itemCode} cannot be returned to store. Current status: ${item.status}`);
     }
     await assertNoPendingApproval(item);
-    const effectiveSlipNo = (payload.model21No || payload.ifmisSlipNumber).trim();
-    if (!effectiveSlipNo) throw new Error('Return Voucher (Model 21 / 22) Slip Number is mandatory.');
+    const effectiveSlipNo = String(payload.model21No || payload.ifmisSlipNumber || '').trim();
+    if (!effectiveSlipNo) throw new BadRequestError('Return Voucher (Model 21 / 22) Slip Number is mandatory.');
+    if (isBlank(payload.returnReason)) throw new BadRequestError('Reason for return is required.');
+    assertMaxLength(payload.returnReason, 500, 'Reason for return');
+    if (!RETURN_CONDITIONS.includes(payload.condition)) throw new BadRequestError('Choose the condition of the returned item.');
+    assertSlipDate(payload.ifmisSlipDateGc);
+    if (payload.returningEmployeeId && item.currentCustodianId && payload.returningEmployeeId !== item.currentCustodianId) {
+      throw new BadRequestError('Only the person who holds this item can return it.');
+    }
+    if (payload.targetStoreLocationId) {
+      const returnStore = await prisma.location.findUnique({ where: { id: payload.targetStoreLocationId }, include: { store: true } });
+      if (!returnStore) throw new BadRequestError('The selected store no longer exists.');
+      assertUsableLocation(returnStore, 'the receiving store');
+    }
 
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
@@ -1419,8 +1496,8 @@ export class StoreService {
 
   public async handleApproval(payload: ApprovalActionRequest): Promise<TransactionApproval> {
     const approval = await prisma.transactionApproval.findUnique({ where: { id: payload.approvalId } });
-    if (!approval) throw new Error(`Approval record ${payload.approvalId} not found.`);
-    if (approval.status !== 'PENDING') throw new Error(`This transaction is already ${approval.status}.`);
+    if (!approval) throw new NotFoundError('This request no longer exists. Refresh the list.');
+    if (approval.status !== 'PENDING') throw new ConflictError(`This request is already ${approval.status.toLowerCase()}. Refresh the list.`);
 
     const today = getTodayGcAndEc();
     const reviewer = payload.reviewedById ? await prisma.employee.findUnique({ where: { id: payload.reviewedById } }) : null;
@@ -1437,14 +1514,30 @@ export class StoreService {
     }
     const reviewerName = reviewer ? `${reviewer.fullNameEn} (${reviewer.role})` : 'Reviewer';
 
+    if (payload.reviewRemarks != null && typeof payload.reviewRemarks !== 'string') throw new BadRequestError('Remarks must be text.');
+    payload.reviewRemarks = payload.reviewRemarks?.trim() || undefined;
+    if ((payload.reviewRemarks?.length ?? 0) > 500) throw new BadRequestError('Remarks must be 500 characters or fewer.');
+    // A rejection must say why, so the requester knows what to correct
+    const rejectionReason = payload.reviewRemarks ?? '';
+    if (payload.action === 'REJECT' && !rejectionReason) {
+      throw new BadRequestError('Give a reason for rejecting, so the requester knows what to correct.');
+    }
+    // Two reviewers can act at the same moment: the update only goes through while the request is still
+    // pending at the stage this reviewer saw, so the second one is refused instead of recorded twice
+    const stillWaiting = { id: payload.approvalId, status: 'PENDING' as any, currentStage: approval.currentStage };
+    const decidedMeanwhile = (err: any) =>
+      err?.code === 'P2025' ? new ConflictError('Someone else has just acted on this request. Refresh the list.') : err;
+    // Either stage can reject: the history names the stage and the person who did
+    const rejectionNote = `Rejected at Stage ${approval.currentStage ?? 1} (${(approval.currentStage ?? 1) === 1 ? 'Team Leader' : 'Department Head'}) by ${reviewer?.fullNameEn ?? 'the reviewer'}: ${rejectionReason}`;
+
     // ── STAGE 1 ACTION: ENDORSE (Team Leader) ──────────────────────────────
     if (payload.action === 'ENDORSE') {
       if (approval.currentStage !== 1) {
-        throw new Error(`Transaction ${approval.itemCode} has already completed Stage 1 endorsement.`);
+        throw new ConflictError(`Transaction ${approval.itemCode} has already completed Stage 1 endorsement.`);
       }
 
       const updatedApproval = await prisma.transactionApproval.update({
-        where: { id: payload.approvalId },
+        where: stillWaiting,
         data: {
           currentStage: 2, // Advance to Stage 2 Department Head Final Approval
           endorsedById: payload.reviewedById,
@@ -1453,7 +1546,7 @@ export class StoreService {
           endorsedAtEc: today.ec,
         },
         include: APPROVAL_INCLUDES,
-      });
+      }).catch((err) => { throw decidedMeanwhile(err); });
 
       await prisma.item.update({
         where: { id: approval.itemId },
@@ -1489,26 +1582,26 @@ export class StoreService {
     // ── STAGE 2 ACTION: APPROVE / REJECT (Dept Head / Admin) ──────────────
     const isApprove = payload.action === 'APPROVE';
     if (isApprove && approval.currentStage === 1) {
-      throw new Error(`Transaction ${approval.itemCode} must be endorsed by a Team Leader (Stage 1) before final approval can be granted.`);
+      throw new ConflictError(`Transaction ${approval.itemCode} must be endorsed by a Team Leader (Stage 1) before final approval can be granted.`);
     }
 
     const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
-    if (!item) throw new Error(`Target item ${approval.itemId} not found.`);
+    if (!item) throw new NotFoundError(`Target item ${approval.itemId} not found.`);
 
     const newStatus = isApprove ? 'APPROVED' : 'REJECTED';
 
     // Update approval record
     const updatedApproval = await prisma.transactionApproval.update({
-      where: { id: payload.approvalId },
+      where: stillWaiting,
       data: {
         status: newStatus as any,
         reviewedById: payload.reviewedById,
-        reviewRemarks: payload.reviewRemarks || (isApprove ? 'Approved by Department Head (Stage 2)' : 'Rejected'),
+        reviewRemarks: isApprove ? payload.reviewRemarks || 'Approved by Department Head (Stage 2)' : rejectionReason,
         reviewedAtGc: today.gc,
         reviewedAtEc: today.ec,
       },
       include: APPROVAL_INCLUDES,
-    });
+    }).catch((err) => { throw decidedMeanwhile(err); });
 
     // Determine new item status and history entry
     let newItemStatus: string;
@@ -1604,27 +1697,27 @@ export class StoreService {
         historyAction = 'STOCK_IN_REJECTED';
         fromEntity = 'Pending Approval';
         toEntity = 'Rejected / Returned to Supplier';
-        histNote = payload.reviewRemarks || 'Rejected by Department Head';
+        histNote = rejectionNote;
       } else if (approval.transactionType === 'RETURN') {
         // Returns can be raised for AVAILABLE items too, so fall back to the item's actual custody
         newItemStatus = statusForCustodian(item.currentCustodianId);
         historyAction = 'RETURN_REJECTED';
         fromEntity = 'Pending Return';
         toEntity = `${await holderName(item)} (Retained)`;
-        histNote = payload.reviewRemarks || 'Model 22 Return request rejected by Department Head';
+        histNote = rejectionNote;
       } else if (approval.transactionType === 'TRANSFER') {
         // Nothing was moved while pending, so the item simply keeps its current custody
         newItemStatus = statusForCustodian(item.currentCustodianId);
         historyAction = 'TRANSFER_REJECTED';
         fromEntity = 'Pending Transfer';
         toEntity = 'Current Custodian (Retained)';
-        histNote = payload.reviewRemarks || 'Model 21 transfer request rejected by Department Head';
+        histNote = rejectionNote;
       } else {
         newItemStatus = 'AVAILABLE';
         historyAction = 'STOCK_OUT_REJECTED';
         fromEntity = 'Pending Stock-Out';
         toEntity = `${storeName} (AVAILABLE)`;
-        histNote = payload.reviewRemarks || 'Stock-out request rejected by Department Head';
+        histNote = rejectionNote;
       }
     }
 
@@ -1710,7 +1803,7 @@ export class StoreService {
       isApprove ? `APPROVE_${approval.transactionType}` : `REJECT_${approval.transactionType}`,
       'APPROVAL',
       item.id,
-      `${approval.transactionType} ${payload.action}D by ${reviewerName} for item ${item.itemCode}.${partialIssue ? ` Partial issue: ${partialIssue.quantity} ${partialIssue.uom} as ${partialIssue.code}.` : ''} Remarks: ${updatedApproval.reviewRemarks}`,
+      `${approval.transactionType} ${isApprove ? 'APPROVED' : 'REJECTED'} by ${reviewerName} for item ${item.itemCode}.${partialIssue ? ` Partial issue: ${partialIssue.quantity} ${partialIssue.uom} as ${partialIssue.code}.` : ''} Remarks: ${updatedApproval.reviewRemarks}`,
       approval.ifmisSlipNumber,
     );
 
@@ -1721,13 +1814,24 @@ export class StoreService {
 
   public async transferItem(payload: CreateTransferRequest): Promise<TransactionApproval> {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
-    if (!item) throw new Error(`Item ${payload.itemId} not found.`);
+    if (!item) throw new NotFoundError(`Item ${payload.itemId} not found.`);
     if (item.status !== 'ISSUED' && item.status !== 'AVAILABLE') {
-      throw new Error(`Item ${item.itemCode} cannot be transferred. Current status: ${item.status}`);
+      throw new ConflictError(`Item ${item.itemCode} cannot be transferred. Current status: ${item.status}`);
     }
     await assertNoPendingApproval(item);
-    const slipNo = (payload.model21No || '').trim();
-    if (!slipNo) throw new Error('Transfer Voucher (Model 21) number is mandatory.');
+    const slipNo = String(payload.model21No || '').trim();
+    if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
+    if (isBlank(payload.reason)) throw new BadRequestError('Reason for transfer is required.');
+    assertMaxLength(payload.reason, 500, 'Reason for transfer');
+    // An empty choice means "not chosen"
+    payload.toEmployeeId = payload.toEmployeeId || undefined;
+    payload.toDepartmentId = payload.toDepartmentId || undefined;
+    payload.toLocationId = payload.toLocationId || undefined;
+    if (!payload.toEmployeeId && !payload.toLocationId) throw new BadRequestError('Choose the new custodian or the new location.');
+    const sameCustodian = !!payload.toEmployeeId && payload.toEmployeeId === item.currentCustodianId;
+    const sameLocation = !payload.toLocationId || payload.toLocationId === item.storeLocationId;
+    if (sameCustodian && sameLocation) throw new BadRequestError('This person already holds the item. Choose a different custodian.');
+    if (!payload.toEmployeeId && sameLocation) throw new BadRequestError('The item is already in this location. Choose a new custodian or a different location.');
 
     const today = getTodayGcAndEc();
     // The current custodian, or the store the item is in
