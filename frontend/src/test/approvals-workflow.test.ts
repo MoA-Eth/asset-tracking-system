@@ -36,6 +36,7 @@ function createMockApproval(
       email: 'chala@moa.gov.et',
       phone: '+251911000000',
       role: UserRole.DATA_ENCODER,
+      isActive: true,
     },
     ...overrides,
   };

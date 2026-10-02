@@ -38,6 +38,7 @@ export const SEED_EMPLOYEES: Employee[] = [
     email: 'manager@moa.gov.et',
     phone: '+251911000001',
     role: UserRole.MANAGER,
+    isActive: true,
   },
   // Department Heads / Approvers
   {
@@ -49,6 +50,7 @@ export const SEED_EMPLOYEES: Employee[] = [
     email: 'tigist.h@moa.gov.et',
     phone: '+251922334455',
     role: UserRole.DEPARTMENT_HEAD,
+    isActive: true,
   },
   {
     id: 'EMP-HEAD-03',
@@ -59,6 +61,7 @@ export const SEED_EMPLOYEES: Employee[] = [
     email: 'kassahun.t@moa.gov.et',
     phone: '+251933445566',
     role: UserRole.DEPARTMENT_HEAD,
+    isActive: true,
   },
   // Data Encoders (Store Level)
   {
@@ -70,6 +73,7 @@ export const SEED_EMPLOYEES: Employee[] = [
     email: 'bikila.d@moa.gov.et',
     phone: '+251911223344',
     role: UserRole.DATA_ENCODER,
+    isActive: true,
   },
   {
     id: 'EMP-ENC-02',
@@ -80,6 +84,7 @@ export const SEED_EMPLOYEES: Employee[] = [
     email: 'hiwot.g@moa.gov.et',
     phone: '+251944556677',
     role: UserRole.DATA_ENCODER,
+    isActive: true,
   },
   // Field Staff / Custodians
   {
@@ -91,6 +96,7 @@ export const SEED_EMPLOYEES: Employee[] = [
     email: 'kenenisa.g@moa.gov.et',
     phone: '+251955667788',
     role: UserRole.DATA_ENCODER,
+    isActive: true,
   },
 ];
 

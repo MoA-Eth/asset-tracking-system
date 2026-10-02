@@ -26,7 +26,7 @@ export async function initRolePermissions(): Promise<void> {
 }
 
 export async function getRoleDirectory() {
-  const counts = await prisma.employee.groupBy({ by: ['role'], _count: { _all: true } });
+  const counts = await prisma.employee.groupBy({ by: ['role'], where: { isActive: true }, _count: { _all: true } });
   return {
     permissionGroups: PERMISSION_GROUPS,
     roles: Object.entries(ROLE_POLICY).map(([code, policy]) => ({
@@ -51,9 +51,10 @@ export async function assignEmployeeRole(id: string, role: unknown, actorId: str
         if (!hasPermission(actor?.role, 'roles.assign')) throw new ForbiddenError('Only System Administrators may assign roles.');
         const previous = await tx.employee.findUnique({ where: { id } });
         if (!previous) throw new NotFoundError('Employee not found.');
+        if (previous.isActive === false) throw new ConflictError(`${previous.fullNameEn} is deactivated. Reactivate them under Settings → Employees first.`);
         if (previous.role === role) return previous;
         if (previous.role === UserRole.SYSTEM_ADMIN && role !== UserRole.SYSTEM_ADMIN) {
-          const admins = await tx.employee.count({ where: { role: UserRole.SYSTEM_ADMIN } });
+          const admins = await tx.employee.count({ where: { role: UserRole.SYSTEM_ADMIN, isActive: true } });
           if (admins <= 1) throw new ConflictError('The last System Administrator cannot be reassigned. Assign another administrator first.');
         }
         const updated = await tx.employee.update({ where: { id }, data: { role } });
@@ -61,7 +62,7 @@ export async function assignEmployeeRole(id: string, role: unknown, actorId: str
         const time = new Date().toLocaleTimeString('en-US', { hour12: false });
         await tx.auditLog.create({ data: {
           timestampGc: `${today.gc} ${time}`, timestampEc: `${today.ec} ${time}`,
-          userId: actor.id, userName: actor.fullNameEn, userRole: actor.role,
+          userId: actor!.id, userName: actor!.fullNameEn, userRole: actor!.role!,
           action: 'UPDATE_STAFF_ROLE', entityType: 'USER', entityId: id,
           details: `Role for ${previous.fullNameEn} changed from ${previous.role} to ${role}.`,
           previousState: { role: previous.role }, newState: { role },

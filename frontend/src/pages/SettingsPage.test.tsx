@@ -11,7 +11,7 @@ const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../context/ToastContext', () => ({ useToast: () => toast }));
 vi.mock('../api/client', () => ({ api: { getEmployees: vi.fn(), getDepartments: vi.fn(), updateEmployeeRole: vi.fn() } }));
-const encoder = { id: 'encoder', fullNameEn: 'Example Encoder', fullNameAm: '', role: UserRole.DATA_ENCODER, email: 'encoder@example.test', departmentId: 'dept' };
+const encoder = { id: 'encoder', fullNameEn: 'Example Encoder', fullNameAm: '', role: UserRole.DATA_ENCODER, email: 'encoder@example.test', departmentId: 'dept', isActive: true };
 
 beforeEach(() => {
   vi.resetAllMocks();

@@ -224,7 +224,7 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({
             {/* Official Instance Footnote */}
             <div className="pt-8 border-t border-slate-200 print:border-slate-400 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-500 font-mono">
               <p>
-                Report Taken By: <span className="font-semibold text-slate-700">{voucher.reportTakenBy || 'azebmif'}</span> on {printTimestamp}. from 'ifmisdb1' instance.
+                Report Taken By: <span className="font-semibold text-slate-700">{voucher.reportTakenBy || '—'}</span> on {printTimestamp}. from 'ifmisdb1' instance.
               </p>
               <p>Page 1 of 1</p>
             </div>

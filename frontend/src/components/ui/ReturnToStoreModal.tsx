@@ -171,9 +171,9 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
     }
 
     setSubmitting(true);
-    const registeredById = user?.id || employees[0]?.id || '';
+    const registeredById = user?.id || '';
     const fromCustodian = item.currentCustodian;
-    const receiver = employees.find((e) => e.id === storeReceiverId) || employees[0];
+    const receiver = employees.find((e) => e.id === storeReceiverId);
     const loc = item.storeLocation?.siteName || 'MoA Gurd Sholla (Central Store)';
     const todayGc = ifmisSlipDateGc || new Date().toISOString().split('T')[0];
     const todayEc = formatGcToEc(todayGc);
@@ -251,10 +251,10 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
       const voucher: Model21Voucher = {
         model21No: model21No.trim(),
         fromEmployeeName: fromCustodian?.fullNameEn || 'Assigned Staff Custodian',
-        fromEmployeeId: fromCustodian?.payrollId || '110895',
+        fromEmployeeId: fromCustodian?.payrollId || '—',
         book: book.trim() || 'MOA MC BOOK',
         toEmployeeName: receiver?.fullNameEn || 'Central Store Custodian',
-        toEmployeeId: receiver?.payrollId || '109856',
+        toEmployeeId: receiver?.payrollId || '—',
         items: [
           {
             sNo: 1,
@@ -279,7 +279,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
           },
         ],
         famuAccountantName: 'FAMU Reviewer',
-        reportTakenBy: user?.payrollId || 'lidlyats',
+        reportTakenBy: user?.payrollId || '—',
         reportTakenDate: `${todayGc} @ ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`,
       };
 
@@ -464,7 +464,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
                 <ReadOnlyValue>{item.storeLocation?.siteName || 'Central store'}</ReadOnlyValue>
               </Field>
 
-              <Field label="Received by (store custodian)" optional hint="Defaults to the central store custodian.">
+              <Field label="Received by (store custodian)" optional hint="The store staff member taking the item back, if known.">
                 <select value={storeReceiverId} onChange={(e) => setStoreReceiverId(e.target.value)} className={input()}>
                   <option value="">Select…</option>
                   {employees.map((emp) => (

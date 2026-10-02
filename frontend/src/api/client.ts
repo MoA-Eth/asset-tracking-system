@@ -8,6 +8,8 @@ import {
   AuditLogEntry,
   Department,
   Employee,
+  EmployeeInput,
+  EmployeeImportResult,
   Location,
   CreateStockInRequest,
   UpdateStockInRequest,
@@ -248,10 +250,36 @@ export const api = {
     return request<Location[]>('/reference/locations');
   },
 
-  getEmployees: (departmentId?: string) => {
-    return request<Employee[]>(
-      `/reference/employees${departmentId ? `?departmentId=${departmentId}` : ''}`
-    );
+  /** Active staff; with includeInactive, administrators also get deactivated staff */
+  getEmployees: (departmentId?: string, opts: { includeInactive?: boolean } = {}) => {
+    const params = new URLSearchParams();
+    if (departmentId) params.set('departmentId', departmentId);
+    if (opts.includeInactive) params.set('includeInactive', 'true');
+    const query = params.toString();
+    return request<Employee[]>(`/reference/employees${query ? `?${query}` : ''}`);
+  },
+
+  createEmployee: (input: EmployeeInput) => {
+    return request<Employee>('/reference/employees', { method: 'POST', body: JSON.stringify(input) });
+  },
+
+  updateEmployee: (id: string, input: EmployeeInput) => {
+    return request<Employee>(`/reference/employees/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) });
+  },
+
+  /** Checks HR spreadsheet rows; with apply, saves them */
+  importEmployees: (rows: object[], apply: boolean) => {
+    return request<EmployeeImportResult>('/reference/employees/import', {
+      method: 'POST',
+      body: JSON.stringify({ rows, apply }),
+    });
+  },
+
+  setEmployeeActive: (id: string, active: boolean) => {
+    return request<Employee>(`/reference/employees/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ active }),
+    });
   },
 
   updateEmployeeRole: (id: string, role: UserRole) => {

@@ -89,10 +89,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
     const q = searchTerm.toLowerCase();
     const matchesSearch =
       emp.fullNameEn.toLowerCase().includes(q) ||
-      emp.email.toLowerCase().includes(q) ||
+      (emp.email || '').toLowerCase().includes(q) ||
       (emp.payrollId && emp.payrollId.toLowerCase().includes(q));
     const matchesDept = selectedDeptFilter === 'ALL' || emp.departmentId === selectedDeptFilter;
-    return matchesSearch && matchesDept && (roleFilter === 'ALL' || emp.role === roleFilter);
+    // Users are employees who can sign in; staff without a role are managed under Settings → Employees
+    return emp.isActive && !!emp.role && matchesSearch && matchesDept && (roleFilter === 'ALL' || emp.role === roleFilter);
   });
 
   if (!canAssign) return <p role="alert" className="text-sm text-slate-600">Only System Administrators can manage user roles.</p>;

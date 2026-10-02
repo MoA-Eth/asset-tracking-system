@@ -108,10 +108,18 @@ model Employee {
   fullNameEn  String
   fullNameAm  String
   departmentId String
-  email       String   @unique
-  phone       String
-  role        UserRole
-  password    String // scrypt hash; existing plaintext credentials are upgraded on login
+  jobTitle    String?
+  /// Team inside the department (HR: የስራ ክፍል)
+  unit        String?
+  /// MALE or FEMALE (HR: ፆታ)
+  gender      String?
+  email       String?  @unique
+  phone       String?
+  /// System role; null means the employee can't sign in (custodians, recipients)
+  role        UserRole?
+  password    String? // scrypt hash; existing plaintext credentials are upgraded on login
+  /// Deactivated employees can't sign in or be picked on forms, but stay in history
+  isActive    Boolean  @default(true)
 
   // Relations
   department          Department            @relation(fields: [departmentId], references: [id])

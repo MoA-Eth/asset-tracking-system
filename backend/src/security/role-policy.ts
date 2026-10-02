@@ -20,6 +20,7 @@ export const PERMISSION_GROUPS = [
   ] },
   { name: 'Administration', permissions: [
     { key: 'references.read', label: 'View employees, departments, and locations' },
+    { key: 'employees.manage', label: 'Add, edit and deactivate employees' },
     { key: 'roles.read', label: 'View role permissions and membership' },
     { key: 'roles.assign', label: 'Assign user roles' },
   ] },
@@ -38,7 +39,7 @@ export const ROLE_POLICY: Record<UserRole, {
   SYSTEM_ADMIN: {
     name: 'System Administrator', description: 'Administers user access and platform governance.',
     approvalResponsibility: 'No approval authority',
-    permissions: [...readPermissions, 'dashboard.read', 'reports.read', 'audit.read', 'roles.read', 'roles.assign'],
+    permissions: [...readPermissions, 'dashboard.read', 'reports.read', 'audit.read', 'roles.read', 'roles.assign', 'employees.manage'],
     allowedTabs: ['dashboard', 'reports', 'audit', 'settings-users', 'settings-roles', ...referenceTabs], landingTab: 'dashboard',
   },
   DATA_ENCODER: {
@@ -75,7 +76,7 @@ export function isUserRole(value: unknown): value is UserRole {
 const dynamicPermissions: Partial<Record<UserRole, Permission[]>> = {};
 
 export const PROTECTED_ROLE_PERMISSIONS: Partial<Record<UserRole, Permission[]>> = {
-  SYSTEM_ADMIN: ['roles.assign', 'roles.read'],
+  SYSTEM_ADMIN: ['roles.assign', 'roles.read', 'employees.manage'],
 };
 
 /** Permissions for raising stock requests, and for deciding on them */
@@ -86,7 +87,7 @@ const DECISION_PERMISSIONS: Permission[] = ['approvals.endorse', 'approvals.auth
  * Segregation-of-duties rules that hold whatever the matrix says. Returns one message per broken rule.
  * - The System Administrator never operates the store or approves requests.
  * - A role that raises stock requests can't also endorse or authorize them.
- * - Assigning roles can't be combined with store or approval work.
+ * - Assigning roles or managing employees can't be combined with store or approval work.
  */
 export function segregationViolations(role: UserRole, permissions: readonly string[]): string[] {
   const has = (p: Permission) => permissions.includes(p);
@@ -103,6 +104,10 @@ export function segregationViolations(role: UserRole, permissions: readonly stri
   if (role !== UserRole.SYSTEM_ADMIN && has('roles.assign') && (REQUEST_PERMISSIONS.some(has) || DECISION_PERMISSIONS.some(has))) {
     violations.push(`${ROLE_POLICY[role]?.name ?? role} can't assign roles while also doing store or approval work.`);
   }
+  // Whoever adds staff must not also issue items to them or approve the issue
+  if (role !== UserRole.SYSTEM_ADMIN && has('employees.manage') && (REQUEST_PERMISSIONS.some(has) || DECISION_PERMISSIONS.some(has))) {
+    violations.push(`${ROLE_POLICY[role]?.name ?? role} can't manage employees while also doing store or approval work.`);
+  }
   return violations;
 }
 
@@ -113,6 +118,8 @@ export function loadSavedRolePermissions(rows: { role: string; permissions: stri
   for (const row of rows) {
     if (!isUserRole(row.role)) continue;
     const permissions = row.permissions.filter((p) => known.has(p)) as Permission[];
+    // Sets saved before a protected permission existed still get it
+    for (const p of PROTECTED_ROLE_PERMISSIONS[row.role] ?? []) if (!permissions.includes(p)) permissions.push(p);
     const violations = segregationViolations(row.role, permissions);
     if (violations.length > 0) {
       console.warn(`Ignoring saved permissions for ${row.role}: ${violations.join(' ')}`);

@@ -345,7 +345,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       return;
     }
 
-    const registeredById = user?.id || employees[0]?.id || '';
+    const registeredById = user?.id || '';
     const selectedItem = availableItems.find((i) => i.id === selectedItemId);
     const recipient = employees.find((e) => e.id === recipientEmployeeId);
     const dept = departments.find((d) => d.id === destinationDepartmentId);
@@ -407,7 +407,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
         total: totalAmount,
         transportationCost,
         grandTotal,
-        reportPrintedBy: user?.payrollId || 'store.keeper',
+        reportPrintedBy: user?.payrollId || '—',
         reportPrintedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
       };
 
@@ -1148,7 +1148,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
       total: totalAmount,
       transportationCost: 0,
       grandTotal: totalAmount,
-      reportPrintedBy: user?.payrollId || 'lidlyats',
+      reportPrintedBy: user?.payrollId || '—',
       reportPrintedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
     };
 

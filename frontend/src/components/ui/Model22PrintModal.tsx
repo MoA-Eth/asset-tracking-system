@@ -28,7 +28,7 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({
   const now = new Date();
   const printTimestamp = voucher.reportPrintedDate ||
     `${now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} @ ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`;
-  const printedBy = voucher.reportPrintedBy || 'store.keeper';
+  const printedBy = voucher.reportPrintedBy || '—';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
