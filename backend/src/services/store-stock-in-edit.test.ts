@@ -18,6 +18,7 @@ const db = vi.hoisted(() => {
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
 import { StoreService } from './store.service';
+import { applySystemSettings } from './settings.service';
 
 const pendingItem = {
   id: 'item-1',
@@ -111,9 +112,19 @@ describe('Stock-In correction before Stage 1 endorsement', () => {
     await expect(store().updateStockIn('item-1', { ...edit, quantity: 0 } as any, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('still requires a slip for non-historical items', async () => {
+  it('requires a slip only while the system setting says so', async () => {
     db.item.findUnique.mockResolvedValue({ ...pendingItem, ifmisSlipAttachmentUrl: null });
-    await expect(store().updateStockIn('item-1', edit as any, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
+    applySystemSettings({ slipAttachmentPolicy: 'REQUIRED' });
+    try {
+      await expect(store().updateStockIn('item-1', edit as any, 'EMP-ENC')).rejects.toMatchObject({
+        statusCode: 400,
+        message: 'A scanned copy of the slip is required. Attach it and try again.',
+      });
+    } finally {
+      applySystemSettings({});
+    }
+    await store().updateStockIn('item-1', edit as any, 'EMP-ENC');
+    expect(db.item.update).toHaveBeenCalled();
   });
 
   it('returns 404 for an unknown item', async () => {

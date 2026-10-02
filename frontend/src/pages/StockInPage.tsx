@@ -56,7 +56,7 @@ import {
   Model19LineItem,
 } from '../types/asset-management';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
-import { getSystemSettings } from '../utils/system-settings';
+import { useSystemSettings } from '../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../utils/slip-upload';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -75,11 +75,20 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
     className: statusTone.pending,
   },
   [ItemStatus.AVAILABLE]: {
-    label: 'Available (In Store)',
+    label: 'In store',
     className: statusTone.inStore,
   },
+  [ItemStatus.UNDER_TRANSFER]: {
+    label: 'Under transfer',
+    className: statusTone.pending,
+  },
+  // A Stock-In only leaves the register this way when a reviewer rejects it
+  [ItemStatus.DISPOSED]: {
+    label: 'Rejected',
+    className: statusTone.rejected,
+  },
   [ItemStatus.PENDING_STOCK_OUT]: {
-    label: 'Pending Stock-Out',
+    label: 'Stock-out pending',
     className: statusTone.pending,
   },
   [ItemStatus.ISSUED]: {
@@ -189,7 +198,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
     }
   }, [user, receivedBy]);
 
-  const policy = getSystemSettings().historicalDataAttachmentPolicy;
+  const policy = useSystemSettings().slipAttachmentPolicy;
   const isAttachmentRequired = policy === 'REQUIRED';
 
   const totalAmount = (Number(quantity) || 0) * (Number(unitCostETB) || 0);
@@ -368,7 +377,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         ifmisSlipNumber: slipNo,
         ifmisSlipDateGc,
         ifmisSlipAttachmentUrl: slipUrl,
-        isHistoricalData: policy === 'OPTIONAL',
+        isHistoricalData: false,
         registeredById,
         notes: remark.trim() || undefined,
         poNumber: poNumber.trim() || undefined,
@@ -401,6 +410,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
       }];
 
       const generatedVoucher: Model19Voucher = {
+        approvalState: 'PENDING',
         invModel19No: slipNo,
         poNumber: poNumber.trim() || '—',
         receivedDateGc: ifmisSlipDateGc,
@@ -427,7 +437,6 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
     } catch (err: any) {
       const errMsg = err.message || 'Server error';
       setFormError(`Stock-In failed: ${errMsg}`);
-      toast.error('Stock-In Registration Failed', errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -949,6 +958,15 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                   </div>
                 </th>
                 <th
+                  onClick={() => handleSort('status')}
+                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Status</span>
+                    {renderSortIcon('status')}
+                  </div>
+                </th>
+                <th
                   onClick={() => handleSort('category')}
                   className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
                 >
@@ -987,15 +1005,6 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                     {renderSortIcon('unitCostETB')}
                   </div>
                 </th>
-                <th
-                  onClick={() => handleSort('status')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span>Status</span>
-                    {renderSortIcon('status')}
-                  </div>
-                </th>
                 <th className={`px-3 py-2.5 ${table.actionsHead}`}><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
@@ -1025,6 +1034,13 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                     </td>
                     <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[150px] max-w-[180px] truncate" title={item.name}>
                       {item.name}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap w-28">
+                      <StatusBadge
+                        status={item.status}
+                        stage={pendingStages.get(item.id)}
+                        partlyIssued={(item.balance?.issued ?? 0) > 0 && (item.balance?.available ?? 0) > 0}
+                      />
                     </td>
                     <td
                       className="px-3 py-2.5 text-slate-600 whitespace-nowrap max-w-[120px] truncate"
@@ -1063,13 +1079,6 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                     </td>
                     <td className="px-3 py-2.5 font-mono text-slate-700 text-right whitespace-nowrap w-28">
                       {formatETB(item.unitCostETB)}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap w-28">
-                      <StatusBadge
-                        status={item.status}
-                        stage={pendingStages.get(item.id)}
-                        partlyIssued={(item.balance?.issued ?? 0) > 0 && (item.balance?.available ?? 0) > 0}
-                      />
                     </td>
                     <td className={`px-3 py-2.5 ${table.actionsCell}`}>
                       <RowActionsMenu
@@ -1239,6 +1248,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
     const grandTotal = voucherItems.reduce((acc, curr) => acc + curr.totalAmount, 0);
 
     const voucher: Model19Voucher = {
+      approvalState: item.status === ItemStatus.PENDING_STOCK_IN ? 'PENDING' : item.status === ItemStatus.DISPOSED ? 'REJECTED' : undefined,
       invModel19No: item.ifmisSlipNumber,
       poNumber: item.poNumber || '186',
       receivedDateGc: item.ifmisSlipDateGc,

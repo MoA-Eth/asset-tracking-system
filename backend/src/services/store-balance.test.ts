@@ -9,6 +9,8 @@ const db = vi.hoisted(() => ({
   item: { findMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), count: vi.fn() },
   transactionApproval: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
   auditLog: { create: vi.fn() },
+  // A decision runs in one transaction: the stand-in simply runs it against the same client
+  $transaction: vi.fn(),
 }));
 
 vi.mock('../lib/prisma', () => ({ prisma: db }));
@@ -49,6 +51,7 @@ const store = () => StoreService.getInstance();
 
 beforeEach(() => {
   vi.clearAllMocks();
+  db.$transaction.mockImplementation(async (fn: any) => fn(db));
   db.employee.findUnique.mockImplementation(async ({ where }: any) => employees[where.id] ?? null);
   db.item.update.mockResolvedValue({});
   db.item.create.mockResolvedValue({});

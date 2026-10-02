@@ -9,6 +9,8 @@ const db = vi.hoisted(() => ({
   item: { findUnique: vi.fn(), update: vi.fn() },
   transactionApproval: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   auditLog: { create: vi.fn() },
+  // A decision runs in one transaction: the stand-in simply runs it against the same client
+  $transaction: vi.fn(),
 }));
 
 vi.mock('../lib/prisma', () => ({ prisma: db }));
@@ -57,6 +59,7 @@ const itemUpdateData = () => db.item.update.mock.calls[0][0].data;
 describe('Asset Transfer approval workflow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    db.$transaction.mockImplementation(async (fn: any) => fn(db));
     db.employee.findUnique.mockImplementation(async ({ where }: any) => ({
       id: where.id,
       fullNameEn: `Employee ${where.id}`,
@@ -234,6 +237,22 @@ describe('Asset Transfer approval workflow', () => {
         message: 'Someone else has just acted on this request. Refresh the list.',
       });
       expect(db.item.update).not.toHaveBeenCalled();
+    });
+
+    it('saves the request, the item and the audit entry in one transaction', async () => {
+      await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Wrong recipient' } as any);
+      expect(db.$transaction).toHaveBeenCalledTimes(1);
+      expect(db.transactionApproval.update).toHaveBeenCalledTimes(1);
+      expect(db.item.update).toHaveBeenCalledTimes(1);
+      expect(db.auditLog.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('fails as a whole when the item cannot be saved, so the request is not left decided on its own', async () => {
+      db.item.update.mockRejectedValue(new Error('connection lost'));
+      await expect(store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Wrong recipient' } as any)).rejects.toThrow('connection lost');
+      // The error leaves the transaction, which is what makes the database undo the request update
+      await expect(db.$transaction.mock.results[0].value).rejects.toThrow('connection lost');
+      expect(db.auditLog.create).not.toHaveBeenCalled();
     });
 
     it('restores AVAILABLE when a store item without a custodian is rejected', async () => {

@@ -51,6 +51,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
 import { departmentLabel } from '../utils/department';
+import { SearchableSelect } from '../components/ui/SearchableSelect';
 import { storeLocationLabel } from '../utils/location';
 
 const ITEM_STATUS_LABELS: Record<string, { label: string; className: string }> = {
@@ -166,9 +167,10 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
   const [engineNo, setEngineNo] = useState('');
   const [depreciation, setDepreciation] = useState<number>(0);
   const [bookValue, setBookValue] = useState<number>(0);
-  const [jackQty, setJackQty] = useState(1);
-  const [tireWrenchQty, setTireWrenchQty] = useState(1);
-  const [keyQty, setKeyQty] = useState(2);
+  // Accessories start at zero: the encoder enters what was actually handed over
+  const [jackQty, setJackQty] = useState(0);
+  const [tireWrenchQty, setTireWrenchQty] = useState(0);
+  const [keyQty, setKeyQty] = useState(0);
   const [tireSerials, setTireSerials] = useState('');
   const [defectRemark, setDefectRemark] = useState('');
 
@@ -215,10 +217,9 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
       setEngineNo('');
       setTireSerials('');
       setDefectRemark('');
-      const vehicle = item.category === 'VEHICLE' || item.category === 'AGRI_MACHINERY';
-      setJackQty(vehicle ? 1 : 0);
-      setTireWrenchQty(vehicle ? 1 : 0);
-      setKeyQty(vehicle ? 2 : 0);
+      setJackQty(0);
+      setTireWrenchQty(0);
+      setKeyQty(0);
     }
   };
 
@@ -379,6 +380,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
       });
 
       const voucher: Model21Voucher = {
+        approvalState: 'PENDING',
         model21No: model21No.trim(),
         fromEmployeeName: fromCustodian?.fullNameEn || '—',
         fromEmployeeId: fromCustodian?.payrollId || '—',
@@ -442,6 +444,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     const cost = (item.unitCostETB || 0) * units;
 
     const voucher: Model21Voucher = {
+      approvalState: pendingByItem.get(item.id) ? 'PENDING' : undefined,
       model21No: item.ifmisSlipNumber || '—',
       fromEmployeeName: custodian?.fullNameEn || '—',
       fromEmployeeId: custodian?.payrollId || '—',
@@ -648,26 +651,30 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       </ReadOnlyValue>
                     </Field>
                   ) : (
-                  <Field label="Issued asset" required hint="Only assets currently issued to a custodian are listed.">
-                    <select
+                  <Field label="Issued asset" required htmlFor="transfer-item" hint="Only assets currently issued to a custodian are listed. Type a name, code or custodian to find one.">
+                    <SearchableSelect
+                      id="transfer-item"
                       value={selectedItemId}
-                      onChange={(e) => handleItemSelect(e.target.value)}
-                      className={`${input()} font-medium`}
-                      required
-                    >
-                      <option value="" disabled>Select…</option>
-                      {items
-                        .filter((i) => i.status === ItemStatus.ISSUED)
-                        .map((item) => {
-                          const pending = pendingByItem.get(item.id);
-                          return (
-                            <option key={item.id} value={item.id} disabled={!!pending}>
-                              {item.itemCode} — {item.name} · {item.quantity || 1} {item.uom || 'EA'} ({item.currentCustodian?.fullNameEn || 'assigned'})
-                              {pending ? ` — ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}
-                            </option>
-                          );
-                        })}
-                    </select>
+                      onChange={handleItemSelect}
+                      placeholder="Select an asset…"
+                      searchPlaceholder="Search by name, code or custodian…"
+                      groups={[
+                        {
+                          label: 'Issued assets',
+                          options: items
+                            .filter((i) => i.status === ItemStatus.ISSUED)
+                            .map((item) => {
+                              const pending = pendingByItem.get(item.id);
+                              return {
+                                value: item.id,
+                                label: `${item.itemCode} — ${item.name}`,
+                                note: `${item.quantity || 1} ${item.uom || 'EA'} · ${item.currentCustodian?.fullNameEn || 'assigned'}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
+                                disabled: !!pending,
+                              };
+                            }),
+                        },
+                      ]}
+                    />
                   </Field>
                   )}
 
@@ -727,20 +734,26 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                       </ReadOnlyValue>
                     </Field>
 
-                    <Field label="To employee" required>
-                      <select
+                    <Field label="To employee" required htmlFor="transfer-recipient" hint="Type a name or employee ID.">
+                      <SearchableSelect
+                        id="transfer-recipient"
                         value={targetEmployeeId}
-                        onChange={(e) => setTargetEmployeeId(e.target.value)}
-                        className={input()}
-                        required
-                      >
-                        <option value="" disabled>Select…</option>
-                        {employees.map((emp) => (
-                          <option key={emp.id} value={emp.id}>
-                            {emp.fullNameEn} ({emp.payrollId})
-                          </option>
-                        ))}
-                      </select>
+                        onChange={setTargetEmployeeId}
+                        placeholder="Select an employee…"
+                        searchPlaceholder="Search by name or employee ID…"
+                        groups={[
+                          {
+                            label: 'Employees',
+                            options: employees.map((emp) => ({
+                              value: emp.id,
+                              label: `${emp.fullNameEn} (${emp.payrollId})`,
+                              // The person who holds it can't also receive it
+                              disabled: emp.id === selectedItemObj?.currentCustodianId,
+                              note: emp.id === selectedItemObj?.currentCustodianId ? 'holds this asset now' : undefined,
+                            })),
+                          },
+                        ]}
+                      />
                     </Field>
 
                     <Field label="To directorate" optional hint="Leave on Select… to keep the current directorate.">
@@ -946,7 +959,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                             actions={[
                               { label: 'View details', icon: Eye, onClick: () => setViewingItemId(item.id) },
                               editRequestAction(pendingByItem.get(item.id), openEditRequest, canWrite),
-                              { label: 'Print Model 21', icon: Printer, onClick: () => handlePrintModel21(item) },
+                              { label: 'Print Model 21', icon: Printer, onClick: () => handlePrintModel21(item), hidden: !item.currentCustodianId },
                               {
                                 label: 'Return to store',
                                 icon: RotateCcw,
@@ -1029,7 +1042,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                         actions={[
                           { label: 'View details', icon: Eye, onClick: () => setViewingItemId(item.id) },
                           editRequestAction(pendingByItem.get(item.id), openEditRequest, canEdit),
-                          { label: 'Print Model 21', icon: Printer, onClick: () => handlePrintModel21(item) },
+                          { label: 'Print Model 21', icon: Printer, onClick: () => handlePrintModel21(item), hidden: !item.currentCustodianId },
                           {
                             label: 'Return to store',
                             icon: RotateCcw,

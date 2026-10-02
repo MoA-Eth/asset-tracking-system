@@ -1,4 +1,5 @@
 import React from 'react';
+import { VoucherStatusBanner } from './VoucherStatusBanner';
 import { Printer, X, FileText, CheckCircle2 } from 'lucide-react';
 import { Model19Voucher, Model19LineItem } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
@@ -73,6 +74,7 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({
           </div>
 
           <div className="relative z-10 space-y-6">
+            <VoucherStatusBanner state={voucher.approvalState} />
             {/* Top Official Letterhead */}
             <div className="text-center relative pt-1">
               {/* Ministry of Agriculture logo */}

@@ -23,7 +23,8 @@ import {
   inputClass,
   textareaClass,
 } from './FormKit';
-import { getSystemSettings } from '../../utils/system-settings';
+import { useSystemSettings } from '../../utils/system-settings';
+import { SearchableSelect } from './SearchableSelect';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -121,7 +122,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
 
   if (!item) return null;
 
-  const policy = getSystemSettings().historicalDataAttachmentPolicy;
+  const policy = useSystemSettings().slipAttachmentPolicy;
   const isAttachmentReq = policy === 'REQUIRED';
 
   const handleSlipSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,7 +217,6 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
       } catch (err: any) {
         const errMsg = err.message || 'Server error';
         setFormError(`Update failed: ${errMsg}`);
-        toast.error('Return Update Failed', errMsg);
       } finally {
         setSubmitting(false);
       }
@@ -250,6 +250,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
       });
 
       const voucher: Model21Voucher = {
+        approvalState: 'PENDING',
         model21No: model21No.trim(),
         fromEmployeeName: fromCustodian?.fullNameEn || '—',
         fromEmployeeId: fromCustodian?.payrollId || '—',
@@ -294,7 +295,6 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
     } catch (err: any) {
       const errMsg = err.message || 'Server error';
       setFormError(`Return registration failed: ${errMsg}`);
-      toast.error('Return Request Failed', errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -465,15 +465,18 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
                 <ReadOnlyValue>{storeLocationLabel(item.storeLocation)}</ReadOnlyValue>
               </Field>
 
-              <Field label="Received by (store custodian)" optional hint="The store staff member taking the item back, if known.">
-                <select value={storeReceiverId} onChange={(e) => setStoreReceiverId(e.target.value)} className={input()}>
-                  <option value="">Select…</option>
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.fullNameEn} ({emp.payrollId})
-                    </option>
-                  ))}
-                </select>
+              <Field label="Received by (store custodian)" optional htmlFor="return-receiver" hint="The store staff member taking the item back, if known. Type a name or employee ID.">
+                <SearchableSelect
+                  id="return-receiver"
+                  value={storeReceiverId}
+                  onChange={setStoreReceiverId}
+                  placeholder="Select an employee…"
+                  searchPlaceholder="Search by name or employee ID…"
+                  groups={[
+                    { label: 'No one', options: [{ value: '', label: 'Not recorded' }] },
+                    { label: 'Employees', options: employees.map((emp) => ({ value: emp.id, label: `${emp.fullNameEn} (${emp.payrollId})` })) },
+                  ]}
+                />
               </Field>
             </FieldGrid>
 

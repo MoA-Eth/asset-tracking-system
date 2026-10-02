@@ -153,6 +153,11 @@ export const api = {
   },
 
   // Workflows
+  // System-wide rules; anyone signed in reads them, the System Administrator changes them
+  getSystemSettings: () => request<{ slipAttachmentPolicy: 'REQUIRED' | 'OPTIONAL' }>('/settings'),
+  updateSystemSettings: (settings: { slipAttachmentPolicy?: 'REQUIRED' | 'OPTIONAL' }) =>
+    request<{ slipAttachmentPolicy: 'REQUIRED' | 'OPTIONAL' }>('/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+
   // Uploads a scanned IFMIS slip; the returned url is saved as ifmisSlipAttachmentUrl
   uploadSlip: (file: File) => {
     return request<{ url: string; fileName: string; contentType: string; size: number }>('/uploads/slips', {

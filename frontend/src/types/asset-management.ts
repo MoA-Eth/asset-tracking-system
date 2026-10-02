@@ -230,6 +230,8 @@ export interface Model19LineItem {
 }
 
 export interface Model19Voucher {
+  /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
+  approvalState?: 'PENDING' | 'REJECTED';
   invModel19No: string;
   poNumber: string;
   receivedDateGc: string;
@@ -267,6 +269,8 @@ export interface Model22LineItem {
 }
 
 export interface Model22Voucher {
+  /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
+  approvalState?: 'PENDING' | 'REJECTED';
   model22No: string;
   issuedDateGc: string;
   issuedDateEc?: string;
@@ -314,6 +318,8 @@ export interface Model21LineItem {
 }
 
 export interface Model21Voucher {
+  /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
+  approvalState?: 'PENDING' | 'REJECTED';
   model21No: string;
   fromEmployeeName: string;
   fromEmployeeId: string;

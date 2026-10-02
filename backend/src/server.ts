@@ -7,6 +7,8 @@ import authRoutes from './routes/auth.routes';
 import uploadRoutes from './routes/upload.routes';
 import rolesRoutes from './routes/roles.routes';
 import { initRolePermissions } from './services/roles.service';
+import { initSystemSettings } from './services/settings.service';
+import settingsRoutes from './routes/settings.routes';
 import { SLIP_PUBLIC_PATH, SLIP_UPLOAD_DIR } from './lib/uploads';
 import { errorHandler } from './middleware/error-handler';
 import { sendError } from './utils/api-response';
@@ -111,6 +113,7 @@ app.use('/api/roles', rolesRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/reference', referenceRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // SPA catch-all fallback for frontend client routing (non-API GET requests)
 app.get('*', (req: Request, res: Response, next: NextFunction) => {
@@ -130,7 +133,7 @@ app.use((req: Request, res: Response) => {
 app.use(errorHandler);
 
 // Start server once the saved permission matrix is loaded
-void initRolePermissions().then(() => app.listen(PORT, () => {
+void Promise.all([initRolePermissions(), initSystemSettings()]).then(() => app.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(` Federal Democratic Republic of Ethiopia - MoA AMS `);
   console.log(` IFMIS Store-Level Tracking & Executive Visibility API `);

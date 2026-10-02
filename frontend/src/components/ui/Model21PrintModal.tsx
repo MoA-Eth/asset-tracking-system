@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { VoucherStatusBanner } from './VoucherStatusBanner';
 import { Printer, X, FileText, CheckCircle2 } from 'lucide-react';
 import { Model21Voucher } from '../../types/asset-management';
 
@@ -78,6 +79,7 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
           </div>
 
           <div className="relative z-10 space-y-4 text-xs">
+            <VoucherStatusBanner state={voucher.approvalState} />
             {/* ── Document Top Header ── */}
             <div className="flex items-start justify-between border-b border-slate-900 pb-3">
               {/* Left: Ethiopian National Emblem */}
