@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { withRoleNames } from '../../utils/roles';
 import { FileText, History, Package, Paperclip, RefreshCw, AlertCircle } from 'lucide-react';
 import { Modal } from './Modal';
 import { SlipViewerModal } from './SlipViewerModal';
@@ -37,16 +38,6 @@ const ITEM_STATUS: Record<string, { label: string; tone: keyof typeof statusTone
   // An item only leaves the register this way when its Stock-In is rejected
   [ItemStatus.DISPOSED]: { label: 'Rejected', tone: 'rejected' },
 };
-
-const ROLE_NAMES: Record<string, string> = {
-  SYSTEM_ADMIN: 'System Administrator',
-  DATA_ENCODER: 'Data Encoder',
-  TEAM_LEADER: 'Team Leader',
-  DEPARTMENT_HEAD: 'Department Head',
-  MANAGER: 'Manager',
-};
-/** Older history entries carry the role as a code, e.g. "(TEAM_LEADER)": show its name */
-const withRoleNames = (text: string) => text.replace(/\((SYSTEM_ADMIN|DATA_ENCODER|TEAM_LEADER|DEPARTMENT_HEAD|MANAGER)\)/g, (_, code) => `(${ROLE_NAMES[code]})`);
 
 /** Label / value pair; empty values show a dash */
 const Row: React.FC<{ label: string; children?: React.ReactNode; mono?: boolean }> = ({ label, children, mono }) => (
