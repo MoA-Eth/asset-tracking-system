@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Department, ItemWithRelations } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
@@ -11,13 +11,14 @@ const UNIT_STATES = [
   { key: 'issued' as const, label: 'Issued', color: '#2a78d6' },
   { key: 'pending' as const, label: 'Awaiting approval', color: '#eda100' },
 ];
-const CATEGORY_STYLE: Record<string, { label: string; color: string }> = {
-  VEHICLE: { label: 'Vehicles', color: '#2a78d6' },
-  AGRI_MACHINERY: { label: 'Agri. machinery', color: '#eb6834' },
-  IT_EQUIPMENT: { label: 'IT equipment', color: '#1baf7a' },
-  OFFICE_FURNITURE: { label: 'Office furniture', color: '#eda100' },
-  LAB_EQUIPMENT: { label: 'Lab equipment', color: '#e87ba4' },
-  FIELD_GEAR: { label: 'Field gear', color: '#008300' },
+// `short` is used under a column when all six categories share a narrow chart
+const CATEGORY_STYLE: Record<string, { label: string; short: string; color: string }> = {
+  VEHICLE: { label: 'Vehicles', short: 'Vehicles', color: '#2a78d6' },
+  AGRI_MACHINERY: { label: 'Agri. machinery', short: 'Agri.', color: '#eb6834' },
+  IT_EQUIPMENT: { label: 'IT equipment', short: 'IT', color: '#1baf7a' },
+  OFFICE_FURNITURE: { label: 'Office furniture', short: 'Office', color: '#eda100' },
+  LAB_EQUIPMENT: { label: 'Lab equipment', short: 'Lab', color: '#e87ba4' },
+  FIELD_GEAR: { label: 'Field gear', short: 'Field', color: '#008300' },
 };
 const ISSUED_COLOR = '#2a78d6';
 const MAX_BARS = 6;
@@ -124,6 +125,8 @@ const UnitsDonut: React.FC<{ segments: { key: string; label: string; color: stri
 interface BarRow {
   key: string;
   label: string;
+  /** A one-word name for tight spaces */
+  short?: string;
   value: number;
   color: string;
   detail?: string;
@@ -146,6 +149,89 @@ const BarList: React.FC<{ rows: BarRow[]; format: (value: number) => string; emp
         </li>
       ))}
     </ul>
+  );
+};
+
+// ─── Column chart ───────────────────────────────────────────────────────────
+
+/** Rounded-up axis maximum with 4 even steps */
+const niceAxis = (max: number) => {
+  if (max <= 0) return { top: 4, step: 1 };
+  const rough = max / 4;
+  const mag = 10 ** Math.floor(Math.log10(rough));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((c) => c >= rough) ?? 10 * mag;
+  return { top: step * 4, step };
+};
+
+/** Column with a 4px rounded top, square on the baseline */
+const columnPath = (x: number, y: number, w: number, h: number) => {
+  const r = Math.min(4, w / 2, h);
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+};
+
+/** Axis ticks are shorter than bar labels: "2.5M", "500K" */
+const axisETB = (value: number): string => (value >= 1_000_000 ? `${+(value / 1_000_000).toFixed(2)}M` : value >= 1000 ? `${+(value / 1000).toFixed(1)}K` : String(Math.round(value)));
+
+const ColumnChart: React.FC<{ rows: BarRow[]; format: (value: number) => string; empty: string; label: string }> = ({ rows, format, empty, label }) => {
+  const [hover, setHover] = useState<string | null>(null);
+  // Draw at the container's real width so text and columns keep their pixel sizes
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(340);
+  const hasData = rows.length > 0 && rows.some((r) => r.value > 0);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([entry]) => setW(Math.max(220, Math.round(entry.contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hasData]);
+  if (!hasData) return <Empty>{empty}</Empty>;
+
+  const H = 190, left = 40, right = 6, top = 18, bottom = 34;
+  const plotW = W - left - right, plotH = H - top - bottom;
+  const { top: axisTop, step } = niceAxis(Math.max(...rows.map((r) => r.value)));
+  const ticks = Array.from({ length: 5 }, (_, i) => i * step);
+  const y = (v: number) => top + plotH - (v / axisTop) * plotH;
+  const slot = plotW / rows.length;
+  const colW = Math.min(44, slot * 0.56);
+
+  return (
+    <div ref={boxRef} onMouseLeave={() => setHover(null)}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}: ${rows.map((r) => `${r.label} ${format(r.value)}`).join(', ')}`} className="block max-w-full">
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={left} x2={W - right} y1={y(t)} y2={y(t)} stroke={t === 0 ? '#cbd5e1' : '#f1f5f9'} strokeWidth={1} />
+            <text x={left - 6} y={y(t)} dy="0.32em" textAnchor="end" className="fill-slate-400 text-[10px] tabular-nums">
+              {axisETB(t)}
+            </text>
+          </g>
+        ))}
+        {rows.map((r, i) => {
+          const cx = left + slot * i + slot / 2;
+          const h = Math.max(y(0) - y(r.value), r.value > 0 ? 2 : 0);
+          // A name of two words goes on two lines, so neighbours never run into each other
+          const words = (slot < 62 && r.short ? r.short : r.label).split(' ');
+          const lines = words.length > 1 ? [words.slice(0, Math.ceil(words.length / 2)).join(' '), words.slice(Math.ceil(words.length / 2)).join(' ')] : [r.label];
+          return (
+            <g key={r.key} opacity={hover && hover !== r.key ? 0.4 : 1} className="transition-opacity">
+              <path d={columnPath(cx - colW / 2, y(0) - h, colW, h)} fill={r.color} />
+              <text x={cx} y={y(0) - h - 5} textAnchor="middle" className="fill-slate-900 text-[10px] font-semibold tabular-nums">
+                {format(r.value).replace('ETB ', '')}
+              </text>
+              {lines.map((line, k) => (
+                <text key={k} x={cx} y={H - bottom + 13 + k * 11} textAnchor="middle" className="fill-slate-600 text-[10px]">
+                  {line}
+                </text>
+              ))}
+              {/* Hit target: the whole column slot */}
+              <rect x={left + slot * i} y={top} width={slot} height={plotH + bottom} fill="transparent" onMouseEnter={() => setHover(r.key)}>
+                <title>{`${r.label}: ${format(r.value)}${r.detail ? ` · ${r.detail}` : ''}`}</title>
+              </rect>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
   );
 };
 
@@ -193,6 +279,7 @@ export const ReportCharts: React.FC<ReportChartsProps> = ({ items, splitsByRoot,
     const rows = [...sums.entries()].map(([category, s]) => ({
       key: category,
       label: CATEGORY_STYLE[category]?.label ?? category.replace(/_/g, ' ').toLowerCase(),
+      short: CATEGORY_STYLE[category]?.short,
       color: CATEGORY_STYLE[category]?.color ?? '#94a3b8',
       value: s.value,
       detail: `${s.units.toLocaleString()} units`,
@@ -238,8 +325,8 @@ export const ReportCharts: React.FC<ReportChartsProps> = ({ items, splitsByRoot,
           <Card title="Where the units are" subtitle="Units in this report, by where they are now">
             <UnitsDonut segments={states} />
           </Card>
-          <Card title="Value by category" subtitle="Unit cost × units, largest first">
-            <BarList rows={byCategory} format={compactETB} empty="No value to show for these filters." />
+          <Card title="Value by category" subtitle="Unit cost × units, in ETB, largest first">
+            <ColumnChart rows={byCategory} format={compactETB} empty="No value to show for these filters." label="Value by category" />
           </Card>
           <Card title="Issued units by directorate" subtitle={`Who holds what has been issued${byDirectorate.some((r) => r.key === 'OTHER') ? ' · top 5' : ''}`}>
             <BarList rows={byDirectorate} format={units} empty="Nothing in this report is issued." />

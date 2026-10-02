@@ -34,8 +34,13 @@ describe('ReportCharts', () => {
 
   it('ranks categories by value, largest first', () => {
     show();
-    const rows = within(card('Value by category')).getAllByRole('listitem').map((li) => li.textContent);
-    expect(rows).toEqual(['VehiclesETB 1.00M', 'IT equipmentETB 33K']);
+    const chart = within(card('Value by category')).getByRole('img');
+    expect(chart).toHaveAccessibleName('Value by category: Vehicles ETB 1.00M, IT equipment ETB 33K');
+    // Each column carries its value, and a two-word name is set on two lines
+    expect(chart).toHaveTextContent('1.00M');
+    expect(chart).toHaveTextContent('33K');
+    expect(within(chart).getByText('IT')).toBeInTheDocument();
+    expect(within(chart).getByText('equipment')).toBeInTheDocument();
   });
 
   it('counts issued units by the directorate that holds them, including units issued in part', () => {
