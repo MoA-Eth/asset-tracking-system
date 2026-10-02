@@ -1,20 +1,89 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Search,
-  RefreshCw,
-  ShieldCheck,
-  User,
-  AlertCircle,
-  Download,
-  Printer,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react';
+import { Search, RefreshCw, ShieldCheck, AlertCircle, Download, Printer, ChevronRight } from 'lucide-react';
 import { api } from '../api/client';
 import { AuditLogEntry } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RefreshButton } from '../components/ui/RefreshButton';
+import { roleName, withRoleNames } from '../utils/roles';
+
+/** What kind of activity an entry is, for the filter and the colour of its label */
+type ActivityKind = 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'APPROVAL' | 'REJECTION' | 'ADMIN' | 'OTHER';
+
+const KIND_FILTERS: { label: string; value: ActivityKind | 'ALL' }[] = [
+  { label: 'All activity', value: 'ALL' },
+  { label: 'Stock-In (M19)', value: 'STOCK_IN' },
+  { label: 'Stock-Out (M22)', value: 'STOCK_OUT' },
+  { label: 'Transfers & returns (M21)', value: 'TRANSFER' },
+  { label: 'Approvals', value: 'APPROVAL' },
+  { label: 'Rejections', value: 'REJECTION' },
+  { label: 'Users & settings', value: 'ADMIN' },
+];
+
+const KIND_TONE: Record<ActivityKind, string> = {
+  STOCK_IN: 'bg-blue-50 text-blue-800 border-blue-200',
+  STOCK_OUT: 'bg-amber-50 text-amber-900 border-amber-200',
+  TRANSFER: 'bg-purple-50 text-purple-800 border-purple-200',
+  APPROVAL: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  REJECTION: 'bg-rose-50 text-rose-800 border-rose-200',
+  ADMIN: 'bg-slate-100 text-slate-700 border-slate-200',
+  OTHER: 'bg-slate-100 text-slate-700 border-slate-200',
+};
+
+/** Decisions first: "APPROVE_STOCK_IN" is an approval, not a stock-in */
+export function activityKind(action: string): ActivityKind {
+  if (/REJECT/.test(action)) return 'REJECTION';
+  if (/APPROVE|ENDORSE/.test(action)) return 'APPROVAL';
+  if (/ACCESS|PASSWORD|ROLE|PERMISSION|EMPLOYEE|STORE|LOCATION|SETTING|LOGIN/.test(action)) return 'ADMIN';
+  if (/TRANSFER|RETURN/.test(action)) return 'TRANSFER';
+  if (/STOCK_OUT/.test(action)) return 'STOCK_OUT';
+  if (/STOCK_IN|REGISTER|ITEM/.test(action)) return 'STOCK_IN';
+  return 'OTHER';
+}
+
+/** "APPROVE_STOCK_IN" → "Approve stock in" */
+export const actionLabel = (action: string): string => {
+  const text = action.replace(/_/g, ' ').toLowerCase();
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
+/** "2026-10-02 17:10:11" → date and time parts */
+const splitStamp = (stamp?: string): [string, string] => {
+  const [date = '', time = ''] = (stamp ?? '').trim().split(/[ T]/);
+  return [date, time.slice(0, 5)];
+};
+
+const fieldLabel = (key: string): string => {
+  const text = key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toLowerCase();
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
+const fieldValue = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') return '—';
+  if (Array.isArray(value)) return value.length === 0 ? '—' : value.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(', ');
+  if (typeof value === 'object') return JSON.stringify(value);
+  return withRoleNames(String(value));
+};
+
+/** The recorded state before or after a change, one field per line; changed fields are highlighted */
+const StateList: React.FC<{ title: string; state?: Record<string, unknown> | null; other?: Record<string, unknown> | null }> = ({ title, state, other }) => {
+  if (!state || typeof state !== 'object' || Object.keys(state).length === 0) return null;
+  return (
+    <div className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white p-3">
+      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">{title}</p>
+      <dl className="space-y-1">
+        {Object.entries(state).map(([key, value]) => {
+          const changed = other && fieldValue(other[key]) !== fieldValue(value);
+          return (
+            <div key={key} className="flex gap-2 text-[11px]">
+              <dt className="w-36 shrink-0 text-slate-500">{fieldLabel(key)}</dt>
+              <dd className={`min-w-0 break-words ${changed ? 'font-semibold text-slate-900' : 'text-slate-700'}`}>{fieldValue(value)}</dd>
+            </div>
+          );
+        })}
+      </dl>
+    </div>
+  );
+};
 
 export const AuditLogsPage: React.FC = () => {
   const toast = useToast();
@@ -24,7 +93,7 @@ export const AuditLogsPage: React.FC = () => {
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedAction, setSelectedAction] = useState<string>('ALL');
+  const [selectedKind, setSelectedKind] = useState<ActivityKind | 'ALL'>('ALL');
   const [dateFilter, setDateFilter] = useState<string>('ALL_TIME');
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
@@ -36,9 +105,9 @@ export const AuditLogsPage: React.FC = () => {
       setLogs(data);
     } catch (err: any) {
       console.error('Failed to load audit logs:', err);
-      const msg = err.message || 'Failed to load statutory audit trail entries.';
+      const msg = err.message || 'The audit log could not be loaded.';
       setError(msg);
-      toast.error('Audit Log Sync Failed', msg);
+      toast.error("Couldn't load the audit log", msg);
     } finally {
       setLoading(false);
     }
@@ -48,20 +117,20 @@ export const AuditLogsPage: React.FC = () => {
     fetchLogs();
   }, []);
 
-  // Filtered logs calculation
   const filteredLogs = useMemo(() => {
     const now = new Date();
+    const q = searchTerm.trim().toLowerCase();
     return logs.filter((log) => {
-      const q = searchTerm.toLowerCase();
       const matchSearch =
+        !q ||
         log.action.toLowerCase().includes(q) ||
+        actionLabel(log.action).toLowerCase().includes(q) ||
         log.userName.toLowerCase().includes(q) ||
         log.details.toLowerCase().includes(q) ||
-        (log.ifmisSlipNumber && log.ifmisSlipNumber.toLowerCase().includes(q));
+        (log.ifmisSlipNumber ?? '').toLowerCase().includes(q);
 
-      const matchAction = selectedAction === 'ALL' || log.action.includes(selectedAction);
+      const matchKind = selectedKind === 'ALL' || activityKind(log.action) === selectedKind;
 
-      // Date Range Filter logic
       let matchDate = true;
       if (log.timestampGc) {
         const logDate = new Date(log.timestampGc);
@@ -69,47 +138,26 @@ export const AuditLogsPage: React.FC = () => {
           if (dateFilter === 'TODAY') {
             matchDate = logDate.toDateString() === now.toDateString();
           } else if (dateFilter === 'THIS_WEEK') {
-            const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            matchDate = logDate >= sevenDaysAgo;
+            matchDate = logDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           } else if (dateFilter === 'THIS_MONTH') {
-            matchDate =
-              logDate.getMonth() === now.getMonth() && logDate.getFullYear() === now.getFullYear();
+            matchDate = logDate.getMonth() === now.getMonth() && logDate.getFullYear() === now.getFullYear();
           }
         }
       }
 
-      return matchSearch && matchAction && matchDate;
+      return matchSearch && matchKind && matchDate;
     });
-  }, [logs, searchTerm, selectedAction, dateFilter]);
+  }, [logs, searchTerm, selectedKind, dateFilter]);
 
-
-  // CSV Export handler
   const handleExportCSV = () => {
     if (filteredLogs.length === 0) {
-      toast.warning('No Records', 'There are no audit log entries matching the current filters to export.');
+      toast.warning('Nothing to export', 'No audit log entries match the current filters.');
       return;
     }
     try {
-      const headers = [
-        'Log ID',
-        'Action',
-        'User Name',
-        'User Role',
-        'IFMIS Slip #',
-        'Timestamp (E.C.)',
-        'Timestamp (G.C.)',
-        'Details',
-      ];
-      const rows = filteredLogs.map((l) => [
-        l.id,
-        l.action,
-        `"${l.userName.replace(/"/g, '""')}"`,
-        l.userRole,
-        l.ifmisSlipNumber || '',
-        `"${l.timestampEc || ''}"`,
-        `"${l.timestampGc || ''}"`,
-        `"${l.details.replace(/"/g, '""')}"`,
-      ]);
+      const cell = (value: string) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+      const headers = ['Log ID', 'Action', 'User Name', 'User Role', 'IFMIS Slip #', 'Timestamp (E.C.)', 'Timestamp (G.C.)', 'Details'];
+      const rows = filteredLogs.map((l) => [l.id, l.action, cell(l.userName), l.userRole, cell(l.ifmisSlipNumber || ''), cell(l.timestampEc || ''), cell(l.timestampGc || ''), cell(l.details)]);
       const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -119,38 +167,20 @@ export const AuditLogsPage: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      toast.success(
-        'Audit Trail Exported',
-        `Successfully exported ${filteredLogs.length} audit entries to CSV.`
-      );
+      toast.success('Audit log exported', `${filteredLogs.length} ${filteredLogs.length === 1 ? 'entry' : 'entries'} saved as CSV.`);
     } catch (err: any) {
-      toast.error('Export Failed', err.message || 'Failed to export audit trail.');
+      toast.error('Export failed', err.message || 'The audit log could not be exported.');
     }
   };
 
-  // Print PDF handler
-  const handlePrintPDF = () => {
-    window.print();
-  };
-
-  const getActionColor = (action: string) => {
-    if (action.includes('APPROVE')) return 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold';
-    if (action.includes('REJECT')) return 'bg-rose-100 text-rose-900 border-rose-300 font-bold';
-    if (action.includes('STOCK_IN')) return 'bg-blue-100 text-blue-900 border-blue-300 font-bold';
-    if (action.includes('STOCK_OUT')) return 'bg-amber-100 text-amber-950 border-amber-300 font-bold';
-    if (action.includes('TRANSFER')) return 'bg-purple-100 text-purple-900 border-purple-300 font-bold';
-    return 'bg-slate-100 text-slate-800 border-slate-300 font-bold';
-  };
-
-  // The export still uses every filtered entry; only the list on screen is paged
-  const pager = usePagination(filteredLogs, { pageSize: 25, resetKey: `${searchTerm}|${dateFilter}` });
+  // The export still uses every filtered entry; only the table on screen is paged
+  const pager = usePagination(filteredLogs, { pageSize: 25, resetKey: `${searchTerm}|${dateFilter}|${selectedKind}` });
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-xs text-slate-400">
         <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
-        Loading audit logs & statutory activity trail...
+        Loading the audit log…
       </div>
     );
   }
@@ -159,219 +189,185 @@ export const AuditLogsPage: React.FC = () => {
     return (
       <div className="p-8 rounded-2xl bg-red-50 border border-red-200 text-center space-y-3 max-w-md mx-auto my-12 animate-fadeIn">
         <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
-        <h3 className="text-sm font-bold text-red-900">Audit Registry Load Error</h3>
+        <h3 className="text-sm font-bold text-red-900">The audit log could not be loaded</h3>
         <p className="text-xs text-red-700">{error}</p>
         <button
           onClick={() => fetchLogs()}
           className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl transition cursor-pointer inline-flex items-center gap-1.5"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          Retry Connection
+          Try again
         </button>
       </div>
     );
   }
 
+  const headButton = 'px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer';
+
   return (
-    <div className="space-y-5 animate-fadeIn pb-16">
-      {/* Header & Print/Export Bar */}
+    <div className="space-y-4 animate-fadeIn pb-16">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-emerald-700" />
-            Statutory Audit Log & Activity Trail (የኦዲት መዝገብ)
+            Audit log <span className="font-medium text-slate-500">(የኦዲት መዝገብ)</span>
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Immutable system logs for IFMIS registrations, stock receipts (Model 19), issues (Model 22), transfers and returns (Model 21), and approvals.
-          </p>
+          <p className="text-xs text-slate-500 mt-0.5">Who did what, and when. Entries are written by the system and can't be edited or deleted.</p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={handleExportCSV}
-            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
-            title="Export filtered audit log to CSV spreadsheet"
-          >
+        <div className="no-print flex items-center gap-2 shrink-0">
+          <button onClick={handleExportCSV} className={headButton} title="Save the entries shown as a CSV file">
             <Download className="w-3.5 h-3.5 text-slate-500" />
             <span className="hidden sm:inline">Export CSV</span>
           </button>
-          <button
-            onClick={handlePrintPDF}
-            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
-            title="Print or save as PDF report"
-          >
+          <button onClick={() => window.print()} className={headButton} title="Print, or save as PDF">
             <Printer className="w-3.5 h-3.5 text-slate-500" />
-            <span className="hidden sm:inline">Print PDF</span>
+            <span className="hidden sm:inline">Print</span>
           </button>
           <RefreshButton onClick={fetchLogs} loading={loading} label="audit log" />
         </div>
       </div>
 
-
-      {/* Search & Comprehensive Filters */}
-      <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
-        <div className="flex flex-col md:flex-row items-center gap-3">
-          <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by user, action type, IFMIS slip #, or description..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white font-mono"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
-            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Timeframe:</span>
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+        {/* Search & filters */}
+        <div className="no-print space-y-3 border-b border-slate-200 p-3.5">
+          <div className="flex flex-col md:flex-row items-center gap-3">
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                aria-label="Search the audit log"
+                placeholder="Search by person, action, slip number or description…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white"
+              />
+            </div>
             <select
+              aria-label="Period"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
+              className="w-full md:w-auto px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
             >
-              <option value="ALL_TIME">All Time</option>
-              <option value="TODAY">Today Only</option>
-              <option value="THIS_WEEK">Past 7 Days</option>
-              <option value="THIS_MONTH">This Month</option>
+              <option value="ALL_TIME">All time</option>
+              <option value="TODAY">Today</option>
+              <option value="THIS_WEEK">Past 7 days</option>
+              <option value="THIS_MONTH">This month</option>
             </select>
+          </div>
+
+          <div role="group" aria-label="Kind of activity" className="flex flex-wrap items-center gap-1.5">
+            {KIND_FILTERS.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setSelectedKind(tab.value)}
+                aria-pressed={selectedKind === tab.value}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  selectedKind === tab.value ? 'bg-emerald-800 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Action Type Filter Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100">
-          {[
-            { label: 'All Activities', value: 'ALL' },
-            { label: 'Stock-In (M19)', value: 'STOCK_IN' },
-            { label: 'Stock-Out (M22)', value: 'STOCK_OUT' },
-            { label: 'Approvals & Sign-Offs', value: 'APPROVE' },
-            { label: 'Rejections', value: 'REJECT' },
-            { label: 'Transfers', value: 'TRANSFER' },
-          ].map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setSelectedAction(tab.value)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                selectedAction === tab.value
-                  ? 'bg-emerald-800 text-white shadow-xs font-bold'
-                  : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {filteredLogs.length === 0 ? (
+          <div className="py-16 text-center space-y-2">
+            <ShieldCheck className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="text-sm font-bold text-slate-800">No entries match</p>
+            <p className="text-xs text-slate-500">Try a different search, period or kind of activity.</p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <th scope="col" className="w-8 px-2 py-2.5"><span className="sr-only">Details</span></th>
+                    <th scope="col" className="w-40 px-3 py-2.5 whitespace-nowrap">Date &amp; time</th>
+                    <th scope="col" className="w-48 px-3 py-2.5">Who</th>
+                    <th scope="col" className="w-44 px-3 py-2.5">Action</th>
+                    <th scope="col" className="w-36 px-3 py-2.5 whitespace-nowrap">Slip no.</th>
+                    <th scope="col" className="px-3 py-2.5">What happened</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {pager.pageItems.map((log) => {
+                    const isExpanded = expandedLogId === log.id;
+                    const [ecDate, ecTime] = splitStamp(log.timestampEc);
+                    const [gcDate] = splitStamp(log.timestampGc);
+                    const hasStates = Boolean(log.previousState || log.newState);
+                    return (
+                      <React.Fragment key={log.id}>
+                        <tr
+                          onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                          className={`cursor-pointer align-top transition-colors hover:bg-slate-50 ${isExpanded ? 'bg-emerald-50/40' : ''}`}
+                        >
+                          <td className="px-2 py-2.5">
+                            <button
+                              type="button"
+                              aria-expanded={isExpanded}
+                              aria-label={`${isExpanded ? 'Hide' : 'Show'} details of ${actionLabel(log.action)} by ${log.userName}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedLogId(isExpanded ? null : log.id);
+                              }}
+                              className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-slate-700 cursor-pointer"
+                            >
+                              <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                            </button>
+                          </td>
+                          <td className="px-3 py-2.5 whitespace-nowrap">
+                            <span className="block font-mono font-semibold tabular-nums text-slate-900">
+                              {ecDate} <span className="font-normal text-slate-500">{ecTime}</span>
+                            </span>
+                            <span className="block font-mono text-[10px] tabular-nums text-slate-400">{gcDate} G.C.</span>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className="block font-semibold text-slate-900">{log.userName}</span>
+                            <span className="block text-[11px] text-slate-500">{roleName(log.userRole)}</span>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className={`inline-block rounded-md border px-2 py-0.5 text-[11px] font-semibold ${KIND_TONE[activityKind(log.action)]}`}>
+                              {actionLabel(log.action)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 font-mono text-slate-700">{log.ifmisSlipNumber || <span className="text-slate-300">—</span>}</td>
+                          <td className="px-3 py-2.5 text-slate-700">
+                            <span className={isExpanded ? '' : 'line-clamp-2'}>{withRoleNames(log.details)}</span>
+                          </td>
+                        </tr>
+
+                        {isExpanded && (
+                          <tr className="bg-slate-50/70">
+                            <td />
+                            <td colSpan={5} className="px-3 pb-3.5 pt-1">
+                              {hasStates ? (
+                                <div className="flex flex-col gap-2.5 md:flex-row">
+                                  <StateList title="Before" state={log.previousState} other={log.newState} />
+                                  <StateList title="After" state={log.newState} other={log.previousState} />
+                                </div>
+                              ) : (
+                                <p className="text-[11px] text-slate-500">No before-and-after values were recorded for this entry.</p>
+                              )}
+                              <p className="mt-2 font-mono text-[10px] text-slate-400">
+                                Entry {log.id} · {log.timestampGc} G.C.
+                              </p>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <Pagination pager={pager} label="entries" />
+          </>
+        )}
       </div>
-
-      {/* Audit Entries List */}
-      {filteredLogs.length === 0 ? (
-        <div className="py-16 text-center rounded-2xl bg-white border border-dashed border-slate-300 space-y-2 shadow-xs">
-          <ShieldCheck className="w-8 h-8 text-slate-300 mx-auto" />
-          <p className="text-sm font-bold text-slate-800">No Matching Audit Entries</p>
-          <p className="text-xs text-slate-500">
-            Try adjusting your search criteria or resetting filters.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {pager.pageItems.map((log) => {
-            const isExpanded = expandedLogId === log.id;
-
-            return (
-              <div
-                key={log.id}
-                className="rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-emerald-300 overflow-hidden transition"
-              >
-                <div
-                  onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                  className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs cursor-pointer select-none"
-                >
-                  <div className="space-y-1 max-w-3xl">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono border ${getActionColor(
-                          log.action
-                        )}`}
-                      >
-                        {log.action}
-                      </span>
-
-                      {log.ifmisSlipNumber && (
-                        <span className="font-mono text-amber-900 bg-amber-100 border border-amber-200 px-1.5 py-0.2 rounded text-[11px] font-bold">
-                          IFMIS Slip: {log.ifmisSlipNumber}
-                        </span>
-                      )}
-
-                      <span className="text-[10px] font-mono text-slate-400">ID: {log.id}</span>
-                    </div>
-
-                    <p className="text-slate-900 font-semibold leading-relaxed">{log.details}</p>
-
-                    <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-0.5">
-                      <span className="flex items-center gap-1">
-                        <User className="w-3.5 h-3.5 text-slate-400" />
-                        <strong className="text-slate-800">{log.userName}</strong> ({log.userRole.replace(/_/g, ' ')})
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 shrink-0 text-right">
-                    <div>
-                      <p className="text-slate-900 font-bold font-mono text-[11px]">
-                        {log.timestampEc} E.C.
-                      </p>
-                      <p className="text-[10px] text-slate-500 font-mono">{log.timestampGc} (G.C.)</p>
-                    </div>
-
-                    <div className="mt-1 flex items-center gap-1 text-emerald-800 font-bold text-[10px]">
-                      <span>{isExpanded ? 'Hide Payload' : 'View Payload'}</span>
-                      {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expandable Raw JSON Payload View */}
-                {isExpanded && (
-                  <div className="p-3.5 bg-slate-50 border-t border-slate-200 text-xs space-y-3 animate-fadeIn">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 border-b border-slate-200 pb-1.5">
-                      <span>Immutable Security Log Payload</span>
-                      <span className="font-mono text-slate-500 text-[10px]">Anti-Tamper Cryptographic Log</span>
-                    </div>
-
-                    {/* Metadata Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px]">
-                      <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                        <span className="text-slate-400 block font-mono text-[10px]">AUTHORIZING USER</span>
-                        <span className="font-bold text-slate-800">{log.userName}</span>
-                        <span className="text-slate-500 block text-[10px]">{log.userRole}</span>
-                      </div>
-
-                      <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                        <span className="text-slate-400 block font-mono text-[10px]">IFMIS SLIP REFERENCE</span>
-                        <span className="font-bold font-mono text-amber-900">
-                          {log.ifmisSlipNumber || 'N/A (Internal Transfer)'}
-                        </span>
-                      </div>
-
-                      <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                        <span className="text-slate-400 block font-mono text-[10px]">ORIGIN TIMESTAMP</span>
-                        <span className="font-bold font-mono text-slate-800">{log.timestampGc}</span>
-                        <span className="text-slate-500 block font-mono text-[10px]">{log.timestampEc} E.C.</span>
-                      </div>
-                    </div>
-
-                    {/* Raw JSON Record */}
-                    <div className="bg-slate-900 text-emerald-400 p-3 rounded-xl font-mono text-[11px] overflow-x-auto border border-slate-800">
-                      <p className="text-slate-500 text-[10px] mb-1">// Raw Statutory Audit JSON Record</p>
-                      <pre>{JSON.stringify(log, null, 2)}</pre>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          <Pagination pager={pager} label="entries" className="rounded-2xl border border-slate-200" />
-        </div>
-      )}
     </div>
   );
 };
