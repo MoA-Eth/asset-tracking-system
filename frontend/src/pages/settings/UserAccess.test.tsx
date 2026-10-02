@@ -46,10 +46,13 @@ describe('Users page: sign-in access', () => {
     render(<SettingsPage currentRole={UserRole.SYSTEM_ADMIN} />);
     await user.click(await screen.findByRole('button', { name: 'Add user' }));
     const dialog = screen.getByRole('dialog');
-    // Only staff without sign-in can be picked
-    const options = within(within(dialog).getByLabelText('Employee', { selector: 'select' })).getAllByRole('option');
-    expect(options.map((o) => o.textContent)).toEqual(['Getahun Bahiru (ID-staff)']);
-    await user.selectOptions(within(dialog).getByLabelText('Employee', { selector: 'select' }), 'staff');
+    // A normal dropdown listing the registered employees who don't sign in yet
+    const dropdown = within(dialog).getByLabelText(/^Employee/) as HTMLSelectElement;
+    expect(dropdown.tagName).toBe('SELECT');
+    expect(dropdown.size).toBeLessThan(2);
+    expect(within(dropdown).getAllByRole('option').map((o) => o.textContent)).toEqual(['Select…', 'Getahun Bahiru (ID-staff)']);
+    expect(within(dialog).getByText("1 registered employee doesn't sign in yet.")).toBeInTheDocument();
+    await user.selectOptions(dropdown, 'staff');
     await user.selectOptions(within(dialog).getByLabelText(/^Role/), UserRole.TEAM_LEADER);
 
     await user.type(within(dialog).getByLabelText(/Temporary password/), 'weak');
@@ -124,5 +127,33 @@ describe('Changing your own password', () => {
     const b = makeTemporaryPassword();
     expect(a).toMatch(/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{10}$/);
     expect(a).not.toBe(b);
+  });
+});
+
+describe('Add user: the employee dropdown', () => {
+  it('lists every registered employee without sign-in, with a search box once the list is long', async () => {
+    const user = userEvent.setup();
+    const many = Array.from({ length: 20 }, (_, i) => person(`s${i}`, `Staff Member ${String(i).padStart(2, '0')}`, null));
+    vi.mocked(api.getEmployees).mockResolvedValue([admin, encoder, ...many] as any);
+    render(<SettingsPage currentRole={UserRole.SYSTEM_ADMIN} />);
+    await user.click(await screen.findByRole('button', { name: 'Add user' }));
+    const dialog = screen.getByRole('dialog');
+    const dropdown = within(dialog).getByLabelText(/^Employee/);
+    // All 20, not a shortened list; people who already sign in are left out
+    expect(within(dropdown).getAllByRole('option')).toHaveLength(21);
+    expect(within(dropdown).queryByText(/Example Encoder/)).toBeNull();
+
+    await user.type(within(dialog).getByLabelText('Search employees'), 'member 07');
+    expect(within(dropdown).getAllByRole('option').map((o) => o.textContent)).toEqual(['Select… (1 found)', 'Staff Member 07 (ID-s7)']);
+  });
+
+  it('explains what to do when every employee already signs in', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getEmployees).mockResolvedValue([admin, encoder] as any);
+    render(<SettingsPage currentRole={UserRole.SYSTEM_ADMIN} />);
+    await user.click(await screen.findByRole('button', { name: 'Add user' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/Every registered employee already signs in/)).toBeInTheDocument();
+    expect((within(dialog).getByLabelText(/^Employee/) as HTMLSelectElement).disabled).toBe(true);
   });
 });

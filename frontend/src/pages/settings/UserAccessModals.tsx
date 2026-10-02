@@ -108,11 +108,16 @@ export const AddUserModal: React.FC<{
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const candidates = useMemo(() => employees.filter((e) => e.isActive && !e.role), [employees]);
+  // Registered employees (Settings → Employees) who are active and don't sign in yet
+  const candidates = useMemo(
+    () => employees.filter((e) => e.isActive && !e.role).sort((a, b) => a.fullNameEn.localeCompare(b.fullNameEn)),
+    [employees],
+  );
+  // With a long staff list, a search box above the dropdown narrows it
+  const showSearch = candidates.length > 12;
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = q ? candidates.filter((e) => [e.fullNameEn, e.fullNameAm, e.payrollId].some((v) => (v || '').toLowerCase().includes(q))) : candidates;
-    return list.slice(0, 50);
+    return q ? candidates.filter((e) => [e.fullNameEn, e.fullNameAm, e.payrollId].some((v) => (v || '').toLowerCase().includes(q))) : candidates;
   }, [candidates, search]);
 
   const close = () => {
@@ -144,26 +149,41 @@ export const AddUserModal: React.FC<{
   return (
     <Modal isOpen={isOpen} onClose={close} title="Add user" subtitle="Let an employee sign in. Employees are added under Settings → Employees." size="md">
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Employee" required htmlFor="add-user-search" hint={`${candidates.length} employees without sign-in. Type a name or employee ID to narrow the list.`}>
-          <input
-            id="add-user-search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or employee ID…"
-            className={inputClass('emerald')}
-            autoFocus
-          />
+        <Field
+          label="Employee"
+          required
+          htmlFor="add-user-employee"
+          hint={
+            candidates.length === 0
+              ? 'Every registered employee already signs in. Add staff under Settings → Employees first.'
+              : `${candidates.length} registered ${candidates.length === 1 ? "employee doesn't" : "employees don't"} sign in yet.`
+          }
+        >
+          {showSearch && (
+            <input
+              id="add-user-search"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setEmployeeId('');
+              }}
+              placeholder="Type a name or employee ID to narrow the list…"
+              aria-label="Search employees"
+              className={`${inputClass('emerald')} mb-2`}
+            />
+          )}
           <select
             id="add-user-employee"
-            aria-label="Employee"
             required
-            size={Math.min(6, Math.max(2, matches.length))}
+            disabled={candidates.length === 0}
             value={employeeId}
             onChange={(e) => setEmployeeId(e.target.value)}
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-1 text-[13px] text-slate-900 focus:border-emerald-600 focus:outline-none"
+            className={inputClass('emerald')}
+            autoFocus={!showSearch}
           >
+            <option value="">{showSearch && search.trim() ? `Select… (${matches.length} found)` : 'Select…'}</option>
             {matches.map((e) => (
-              <option key={e.id} value={e.id} className="rounded px-2 py-1">
+              <option key={e.id} value={e.id}>
                 {e.fullNameEn} ({e.payrollId})
               </option>
             ))}
