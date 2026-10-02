@@ -474,14 +474,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       {/* ── 1. Page Header & Live Role Alert Banner ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
         <div>
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-              Statutory 2-Stage Governance
-            </span>
-            <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
-              Ethiopian Ministry of Agriculture Store Directive
-            </span>
-          </div>
           <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <FileCheck2 className="w-5 h-5 text-emerald-800" />
             Approvals & Authorization Queue (የማረጋገጫና ፈቃድ መስጫ)
