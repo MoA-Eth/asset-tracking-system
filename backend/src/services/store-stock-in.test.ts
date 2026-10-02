@@ -15,6 +15,7 @@ const db = vi.hoisted(() => ({
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
 import { StoreService } from './store.service';
+import { applySystemSettings } from './settings.service';
 
 const basePayload = {
   name: 'Legacy Laptop',
@@ -106,10 +107,26 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(db.item.create).not.toHaveBeenCalled();
   });
 
-  it('still requires a slip attachment for non-historical registrations', async () => {
-    await expect(
-      StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: false } as any)
-    ).rejects.toThrow(/attachment is required/i);
-    expect(db.item.create).not.toHaveBeenCalled();
+  it('accepts a registration without a scanned slip while the setting is optional', async () => {
+    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: false } as any);
+    expect(db.item.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires a scanned slip once the setting is switched to required, historical or not', async () => {
+    applySystemSettings({ slipAttachmentPolicy: 'REQUIRED' });
+    try {
+      for (const isHistoricalData of [false, true]) {
+        await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData } as any)).rejects.toMatchObject({
+          statusCode: 400,
+          message: 'A scanned copy of the slip is required. Attach it and try again.',
+        });
+      }
+      expect(db.item.create).not.toHaveBeenCalled();
+
+      await StoreService.getInstance().registerStockIn({ ...basePayload, ifmisSlipAttachmentUrl: '/api/uploads/slips/x-slip.pdf' } as any);
+      expect(db.item.create).toHaveBeenCalledTimes(1);
+    } finally {
+      applySystemSettings({});
+    }
   });
 });

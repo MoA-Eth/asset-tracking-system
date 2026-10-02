@@ -34,8 +34,19 @@ const ITEM_STATUS: Record<string, { label: string; tone: keyof typeof statusTone
   [ItemStatus.PENDING_STOCK_OUT]: { label: 'Stock-Out pending', tone: 'pending' },
   [ItemStatus.ISSUED]: { label: 'Issued', tone: 'issued' },
   [ItemStatus.UNDER_TRANSFER]: { label: 'Under transfer', tone: 'pending' },
-  [ItemStatus.DISPOSED]: { label: 'Disposed', tone: 'neutral' },
+  // An item only leaves the register this way when its Stock-In is rejected
+  [ItemStatus.DISPOSED]: { label: 'Rejected', tone: 'rejected' },
 };
+
+const ROLE_NAMES: Record<string, string> = {
+  SYSTEM_ADMIN: 'System Administrator',
+  DATA_ENCODER: 'Data Encoder',
+  TEAM_LEADER: 'Team Leader',
+  DEPARTMENT_HEAD: 'Department Head',
+  MANAGER: 'Manager',
+};
+/** Older history entries carry the role as a code, e.g. "(TEAM_LEADER)": show its name */
+const withRoleNames = (text: string) => text.replace(/\((SYSTEM_ADMIN|DATA_ENCODER|TEAM_LEADER|DEPARTMENT_HEAD|MANAGER)\)/g, (_, code) => `(${ROLE_NAMES[code]})`);
 
 /** Label / value pair; empty values show a dash */
 const Row: React.FC<{ label: string; children?: React.ReactNode; mono?: boolean }> = ({ label, children, mono }) => (
@@ -236,7 +247,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                         <span className="text-[11px] text-slate-500 font-mono">{h.dateEc} E.C. · {h.dateGc}</span>
                       </div>
                       <p className="text-slate-600">
-                        {h.performedBy}
+                        {withRoleNames(h.performedBy)}
                         {h.fromEntity || h.toEntity ? ` · ${h.fromEntity ?? '—'} → ${h.toEntity ?? '—'}` : ''}
                       </p>
                       {h.notes && <p className="text-slate-500 mt-0.5">{h.notes}</p>}

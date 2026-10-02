@@ -96,7 +96,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
   // Navigation & View Controls
   const [activeTab, setActiveTab] = useState<TabFilter>('MY_QUEUE');
-  const [viewMode, setViewMode] = useState<ViewMode>('table');
+  // Cards on a phone, the table on wider screens
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches ? 'cards' : 'table',
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | TransactionType>('ALL');
 

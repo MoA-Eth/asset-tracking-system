@@ -68,10 +68,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ showToast, success, error, warning, info }}>
       {children}
-      {/* Toast stack: top-right on desktop, full width on phones, above modals; newest first */}
+      {/* Toast stack: top-centre on desktop (clear of the buttons in a window's corner), full width on phones, above modals; newest first */}
       <section
         aria-label="Notifications"
-        className="no-print fixed top-4 inset-x-4 sm:inset-x-auto sm:right-5 z-[70] flex flex-col gap-2.5 sm:w-[380px] pointer-events-none"
+        className="no-print fixed top-4 inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-[70] flex flex-col gap-2.5 sm:w-[380px] pointer-events-none"
       >
         {[...toasts].reverse().map((toast) => (
           <div key={toast.id} className="pointer-events-auto">

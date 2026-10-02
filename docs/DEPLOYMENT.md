@@ -156,6 +156,7 @@ Database upgrade scripts, in order. Each is safe to run more than once:
 | `npm run db:upgrade:employees` | Staff without sign-in, job title, unit, gender, deactivation |
 | `npm run db:upgrade:reference` | Stores that contain locations (converts existing locations) |
 | `npm run db:upgrade:passwords` | Temporary passwords |
+| `npm run db:upgrade:settings` | System settings (whether a scanned slip is required) |
 
 Use these scripts on a database that already has data. `npm run db:push` is only for a new, empty database:
 on an existing one it can drop columns without converting what was in them.

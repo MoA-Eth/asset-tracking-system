@@ -1,50 +1,45 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import {
-  getSystemSettings,
-  saveSystemSettings,
-  SystemSettings,
-} from './system-settings';
+import { getSystemSettings, loadSystemSettings, saveSystemSettings } from './system-settings';
+import { api } from '../api/client';
 
-describe('system-settings utility', () => {
+vi.mock('../api/client', () => ({ api: { getSystemSettings: vi.fn(), updateSystemSettings: vi.fn() } }));
+
+describe('system settings', () => {
   beforeEach(() => {
+    vi.resetAllMocks();
     localStorage.clear();
   });
 
-  it('returns default settings when storage is empty', () => {
-    const settings = getSystemSettings();
-    expect(settings).toEqual({
-      historicalDataAttachmentPolicy: 'OPTIONAL',
-    });
+  it('starts with the slip optional until the server answers', () => {
+    expect(getSystemSettings()).toEqual({ slipAttachmentPolicy: 'OPTIONAL' });
   });
 
-  it('saves settings to localStorage and dispatches system-settings-changed event', () => {
-    const eventListener = vi.fn();
-    window.addEventListener('system-settings-changed', eventListener);
+  it('loads the settings from the server and tells the forms', async () => {
+    vi.mocked(api.getSystemSettings).mockResolvedValue({ slipAttachmentPolicy: 'REQUIRED' });
+    const listener = vi.fn();
+    window.addEventListener('system-settings-changed', listener);
 
-    const updated = saveSystemSettings({
-      historicalDataAttachmentPolicy: 'REQUIRED',
-    });
-
-    expect(updated.historicalDataAttachmentPolicy).toBe('REQUIRED');
-    expect(eventListener).toHaveBeenCalledTimes(1);
-
-    const reloaded = getSystemSettings();
-    expect(reloaded.historicalDataAttachmentPolicy).toBe('REQUIRED');
-
-    window.removeEventListener('system-settings-changed', eventListener);
+    await expect(loadSystemSettings()).resolves.toEqual({ slipAttachmentPolicy: 'REQUIRED' });
+    expect(getSystemSettings().slipAttachmentPolicy).toBe('REQUIRED');
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener('system-settings-changed', listener);
   });
 
-  it('merges partial settings while preserving existing properties', () => {
-    saveSystemSettings({ historicalDataAttachmentPolicy: 'REQUIRED' });
-    const result = saveSystemSettings({});
-    expect(result.historicalDataAttachmentPolicy).toBe('REQUIRED');
+  it('saves a change on the server, never in the browser', async () => {
+    vi.mocked(api.updateSystemSettings).mockResolvedValue({ slipAttachmentPolicy: 'OPTIONAL' });
+    await saveSystemSettings({ slipAttachmentPolicy: 'OPTIONAL' });
+
+    expect(api.updateSystemSettings).toHaveBeenCalledWith({ slipAttachmentPolicy: 'OPTIONAL' });
+    expect(getSystemSettings().slipAttachmentPolicy).toBe('OPTIONAL');
+    expect(localStorage.length).toBe(0);
   });
 
-  it('gracefully falls back to default settings when localStorage contains corrupted JSON', () => {
-    localStorage.setItem('moa_ams_system_settings', '{corrupted_json:::');
-    const settings = getSystemSettings();
-    expect(settings).toEqual({
-      historicalDataAttachmentPolicy: 'OPTIONAL',
-    });
+  it('keeps the current setting when the server refuses the change', async () => {
+    vi.mocked(api.getSystemSettings).mockResolvedValue({ slipAttachmentPolicy: 'REQUIRED' });
+    await loadSystemSettings();
+    vi.mocked(api.updateSystemSettings).mockRejectedValue(new Error('Only System Administrators can change system settings.'));
+
+    await expect(saveSystemSettings({ slipAttachmentPolicy: 'OPTIONAL' })).rejects.toThrow('Only System Administrators');
+    expect(getSystemSettings().slipAttachmentPolicy).toBe('REQUIRED');
   });
 });

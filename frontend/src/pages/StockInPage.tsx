@@ -56,7 +56,7 @@ import {
   Model19LineItem,
 } from '../types/asset-management';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
-import { getSystemSettings } from '../utils/system-settings';
+import { useSystemSettings } from '../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../utils/slip-upload';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -198,7 +198,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
     }
   }, [user, receivedBy]);
 
-  const policy = getSystemSettings().historicalDataAttachmentPolicy;
+  const policy = useSystemSettings().slipAttachmentPolicy;
   const isAttachmentRequired = policy === 'REQUIRED';
 
   const totalAmount = (Number(quantity) || 0) * (Number(unitCostETB) || 0);
@@ -377,7 +377,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         ifmisSlipNumber: slipNo,
         ifmisSlipDateGc,
         ifmisSlipAttachmentUrl: slipUrl,
-        isHistoricalData: policy === 'OPTIONAL',
+        isHistoricalData: false,
         registeredById,
         notes: remark.trim() || undefined,
         poNumber: poNumber.trim() || undefined,
@@ -410,6 +410,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
       }];
 
       const generatedVoucher: Model19Voucher = {
+        approvalState: 'PENDING',
         invModel19No: slipNo,
         poNumber: poNumber.trim() || '—',
         receivedDateGc: ifmisSlipDateGc,
@@ -1247,6 +1248,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
     const grandTotal = voucherItems.reduce((acc, curr) => acc + curr.totalAmount, 0);
 
     const voucher: Model19Voucher = {
+      approvalState: item.status === ItemStatus.PENDING_STOCK_IN ? 'PENDING' : item.status === ItemStatus.DISPOSED ? 'REJECTED' : undefined,
       invModel19No: item.ifmisSlipNumber,
       poNumber: item.poNumber || '186',
       receivedDateGc: item.ifmisSlipDateGc,

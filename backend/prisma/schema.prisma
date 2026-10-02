@@ -295,6 +295,16 @@ model RolePermissionSet {
   @@map("role_permissions")
 }
 
+/// System-wide settings changed by the System Administrator; a missing row means the built-in default
+model SystemSetting {
+  key         String   @id
+  value       String
+  updatedById String
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
 model AuditLog {
   id             String          @id @default(uuid())
   timestampGc    String

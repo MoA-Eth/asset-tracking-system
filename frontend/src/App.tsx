@@ -11,6 +11,7 @@ import { AuditLogsPage } from './pages/AuditLogsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SystemSettingsPage } from './pages/SystemSettingsPage';
+import { loadSystemSettings } from './utils/system-settings';
 import { RolesPage } from './pages/settings/RolesPage';
 import { EmployeesPage } from './pages/settings/EmployeesPage';
 import { StoresPage } from './pages/settings/StoresPage';
@@ -37,6 +38,8 @@ const AuthenticatedPortal: React.FC = () => {
   useEffect(() => {
     setRequestedTab(localStorage.getItem('moa_active_tab') || '');
     setUsersRoleFilter('ALL');
+    // The forms need the system-wide rules (e.g. whether a scanned slip is required)
+    if (user?.id) loadSystemSettings().catch(() => {});
   }, [user?.id]);
 
   const handleTabChange = (tab: string) => {

@@ -107,6 +107,16 @@ const EmployeeForm: React.FC<{
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    // Name every missing field at once, instead of one per attempt
+    const missing = [
+      [form.departmentName, 'Department'],
+      [form.fullNameEn, 'Full name (English)'],
+      [form.payrollId, 'Employee ID'],
+    ].filter(([value]) => !String(value ?? '').trim()).map(([, label]) => label);
+    if (missing.length > 0) {
+      setError(`Fill in: ${missing.join(', ')}.`);
+      return;
+    }
     setSubmitting(true);
     try {
       // Staff details only: any sign-in the employee has is left as it is

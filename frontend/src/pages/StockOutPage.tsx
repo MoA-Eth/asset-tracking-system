@@ -56,7 +56,8 @@ import {
 } from '../types/asset-management';
 import { formatETB, formatGcToEc } from '../utils/eth-date';
 import { departmentLabel } from '../utils/department';
-import { getSystemSettings } from '../utils/system-settings';
+import { SearchableSelect } from '../components/ui/SearchableSelect';
+import { getSystemSettings, useSystemSettings } from '../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../utils/slip-upload';
 
 interface StockOutPageProps {
@@ -310,7 +311,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       return;
     }
 
-    const policy = getSystemSettings().historicalDataAttachmentPolicy;
+    const policy = getSystemSettings().slipAttachmentPolicy;
     const isAttachmentRequired = policy === 'REQUIRED';
     if (isAttachmentRequired && !attachmentFileName) {
       const msg = 'System Policy requires a scanned IFMIS issue voucher attachment.';
@@ -383,6 +384,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       });
 
       const voucher: Model22Voucher = {
+        approvalState: 'PENDING',
         model22No: model22No.trim(),
         issuedDateGc,
         issuedDateEc: ethDate,
@@ -432,7 +434,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
   };
 
   const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
-  const isAttachmentReq = getSystemSettings().historicalDataAttachmentPolicy === 'REQUIRED';
+  const isAttachmentReq = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
 
   return (
     <form id="stock-out-form" onSubmit={handleSubmit} className="space-y-4">
@@ -500,23 +502,24 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
           </FieldGrid>
         ) : (
         <div className="space-y-3.5">
-          <Field label="Store item" required hint="Only items currently available in store are listed.">
-            <select
+          <Field label="Store item" required htmlFor="stock-out-item" hint="Only items currently available in store are listed. Type a name, code or serial number to find one.">
+            <SearchableSelect
+              id="stock-out-item"
               value={selectedItemId}
-              onChange={(e) => handleItemSelect(e.target.value)}
-              className={`${input()} font-medium`}
-              required
-            >
-              {availableItems.length === 0 ? (
-                <option value="">No items available in store</option>
-              ) : (
-                [<option key="" value="" disabled>Select…</option>].concat(availableItems.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.itemCode} — {item.name} · {item.quantity || 1} {item.uom || 'EA'} in store ({formatETB(item.unitCostETB)} each)
-                  </option>
-                )))
-              )}
-            </select>
+              onChange={handleItemSelect}
+              placeholder={availableItems.length === 0 ? 'No items available in store' : 'Select an item…'}
+              searchPlaceholder="Search by name, code or serial number…"
+              groups={[
+                {
+                  label: 'In store',
+                  options: availableItems.map((item) => ({
+                    value: item.id,
+                    label: `${item.itemCode} — ${item.name}`,
+                    note: `${item.quantity || 1} ${item.uom || 'EA'} in store · ${formatETB(item.unitCostETB)} each${item.serialNumber ? ` · ${item.serialNumber}` : ''}`,
+                  })),
+                },
+              ]}
+            />
           </Field>
 
           <FieldGrid>
@@ -685,20 +688,15 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       >
         <div className="space-y-3.5">
           <FieldGrid cols={2}>
-            <Field label="Received by (recipient)" required hint="Selecting a recipient fills in their directorate.">
-              <select
+            <Field label="Received by (recipient)" required htmlFor="stock-out-recipient" hint="Type a name or employee ID. Selecting a recipient fills in their directorate.">
+              <SearchableSelect
+                id="stock-out-recipient"
                 value={recipientEmployeeId}
-                onChange={(e) => handleEmployeeChange(e.target.value)}
-                className={input()}
-                required
-              >
-                <option value="" disabled>Select…</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.fullNameEn} ({emp.payrollId})
-                  </option>
-                ))}
-              </select>
+                onChange={handleEmployeeChange}
+                placeholder="Select an employee…"
+                searchPlaceholder="Search by name or employee ID…"
+                groups={[{ label: 'Employees', options: employees.map((emp) => ({ value: emp.id, label: `${emp.fullNameEn} (${emp.payrollId})` })) }]}
+              />
             </Field>
 
             <Field label="Destination directorate" required>
@@ -1128,6 +1126,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
     const totalAmount = unitPrice * qty;
 
     const voucher: Model22Voucher = {
+      approvalState: approval.status === 'PENDING' ? 'PENDING' : approval.status === 'REJECTED' ? 'REJECTED' : undefined,
       model22No: approval.ifmisSlipNumber || '',
       issuedDateGc,
       issuedDateEc,

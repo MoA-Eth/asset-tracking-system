@@ -29,8 +29,9 @@ import { getTodayGcAndEc, formatGcToEc } from '../utils/eth-date';
 import { BadRequestError, ConflictError, NotFoundError, ForbiddenError } from '../errors/app-error';
 
 import { assignEmployeeRole } from './roles.service';
-import { hasPermission } from '../security/role-policy';
+import { hasPermission, ROLE_POLICY } from '../security/role-policy';
 import { assertUsableLocation, locationView } from './reference.service';
+import { isSlipRequired, SLIP_REQUIRED_MESSAGE } from './settings.service';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -212,6 +213,15 @@ const ITEM_INCLUDES = {
   history: { orderBy: { createdAt: 'desc' as const } },
 };
 
+// Lists carry only what the tables and reports read from each history entry; the full trail is loaded with a single item
+const ITEM_LIST_INCLUDES = {
+  ...ITEM_INCLUDES,
+  history: {
+    select: { id: true, dateGc: true, dateEc: true, action: true, performedBy: true, performedByRole: true },
+    orderBy: { createdAt: 'desc' as const },
+  },
+};
+
 // ─── Category Code ────────────────────────────────────────────────────────────
 
 function getCategoryCode(cat: AssetCategory): string {
@@ -383,10 +393,12 @@ async function addAuditLog(
   ifmisSlipNumber?: string,
   previousState?: any,
   newState?: any,
+  /** Pass the transaction when the entry belongs to one, so it is saved or dropped with it */
+  client: any = prisma,
 ) {
   const user = userId ? await prisma.employee.findUnique({ where: { id: userId } }) : null;
   const dateInfo = getTodayGcAndEc();
-  await prisma.auditLog.create({
+  await client.auditLog.create({
     data: {
       timestampGc: `${dateInfo.gc} ${new Date().toLocaleTimeString('en-US', { hour12: false })}`,
       timestampEc: `${dateInfo.ec} ${new Date().toLocaleTimeString('en-US', { hour12: false })}`,
@@ -540,7 +552,7 @@ export class StoreService {
 
     const items = await prisma.item.findMany({
       where,
-      include: ITEM_INCLUDES,
+      include: ITEM_LIST_INCLUDES,
       orderBy: { createdAt: 'desc' },
     });
 
@@ -573,9 +585,8 @@ export class StoreService {
     }
     assertMaxLength(payload.ifmisSlipNumber, 100, 'IFMIS Slip Number');
     assertSlipDate(payload.ifmisSlipDateGc);
-    if (!payload.isHistoricalData && !payload.ifmisSlipAttachmentUrl) {
-      throw new BadRequestError('A scanned IFMIS slip attachment is required for new (non-historical) registrations.');
-    }
+    // Whether the scan is needed is a system setting, the same for every user
+    if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
 
     const today = getTodayGcAndEc();
     const currentYear = new Date().getFullYear();
@@ -751,9 +762,7 @@ export class StoreService {
     }
 
     const attachmentUrl = payload.ifmisSlipAttachmentUrl || item.ifmisSlipAttachmentUrl;
-    if (!item.isHistoricalData && !attachmentUrl) {
-      throw new BadRequestError('A scanned IFMIS slip attachment is required for new (non-historical) registrations.');
-    }
+    if (isSlipRequired() && !attachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
 
     let previousMeta: any = {};
     try {
@@ -950,6 +959,7 @@ export class StoreService {
       ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl,
       purposeOrRemarks: formatStockOutNotes(purpose, payload.remark?.trim() || undefined),
     };
+    if (isSlipRequired() && !after.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     const changed = (Object.keys(after) as (keyof typeof after)[]).filter((k) => String(before[k] ?? '') !== String(after[k] ?? ''));
     if (changed.length === 0) {
       const unchanged = await prisma.transactionApproval.findUnique({ where: { id: approvalId }, include: APPROVAL_INCLUDES });
@@ -1045,6 +1055,7 @@ export class StoreService {
     if (isBlank(payload.ifmisSlipNumber)) throw new BadRequestError('IFMIS Slip Number is mandatory for Stock-Out.');
     if (isBlank(payload.purpose)) throw new BadRequestError('Purpose of issue is required.');
     if (isBlank(payload.recipientEmployeeId)) throw new BadRequestError('Recipient staff member is required.');
+    if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     assertMaxLength(payload.purpose, 500, 'Purpose of issue');
     assertSlipDate(payload.ifmisSlipDateGc);
 
@@ -1134,6 +1145,7 @@ export class StoreService {
     const effectiveSlipNo = String(payload.model21No || payload.ifmisSlipNumber || '').trim();
     if (!effectiveSlipNo) throw new BadRequestError('Return Voucher (Model 21 / 22) Slip Number is mandatory.');
     if (isBlank(payload.returnReason)) throw new BadRequestError('Reason for return is required.');
+    if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     assertMaxLength(payload.returnReason, 500, 'Reason for return');
     if (!RETURN_CONDITIONS.includes(payload.condition)) throw new BadRequestError('Choose the condition of the returned item.');
     assertSlipDate(payload.ifmisSlipDateGc);
@@ -1440,6 +1452,7 @@ export class StoreService {
     };
     const slipDateGc = payload.ifmisSlipDateGc || approval.ifmisSlipDateGc;
     const attachmentUrl = payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl;
+    if (isSlipRequired() && !attachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
 
     const previousReceiver = previous.storeRecipientId
       ? await prisma.employee.findUnique({ where: { id: previous.storeRecipientId } })
@@ -1494,13 +1507,22 @@ export class StoreService {
 
   // ── Approval Handling ───────────────────────────────────────────────────
 
+  /**
+   * Endorse, approve or reject a request.
+   * The request, the item, any split item and the audit entry are saved together or not at all,
+   * so a failure part-way can't leave the request decided and the item unchanged.
+   */
   public async handleApproval(payload: ApprovalActionRequest): Promise<TransactionApproval> {
-    const approval = await prisma.transactionApproval.findUnique({ where: { id: payload.approvalId } });
+    return prisma.$transaction((db: any) => this.applyDecision(payload, db), { timeout: 20000 });
+  }
+
+  private async applyDecision(payload: ApprovalActionRequest, db: any): Promise<TransactionApproval> {
+    const approval = await db.transactionApproval.findUnique({ where: { id: payload.approvalId } });
     if (!approval) throw new NotFoundError('This request no longer exists. Refresh the list.');
     if (approval.status !== 'PENDING') throw new ConflictError(`This request is already ${approval.status.toLowerCase()}. Refresh the list.`);
 
     const today = getTodayGcAndEc();
-    const reviewer = payload.reviewedById ? await prisma.employee.findUnique({ where: { id: payload.reviewedById } }) : null;
+    const reviewer = payload.reviewedById ? await db.employee.findUnique({ where: { id: payload.reviewedById } }) : null;
     if (!['ENDORSE', 'APPROVE', 'REJECT'].includes(payload.action)) throw new BadRequestError('Invalid approval action.');
     const permission = approval.currentStage === 1 ? 'approvals.endorse' : 'approvals.authorize';
     if (!hasPermission(reviewer?.role, permission)) throw new ForbiddenError('Your role cannot review this approval stage.');
@@ -1512,7 +1534,7 @@ export class StoreService {
         (payload.action === 'APPROVE' && approval.currentStage !== 2)) {
       throw new BadRequestError('This action does not match the current approval stage.');
     }
-    const reviewerName = reviewer ? `${reviewer.fullNameEn} (${reviewer.role})` : 'Reviewer';
+    const reviewerName = reviewer ? `${reviewer.fullNameEn} (${(reviewer.role && ROLE_POLICY[reviewer.role as UserRole]?.name) || reviewer.role})` : 'Reviewer';
 
     if (payload.reviewRemarks != null && typeof payload.reviewRemarks !== 'string') throw new BadRequestError('Remarks must be text.');
     payload.reviewRemarks = payload.reviewRemarks?.trim() || undefined;
@@ -1536,7 +1558,7 @@ export class StoreService {
         throw new ConflictError(`Transaction ${approval.itemCode} has already completed Stage 1 endorsement.`);
       }
 
-      const updatedApproval = await prisma.transactionApproval.update({
+      const updatedApproval = await db.transactionApproval.update({
         where: stillWaiting,
         data: {
           currentStage: 2, // Advance to Stage 2 Department Head Final Approval
@@ -1548,7 +1570,7 @@ export class StoreService {
         include: APPROVAL_INCLUDES,
       }).catch((err) => { throw decidedMeanwhile(err); });
 
-      await prisma.item.update({
+      await db.item.update({
         where: { id: approval.itemId },
         data: {
           history: {
@@ -1574,6 +1596,9 @@ export class StoreService {
         approval.itemId,
         `${approval.transactionType} ENDORSED by Team Leader ${reviewerName} for item ${approval.itemCode}. Advanced to Stage 2 Dept Head Approval. Remarks: ${updatedApproval.endorsementRemarks}`,
         approval.ifmisSlipNumber,
+        undefined,
+        undefined,
+        db,
       );
 
       return mapApproval(updatedApproval);
@@ -1585,13 +1610,13 @@ export class StoreService {
       throw new ConflictError(`Transaction ${approval.itemCode} must be endorsed by a Team Leader (Stage 1) before final approval can be granted.`);
     }
 
-    const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
+    const item = await db.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new NotFoundError(`Target item ${approval.itemId} not found.`);
 
     const newStatus = isApprove ? 'APPROVED' : 'REJECTED';
 
     // Update approval record
-    const updatedApproval = await prisma.transactionApproval.update({
+    const updatedApproval = await db.transactionApproval.update({
       where: stillWaiting,
       data: {
         status: newStatus as any,
@@ -1646,8 +1671,8 @@ export class StoreService {
         newItemStatus = statusForCustodian(custodianId);
         historyAction = 'TRANSFER_APPROVED';
         const [fromEmp, toEmp] = await Promise.all([
-          item.currentCustodianId ? prisma.employee.findUnique({ where: { id: item.currentCustodianId } }) : null,
-          custodianId ? prisma.employee.findUnique({ where: { id: custodianId } }) : null,
+          item.currentCustodianId ? db.employee.findUnique({ where: { id: item.currentCustodianId } }) : null,
+          custodianId ? db.employee.findUnique({ where: { id: custodianId } }) : null,
         ]);
         fromEntity = fromEmp ? fromEmp.fullNameEn : 'Store';
         toEntity = toEmp ? toEmp.fullNameEn : 'Store';
@@ -1658,7 +1683,7 @@ export class StoreService {
         historyAction = 'STOCK_OUT_APPROVED';
         fromEntity = storeName;
         const recipient = approval.recipientEmployeeId
-          ? await prisma.employee.findUnique({ where: { id: approval.recipientEmployeeId } })
+          ? await db.employee.findUnique({ where: { id: approval.recipientEmployeeId } })
           : null;
         toEntity = recipient ? recipient.fullNameEn : 'Assigned Custodian';
         histNote = `Stock-out authorized for: ${approval.purposeOrRemarks}`;
@@ -1671,10 +1696,10 @@ export class StoreService {
         if (Number.isInteger(requested) && requested > 0 && requested < inStore) {
           // The rest stays in store on this record; the issued units get their own record
           const rootId = item.parentItemId ?? item.id;
-          const root = item.parentItemId ? await prisma.item.findUnique({ where: { id: rootId } }) : item;
+          const root = item.parentItemId ? await db.item.findUnique({ where: { id: rootId } }) : item;
           const rootCode = root?.itemCode ?? item.itemCode;
-          let next = (await prisma.item.count({ where: { parentItemId: rootId } })) + 1;
-          while (await prisma.item.findUnique({ where: { itemCode: `${rootCode}-${next}` } })) next += 1;
+          let next = (await db.item.count({ where: { parentItemId: rootId } })) + 1;
+          while (await db.item.findUnique({ where: { itemCode: `${rootCode}-${next}` } })) next += 1;
           partialIssue = {
             quantity: requested,
             remaining: inStore - requested,
@@ -1721,7 +1746,7 @@ export class StoreService {
       }
     }
 
-    await prisma.item.update({
+    await db.item.update({
       where: { id: item.id },
       data: {
         status: newItemStatus as any,
@@ -1750,7 +1775,7 @@ export class StoreService {
 
     let finalApproval = updatedApproval;
     if (partialIssue) {
-      await prisma.item.create({
+      await db.item.create({
         data: {
           itemCode: partialIssue.code,
           name: item.name,
@@ -1789,7 +1814,7 @@ export class StoreService {
         },
       });
       // Remember which record holds the issued units
-      finalApproval = await prisma.transactionApproval.update({
+      finalApproval = await db.transactionApproval.update({
         where: { id: approval.id },
         data: {
           requestDetails: { ...((approval.requestDetails ?? {}) as Record<string, any>), issuedItemCode: partialIssue.code } as any,
@@ -1805,6 +1830,9 @@ export class StoreService {
       item.id,
       `${approval.transactionType} ${isApprove ? 'APPROVED' : 'REJECTED'} by ${reviewerName} for item ${item.itemCode}.${partialIssue ? ` Partial issue: ${partialIssue.quantity} ${partialIssue.uom} as ${partialIssue.code}.` : ''} Remarks: ${updatedApproval.reviewRemarks}`,
       approval.ifmisSlipNumber,
+      undefined,
+      undefined,
+      db,
     );
 
     return mapApproval(finalApproval);
