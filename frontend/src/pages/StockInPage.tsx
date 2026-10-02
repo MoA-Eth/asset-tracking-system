@@ -930,12 +930,12 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full text-xs min-w-[1000px]">
+          <table className="w-full text-xs min-w-[940px]">
             <thead>
               <tr className={table.headRow}>
                 <th
                   onClick={() => handleSort('itemCode')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-32 whitespace-nowrap"
+                  className="px-2 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-32 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Item Code</span>
@@ -944,7 +944,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('name')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition min-w-[180px]"
+                  className="px-2 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition min-w-[130px]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Name / Description</span>
@@ -953,7 +953,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('status')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
+                  className="px-2 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Status</span>
@@ -962,28 +962,25 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('category')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
+                  className="px-2 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Category</span>
                     {renderSortIcon('category')}
                   </div>
                 </th>
-                <th className="px-3 py-2.5 w-16 text-center whitespace-nowrap">
-                  UOM
-                </th>
-                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="All units received">
+                <th className="px-2 py-2.5 w-16 text-right whitespace-nowrap" title="All units received">
                   Received
                 </th>
-                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="Units with custodians">
+                <th className="px-2 py-2.5 w-16 text-right whitespace-nowrap" title="Units with custodians">
                   Issued
                 </th>
-                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="Units in store">
+                <th className="px-2 py-2.5 w-16 text-right whitespace-nowrap" title="Units in store">
                   In Store
                 </th>
                 <th
                   onClick={() => handleSort('createdAt')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-36 whitespace-nowrap"
+                  className="px-2 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-36 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Model 19 slip / Date</span>
@@ -992,14 +989,14 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('unitCostETB')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 text-right whitespace-nowrap"
+                  className="px-2 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 text-right whitespace-nowrap"
                 >
                   <div className="flex items-center justify-end gap-1.5">
                     <span>Unit Cost</span>
                     {renderSortIcon('unitCostETB')}
                   </div>
                 </th>
-                <th className={`px-3 py-2.5 ${table.actionsHead}`}><span className="sr-only">Actions</span></th>
+                <th className={`px-2 py-2.5 ${table.actionsHead}`}><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -1016,7 +1013,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                         : table.row
                     }`}
                   >
-                    <td className={`px-3 py-2.5 ${table.code} whitespace-nowrap w-32`}>
+                    <td className={`px-2 py-2.5 ${table.code} whitespace-nowrap w-32`}>
                       <div className="flex items-center gap-1.5">
                         <span>{item.itemCode}</span>
                         {isJustRegistered && (
@@ -1026,10 +1023,10 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[150px] max-w-[180px] truncate" title={item.name}>
+                    <td className="px-2 py-2.5 text-slate-900 font-medium min-w-[130px] max-w-[170px] truncate" title={item.name}>
                       {item.name}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap w-28">
+                    <td className="px-2 py-2.5 whitespace-nowrap w-28">
                       <StatusBadge
                         status={item.status}
                         stage={pendingStages.get(item.id)}
@@ -1037,24 +1034,22 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       />
                     </td>
                     <td
-                      className="px-3 py-2.5 text-slate-600 whitespace-nowrap max-w-[120px] truncate"
+                      className="px-2 py-2.5 text-slate-600 whitespace-nowrap max-w-[104px] truncate"
                       title={item.itemCategoryDisplay || item.category.replace(/_/g, ' ')}
                     >
                       {item.itemCategoryDisplay || item.category.replace(/_/g, ' ')}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-center text-slate-700 uppercase whitespace-nowrap w-16">
-                      {item.uom || 'EA'}
-                    </td>
-                    <td className="px-3 py-2.5 font-mono text-right text-slate-900 font-bold whitespace-nowrap w-16">
+                    <td className="px-2 py-2.5 font-mono text-right text-slate-900 font-bold whitespace-nowrap w-16">
                       {item.balance?.total ?? item.quantity ?? 1}
+                      <span className="ml-1 text-[10px] font-normal uppercase text-slate-500">{item.uom || 'EA'}</span>
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-right text-slate-700 whitespace-nowrap w-16">
+                    <td className="px-2 py-2.5 font-mono text-right text-slate-700 whitespace-nowrap w-16">
                       {item.balance?.issued ?? 0}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-right text-emerald-800 font-semibold whitespace-nowrap w-16">
+                    <td className="px-2 py-2.5 font-mono text-right text-emerald-800 font-semibold whitespace-nowrap w-16">
                       {item.balance?.available ?? 0}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap w-36">
+                    <td className="px-2 py-2.5 font-mono text-slate-700 whitespace-nowrap w-36">
                       <div className="flex items-center gap-1.5">
                         <span>{item.ifmisSlipNumber || '—'}</span>
                         {item.ifmisSlipAttachmentUrl && (
@@ -1071,10 +1066,10 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       </div>
                       <div className="text-[10px] text-slate-500">{item.ifmisSlipDateGc || item.createdAtGc || '—'}</div>
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-slate-700 text-right whitespace-nowrap w-28">
+                    <td className="px-2 py-2.5 font-mono text-slate-700 text-right whitespace-nowrap w-28">
                       {formatETB(item.unitCostETB)}
                     </td>
-                    <td className={`px-3 py-2.5 ${table.actionsCell}`}>
+                    <td className={`px-2 py-2.5 ${table.actionsCell}`}>
                       <RowActionsMenu
                         label={item.itemCode}
                         actions={[

@@ -891,12 +891,12 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full text-xs min-w-[1040px]">
+          <table className="w-full text-xs min-w-[940px]">
             <thead>
               <tr className={table.headRow}>
                 <th
                   onClick={() => handleSort('itemCode')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-32 whitespace-nowrap"
+                  className="px-2 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-32 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Item Code</span>
@@ -905,28 +905,37 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('itemName')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition min-w-[170px]"
+                  className="px-2 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition min-w-[130px]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Item Name</span>
                     {renderSortIcon('itemName')}
                   </div>
                 </th>
-                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="Units in this request">
+                <th
+                  onClick={() => handleSort('status')}
+                  className="px-2 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Status</span>
+                    {renderSortIcon('status')}
+                  </div>
+                </th>
+                <th className="px-2 py-2.5 w-16 text-right whitespace-nowrap" title="Units in this request">
                   Qty
                 </th>
-                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="All units received">
+                <th className="px-2 py-2.5 w-16 text-right whitespace-nowrap" title="All units received">
                   Received
                 </th>
-                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="Units with custodians">
+                <th className="px-2 py-2.5 w-16 text-right whitespace-nowrap" title="Units with custodians">
                   Issued
                 </th>
-                <th className="px-3 py-2.5 w-16 text-right whitespace-nowrap" title="Units in store">
+                <th className="px-2 py-2.5 w-16 text-right whitespace-nowrap" title="Units in store">
                   In Store
                 </th>
                 <th
                   onClick={() => handleSort('createdAtGc')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-36 whitespace-nowrap"
+                  className="px-2 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-36 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Model 22 slip / Date</span>
@@ -935,23 +944,14 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('purposeOrRemarks')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition min-w-[150px] max-w-[200px]"
+                  className="px-2 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition min-w-[110px] max-w-[150px]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Purpose / Remark</span>
                     {renderSortIcon('purposeOrRemarks')}
                   </div>
                 </th>
-                <th
-                  onClick={() => handleSort('status')}
-                  className="px-3 py-2.5 hover:bg-slate-100 cursor-pointer select-none transition w-28 whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span>Status</span>
-                    {renderSortIcon('status')}
-                  </div>
-                </th>
-                <th className={`px-3 py-2.5 ${table.actionsHead}`}><span className="sr-only">Actions</span></th>
+                <th className={`px-2 py-2.5 ${table.actionsHead}`}><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -964,7 +964,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                       isJustSubmitted ? `${table.rowHighlight} font-medium` : table.row
                     }`}
                   >
-                    <td className={`px-3 py-2.5 ${table.code} whitespace-nowrap w-32`}>
+                    <td className={`px-2 py-2.5 ${table.code} whitespace-nowrap w-32`}>
                       <div className="flex items-center gap-1.5">
                         <span>{approval.itemCode}</span>
                         {isJustSubmitted && (
@@ -974,32 +974,32 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-slate-900 font-medium min-w-[160px] max-w-[200px] truncate" title={approval.itemName}>
+                    <td className="px-2 py-2.5 text-slate-900 font-medium min-w-[130px] max-w-[170px] truncate" title={approval.itemName}>
                       {approval.itemName}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-right font-bold text-slate-900 whitespace-nowrap w-16">
+                    <td className="px-2 py-2.5 whitespace-nowrap w-28">
+                      <ApprovalStatusBadge status={approval.status} stage={approval.currentStage} />
+                    </td>
+                    <td className="px-2 py-2.5 font-mono text-right font-bold text-slate-900 whitespace-nowrap w-16">
                       {approval.requestDetails?.quantity ?? '—'}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-right text-slate-700 whitespace-nowrap w-16">
+                    <td className="px-2 py-2.5 font-mono text-right text-slate-700 whitespace-nowrap w-16">
                       {itemsById.get(approval.itemId)?.balance?.total ?? '—'}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-right text-slate-700 whitespace-nowrap w-16">
+                    <td className="px-2 py-2.5 font-mono text-right text-slate-700 whitespace-nowrap w-16">
                       {itemsById.get(approval.itemId)?.balance?.issued ?? '—'}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-right text-emerald-800 font-semibold whitespace-nowrap w-16">
+                    <td className="px-2 py-2.5 font-mono text-right text-emerald-800 font-semibold whitespace-nowrap w-16">
                       {itemsById.get(approval.itemId)?.balance?.available ?? '—'}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-slate-600 whitespace-nowrap w-36">
+                    <td className="px-2 py-2.5 font-mono text-slate-600 whitespace-nowrap w-36">
                       <div>{approval.ifmisSlipNumber || '—'}</div>
                       <div className="text-[10px] text-slate-500">{approval.createdAtGc ? approval.createdAtGc.split('T')[0] : '—'}</div>
                     </td>
-                    <td className="px-3.5 py-2.5 text-slate-600 min-w-[150px] max-w-[200px] truncate" title={approval.purposeOrRemarks || undefined}>
+                    <td className="px-2 py-2.5 text-slate-600 min-w-[110px] max-w-[150px] truncate" title={approval.purposeOrRemarks || undefined}>
                       {approval.purposeOrRemarks || '—'}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap w-28">
-                      <ApprovalStatusBadge status={approval.status} stage={approval.currentStage} />
-                    </td>
-                    <td className={`px-3 py-2.5 ${table.actionsCell}`}>
+                    <td className={`px-2 py-2.5 ${table.actionsCell}`}>
                       <RowActionsMenu
                         label={approval.itemCode || 'this request'}
                         actions={[
