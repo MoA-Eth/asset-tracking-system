@@ -68,7 +68,10 @@ export interface Employee {
   fullNameAm: string;
   departmentId: string;
   jobTitle?: string | null;
-  /** Contact details are only sent to people who manage employees */
+  /** Team inside the department */
+  unit?: string | null;
+  /** Gender and contact details are only sent to people who manage employees */
+  gender?: 'MALE' | 'FEMALE' | null;
   email?: string | null;
   phone?: string | null;
   /** System role; null when the employee can't sign in */
@@ -84,6 +87,8 @@ export type EmployeeImportAction = 'create' | 'update' | 'unchanged' | 'error';
 export interface EmployeeImportResult {
   applied: boolean;
   counts: Record<EmployeeImportAction, number>;
+  /** Departments in the file that don't exist yet; the import creates them */
+  newDepartments: string[];
   rows: {
     row: number;
     payrollId: string;
@@ -102,6 +107,8 @@ export interface EmployeeInput {
   fullNameEn: string;
   fullNameAm: string;
   departmentId: string;
+  unit?: string;
+  gender?: 'MALE' | 'FEMALE' | '';
   jobTitle?: string;
   email?: string;
   phone?: string;

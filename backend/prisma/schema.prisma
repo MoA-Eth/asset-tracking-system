@@ -109,6 +109,10 @@ model Employee {
   fullNameAm  String
   departmentId String
   jobTitle    String?
+  /// Team inside the department (HR: የስራ ክፍል)
+  unit        String?
+  /// MALE or FEMALE (HR: ፆታ)
+  gender      String?
   email       String?  @unique
   phone       String?
   /// System role; null means the employee can't sign in (custodians, recipients)

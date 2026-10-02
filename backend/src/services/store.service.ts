@@ -163,6 +163,7 @@ function mapEmployee(e: any): Employee {
     fullNameAm: e.fullNameAm,
     departmentId: e.departmentId,
     jobTitle: e.jobTitle ?? null,
+    unit: e.unit ?? null,
     role: (e.role ?? null) as UserRole | null,
     isActive: e.isActive !== false,
   };

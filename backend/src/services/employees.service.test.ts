@@ -7,7 +7,7 @@ import { UserRole } from '../types/asset-management';
 
 const db = vi.hoisted(() => ({
   employee: { findMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), createMany: vi.fn(), update: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
-  department: { findUnique: vi.fn(), findMany: vi.fn() },
+  department: { findUnique: vi.fn(), findMany: vi.fn(), createMany: vi.fn() },
   transactionApproval: { count: vi.fn() },
   auditLog: { create: vi.fn() },
   $transaction: vi.fn(),
@@ -91,7 +91,7 @@ describe('Employee registry: adding and editing', () => {
 
   it('reports a duplicate payroll ID clearly', async () => {
     db.employee.create.mockRejectedValue(Object.assign(new Error('unique'), { code: 'P2002', meta: { target: ['payrollId'] } }));
-    await expect(createEmployee(form(), 'admin')).rejects.toMatchObject({ statusCode: 409, message: 'Another employee already has this payroll ID.' });
+    await expect(createEmployee(form(), 'admin')).rejects.toMatchObject({ statusCode: 409, message: 'Another employee already has this employee ID.' });
   });
 
   it('editing staff details without a role field keeps their sign-in', async () => {
@@ -191,16 +191,18 @@ describe('Employee registry: importing an HR spreadsheet', () => {
   it('checks every row without saving anything', async () => {
     const result = await importEmployees(sheet, false, 'admin');
     expect(result.applied).toBe(false);
-    expect(result.counts).toEqual({ create: 1, update: 1, unchanged: 1, error: 4 });
+    expect(result.counts).toEqual({ create: 2, update: 1, unchanged: 1, error: 3 });
+    expect(result.newDepartments).toEqual(['Finance']);
     const byRow = Object.fromEntries(result.rows.map((r) => [r.row, r]));
-    expect(byRow[2]).toMatchObject({ action: 'update', changes: ['job title'], department: 'PROP — Procurement & Property' });
+    expect(byRow[2]).toMatchObject({ action: 'update', changes: ['job title'], department: 'Procurement & Property' });
     expect(byRow[3]).toMatchObject({ action: 'unchanged', inactive: true });
     expect(byRow[4]).toMatchObject({ action: 'create' });
     expect(byRow[5].message).toContain('also on row 4');
-    expect(byRow[6].message).toContain('Unknown department "Finance"');
+    expect(byRow[6]).toMatchObject({ action: 'create', department: 'Finance' });
     expect(byRow[7].message).toContain('already belongs to Sara Ali');
     expect(byRow[8].message).toContain('Full name (English) is required');
     expect(db.employee.createMany).not.toHaveBeenCalled();
+    expect(db.department.createMany).not.toHaveBeenCalled();
     expect(db.employee.update).not.toHaveBeenCalled();
     expect(db.$transaction).not.toHaveBeenCalled();
   });
@@ -210,8 +212,12 @@ describe('Employee registry: importing an HR spreadsheet', () => {
     expect(result.applied).toBe(true);
     expect(db.$transaction).toHaveBeenCalledTimes(1);
     const added = db.employee.createMany.mock.calls[0][0].data;
-    expect(added).toHaveLength(1);
+    expect(added).toHaveLength(2);
     expect(added[0]).toMatchObject({ payrollId: 'MOA/3', departmentId: 'DEP-02', phone: '251922000000', role: null, password: null, isActive: true });
+    // The department the file names but the system lacks is created, and its staff are attached to it
+    const [newDept] = db.department.createMany.mock.calls[0][0].data;
+    expect(newDept).toMatchObject({ code: 'U001', nameEn: 'Finance', nameAm: 'Finance' });
+    expect(added[1]).toMatchObject({ payrollId: 'MOA/4', departmentId: newDept.id });
     expect(db.employee.update).toHaveBeenCalledWith({ where: { id: 'e1' }, data: { jobTitle: 'Senior Driver' } });
     expect(db.auditLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: 'IMPORT_EMPLOYEES' }) });
   });
@@ -239,5 +245,45 @@ describe('Amharic name', () => {
     );
     expect(result.counts).toMatchObject({ create: 1, unchanged: 1, error: 0 });
     expect(db.employee.createMany.mock.calls[0][0].data[0]).toMatchObject({ payrollId: 'MOA/9', fullNameAm: '' });
+  });
+});
+
+describe("HR's sheet", () => {
+  beforeEach(() => {
+    db.department.findMany.mockResolvedValue([{ id: 'DEP-09', code: 'U001', nameEn: 'የፋይናንስ ሥራ አስፈጻሚ', nameAm: 'የፋይናንስ ሥራ አስፈጻሚ' }]);
+    db.employee.findMany.mockResolvedValue([]);
+  });
+
+  it('imports unit and gender, and creates each new main work unit once', async () => {
+    const result = await importEmployees(
+      [
+        { row: 2, payrollId: '00275823', fullNameEn: 'Getahun Bahiru', fullNameAm: 'ጌታሁን ባህሩ', department: 'የኢፒዲሞሎጂ ዴስክ', unit: 'የኢፒዲሞሎጂ ዴስክ መደቦች', gender: 'ወንድ', jobTitle: 'የእንስሳት ሐኪም' },
+        { row: 3, payrollId: '00274174', fullNameEn: 'Abebech Dejene', fullNameAm: 'አበበች ደጀኔ', department: 'የኢፒዲሞሎጂ  ዴስክ', gender: 'ሴት' },
+        { row: 4, payrollId: '00280001', fullNameEn: 'Finance Person', department: 'የፋይናንስ  ሥራ አስፈጻሚ', gender: 'F' },
+        { row: 5, payrollId: '00280002', fullNameEn: 'Bad Gender', department: 'የማይታወቅ ክፍል', gender: 'other' },
+      ],
+      true,
+      'admin',
+    );
+    expect(result.counts).toEqual({ create: 3, update: 0, unchanged: 0, error: 1 });
+    // One new department for both spellings of the same unit; none for the row that was skipped
+    expect(result.newDepartments).toEqual(['የኢፒዲሞሎጂ ዴስክ']);
+    const depts = db.department.createMany.mock.calls[0][0].data;
+    expect(depts).toHaveLength(1);
+    expect(depts[0].code).toBe('U002');
+    const added = db.employee.createMany.mock.calls[0][0].data;
+    expect(added[0]).toMatchObject({ payrollId: '00275823', unit: 'የኢፒዲሞሎጂ ዴስክ መደቦች', gender: 'MALE', departmentId: depts[0].id });
+    expect(added[1]).toMatchObject({ gender: 'FEMALE', departmentId: depts[0].id });
+    expect(added[2]).toMatchObject({ gender: 'FEMALE', departmentId: 'DEP-09' });
+    expect(result.rows.find((r) => r.row === 5)?.message).toContain('Gender must be');
+  });
+
+  it('shows gender only to people who manage employees', async () => {
+    db.employee.findMany.mockResolvedValue([{ ...STAFF, unit: 'Transport', gender: 'MALE' }]);
+    const [forPicker] = await listEmployees(UserRole.DATA_ENCODER);
+    expect(forPicker).toMatchObject({ unit: 'Transport' });
+    expect(forPicker).not.toHaveProperty('gender');
+    const [forAdmin] = await listEmployees(UserRole.SYSTEM_ADMIN);
+    expect(forAdmin).toMatchObject({ unit: 'Transport', gender: 'MALE' });
   });
 });

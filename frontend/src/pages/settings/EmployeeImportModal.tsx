@@ -1,12 +1,12 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Download, FileSpreadsheet, RefreshCw, Upload, Info } from 'lucide-react';
+import { Building2, CheckCircle2, Download, FileSpreadsheet, RefreshCw, Upload, Info } from 'lucide-react';
 import { api } from '../../api/client';
 import { Modal } from '../../components/ui/Modal';
 import { FormError, FormNotice } from '../../components/ui/FormKit';
 import { btn, pill, statusTone, table } from '../../components/ui/theme';
 import { useToast } from '../../context/ToastContext';
 import { EmployeeImportAction, EmployeeImportResult } from '../../types/asset-management';
-import { COLUMN_LABELS, REQUIRED_COLUMNS, employeeTemplateCsv, readEmployeeFile, EmployeeSheetRow } from '../../utils/employee-import';
+import { COLUMN_LABELS, EMPLOYEE_FIELDS, buildTextWorkbook, employeeTemplateRows, readEmployeeFile, EmployeeSheetRow } from '../../utils/employee-import';
 
 const ACTION_STYLE: Record<EmployeeImportAction, { label: string; tone: string }> = {
   create: { label: 'New', tone: statusTone.approved },
@@ -46,10 +46,12 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
   };
 
   const downloadTemplate = () => {
-    const url = URL.createObjectURL(new Blob([employeeTemplateCsv()], { type: 'text/csv;charset=utf-8' }));
+    // An .xlsx with text cells, so employee IDs keep their leading zeros
+    const workbook = buildTextWorkbook(employeeTemplateRows());
+    const url = URL.createObjectURL(new Blob([workbook as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'employees-template.csv';
+    a.download = 'employees-template.xlsx';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -64,7 +66,7 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
       if (sheet.missing.length > 0) {
         setError(
           sheet.columns.length === 0
-            ? 'No "Payroll ID" heading was found in the first 10 rows. Use the template headings.'
+            ? 'No employee ID heading (የሰራተኛ መለያ ቁጥር) was found in the first 10 rows. Use the template headings.'
             : `The sheet is missing these columns: ${sheet.missing.map((c) => COLUMN_LABELS[c]).join(', ')}.`,
         );
         return;
@@ -87,7 +89,8 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
     setError(null);
     try {
       const done = await api.importEmployees(rows, true);
-      toast.success('Employees imported', `${done.counts.create} added, ${done.counts.update} updated`);
+      const depts = done.newDepartments.length;
+      toast.success('Employees imported', `${done.counts.create} added, ${done.counts.update} updated${depts ? `, ${depts} ${depts === 1 ? 'department' : 'departments'} created` : ''}`);
       onImported();
       close();
     } catch (err: any) {
@@ -111,13 +114,23 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
         {!result && (
           <>
             <FormNotice icon={Info}>
-              <p>
-                Needs columns <b>{REQUIRED_COLUMNS.map((c) => COLUMN_LABELS[c]).join(', ')}</b>; optional <b>Full name (Amharic), Job title, Email, Phone</b>.
-                Department can be its code (e.g. PROP) or name.
+              <p>The template has the same fields as the Add employee form, with HR's headings:</p>
+              <p className="mt-1.5 flex flex-wrap gap-1.5">
+                {EMPLOYEE_FIELDS.map((f) => (
+                  <span
+                    key={f.key}
+                    title={f.label}
+                    className={`rounded-md border px-1.5 py-0.5 text-[11px] ${f.required ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-900' : 'border-slate-200 bg-white text-slate-600'}`}
+                  >
+                    {f.heading}
+                    {f.required && ' *'}
+                  </span>
+                ))}
               </p>
-              <p className="mt-1">
-                Staff are matched by payroll ID: new ones are added, existing ones are updated, and empty cells keep what is saved.
-                Imported staff can't sign in. You'll see a preview before anything is saved.
+              <p className="mt-1.5">
+                * required. Other columns in HR's file (row number, salary, step…) are ignored. Staff are matched by employee ID:
+                new ones are added, existing ones are updated, and empty cells keep what is saved. Departments that don't exist
+                yet are created. You'll see a preview before anything is saved.
               </p>
             </FormNotice>
 
@@ -185,12 +198,22 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
               </div>
             </div>
 
+            {result.newDepartments.length > 0 && (
+              <FormNotice icon={Building2}>
+                <b>
+                  {result.newDepartments.length} new {result.newDepartments.length === 1 ? 'department' : 'departments'}
+                </b>{' '}
+                will be created from the file: {result.newDepartments.slice(0, 6).join(' · ')}
+                {result.newDepartments.length > 6 && ` · and ${result.newDepartments.length - 6} more`}
+              </FormNotice>
+            )}
+
             <div className="max-h-[22rem] overflow-auto rounded-xl border border-slate-200">
               <table className="w-full text-left text-xs">
                 <thead className="sticky top-0 z-[1]">
                   <tr className={table.headRow}>
                     <th className="px-3 py-2 w-14 text-right">Row</th>
-                    <th className="px-3 py-2">Payroll ID</th>
+                    <th className="px-3 py-2">Employee ID</th>
                     <th className="px-3 py-2">Name</th>
                     <th className="px-3 py-2">Department</th>
                     <th className="px-3 py-2">Result</th>

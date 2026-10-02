@@ -13,6 +13,8 @@ export interface EmployeeInput {
   fullNameAm?: unknown;
   departmentId?: unknown;
   jobTitle?: unknown;
+  unit?: unknown;
+  gender?: unknown;
   email?: unknown;
   phone?: unknown;
   /** A system role, or null / '' for no sign-in */
@@ -40,6 +42,17 @@ const text = (value: unknown, label: string, max: number, required: boolean): st
   return trimmed;
 };
 
+const GENDERS: Record<string, 'MALE' | 'FEMALE'> = { male: 'MALE', m: 'MALE', ወንድ: 'MALE', female: 'FEMALE', f: 'FEMALE', ሴት: 'FEMALE' };
+
+/** Accepts MALE / FEMALE, M / F, or HR's ወንድ / ሴት */
+const genderOf = (value: unknown): 'MALE' | 'FEMALE' | null => {
+  const raw = text(value, 'Gender', 20, false);
+  if (raw === null) return null;
+  const gender = GENDERS[raw.toLowerCase()];
+  if (!gender) throw new BadRequestError('Gender must be Male (ወንድ) or Female (ሴት).');
+  return gender;
+};
+
 const roleOf = (value: unknown): UserRole | null => {
   if (value === null || value === undefined || value === '' || value === 'NONE') return null;
   if (!isUserRole(value)) throw new BadRequestError('Choose a system role, or "No sign-in".');
@@ -54,10 +67,12 @@ function toRecord(e: any, withContact: boolean): EmployeeRecord {
     fullNameAm: e.fullNameAm,
     departmentId: e.departmentId,
     jobTitle: e.jobTitle ?? null,
+    unit: e.unit ?? null,
     role: (e.role ?? null) as UserRole | null,
     isActive: e.isActive !== false,
   };
   if (withContact) {
+    record.gender = e.gender ?? null;
     record.email = e.email ?? null;
     record.phone = e.phone ?? null;
     if (e._count) record.heldItemCount = e._count.custodiedItems;
@@ -97,7 +112,7 @@ async function serializable<T>(fn: (tx: any) => Promise<T>): Promise<T> {
       if (error?.code === 'P2002') {
         const field = String(error.meta?.target ?? '');
         throw new ConflictError(
-          field.includes('email') ? 'Another employee already uses this email.' : 'Another employee already has this payroll ID.',
+          field.includes('email') ? 'Another employee already uses this email.' : 'Another employee already has this employee ID.',
         );
       }
       if (error?.code !== 'P2034' || attempt === 2) {
@@ -144,6 +159,8 @@ const auditView = (e: any) => ({
   fullNameAm: e.fullNameAm,
   departmentId: e.departmentId,
   jobTitle: e.jobTitle ?? null,
+  unit: e.unit ?? null,
+  gender: e.gender ?? null,
   email: e.email ?? null,
   phone: e.phone ?? null,
   role: e.role ?? null,
@@ -162,11 +179,13 @@ async function assertAdminRemains(tx: any, previous: any) {
 /** Staff details shared by the form and the Excel import (no department lookup, no sign-in) */
 function checkDetails(input: EmployeeInput) {
   const details = {
-    payrollId: text(input.payrollId, 'Payroll ID', 40, true)!,
+    payrollId: text(input.payrollId, 'Employee ID', 40, true)!,
     fullNameEn: text(input.fullNameEn, 'Full name (English)', 120, true)!,
     fullNameAm: text(input.fullNameAm, 'Full name (Amharic)', 120, false),
     departmentId: text(input.departmentId, 'Department', 40, true)!,
     jobTitle: text(input.jobTitle, 'Job title', 120, false),
+    unit: text(input.unit, 'Unit', 160, false),
+    gender: genderOf(input.gender),
     email: text(input.email, 'Email', 160, false)?.toLowerCase() ?? null,
     phone: text(input.phone, 'Phone', 20, false),
   };
@@ -292,7 +311,7 @@ export async function setEmployeeActive(id: string, active: unknown, actorId: st
 
 // ─── Import from an HR spreadsheet ───────────────────────────────────────────
 
-/** One spreadsheet row; `department` may be a department code, its English or Amharic name */
+/** One spreadsheet row; `department` is a department code or name (HR's main work unit) */
 export interface EmployeeImportRow {
   row: number;
   payrollId?: unknown;
@@ -300,6 +319,8 @@ export interface EmployeeImportRow {
   fullNameAm?: unknown;
   department?: unknown;
   jobTitle?: unknown;
+  unit?: unknown;
+  gender?: unknown;
   email?: unknown;
   phone?: unknown;
 }
@@ -309,6 +330,8 @@ export type EmployeeImportAction = 'create' | 'update' | 'unchanged' | 'error';
 export interface EmployeeImportResult {
   applied: boolean;
   counts: Record<EmployeeImportAction, number>;
+  /** Departments in the file that don't exist yet; the import creates them */
+  newDepartments: string[];
   rows: {
     row: number;
     payrollId: string;
@@ -326,14 +349,16 @@ export interface EmployeeImportResult {
 
 export const MAX_IMPORT_ROWS = 5000;
 
-const DETAIL_FIELDS = ['payrollId', 'fullNameEn', 'fullNameAm', 'departmentId', 'jobTitle', 'email', 'phone'] as const;
+const DETAIL_FIELDS = ['payrollId', 'fullNameEn', 'fullNameAm', 'departmentId', 'jobTitle', 'unit', 'gender', 'email', 'phone'] as const;
 type DetailField = (typeof DETAIL_FIELDS)[number];
 const FIELD_LABELS: Record<DetailField, string> = {
-  payrollId: 'payroll ID',
+  payrollId: 'employee ID',
   fullNameEn: 'name',
   fullNameAm: 'Amharic name',
   departmentId: 'department',
   jobTitle: 'job title',
+  unit: 'unit',
+  gender: 'gender',
   email: 'email',
   phone: 'phone',
 };
@@ -342,9 +367,10 @@ const cellText = (value: unknown) => (value === undefined || value === null ? ''
 const matchKey = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ');
 
 /**
- * Checks HR rows and, when `apply` is true, saves them. Rows are matched to existing staff by payroll ID:
- * new payroll IDs are added (without sign-in), known ones get their details updated, and rows with
- * problems are skipped and reported. Sign-in and active / deactivated status are never changed here.
+ * Checks HR rows and, when `apply` is true, saves them. Rows are matched to existing staff by employee ID:
+ * new IDs are added (without sign-in), known ones get their details updated, and rows with problems are
+ * skipped and reported. Departments named in the file that don't exist yet are created.
+ * Sign-in and active / deactivated status are never changed here.
  */
 export async function importEmployees(rawRows: unknown, apply: unknown, actorId: string): Promise<EmployeeImportResult> {
   if (!Array.isArray(rawRows) || rawRows.length === 0) throw new BadRequestError('The file has no employee rows.');
@@ -366,7 +392,21 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
     const seenPayroll = new Map<string, number>();
     const seenEmail = new Map<string, number>();
 
-    const result: EmployeeImportResult = { applied: false, counts: { create: 0, update: 0, unchanged: 0, error: 0 }, rows: [] };
+    const result: EmployeeImportResult = { applied: false, counts: { create: 0, update: 0, unchanged: 0, error: 0 }, newDepartments: [], rows: [] };
+    // Departments the file names that don't exist yet, keyed like deptByKey
+    const newDepts = new Map<string, any>();
+    const usedCodes = new Set<string>(departments.map((d: any) => String(d.code).toUpperCase()));
+    let nextCode = 1;
+    const planDepartment = (name: string) => {
+      let code = '';
+      do code = `U${String(nextCode++).padStart(3, '0')}`; while (usedCodes.has(code));
+      usedCodes.add(code);
+      // HR lists units in Amharic only, so the name is used for both languages until someone edits it
+      const dept = { id: `DEP-${randomUUID().slice(0, 8).toUpperCase()}`, code, nameEn: name, nameAm: name, isNew: true };
+      newDepts.set(matchKey(name), dept);
+      deptByKey.set(matchKey(name), dept);
+      return dept;
+    };
     const toCreate: any[] = [];
     const toUpdate: { id: string; payrollId: string; data: Record<string, unknown> }[] = [];
 
@@ -380,19 +420,22 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
         result.counts.error++;
       };
 
-      const dept = departmentText ? deptByKey.get(matchKey(departmentText)) : undefined;
-      if (departmentText && !dept) {
-        fail(`Unknown department "${departmentText}". Use a department code or name from Settings → Departments.`);
+      if (departmentText.length > 160) {
+        fail('Department must be 160 characters or fewer.');
         continue;
       }
+      const knownDept = departmentText ? deptByKey.get(matchKey(departmentText)) : undefined;
       let details: ReturnType<typeof checkDetails>;
       try {
         details = checkDetails({
           payrollId,
           fullNameEn: raw?.fullNameEn,
           fullNameAm: raw?.fullNameAm,
-          departmentId: dept?.id ?? '',
+          // Checked before a missing department is planned, so a bad row never creates one
+          departmentId: knownDept?.id ?? (departmentText ? 'NEW' : ''),
           jobTitle: raw?.jobTitle,
+          unit: raw?.unit,
+          gender: raw?.gender,
           email: raw?.email,
           phone: cellText(raw?.phone) || undefined,
         });
@@ -400,11 +443,9 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
         fail(err.message);
         continue;
       }
-      base.department = `${dept.code} — ${dept.nameEn}`;
-
       const pKey = matchKey(details.payrollId);
       if (seenPayroll.has(pKey)) {
-        fail(`Payroll ID ${details.payrollId} is also on row ${seenPayroll.get(pKey)}.`);
+        fail(`Employee ID ${details.payrollId} is also on row ${seenPayroll.get(pKey)}.`);
         continue;
       }
       seenPayroll.set(pKey, rowNo);
@@ -423,6 +464,11 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
         }
         seenEmail.set(eKey, rowNo);
       }
+
+      // The row is good: use its department, planning a new one if the file names one we don't have
+      const dept = knownDept ?? planDepartment(departmentText.replace(/\s+/g, ' '));
+      details.departmentId = dept.id;
+      base.department = dept.nameEn;
 
       if (!current) {
         toCreate.push({ id: `EMP-${randomUUID().slice(0, 8).toUpperCase()}`, ...details, fullNameAm: details.fullNameAm ?? '', role: null, password: null, isActive: true });
@@ -449,7 +495,15 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
       }
     }
 
+    // Only departments that a saved row uses are created
+    const usedDeptIds = new Set<string>([...toCreate.map((e) => e.departmentId), ...toUpdate.map((u) => u.data.departmentId as string).filter(Boolean)]);
+    const deptsToCreate = [...newDepts.values()].filter((d) => usedDeptIds.has(d.id));
+    result.newDepartments = deptsToCreate.map((d) => d.nameEn);
+
     if (apply === true && (toCreate.length > 0 || toUpdate.length > 0)) {
+      if (deptsToCreate.length > 0) {
+        await tx.department.createMany({ data: deptsToCreate.map(({ id, code, nameEn, nameAm }) => ({ id, code, nameEn, nameAm })) });
+      }
       if (toCreate.length > 0) await tx.employee.createMany({ data: toCreate });
       for (const u of toUpdate) await tx.employee.update({ where: { id: u.id }, data: u.data });
       await audit(
@@ -457,9 +511,9 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
         actor,
         'IMPORT_EMPLOYEES',
         actor.id,
-        `Imported staff from a spreadsheet: ${toCreate.length} added, ${toUpdate.length} updated, ${result.counts.error} rows skipped.`,
+        `Imported staff from a spreadsheet: ${toCreate.length} added, ${toUpdate.length} updated, ${result.counts.error} rows skipped, ${deptsToCreate.length} departments created.`,
         undefined,
-        { added: toCreate.map((e) => e.payrollId), updated: toUpdate.map((u) => u.payrollId) },
+        { added: toCreate.map((e) => e.payrollId), updated: toUpdate.map((u) => u.payrollId), departmentsCreated: result.newDepartments },
       );
       result.applied = true;
     }

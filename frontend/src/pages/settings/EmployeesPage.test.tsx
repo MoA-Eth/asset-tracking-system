@@ -57,7 +57,7 @@ describe('Employees page', () => {
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     await user.type(screen.getByLabelText(/Full name .English./), 'Hana Tesfaye');
     await user.type(screen.getByLabelText(/Full name .Amharic./), 'ሐና');
-    await user.type(screen.getByLabelText(/Payroll ID/), 'MOA/200');
+    await user.type(screen.getByLabelText(/Employee ID/), 'MOA/200');
     await user.selectOptions(screen.getByLabelText(/^Department/), 'DEP-01');
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add employee' }));
     const sent = vi.mocked(api.createEmployee).mock.calls[0][0];
@@ -72,9 +72,10 @@ describe('Employees page', () => {
     const preview = {
       applied: false,
       counts: { create: 1, update: 0, unchanged: 0, error: 1 },
+      newDepartments: ['Finance'],
       rows: [
         { row: 2, payrollId: 'MOA/300', fullNameEn: 'Sara Ali', department: 'PROP — Procurement & Property', action: 'create' },
-        { row: 3, payrollId: 'MOA/301', fullNameEn: 'No Dept', department: 'Finance', action: 'error', message: 'Unknown department "Finance".' },
+        { row: 3, payrollId: 'MOA/301', fullNameEn: 'No Dept', department: 'Finance', action: 'error', message: 'Gender must be Male or Female.' },
       ],
     };
     vi.mocked(api.importEmployees).mockResolvedValueOnce(preview as any).mockResolvedValueOnce({ ...preview, applied: true } as any);
@@ -83,7 +84,8 @@ describe('Employees page', () => {
     const csv = 'Payroll ID,Full name (English),Full name (Amharic),Department\nMOA/300,Sara Ali,ሳራ,PROP\nMOA/301,No Dept,ሀ,Finance\n';
     await user.upload(screen.getByLabelText(/Choose an Excel/), new File([csv], 'hr.csv', { type: 'text/csv' }));
 
-    expect(await screen.findByText('Unknown department "Finance".')).toBeInTheDocument();
+    expect(await screen.findByText('Gender must be Male or Female.')).toBeInTheDocument();
+    expect(screen.getByText(/1 new department/)).toBeInTheDocument();
     expect(vi.mocked(api.importEmployees).mock.calls[0]).toEqual([
       [
         expect.objectContaining({ row: 2, payrollId: 'MOA/300', fullNameEn: 'Sara Ali', department: 'PROP' }),
@@ -93,7 +95,7 @@ describe('Employees page', () => {
     ]);
     await user.click(screen.getByRole('button', { name: 'Import 1 employee' }));
     expect(vi.mocked(api.importEmployees).mock.calls[1][1]).toBe(true);
-    expect(toast.success).toHaveBeenCalledWith('Employees imported', '1 added, 0 updated');
+    expect(toast.success).toHaveBeenCalledWith('Employees imported', '1 added, 0 updated, 1 department created');
     expect(api.getEmployees).toHaveBeenCalledTimes(2);
   });
 

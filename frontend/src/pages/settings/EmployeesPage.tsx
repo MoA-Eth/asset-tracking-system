@@ -23,6 +23,7 @@ import { Field, FieldGrid, FormError, FormFooter, FormNotice, FormSection, input
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Department, Employee, EmployeeInput, UserRole } from '../../types/asset-management';
+import { EMPLOYEE_FIELDS, EmployeeField } from '../../utils/employee-import';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.SYSTEM_ADMIN]: 'System Administrator',
@@ -35,24 +36,51 @@ const ROLE_LABELS: Record<UserRole, string> = {
 type StatusFilter = 'ACTIVE' | 'INACTIVE' | 'ALL';
 
 const emptyForm = (): EmployeeInput => ({
-  payrollId: '',
-  fullNameEn: '',
-  fullNameAm: '',
   departmentId: '',
+  unit: '',
+  fullNameAm: '',
+  fullNameEn: '',
+  payrollId: '',
+  gender: '',
   jobTitle: '',
-  email: '',
   phone: '',
+  email: '',
 });
 
 const formOf = (e: Employee): EmployeeInput => ({
-  payrollId: e.payrollId,
-  fullNameEn: e.fullNameEn,
-  fullNameAm: e.fullNameAm,
   departmentId: e.departmentId,
+  unit: e.unit ?? '',
+  fullNameAm: e.fullNameAm,
+  fullNameEn: e.fullNameEn,
+  payrollId: e.payrollId,
+  gender: e.gender ?? '',
   jobTitle: e.jobTitle ?? '',
-  email: e.email ?? '',
   phone: e.phone ?? '',
+  email: e.email ?? '',
 });
+
+/** Where each shared field lives on the form (the department is picked, so it is stored by id) */
+const FORM_KEY: Record<EmployeeField, keyof EmployeeInput> = {
+  department: 'departmentId',
+  unit: 'unit',
+  fullNameAm: 'fullNameAm',
+  fullNameEn: 'fullNameEn',
+  payrollId: 'payrollId',
+  gender: 'gender',
+  jobTitle: 'jobTitle',
+  phone: 'phone',
+  email: 'email',
+};
+
+const PLACEHOLDERS: Partial<Record<EmployeeField, string>> = {
+  unit: 'e.g. የትራንስፖርት ስምሪት አገልግሎት',
+  fullNameAm: 'ሙሉ ስም',
+  fullNameEn: 'e.g. Hana Tesfaye Bekele',
+  payrollId: 'e.g. 00123456',
+  jobTitle: 'e.g. ሾፌር II',
+  phone: '+251 911 000000',
+  email: 'name@moa.gov.et',
+};
 
 // ─── Add / edit form ────────────────────────────────────────────────────────
 
@@ -87,41 +115,41 @@ const EmployeeForm: React.FC<{
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <FormSection step={1} title="Employee" subtitle="የሰራተኛ መረጃ" icon={IdCard} accent="emerald">
+      {/* Same fields, in the same order, as the import template (see EMPLOYEE_FIELDS) */}
+      <FormSection step={1} title="Employee details" subtitle="የሰራተኛ መረጃ · the same fields as the Excel template" icon={IdCard} accent="emerald">
         <FieldGrid cols={2}>
-          <Field label="Full name (English)" required htmlFor="emp-name-en">
-            <input id="emp-name-en" value={form.fullNameEn} onChange={set('fullNameEn')} className={inputClass('emerald')} placeholder="e.g. Hana Tesfaye" autoFocus />
-          </Field>
-          <Field label="Full name (Amharic)" optional htmlFor="emp-name-am">
-            <input id="emp-name-am" value={form.fullNameAm} onChange={set('fullNameAm')} className={inputClass('emerald')} placeholder="ሙሉ ስም" />
-          </Field>
-          <Field label="Payroll ID" required htmlFor="emp-payroll">
-            <input id="emp-payroll" value={form.payrollId} onChange={set('payrollId')} className={inputClass('emerald', { mono: true })} placeholder="e.g. MOA/1234" />
-          </Field>
-          <Field label="Job title" optional htmlFor="emp-title">
-            <input id="emp-title" value={form.jobTitle} onChange={set('jobTitle')} className={inputClass('emerald')} placeholder="e.g. Agronomist" />
-          </Field>
-        </FieldGrid>
-      </FormSection>
-
-      <FormSection step={2} title="Department and contact" subtitle="ክፍል እና አድራሻ" icon={Building2} accent="emerald">
-        <FieldGrid cols={2}>
-          <Field label="Department" required span="sm:col-span-2" htmlFor="emp-dept">
-            <select id="emp-dept" value={form.departmentId} onChange={set('departmentId')} className={inputClass('emerald')}>
-              <option value="">Select…</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.code} — {d.nameEn}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Email" optional htmlFor="emp-email">
-            <input id="emp-email" type="email" value={form.email} onChange={set('email')} className={inputClass('emerald')} placeholder="name@moa.gov.et" />
-          </Field>
-          <Field label="Phone" optional htmlFor="emp-phone">
-            <input id="emp-phone" type="tel" value={form.phone} onChange={set('phone')} className={inputClass('emerald')} placeholder="+251 911 000000" />
-          </Field>
+          {EMPLOYEE_FIELDS.map((field, index) => {
+            const key = FORM_KEY[field.key];
+            const id = `emp-${field.key}`;
+            const common = { id, value: form[key] ?? '', onChange: set(key) };
+            return (
+              <Field key={field.key} label={`${field.label} · ${field.heading}`} required={field.required} optional={!field.required} htmlFor={id}>
+                {field.key === 'department' ? (
+                  <select {...common} className={inputClass('emerald')} autoFocus={index === 0}>
+                    <option value="">Select…</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.nameEn}
+                      </option>
+                    ))}
+                  </select>
+                ) : field.key === 'gender' ? (
+                  <select {...common} className={inputClass('emerald')}>
+                    <option value="">Select…</option>
+                    <option value="MALE">Male · ወንድ</option>
+                    <option value="FEMALE">Female · ሴት</option>
+                  </select>
+                ) : (
+                  <input
+                    {...common}
+                    type={field.key === 'email' ? 'email' : field.key === 'phone' ? 'tel' : 'text'}
+                    placeholder={PLACEHOLDERS[field.key]}
+                    className={inputClass('emerald', { mono: field.key === 'payrollId' })}
+                  />
+                )}
+              </Field>
+            );
+          })}
         </FieldGrid>
       </FormSection>
 
@@ -184,7 +212,7 @@ export const EmployeesPage: React.FC = () => {
       if (statusFilter === 'INACTIVE' && e.isActive) return false;
       if (deptFilter !== 'ALL' && e.departmentId !== deptFilter) return false;
       if (!q) return true;
-      return [e.fullNameEn, e.fullNameAm, e.payrollId, e.jobTitle, e.email, e.phone].some((v) => (v || '').toLowerCase().includes(q));
+      return [e.fullNameEn, e.fullNameAm, e.payrollId, e.jobTitle, e.unit, e.email, e.phone].some((v) => (v || '').toLowerCase().includes(q));
     });
   }, [employees, search, deptFilter, statusFilter]);
 
@@ -273,7 +301,7 @@ export const EmployeesPage: React.FC = () => {
             id="employee-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={canManage ? 'Search by name, payroll ID, job title, email or phone…' : 'Search by name, payroll ID or job title…'}
+            placeholder="Search by name, employee ID, unit or job title…"
             aria-label="Search employees"
             className={table.search}
           />
@@ -289,7 +317,7 @@ export const EmployeesPage: React.FC = () => {
             <option value="ALL">All departments</option>
             {departments.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.code} — {d.nameEn}
+                {d.nameEn}
               </option>
             ))}
           </select>
@@ -348,8 +376,8 @@ export const EmployeesPage: React.FC = () => {
               <thead>
                 <tr className={table.headRow}>
                   <th className="px-4 py-2.5">Employee</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">Payroll ID</th>
-                  <th className="px-3 py-2.5">Department</th>
+                  <th className="px-3 py-2.5 whitespace-nowrap">Employee ID</th>
+                  <th className="px-3 py-2.5">Department / Unit</th>
                   {canManage && <th className="px-3 py-2.5">Contact</th>}
                   <th className="px-3 py-2.5 whitespace-nowrap">Sign-in</th>
                   {canManage && <th className="px-3 py-2.5 text-right whitespace-nowrap">Items held</th>}
@@ -395,13 +423,8 @@ export const EmployeesPage: React.FC = () => {
                         </td>
                         <td className={`px-3 py-2.5 whitespace-nowrap ${table.code}`}>{e.payrollId}</td>
                         <td className="px-3 py-2.5 text-slate-700">
-                          {dept ? (
-                            <>
-                              <span className="font-mono text-[11px] text-slate-500">{dept.code}</span> {dept.nameEn}
-                            </>
-                          ) : (
-                            '—'
-                          )}
+                          <p className="max-w-[260px] truncate" title={dept?.nameEn}>{dept?.nameEn ?? '—'}</p>
+                          {e.unit && <p className="max-w-[260px] truncate text-[11px] text-slate-500" title={e.unit}>{e.unit}</p>}
                         </td>
                         {canManage && (
                           <td className="px-3 py-2.5 text-slate-600">
@@ -475,7 +498,7 @@ export const EmployeesPage: React.FC = () => {
         isOpen={formOpen}
         onClose={() => setFormOpen(false)}
         title={editing ? `Edit ${editing.fullNameEn}` : 'Add employee'}
-        subtitle={editing ? `Payroll ID ${editing.payrollId}` : 'Add someone who can receive, hold, transfer and return items.'}
+        subtitle={editing ? `Employee ID ${editing.payrollId}` : 'Add someone who can receive, hold, transfer and return items.'}
         size="lg"
       >
         {formOpen && (

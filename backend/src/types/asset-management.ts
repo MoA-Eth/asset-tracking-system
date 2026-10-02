@@ -68,7 +68,10 @@ export interface Employee {
   fullNameAm: string;
   departmentId: string;
   jobTitle?: string | null;
-  /** Contact details are only sent to people who manage employees */
+  /** Team inside the department */
+  unit?: string | null;
+  /** Gender and contact details are only sent to people who manage employees */
+  gender?: 'MALE' | 'FEMALE' | null;
   email?: string | null;
   phone?: string | null;
   /** System role; null when the employee can't sign in */
