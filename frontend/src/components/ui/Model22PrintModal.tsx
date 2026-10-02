@@ -259,7 +259,7 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({
             {/* Bottom Footer Notice (Authentic IFMIS Database Instance Note) */}
             <div className="pt-8 border-t border-slate-200 print:border-slate-400 flex items-center justify-between text-[9px] text-slate-500 font-mono">
               <p>
-                Report printed by <span className="font-bold text-slate-700">{printedBy}</span> from &quot;ifmisdb3&quot; instance on {printTimestamp}
+                Report printed by <span className="font-bold text-slate-700">{printedBy}</span> from the Asset Tracking System on {printTimestamp}
               </p>
               <p className="font-bold">Page 1 of 1</p>
             </div>

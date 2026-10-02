@@ -144,7 +144,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
   const [transactionType, setTransactionType] = useState(editItem?.transactionType || '');
   const [source, setSource] = useState(editItem?.source ?? '');
   const [buyer, setBuyer] = useState(editItem?.buyer ?? '');
-  const [programName, setProgramName] = useState(editItem?.programName ?? 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa');
+  const [programName, setProgramName] = useState(editItem?.programName ?? '');
   const [storeLocationId, setStoreLocationId] = useState(editItem?.storeLocationId ?? '');
   // The store is picked first; its locations then fill the second list
   const [storeId, setStoreId] = useState(() => locations.find((l) => l.id === editItem?.storeLocationId)?.storeId ?? '');
@@ -404,10 +404,10 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
         poNumber: poNumber.trim() || '—',
         receivedDateGc: ifmisSlipDateGc,
         receivedDateEc: formatGcToEc(ifmisSlipDateGc),
-        transactionType: transactionType || 'PO Receipt',
+        transactionType: transactionType || '—',
         source: source.trim() || '—',
         buyer: buyer.trim() || '—',
-        programName: programName.trim() || 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa',
+        programName: programName.trim(),
         storeLocationId,
         storeLocationName: targetStore?.siteName,
         deliveredByName: deliveredBy.trim(),
@@ -515,7 +515,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
               type="text"
               value={programName}
               onChange={(e) => setProgramName(e.target.value)}
-              placeholder="e.g. MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa"
+              placeholder="Program or project the goods were bought for"
               className={input()}
             />
           </Field>
@@ -1238,10 +1238,10 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
       poNumber: item.poNumber || '186',
       receivedDateGc: item.ifmisSlipDateGc,
       receivedDateEc: item.ifmisSlipDateEc || formatGcToEc(item.ifmisSlipDateGc),
-      transactionType: item.transactionType || 'PO Receipt',
+      transactionType: item.transactionType || '—',
       source: item.source || '—',
       buyer: item.buyer || '—',
-      programName: item.programName || 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa',
+      programName: item.programName || '',
       storeLocationId: item.storeLocationId,
       storeLocationName: item.storeLocation?.siteName,
       deliveredByName: item.deliveredBy,

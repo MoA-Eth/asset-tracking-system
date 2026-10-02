@@ -83,9 +83,9 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({
               <h1 className="text-xs sm:text-sm font-semibold tracking-wide text-slate-800">
                 The Federal Democratic Republic of Ethiopia
               </h1>
-              <h2 className="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">
-                {voucher.programName || 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa'}
-              </h2>
+              {voucher.programName && (
+                <h2 className="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">{voucher.programName}</h2>
+              )}
               <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-slate-950 mt-1 uppercase">
                 Print Model19 Report
               </h3>
@@ -110,7 +110,7 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({
                 </div>
                 <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
                   <span className="font-bold text-slate-800 text-right">Transaction Type :</span>
-                  <span className="font-medium text-slate-950">{voucher.transactionType || 'PO Receipt'}</span>
+                  <span className="font-medium text-slate-950">{voucher.transactionType || '—'}</span>
                 </div>
                 <div className="grid grid-cols-[140px_1fr] gap-2 items-start">
                   <span className="font-bold text-slate-800 text-right">Source :</span>
@@ -224,7 +224,7 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({
             {/* Official Instance Footnote */}
             <div className="pt-8 border-t border-slate-200 print:border-slate-400 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-500 font-mono">
               <p>
-                Report Taken By: <span className="font-semibold text-slate-700">{voucher.reportTakenBy || '—'}</span> on {printTimestamp}. from 'ifmisdb1' instance.
+                Report Taken By: <span className="font-semibold text-slate-700">{voucher.reportTakenBy || '—'}</span> on {printTimestamp} from the Asset Tracking System.
               </p>
               <p>Page 1 of 1</p>
             </div>

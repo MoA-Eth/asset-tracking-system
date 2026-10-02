@@ -52,11 +52,11 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
 
   // Model 21 Fields
-  const [model21No, setModel21No] = useState('0004386');
-  const [book, setBook] = useState('MOA MC BOOK');
+  const [model21No, setModel21No] = useState('');
+  const [book, setBook] = useState('');
   const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(new Date().toISOString().split('T')[0]);
   const [condition, setCondition] = useState<ItemCondition | ''>('');
-  const [returnReason, setReturnReason] = useState('Official project assignment completed, returning to central store');
+  const [returnReason, setReturnReason] = useState('');
   const [storeReceiverId, setStoreReceiverId] = useState('');
   
   // Technical / Vehicle Details
@@ -140,11 +140,11 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
   };
 
   const handleReset = () => {
-    setModel21No('0004386');
-    setBook('MOA MC BOOK');
+    setModel21No('');
+    setBook('');
     setIfmisSlipDateGc(new Date().toISOString().split('T')[0]);
     setCondition('');
-    setReturnReason('Official project assignment completed, returning to central store');
+    setReturnReason('');
     setAttachmentFileName('');
     setAttachmentFile(null);
     setFormError(null);
@@ -253,7 +253,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
         model21No: model21No.trim(),
         fromEmployeeName: fromCustodian?.fullNameEn || '—',
         fromEmployeeId: fromCustodian?.payrollId || '—',
-        book: book.trim() || 'MOA MC BOOK',
+        book: book.trim() || '—',
         toEmployeeName: receiver?.fullNameEn || '—',
         toEmployeeId: receiver?.payrollId || '—',
         items: [
@@ -326,7 +326,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
                 required
                 value={model21No}
                 onChange={(e) => setModel21No(e.target.value)}
-                placeholder="e.g. 0004386"
+                placeholder="Number on the Model 21 form"
                 className={`${input({ mono: true })} font-semibold`}
               />
             </Field>
@@ -337,7 +337,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
                 required
                 value={book}
                 onChange={(e) => setBook(e.target.value)}
-                placeholder="e.g. MOA MC BOOK"
+                placeholder="Book the form comes from"
                 className={input()}
               />
             </Field>
