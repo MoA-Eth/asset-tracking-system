@@ -457,7 +457,7 @@ export const ReportsPage: React.FC = () => {
         balanceOf(item).available,
         item.ifmisSlipNumber,
         item.ifmisSlipDateEc || item.createdAtEc,
-        item.currentCustodian?.fullNameEn || item.assignedDepartment?.code || item.storeLocation?.siteName || 'In Store',
+        item.currentCustodian?.fullNameEn || item.assignedDepartment?.nameEn || storeLocationLabel(item.storeLocation),
         formatETB(item.unitCostETB),
       ]);
 

@@ -493,7 +493,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
             <input
               type="text"
               required
-              placeholder="e.g. ERMEJA TRADING ONE MEMBER P.L.C"
+              placeholder="Supplier or vendor name"
               value={source}
               onChange={(e) => setSource(e.target.value)}
               className={input()}
@@ -503,7 +503,7 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
           <Field label="Buyer / procurement officer" optional>
             <input
               type="text"
-              placeholder="e.g. Teka, Yebirgual Tamiru"
+              placeholder="Name of the buyer or procurement officer"
               value={buyer}
               onChange={(e) => setBuyer(e.target.value)}
               className={input()}
@@ -1239,8 +1239,8 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
       receivedDateGc: item.ifmisSlipDateGc,
       receivedDateEc: item.ifmisSlipDateEc || formatGcToEc(item.ifmisSlipDateGc),
       transactionType: item.transactionType || 'PO Receipt',
-      source: item.source || 'ERMEJA TRADING ONE MEMBER P.L.C',
-      buyer: item.buyer || 'Teka, Yebirgual Tamiru',
+      source: item.source || '—',
+      buyer: item.buyer || '—',
       programName: item.programName || 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa',
       storeLocationId: item.storeLocationId,
       storeLocationName: item.storeLocation?.siteName,

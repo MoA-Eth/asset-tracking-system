@@ -216,7 +216,7 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
                 <p className="text-[10px] font-bold uppercase text-slate-500">Issued By (Store Keeper):</p>
                 <div className="h-10 border-b border-dashed border-slate-400 mt-1 flex items-end pb-1">
                   <span className="font-semibold text-slate-800">
-                    {approval?.requestedBy?.fullNameEn || item?.registeredBy?.fullNameEn || 'Store Officer'}
+                    {approval?.requestedBy?.fullNameEn || item?.registeredBy?.fullNameEn || '—'}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">Signature & Date</p>
@@ -228,7 +228,7 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
                 <p className="text-[10px] font-bold uppercase text-slate-500">Approved By (Dept Head):</p>
                 <div className="h-10 border-b border-dashed border-slate-400 mt-1 flex items-end pb-1">
                   <span className="font-semibold text-slate-800">
-                    {approval?.reviewedBy?.fullNameEn || item?.approvedBy?.fullNameEn || 'Directorate Head'}
+                    {approval?.reviewedBy?.fullNameEn || item?.approvedBy?.fullNameEn || '—'}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">Signature & Stamp</p>
@@ -240,7 +240,7 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
                 <p className="text-[10px] font-bold uppercase text-slate-500">Received By (Recipient Staff):</p>
                 <div className="h-10 border-b border-dashed border-slate-400 mt-1 flex items-end pb-1">
                   <span className="font-semibold text-slate-800">
-                    {approval?.recipientEmployee?.fullNameEn || item?.currentCustodian?.fullNameEn || 'Authorized Recipient'}
+                    {approval?.recipientEmployee?.fullNameEn || item?.currentCustodian?.fullNameEn || '—'}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">Signature & Date</p>
