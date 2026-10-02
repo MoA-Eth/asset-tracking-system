@@ -6,7 +6,6 @@ import {
   MinusCircle,
   ArrowUpRight,
   RefreshCw,
-  Search,
   LockKeyhole,
   AlertCircle,
   ChevronRight,
@@ -21,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { useToast } from '../../context/ToastContext';
+import { RefreshButton } from '../../components/ui/RefreshButton';
 import { Department, Employee, RoleDirectory, UserRole } from '../../types/asset-management';
 
 interface RolesPageProps {
@@ -51,7 +51,6 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<UserRole | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [resetTargetRole, setResetTargetRole] = useState<UserRole | null>(null);
@@ -218,12 +217,9 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
     );
   }
 
-  const filtered = roles.filter((role) =>
-    `${role.name} ${role.code} ${role.description}`.toLowerCase().includes(query.toLowerCase().trim())
-  );
+  const filtered = roles;
   const selectedRole = roles.find((role) => role.code === selected);
   const members = employees.filter((employee) => employee.role === selected);
-  const totalPermissions = permissionGroups.reduce((acc, g) => acc + g.permissions.length, 0);
 
   // Helper to resolve permission label from key
   const getPermissionLabel = (key: string) => {
@@ -235,47 +231,19 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
+    <div className="space-y-4 animate-fadeIn pb-12">
       {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
             <Shield className="w-5 h-5 text-emerald-700" />
-            Roles & Permission Matrix <span className="font-medium text-slate-500">(ሚናዎች እና ፈቃዶች)</span>
+            Roles & permissions <span className="font-medium text-slate-500">(ሚናዎች እና ፈቃዶች)</span>
           </h2>
-          <p className="text-xs text-slate-500 mt-2">
-            Allow or deny operational capabilities per role. All adjustments are guarded against lockout and logged to the institutional audit registry.
+          <p className="text-xs text-slate-500 mt-0.5">
+            What each role is allowed to do. Switch a permission on or off, then save; every change is recorded in the audit log.
           </p>
         </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-          {totalUnsavedChanges > 0 && (
-            <>
-              <Button variant="outline" onClick={discardChanges} disabled={saving} size="sm">
-                Discard
-              </Button>
-              <Button
-                variant="primary"
-                leftIcon={<Save className="w-3.5 h-3.5" />}
-                onClick={() => setShowConfirmModal(true)}
-                disabled={saving}
-                size="sm"
-                className="bg-emerald-700 hover:bg-emerald-800 text-white"
-              >
-                Save Permissions ({totalUnsavedChanges})
-              </Button>
-            </>
-          )}
-          <Button
-            variant="outline"
-            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
-            onClick={load}
-            disabled={loading || saving}
-            size="sm"
-          >
-            Refresh
-          </Button>
-        </div>
+        <RefreshButton onClick={load} loading={loading} disabled={saving} label="roles" />
       </header>
 
       {loading ? (
@@ -296,17 +264,15 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
         </div>
       ) : (
         <>
-          {/* Staged Changes Notification Banner */}
+          {/* Unsaved changes: the only place to save or discard, kept in view while scrolling */}
           {totalUnsavedChanges > 0 && (
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 border border-amber-300 p-4 shadow-xs animate-fadeIn">
-              <div className="flex items-center gap-2.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
-                <span className="text-xs font-bold text-amber-950">
-                  You have {totalUnsavedChanges} unsaved permission {totalUnsavedChanges === 1 ? 'change' : 'changes'} staged across {diffSummary.length} {diffSummary.length === 1 ? 'role' : 'roles'}.
-                </span>
-              </div>
+            <div role="status" className="sticky top-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 shadow-sm animate-fadeIn">
+              <span className="flex items-center gap-2 text-xs font-semibold text-amber-950">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                {totalUnsavedChanges} unsaved {totalUnsavedChanges === 1 ? 'change' : 'changes'} in {diffSummary.length} {diffSummary.length === 1 ? 'role' : 'roles'}
+              </span>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={discardChanges}>
+                <Button variant="outline" size="sm" onClick={discardChanges} disabled={saving}>
                   Discard
                 </Button>
                 <Button
@@ -314,9 +280,10 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
                   size="sm"
                   leftIcon={<Save className="w-3.5 h-3.5" />}
                   onClick={() => setShowConfirmModal(true)}
+                  disabled={saving}
                   className="bg-emerald-700 hover:bg-emerald-800 text-white"
                 >
-                  Save Changes
+                  Save changes ({totalUnsavedChanges})
                 </Button>
               </div>
             </div>
@@ -324,63 +291,29 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
 
           {/* Permission Matrix Section */}
           <section aria-label="System roles" className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-            {/* Search & Matrix Legend Header */}
-            <div className="p-4 flex flex-col md:flex-row justify-between gap-4 md:items-center border-b border-slate-200 bg-slate-50/50">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <span>Interactive Permission Matrix</span>
-                  <span className="text-xs text-slate-400 font-normal">
-                    ({filtered.length} of {roles.length} roles, {totalPermissions} capabilities)
-                  </span>
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Click any toggle switch to allow or deny a capability. Click role titles to inspect assigned members.
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                {/* Matrix Legend */}
-                <div className="flex items-center gap-3 text-[11px] text-slate-600 bg-white px-3 py-1.5 rounded-xl border border-slate-200/80">
-                  <span className="flex items-center gap-1 font-semibold text-emerald-800">
-                    <span className="w-2 h-2 rounded-full bg-emerald-600" />
-                    Allowed
-                  </span>
-                  <span className="text-slate-300">|</span>
-                  <span className="flex items-center gap-1 text-slate-500">
-                    <span className="w-2 h-2 rounded-full bg-slate-300" />
-                    Denied
-                  </span>
-                  <span className="text-slate-300">|</span>
-                  <span className="flex items-center gap-1 text-slate-400">
-                    <Lock className="w-3 h-3 text-slate-400" />
-                    Protected
-                  </span>
-                </div>
-
-                {/* Search */}
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input
-                    aria-label="Search roles"
-                    placeholder="Search roles…"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-2xs"
-                  />
-                </div>
-              </div>
+            {/* Legend */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-200 px-5 py-2.5 text-[11px] text-slate-500">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                Allowed
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-slate-300" />
+                Not allowed
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Lock className="h-3 w-3 text-slate-400" />
+                Always on, so administrators can't lock themselves out
+              </span>
             </div>
 
             {/* Matrix Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs min-w-[780px] border-collapse">
+              <table className="w-full text-left text-xs min-w-[760px] border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
-                    <th scope="col" className="px-5 py-4 w-[280px] font-bold text-slate-900 align-top">
-                      <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
-                        Functional Area
-                      </div>
-                      <span className="text-xs font-extrabold text-slate-800">Operations & Capabilities</span>
+                  <tr className="border-b border-slate-200">
+                    <th scope="col" className="w-[260px] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 align-bottom">
+                      Permission
                     </th>
                     {filtered.map((role) => {
                       const isSelected = selected === role.code;
@@ -389,103 +322,60 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
                         <th
                           key={role.code}
                           scope="col"
-                          className={`px-4 py-4 min-w-[150px] align-top transition-colors border-l border-slate-200/60 ${
-                            isSelected ? 'bg-emerald-50/70' : 'bg-slate-50/80'
+                          className={`px-3 py-3 min-w-[128px] text-center align-bottom transition-colors border-l border-slate-200/60 ${
+                            isSelected ? 'bg-emerald-50/70' : ''
                           }`}
                         >
-                          <div className="flex flex-col h-full justify-between gap-2">
-                            <div>
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="font-extrabold text-slate-900 text-xs">{role.name}</span>
-                                {hasPendingDiff && (
-                                  <span
-                                    title="Has unsaved permission changes"
-                                    className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"
-                                  />
-                                )}
-                              </div>
-                              <p className="text-[10px] text-slate-500 line-clamp-2 mt-0.5 leading-snug">
-                                {role.description}
-                              </p>
-                              <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                                <button
-                                  onClick={() => onViewUsers(role.code)}
-                                  aria-label={`View ${role.memberCount} ${role.name} users`}
-                                  className="inline-flex gap-1 items-center text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-50 transition-colors shadow-2xs"
-                                  title="View assigned users in Users tab"
-                                >
-                                  <Users className="w-3 h-3 text-emerald-700" />
-                                  <span>{role.memberCount}</span>
-                                </button>
-                                <span className="text-[9px] font-medium text-slate-500">
-                                  {role.approvalResponsibility}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between gap-2 mt-1">
-                              <button
-                                onClick={() => setSelected(isSelected ? null : role.code)}
-                                aria-label={`View ${role.name} details`}
-                                aria-expanded={isSelected}
-                                aria-controls={isSelected ? 'role-details' : undefined}
-                                className={`inline-flex items-center gap-1 text-[11px] font-semibold transition-colors ${
-                                  isSelected
-                                    ? 'text-emerald-900 font-bold underline'
-                                    : 'text-emerald-700 hover:text-emerald-800 hover:underline'
-                                }`}
-                              >
-                                <span>View details</span>
-                                <ChevronRight className="w-3 h-3" />
-                              </button>
-
-                              {canAssign && (
-                                <button
-                                  onClick={() => setResetTargetRole(role.code as UserRole)}
-                                  title="Reset role to baseline institutional defaults"
-                                  className="text-[10px] text-slate-400 hover:text-red-700 transition-colors"
-                                >
-                                  Reset
-                                </button>
-                              )}
-                            </div>
-                          </div>
+                          <button
+                            onClick={() => setSelected(isSelected ? null : role.code)}
+                            aria-label={`View ${role.name} details`}
+                            aria-expanded={isSelected}
+                            aria-controls={isSelected ? 'role-details' : undefined}
+                            title={role.description}
+                            className={`inline-flex items-center gap-1 text-xs font-bold transition-colors cursor-pointer ${
+                              isSelected ? 'text-emerald-800' : 'text-slate-900 hover:text-emerald-700'
+                            }`}
+                          >
+                            {role.name}
+                            {hasPendingDiff && <span title="Has unsaved changes" className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
+                            <ChevronRight className={`h-3 w-3 text-slate-400 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+                          </button>
+                          <button
+                            onClick={() => onViewUsers(role.code)}
+                            aria-label={`View ${role.memberCount} ${role.name} users`}
+                            title="Open these users on the Users page"
+                            className="mt-0.5 flex w-full items-center justify-center gap-1 text-[11px] font-normal text-slate-500 hover:text-emerald-700 cursor-pointer"
+                          >
+                            <Users className="h-3 w-3" />
+                            {role.memberCount} {role.memberCount === 1 ? 'user' : 'users'}
+                          </button>
                         </th>
                       );
                     })}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100/80">
                   {filtered.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-slate-500">
-                        No roles match your search. Try another name.
+                        No roles to show.
                       </td>
                     </tr>
                   ) : (
                     permissionGroups.map((group) => (
                       <React.Fragment key={group.name}>
                         {/* Group Header Row */}
-                        <tr className="bg-slate-100/70 border-t-2 border-slate-200">
-                          <td
-                            colSpan={filtered.length + 1}
-                            className="px-5 py-2.5 font-bold text-[11px] uppercase tracking-wider text-slate-700"
-                          >
-                            <span className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
-                              {group.name}
-                              <span className="font-normal text-slate-400 text-[10px]">
-                                ({group.permissions.length} actions)
-                              </span>
-                            </span>
+                        <tr className="bg-slate-50">
+                          <td colSpan={filtered.length + 1} className="px-5 pb-1.5 pt-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            {group.name}
                           </td>
                         </tr>
 
                         {/* Permission Rows */}
                         {group.permissions.map((permission) => (
                           <tr key={permission.key} className="hover:bg-slate-50/80 transition-colors">
-                            <th scope="row" className="px-5 py-3 font-normal align-middle">
-                              <p className="font-semibold text-slate-900 text-xs">{permission.label}</p>
+                            <th scope="row" className="px-5 py-2 text-xs font-medium text-slate-800 align-middle">
+                              {permission.label}
                             </th>
                             {filtered.map((role) => {
                               const rolePerms = stagedPermissions[role.code] ?? role.permissions;
@@ -498,7 +388,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
                               return (
                                 <td
                                   key={role.code}
-                                  className={`px-4 py-3 text-center align-middle border-l border-slate-100 transition-colors ${
+                                  className={`px-3 py-2 text-center align-middle border-l border-slate-100 transition-colors ${
                                     isSelected ? 'bg-emerald-50/50' : ''
                                   } ${isDirty ? 'bg-amber-50/30' : ''}`}
                                 >
@@ -566,23 +456,25 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
               aria-label={`${selectedRole.name} details`}
               className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 transition-all animate-fadeIn"
             >
-              <div className="px-5 py-5 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row justify-between gap-3 sm:items-center">
+              <div className="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between gap-3 sm:items-center">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-                      System Role
-                    </span>
-                    <span className="text-[11px] font-mono text-slate-400">{selectedRole.code}</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 mt-1">{selectedRole.name}</h3>
-                  <p className="text-xs text-slate-500 mt-1">{selectedRole.approvalResponsibility}</p>
+                  <h3 className="text-base font-bold text-slate-900">{selectedRole.name}</h3>
+                  <p className="text-xs text-slate-600 mt-0.5">{selectedRole.description}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{selectedRole.approvalResponsibility}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => onViewUsers(selectedRole.code)}
-                    rightIcon={<ArrowUpRight className="w-4 h-4" />}
-                  >
+                <div className="flex flex-wrap items-center gap-2">
+                  {canAssign && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setResetTargetRole(selectedRole.code as UserRole)}
+                      leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+                      title="Put this role's permissions back to the built-in defaults"
+                    >
+                      Reset to defaults
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => onViewUsers(selectedRole.code)} rightIcon={<ArrowUpRight className="w-3.5 h-3.5" />}>
                     Manage assignments
                   </Button>
                 </div>

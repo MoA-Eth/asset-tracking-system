@@ -44,16 +44,27 @@ describe('Roles directory', () => {
     await user.click(within(details).getByRole('button', { name: 'Manage assignments' }));
     expect(navigate).toHaveBeenCalledWith('MANAGER');
   });
-  it('searches roles, handles no matches, and shows unassigned roles', async () => {
+  it('shows all five roles as columns, and the details of a role nobody has', async () => {
     const user = userEvent.setup();
     render(<RolesPage onViewUsers={vi.fn()} />);
-    await user.click(await screen.findByRole('button', { name: 'View Team Leader details' }));
+    expect(await screen.findAllByRole('button', { name: /View .* details/ })).toHaveLength(5);
+    await user.click(screen.getByRole('button', { name: 'View Team Leader details' }));
     expect(screen.getByText('No users are assigned to this role.')).toBeInTheDocument();
-    await user.type(screen.getByRole('textbox', { name: 'Search roles' }), 'zzzz');
-    expect(screen.getByText(/No roles match your search/)).toBeInTheDocument();
-    await user.clear(screen.getByRole('textbox', { name: 'Search roles' }));
-    await user.type(screen.getByRole('textbox', { name: 'Search roles' }), 'encoder');
-    expect(screen.getAllByRole('button', { name: /View .* details/ })).toHaveLength(1);
+    // Opening another role replaces the panel; clicking the open one closes it
+    await user.click(screen.getByRole('button', { name: 'View Manager details' }));
+    expect(screen.queryByRole('region', { name: 'Team Leader details' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'View Manager details' }));
+    expect(screen.queryByRole('region', { name: 'Manager details' })).not.toBeInTheDocument();
+  });
+
+  it('offers Reset to defaults in the details panel, for administrators only', async () => {
+    const user = userEvent.setup();
+    auth.user.permissions = ['roles.read', 'roles.assign'];
+    render(<RolesPage onViewUsers={vi.fn()} />);
+    await user.click(await screen.findByRole('button', { name: 'View Manager details' }));
+    const details = screen.getByRole('region', { name: 'Manager details' });
+    await user.click(within(details).getByRole('button', { name: 'Reset to defaults' }));
+    expect(screen.getByText('Reset Role to Statutory Defaults')).toBeInTheDocument();
   });
   it('shows failures and retries loading', async () => {
     const user = userEvent.setup();
@@ -84,7 +95,7 @@ describe('Roles directory', () => {
 
     const user = userEvent.setup();
     render(<RolesPage onViewUsers={vi.fn()} />);
-    await screen.findByText('Interactive Permission Matrix');
+    await screen.findByRole('button', { name: 'View Manager details' });
 
     // Find toggle for Manager role on 'Register and correct stock-in' (stock-in.write)
     const toggle = screen.getByRole('switch', { name: /Grant Register and correct stock-in for Manager/ });
@@ -93,10 +104,11 @@ describe('Roles directory', () => {
     // Toggle permission ON
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByText(/You have 1 unsaved permission change/)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('1 unsaved change in 1 role');
 
-    // Click Save Permissions
-    await user.click(screen.getByRole('button', { name: /Save Permissions/ }));
+    // One place to save
+    expect(screen.getAllByRole('button', { name: /^Save changes/ })).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Save changes (1)' }));
 
     // Confirmation modal should appear with diff
     expect(screen.getByText('Confirm Permission Changes')).toBeInTheDocument();
@@ -110,7 +122,7 @@ describe('Roles directory', () => {
   it('protects core system administrator permissions against lockout', async () => {
     auth.user.permissions = ['roles.read', 'roles.assign'];
     render(<RolesPage onViewUsers={vi.fn()} />);
-    await screen.findByText('Interactive Permission Matrix');
+    await screen.findByRole('button', { name: 'View Manager details' });
 
     // System Administrator's roles.assign and roles.read should display "Core"
     const coreBadges = screen.getAllByText('Core');

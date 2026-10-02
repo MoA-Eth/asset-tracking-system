@@ -25,6 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Department, Employee, EmployeeInput, UserRole } from '../../types/asset-management';
 import { EMPLOYEE_FIELDS, EmployeeField } from '../../utils/employee-import';
+import { RefreshButton } from '../../components/ui/RefreshButton';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.SYSTEM_ADMIN]: 'System Administrator',
@@ -377,15 +378,7 @@ export const EmployeesPage: React.FC = () => {
               ))}
             </div>
           )}
-          <button
-            type="button"
-            onClick={load}
-            aria-label="Refresh"
-            title="Refresh"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-600 transition hover:bg-slate-50 cursor-pointer"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <RefreshButton onClick={load} loading={loading} label="employees" />
         </div>
       </div>
 

@@ -14,6 +14,7 @@ import { api } from '../api/client';
 import { AuditLogEntry } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
 import { Pagination, usePagination } from '../components/ui/Pagination';
+import { RefreshButton } from '../components/ui/RefreshButton';
 
 export const AuditLogsPage: React.FC = () => {
   const toast = useToast();
@@ -202,13 +203,7 @@ export const AuditLogsPage: React.FC = () => {
             <Printer className="w-3.5 h-3.5 text-slate-500" />
             <span className="hidden sm:inline">Print PDF</span>
           </button>
-          <button
-            onClick={fetchLogs}
-            className="p-1.5 rounded-xl bg-white text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
-            title="Refresh Logs"
-          >
-            <RefreshCw className={`w-4 h-4 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <RefreshButton onClick={fetchLogs} loading={loading} label="audit log" />
         </div>
       </div>
 

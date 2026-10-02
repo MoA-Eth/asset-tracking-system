@@ -46,6 +46,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { getSlipDisplayName } from '../utils/slip-upload';
+import { RefreshButton } from '../components/ui/RefreshButton';
 
 interface ApprovalsPageProps {
   currentRole?: UserRole;
@@ -509,13 +510,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             </button>
           </div>
 
-          <button
-            onClick={fetchApprovals}
-            className="p-2 rounded-xl bg-white text-slate-700 hover:text-slate-900 border border-slate-300 transition shadow-2xs cursor-pointer"
-            title="Refresh Approvals List"
-          >
-            <RefreshCw className={`w-4 h-4 text-emerald-700 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <RefreshButton onClick={fetchApprovals} loading={loading} label="requests" />
         </div>
       </div>
 

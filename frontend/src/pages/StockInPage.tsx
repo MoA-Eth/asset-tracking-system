@@ -60,6 +60,7 @@ import { useSystemSettings } from '../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../utils/slip-upload';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { RefreshButton } from '../components/ui/RefreshButton';
 
 interface StockInPageProps {
   currentRole: UserRole;
@@ -919,14 +920,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
             {filtered.length} of {items.length} found
           </span>
         )}
-        <button
-          onClick={onRefresh}
-          disabled={refreshing}
-          className="p-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-          title="Refresh Inventory"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-        </button>
+        <RefreshButton onClick={onRefresh} loading={refreshing} label="items" />
       </div>
 
       {/* Table */}

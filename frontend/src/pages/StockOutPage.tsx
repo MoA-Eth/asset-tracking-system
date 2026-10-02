@@ -59,6 +59,7 @@ import { departmentLabel } from '../utils/department';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import { getSystemSettings, useSystemSettings } from '../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../utils/slip-upload';
+import { RefreshButton } from '../components/ui/RefreshButton';
 
 interface StockOutPageProps {
   currentRole: UserRole;
@@ -880,14 +881,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
             {filtered.length} of {approvals.length} found
           </span>
         )}
-        <button
-          onClick={onRefresh}
-          disabled={refreshing}
-          className="p-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-          title="Refresh"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-        </button>
+        <RefreshButton onClick={onRefresh} loading={refreshing} label="requests" />
       </div>
 
       {/* Table */}
