@@ -96,8 +96,8 @@ export const Pagination: React.FC<PaginationProps> = ({ pager, label = 'rows', c
       </p>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        {total > PAGE_SIZES[0] && (
-          <label className="flex items-center gap-2">
+        {/* The controls are always shown, so every table looks the same; with one page the buttons are disabled */}
+        <label className="flex items-center gap-2">
             <span>Rows per page</span>
             <select
               value={pageSize}
@@ -111,10 +111,8 @@ export const Pagination: React.FC<PaginationProps> = ({ pager, label = 'rows', c
               ))}
             </select>
           </label>
-        )}
 
-        {pageCount > 1 && (
-          <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1">
             <button type="button" className={navButton} onClick={() => setPage(1)} disabled={page === 1} aria-label="First page" title="First page">
               <ChevronsLeft className="h-3.5 w-3.5" />
             </button>
@@ -150,7 +148,6 @@ export const Pagination: React.FC<PaginationProps> = ({ pager, label = 'rows', c
               <ChevronsRight className="h-3.5 w-3.5" />
             </button>
           </div>
-        )}
       </div>
     </nav>
   );

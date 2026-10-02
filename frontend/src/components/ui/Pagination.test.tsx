@@ -68,9 +68,11 @@ describe('Pagination', () => {
     await user.type(screen.getByLabelText('Search'), 'Person 0');
     expect(shownRows()).toEqual(['Person 01', 'Person 02', 'Person 03', 'Person 04', 'Person 05', 'Person 06', 'Person 07', 'Person 08', 'Person 09']);
     expect(screen.getByText(/Showing/).textContent).toBe('Showing 1–9 of 9 people');
-    // One page: no page buttons and no rows-per-page choice
-    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
-    expect(screen.queryByLabelText('Rows per page')).toBeNull();
+    // One page: the controls stay visible, with nothing left to move to
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: /^Page \d+$/ })).toHaveLength(1);
+    expect(screen.getByLabelText('Rows per page')).toBeInTheDocument();
   });
 
   it('shows nothing when there are no rows', () => {
