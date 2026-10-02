@@ -539,14 +539,6 @@ export const ReportsPage: React.FC = () => {
       {/* 1. Header Bar with Direct Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
         <div>
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
-              Operational Reporting
-            </span>
-            <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
-              Ministry of Agriculture
-            </span>
-          </div>
           <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-emerald-700" />
             Asset Reports (የንብረት ሪፖርት)

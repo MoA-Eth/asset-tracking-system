@@ -239,14 +239,6 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
       {/* Header */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">
-              Administration / Access Control
-            </p>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200">
-              Interactive Permission Matrix
-            </span>
-          </div>
           <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
             <Shield className="w-5 h-5 text-emerald-700" />
             Roles & Permission Matrix <span className="font-medium text-slate-500">(ሚናዎች እና ፈቃዶች)</span>
