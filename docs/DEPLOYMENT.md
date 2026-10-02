@@ -3,6 +3,8 @@
 How to install the system on a real server, keep it running, and upgrade it.
 For running it on your own computer during development, see the root `README.md`.
 
+The quickest route is Docker: see "Docker" below.
+
 ## What runs
 
 One Node.js process serves both the API and the web app, on one port. It needs a PostgreSQL database
@@ -20,6 +22,104 @@ browser ──HTTPS──> reverse proxy (nginx / IIS) ──HTTP──> Node ap
 - A reverse proxy that provides HTTPS (nginx, IIS, Caddy…)
 - The server's time zone set to **Africa/Addis_Ababa**. "Today's date" on slips and in the audit log
   comes from the server's clock. Set the machine's time zone, or start the app with `TZ=Africa/Addis_Ababa`.
+
+## Two ways to install
+
+- **With Docker** (next section): one command starts the app and its database. Nothing else is installed
+  on the server apart from Docker itself.
+- **Directly on the server** (sections 1 to 4): Node.js and PostgreSQL are installed on the server and the
+  app is kept running with a process manager.
+
+Both run the same code and need the same reverse proxy for HTTPS. Pick one; do not mix them on one server.
+
+## Docker
+
+### What you need
+
+- Docker Engine 24 or newer with the Compose plugin (`docker compose version` should answer)
+- A reverse proxy on the server that provides HTTPS, as in the "HTTPS" section below
+
+### First start
+
+```bash
+git clone https://github.com/MoA-Eth/asset-tracking-system.git
+cd asset-tracking-system
+cp .env.docker.example .env
+```
+
+Open `.env` and fill in:
+
+| Setting | What to put |
+| :--- | :--- |
+| `POSTGRES_PASSWORD` | A long random password for the database (letters and numbers) |
+| `JWT_SECRET` | A random value of at least 32 characters; the file shows a command that makes one |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | The first System Administrator. The password needs 12 or more characters with letters and numbers |
+| `APP_BIND` | Leave `127.0.0.1:3000` when a reverse proxy on the same server provides HTTPS |
+
+Then:
+
+```bash
+docker compose up -d --build
+docker compose logs -f app      # wait for "REST API running", then Ctrl+C
+```
+
+The first start creates the database tables and the administrator. The administrator signs in with the
+email and password from `.env` and is asked to choose a new password straight away. After that first
+sign-in, remove `ADMIN_PASSWORD` from `.env`; it is not used again.
+
+Point the reverse proxy at `http://127.0.0.1:3000` (the nginx example under "HTTPS" applies unchanged),
+then continue with "2. First steps in the app".
+
+### Day-to-day
+
+```bash
+docker compose ps               # both services should say "healthy"
+docker compose logs --tail 100 app
+docker compose restart app
+docker compose down             # stop; the data stays
+```
+
+Never run `docker compose down -v`: the `-v` deletes the database and the scanned slips.
+
+### Backups
+
+Two things hold data: the database, and the scanned slips. Back up both, at the same time.
+
+```bash
+# database
+docker compose exec -T db pg_dump -U moa_ams -Fc moa_ams > moa_ams-$(date +%F).dump
+# scanned slips
+docker compose cp app:/app/backend/uploads ./slips-$(date +%F)
+```
+
+To restore onto a fresh installation: start it once, then
+
+```bash
+docker compose exec -T db pg_restore -U moa_ams -d moa_ams --clean --if-exists < moa_ams-2026-10-02.dump
+docker compose cp ./slips-2026-10-02/. app:/app/backend/uploads
+docker compose restart app
+```
+
+### Updating
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Take a backup first. On start, the app brings the database tables up to date by itself when the change
+only adds things. If a version needs a change that could lose data, the app refuses to start and says so
+in `docker compose logs app`; run the upgrade script named in that version's notes (the files are under `backend/prisma/migrations`), for example
+
+```bash
+docker compose run --rm --entrypoint "" app npx prisma db execute \n  --file prisma/migrations/202610050001_system_settings/migration.sql --schema prisma/schema.prisma
+docker compose up -d
+```
+
+### Time zone
+
+The containers run in `Africa/Addis_Ababa`, so "today" on slips and in the audit log is the Ethiopian
+day. To change it, set `TZ` in `.env`.
 
 ## 1. First installation
 

@@ -1,0 +1,16 @@
+# Keep the image build small and free of local data and secrets
+.git
+.github
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+!**/.env.example
+backend/uploads
+scratch
+docs
+*.md
+**/*.log
+.vscode
+.idea
