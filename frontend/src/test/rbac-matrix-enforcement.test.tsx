@@ -213,8 +213,8 @@ describe('Frontend RBAC Permission Matrix Enforcement', () => {
       mockAuth.role = UserRole.DATA_ENCODER;
 
       const { rerender } = render(<TransferAssetPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(await screen.findByRole('button', { name: /Transfer Form \(Model 21\)/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Return to Store \(Model 21\)/i })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: /New transfer \(Model 21\)/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Return to store$/i })).toBeInTheDocument();
 
       // 2. With permission revoked
       mockAuth.user = {
@@ -225,8 +225,8 @@ describe('Frontend RBAC Permission Matrix Enforcement', () => {
         landingTab: 'transfer-asset',
       } as any;
       rerender(<TransferAssetPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(screen.queryByRole('button', { name: /Transfer Form \(Model 21\)/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Return to Store \(Model 21\)/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /New transfer \(Model 21\)/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Return to store$/i })).not.toBeInTheDocument();
     });
   });
 });

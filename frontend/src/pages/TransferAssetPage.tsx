@@ -1,23 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ArrowRightLeft,
   RotateCcw,
   Search,
   RefreshCw,
-  Building2,
   UserCheck,
   AlertCircle,
-  CheckCircle2,
-  Send,
   Printer,
   FileText,
   Car,
   Tag,
-  ShieldCheck,
   Clock,
   Pencil,
-  Lock,
   Eye,
+  Plus,
+  CheckCircle2,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -29,13 +26,16 @@ import {
   Employee,
   Location,
   Model21Voucher,
-  Model21LineItem,
   TransactionApproval,
+  ApprovalStatus,
 } from '../types/asset-management';
+import { Modal } from '../components/ui/Modal';
+import { StatCard } from '../components/ui/StatCard';
 import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
 import { Pagination, usePagination } from '../components/ui/Pagination';
-import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
+import { RowActionsMenu } from '../components/ui/RowActionsMenu';
 import { RecordDetailModal } from '../components/ui/RecordDetailModal';
+import { RefreshButton } from '../components/ui/RefreshButton';
 import {
   FormSection,
   FieldGrid,
@@ -54,30 +54,6 @@ import { departmentLabel } from '../utils/department';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import { storeLocationLabel } from '../utils/location';
 
-const ITEM_STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  [ItemStatus.AVAILABLE]: { label: 'In store', className: statusTone.inStore },
-  [ItemStatus.ISSUED]: { label: 'Issued', className: statusTone.issued },
-  [ItemStatus.UNDER_TRANSFER]: { label: 'Under transfer', className: statusTone.pending },
-  [ItemStatus.PENDING_STOCK_IN]: { label: 'Receipt pending', className: statusTone.pending },
-  [ItemStatus.PENDING_STOCK_OUT]: { label: 'Issue pending', className: statusTone.pending },
-  [ItemStatus.DISPOSED]: { label: 'Disposed', className: statusTone.neutral },
-};
-
-const statusStyleOf = (item: ItemWithRelations) =>
-  item.balance && item.balance.issued > 0 && item.balance.available > 0
-    ? { label: 'Partly issued', className: statusTone.partly }
-    : ITEM_STATUS_LABELS[item.status] ?? { label: item.status, className: ITEM_STATUS_LABELS[ItemStatus.UNDER_TRANSFER].className };
-
-/** Units on this record, and how many the registration received when it has been split */
-const UnitsCell: React.FC<{ item: ItemWithRelations }> = ({ item }) => (
-  <td className="p-3 font-mono text-slate-800 whitespace-nowrap text-right">
-    {item.quantity || 1} {item.uom || 'EA'}
-    {!item.parentItemId && item.balance && item.balance.total > (item.quantity || 1) && (
-      <span className="block text-[10px] text-slate-400">of {item.balance.total} received</span>
-    )}
-  </td>
-);
-
 const REQUEST_TYPE_LABELS: Record<string, string> = {
   STOCK_IN: 'Receipt',
   STOCK_OUT: 'Issue',
@@ -85,127 +61,93 @@ const REQUEST_TYPE_LABELS: Record<string, string> = {
   RETURN: 'Return',
 };
 
+/** Who a pending request is waiting for */
 const STAGE_LABELS: Record<number, string> = {
-  1: 'Awaiting Team Leader',
-  2: 'Awaiting Dept. Head',
+  1: 'With Team Leader',
+  2: 'With Dept. Head',
 };
 
-/** Open request on an item, e.g. "Return · Awaiting Dept. Head" */
-const PendingRequestChip: React.FC<{ request: TransactionApproval }> = ({ request }) => (
-  <span
-    className={`${pill} ${statusTone.pending}`}
-    title="This item already has an open request. A new transfer or return can be submitted once it is approved or rejected."
-  >
-    <Clock className="w-3 h-3" />
-    {REQUEST_TYPE_LABELS[request.transactionType] ?? request.transactionType} · {STAGE_LABELS[request.currentStage] ?? 'Pending'}
-  </span>
-);
+type RequestFilter = 'ALL' | ApprovalStatus;
+const FILTERS: { value: RequestFilter; label: string }[] = [
+  { value: 'ALL', label: 'All' },
+  { value: ApprovalStatus.PENDING, label: 'Pending' },
+  { value: ApprovalStatus.APPROVED, label: 'Approved' },
+  { value: ApprovalStatus.REJECTED, label: 'Rejected' },
+];
 
-/** Edit for a transfer or return still waiting for the Team Leader; locked once endorsed */
-/** Edit action for a pending transfer / return; locked once the Team Leader has endorsed it */
-const editRequestAction = (request: TransactionApproval | undefined, onEdit: (request: TransactionApproval) => void, allowed: boolean): RowAction => ({
-  label: `Edit ${REQUEST_TYPE_LABELS[request?.transactionType ?? '']?.toLowerCase() ?? 'request'}`,
-  icon: Pencil,
-  onClick: () => request && onEdit(request),
-  hidden: !allowed || !request || !['TRANSFER', 'RETURN'].includes(request.transactionType),
-  disabled: request?.currentStage === 2,
-  reason: request?.currentStage === 2 ? 'The Team Leader has endorsed it. To correct it, ask an approver to reject it.' : undefined,
-});
+const RequestStatus: React.FC<{ request: TransactionApproval }> = ({ request }) => {
+  if (request.status === ApprovalStatus.PENDING) {
+    return (
+      <span className={`${pill} ${statusTone.pending}`}>
+        <Clock className="h-3 w-3" />
+        {STAGE_LABELS[request.currentStage] ?? 'Pending'}
+      </span>
+    );
+  }
+  return (
+    <span className={`${pill} ${request.status === ApprovalStatus.APPROVED ? statusTone.approved : statusTone.rejected}`}>
+      {request.status === ApprovalStatus.APPROVED ? 'Approved' : 'Rejected'}
+    </span>
+  );
+};
 
-interface TransferAssetPageProps {
-  currentRole: UserRole;
-  onNavigate: (tab: string) => void;
+const accessoriesOf = (jack: number, wrench: number, keys: number) =>
+  [
+    { name: 'jack with handle', quantity: jack },
+    { name: 'tire wrench', quantity: wrench },
+    { name: 'key', quantity: keys },
+  ].filter((a) => a.quantity > 0);
+
+const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+
+// ─── Transfer form (inside the pop-up) ──────────────────────────────────────
+
+interface TransferFormProps {
+  items: ItemWithRelations[];
+  employees: Employee[];
+  departments: Department[];
+  locations: Location[];
+  /** Open request per item: those items can't be chosen until it is decided */
+  pendingByItem: Map<string, TransactionApproval>;
+  /** When set, the form corrects this pending transfer instead of creating a new one */
+  editTransfer?: TransactionApproval;
+  onCancel: () => void;
+  onSaved: (voucher?: Model21Voucher) => void;
 }
 
-export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
-  currentRole,
-  onNavigate,
-}) => {
+const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, editTransfer, onCancel, onSaved }) => {
   const { user } = useAuth();
-  const canWrite = user?.permissions?.includes('transfers.write') ?? (currentRole === UserRole.DATA_ENCODER);
   const toast = useToast();
-  const [activeSubTab, setActiveSubTab] = useState<'all' | 'transfer' | 'return'>('all');
+  const details = editTransfer?.requestDetails ?? {};
+  const editItem = editTransfer ? items.find((i) => i.id === editTransfer.itemId) : undefined;
+  const qtyOf = (name: string) => details.accessories?.find((a) => a.name === name)?.quantity ?? 0;
 
-  useEffect(() => {
-    if (!canWrite && activeSubTab !== 'all') {
-      setActiveSubTab('all');
-    }
-  }, [canWrite, activeSubTab]);
-  const [items, setItems] = useState<ItemWithRelations[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  // Open request per item, so a second transfer/return isn't offered while one waits for approval
-  const [pendingByItem, setPendingByItem] = useState<Map<string, TransactionApproval>>(new Map());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Selected item for Return to Store Modal
-  const [returnItem, setReturnItem] = useState<ItemWithRelations | null>(null);
-  // Pending requests being corrected (only before Team Leader endorsement)
-  const [editTransfer, setEditTransfer] = useState<TransactionApproval | null>(null);
-  const [editReturn, setEditReturn] = useState<TransactionApproval | null>(null);
-  const [viewingItemId, setViewingItemId] = useState<string | null>(null);
-  const canEdit = currentRole === UserRole.DATA_ENCODER;
-
-  // Model 21 Printable Voucher Modal State
-  const [activeVoucher, setActiveVoucher] = useState<Model21Voucher | null>(null);
-
-  // Model 21 Transfer Form State
-  const [selectedItemId, setSelectedItemId] = useState('');
-  const [model21No, setModel21No] = useState('');
-  const [book, setBook] = useState('');
-  const [targetEmployeeId, setTargetEmployeeId] = useState('');
-  const [targetDepartmentId, setTargetDepartmentId] = useState('');
-  const [targetLocationId, setTargetLocationId] = useState('');
-  const [transferReason, setTransferReason] = useState('');
-  
-  // Technical / Vehicle Details (Model 21 document particulars)
-  const [chassisNumber, setChassisNumber] = useState('');
-  const [plateNo, setPlateNo] = useState('');
-  const [engineNo, setEngineNo] = useState('');
-  const [depreciation, setDepreciation] = useState<number>(0);
-  const [bookValue, setBookValue] = useState<number>(0);
+  const [selectedItemId, setSelectedItemId] = useState(editTransfer?.itemId ?? '');
+  const [model21No, setModel21No] = useState(editTransfer?.ifmisSlipNumber ?? '');
+  const [book, setBook] = useState(details.book ?? '');
+  const [targetEmployeeId, setTargetEmployeeId] = useState(editTransfer?.recipientEmployeeId ?? '');
+  const [targetDepartmentId, setTargetDepartmentId] = useState(editTransfer?.targetDepartmentId ?? '');
+  const [targetLocationId, setTargetLocationId] = useState(editTransfer?.targetLocationId ?? '');
+  const [transferReason, setTransferReason] = useState(details.reason ?? '');
+  const [chassisNumber, setChassisNumber] = useState(details.chassisNumber ?? editItem?.serialNumber ?? '');
+  const [plateNo, setPlateNo] = useState(details.plateNo ?? '');
+  const [engineNo, setEngineNo] = useState(details.engineNo ?? '');
+  const [depreciation, setDepreciation] = useState<number>(details.depreciation ?? 0);
+  const [bookValue, setBookValue] = useState<number>(details.bookValue ?? (editItem ? (editItem.unitCostETB || 0) * (Number(editItem.quantity) || 1) : 0));
   // Accessories start at zero: the encoder enters what was actually handed over
-  const [jackQty, setJackQty] = useState(0);
-  const [tireWrenchQty, setTireWrenchQty] = useState(0);
-  const [keyQty, setKeyQty] = useState(0);
-  const [tireSerials, setTireSerials] = useState('');
-  const [defectRemark, setDefectRemark] = useState('');
+  const [jackQty, setJackQty] = useState(qtyOf('jack with handle'));
+  const [tireWrenchQty, setTireWrenchQty] = useState(qtyOf('tire wrench'));
+  const [keyQty, setKeyQty] = useState(qtyOf('key'));
+  const [tireSerials, setTireSerials] = useState(details.tireNos?.join(', ') ?? '');
+  const [defectRemark, setDefectRemark] = useState(details.remark ?? '');
+  const [submitting, setSubmitting] = useState(false);
 
-  const [submittingTransfer, setSubmittingTransfer] = useState(false);
-  const [transferSuccessMsg, setTransferSuccessMsg] = useState<string | null>(null);
+  const selectedItemObj = items.find((i) => i.id === selectedItemId);
+  const selectedIsVehicleLike = selectedItemObj?.category === 'VEHICLE' || selectedItemObj?.category === 'AGRI_MACHINERY';
+  const todayGc = new Date().toISOString().split('T')[0];
+  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [itemsRes, deptsRes, empsRes, locsRes, approvalsRes] = await Promise.all([
-        api.getItems(),
-        api.getDepartments(),
-        api.getEmployees(),
-        api.getLocations(),
-        api.getApprovals(),
-      ]);
-      setItems(itemsRes);
-      setPendingByItem(new Map(approvalsRes.filter((a) => a.status === 'PENDING').map((a) => [a.itemId, a])));
-      setDepartments(deptsRes);
-      setEmployees(empsRes);
-      setLocations(locsRes);
-    } catch (err: any) {
-      console.error('Failed to load transfer asset data:', err);
-      setError(err.message || 'Failed to load assets for transfer.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // When selected item changes, auto-populate technical & valuation details
+  // A newly chosen asset brings its own details
   const handleItemSelect = (itemId: string) => {
     setSelectedItemId(itemId);
     const item = items.find((i) => i.id === itemId);
@@ -223,91 +165,18 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
     }
   };
 
-  const resetTransferForm = () => {
-    setSelectedItemId('');
-    setModel21No('');
-    setBook('');
-    setTargetEmployeeId('');
-    setTargetDepartmentId('');
-    setTargetLocationId('');
-    setTransferReason('');
-    setDefectRemark('');
-  };
-
-  /** Switching tabs leaves an unfinished correction */
-  const switchTab = (tab: 'all' | 'transfer' | 'return') => {
-    if (editTransfer) {
-      setEditTransfer(null);
-      resetTransferForm();
-    }
-    setActiveSubTab(tab);
-  };
-
-  const openEditRequest = (request: TransactionApproval) => {
-    const item = items.find((i) => i.id === request.itemId);
-    if (!item) {
-      toast.error('Item Not Found', `Could not load ${request.itemCode}. Refresh the page and try again.`);
-      return;
-    }
-    if (request.transactionType === 'RETURN') {
-      setEditReturn(request);
-      setReturnItem(item);
-      return;
-    }
-    const d = request.requestDetails ?? {};
-    handleItemSelect(item.id);
-    setModel21No(request.ifmisSlipNumber || '');
-    setBook(d.book ?? '');
-    setTargetEmployeeId(request.recipientEmployeeId ?? '');
-    setTargetDepartmentId(request.targetDepartmentId ?? '');
-    setTargetLocationId(request.targetLocationId ?? '');
-    setTransferReason(d.reason ?? '');
-    setDefectRemark(d.remark ?? '');
-    if (d.chassisNumber !== undefined) setChassisNumber(d.chassisNumber);
-    setPlateNo(d.plateNo ?? '');
-    setEngineNo(d.engineNo ?? '');
-    if (d.depreciation !== undefined) setDepreciation(d.depreciation);
-    if (d.bookValue !== undefined) setBookValue(d.bookValue);
-    if (d.accessories) {
-      const qty = (name: string) => d.accessories?.find((a) => a.name === name)?.quantity ?? 0;
-      setJackQty(qty('jack with handle'));
-      setTireWrenchQty(qty('tire wrench'));
-      setKeyQty(qty('key'));
-    }
-    setTireSerials(d.tireNos?.join(', ') ?? '');
-    setTransferSuccessMsg(null);
-    setEditTransfer(request);
-    setActiveSubTab('transfer');
-  };
-
-  const handleTransferSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedItemId) {
-      toast.warning('Asset Required', 'Please select an asset to transfer.');
-      return;
-    }
-    if (!targetEmployeeId) {
-      toast.warning('Recipient Required', 'Please select a recipient employee.');
-      return;
-    }
-    if (!model21No.trim()) {
-      toast.warning('Voucher Required', 'Please enter the Model 21 voucher number.');
-      return;
-    }
-    if (!transferReason.trim()) {
-      toast.warning('Reason Required', 'Please enter the reason for the transfer.');
-      return;
-    }
-    setSubmittingTransfer(true);
-    setTransferSuccessMsg(null);
+    if (!selectedItemId) return void toast.warning('Asset required', 'Choose the asset to transfer.');
+    if (!targetEmployeeId) return void toast.warning('Recipient required', 'Choose the employee who receives the asset.');
+    if (!model21No.trim()) return void toast.warning('Model 21 number required', 'Enter the number on the Model 21 form.');
+    if (!transferReason.trim()) return void toast.warning('Reason required', 'Enter the reason for the transfer.');
 
-    if (editTransfer) {
-      try {
-        const accessories = [
-          { name: 'jack with handle', quantity: jackQty },
-          { name: 'tire wrench', quantity: tireWrenchQty },
-          { name: 'key', quantity: keyQty },
-        ].filter((a) => a.quantity > 0);
+    const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty);
+    const tireList = tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+    setSubmitting(true);
+    try {
+      if (editTransfer) {
         await api.updateTransfer(editTransfer.id, {
           model21No: model21No.trim(),
           toEmployeeId: targetEmployeeId,
@@ -319,46 +188,18 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           plateNo: plateNo.trim() || undefined,
           engineNo: engineNo.trim() || undefined,
           accessories,
-          tireNos: tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean),
+          tireNos: tireList,
           depreciation,
           bookValue,
           remark: defectRemark.trim() || undefined,
         });
-        toast.success('Transfer Updated', `The transfer of ${editTransfer.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
-        setEditTransfer(null);
-        resetTransferForm();
-        setActiveSubTab('all');
-        fetchData();
-      } catch (err: any) {
-        toast.error('Transfer Update Failed', err.message || 'Failed to update the transfer.');
-      } finally {
-        setSubmittingTransfer(false);
+        toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
+        onSaved();
+        return;
       }
-      return;
-    }
 
-    try {
-      const selectedItem = items.find((i) => i.id === selectedItemId);
-      const fromCustodian = selectedItem?.currentCustodian;
-      const targetEmp = employees.find((e) => e.id === targetEmployeeId);
-      const fromLoc = storeLocationLabel(selectedItem?.storeLocation);
-      const toLocObj = locations.find((l) => l.id === targetLocationId);
-      // No new location chosen: the item stays in the same store
-      const toLoc = toLocObj ? storeLocationLabel(toLocObj) : fromLoc;
-      const todayGc = new Date().toISOString().split('T')[0];
-      const todayEc = formatGcToEc(todayGc);
-
-      const accessories = [
-        { name: 'jack with handle', quantity: jackQty },
-        { name: 'tire wrench', quantity: tireWrenchQty },
-        { name: 'key', quantity: keyQty },
-      ].filter((a) => a.quantity > 0);
-
-      const tireList = tireSerials
-        .split(/[,\n]/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-
+      const selectedItem = selectedItemObj;
+      const origCost = (selectedItem?.unitCostETB || 0) * (Number(selectedItem?.quantity) || 1);
       await api.transferItem({
         itemId: selectedItemId,
         toEmployeeId: targetEmployeeId,
@@ -373,12 +214,16 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         engineNo: engineNo.trim() || undefined,
         accessories,
         tireNos: tireList,
-        origCost: (selectedItem?.unitCostETB || 0) * (Number(selectedItem?.quantity) || 1),
+        origCost,
         depreciation,
         bookValue,
         remark: defectRemark.trim() || undefined,
       });
 
+      const fromCustodian = selectedItem?.currentCustodian;
+      const targetEmp = employees.find((emp) => emp.id === targetEmployeeId);
+      const fromLoc = storeLocationLabel(selectedItem?.storeLocation);
+      const toLocObj = locations.find((l) => l.id === targetLocationId);
       const voucher: Model21Voucher = {
         approvalState: 'PENDING',
         model21No: model21No.trim(),
@@ -396,13 +241,14 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
             chassisNumber: chassisNumber.trim() || undefined,
             uom: selectedItem?.uom || 'EA',
             unit: Number(selectedItem?.quantity) || 1,
-            origCost: (selectedItem?.unitCostETB || 0) * (Number(selectedItem?.quantity) || 1),
+            origCost,
             depreciation,
             bookValue,
             dateGc: todayGc,
-            dateEc: todayEc,
+            dateEc: formatGcToEc(todayGc),
             fromLocation: fromLoc,
-            toLocation: toLoc,
+            // No new location chosen: the item stays in the same store
+            toLocation: toLocObj ? storeLocationLabel(toLocObj) : fromLoc,
             plateNo: plateNo.trim() || undefined,
             engineNo: engineNo.trim() || undefined,
             accessories: accessories.length > 0 ? accessories : undefined,
@@ -412,685 +258,696 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
         ],
         famuAccountantName: 'FAMU Reviewer',
         reportTakenBy: user?.payrollId || '—',
-        reportTakenDate: `${todayGc} @ ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`,
+        reportTakenDate: `${todayGc} @ ${timeNow()}`,
       };
-
-      const msg = `Model 21 transfer of ${selectedItem?.itemCode || selectedItemId} to ${targetEmp?.fullNameEn || 'new custodian'} submitted for Team Leader endorsement. Custody changes after Stage 2 approval.`;
-      setTransferSuccessMsg(msg);
-      toast.success('Transfer Submitted for Approval', msg);
-      setActiveVoucher(voucher);
-
-      // Reset form
-      setSelectedItemId('');
-      setTargetEmployeeId('');
-      setTargetDepartmentId('');
-      setTargetLocationId('');
-      setTransferReason('');
-      fetchData();
+      toast.success(
+        'Transfer submitted for approval',
+        `${selectedItem?.itemCode || 'The asset'} to ${targetEmp?.fullNameEn || 'the new custodian'}. Custody changes after the Department Head approves it.`,
+      );
+      onSaved(voucher);
     } catch (err: any) {
-      const errMsg = err.message || 'Failed to process transfer.';
-      toast.error('Transfer Failed', errMsg);
+      toast.error(editTransfer ? "The transfer couldn't be updated" : 'Transfer failed', err.message || 'Try again.');
     } finally {
-      setSubmittingTransfer(false);
+      setSubmitting(false);
     }
   };
 
-  const handlePrintModel21 = (item: ItemWithRelations) => {
-    const todayGc = new Date().toISOString().split('T')[0];
-    const todayEc = formatGcToEc(todayGc);
-    const custodian = item.currentCustodian;
-    const loc = storeLocationLabel(item.storeLocation);
-    const units = Number(item.quantity) || 1;
-    const cost = (item.unitCostETB || 0) * units;
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* ── Section 1: Transfer voucher ── */}
+      <FormSection step={1} title="Transfer voucher" subtitle="የዝውውር ሰነድ · Model 21 register" icon={FileText} accent="emerald">
+        <FieldGrid>
+          <Field label="Model 21 No." required>
+            <input
+              type="text"
+              required
+              value={model21No}
+              onChange={(e) => setModel21No(e.target.value)}
+              placeholder="Number on the Model 21 form"
+              className={`${input({ mono: true })} font-semibold`}
+            />
+          </Field>
 
-    const voucher: Model21Voucher = {
-      approvalState: pendingByItem.get(item.id) ? 'PENDING' : undefined,
-      model21No: item.ifmisSlipNumber || '—',
-      fromEmployeeName: custodian?.fullNameEn || '—',
-      fromEmployeeId: custodian?.payrollId || '—',
-      book: '—',
-      toEmployeeName: '—',
-      toEmployeeId: '—',
+          <Field label="Register book" required>
+            <input
+              type="text"
+              required
+              value={book}
+              onChange={(e) => setBook(e.target.value)}
+              placeholder="Book the form comes from"
+              className={input()}
+            />
+          </Field>
+
+          <Field
+            label="Transfer date (G.C.)"
+            hint={
+              editTransfer
+                ? `${formatGcToEc(editTransfer.ifmisSlipDateGc)} E.C. · date the transfer was requested`
+                : `${formatGcToEc(todayGc)} E.C. · recorded as today`
+            }
+          >
+            <ReadOnlyValue mono>{editTransfer ? editTransfer.ifmisSlipDateGc : todayGc}</ReadOnlyValue>
+          </Field>
+        </FieldGrid>
+      </FormSection>
+
+      {/* ── Section 2: Asset ── */}
+      <FormSection step={2} title="Asset" subtitle="የሚዛወረው ንብረት" icon={Tag} accent="emerald">
+        <div className="space-y-3.5">
+          {editTransfer ? (
+            <Field label="Issued asset" hint="The asset can't be changed. To transfer a different asset, ask an approver to reject this request.">
+              <ReadOnlyValue mono>
+                {editTransfer.itemCode} — {editTransfer.itemName}
+              </ReadOnlyValue>
+            </Field>
+          ) : (
+            <Field label="Issued asset" required htmlFor="transfer-item" hint="Only assets currently issued to a custodian are listed. Type a name, code or custodian to find one.">
+              <SearchableSelect
+                id="transfer-item"
+                value={selectedItemId}
+                onChange={handleItemSelect}
+                placeholder="Select an asset…"
+                searchPlaceholder="Search by name, code or custodian…"
+                groups={[
+                  {
+                    label: 'Issued assets',
+                    options: items
+                      .filter((i) => i.status === ItemStatus.ISSUED)
+                      .map((item) => {
+                        const pending = pendingByItem.get(item.id);
+                        return {
+                          value: item.id,
+                          label: `${item.itemCode} — ${item.name}`,
+                          note: `${item.quantity || 1} ${item.uom || 'EA'} · ${item.currentCustodian?.fullNameEn || 'assigned'}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
+                          disabled: !!pending,
+                        };
+                      }),
+                  },
+                ]}
+              />
+            </Field>
+          )}
+
+          {selectedItemObj && (
+            <SummaryGrid
+              items={[
+                { label: 'Tag number', value: selectedItemObj.itemCode, mono: true },
+                { label: 'Description', value: selectedItemObj.name },
+                { label: 'Current location', value: storeLocationLabel(selectedItemObj.storeLocation) },
+                {
+                  label: `Original cost (${selectedItemObj.quantity || 1} ${selectedItemObj.uom || 'EA'})`,
+                  value: formatETB((selectedItemObj.unitCostETB || 0) * (Number(selectedItemObj.quantity) || 1)),
+                  mono: true,
+                },
+              ]}
+            />
+          )}
+
+          <FieldGrid cols={2}>
+            <Field label="Chassis / serial number" optional>
+              <input
+                type="text"
+                placeholder="e.g. JTEBB71JX07008920"
+                value={chassisNumber}
+                onChange={(e) => setChassisNumber(e.target.value)}
+                className={input({ mono: true })}
+              />
+            </Field>
+
+            <Field label="Accumulated depreciation (ETB)" optional hint={`Net book value: ${formatETB(bookValue)}`}>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={depreciation}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value) || 0;
+                  setDepreciation(val);
+                  setBookValue(Math.max(0, (selectedItemObj?.unitCostETB || 0) * (Number(selectedItemObj?.quantity) || 1) - val));
+                }}
+                className={input({ mono: true, align: 'right' })}
+              />
+            </Field>
+          </FieldGrid>
+        </div>
+      </FormSection>
+
+      {/* ── Section 3: Transfer to ── */}
+      <FormSection step={3} title="Transfer to" subtitle="ተረካቢ" icon={UserCheck} accent="emerald">
+        <div className="space-y-3.5">
+          <FieldGrid cols={2}>
+            <Field label="From (current custodian)">
+              <ReadOnlyValue>
+                {selectedItemObj?.currentCustodian
+                  ? `${selectedItemObj.currentCustodian.fullNameEn} (${selectedItemObj.currentCustodian.payrollId})`
+                  : 'Select an asset first'}
+              </ReadOnlyValue>
+            </Field>
+
+            <Field label="To employee" required htmlFor="transfer-recipient" hint="Type a name or employee ID.">
+              <SearchableSelect
+                id="transfer-recipient"
+                value={targetEmployeeId}
+                onChange={setTargetEmployeeId}
+                placeholder="Select an employee…"
+                searchPlaceholder="Search by name or employee ID…"
+                groups={[
+                  {
+                    label: 'Employees',
+                    options: employees.map((emp) => ({
+                      value: emp.id,
+                      label: `${emp.fullNameEn} (${emp.payrollId})`,
+                      // The person who holds it can't also receive it
+                      disabled: emp.id === selectedItemObj?.currentCustodianId,
+                      note: emp.id === selectedItemObj?.currentCustodianId ? 'holds this asset now' : undefined,
+                    })),
+                  },
+                ]}
+              />
+            </Field>
+
+            <Field label="To directorate" optional hint="Leave on Select… to keep the current directorate.">
+              <select value={targetDepartmentId} onChange={(e) => setTargetDepartmentId(e.target.value)} className={input()}>
+                <option value="">Select…</option>
+                {departments.map((dep) => (
+                  <option key={dep.id} value={dep.id}>
+                    {departmentLabel(dep)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="To location" optional hint="Leave on Select… to keep the current location.">
+              <select value={targetLocationId} onChange={(e) => setTargetLocationId(e.target.value)} className={input()}>
+                <option value="">Select…</option>
+                {[...new Map(locations.map((loc) => [loc.storeId, loc.storeName])).entries()].map(([storeId, storeName]) => (
+                  <optgroup key={storeId} label={storeName}>
+                    {locations
+                      .filter((loc) => loc.storeId === storeId)
+                      .map((loc) => (
+                        <option key={loc.id} value={loc.id}>
+                          {storeName} · {loc.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
+              </select>
+            </Field>
+          </FieldGrid>
+
+          <Field label="Reason for transfer" required>
+            <input
+              type="text"
+              required
+              value={transferReason}
+              onChange={(e) => setTransferReason(e.target.value)}
+              placeholder="e.g. Reassigned for field survey work"
+              className={input()}
+            />
+          </Field>
+
+          <Field label="Defects / remarks" optional>
+            <textarea
+              rows={2}
+              value={defectRemark}
+              onChange={(e) => setDefectRemark(e.target.value)}
+              placeholder="e.g. The right side mirror is missing. Both rear lights are broken."
+              className={textareaClass('emerald')}
+            />
+          </Field>
+        </div>
+      </FormSection>
+
+      {/* ── Section 4: Vehicle & machinery details (optional) ── */}
+      <FormSection
+        key={selectedIsVehicleLike ? 'vehicle' : 'other'}
+        step={4}
+        title="Vehicle & machinery details"
+        subtitle="Plate, engine, accessories and tires · only for vehicles and machinery"
+        icon={Car}
+        accent="emerald"
+        collapsible
+        defaultOpen={selectedIsVehicleLike}
+      >
+        <div className="space-y-3.5">
+          <FieldGrid cols={2}>
+            <Field label="Plate number" optional>
+              <input type="text" placeholder="e.g. 4-23794" value={plateNo} onChange={(e) => setPlateNo(e.target.value)} className={input({ mono: true })} />
+            </Field>
+            <Field label="Engine number" optional>
+              <input type="text" placeholder="e.g. 1HZ-0641864" value={engineNo} onChange={(e) => setEngineNo(e.target.value)} className={input({ mono: true })} />
+            </Field>
+          </FieldGrid>
+
+          <FieldGrid>
+            <Field label="Jack with handle (qty)">
+              <input type="number" min="0" value={jackQty} onChange={(e) => setJackQty(parseInt(e.target.value) || 0)} className={input({ mono: true, align: 'right' })} />
+            </Field>
+            <Field label="Tire wrench (qty)">
+              <input type="number" min="0" value={tireWrenchQty} onChange={(e) => setTireWrenchQty(parseInt(e.target.value) || 0)} className={input({ mono: true, align: 'right' })} />
+            </Field>
+            <Field label="Keys (qty)">
+              <input type="number" min="0" value={keyQty} onChange={(e) => setKeyQty(parseInt(e.target.value) || 0)} className={input({ mono: true, align: 'right' })} />
+            </Field>
+          </FieldGrid>
+
+          <Field label="Tire serial numbers" optional hint="Separate with commas or new lines">
+            <input
+              type="text"
+              placeholder="e.g. R240514711, R240504703, YY0219"
+              value={tireSerials}
+              onChange={(e) => setTireSerials(e.target.value)}
+              className={input({ mono: true })}
+            />
+          </Field>
+        </div>
+      </FormSection>
+
+      <FormFooter
+        accent="emerald"
+        submitting={submitting}
+        submitLabel={editTransfer ? 'Save changes' : 'Submit transfer for approval'}
+        onCancel={onCancel}
+      />
+    </form>
+  );
+};
+
+// ─── Page ───────────────────────────────────────────────────────────────────
+
+interface TransferAssetPageProps {
+  currentRole: UserRole;
+  onNavigate: (tab: string) => void;
+}
+
+export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({ currentRole }) => {
+  const { user } = useAuth();
+  const toast = useToast();
+  const canWrite = user?.permissions?.includes('transfers.write') ?? currentRole === UserRole.DATA_ENCODER;
+
+  const [items, setItems] = useState<ItemWithRelations[]>([]);
+  const [requests, setRequests] = useState<TransactionApproval[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [filter, setFilter] = useState<RequestFilter>('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Pop-ups
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [editTransfer, setEditTransfer] = useState<TransactionApproval | null>(null);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnItem, setReturnItem] = useState<ItemWithRelations | null>(null);
+  const [editReturn, setEditReturn] = useState<TransactionApproval | null>(null);
+  const [viewing, setViewing] = useState<TransactionApproval | null>(null);
+  const [activeVoucher, setActiveVoucher] = useState<Model21Voucher | null>(null);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [itemsRes, deptsRes, empsRes, locsRes, approvalsRes] = await Promise.all([
+        api.getItems(),
+        api.getDepartments(),
+        api.getEmployees(),
+        api.getLocations(),
+        api.getApprovals(),
+      ]);
+      setItems(itemsRes);
+      setRequests(approvalsRes);
+      setDepartments(deptsRes);
+      setEmployees(empsRes);
+      setLocations(locsRes);
+    } catch (err: any) {
+      console.error('Failed to load transfers:', err);
+      setError(err.message || 'The transfers could not be loaded.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Open request per item, so a second transfer or return isn't offered while one waits
+  const pendingByItem = useMemo(
+    () => new Map(requests.filter((a) => a.status === ApprovalStatus.PENDING).map((a) => [a.itemId, a] as const)),
+    [requests],
+  );
+  const itemById = useMemo(() => new Map(items.map((i) => [i.id, i] as const)), [items]);
+
+  // This page's records: Model 21 transfers and returns, newest first
+  const model21 = useMemo(
+    () =>
+      requests
+        .filter((a) => a.transactionType === 'TRANSFER' || a.transactionType === 'RETURN')
+        .sort((a, b) => String(b.createdAtGc).localeCompare(String(a.createdAtGc))),
+    [requests],
+  );
+
+  /** Where the asset goes: the new holder for a transfer, the store for a return */
+  const destinationOf = (r: TransactionApproval): string => {
+    if (r.transactionType === 'TRANSFER') {
+      return r.recipientEmployee?.fullNameEn || employees.find((e) => e.id === r.recipientEmployeeId)?.fullNameEn || '—';
+    }
+    const location = locations.find((l) => l.id === r.targetLocationId);
+    return location ? storeLocationLabel(location) : storeLocationLabel(itemById.get(r.itemId)?.storeLocation) || 'Store';
+  };
+
+  const shown = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return model21.filter((r) => {
+      if (filter !== 'ALL' && r.status !== filter) return false;
+      if (!q) return true;
+      return [r.itemName, r.itemCode, r.ifmisSlipNumber, destinationOf(r), r.requestedBy?.fullNameEn].some((v) => (v || '').toLowerCase().includes(q));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model21, filter, searchTerm, employees, locations, itemById]);
+  const pager = usePagination(shown, { resetKey: `${filter}|${searchTerm}` });
+
+  // Summary tiles
+  const issuedCount = items.filter((i) => i.status === ItemStatus.ISSUED).length;
+  const pendingTransfers = model21.filter((r) => r.transactionType === 'TRANSFER' && r.status === ApprovalStatus.PENDING).length;
+  const pendingReturns = model21.filter((r) => r.transactionType === 'RETURN' && r.status === ApprovalStatus.PENDING).length;
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const approvedThisMonth = model21.filter((r) => r.status === ApprovalStatus.APPROVED && String(r.reviewedAtGc || '').startsWith(thisMonth)).length;
+
+  const openNewTransfer = () => {
+    setEditTransfer(null);
+    setTransferOpen(true);
+  };
+  const openEdit = (r: TransactionApproval) => {
+    if (r.transactionType === 'TRANSFER') {
+      setEditTransfer(r);
+      setTransferOpen(true);
+      return;
+    }
+    const item = itemById.get(r.itemId);
+    if (!item) return void toast.error('Item not found', `Could not load ${r.itemCode}. Refresh the page and try again.`);
+    setEditReturn(r);
+    setReturnItem(item);
+    setReturnOpen(true);
+  };
+  const closeTransfer = () => {
+    setTransferOpen(false);
+    setEditTransfer(null);
+  };
+  const closeReturn = () => {
+    setReturnOpen(false);
+    setReturnItem(null);
+    setEditReturn(null);
+  };
+
+  /** Model 21 voucher for a request, rebuilt from what was recorded with it */
+  const printRequest = async (r: TransactionApproval) => {
+    const d = r.requestDetails ?? {};
+    let item = itemById.get(r.itemId);
+    let fromName = '—';
+    try {
+      // The full history says who held the asset when the request was made
+      item = (await api.getItemById(r.itemId)) ?? item;
+      const requested = item?.history?.find((h) => /_REQUESTED$/.test(h.action) && h.ifmisSlipNumber === r.ifmisSlipNumber);
+      fromName = requested?.fromEntity || item?.currentCustodian?.fullNameEn || '—';
+    } catch {
+      fromName = item?.currentCustodian?.fullNameEn || '—';
+    }
+    const fromEmp = employees.find((e) => e.fullNameEn === fromName);
+    const toEmp =
+      r.transactionType === 'TRANSFER'
+        ? employees.find((e) => e.id === r.recipientEmployeeId) || r.recipientEmployee
+        : employees.find((e) => e.id === d.storeRecipientId);
+    const units = Number(item?.quantity) || 1;
+    const origCost = d.origCost ?? (item?.unitCostETB || 0) * units;
+    const fromLoc = storeLocationLabel(item?.storeLocation);
+    const toLocation = locations.find((l) => l.id === r.targetLocationId);
+    const todayGc = new Date().toISOString().split('T')[0];
+    setActiveVoucher({
+      approvalState: r.status === ApprovalStatus.PENDING ? 'PENDING' : r.status === ApprovalStatus.REJECTED ? 'REJECTED' : undefined,
+      model21No: r.ifmisSlipNumber || '—',
+      fromEmployeeName: fromName,
+      fromEmployeeId: fromEmp?.payrollId || '—',
+      book: d.book || '—',
+      toEmployeeName: toEmp?.fullNameEn || (r.transactionType === 'RETURN' ? destinationOf(r) : '—'),
+      toEmployeeId: toEmp?.payrollId || '—',
       items: [
         {
           sNo: 1,
-          description: item.name,
-          tagNumber: item.itemCode,
-          serialNumber: item.serialNumber || '',
-          chassisNumber: item.serialNumber || undefined,
-          uom: item.uom || 'EA',
+          description: r.itemName,
+          tagNumber: r.itemCode,
+          serialNumber: item?.serialNumber || '',
+          chassisNumber: d.chassisNumber || undefined,
+          uom: item?.uom || 'EA',
           unit: units,
-          origCost: cost,
-          depreciation: 0,
-          bookValue: cost,
-          dateGc: todayGc,
-          dateEc: todayEc,
-          fromLocation: loc,
-          toLocation: loc,
-          remark: '',
+          origCost,
+          depreciation: d.depreciation ?? 0,
+          bookValue: d.bookValue ?? origCost,
+          dateGc: r.ifmisSlipDateGc || String(r.createdAtGc).slice(0, 10),
+          dateEc: r.ifmisSlipDateEc || formatGcToEc(r.ifmisSlipDateGc || String(r.createdAtGc).slice(0, 10)),
+          fromLocation: fromLoc,
+          toLocation: toLocation ? storeLocationLabel(toLocation) : fromLoc,
+          plateNo: d.plateNo || undefined,
+          engineNo: d.engineNo || undefined,
+          accessories: d.accessories && d.accessories.length > 0 ? d.accessories : undefined,
+          tireNos: d.tireNos && d.tireNos.length > 0 ? d.tireNos : undefined,
+          remark: d.remark || undefined,
         },
       ],
       famuAccountantName: 'FAMU Reviewer',
       reportTakenBy: user?.payrollId || '—',
-      reportTakenDate: `${todayGc} @ ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`,
-    };
-    setActiveVoucher(voucher);
+      reportTakenDate: `${todayGc} @ ${timeNow()}`,
+    });
   };
 
-  const filteredItems = items.filter((item) => {
-    const q = searchTerm.trim().toLowerCase();
-    const matchesSearch =
-      !q ||
-      (item.itemCode || '').toLowerCase().includes(q) ||
-      (item.name || '').toLowerCase().includes(q) ||
-      (item.serialNumber || '').toLowerCase().includes(q) ||
-      (item.ifmisSlipNumber || '').toLowerCase().includes(q) ||
-      (item.currentCustodian?.fullNameEn || '').toLowerCase().includes(q) ||
-      (item.assignedDepartment?.nameEn || '').toLowerCase().includes(q);
-
-    if (activeSubTab === 'transfer' || activeSubTab === 'return') {
-      return matchesSearch && item.status === ItemStatus.ISSUED;
-    }
-    return matchesSearch;
-  });
-  const ledgerPager = usePagination(filteredItems, { resetKey: `${searchTerm}|${activeSubTab}` });
-  const issuedItems = items.filter((i) => i.status === ItemStatus.ISSUED);
-  const issuedPager = usePagination(issuedItems, { resetKey: activeSubTab });
-
-  const selectedItemObj = items.find((i) => i.id === selectedItemId);
-  const selectedIsVehicleLike =
-    selectedItemObj?.category === 'VEHICLE' || selectedItemObj?.category === 'AGRI_MACHINERY';
-  const todayGc = new Date().toISOString().split('T')[0];
-  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
+  if (error) {
+    return (
+      <div className="p-8 rounded-2xl bg-red-50 border border-red-200 text-center space-y-3 max-w-md mx-auto my-12 animate-fadeIn">
+        <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
+        <h3 className="text-sm font-bold text-red-900">The transfers could not be loaded</h3>
+        <p className="text-xs text-red-700">{error}</p>
+        <button onClick={fetchData} className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl transition cursor-pointer inline-flex items-center gap-1.5">
+          <RefreshCw className="w-3.5 h-3.5" />
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-16">
-      {/* Top Banner Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shadow-md">
-            <ArrowRightLeft className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              Transfers
-              <span className="text-xs font-normal text-emerald-800 font-amharic">
-                (የንብረት ዝውውር እና መመለሻ - ሞዴል 21)
-              </span>
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Model 21 internal transfers between custodians and returns to store.
-            </p>
-          </div>
+    <div className="space-y-5 animate-fadeIn pb-16">
+      {/* ── Page header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+        <div>
+          <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+            <ArrowRightLeft className="w-5 h-5 text-emerald-700" />
+            Transfers — የንብረት ዝውውር (ሞዴል 21)
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">Move issued assets between custodians, or return them to store, on the Model 21 form.</p>
         </div>
-
-        {/* Quick Action Navigation Pills */}
-        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
-          <button
-            onClick={() => switchTab('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-              activeSubTab === 'all'
-                ? 'bg-white text-emerald-950 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            All transfers
-          </button>
-          {canWrite && (
-            <>
-              <button
-                onClick={() => switchTab('transfer')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                  activeSubTab === 'transfer'
-                    ? btn.tabActive
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <ArrowRightLeft className="w-3.5 h-3.5" />
-                Transfer Form (Model 21)
-              </button>
-              <button
-                onClick={() => switchTab('return')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                  activeSubTab === 'return'
-                    ? btn.tabActive
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Return to Store (Model 21)
-              </button>
-            </>
-          )}
-        </div>
+        {canWrite && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setReturnOpen(true)} className={btn.secondary}>
+              <RotateCcw className="w-4 h-4" />
+              Return to store
+            </button>
+            <button type="button" onClick={openNewTransfer} className={btn.primary}>
+              <Plus className="w-4 h-4" />
+              New transfer (Model 21)
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Main Content Sections */}
-      {activeSubTab === 'transfer' ? (
-        /* ── Model 21 Fixed Asset Internal Transfer Form ──────────────────── */
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-xs">
-          <div className="flex flex-col gap-1 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                <ArrowRightLeft className="h-5 w-5 text-emerald-600" />
-                {editTransfer ? `Edit transfer · ${editTransfer.itemCode}` : 'New transfer · Model 21'}
-              </h2>
-              <p className="mt-0.5 text-xs text-slate-500">
-                {editTransfer
-                  ? 'You can correct this transfer until the Team Leader endorses it. Each change is recorded in the item history.'
-                  : 'Custody moves to the new holder only after the Team Leader endorses and the Department Head approves it.'}
-              </p>
-            </div>
+      {/* ── Summary ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="Issued assets" value={issuedCount} subtitle="With custodians now" icon={<UserCheck className="w-5 h-5" />} />
+        <StatCard label="Transfers pending" value={pendingTransfers} subtitle="Waiting for approval" icon={<ArrowRightLeft className="w-5 h-5" />} />
+        <StatCard label="Returns pending" value={pendingReturns} subtitle="Waiting for approval" icon={<RotateCcw className="w-5 h-5" />} />
+        <StatCard label="Approved this month" value={approvedThisMonth} subtitle="Transfers and returns" icon={<CheckCircle2 className="w-5 h-5" />} />
+      </div>
+
+      {/* ── Requests ── */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+        <div className="flex flex-col gap-3 border-b border-slate-200 p-3.5 md:flex-row md:items-center md:justify-between">
+          <div role="group" aria-label="Show requests" className="flex flex-wrap items-center gap-1.5">
+            {FILTERS.map((f) => {
+              const count = f.value === 'ALL' ? model21.length : model21.filter((r) => r.status === f.value).length;
+              return (
+                <button
+                  key={f.value}
+                  type="button"
+                  aria-pressed={filter === f.value}
+                  onClick={() => setFilter(f.value)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    filter === f.value ? 'bg-emerald-800 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {f.label} <span className="ml-0.5 opacity-75">{count}</span>
+                </button>
+              );
+            })}
           </div>
-
-          <div className="space-y-4 px-6 py-5">
-            {transferSuccessMsg && (
-              <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900 animate-fadeIn">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
-                  <span>{transferSuccessMsg}</span>
-                </div>
-                {activeVoucher && (
-                  <button
-                    onClick={() => setActiveVoucher(activeVoucher)}
-                    className="flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-800 cursor-pointer"
-                  >
-                    <Printer className="h-3.5 w-3.5" />
-                    Print Model 21
-                  </button>
-                )}
-              </div>
-            )}
-
-            <form onSubmit={handleTransferSubmit} className="space-y-4">
-              {/* ── Section 1: Transfer voucher ── */}
-              <FormSection step={1} title="Transfer voucher" subtitle="የዝውውር ሰነድ · Model 21 register" icon={FileText} accent="emerald">
-                <FieldGrid>
-                  <Field label="Model 21 No." required>
-                    <input
-                      type="text"
-                      required
-                      value={model21No}
-                      onChange={(e) => setModel21No(e.target.value)}
-                      placeholder="Number on the Model 21 form"
-                      className={`${input({ mono: true })} font-semibold`}
-                    />
-                  </Field>
-
-                  <Field label="Register book" required>
-                    <input
-                      type="text"
-                      required
-                      value={book}
-                      onChange={(e) => setBook(e.target.value)}
-                      placeholder="Book the form comes from"
-                      className={input()}
-                    />
-                  </Field>
-
-                  <Field
-                    label="Transfer date (G.C.)"
-                    hint={
-                      editTransfer
-                        ? `${formatGcToEc(editTransfer.ifmisSlipDateGc)} E.C. · date the transfer was requested`
-                        : `${formatGcToEc(todayGc)} E.C. · recorded as today`
-                    }
-                  >
-                    <ReadOnlyValue mono>{editTransfer ? editTransfer.ifmisSlipDateGc : todayGc}</ReadOnlyValue>
-                  </Field>
-                </FieldGrid>
-              </FormSection>
-
-              {/* ── Section 2: Asset ── */}
-              <FormSection step={2} title="Asset" subtitle="የሚዛወረው ንብረት" icon={Tag} accent="emerald">
-                <div className="space-y-3.5">
-                  {editTransfer ? (
-                    <Field label="Issued asset" hint="The asset can't be changed. To transfer a different asset, ask an approver to reject this request.">
-                      <ReadOnlyValue mono>
-                        {editTransfer.itemCode} — {editTransfer.itemName}
-                      </ReadOnlyValue>
-                    </Field>
-                  ) : (
-                  <Field label="Issued asset" required htmlFor="transfer-item" hint="Only assets currently issued to a custodian are listed. Type a name, code or custodian to find one.">
-                    <SearchableSelect
-                      id="transfer-item"
-                      value={selectedItemId}
-                      onChange={handleItemSelect}
-                      placeholder="Select an asset…"
-                      searchPlaceholder="Search by name, code or custodian…"
-                      groups={[
-                        {
-                          label: 'Issued assets',
-                          options: items
-                            .filter((i) => i.status === ItemStatus.ISSUED)
-                            .map((item) => {
-                              const pending = pendingByItem.get(item.id);
-                              return {
-                                value: item.id,
-                                label: `${item.itemCode} — ${item.name}`,
-                                note: `${item.quantity || 1} ${item.uom || 'EA'} · ${item.currentCustodian?.fullNameEn || 'assigned'}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
-                                disabled: !!pending,
-                              };
-                            }),
-                        },
-                      ]}
-                    />
-                  </Field>
-                  )}
-
-                  {selectedItemObj && (
-                    <SummaryGrid
-                      items={[
-                        { label: 'Tag number', value: selectedItemObj.itemCode, mono: true },
-                        { label: 'Description', value: selectedItemObj.name },
-                        { label: 'Current location', value: selectedItemObj.storeLocation?.siteName },
-                        {
-                          label: `Original cost (${selectedItemObj.quantity || 1} ${selectedItemObj.uom || 'EA'})`,
-                          value: formatETB((selectedItemObj.unitCostETB || 0) * (Number(selectedItemObj.quantity) || 1)),
-                          mono: true,
-                        },
-                      ]}
-                    />
-                  )}
-
-                  <FieldGrid cols={2}>
-                    <Field label="Chassis / serial number" optional>
-                      <input
-                        type="text"
-                        placeholder="e.g. JTEBB71JX07008920"
-                        value={chassisNumber}
-                        onChange={(e) => setChassisNumber(e.target.value)}
-                        className={input({ mono: true })}
-                      />
-                    </Field>
-
-                    <Field label="Accumulated depreciation (ETB)" optional hint={`Net book value: ${formatETB(bookValue)}`}>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={depreciation}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value) || 0;
-                          setDepreciation(val);
-                          setBookValue(Math.max(0, (selectedItemObj?.unitCostETB || 0) * (Number(selectedItemObj?.quantity) || 1) - val));
-                        }}
-                        className={input({ mono: true, align: 'right' })}
-                      />
-                    </Field>
-                  </FieldGrid>
-                </div>
-              </FormSection>
-
-              {/* ── Section 3: Transfer to ── */}
-              <FormSection step={3} title="Transfer to" subtitle="ተረካቢ" icon={UserCheck} accent="emerald">
-                <div className="space-y-3.5">
-                  <FieldGrid cols={2}>
-                    <Field label="From (current custodian)">
-                      <ReadOnlyValue>
-                        {selectedItemObj?.currentCustodian
-                          ? `${selectedItemObj.currentCustodian.fullNameEn} (${selectedItemObj.currentCustodian.payrollId})`
-                          : 'Select an asset first'}
-                      </ReadOnlyValue>
-                    </Field>
-
-                    <Field label="To employee" required htmlFor="transfer-recipient" hint="Type a name or employee ID.">
-                      <SearchableSelect
-                        id="transfer-recipient"
-                        value={targetEmployeeId}
-                        onChange={setTargetEmployeeId}
-                        placeholder="Select an employee…"
-                        searchPlaceholder="Search by name or employee ID…"
-                        groups={[
-                          {
-                            label: 'Employees',
-                            options: employees.map((emp) => ({
-                              value: emp.id,
-                              label: `${emp.fullNameEn} (${emp.payrollId})`,
-                              // The person who holds it can't also receive it
-                              disabled: emp.id === selectedItemObj?.currentCustodianId,
-                              note: emp.id === selectedItemObj?.currentCustodianId ? 'holds this asset now' : undefined,
-                            })),
-                          },
-                        ]}
-                      />
-                    </Field>
-
-                    <Field label="To directorate" optional hint="Leave on Select… to keep the current directorate.">
-                      <select
-                        value={targetDepartmentId}
-                        onChange={(e) => setTargetDepartmentId(e.target.value)}
-                        className={input()}
-                      >
-                        <option value="">Select…</option>
-                        {departments.map((dep) => (
-                          <option key={dep.id} value={dep.id}>
-                            {departmentLabel(dep)}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-
-                    <Field label="To location" optional hint="Leave on Select… to keep the current location.">
-                      <select
-                        value={targetLocationId}
-                        onChange={(e) => setTargetLocationId(e.target.value)}
-                        className={input()}
-                      >
-                        <option value="">Select…</option>
-                        {[...new Map(locations.map((loc) => [loc.storeId, loc.storeName])).entries()].map(([storeId, storeName]) => (
-                          <optgroup key={storeId} label={storeName}>
-                            {locations
-                              .filter((loc) => loc.storeId === storeId)
-                              .map((loc) => (
-                                <option key={loc.id} value={loc.id}>
-                                  {storeName} · {loc.name}
-                                </option>
-                              ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                    </Field>
-                  </FieldGrid>
-
-                  <Field label="Reason for transfer" required>
-                    <input
-                      type="text"
-                      required
-                      value={transferReason}
-                      onChange={(e) => setTransferReason(e.target.value)}
-                      placeholder="e.g. Reassigned for field survey work"
-                      className={input()}
-                    />
-                  </Field>
-
-                  <Field label="Defects / remarks" optional>
-                    <textarea
-                      rows={2}
-                      value={defectRemark}
-                      onChange={(e) => setDefectRemark(e.target.value)}
-                      placeholder="e.g. The right side mirror is missing. Both rear lights are broken."
-                      className={textareaClass('emerald')}
-                    />
-                  </Field>
-                </div>
-              </FormSection>
-
-              {/* ── Section 4: Vehicle & machinery details (optional) ── */}
-              <FormSection
-                key={selectedIsVehicleLike ? 'vehicle' : 'other'}
-                step={4}
-                title="Vehicle & machinery details"
-                subtitle="Plate, engine, accessories and tires · only for vehicles and machinery"
-                icon={Car}
-                accent="emerald"
-                collapsible
-                defaultOpen={selectedIsVehicleLike}
-              >
-                <div className="space-y-3.5">
-                  <FieldGrid cols={2}>
-                    <Field label="Plate number" optional>
-                      <input
-                        type="text"
-                        placeholder="e.g. 4-23794"
-                        value={plateNo}
-                        onChange={(e) => setPlateNo(e.target.value)}
-                        className={input({ mono: true })}
-                      />
-                    </Field>
-
-                    <Field label="Engine number" optional>
-                      <input
-                        type="text"
-                        placeholder="e.g. 1HZ-0641864"
-                        value={engineNo}
-                        onChange={(e) => setEngineNo(e.target.value)}
-                        className={input({ mono: true })}
-                      />
-                    </Field>
-                  </FieldGrid>
-
-                  <FieldGrid>
-                    <Field label="Jack with handle (qty)">
-                      <input
-                        type="number"
-                        min="0"
-                        value={jackQty}
-                        onChange={(e) => setJackQty(parseInt(e.target.value) || 0)}
-                        className={input({ mono: true, align: 'right' })}
-                      />
-                    </Field>
-
-                    <Field label="Tire wrench (qty)">
-                      <input
-                        type="number"
-                        min="0"
-                        value={tireWrenchQty}
-                        onChange={(e) => setTireWrenchQty(parseInt(e.target.value) || 0)}
-                        className={input({ mono: true, align: 'right' })}
-                      />
-                    </Field>
-
-                    <Field label="Keys (qty)">
-                      <input
-                        type="number"
-                        min="0"
-                        value={keyQty}
-                        onChange={(e) => setKeyQty(parseInt(e.target.value) || 0)}
-                        className={input({ mono: true, align: 'right' })}
-                      />
-                    </Field>
-                  </FieldGrid>
-
-                  <Field label="Tire serial numbers" optional hint="Separate with commas or new lines">
-                    <input
-                      type="text"
-                      placeholder="e.g. R240514711, R240504703, YY0219"
-                      value={tireSerials}
-                      onChange={(e) => setTireSerials(e.target.value)}
-                      className={input({ mono: true })}
-                    />
-                  </Field>
-                </div>
-              </FormSection>
-
-              <FormFooter
-                accent="emerald"
-                submitting={submittingTransfer}
-                submitLabel={editTransfer ? 'Save changes' : 'Submit transfer for approval'}
-                onCancel={() => switchTab('all')}
-                sticky={false}
-              />
-            </form>
-          </div>
-        </div>
-      ) : activeSubTab === 'return' ? (
-        /* ── Return to Store Table / Selection ────────────────────────────── */
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <RotateCcw className="w-5 h-5 text-emerald-700" />
-                Model 21 Store Asset Returns (የዕቃ መመለሻ መረከቢያ)
-              </h2>
-              <p className="text-xs text-slate-500">
-                Select an active issued item below to process Model 21 return and clear custodian liability.
-              </p>
-            </div>
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 md:w-72">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
+                aria-label="Search transfers"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search issued items..."
-                className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-emerald-600 w-64"
+                placeholder="Search by asset, slip number or person…"
+                className={table.search.replace('pr-8', 'pr-3')}
               />
             </div>
+            <RefreshButton onClick={fetchData} loading={loading} label="transfers" />
           </div>
+        </div>
 
-          <div className="overflow-x-auto border border-slate-200 rounded-xl">
-            <table className="w-full text-left text-xs min-w-[760px]">
-              <thead className={table.headRow}>
-                <tr>
-                  <th className="p-3 w-36 whitespace-nowrap">Asset Code</th>
-                  <th className="p-3 min-w-[180px]">Item Description</th>
-                  <th className="p-3 w-24 text-right whitespace-nowrap">Qty</th>
-                  <th className="p-3 min-w-[150px]">Current Custodian</th>
-                  <th className="p-3 w-32">Location</th>
-                  <th className={`p-3 ${table.actionsHead}`}><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white font-medium">
-                {issuedPager.pageItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50 transition">
-                      <td className={`p-3 ${table.code} whitespace-nowrap`}>{item.itemCode}</td>
-                      <td className="p-3 text-slate-800">{item.name}</td>
-                      <UnitsCell item={item} />
-                      <td className="p-3 text-slate-700">
-                        {item.currentCustodian?.fullNameEn || '—'}
-                      </td>
-                      <td className="p-3 text-slate-600">{storeLocationLabel(item.storeLocation)}</td>
-                      <td className={`p-3 ${table.actionsCell}`}>
-                        <div className="flex items-center justify-end gap-2">
-                          {pendingByItem.get(item.id) && <PendingRequestChip request={pendingByItem.get(item.id)!} />}
+        {loading && model21.length === 0 ? (
+          <div className="flex items-center justify-center py-16 text-xs text-slate-400">
+            <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
+            Loading transfers…
+          </div>
+        ) : shown.length === 0 ? (
+          <div className="py-16 text-center space-y-1">
+            <ArrowRightLeft className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="text-sm font-bold text-slate-800">{model21.length === 0 ? 'No transfers or returns yet' : 'No requests match'}</p>
+            <p className="text-xs text-slate-500">
+              {model21.length === 0
+                ? canWrite
+                  ? 'Use "New transfer" to move an issued asset to someone else, or "Return to store" to bring it back.'
+                  : 'Transfers and returns appear here once they are requested.'
+                : 'Try a different filter or search.'}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-left text-xs">
+                <thead className={table.headRow}>
+                  <tr>
+                    <th className="px-3 py-2.5 w-28 whitespace-nowrap">Date</th>
+                    <th className="px-3 py-2.5 min-w-[180px]">Asset</th>
+                    <th className="px-3 py-2.5 w-24">Type</th>
+                    <th className="px-3 py-2.5 min-w-[150px]">To</th>
+                    <th className="px-3 py-2.5 w-32 whitespace-nowrap">Slip no.</th>
+                    <th className="px-3 py-2.5 w-36">Status</th>
+                    <th className={`px-3 py-2.5 ${table.actionsHead}`}>
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {pager.pageItems.map((r) => {
+                    const isReturn = r.transactionType === 'RETURN';
+                    return (
+                      <tr key={r.id} className="hover:bg-slate-50 transition">
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <span className="block font-mono font-semibold text-slate-900">{String(r.createdAtEc || '').split(' ')[0]}</span>
+                          <span className="block font-mono text-[10px] text-slate-400">{String(r.createdAtGc || '').slice(0, 10)} G.C.</span>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <span className="block font-medium text-slate-900">{r.itemName}</span>
+                          <span className={`block ${table.code}`}>{r.itemCode}</span>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <span className={`${pill} ${isReturn ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-purple-50 text-purple-800 border-purple-200'}`}>
+                            {isReturn ? <RotateCcw className="h-3 w-3" /> : <ArrowRightLeft className="h-3 w-3" />}
+                            {REQUEST_TYPE_LABELS[r.transactionType]}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-slate-700">{destinationOf(r)}</td>
+                        <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap">{r.ifmisSlipNumber || '—'}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <RequestStatus request={r} />
+                        </td>
+                        <td className={`px-3 py-2.5 ${table.actionsCell}`}>
                           <RowActionsMenu
-                            label={item.itemCode}
+                            label={`${r.itemCode} ${REQUEST_TYPE_LABELS[r.transactionType].toLowerCase()}`}
                             actions={[
-                              { label: 'View details', icon: Eye, onClick: () => setViewingItemId(item.id) },
-                              editRequestAction(pendingByItem.get(item.id), openEditRequest, canWrite),
-                              { label: 'Print Model 21', icon: Printer, onClick: () => handlePrintModel21(item), hidden: !item.currentCustodianId },
+                              { label: 'View details', icon: Eye, onClick: () => setViewing(r) },
                               {
-                                label: 'Return to store',
-                                icon: RotateCcw,
-                                onClick: () => setReturnItem(item),
-                                hidden: !canWrite || pendingByItem.has(item.id),
+                                label: `Edit ${REQUEST_TYPE_LABELS[r.transactionType].toLowerCase()}`,
+                                icon: Pencil,
+                                onClick: () => openEdit(r),
+                                hidden: !canWrite || r.status !== ApprovalStatus.PENDING,
+                                disabled: r.currentStage === 2,
+                                reason: r.currentStage === 2 ? 'The Team Leader has endorsed it. To correct it, ask an approver to reject it.' : undefined,
                               },
+                              { label: 'Print Model 21', icon: Printer, onClick: () => printRequest(r) },
                             ]}
                           />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-            <Pagination pager={issuedPager} label="issued assets" />
-          </div>
-        </div>
-      ) : (
-        /* ── All Movements & Returns Ledger ────────────────────────────────── */
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Transfer & Return Ledger</h2>
-              <p className="text-xs text-slate-500">
-                Complete inventory tracking ledger for Model 21 custody transfers, store returns, and relocations.
-              </p>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search ledger..."
-                  className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-emerald-600 w-64"
-                />
-              </div>
-            </div>
+            <Pagination pager={pager} label="requests" />
+          </>
+        )}
+      </div>
+
+      {/* ── Transfer form ── */}
+      <Modal
+        isOpen={transferOpen}
+        onClose={closeTransfer}
+        title={editTransfer ? `Edit transfer · ${editTransfer.itemCode}` : 'New transfer · Model 21'}
+        subtitle={
+          editTransfer
+            ? 'You can correct this transfer until the Team Leader endorses it. Each change is recorded in the item history.'
+            : 'Custody moves to the new holder only after the Team Leader endorses and the Department Head approves it.'
+        }
+        size="xl"
+      >
+        {editTransfer || items.some((i) => i.status === ItemStatus.ISSUED) ? (
+          <TransferForm
+            key={editTransfer?.id ?? 'new'}
+            items={items}
+            employees={employees}
+            departments={departments}
+            locations={locations}
+            pendingByItem={pendingByItem}
+            editTransfer={editTransfer ?? undefined}
+            onCancel={closeTransfer}
+            onSaved={(voucher) => {
+              closeTransfer();
+              fetchData();
+              if (voucher) setActiveVoucher(voucher);
+            }}
+          />
+        ) : (
+          <div className="py-8 text-center text-xs text-slate-500">
+            <AlertCircle className="w-6 h-6 mx-auto mb-2 text-amber-500" />
+            No asset is issued to anyone yet, so there is nothing to transfer.
           </div>
+        )}
+      </Modal>
 
-          <div className="overflow-x-auto border border-slate-200 rounded-xl">
-            <table className="w-full text-left text-xs min-w-[840px]">
-              <thead className={table.headRow}>
-                <tr>
-                  <th className="p-3 w-36 whitespace-nowrap">Asset Code</th>
-                  <th className="p-3 min-w-[180px]">Item Name</th>
-                  <th className="p-3 w-24 text-right whitespace-nowrap">Qty</th>
-                  <th className="p-3 w-32 whitespace-nowrap">Current Status</th>
-                  <th className="p-3 min-w-[160px]">Custodian / Department</th>
-                  <th className="p-3 w-32">Store Location</th>
-                  <th className={`p-3 ${table.actionsHead}`}><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white font-medium">
-                {ledgerPager.pageItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50 transition">
-                    <td className={`p-3 ${table.code} whitespace-nowrap`}>{item.itemCode}</td>
-                    <td className="p-3 text-slate-800">{item.name}</td>
-                      <UnitsCell item={item} />
-                    <td className="p-3 whitespace-nowrap">
-                      <div className="flex flex-col items-start gap-1">
-                        <span
-                          className={`${pill} ${
-                            statusStyleOf(item).className
-                          }`}
-                        >
-                          {statusStyleOf(item).label}
-                        </span>
-                        {pendingByItem.get(item.id) && <PendingRequestChip request={pendingByItem.get(item.id)!} />}
-                      </div>
-                    </td>
-                    <td className="p-3 text-slate-700">
-                      {item.currentCustodian?.fullNameEn || item.assignedDepartment?.nameEn || 'In store'}
-                    </td>
-                    <td className="p-3 text-slate-600">{storeLocationLabel(item.storeLocation)}</td>
-                    <td className={`p-3 ${table.actionsCell}`}>
-                      <RowActionsMenu
-                        label={item.itemCode}
-                        actions={[
-                          { label: 'View details', icon: Eye, onClick: () => setViewingItemId(item.id) },
-                          editRequestAction(pendingByItem.get(item.id), openEditRequest, canEdit),
-                          { label: 'Print Model 21', icon: Printer, onClick: () => handlePrintModel21(item), hidden: !item.currentCustodianId },
-                          {
-                            label: 'Return to store',
-                            icon: RotateCcw,
-                            onClick: () => setReturnItem(item),
-                            hidden: item.status !== ItemStatus.ISSUED || pendingByItem.has(item.id),
-                          },
-                        ]}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <Pagination pager={ledgerPager} label="assets" />
-          </div>
-        </div>
-      )}
-
-      {viewingItemId && <RecordDetailModal itemId={viewingItemId} onClose={() => setViewingItemId(null)} />}
-
-      {/* Model 21 Printable Voucher Modal */}
-      <Model21PrintModal
-        isOpen={!!activeVoucher}
-        voucher={activeVoucher}
-        onClose={() => setActiveVoucher(null)}
+      {/* ── Return form: picks the asset first when opened from the button ── */}
+      <ReturnToStoreModal
+        isOpen={returnOpen}
+        item={returnItem}
+        assets={items.filter((i) => i.status === ItemStatus.ISSUED)}
+        pendingByItem={pendingByItem}
+        employees={employees}
+        editApproval={editReturn ?? undefined}
+        onClose={closeReturn}
+        onSuccess={(voucher) => {
+          closeReturn();
+          fetchData();
+          if (voucher) setActiveVoucher(voucher);
+        }}
       />
 
-      {/* Model 21 / 22 Return Modal */}
-      {returnItem && (
-        <ReturnToStoreModal
-          isOpen={!!returnItem}
-          item={returnItem}
-          employees={employees}
-          editApproval={editReturn ?? undefined}
-          onClose={() => {
-            setReturnItem(null);
-            setEditReturn(null);
-          }}
-          onSuccess={(voucher) => {
-            setReturnItem(null);
-            setEditReturn(null);
-            fetchData();
-            if (voucher) {
-              setActiveVoucher(voucher);
-            }
-          }}
-        />
-      )}
+      {viewing && <RecordDetailModal itemId={viewing.itemId} approval={viewing} onClose={() => setViewing(null)} />}
+
+      <Model21PrintModal isOpen={!!activeVoucher} voucher={activeVoucher} onClose={() => setActiveVoucher(null)} />
     </div>
   );
 };

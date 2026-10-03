@@ -13,16 +13,19 @@ describe('Navigation consumes the server policy', () => {
   it('restricts Users and Roles to administrators while preserving other Settings access', () => {
     expect(settings('SYSTEM_ADMIN')).toContain('settings-roles');
     expect(settings('SYSTEM_ADMIN')).toContain('settings-users');
-    for (const role of ['DATA_ENCODER', 'DEPARTMENT_HEAD']) {
+    for (const role of ['DATA_ENCODER', 'TEAM_LEADER', 'DEPARTMENT_HEAD']) {
       expect(settings(role)).not.toContain('settings-roles');
       expect(settings(role)).not.toContain('settings-users');
       expect(settings(role)).toContain('settings-employees');
       expect(getMobileNavItems(allowed(role)).find(item => item.label === 'Settings')?.id).toBe('settings-employees');
     }
   });
-  it('has no settings for Managers or Team Leaders and no navigation without access', () => {
+  it('keeps System Settings away from Data Encoders', () => {
+    expect(settings('DATA_ENCODER')).not.toContain('settings-system');
+    expect(settings('TEAM_LEADER')).toContain('settings-system');
+  });
+  it('has no settings for Managers and no navigation without access', () => {
     expect(settings('MANAGER')).toEqual([]);
-    expect(settings('TEAM_LEADER')).toEqual([]);
     expect(getMobileNavItems()).toEqual([]);
   });
   it('marks Settings active on its child pages', () => {
