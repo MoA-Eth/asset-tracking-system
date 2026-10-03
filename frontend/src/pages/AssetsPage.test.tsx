@@ -385,6 +385,29 @@ describe('Asset record', () => {
     expect(copyBtn).toBeInTheDocument();
     expect(within(record).getAllByText('IT EQUIPMENT').length).toBeGreaterThanOrEqual(1);
   });
+
+  it('sorts table columns when column headers are clicked and resets', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+
+    // Click Asset column header to sort
+    const assetHeader = screen.getByRole('button', { name: 'Asset' });
+    await user.click(assetHeader);
+
+    // Click Unit cost header
+    const costHeader = screen.getByRole('button', { name: 'Unit cost' });
+    await user.click(costHeader);
+
+    // Click again to reverse sort direction
+    await user.click(costHeader);
+
+    // Reset sort via reset all filters
+    const resetBtn = screen.getByRole('button', { name: /Reset all filters/ });
+    expect(resetBtn).toBeInTheDocument();
+    await user.click(resetBtn);
+    expect(screen.queryByRole('button', { name: /Reset all filters/ })).not.toBeInTheDocument();
+  });
 });
 
 describe('ReturnToStoreModal', () => {

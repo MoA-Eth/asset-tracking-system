@@ -18,6 +18,9 @@ import {
   ChevronRight,
   X,
   Filter,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -72,6 +75,9 @@ const FILTERS: { value: AssetFilter; label: string }[] = [
   { value: 'REJECTED', label: 'Rejected' },
 ];
 
+export type SortColumn = 'activity' | 'name' | 'status' | 'units' | 'where' | 'slip' | 'cost';
+export type SortDirection = 'asc' | 'desc';
+
 interface AssetsPageProps {
   currentRole: UserRole;
   onNavigate: (tab: string) => void;
@@ -97,7 +103,29 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [locationFilter, setLocationFilter] = useState<string>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
+  const [sortColumn, setSortColumn] = useState<SortColumn>('activity');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [lastTouchedId, setLastTouchedId] = useState<string | null>(null);
+
+  const handleSort = (col: SortColumn) => {
+    if (sortColumn === col) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(col);
+      setSortDirection(col === 'cost' || col === 'units' || col === 'activity' ? 'desc' : 'asc');
+    }
+  };
+
+  const renderSortIcon = (col: SortColumn) => {
+    if (sortColumn === col) {
+      return sortDirection === 'asc' ? (
+        <ArrowUp className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
+      ) : (
+        <ArrowDown className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
+      );
+    }
+    return <ArrowUpDown className="w-3 h-3 text-slate-400 group-hover:text-slate-600 shrink-0 opacity-40 group-hover:opacity-100 transition" aria-hidden="true" />;
+  };
 
   // Pop-ups: one per form, each either new (from a row or the header) or correcting a pending request
   const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations } | null>(null);
@@ -284,7 +312,64 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [groups, filter, locationFilter, categoryFilter, search],
   );
-  const pager = usePagination(shown, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${search}` });
+
+  const sortedShown = useMemo(() => {
+    const list = [...shown];
+    if (sortColumn === 'activity') {
+      return list.sort((a, b) => {
+        const cmp = b.activity.localeCompare(a.activity) || a.row.item.itemCode.localeCompare(b.row.item.itemCode);
+        return sortDirection === 'desc' ? cmp : -cmp;
+      });
+    }
+
+    return list.sort((a, b) => {
+      let res = 0;
+      switch (sortColumn) {
+        case 'name': {
+          const aVal = (a.row.item.name || '') + ' ' + (a.row.item.itemCode || '');
+          const bVal = (b.row.item.name || '') + ' ' + (b.row.item.itemCode || '');
+          res = aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' });
+          break;
+        }
+        case 'status': {
+          const aVal = a.row.state || '';
+          const bVal = b.row.state || '';
+          res = aVal.localeCompare(bVal);
+          break;
+        }
+        case 'units': {
+          const aVal = a.row.units ?? 0;
+          const bVal = b.row.units ?? 0;
+          res = aVal - bVal;
+          break;
+        }
+        case 'where': {
+          const aVal = a.row.where || '';
+          const bVal = b.row.where || '';
+          res = aVal.localeCompare(bVal, undefined, { sensitivity: 'base' });
+          break;
+        }
+        case 'slip': {
+          const aVal = a.row.item.ifmisSlipNumber || '';
+          const bVal = b.row.item.ifmisSlipNumber || '';
+          res = aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' });
+          break;
+        }
+        case 'cost': {
+          const aVal = a.row.item.unitCostETB ?? 0;
+          const bVal = b.row.item.unitCostETB ?? 0;
+          res = aVal - bVal;
+          break;
+        }
+      }
+      if (res === 0) {
+        res = a.row.item.itemCode.localeCompare(b.row.item.itemCode);
+      }
+      return sortDirection === 'asc' ? res : -res;
+    });
+  }, [shown, sortColumn, sortDirection]);
+
+  const pager = usePagination(sortedShown, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${search}|${sortColumn}|${sortDirection}` });
   const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
   const toggleBatch = (id: string) =>
     setOpenBatches((prev) => {
@@ -640,7 +725,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   // ── Keyboard Navigation in Master-Detail View ──
   const flatSelectableIds = useMemo(() => {
     const ids: string[] = [];
-    for (const g of shown) {
+    for (const g of sortedShown) {
       ids.push(g.row.item.id);
       const open = g.forceOpen || g.row.item.id === selectedId || g.children.some((c) => c.item.id === selectedId);
       if (open) {
@@ -650,7 +735,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       }
     }
     return ids;
-  }, [shown, selectedId]);
+  }, [sortedShown, selectedId]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -791,8 +876,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               </div>
             </div>
             <ul className="flex-1 divide-y divide-slate-100 overflow-y-auto">
-              {shown.length === 0 && <li className="px-3 py-6 text-center text-xs text-slate-400">No assets match.</li>}
-              {shown.map((group) => {
+              {sortedShown.length === 0 && <li className="px-3 py-6 text-center text-xs text-slate-400">No assets match.</li>}
+              {sortedShown.map((group) => {
                 const open =
                   group.forceOpen || group.row.item.id === selectedId || group.children.some((c) => c.item.id === selectedId);
                 return (
@@ -913,7 +998,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               ))}
             </select>
 
-            {(locationFilter !== 'ALL' || categoryFilter !== 'ALL' || filter !== 'ALL' || search) && (
+            {(locationFilter !== 'ALL' || categoryFilter !== 'ALL' || filter !== 'ALL' || search || sortColumn !== 'activity' || sortDirection !== 'desc') && (
               <button
                 type="button"
                 onClick={() => {
@@ -921,6 +1006,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   setLocationFilter('ALL');
                   setCategoryFilter('ALL');
                   setSearch('');
+                  setSortColumn('activity');
+                  setSortDirection('desc');
                 }}
                 className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-emerald-700 hover:underline cursor-pointer"
               >
@@ -935,7 +1022,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
             Loading assets…
           </div>
-        ) : shown.length === 0 ? (
+        ) : sortedShown.length === 0 ? (
           <div className="py-16 text-center space-y-1">
             <Boxes className="w-8 h-8 text-slate-300 mx-auto" />
             <p className="text-sm font-bold text-slate-800">{rows.length === 0 ? 'No assets yet' : 'No assets match'}</p>
@@ -953,12 +1040,72 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               <table className="w-full min-w-[900px] text-left text-xs">
                 <thead className={table.headRow}>
                   <tr>
-                    <th className="px-3 py-2.5 min-w-[200px]">Asset</th>
-                    <th className="px-3 py-2.5 w-36">Status</th>
-                    <th className="px-3 py-2.5 w-20 text-right">Qty</th>
-                    <th className="px-3 py-2.5 min-w-[170px]">Held by / where</th>
-                    <th className="px-3 py-2.5 w-36 whitespace-nowrap">Model 19 slip</th>
-                    <th className="px-3 py-2.5 w-28 text-right whitespace-nowrap">Unit cost</th>
+                    <th className="px-3 py-2.5 min-w-[200px]" aria-sort={sortColumn === 'name' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                      <button
+                        type="button"
+                        onClick={() => handleSort('name')}
+                        className="group inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer"
+                        title="Sort by Asset name"
+                      >
+                        Asset
+                        {renderSortIcon('name')}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2.5 w-36" aria-sort={sortColumn === 'status' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                      <button
+                        type="button"
+                        onClick={() => handleSort('status')}
+                        className="group inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer"
+                        title="Sort by Status"
+                      >
+                        Status
+                        {renderSortIcon('status')}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2.5 w-20 text-right" aria-sort={sortColumn === 'units' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                      <button
+                        type="button"
+                        onClick={() => handleSort('units')}
+                        className="group ml-auto inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer"
+                        title="Sort by Quantity"
+                      >
+                        Qty
+                        {renderSortIcon('units')}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2.5 min-w-[170px]" aria-sort={sortColumn === 'where' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                      <button
+                        type="button"
+                        onClick={() => handleSort('where')}
+                        className="group inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer"
+                        title="Sort by Location or Custodian"
+                      >
+                        Held by / where
+                        {renderSortIcon('where')}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2.5 w-36 whitespace-nowrap" aria-sort={sortColumn === 'slip' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                      <button
+                        type="button"
+                        onClick={() => handleSort('slip')}
+                        className="group inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer"
+                        title="Sort by Model 19 slip number"
+                      >
+                        Model 19 slip
+                        {renderSortIcon('slip')}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2.5 w-28 text-right whitespace-nowrap" aria-sort={sortColumn === 'cost' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                      <button
+                        type="button"
+                        onClick={() => handleSort('cost')}
+                        className="group ml-auto inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer"
+                        title="Sort by Unit cost"
+                      >
+                        Unit cost
+                        {renderSortIcon('cost')}
+                      </button>
+                    </th>
                     <th className={`px-3 py-2.5 ${table.actionsHead}`}>
                       <span className="sr-only">Actions</span>
                     </th>
