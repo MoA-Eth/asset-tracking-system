@@ -907,66 +907,23 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     className={table.search.replace('pr-8', 'pr-3')}
                   />
                 </div>
-                <RefreshButton onClick={() => fetchData(true)} loading={refreshing} label="assets" />
+                {canReceive && (
+                  <button
+                    type="button"
+                    onClick={() => openReceipt()}
+                    title="Receive items (Model 19)"
+                    aria-label="Receive items (Model 19)"
+                    className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-xs font-bold transition cursor-pointer ${
+                      receipt && !receipt.edit
+                        ? 'border-emerald-800 bg-emerald-800 text-white shadow-xs'
+                        : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-900 active:scale-95'
+                    }`}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
-              {canReceive && (
-                <button
-                  type="button"
-                  onClick={() => openReceipt()}
-                  className={`w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer border ${
-                    receipt && !receipt.edit
-                      ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs'
-                      : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
-                  }`}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Receive items (Model 19)
-                </button>
-              )}
-
-              <select
-                aria-label="Show assets"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value as AssetFilter)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              >
-                {FILTERS.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label} ({groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length})
-                  </option>
-                ))}
-              </select>
-              <div className="grid grid-cols-2 gap-1.5 pt-0.5">
-                <select
-                  aria-label="Filter by store location"
-                  value={locationFilter}
-                  onChange={(e) => setLocationFilter(e.target.value)}
-                  className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 truncate cursor-pointer"
-                  title="Filter by location"
-                >
-                  <option value="ALL">All Stores</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>
-                      {loc.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  aria-label="Filter by asset category"
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 truncate cursor-pointer"
-                  title="Filter by category"
-                >
-                  <option value="ALL">All Categories</option>
-                  {CATEGORY_OPTIONS.map((cat) => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
               <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5 px-0.5">
                 <span>↑ / ↓ or j / k to navigate</span>
                 <span>Esc to close</span>

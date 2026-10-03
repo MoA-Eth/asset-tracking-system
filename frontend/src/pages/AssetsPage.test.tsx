@@ -474,6 +474,12 @@ describe('Asset record', () => {
     expect(within(panel).getByText('New Delivery')).toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: /Submit for Endorsement/i })).toHaveAttribute('form', 'stock-in-form');
 
+    // In split view, the left sidebar renders an icon-only plus button with no inner text
+    const sidebar = screen.getByRole('complementary', { name: 'Asset list' });
+    const sidebarPlusBtn = within(sidebar).getByRole('button', { name: 'Receive items (Model 19)' });
+    expect(sidebarPlusBtn).toBeInTheDocument();
+    expect(sidebarPlusBtn.textContent).toBe('');
+
     // 1. Cancel button closes it
     await user.click(within(panel).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('region', { name: 'Receive items' })).not.toBeInTheDocument();
