@@ -235,6 +235,11 @@ describe('RBAC Permission Matrix Enforcement', () => {
       expect(tabsOf(UserRole.DATA_ENCODER)).not.toContain('approvals');
     });
 
+    it('Data Encoders do not open System Settings, but still see Employees and Stores', () => {
+      expect(tabsOf(UserRole.DATA_ENCODER)).not.toContain('settings-system');
+      expect(tabsOf(UserRole.DATA_ENCODER)).toEqual(expect.arrayContaining(['settings-employees', 'settings-stores']));
+    });
+
     it('Team Leaders can look up Employees and Stores, view only', () => {
       expect(tabsOf(UserRole.TEAM_LEADER)).toEqual(expect.arrayContaining(['approvals', 'settings-employees', 'settings-stores']));
       expect(hasPermission(UserRole.TEAM_LEADER, 'employees.manage')).toBe(false);

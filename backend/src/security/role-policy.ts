@@ -47,7 +47,7 @@ export const ROLE_POLICY: Record<UserRole, {
     name: 'Data Encoder', description: 'Records stock-in, requests stock-out, and initiates transfers and returns.',
     approvalResponsibility: 'Submits requests; cannot approve',
     permissions: [...readPermissions, 'stock-in.write', 'stock-out.write', 'transfers.write', 'slips.upload', 'approvals.read', 'reports.read'],
-    allowedTabs: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'reports', ...referenceTabs], landingTab: 'stock-in',
+    allowedTabs: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'reports', 'settings-employees', 'settings-stores'], landingTab: 'stock-in',
   },
   TEAM_LEADER: {
     name: 'Team Leader', description: 'Reviews technical details before final authorization.',
@@ -183,6 +183,8 @@ export function computeAllowedTabs(role: UserRole, permissions: Permission[]): {
     if (role !== UserRole.MANAGER) {
       referenceTabs.forEach((t) => tabs.add(t));
     }
+    // System-wide rules are not the Data Encoder's concern; the forms still read them
+    if (role === UserRole.DATA_ENCODER) tabs.delete('settings-system');
   }
 
   const allowedTabs = Array.from(tabs);
