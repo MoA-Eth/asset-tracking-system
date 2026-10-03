@@ -1138,7 +1138,11 @@ export class StoreService {
   public async registerReturn(payload: CreateReturnRequest): Promise<TransactionApproval> {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
     if (!item) throw new NotFoundError(`Item ${payload.itemId} not found.`);
-    if (item.status !== 'ISSUED' && item.status !== 'AVAILABLE') {
+    // Only what someone holds can come back; an item in store never left it
+    if (item.status === 'AVAILABLE') {
+      throw new ConflictError(`${item.itemCode} is already in store. Only an issued item can be returned.`);
+    }
+    if (item.status !== 'ISSUED') {
       throw new ConflictError(`Item ${item.itemCode} cannot be returned to store. Current status: ${item.status}`);
     }
     await assertNoPendingApproval(item);
@@ -1724,7 +1728,7 @@ export class StoreService {
         toEntity = 'Rejected / Returned to Supplier';
         histNote = rejectionNote;
       } else if (approval.transactionType === 'RETURN') {
-        // Returns can be raised for AVAILABLE items too, so fall back to the item's actual custody
+        // Nothing moved while the return was pending: the item stays with whoever holds it
         newItemStatus = statusForCustodian(item.currentCustodianId);
         historyAction = 'RETURN_REJECTED';
         fromEntity = 'Pending Return';
@@ -1843,7 +1847,11 @@ export class StoreService {
   public async transferItem(payload: CreateTransferRequest): Promise<TransactionApproval> {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
     if (!item) throw new NotFoundError(`Item ${payload.itemId} not found.`);
-    if (item.status !== 'ISSUED' && item.status !== 'AVAILABLE') {
+    // A transfer passes an issued item from one holder to another. Leaving the store goes through Issuing (Model 22).
+    if (item.status === 'AVAILABLE') {
+      throw new ConflictError(`${item.itemCode} is in store. Issue it first (Model 22); a transfer moves an issued item from one holder to another.`);
+    }
+    if (item.status !== 'ISSUED') {
       throw new ConflictError(`Item ${item.itemCode} cannot be transferred. Current status: ${item.status}`);
     }
     await assertNoPendingApproval(item);

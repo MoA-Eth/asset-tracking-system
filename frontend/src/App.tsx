@@ -4,8 +4,7 @@ import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { DesktopSidebar } from './components/layout/DesktopSidebar';
 import { OfflineBanner } from './components/layout/OfflineBanner';
 import { ExecutiveDashboardPage } from './pages/ExecutiveDashboardPage';
-import { StockInPage } from './pages/StockInPage';
-import { StockOutPage } from './pages/StockOutPage';
+import { AssetsPage } from './pages/AssetsPage';
 import { ApprovalsPage } from './pages/ApprovalsPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -15,7 +14,6 @@ import { loadSystemSettings } from './utils/system-settings';
 import { RolesPage } from './pages/settings/RolesPage';
 import { EmployeesPage } from './pages/settings/EmployeesPage';
 import { StoresPage } from './pages/settings/StoresPage';
-import { TransferAssetPage } from './pages/TransferAssetPage';
 import { LoginPage } from './pages/LoginPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -180,15 +178,7 @@ const AuthenticatedPortal: React.FC = () => {
               setSelectedCenter={setSelectedCenter}
             />
           )}
-          {activeTab === 'stock-in' && (
-            <StockInPage currentRole={role} onNavigate={handleTabChange} mode="stock-in" />
-          )}
-          {(activeTab === 'stock-out' || activeTab === 'assign-asset') && (
-            <StockOutPage currentRole={role} onNavigate={handleTabChange} mode="stock-out" />
-          )}
-          {(activeTab === 'transfer-asset' || activeTab === 'return-asset') && (
-            <TransferAssetPage currentRole={role} onNavigate={handleTabChange} />
-          )}
+          {activeTab === 'assets' && <AssetsPage currentRole={role} onNavigate={handleTabChange} />}
           {activeTab === 'approvals' && (
             <ApprovalsPage
               currentRole={role}

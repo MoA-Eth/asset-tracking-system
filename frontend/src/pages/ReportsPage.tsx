@@ -16,12 +16,10 @@ import {
   X,
   AlertCircle,
   FileSpreadsheet,
-  FileSearch,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { storeLocationLabel } from '../utils/location';
-import { table, statusTone, btn } from '../components/ui/theme';
-import { RecordDetailModal } from '../components/ui/RecordDetailModal';
+import { table, statusTone } from '../components/ui/theme';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import {
   ItemWithRelations,
@@ -61,7 +59,6 @@ export const ReportsPage: React.FC = () => {
   const [items, setItems] = useState<ItemWithRelations[]>([]);
   const [splitRecords, setSplitRecords] = useState<ItemWithRelations[]>([]);
   // Read-only view of one item
-  const [viewingItemId, setViewingItemId] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -802,13 +799,12 @@ export const ReportsPage: React.FC = () => {
                 <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Date (E.C.)</th>
                 <th className="py-2.5 px-3 min-w-[150px] max-w-[220px]">Custodian / Location</th>
                 <th className="py-2.5 px-3 w-28 shrink-0 text-right whitespace-nowrap">Unit Cost</th>
-                <th className="py-2.5 px-3 w-20 shrink-0 text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-16 text-center text-slate-400 space-y-1">
+                  <td colSpan={12} className="py-16 text-center text-slate-400 space-y-1">
                     <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto" />
                     <p className="font-bold text-slate-700 text-sm">No Assets Found</p>
                     <p className="text-xs text-slate-400">
@@ -915,17 +911,6 @@ export const ReportsPage: React.FC = () => {
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap w-28 shrink-0">
                         {formatETB(item.unitCostETB)}
                       </td>
-                      <td className="py-2.5 px-3 text-right whitespace-nowrap w-20 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setViewingItemId(item.id)}
-                          className={btn.row}
-                          title="View the full record"
-                        >
-                          <FileSearch className={btn.rowIcon} />
-                          View
-                        </button>
-                      </td>
                     </tr>
                   );
                 })
@@ -948,7 +933,6 @@ export const ReportsPage: React.FC = () => {
         )}
       </div>
 
-      {viewingItemId && <RecordDetailModal itemId={viewingItemId} onClose={() => setViewingItemId(null)} />}
     </div>
   );
 };

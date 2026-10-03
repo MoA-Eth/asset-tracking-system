@@ -1,9 +1,7 @@
 import {
   LayoutDashboard,
   FileCheck2,
-  PackagePlus,
-  PackageMinus,
-  ArrowRightLeft,
+  Boxes,
   FileSpreadsheet,
   ShieldCheck,
   Settings,
@@ -47,9 +45,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'operations',
     label: 'Inventory',
     items: [
-      { id: 'stock-in', label: 'Receiving', icon: PackagePlus, formTag: 'M19', hint: 'Receiving — goods received into store (Model 19 / የዕቃ መረከቢያ)' },
-      { id: 'stock-out', label: 'Issuing', icon: PackageMinus, formTag: 'M22', hint: 'Issuing — property issued from store (Model 22 / የዕቃ ወጪ)' },
-      { id: 'transfer-asset', label: 'Transfers', icon: ArrowRightLeft, formTag: 'M21', hint: 'Transfers between custodians, and returns to store (Model 21)' },
+      { id: 'assets', label: 'Assets', icon: Boxes, hint: 'Assets — receive (Model 19), issue (Model 22), transfer or return (Model 21)' },
     ],
   },
   {
@@ -99,9 +95,19 @@ export const SETTINGS_NAV: { label: string; icon: LucideIcon; groups: SettingsNa
   ],
 };
 
+/** Pages merged into Assets; saved tabs and old links still land there */
+const RETIRED_TABS: Record<string, string> = {
+  'stock-in': 'assets',
+  'stock-out': 'assets',
+  'assign-asset': 'assets',
+  'transfer-asset': 'assets',
+  'return-asset': 'assets',
+};
+
 /** UI consumes the session policy returned by the API; no second role matrix. */
-export function getValidTab(user: Pick<AuthUser, 'allowedTabs' | 'landingTab'> | null, candidate?: string | null): string {
+export function getValidTab(user: Pick<AuthUser, 'allowedTabs' | 'landingTab'> | null, requested?: string | null): string {
   const allowed = user?.allowedTabs ?? [];
+  const candidate = requested ? RETIRED_TABS[requested] ?? requested : requested;
   if (candidate && allowed.includes(candidate)) return candidate;
   return user?.landingTab && allowed.includes(user.landingTab) ? user.landingTab : (allowed[0] ?? '');
 }

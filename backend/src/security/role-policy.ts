@@ -47,19 +47,19 @@ export const ROLE_POLICY: Record<UserRole, {
     name: 'Data Encoder', description: 'Records stock-in, requests stock-out, and initiates transfers and returns.',
     approvalResponsibility: 'Submits requests; cannot approve',
     permissions: [...readPermissions, 'stock-in.write', 'stock-out.write', 'transfers.write', 'slips.upload', 'approvals.read', 'reports.read'],
-    allowedTabs: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'reports', 'settings-employees', 'settings-stores'], landingTab: 'stock-in',
+    allowedTabs: ['assets', 'reports', 'settings-employees', 'settings-stores'], landingTab: 'assets',
   },
   TEAM_LEADER: {
     name: 'Team Leader', description: 'Reviews technical details before final authorization.',
     approvalResponsibility: 'Stage 1 — endorse or reject',
     permissions: [...readPermissions, 'approvals.read', 'approvals.endorse', 'reports.read', 'audit.read'],
-    allowedTabs: ['approvals', 'reports', 'audit', ...referenceTabs], landingTab: 'approvals',
+    allowedTabs: ['approvals', 'assets', 'reports', 'audit', ...referenceTabs], landingTab: 'approvals',
   },
   DEPARTMENT_HEAD: {
     name: 'Department Head', description: 'Authorizes endorsed requests and oversees directorate assets.',
     approvalResponsibility: 'Stage 2 — authorize or reject',
     permissions: [...readPermissions, 'approvals.read', 'approvals.authorize', 'reports.read', 'audit.read'],
-    allowedTabs: ['approvals', 'reports', 'audit', ...referenceTabs], landingTab: 'approvals',
+    allowedTabs: ['approvals', 'assets', 'reports', 'audit', ...referenceTabs], landingTab: 'approvals',
   },
   MANAGER: {
     name: 'Manager', description: 'Monitors the asset portfolio through the executive dashboard and reports.',
@@ -163,15 +163,9 @@ export function computeAllowedTabs(role: UserRole, permissions: Permission[]): {
   const tabs = new Set<string>();
 
   if (permissions.includes('dashboard.read')) tabs.add('dashboard');
-  if (permissions.includes('stock-in.write')) tabs.add('stock-in');
-  if (permissions.includes('stock-out.write')) {
-    tabs.add('stock-out');
-    tabs.add('assign-asset');
-  }
-  if (permissions.includes('transfers.write')) {
-    tabs.add('transfer-asset');
-    tabs.add('return-asset');
-  }
+  // One register for every asset: those who record store work act on it, approvers follow it read-only
+  const storeWork: Permission[] = ['stock-in.write', 'stock-out.write', 'transfers.write'];
+  if (storeWork.some((p) => permissions.includes(p)) || permissions.includes('approvals.read')) tabs.add('assets');
   if (permissions.includes('approvals.endorse') || permissions.includes('approvals.authorize')) {
     tabs.add('approvals');
   }
