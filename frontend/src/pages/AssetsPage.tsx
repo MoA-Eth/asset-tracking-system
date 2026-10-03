@@ -21,6 +21,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Download,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -38,6 +39,7 @@ import { StockInForm, buildModel19Voucher } from '../components/assets/ReceiptFo
 import { StockOutForm, buildModel22Voucher } from '../components/assets/IssueForm';
 import { TransferForm, buildModel21Voucher } from '../components/assets/TransferForm';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import {
   ApprovalStatus,
   Department,
@@ -85,6 +87,7 @@ interface AssetsPageProps {
 
 export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const { user } = useAuth();
+  const toast = useToast();
   const can = (permission: string) => user?.permissions?.includes(permission) ?? false;
   const canReceive = can('stock-in.write');
   const canIssue = can('stock-out.write');
@@ -596,6 +599,76 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     };
   };
 
+  const handleExportCSV = () => {
+    if (sortedShown.length === 0) {
+      toast.warning('No Records', 'There are no assets matching current filters to export.');
+      return;
+    }
+    try {
+      const headers = [
+        '#',
+        'Asset Code',
+        'Asset Name',
+        'Category',
+        'Status',
+        'UoM',
+        'Total Quantity',
+        'In Store Quantity',
+        'Issued Quantity',
+        'Held By / Where',
+        'Model 19 Slip #',
+        'Slip Date (G.C.)',
+        'Unit Cost (ETB)',
+        'Total Value (ETB)',
+      ];
+
+      const csvRows = sortedShown.map((group, index) => {
+        const { item } = group.row;
+        const children = group.children ?? [];
+        const { isBatch, totalUnits, inStoreUnits, issuedUnits, holders } = batchSummary(group.row, children);
+        const uom = item.uom || 'EA';
+        const totalValue = (item.unitCostETB || 0) * (isBatch ? totalUnits : group.row.units);
+        const whereText = isBatch && group.row.state !== 'ISSUED' && inStoreUnits === 0
+          ? '—'
+          : group.row.where || '';
+        const custodySummary = isBatch && issuedUnits > 0
+          ? `${whereText} (${issuedUnits} with ${holders.join('; ')})`
+          : whereText;
+
+        return [
+          index + 1,
+          `"${item.itemCode}"`,
+          `"${item.name.replace(/"/g, '""')}"`,
+          `"${item.category || ''}"`,
+          `"${group.row.state}"`,
+          `"${uom}"`,
+          isBatch ? totalUnits : group.row.units,
+          isBatch ? inStoreUnits : (group.row.state === 'IN_STORE' ? group.row.units : 0),
+          isBatch ? issuedUnits : (group.row.state === 'ISSUED' ? group.row.units : 0),
+          `"${custodySummary.replace(/"/g, '""')}"`,
+          `"${item.ifmisSlipNumber || ''}"`,
+          `"${item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10)}"`,
+          item.unitCostETB || 0,
+          totalValue,
+        ];
+      });
+
+      const csvContent = [headers.join(','), ...csvRows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `moa-assets-export-${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('CSV Exported', `Exported ${sortedShown.length} asset records.`);
+    } catch {
+      toast.error('Export Failed', 'Failed to generate asset spreadsheet.');
+    }
+  };
+
   /**
    * One table row. A batch with issued units shows the whole batch (received · issued · in store) and a toggle
    * for those units; a unit listed under its batch is indented.
@@ -963,6 +1036,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   className={table.search.replace('pr-8', 'pr-3')}
                 />
               </div>
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                title="Export filtered assets to CSV"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs"
+              >
+                <Download className="w-3.5 h-3.5 text-slate-500" />
+                <span className="hidden sm:inline">Export CSV</span>
+              </button>
               <RefreshButton onClick={() => fetchData(true)} loading={loading || refreshing} label="assets" />
             </div>
           </div>
@@ -1033,6 +1115,23 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   : 'Assets appear here once they are received into store.'
                 : 'Try a different filter or search.'}
             </p>
+            {rows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilter('ALL');
+                  setLocationFilter('ALL');
+                  setCategoryFilter('ALL');
+                  setSearch('');
+                  setSortColumn('activity');
+                  setSortDirection('desc');
+                }}
+                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs"
+              >
+                <X className="w-3.5 h-3.5 text-slate-400" />
+                Clear all filters
+              </button>
+            )}
           </div>
         ) : (
           <>

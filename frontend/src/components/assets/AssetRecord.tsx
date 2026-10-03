@@ -337,6 +337,14 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               <Field label="Condition">{item.condition?.replace(/_/g, ' ')}</Field>
               <Field label="Quantity" mono>{totals ? `${totals.total} ${uom} received` : `${row.units} ${uom}`}</Field>
               <Field label="Unit price" mono>{formatETB(item.unitCostETB)}</Field>
+              <Field label="Total valuation" mono>
+                {formatETB((item.unitCostETB || 0) * (totals?.total ?? row.units))}
+                {totals && totals.issued > 0 && (
+                  <span className="block text-[10px] font-normal text-slate-500">
+                    {formatETB((item.unitCostETB || 0) * totals.inStore)} in store · {formatETB((item.unitCostETB || 0) * totals.issued)} issued
+                  </span>
+                )}
+              </Field>
               <Field label="Serial number" mono>
                 {item.serialNumber ? (
                   <span className="inline-flex items-center gap-1">

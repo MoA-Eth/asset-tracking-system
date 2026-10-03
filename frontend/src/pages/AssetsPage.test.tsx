@@ -67,6 +67,13 @@ const menuFor = async (user: ReturnType<typeof userEvent.setup>, code: string) =
 
 beforeEach(() => {
   vi.resetAllMocks();
+  if (!window.URL.createObjectURL) {
+    window.URL.createObjectURL = vi.fn(() => 'blob:mock');
+    window.URL.revokeObjectURL = vi.fn();
+  } else {
+    vi.spyOn(window.URL, 'createObjectURL').mockReturnValue('blob:mock');
+    vi.spyOn(window.URL, 'revokeObjectURL').mockImplementation(vi.fn());
+  }
   auth.user.permissions = [...ENCODER];
   vi.mocked(api.getItems).mockResolvedValue(items as any);
   vi.mocked(api.getDepartments).mockResolvedValue([]);
@@ -407,6 +414,48 @@ describe('Asset record', () => {
     expect(resetBtn).toBeInTheDocument();
     await user.click(resetBtn);
     expect(screen.queryByRole('button', { name: /Clear filters/ })).not.toBeInTheDocument();
+  });
+
+  it('exports filtered assets to CSV when Export CSV is clicked', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+
+    const exportBtn = screen.getByRole('button', { name: /Export CSV/i });
+    expect(exportBtn).toBeInTheDocument();
+    await user.click(exportBtn);
+
+    expect(toast.success).toHaveBeenCalledWith(
+      'CSV Exported',
+      expect.stringMatching(/Exported \d+ asset records/)
+    );
+  });
+
+  it('displays Clear all filters in the empty state when no assets match and resets on click', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+
+    const searchInput = screen.getByRole('textbox', { name: 'Search assets' });
+    await user.type(searchInput, 'NON_EXISTENT_ASSET_XYZ');
+
+    expect(screen.getByText('No assets match')).toBeInTheDocument();
+    const clearBtn = screen.getByRole('button', { name: 'Clear all filters' });
+    expect(clearBtn).toBeInTheDocument();
+
+    await user.click(clearBtn);
+    expect(await screen.findByText('MOA-S1')).toBeInTheDocument();
+    expect(searchInput).toHaveValue('');
+  });
+
+  it('displays computed Total valuation in the asset record item details', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-S2');
+
+    expect(within(record).getByText('Total valuation')).toBeInTheDocument();
+    expect(within(record).getAllByText(/ETB 1,000/).length).toBeGreaterThanOrEqual(2);
   });
 });
 
