@@ -1,17 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText } from 'lucide-react';
+import { ArrowLeft, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload } from 'lucide-react';
 import { btn, statusTone, pill } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { Row } from '../ui/RecordDetailModal';
 import { SlipViewerModal } from '../ui/SlipViewerModal';
 import { RowAction } from '../ui/RowActionsMenu';
+import { FormSection, FieldGrid, Field as FormKitField, ReadOnlyValue, TotalValue, FormNotice } from '../ui/FormKit';
 import { ApprovalStatus, TransactionApproval } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
 import { storeLocationLabel } from '../../utils/location';
 import { departmentLabel } from '../../utils/department';
 import { AssetRow, AssetStatus, REQUEST_LABELS, RejectionNote, STAGE_LABELS, shortDate } from './asset-state';
-
-type Tab = 'custody' | 'requests';
 
 export interface AssetRecordProps {
   row: AssetRow;
@@ -134,30 +133,6 @@ export const CopyButton: React.FC<{ text: string; label?: string; className?: st
   );
 };
 
-const isBlank = (value: React.ReactNode) => value === undefined || value === null || value === '' || value === false;
-
-/** One detail: a small label over its value. `wide` spans both columns. Left out by its group when empty. */
-const Field: React.FC<{ label: string; children?: React.ReactNode; mono?: boolean; wide?: boolean }> = ({ label, children, mono, wide }) => (
-  <div className={`min-w-0 ${wide ? 'col-span-2' : ''}`}>
-    <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</dt>
-    <dd className={`mt-0.5 break-words text-xs font-medium text-slate-900 ${mono ? 'font-mono' : ''}`}>{children}</dd>
-  </div>
-);
-
-/** A titled two-column group of details, showing only those that have a value */
-const FieldGroup: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
-  const filled = React.Children.toArray(children).filter(
-    (child) => React.isValidElement<{ children?: React.ReactNode }>(child) && !isBlank(child.props.children),
-  );
-  if (filled.length === 0) return null;
-  return (
-    <div>
-      <h4 className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">{title}</h4>
-      <dl className="grid grid-cols-2 gap-x-5 gap-y-3">{filled}</dl>
-    </div>
-  );
-};
-
 const RequestStatus: React.FC<{ request: TransactionApproval }> = ({ request }) =>
   request.status === ApprovalStatus.PENDING ? (
     <span className={`${pill} ${statusTone.pending}`}>
@@ -171,8 +146,8 @@ const RequestStatus: React.FC<{ request: TransactionApproval }> = ({ request }) 
   );
 
 /**
- * One asset record, opened from the register: what can be done now in the toolbar, the Model 19 details on
- * the left, and where its units are and its requests on the right.
+ * One asset record, opened from the register:
+ * Matches the Receive Items form layout (FormSections, no tabs), with status-based field locking.
  */
 export const AssetRecord: React.FC<AssetRecordProps> = ({
   row,
@@ -191,7 +166,6 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   onSelect,
   onClose,
 }) => {
-  const [tab, setTab] = useState<Tab>('custody');
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
   const { item } = row;
   const uom = item.uom || 'EA';
@@ -201,11 +175,6 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   const steps = actions.filter((a) => !a.hidden && !a.label.startsWith('Print'));
   const pending = row.request;
   const approved = row.state !== 'RECEIPT_PENDING' && row.state !== 'REJECTED';
-
-  const tabs: { id: Tab; label: string; icon: React.ElementType; count?: number }[] = [
-    { id: 'custody', label: 'Custody', icon: Users },
-    { id: 'requests', label: 'Requests', icon: FileText, count: requests.length },
-  ];
 
   return (
     <section aria-label={`Asset record ${item.itemCode}`} className="flex min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white shadow-xs">
@@ -250,37 +219,37 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
             </div>
           </div>
 
-        <div role="toolbar" aria-label="Asset actions" className="flex flex-wrap items-center gap-2 2xl:justify-end">
-          {editing ? (
-            <>
-              <button type="submit" form={editFormId} disabled={saving} className={btn.primary}>
-                <Check className="h-4 w-4" />
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-              <button type="button" onClick={onCancelEdit} disabled={saving} className={btn.secondary}>
-                <X className="h-4 w-4" />
-                Cancel
-              </button>
-            </>
-          ) : (
-            <>
-              {steps.map((a, i) => (
-                <button
-                  key={a.label}
-                  type="button"
-                  onClick={a.onClick}
-                  disabled={a.disabled}
-                  title={a.disabled ? a.reason : undefined}
-                  className={`${i === 0 ? btn.primary : btn.secondary} disabled:opacity-60`}
-                >
-                  {a.disabled ? <Lock className="h-4 w-4" /> : <a.icon className="h-4 w-4" />}
-                  {a.label}
+          <div role="toolbar" aria-label="Asset actions" className="flex flex-wrap items-center gap-2 2xl:justify-end">
+            {editing ? (
+              <>
+                <button type="submit" form={editFormId} disabled={saving} className={btn.primary}>
+                  <Check className="h-4 w-4" />
+                  {saving ? 'Saving…' : 'Save'}
                 </button>
-              ))}
-              {prints.length > 0 && <PrintButton prints={prints} />}
-            </>
-          )}
-        </div>
+                <button type="button" onClick={onCancelEdit} disabled={saving} className={btn.secondary}>
+                  <X className="h-4 w-4" />
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                {steps.map((a, i) => (
+                  <button
+                    key={a.label}
+                    type="button"
+                    onClick={a.onClick}
+                    disabled={a.disabled}
+                    title={a.disabled ? a.reason : undefined}
+                    className={`${i === 0 ? btn.primary : btn.secondary} disabled:opacity-60`}
+                  >
+                    {a.disabled ? <Lock className="h-4 w-4" /> : <a.icon className="h-4 w-4" />}
+                    {a.label}
+                  </button>
+                ))}
+                {prints.length > 0 && <PrintButton prints={prints} />}
+              </>
+            )}
+          </div>
         </div>
         {!editing && steps.some((a) => a.disabled) && (
           <p className="text-[11px] text-slate-500">{steps.find((a) => a.disabled)?.reason}</p>
@@ -288,234 +257,337 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
       </header>
 
       {editing ? (
-        <div className="p-4">{editForm}</div>
+        <div className="p-5">{editForm}</div>
       ) : (
-        <div className="grid min-w-0 xl:grid-cols-2 xl:divide-x xl:divide-slate-200">
-          {/* ── Left: the Model 19 record ── */}
-          <div className="min-w-0 space-y-5 px-5 py-4">
-            <FieldGroup title="Receipt · Model 19">
-              <Field label="Model 19 No." mono>
-                {item.ifmisSlipNumber && (
-                  <span className="inline-flex items-center gap-1">
-                    {item.ifmisSlipNumber}
-                    <CopyButton text={item.ifmisSlipNumber} label="Copy Model 19 number" />
-                    {item.ifmisSlipAttachmentUrl && (
-                      <button
-                        type="button"
-                        onClick={() => setSlipUrl(item.ifmisSlipAttachmentUrl!)}
-                        className="rounded p-0.5 text-emerald-700 hover:bg-emerald-50 cursor-pointer"
-                        aria-label="View scanned Model 19 slip"
-                        title="View scanned Model 19 slip"
-                      >
-                        <Paperclip className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </span>
-                )}
-              </Field>
-              <Field label="Received on">
-                {item.ifmisSlipDateEc ? (
-                  <>
-                    {item.ifmisSlipDateEc} E.C.
-                    <span className="block text-[10px] font-normal text-slate-500">{item.ifmisSlipDateGc}</span>
-                  </>
-                ) : (
-                  item.ifmisSlipDateGc
-                )}
-              </Field>
-              <Field label="Supplier">{item.source}</Field>
-              <Field label="Transaction type">{item.transactionType}</Field>
-              <Field label="PO number" mono>
-                {item.poNumber ? (
-                  <span className="inline-flex items-center gap-1">
-                    {item.poNumber}
-                    <CopyButton text={item.poNumber} label="Copy PO number" />
-                  </span>
-                ) : undefined}
-              </Field>
-              <Field label="Store">{item.storeLocation ? storeLocationLabel(item.storeLocation) : undefined}</Field>
-            </FieldGroup>
-
-            <FieldGroup title="Item">
-              <Field label="Category">{item.itemCategoryDisplay || item.category?.replace(/_/g, ' ')}</Field>
-              <Field label="Condition">{item.condition?.replace(/_/g, ' ')}</Field>
-              <Field label="Quantity" mono>{totals ? `${totals.total} ${uom} received` : `${row.units} ${uom}`}</Field>
-              <Field label="Unit price" mono>{formatETB(item.unitCostETB)}</Field>
-              <Field label="Total valuation" mono>
-                {formatETB((item.unitCostETB || 0) * (totals?.total ?? row.units))}
-                {totals && totals.issued > 0 && (
-                  <span className="block text-[10px] font-normal text-slate-500">
-                    {formatETB((item.unitCostETB || 0) * totals.inStore)} in store · {formatETB((item.unitCostETB || 0) * totals.issued)} issued
-                  </span>
-                )}
-              </Field>
-              <Field label="Serial number" mono>
-                {item.serialNumber ? (
-                  <span className="inline-flex items-center gap-1">
-                    {item.serialNumber}
-                    <CopyButton text={item.serialNumber} label="Copy serial number" />
-                  </span>
-                ) : undefined}
-              </Field>
-              <Field label="Lot / batch no." mono>{item.lotBatchNo}</Field>
-              <Field label="Sub inventory">{item.subInventory}</Field>
-              <Field label="Remark" wide>{item.remark}</Field>
-            </FieldGroup>
-
-            <FieldGroup title="People">
-              <Field label="Delivered by">{item.deliveredBy}</Field>
-              <Field label="Received by">{item.receivedBy}</Field>
-              <Field label="Registered by">{item.registeredBy?.fullNameEn}</Field>
-            </FieldGroup>
-
-            <p className="flex items-start gap-1.5 text-[11px] text-slate-500">
-              <Lock className="mt-0.5 h-3 w-3 shrink-0" />
+        <div className="space-y-4 p-5 overflow-y-auto">
+          {/* Status-based field locking notice */}
+          <FormNotice icon={Lock} tone={approved ? 'info' : 'warn'}>
+            <span className="font-bold">
+              {approved
+                ? 'Approved inventory record · Form fields locked'
+                : row.state === 'REJECTED'
+                  ? 'Rejected record · Archived'
+                  : 'Pending endorsement · Editable in correction mode'}
+            </span>
+            <p className="mt-0.5 text-[11px] text-slate-500">
               {approved
                 ? 'Approved records are locked. To correct one, an approver rejects the request and it is registered again.'
                 : row.state === 'REJECTED'
                   ? 'This receipt was rejected and is kept for the record.'
                   : 'The receipt can be corrected until the Team Leader endorses it.'}
             </p>
-          </div>
+          </FormNotice>
 
-          {/* ── Right: custody and requests ── */}
-          <div className="min-w-0 border-t border-slate-200 xl:border-t-0">
-            <div role="tablist" aria-label="Asset record" className="flex border-b border-slate-200 px-2">
-              {tabs.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider transition cursor-pointer ${
-                    tab === t.id ? "-mb-px border-b-2 border-emerald-700 text-emerald-900" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  <t.icon className="h-3.5 w-3.5" />
-                  {t.label}
-                  {t.count !== undefined && <span className="font-mono font-normal opacity-70">{t.count}</span>}
-                </button>
-              ))}
-            </div>
-
-            <div role="tabpanel" className="px-5 py-4 text-xs">
-              {tab === 'custody' && (
-                <div className="space-y-3">
-                  {totals && (
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      {[
-                        ['Received', totals.total],
-                        ['Issued', totals.issued],
-                        ['In store', totals.inStore],
-                      ].map(([label, value]) => (
-                        <div key={label} className="rounded-lg bg-slate-50 px-2 py-2">
-                          <p className="font-mono text-lg font-black text-slate-900">{value}</p>
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div>
-                    <Row label={row.state === 'ISSUED' || item.currentCustodian ? 'Held by' : 'Kept in'}>{row.where}</Row>
-                    {item.currentCustodian?.payrollId && <Row label="Payroll ID" mono>{item.currentCustodian.payrollId}</Row>}
-                    {item.assignedDepartment && <Row label="Directorate">{departmentLabel(item.assignedDepartment)}</Row>}
-                    {batch && (
-                      <Row label="Part of">
-                        <button type="button" onClick={() => onSelect(batch.item.id)} className="font-mono font-bold text-emerald-800 hover:underline cursor-pointer">
-                          {batch.item.itemCode}
-                        </button>
-                      </Row>
-                    )}
-                  </div>
-                  {pending && (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
-                      <p className="font-semibold">
-                        {REQUEST_LABELS[pending.transactionType]?.pending ?? 'Request pending'} · {STAGE_LABELS[pending.currentStage] ?? 'waiting'}
-                      </p>
-                      {row.goingTo && <p>→ {row.goingTo}</p>}
-                    </div>
-                  )}
-                  {row.rejected && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-                      <RejectionNote request={row.rejected} />
-                    </div>
-                  )}
-                  {units.length > 0 && (
-                    <div>
-                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Issued from this batch</p>
-                      <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
-                        {units.map((u) => (
-                          <li key={u.item.id}>
-                            <button
-                              type="button"
-                              onClick={() => onSelect(u.item.id)}
-                              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-emerald-50/60 cursor-pointer"
-                            >
-                              <span className="min-w-0">
-                                <span className="block font-mono font-bold text-slate-800">{u.item.itemCode}</span>
-                                <span className="block truncate text-slate-600">{u.where}</span>
-                              </span>
-                              <span className="flex shrink-0 items-center gap-2">
-                                <span className="font-mono text-slate-700">
-                                  {u.units} {u.item.uom || 'EA'}
-                                </span>
-                                <AssetStatus row={u} />
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+          {/* Section 1: Voucher & procurement */}
+          <FormSection
+            step={1}
+            title="Voucher & procurement"
+            subtitle="የሰነድ እና የግዥ መረጃ · IFMIS Model 19 header"
+            icon={FileText}
+            accent="emerald"
+          >
+            <FieldGrid>
+              <FormKitField label="Model 19 No." required>
+                <div className="flex items-center gap-1.5">
+                  <ReadOnlyValue mono>{item.ifmisSlipNumber || '—'}</ReadOnlyValue>
+                  {item.ifmisSlipNumber && <CopyButton text={item.ifmisSlipNumber} label="Copy Model 19 number" />}
+                  {item.ifmisSlipAttachmentUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setSlipUrl(item.ifmisSlipAttachmentUrl!)}
+                      className="rounded p-1 text-emerald-700 hover:bg-emerald-50 cursor-pointer shrink-0"
+                      aria-label="View scanned Model 19 slip"
+                      title="View scanned Model 19 slip"
+                    >
+                      <Paperclip className="h-4 w-4" />
+                    </button>
                   )}
                 </div>
+              </FormKitField>
+
+              <FormKitField label="PO number" optional>
+                <div className="flex items-center gap-1.5">
+                  <ReadOnlyValue mono>{item.poNumber || '—'}</ReadOnlyValue>
+                  {item.poNumber && <CopyButton text={item.poNumber} label="Copy PO number" />}
+                </div>
+              </FormKitField>
+
+              <FormKitField
+                label="Received date (G.C.)"
+                required
+                hint={item.ifmisSlipDateEc ? `${item.ifmisSlipDateEc} E.C.` : undefined}
+              >
+                <ReadOnlyValue mono>{item.ifmisSlipDateGc || '—'}</ReadOnlyValue>
+              </FormKitField>
+
+              <FormKitField label="Transaction type" required>
+                <ReadOnlyValue>{item.transactionType || '—'}</ReadOnlyValue>
+              </FormKitField>
+
+              <FormKitField label="Source (supplier / vendor)" required>
+                <ReadOnlyValue>{item.source || '—'}</ReadOnlyValue>
+              </FormKitField>
+
+              <FormKitField label="Buyer / procurement officer" optional>
+                <ReadOnlyValue>{item.buyer || '—'}</ReadOnlyValue>
+              </FormKitField>
+
+              {item.programName && (
+                <FormKitField label="Program / project" optional span="sm:col-span-2">
+                  <ReadOnlyValue>{item.programName}</ReadOnlyValue>
+                </FormKitField>
               )}
 
-              {tab === 'requests' &&
-                (requests.length === 0 ? (
-                  <p className="py-2 text-slate-400">No requests on this record.</p>
-                ) : (
-                  <ol className="divide-y divide-slate-100">
-                    {requests.map((r) => {
-                      const kind = REQUEST_LABELS[r.transactionType];
-                      const to =
-                        r.transactionType === 'STOCK_OUT' || r.transactionType === 'TRANSFER'
-                          ? r.recipientEmployee?.fullNameEn
-                          : r.transactionType === 'RETURN'
-                            ? 'Store'
-                            : undefined;
-                      return (
-                        <li key={r.id} className="space-y-1 py-2.5">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="font-semibold text-slate-900">
-                              {capital(kind?.noun ?? 'request')} · <span className="font-mono">{r.ifmisSlipNumber}</span>
+              <FormKitField label="Receiving store & location" required span="sm:col-span-2">
+                <ReadOnlyValue>{item.storeLocation ? storeLocationLabel(item.storeLocation) : '—'}</ReadOnlyValue>
+              </FormKitField>
+            </FieldGrid>
+          </FormSection>
+
+          {/* Section 2: Item particulars */}
+          <FormSection
+            step={2}
+            title="Item particulars"
+            subtitle="የእቃው ዝርዝር መረጃ · Line item details"
+            icon={PackagePlus}
+            accent="emerald"
+          >
+            <FieldGrid>
+              <FormKitField label="Item description / Name" required span="sm:col-span-2">
+                <ReadOnlyValue>{item.name}</ReadOnlyValue>
+              </FormKitField>
+
+              <FormKitField label="Category" required>
+                <ReadOnlyValue>{item.itemCategoryDisplay || item.category?.replace(/_/g, ' ')}</ReadOnlyValue>
+              </FormKitField>
+
+              <FormKitField label="Physical condition">
+                <ReadOnlyValue>{item.condition?.replace(/_/g, ' ')}</ReadOnlyValue>
+              </FormKitField>
+
+              <FormKitField label="Quantity" required>
+                <ReadOnlyValue mono>
+                  {totals ? `${totals.total} ${uom} received` : `${row.units} ${uom}`}
+                </ReadOnlyValue>
+              </FormKitField>
+
+              <FormKitField label="Unit price" required>
+                <ReadOnlyValue mono>{formatETB(item.unitCostETB)}</ReadOnlyValue>
+              </FormKitField>
+
+              <FormKitField
+                label="Total valuation"
+                hint={
+                  totals && totals.issued > 0
+                    ? `${formatETB((item.unitCostETB || 0) * totals.inStore)} in store · ${formatETB((item.unitCostETB || 0) * totals.issued)} issued`
+                    : undefined
+                }
+                span="sm:col-span-2"
+              >
+                <TotalValue accent="emerald">
+                  {formatETB((item.unitCostETB || 0) * (totals?.total ?? row.units))}
+                </TotalValue>
+              </FormKitField>
+
+              {item.serialNumber && (
+                <FormKitField label="Serial number" optional>
+                  <div className="flex items-center gap-1.5">
+                    <ReadOnlyValue mono>{item.serialNumber}</ReadOnlyValue>
+                    <CopyButton text={item.serialNumber} label="Copy serial number" />
+                  </div>
+                </FormKitField>
+              )}
+
+              {item.lotBatchNo && (
+                <FormKitField label="Lot / batch no." optional>
+                  <ReadOnlyValue mono>{item.lotBatchNo}</ReadOnlyValue>
+                </FormKitField>
+              )}
+
+              {item.subInventory && (
+                <FormKitField label="Sub inventory" optional>
+                  <ReadOnlyValue>{item.subInventory}</ReadOnlyValue>
+                </FormKitField>
+              )}
+
+              {item.remark && (
+                <FormKitField label="Remark / notes" optional span="sm:col-span-2">
+                  <ReadOnlyValue>{item.remark}</ReadOnlyValue>
+                </FormKitField>
+              )}
+            </FieldGrid>
+          </FormSection>
+
+          {/* Section 3: Signatures & document scan */}
+          <FormSection
+            step={3}
+            title="Signatures & document scan"
+            subtitle="ፊርማ እና አባሪ ሰነድ · Model 19 verification"
+            icon={Upload}
+            accent="emerald"
+          >
+            <FieldGrid>
+              {item.deliveredBy && (
+                <FormKitField label="Delivered by" optional>
+                  <ReadOnlyValue>{item.deliveredBy}</ReadOnlyValue>
+                </FormKitField>
+              )}
+              {item.receivedBy && (
+                <FormKitField label="Received by" optional>
+                  <ReadOnlyValue>{item.receivedBy}</ReadOnlyValue>
+                </FormKitField>
+              )}
+              {item.registeredBy && (
+                <FormKitField label="Registered by" optional>
+                  <ReadOnlyValue>{item.registeredBy.fullNameEn}</ReadOnlyValue>
+                </FormKitField>
+              )}
+              {item.ifmisSlipAttachmentUrl && (
+                <FormKitField label="Scanned IFMIS Model 19 slip" span="sm:col-span-2">
+                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+                    <span className="font-mono text-slate-700 truncate">{item.ifmisSlipNumber}_slip.pdf</span>
+                    <button
+                      type="button"
+                      onClick={() => setSlipUrl(item.ifmisSlipAttachmentUrl!)}
+                      className="inline-flex items-center gap-1 font-semibold text-emerald-800 hover:underline cursor-pointer ml-2 shrink-0"
+                    >
+                      <Paperclip className="h-3.5 w-3.5" /> View slip
+                    </button>
+                  </div>
+                </FormKitField>
+              )}
+            </FieldGrid>
+          </FormSection>
+
+          {/* Section 4: Custody & Location */}
+          <FormSection
+            step={4}
+            title="Custody & Location"
+            subtitle="የይዞታ እና የስምሪት ሁኔታ · Current allocation"
+            icon={Users}
+            accent="emerald"
+          >
+            <div className="space-y-3">
+              {totals && (
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  {[
+                    ['Received', totals.total],
+                    ['Issued', totals.issued],
+                    ['In store', totals.inStore],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-lg bg-slate-50 px-2 py-2">
+                      <p className="font-mono text-lg font-black text-slate-900">{value}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div>
+                <Row label={row.state === 'ISSUED' || item.currentCustodian ? 'Held by' : 'Kept in'}>{row.where}</Row>
+                {item.currentCustodian?.payrollId && <Row label="Payroll ID" mono>{item.currentCustodian.payrollId}</Row>}
+                {item.assignedDepartment && <Row label="Directorate">{departmentLabel(item.assignedDepartment)}</Row>}
+                {batch && (
+                  <Row label="Part of">
+                    <button type="button" onClick={() => onSelect(batch.item.id)} className="font-mono font-bold text-emerald-800 hover:underline cursor-pointer">
+                      {batch.item.itemCode}
+                    </button>
+                  </Row>
+                )}
+              </div>
+              {pending && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 text-xs">
+                  <p className="font-semibold">
+                    {REQUEST_LABELS[pending.transactionType]?.pending ?? 'Request pending'} · {STAGE_LABELS[pending.currentStage] ?? 'waiting'}
+                  </p>
+                  {row.goingTo && <p>→ {row.goingTo}</p>}
+                </div>
+              )}
+              {row.rejected && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs">
+                  <RejectionNote request={row.rejected} />
+                </div>
+              )}
+              {units.length > 0 && (
+                <div>
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Issued from this batch</p>
+                  <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 text-xs">
+                    {units.map((u) => (
+                      <li key={u.item.id}>
+                        <button
+                          type="button"
+                          onClick={() => onSelect(u.item.id)}
+                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-emerald-50/60 cursor-pointer"
+                        >
+                          <span className="min-w-0">
+                            <span className="block font-mono font-bold text-slate-800">{u.item.itemCode}</span>
+                            <span className="block truncate text-slate-600">{u.where}</span>
+                          </span>
+                          <span className="flex shrink-0 items-center gap-2">
+                            <span className="font-mono text-slate-700">
+                              {u.units} {u.item.uom || 'EA'}
                             </span>
-                            <RequestStatus request={r} />
-                          </div>
-                          <p className="text-slate-600">
-                            {shortDate(r.createdAtGc)}
-                            {to ? ` · to ${to}` : ''}
-                            {r.transactionType === 'STOCK_OUT' && r.requestDetails?.quantity ? ` · ${r.requestDetails.quantity} ${uom}` : ''}
-                          </p>
-                          {r.status === ApprovalStatus.REJECTED && r.reviewRemarks && <p className="text-red-700">Reason: {r.reviewRemarks}</p>}
-                          <button
-                            type="button"
-                            onClick={() => (r.transactionType === 'STOCK_IN' ? onPrintReceipt() : onPrintRequest(r))}
-                            className={btn.row}
-                          >
-                            <Printer className={btn.rowIcon} />
-                            Print {kind?.model ?? 'voucher'}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                ))}
+                            <AssetStatus row={u} />
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-          </div>
+          </FormSection>
+
+          {/* Section 5: Transaction Requests */}
+          <FormSection
+            step={5}
+            title="Transaction Requests"
+            subtitle="የጥያቄዎች እና እንቅስቃሴዎች ታሪክ · Activity log"
+            icon={Clock}
+            accent="emerald"
+          >
+            {requests.length === 0 ? (
+              <p className="py-2 text-xs text-slate-400">No requests on this record.</p>
+            ) : (
+              <ol className="divide-y divide-slate-100 text-xs">
+                {requests.map((r) => {
+                  const kind = REQUEST_LABELS[r.transactionType];
+                  const to =
+                    r.transactionType === 'STOCK_OUT' || r.transactionType === 'TRANSFER'
+                      ? r.recipientEmployee?.fullNameEn
+                      : r.transactionType === 'RETURN'
+                        ? 'Store'
+                        : undefined;
+                  return (
+                    <li key={r.id} className="space-y-1 py-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-semibold text-slate-900">
+                          {capital(kind?.noun ?? 'request')} · <span className="font-mono">{r.ifmisSlipNumber}</span>
+                        </span>
+                        <RequestStatus request={r} />
+                      </div>
+                      <p className="text-slate-600">
+                        {shortDate(r.createdAtGc)}
+                        {to ? ` · to ${to}` : ''}
+                        {r.transactionType === 'STOCK_OUT' && r.requestDetails?.quantity ? ` · ${r.requestDetails.quantity} ${uom}` : ''}
+                      </p>
+                      {r.status === ApprovalStatus.REJECTED && r.reviewRemarks && <p className="text-red-700">Reason: {r.reviewRemarks}</p>}
+                      <button
+                        type="button"
+                        onClick={() => onPrintRequest(r)}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer"
+                      >
+                        <Printer className="h-3 w-3" /> Print {kind?.model ?? 'voucher'}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </FormSection>
         </div>
       )}
-      {slipUrl && <SlipViewerModal url={slipUrl} onClose={() => setSlipUrl(null)} />}
+
+      {slipUrl && <SlipViewerModal slipUrl={slipUrl} onClose={() => setSlipUrl(null)} />}
     </section>
   );
 };

@@ -143,11 +143,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [editing, setEditing] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [receiptSaving, setReceiptSaving] = useState(false);
-  const openRecord = (itemId: string) => {
-    setReceipt(null);
-    setSelectedId(itemId);
-    setEditing(false);
-  };
   const closeRecord = () => {
     setSelectedId(null);
     setReceipt(null);
@@ -422,6 +417,24 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
   };
 
+  /** Check if an asset row has an editable receipt */
+  const isRowEditable = (row?: AssetRow) => {
+    if (!row) return false;
+    return row.state === 'RECEIPT_PENDING' && canReceive && (row.request?.currentStage ?? 1) === 1;
+  };
+
+  /** Open a record. If it has an editable receipt, open straight into editing with Save button in toolbar */
+  const openRecord = (itemId: string, opts: { forceView?: boolean } = {}) => {
+    setReceipt(null);
+    setSelectedId(itemId);
+    if (opts.forceView) {
+      setEditing(false);
+      return;
+    }
+    const targetRow = rows.find((r) => r.item.id === itemId);
+    setEditing(isRowEditable(targetRow));
+  };
+
   /** Open a record straight into correcting what it has pending (its receipt or its request) */
   const editInRecord = (itemId: string) => {
     setSelectedId(itemId);
@@ -517,7 +530,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   const actionsFor = (row: AssetRow): RowAction[] => {
     const { item, request } = row;
-    const view: RowAction = { label: 'View details', icon: Eye, onClick: () => openRecord(item.id) };
+    const view: RowAction = { label: 'View details', icon: Eye, onClick: () => openRecord(item.id, { forceView: true }) };
     const printReceipt: RowAction = { label: 'Print Model 19', icon: Printer, onClick: () => setVoucher19(buildModel19Voucher(item, items)) };
     // Vouchers of requests already approved, so signed copies can be printed again
     const printIssue: RowAction = { label: 'Print Model 22 (issue)', icon: Printer, onClick: () => printRequest(row.lastIssue!, item), hidden: !row.lastIssue };

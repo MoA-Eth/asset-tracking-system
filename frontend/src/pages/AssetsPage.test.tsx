@@ -236,8 +236,9 @@ describe('Asset record', () => {
     expect(screen.getByRole('complementary', { name: 'Asset list' })).toBeInTheDocument();
     // The last rejection shows in Custody
     expect(within(record).getByText('Budget line closed')).toBeInTheDocument();
-    // The record has Custody and Requests, no History
-    expect(within(record).getAllByRole('tab').map((t) => t.textContent?.replace(/\d+$/, '').trim())).toEqual(['Custody', 'Requests']);
+    // The record has continuous Custody and Requests sections with no tabs
+    expect(within(record).getByText('Custody & Location')).toBeInTheDocument();
+    expect(within(record).getByText('Transaction Requests')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Close record' }));
     expect(screen.queryByRole('region', { name: /Asset record/ })).not.toBeInTheDocument();
@@ -256,7 +257,6 @@ describe('Asset record', () => {
     const unit = screen.getByRole('region', { name: 'Asset record MOA-S1-1' });
     expect(toolbarOf(unit)).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'Print Model 22 (issue)']);
     expect(within(unit).getByRole('button', { name: 'MOA-S1' })).toBeInTheDocument();
-    await user.click(within(unit).getByRole('tab', { name: /Requests/ }));
     expect(within(unit).getByText('Approved')).toBeInTheDocument();
   });
 
@@ -266,13 +266,17 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-R1');
-    await user.click(within(within(record).getByRole('toolbar')).getByRole('button', { name: 'Edit receipt' }));
+    // An editable pending receipt opens straight into edit mode with Save and Cancel
     expect(toolbarOf(record)).toEqual(['Save', 'Cancel']);
     expect(record.querySelector('form#stock-in-form')).not.toBeNull();
     // The toolbar's Save submits the form
     expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'stock-in-form');
+    // Cancel exits edit mode into the locked/view mode with Edit receipt
     await user.click(within(record).getByRole('button', { name: 'Cancel' }));
     expect(toolbarOf(record)).toEqual(['Edit receipt', 'Print Model 19']);
+    // Clicking Edit receipt re-enters edit mode
+    await user.click(within(record).getByRole('button', { name: 'Edit receipt' }));
+    expect(toolbarOf(record)).toEqual(['Save', 'Cancel']);
   });
 
   it.each([
