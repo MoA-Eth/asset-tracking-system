@@ -369,7 +369,7 @@ describe('Asset record', () => {
     await user.selectOptions(catSelect, 'IT_EQUIPMENT');
     expect(screen.getByText('MOA-S1')).toBeInTheDocument();
 
-    const resetBtn = screen.getByRole('button', { name: /Reset all filters/ });
+    const resetBtn = screen.getByRole('button', { name: /Clear filters/ });
     await user.click(resetBtn);
     expect(locSelect).toHaveValue('ALL');
     expect(catSelect).toHaveValue('ALL');
@@ -402,11 +402,11 @@ describe('Asset record', () => {
     // Click again to reverse sort direction
     await user.click(costHeader);
 
-    // Reset sort via reset all filters
-    const resetBtn = screen.getByRole('button', { name: /Reset all filters/ });
+    // Reset sort via clear filters
+    const resetBtn = screen.getByRole('button', { name: /Clear filters/ });
     expect(resetBtn).toBeInTheDocument();
     await user.click(resetBtn);
-    expect(screen.queryByRole('button', { name: /Reset all filters/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Clear filters/ })).not.toBeInTheDocument();
   });
 });
 
