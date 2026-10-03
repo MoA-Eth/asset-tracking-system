@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { CloseButton } from './CloseButton';
 
 interface ModalProps {
   isOpen: boolean;
@@ -98,14 +98,12 @@ export const Modal: React.FC<ModalProps> = ({
               <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={requestClose}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer shrink-0 ml-4"
-            aria-label="Close modal"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <CloseButton
+            onClose={requestClose}
+            label="Close modal"
+            title="Close (Esc)"
+            className="shrink-0 ml-4"
+          />
         </div>
 
         {/* Modal Body — scrollable */}

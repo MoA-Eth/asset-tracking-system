@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText } from 'lucide-react';
 import { btn, statusTone, pill } from '../ui/theme';
+import { CloseButton } from '../ui/CloseButton';
 import { Row } from '../ui/RecordDetailModal';
 import { SlipViewerModal } from '../ui/SlipViewerModal';
 import { RowAction } from '../ui/RowActionsMenu';
@@ -213,9 +214,12 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
         <button type="button" onClick={onClose} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer lg:hidden">
           <ArrowLeft className="h-3 w-3" /> All assets
         </button>
-        <button type="button" onClick={onClose} aria-label="Close record" title="Close" className="absolute right-3 top-3 hidden rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer lg:inline-flex">
-          <X className="h-4 w-4" />
-        </button>
+        <CloseButton
+          onClose={onClose}
+          label="Close record"
+          title="Close (Esc)"
+          className="absolute right-3 top-3 hidden lg:inline-flex"
+        />
         <div className="flex flex-col gap-3 lg:pr-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
           <div className="min-w-0">
             <h3 className="truncate text-base font-extrabold text-slate-900" title={item.name}>{item.name}</h3>

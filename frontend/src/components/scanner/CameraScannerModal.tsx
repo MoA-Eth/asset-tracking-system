@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, Barcode, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Camera, Barcode, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { CloseButton } from '../ui/CloseButton';
 import { api } from '../../api/client';
 import { storeLocationLabel } from '../../utils/location';
 import { ItemWithRelations } from '../../types/asset-management';
@@ -127,15 +128,14 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
               <p className="text-[11px] text-emerald-100">Mobile Camera & USB Wedge Compatible</p>
             </div>
           </div>
-          <button
-            onClick={() => {
+          <CloseButton
+            onClose={() => {
               stopCamera();
               onClose();
             }}
-            className="p-1.5 rounded-lg text-emerald-100 hover:text-white hover:bg-emerald-700/50 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+            label="Close scanner"
+            tone="dark"
+          />
         </div>
 
         {/* Content */}

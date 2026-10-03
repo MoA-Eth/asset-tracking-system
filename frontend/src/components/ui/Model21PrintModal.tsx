@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { VoucherStatusBanner } from './VoucherStatusBanner';
-import { Printer, X, FileText, CheckCircle2 } from 'lucide-react';
+import { Printer, FileText, CheckCircle2 } from 'lucide-react';
+import { CloseButton } from './CloseButton';
 import { Model21Voucher } from '../../types/asset-management';
 
 interface Model21PrintModalProps {
@@ -53,13 +54,12 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
               <Printer className="w-4 h-4" />
               <span>Print Model 21 / PDF</span>
             </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+            <CloseButton
+              onClose={onClose}
               title="Close Preview"
-            >
-              <X className="w-4 h-4" />
-            </button>
+              label="Close Preview"
+              tone="dark"
+            />
           </div>
         </div>
 
