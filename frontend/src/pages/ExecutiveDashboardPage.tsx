@@ -414,7 +414,14 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
     }
   };
 
-  useEffect(() => { fetchDashboard(); }, []);
+  useEffect(() => {
+    fetchDashboard();
+    const handleUpdate = () => {
+      fetchDashboard();
+    };
+    window.addEventListener('moa_approvals_updated', handleUpdate);
+    return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
+  }, []);
 
   if (loading && !data) {
     return (

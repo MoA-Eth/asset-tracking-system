@@ -150,6 +150,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    const handleUpdate = () => {
+      fetchData(true);
+    };
+    window.addEventListener('moa_approvals_updated', handleUpdate);
+    return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
+  }, [fetchData]);
+
   // One open request per record at most
   const pendingByItem = useMemo(
     () => new Map(approvals.filter((a) => a.status === ApprovalStatus.PENDING).map((a) => [a.itemId, a] as const)),
@@ -312,6 +320,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const saved = (itemId: string | undefined) => {
     if (itemId) setLastTouchedId(itemId);
     fetchData(true);
+    window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
   };
 
   /** Open a record straight into correcting what it has pending (its receipt or its request) */

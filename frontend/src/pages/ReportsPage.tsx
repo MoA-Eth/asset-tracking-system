@@ -133,6 +133,11 @@ export const ReportsPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    const handleUpdate = () => {
+      loadData();
+    };
+    window.addEventListener('moa_approvals_updated', handleUpdate);
+    return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
   }, []);
 
   const splitsByRoot = useMemo(() => {
