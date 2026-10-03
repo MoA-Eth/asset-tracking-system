@@ -15,6 +15,7 @@ import {
   Eye,
   Pencil,
   Printer,
+  ChevronRight,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -99,6 +100,21 @@ interface AssetRow {
   rejected?: TransactionApproval;
 }
 
+/** A registration with the units issued from it */
+interface AssetGroup {
+  row: AssetRow;
+  children: AssetRow[];
+  /** Latest activity in the batch, for ordering */
+  activity: string;
+}
+
+interface ShownGroup extends AssetGroup {
+  /** The units listed under the batch: all of them, or those matching the filter or search */
+  units: AssetRow[];
+  /** Unfolded because a filter or search matched one of its units */
+  forceOpen: boolean;
+}
+
 /** When a request was decided; the request time breaks same-day ties */
 const decidedOn = (a: TransactionApproval) => `${a.reviewedAtGc || ''}|${a.createdAtGc || ''}`;
 const shortDate = (gc?: string) =>
@@ -118,9 +134,11 @@ const RejectionNote: React.FC<{ request: TransactionApproval }> = ({ request }) 
   );
 };
 
-const AssetStatus: React.FC<{ row: AssetRow }> = ({ row }) => {
+/** `partly`: a batch with some units out and the rest still in store */
+const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row, partly }) => {
   const settled =
     row.state === 'REJECTED' ? <span className={`${pill} ${statusTone.rejected}`}>Rejected</span>
+    : row.state === 'IN_STORE' && partly ? <span className={`${pill} ${statusTone.partly}`}>Partly issued</span>
     : row.state === 'IN_STORE' ? <span className={`${pill} ${statusTone.inStore}`}>In store</span>
     : row.state === 'ISSUED' ? <span className={`${pill} ${statusTone.issued}`}>Issued</span>
     : null;
@@ -283,17 +301,54 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         ? row.state === 'REJECTED' || !!row.rejected
         : row.state === f);
 
-  const shown = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return rows.filter((row) => {
-      if (!inFilter(row, filter)) return false;
-      if (!q) return true;
-      const { item } = row;
-      return [item.name, item.itemCode, item.serialNumber, item.ifmisSlipNumber, item.itemCategoryDisplay, item.category, row.where, row.goingTo, row.request?.ifmisSlipNumber]
-        .some((v) => (v || '').toLowerCase().includes(q));
-    });
-  }, [rows, filter, search]);
+  // A batch is one row; the units issued from it fold underneath
+  const groups = useMemo<AssetGroup[]>(() => {
+    const ids = new Set(rows.map((r) => r.item.id));
+    const units = new Map<string, AssetRow[]>();
+    const tops: AssetRow[] = [];
+    for (const r of rows) {
+      const parentId = r.item.parentItemId;
+      if (parentId && ids.has(parentId)) units.set(parentId, [...(units.get(parentId) ?? []), r]);
+      else tops.push(r);
+    }
+    return tops
+      .map((row) => {
+        const children = (units.get(row.item.id) ?? []).sort((a, b) => a.item.itemCode.localeCompare(b.item.itemCode, undefined, { numeric: true }));
+        const activity = [row, ...children].reduce((latest, r) => (r.activity > latest ? r.activity : latest), row.activity);
+        return { row, children, activity };
+      })
+      .sort((a, b) => b.activity.localeCompare(a.activity) || a.row.item.itemCode.localeCompare(b.row.item.itemCode));
+  }, [rows]);
+
+  const q = search.trim().toLowerCase();
+  const matchesSearch = (row: AssetRow) => {
+    if (!q) return true;
+    const { item } = row;
+    return [item.name, item.itemCode, item.serialNumber, item.ifmisSlipNumber, item.itemCategoryDisplay, item.category, row.where, row.goingTo, row.request?.ifmisSlipNumber]
+      .some((v) => (v || '').toLowerCase().includes(q));
+  };
+  /** The batch shows when it or any of its units matches; with a filter or search, only the matching units unfold */
+  const visibleGroup = (g: AssetGroup, f: AssetFilter): ShownGroup | null => {
+    const hits = g.children.filter((c) => inFilter(c, f) && matchesSearch(c));
+    const self = inFilter(g.row, f) && matchesSearch(g.row);
+    if (!self && hits.length === 0) return null;
+    const narrowed = f !== 'ALL' || !!q;
+    return { ...g, units: narrowed ? hits : g.children, forceOpen: narrowed && hits.length > 0 };
+  };
+  const shown = useMemo(
+    () => groups.map((g) => visibleGroup(g, filter)).filter((g): g is ShownGroup => !!g),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [groups, filter, search],
+  );
   const pager = usePagination(shown, { resetKey: `${filter}|${search}` });
+  const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
+  const toggleBatch = (id: string) =>
+    setOpenBatches((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   // Summary
   const sumUnits = (list: AssetRow[]) => list.reduce((acc, r) => acc + r.units, 0);
@@ -406,6 +461,79 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     );
   }
 
+  /**
+   * One table row. A batch with issued units shows the whole batch (received · issued · in store) and a toggle
+   * for those units; a unit listed under its batch is indented.
+   */
+  const renderRow = (row: AssetRow, batch?: { group: ShownGroup; open: boolean }) => {
+    const { item } = row;
+    const uom = item.uom || 'EA';
+    const nested = !batch && !!item.parentItemId && rows.some((r) => r.item.id === item.parentItemId);
+    const orphanParent = !batch && !nested && item.parentItemId ? items.find((i) => i.id === item.parentItemId) : undefined;
+    const children = batch?.group.children ?? [];
+    const isBatch = children.length > 0;
+
+    // Units of the whole batch, from the registration's balance (it covers the records issued from it)
+    const out = children.filter((c) => c.item.status === ItemStatus.ISSUED || c.item.status === ItemStatus.UNDER_TRANSFER);
+    const issuedUnits = item.balance?.issued ?? out.reduce((acc, c) => acc + c.units, 0) + (row.state === 'ISSUED' ? row.units : 0);
+    const inStoreUnits = item.balance?.available ?? (row.state === 'ISSUED' ? 0 : row.units) + children.filter((c) => c.state === 'IN_STORE').reduce((acc, c) => acc + c.units, 0);
+    const totalUnits = item.balance?.total ?? issuedUnits + inStoreUnits;
+    const holders = [...new Set(out.map((c) => c.where))];
+
+    return (
+      <tr key={item.id} className={item.id === lastTouchedId ? table.rowHighlight : nested ? 'bg-slate-50/70 hover:bg-slate-100/70 transition' : table.row}>
+        <td className={`py-2.5 pr-3 ${nested ? 'pl-9' : 'pl-3'}`}>
+          <span className="block font-medium text-slate-900">
+            {nested && <span className="mr-1 text-slate-400" aria-hidden="true">↳</span>}
+            {item.name}
+          </span>
+          <span className={`block ${table.code}`}>{item.itemCode}</span>
+          {orphanParent && <span className="block text-[10px] text-slate-500">Part of {orphanParent.itemCode}</span>}
+          {isBatch && (
+            <button
+              type="button"
+              onClick={() => toggleBatch(item.id)}
+              aria-expanded={batch!.open}
+              className="mt-1 inline-flex items-center gap-1 rounded-md text-[10px] font-semibold text-emerald-800 hover:text-emerald-950 hover:underline cursor-pointer"
+            >
+              <ChevronRight className={`h-3 w-3 transition-transform ${batch!.open ? 'rotate-90' : ''}`} />
+              {batch!.open ? 'Hide' : 'Show'} {children.length} issued {children.length === 1 ? 'record' : 'records'}
+            </button>
+          )}
+        </td>
+        <td className="px-3 py-2.5 whitespace-nowrap">
+          <AssetStatus row={row} partly={isBatch && issuedUnits > 0 && inStoreUnits > 0} />
+        </td>
+        <td className="px-3 py-2.5 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">
+          {isBatch ? totalUnits : row.units}
+          <span className="ml-1 text-[10px] font-normal uppercase text-slate-500">{uom}</span>
+          {isBatch && (
+            <span className="block font-sans text-[10px] font-normal text-slate-500">
+              {issuedUnits} issued · {inStoreUnits} in store
+            </span>
+          )}
+        </td>
+        <td className="px-3 py-2.5 text-slate-700">
+          <span className="block">{isBatch && row.state !== 'ISSUED' && inStoreUnits === 0 ? '—' : row.where}</span>
+          {row.goingTo && <span className="block text-[10px] text-amber-800">→ {row.goingTo}</span>}
+          {isBatch && out.length > 0 && (
+            <span className="block text-[10px] text-slate-500">
+              {out.reduce((acc, c) => acc + c.units, 0)} with {holders.length === 1 ? holders[0] : `${holders.length} people`}
+            </span>
+          )}
+        </td>
+        <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap">
+          <span className="block">{item.ifmisSlipNumber || '—'}</span>
+          <span className="block text-[10px] text-slate-400">{item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10) || '—'}</span>
+        </td>
+        <td className="px-3 py-2.5 text-right font-mono text-slate-700 whitespace-nowrap">{formatETB(item.unitCostETB)}</td>
+        <td className={`px-3 py-2.5 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
+          <RowActionsMenu label={item.itemCode} actions={actionsFor(row)} />
+        </td>
+      </tr>
+    );
+  };
+
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
   const availableItems = items.filter((i) => i.status === ItemStatus.AVAILABLE && !pendingByItem.has(i.id));
 
@@ -462,7 +590,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   filter === f.value ? 'bg-emerald-800 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
-                {f.label} <span className="ml-0.5 opacity-75">{rows.filter((r) => inFilter(r, f.value)).length}</span>
+                {f.label} <span className="ml-0.5 opacity-75">{groups.filter((g) => visibleGroup(g, f.value)).length}</span>
               </button>
             ))}
           </div>
@@ -517,36 +645,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {pager.pageItems.map((row) => {
-                    const { item } = row;
-                    const parent = item.parentItemId ? items.find((i) => i.id === item.parentItemId) : undefined;
+                  {pager.pageItems.map((group) => {
+                    const open = group.forceOpen || openBatches.has(group.row.item.id);
                     return (
-                      <tr key={item.id} className={item.id === lastTouchedId ? table.rowHighlight : table.row}>
-                        <td className="px-3 py-2.5">
-                          <span className="block font-medium text-slate-900">{item.name}</span>
-                          <span className={`block ${table.code}`}>{item.itemCode}</span>
-                          {parent && <span className="block text-[10px] text-slate-500">Part of {parent.itemCode}</span>}
-                        </td>
-                        <td className="px-3 py-2.5 whitespace-nowrap">
-                          <AssetStatus row={row} />
-                        </td>
-                        <td className="px-3 py-2.5 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">
-                          {row.units}
-                          <span className="ml-1 text-[10px] font-normal uppercase text-slate-500">{item.uom || 'EA'}</span>
-                        </td>
-                        <td className="px-3 py-2.5 text-slate-700">
-                          <span className="block">{row.where}</span>
-                          {row.goingTo && <span className="block text-[10px] text-amber-800">→ {row.goingTo}</span>}
-                        </td>
-                        <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap">
-                          <span className="block">{item.ifmisSlipNumber || '—'}</span>
-                          <span className="block text-[10px] text-slate-400">{item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10) || '—'}</span>
-                        </td>
-                        <td className="px-3 py-2.5 text-right font-mono text-slate-700 whitespace-nowrap">{formatETB(item.unitCostETB)}</td>
-                        <td className={`px-3 py-2.5 ${table.actionsCell}`}>
-                          <RowActionsMenu label={item.itemCode} actions={actionsFor(row)} />
-                        </td>
-                      </tr>
+                      <React.Fragment key={group.row.item.id}>
+                        {renderRow(group.row, { group, open })}
+                        {open && group.units.map((unit) => renderRow(unit))}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>

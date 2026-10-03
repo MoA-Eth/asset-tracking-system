@@ -76,21 +76,46 @@ beforeEach(() => {
 });
 
 describe('Assets page', () => {
-  it('lists every record once, with where it is and what it waits for', async () => {
+  it('lists each asset with where it is and what it waits for', async () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     expect(await screen.findByText('MOA-S1')).toBeInTheDocument();
-    expect(screen.getAllByRole('row').slice(1)).toHaveLength(items.length);
+    // The unit issued from MOA-S1 is folded under its batch
+    expect(screen.getAllByRole('row').slice(1)).toHaveLength(items.length - 1);
     expect(rowOf('MOA-R1')).toHaveTextContent('Receipt pending');
     expect(rowOf('MOA-R1')).toHaveTextContent('With Dept. Head');
-    expect(rowOf('MOA-S1')).toHaveTextContent('In store');
-    expect(rowOf('MOA-S1')).toHaveTextContent('Head office · Central Store');
-    expect(rowOf('MOA-S1-1')).toHaveTextContent('Part of MOA-S1');
-    expect(rowOf('MOA-S1-1')).toHaveTextContent('Bikila Desta');
+    expect(rowOf('MOA-S2')).toHaveTextContent('In store');
+    expect(rowOf('MOA-S2')).toHaveTextContent('Head office · Central Store');
     expect(rowOf('MOA-P1')).toHaveTextContent('Transfer pending');
     expect(rowOf('MOA-P1')).toHaveTextContent('→ Kebede Alemu');
     expect(rowOf('MOA-O1')).toHaveTextContent('Issue pending');
     expect(rowOf('MOA-I1')).toHaveTextContent('Issued');
     expect(rowOf('MOA-X1')).toHaveTextContent('Rejected');
+  });
+
+  it('shows a partly issued batch as one row, with its issued units underneath', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const batch = rowOf('MOA-S1');
+    expect(batch).toHaveTextContent('Partly issued');
+    expect(batch).toHaveTextContent('10EA');
+    expect(batch).toHaveTextContent('3 issued · 7 in store');
+    expect(batch).toHaveTextContent('3 with Bikila Desta');
+    expect(screen.queryByText('MOA-S1-1')).not.toBeInTheDocument();
+
+    await user.click(within(batch).getByRole('button', { name: 'Show 1 issued record' }));
+    expect(rowOf('MOA-S1-1')).toHaveTextContent('Issued');
+    expect(rowOf('MOA-S1-1')).toHaveTextContent('Bikila Desta');
+    await user.click(within(rowOf('MOA-S1')).getByRole('button', { name: 'Hide 1 issued record' }));
+    expect(screen.queryByText('MOA-S1-1')).not.toBeInTheDocument();
+  });
+
+  it('unfolds a batch when a search finds one of its units', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.type(screen.getByRole('textbox', { name: 'Search assets' }), 'MOA-S1-1');
+    expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent)).toEqual(['MOA-S1', 'MOA-S1-1']);
   });
 
   it('says why the last request was rejected, until a new one is made', async () => {
@@ -103,7 +128,6 @@ describe('Assets page', () => {
     expect(rowOf('MOA-I1')).not.toHaveTextContent('rejected');
     // The batch's later issue was approved (its record is the unit it created), so the old rejection is gone
     expect(rowOf('MOA-S1')).not.toHaveTextContent('rejected');
-    expect(rowOf('MOA-S1-1')).not.toHaveTextContent('rejected');
   });
 
   it('filters by state and counts each filter', async () => {
@@ -112,7 +136,8 @@ describe('Assets page', () => {
     await screen.findByText('MOA-S1');
     expect(screen.getByRole('button', { name: /^Pending 3$/ })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Issued/ }));
-    expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent)).toEqual(['MOA-I1', 'MOA-S1-1']);
+    // The batch shows with only its issued unit unfolded
+    expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent)).toEqual(['MOA-I1', 'MOA-S1', 'MOA-S1-1']);
     // Rejected: the rejected receipt, and the record whose issue was turned down
     await user.click(screen.getByRole('button', { name: /^Rejected 2$/ }));
     expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent).sort()).toEqual(['MOA-S2', 'MOA-X1']);
@@ -127,6 +152,7 @@ describe('Assets page', () => {
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'View details', 'Print Model 21 (transfer)']);
     await user.keyboard('{Escape}');
+    await user.click(within(rowOf('MOA-S1')).getByRole('button', { name: 'Show 1 issued record' }));
     expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'View details', 'Print Model 22 (issue)']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'View details', 'Print Model 19', 'Print Model 21 (return)']);
