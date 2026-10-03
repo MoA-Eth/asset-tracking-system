@@ -16,6 +16,7 @@ vi.mock('../api/client', () => ({
   api: {
     getItems: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn(), getApprovals: vi.fn(),
     getItemById: vi.fn(), transferItem: vi.fn(), updateTransfer: vi.fn(), registerReturn: vi.fn(), registerStockOut: vi.fn(),
+    registerStockIn: vi.fn(), updateStockIn: vi.fn(),
   },
 }));
 
@@ -456,6 +457,92 @@ describe('Asset record', () => {
 
     expect(within(record).getByText('Total valuation')).toBeInTheDocument();
     expect(within(record).getAllByText(/ETB 1,000/).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('opens sliding panel when "+ Receive items (Model 19)" is clicked, and closes on Cancel, CloseButton, and Escape', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+
+    // Click "+ Receive items (Model 19)" in header
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+
+    // Region opens with Fishbowl TitleBar
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    expect(panel).toBeInTheDocument();
+    expect(within(panel).getByText('Receive items · Model 19')).toBeInTheDocument();
+    expect(within(panel).getByText('New Delivery')).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: /Submit for Endorsement/i })).toHaveAttribute('form', 'stock-in-form');
+
+    // 1. Cancel button closes it
+    await user.click(within(panel).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('region', { name: 'Receive items' })).not.toBeInTheDocument();
+
+    // 2. CloseButton closes it
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel2 = screen.getByRole('region', { name: 'Receive items' });
+    await user.click(within(panel2).getByRole('button', { name: 'Close registration' }));
+    expect(screen.queryByRole('region', { name: 'Receive items' })).not.toBeInTheDocument();
+
+    // 3. Escape key closes it
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    expect(screen.getByRole('region', { name: 'Receive items' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('region', { name: 'Receive items' })).not.toBeInTheDocument();
+  });
+
+  it('submits a new asset registration via the top action bar and triggers Model 19 print modal', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.registerStockIn).mockResolvedValue({
+      item: { id: 'NEW-ITEM-1', itemCode: 'MOA-NEW-1', name: 'Precision Workstation' } as any,
+      items: [{ id: 'NEW-ITEM-1', itemCode: 'MOA-NEW-1', name: 'Precision Workstation' } as any],
+    });
+
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+
+    // Fill form
+    await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000999');
+    await user.selectOptions(within(panel).getByLabelText(/Transaction type/i), 'Direct Delivery');
+    await user.type(within(panel).getByLabelText(/Source/i), 'Tech Supplies Ltd');
+
+    // Receiving store
+    await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
+
+    // Item details
+    await user.type(within(panel).getByLabelText(/Item description/i), 'Precision Workstation');
+    await user.selectOptions(within(panel).getByLabelText(/Category/i), 'IT_EQUIPMENT');
+    await user.selectOptions(within(panel).getByLabelText(/Physical condition/i), 'NEW');
+
+    // Unit price
+    const unitPrice = within(panel).getByLabelText(/Unit price/i);
+    await user.clear(unitPrice);
+    await user.type(unitPrice, '75000');
+
+    // Submit via top toolbar button
+    const submitBtn = within(panel).getByRole('button', { name: /Submit for Endorsement/i });
+    await user.click(submitBtn);
+
+    // Verify API called with proper payload
+    expect(api.registerStockIn).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Precision Workstation',
+      category: 'IT_EQUIPMENT',
+      ifmisSlipNumber: '0000999',
+      unitCostETB: 75000,
+      storeLocationId: 'LOC-1',
+    }));
+
+    // Success toast shown
+    expect(toast.success).toHaveBeenCalledWith(
+      'Receipt registered',
+      expect.stringContaining('Precision Workstation')
+    );
+
+    // Panel is closed
+    expect(screen.queryByRole('region', { name: 'Receive items' })).not.toBeInTheDocument();
   });
 });
 

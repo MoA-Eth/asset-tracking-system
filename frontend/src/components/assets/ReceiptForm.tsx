@@ -354,8 +354,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         accent="emerald"
       >
         <FieldGrid>
-          <Field label="Model 19 No." required>
+          <Field label="Model 19 No." required htmlFor="stock-in-model19">
             <input
+              id="stock-in-model19"
               type="text"
               required
               placeholder="e.g. 0000044"
@@ -365,8 +366,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             />
           </Field>
 
-          <Field label="PO number" optional>
+          <Field label="PO number" optional htmlFor="stock-in-po">
             <input
+              id="stock-in-po"
               type="text"
               placeholder="e.g. 186"
               value={poNumber}
@@ -375,8 +377,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             />
           </Field>
 
-          <Field label="Received date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`}>
+          <Field label="Received date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
             <input
+              id="stock-in-slip-date"
               type="date"
               required
               value={ifmisSlipDateGc}
@@ -385,8 +388,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             />
           </Field>
 
-          <Field label="Transaction type" required>
-            <select required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
+          <Field label="Transaction type" required htmlFor="stock-in-transaction-type">
+            <select id="stock-in-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
               <option value="" disabled>Select…</option>
               <option value="PO Receipt">PO Receipt</option>
               <option value="Direct Delivery">Direct Delivery</option>
@@ -396,8 +399,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             </select>
           </Field>
 
-          <Field label="Source (supplier / vendor)" required>
+          <Field label="Source (supplier / vendor)" required htmlFor="stock-in-source">
             <input
+              id="stock-in-source"
               type="text"
               required
               placeholder="Supplier or vendor name"
@@ -462,8 +466,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       <FormSection step={2} title="Item received" subtitle="የተረከቡት ዕቃ ዝርዝር መረጃ" icon={PackagePlus} accent="emerald">
         <div className="space-y-3.5">
           <FieldGrid>
-            <Field label="Item description" required span="sm:col-span-2">
+            <Field label="Item description" required span="sm:col-span-2" htmlFor="stock-in-item-name">
               <input
+                id="stock-in-item-name"
                 type="text"
                 required
                 placeholder="e.g. Dell Latitude 5440 Laptop"
@@ -473,8 +478,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               />
             </Field>
 
-            <Field label="Category" required>
-              <select required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} className={input()}>
+            <Field label="Category" required htmlFor="stock-in-category">
+              <select id="stock-in-category" required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} className={input()}>
                 <option value="" disabled>Select…</option>
                 {COMMON_CATEGORIES.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -489,8 +494,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                 <ReadOnlyValue mono>{itemCode}</ReadOnlyValue>
               </Field>
             ) : (
-              <Field label="Item code" optional hint="Leave blank to generate one automatically">
+              <Field label="Item code" optional hint="Leave blank to generate one automatically" htmlFor="stock-in-item-code">
                 <input
+                  id="stock-in-item-code"
                   type="text"
                   placeholder="e.g. 107101102.4336"
                   value={itemCode}
@@ -500,8 +506,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               </Field>
             )}
 
-            <Field label="Serial number" optional>
+            <Field label="Serial number" optional htmlFor="stock-in-serial">
               <input
+                id="stock-in-serial"
                 type="text"
                 placeholder="e.g. SN-892348"
                 value={serialNumber}
@@ -510,8 +517,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               />
             </Field>
 
-            <Field label="Physical condition" required>
-              <select required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} className={input()}>
+            <Field label="Physical condition" required htmlFor="stock-in-condition">
+              <select id="stock-in-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} className={input()}>
                 <option value="" disabled>Select…</option>
                 <option value={ItemCondition.NEW}>New (አዲስ)</option>
                 <option value={ItemCondition.GOOD}>Good (ጥሩ)</option>
@@ -546,8 +553,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               />
             </Field>
 
-            <Field label="Unit price (ETB)" required>
+            <Field label="Unit price (ETB)" required htmlFor="stock-in-unit-cost">
               <input
+                id="stock-in-unit-cost"
                 type="number"
                 min="0"
                 step="any"

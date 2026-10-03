@@ -208,7 +208,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   ];
 
   return (
-    <section aria-label={`Asset record ${item.itemCode}`} className="flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-xs">
+    <section aria-label={`Asset record ${item.itemCode}`} className="flex min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white shadow-xs">
       {/* ── Title and toolbar ── */}
       <header className="relative space-y-2 border-b border-slate-200 px-5 py-4">
         <button type="button" onClick={onClose} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer lg:hidden">

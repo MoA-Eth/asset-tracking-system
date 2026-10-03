@@ -22,10 +22,13 @@ import {
   ArrowUp,
   ArrowDown,
   Download,
+  ArrowLeft,
+  Check,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { Modal } from '../components/ui/Modal';
+import { CloseButton } from '../components/ui/CloseButton';
 import { StatCard } from '../components/ui/StatCard';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
@@ -139,13 +142,21 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
+  const [receiptSaving, setReceiptSaving] = useState(false);
   const openRecord = (itemId: string) => {
+    setReceipt(null);
     setSelectedId(itemId);
     setEditing(false);
   };
   const closeRecord = () => {
     setSelectedId(null);
+    setReceipt(null);
     setEditing(false);
+  };
+  const openReceipt = (edit?: ItemWithRelations) => {
+    setSelectedId(null);
+    setEditing(false);
+    setReceipt({ edit });
   };
   const [voucher19, setVoucher19] = useState<Model19Voucher | null>(null);
   const [voucher22, setVoucher22] = useState<Model22Voucher | null>(null);
@@ -811,7 +822,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   }, [sortedShown, selectedId]);
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId && !receipt) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't intercept when user is typing in inputs or when a modal is active
@@ -820,15 +831,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable) {
         return;
       }
-      if (voucher19 || voucher21 || voucher22 || receipt || issue || transfer || returning) {
+      if (voucher19 || voucher21 || voucher22 || issue || transfer || returning) {
         return;
       }
 
       if (e.key === 'Escape') {
         e.preventDefault();
-        closeRecord();
+        if (receipt) setReceipt(null);
+        else closeRecord();
         return;
       }
+
+      if (!selectedId) return;
 
       if (e.key === 'ArrowDown' || e.key === 'j') {
         e.preventDefault();
@@ -875,16 +889,16 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           </p>
         </div>
         {canReceive && (
-          <button type="button" onClick={() => setReceipt({})} className={btn.primary}>
+          <button type="button" onClick={() => openReceipt()} className={btn.primary}>
             <Plus className="w-4 h-4" />
             Receive items (Model 19)
           </button>
         )}
       </div>
 
-      {selectedRow ? (
-        /* ── Split view: the list on the left, the open record on the right ── */
-        <div className="grid items-start gap-4 lg:grid-cols-[264px_minmax(0,1fr)]">
+      {selectedRow || receipt ? (
+        /* ── Split view: the list on the left, the open record or registration on the right ── */
+        <div className="grid items-start gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
           <aside aria-label="Asset list" className="hidden max-h-[calc(100vh-11rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs lg:sticky lg:top-4 lg:flex">
             <div className="space-y-2 border-b border-slate-200 p-3">
               <div className="flex items-center gap-2">
@@ -901,6 +915,22 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 </div>
                 <RefreshButton onClick={() => fetchData(true)} loading={refreshing} label="assets" />
               </div>
+
+              {canReceive && (
+                <button
+                  type="button"
+                  onClick={() => openReceipt()}
+                  className={`w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer border ${
+                    receipt && !receipt.edit
+                      ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  }`}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Receive items (Model 19)
+                </button>
+              )}
+
               <select
                 aria-label="Show assets"
                 value={filter}
@@ -963,27 +993,104 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </ul>
           </aside>
 
-          <AssetRecord
-            row={selectedRow}
-            units={selectedUnits}
-            batch={selectedGroup && !selectedIsBatch ? selectedGroup.row : undefined}
-            partly={!!selectedSummary?.partly}
-            totals={
-              selectedSummary?.isBatch
-                ? { total: selectedSummary.totalUnits, issued: selectedSummary.issuedUnits, inStore: selectedSummary.inStoreUnits }
-                : undefined
-            }
-            requests={selectedRequests}
-            actions={actionsFor(selectedRow).filter((a) => a.label !== 'View details')}
-            editForm={editing ? editFormFor(selectedRow)?.form : undefined}
-            editFormId={editFormFor(selectedRow)?.id}
-            saving={editSaving}
-            onCancelEdit={() => setEditing(false)}
-            onPrintRequest={(r) => printRequest(r, selectedRow.item)}
-            onPrintReceipt={() => setVoucher19(buildModel19Voucher(selectedRow.item, items))}
-            onSelect={openRecord}
-            onClose={closeRecord}
-          />
+          {receipt ? (
+            <section aria-label="Receive items" className="flex min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white shadow-xs">
+              {/* Fishbowl TitleBar */}
+              <header className="relative space-y-2 border-b border-slate-200 px-5 py-4">
+                <button
+                  type="button"
+                  onClick={() => setReceipt(null)}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer lg:hidden"
+                >
+                  <ArrowLeft className="h-3 w-3" /> All assets
+                </button>
+                <CloseButton
+                  onClose={() => setReceipt(null)}
+                  label="Close registration"
+                  title="Close (Esc)"
+                  className="absolute right-3 top-3 hidden lg:inline-flex"
+                />
+                <div className="flex flex-col gap-3 lg:pr-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2.5">
+                      <h3 className="text-base font-extrabold text-slate-900">
+                        {receipt.edit ? `Edit receipt · ${receipt.edit.itemCode}` : 'Receive items · Model 19'}
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {receipt.edit ? 'Correction' : 'New Delivery'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {receipt.edit
+                        ? 'Corrections are allowed until the Team Leader endorses it. Every change is recorded in the item history and audit log.'
+                        : 'The items are held as pending until the Team Leader endorses and the Department Head approves the receipt.'}
+                    </p>
+                  </div>
+                  <div role="toolbar" aria-label="Receipt actions" className="flex flex-wrap items-center gap-2 2xl:justify-end">
+                    <button
+                      type="submit"
+                      form="stock-in-form"
+                      disabled={receiptSaving}
+                      className={`${btn.primary} disabled:opacity-60`}
+                    >
+                      <Check className="h-4 w-4" />
+                      {receiptSaving ? 'Saving…' : receipt.edit ? 'Save changes' : 'Submit for Endorsement'}
+                    </button>
+                    <button type="button" onClick={() => setReceipt(null)} className={btn.secondary}>
+                      <X className="h-4 w-4" />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </header>
+
+              <div className="p-5 overflow-y-auto">
+                {locations.length > 0 ? (
+                  <StockInForm
+                    key={receipt.edit?.id ?? 'new'}
+                    locations={locations}
+                    employees={employees}
+                    editItem={receipt.edit}
+                    hideFooter
+                    onSubmittingChange={setReceiptSaving}
+                    onCancel={() => setReceipt(null)}
+                    onSuccess={(result, voucher) => {
+                      setReceipt(null);
+                      saved(result?.item?.id ?? result?.items?.[0]?.id);
+                      if (voucher) setVoucher19(voucher);
+                    }}
+                  />
+                ) : (
+                  <div className="py-8 text-center text-xs text-slate-500">
+                    <AlertCircle className="w-6 h-6 mx-auto mb-2 text-amber-500" />
+                    No active store was found. Ask the System Administrator to add one under Settings → Stores, then reload.
+                  </div>
+                )}
+              </div>
+            </section>
+          ) : selectedRow ? (
+            <AssetRecord
+              row={selectedRow}
+              units={selectedUnits}
+              batch={selectedGroup && !selectedIsBatch ? selectedGroup.row : undefined}
+              partly={!!selectedSummary?.partly}
+              totals={
+                selectedSummary?.isBatch
+                  ? { total: selectedSummary.totalUnits, issued: selectedSummary.issuedUnits, inStore: selectedSummary.inStoreUnits }
+                  : undefined
+              }
+              requests={selectedRequests}
+              actions={actionsFor(selectedRow).filter((a) => a.label !== 'View details')}
+              editForm={editing ? editFormFor(selectedRow)?.form : undefined}
+              editFormId={editFormFor(selectedRow)?.id}
+              saving={editSaving}
+              onCancelEdit={() => setEditing(false)}
+              onPrintRequest={(r) => printRequest(r, selectedRow.item)}
+              onPrintReceipt={() => setVoucher19(buildModel19Voucher(selectedRow.item, items))}
+              onSelect={openRecord}
+              onClose={closeRecord}
+            />
+          ) : null}
         </div>
       ) : (
         <>
@@ -1230,39 +1337,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         </>
       )}
 
-      {/* ── Receive (Model 19) ── */}
-      <Modal
-        isOpen={!!receipt}
-        onClose={() => setReceipt(null)}
-        title={receipt?.edit ? `Edit receipt · ${receipt.edit.itemCode}` : 'Receive items · Model 19'}
-        subtitle={
-          receipt?.edit
-            ? 'Corrections are allowed until the Team Leader endorses it. Every change is recorded in the item history and audit log.'
-            : 'The items are held as pending until the Team Leader endorses and the Department Head approves the receipt.'
-        }
-        size="2xl"
-      >
-        {receipt &&
-          (locations.length > 0 ? (
-            <StockInForm
-              key={receipt.edit?.id ?? 'new'}
-              locations={locations}
-              employees={employees}
-              editItem={receipt.edit}
-              onCancel={() => setReceipt(null)}
-              onSuccess={(result, voucher) => {
-                setReceipt(null);
-                saved(result?.item?.id ?? result?.items?.[0]?.id);
-                if (voucher) setVoucher19(voucher);
-              }}
-            />
-          ) : (
-            <div className="py-8 text-center text-xs text-slate-500">
-              <AlertCircle className="w-6 h-6 mx-auto mb-2 text-amber-500" />
-              No active store was found. Ask the System Administrator to add one under Settings → Stores, then reload.
-            </div>
-          ))}
-      </Modal>
 
       {/* ── Issue (Model 22) ── */}
       <Modal
