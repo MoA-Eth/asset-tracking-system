@@ -16,6 +16,8 @@ import {
   Pencil,
   Printer,
   ChevronRight,
+  X,
+  Filter,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -54,6 +56,7 @@ import {
   AssetRow,
   AssetState,
   AssetStatus,
+  CATEGORY_OPTIONS,
   ENDORSED_REASON,
   REQUEST_LABELS,
   ShownGroup,
@@ -91,6 +94,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [filter, setFilter] = useState<AssetFilter>('ALL');
+  const [locationFilter, setLocationFilter] = useState<string>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
   const [lastTouchedId, setLastTouchedId] = useState<string | null>(null);
 
@@ -211,13 +216,26 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       .sort((a, b) => b.activity.localeCompare(a.activity) || a.item.itemCode.localeCompare(b.item.itemCode));
   }, [items, pendingByItem, decided, employees, locations]);
 
-  const inFilter = (row: AssetRow, f: AssetFilter) =>
-    f === 'ALL' ||
-    (f === 'PENDING'
-      ? row.state === 'RECEIPT_PENDING' || row.state === 'REQUEST_PENDING'
-      : f === 'REJECTED'
-        ? row.state === 'REJECTED' || !!row.rejected
-        : row.state === f);
+  const inFilter = (row: AssetRow, f: AssetFilter, locId = locationFilter, cat = categoryFilter) => {
+    const matchesState =
+      f === 'ALL' ||
+      (f === 'PENDING'
+        ? row.state === 'RECEIPT_PENDING' || row.state === 'REQUEST_PENDING'
+        : f === 'REJECTED'
+          ? row.state === 'REJECTED' || !!row.rejected
+          : row.state === f);
+    if (!matchesState) return false;
+
+    if (locId !== 'ALL' && row.item.storeLocationId !== locId) {
+      return false;
+    }
+
+    if (cat !== 'ALL' && row.item.category !== cat) {
+      return false;
+    }
+
+    return true;
+  };
 
   // A batch is one row; the units issued from it fold underneath
   const groups = useMemo<AssetGroup[]>(() => {
@@ -246,19 +264,19 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       .some((v) => (v || '').toLowerCase().includes(q));
   };
   /** The batch shows when it or any of its units matches; with a filter or search, only the matching units unfold */
-  const visibleGroup = (g: AssetGroup, f: AssetFilter): ShownGroup | null => {
-    const hits = g.children.filter((c) => inFilter(c, f) && matchesSearch(c));
-    const self = inFilter(g.row, f) && matchesSearch(g.row);
+  const visibleGroup = (g: AssetGroup, f: AssetFilter, locId = locationFilter, cat = categoryFilter): ShownGroup | null => {
+    const hits = g.children.filter((c) => inFilter(c, f, locId, cat) && matchesSearch(c));
+    const self = inFilter(g.row, f, locId, cat) && matchesSearch(g.row);
     if (!self && hits.length === 0) return null;
-    const narrowed = f !== 'ALL' || !!q;
+    const narrowed = f !== 'ALL' || locId !== 'ALL' || cat !== 'ALL' || !!q;
     return { ...g, units: narrowed ? hits : g.children, forceOpen: narrowed && hits.length > 0 };
   };
   const shown = useMemo(
-    () => groups.map((g) => visibleGroup(g, filter)).filter((g): g is ShownGroup => !!g),
+    () => groups.map((g) => visibleGroup(g, filter, locationFilter, categoryFilter)).filter((g): g is ShownGroup => !!g),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [groups, filter, search],
+    [groups, filter, locationFilter, categoryFilter, search],
   );
-  const pager = usePagination(shown, { resetKey: `${filter}|${search}` });
+  const pager = usePagination(shown, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${search}` });
   const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
   const toggleBatch = (id: string) =>
     setOpenBatches((prev) => {
@@ -585,6 +603,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return (
       <button
         key={row.item.id}
+        id={`asset-list-item-${row.item.id}`}
         type="button"
         onClick={() => openRecord(row.item.id)}
         aria-current={selected ? 'true' : undefined}
@@ -608,6 +627,69 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       </button>
     );
   };
+
+  // ── Keyboard Navigation in Master-Detail View ──
+  const flatSelectableIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const g of shown) {
+      ids.push(g.row.item.id);
+      const open = g.forceOpen || g.row.item.id === selectedId || g.children.some((c) => c.item.id === selectedId);
+      if (open) {
+        for (const u of g.units) {
+          ids.push(u.item.id);
+        }
+      }
+    }
+    return ids;
+  }, [shown, selectedId]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept when user is typing in inputs or when a modal is active
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable) {
+        return;
+      }
+      if (voucher19 || voucher21 || voucher22 || receipt || issue || transfer || returning) {
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeRecord();
+        return;
+      }
+
+      if (e.key === 'ArrowDown' || e.key === 'j') {
+        e.preventDefault();
+        const currIdx = flatSelectableIds.indexOf(selectedId);
+        if (currIdx !== -1 && currIdx < flatSelectableIds.length - 1) {
+          openRecord(flatSelectableIds[currIdx + 1]);
+        }
+      } else if (e.key === 'ArrowUp' || e.key === 'k') {
+        e.preventDefault();
+        const currIdx = flatSelectableIds.indexOf(selectedId);
+        if (currIdx > 0) {
+          openRecord(flatSelectableIds[currIdx - 1]);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedId, flatSelectableIds, voucher19, voucher21, voucher22, receipt, issue, transfer, returning]);
+
+  useEffect(() => {
+    if (selectedId) {
+      const el = document.getElementById(`asset-list-item-${selectedId}`);
+      if (typeof el?.scrollIntoView === 'function') {
+        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+  }, [selectedId]);
 
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
   const availableItems = items.filter((i) => i.status === ItemStatus.AVAILABLE && !pendingByItem.has(i.id));
@@ -656,14 +738,48 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 aria-label="Show assets"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as AssetFilter)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               >
                 {FILTERS.map((f) => (
                   <option key={f.value} value={f.value}>
-                    {f.label} ({groups.filter((g) => visibleGroup(g, f.value)).length})
+                    {f.label} ({groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length})
                   </option>
                 ))}
               </select>
+              <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                <select
+                  aria-label="Filter by store location"
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                  className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 truncate cursor-pointer"
+                  title="Filter by location"
+                >
+                  <option value="ALL">All Stores</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Filter by asset category"
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 truncate cursor-pointer"
+                  title="Filter by category"
+                >
+                  <option value="ALL">All Categories</option>
+                  {CATEGORY_OPTIONS.map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5 px-0.5">
+                <span>↑ / ↓ or j / k to navigate</span>
+                <span>Esc to close</span>
+              </div>
             </div>
             <ul className="flex-1 divide-y divide-slate-100 overflow-y-auto">
               {shown.length === 0 && <li className="px-3 py-6 text-center text-xs text-slate-400">No assets match.</li>}
@@ -724,35 +840,84 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
       {/* ── Register ── */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-slate-200 p-3.5 md:flex-row md:items-center md:justify-between">
-          <div role="group" aria-label="Show assets" className="flex flex-wrap items-center gap-1.5">
-            {FILTERS.map((f) => (
-              <button
-                key={f.value}
-                type="button"
-                aria-pressed={filter === f.value}
-                onClick={() => setFilter(f.value)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  filter === f.value ? 'bg-emerald-800 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {f.label} <span className="ml-0.5 opacity-75">{groups.filter((g) => visibleGroup(g, f.value)).length}</span>
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 md:w-72">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                aria-label="Search assets"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, code, serial, slip or person…"
-                className={table.search.replace('pr-8', 'pr-3')}
-              />
+        <div className="flex flex-col gap-3 border-b border-slate-200 p-3.5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div role="group" aria-label="Show assets" className="flex flex-wrap items-center gap-1.5">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  aria-pressed={filter === f.value}
+                  onClick={() => setFilter(f.value)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    filter === f.value ? 'bg-emerald-800 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {f.label} <span className="ml-0.5 opacity-75">{groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length}</span>
+                </button>
+              ))}
             </div>
-            <RefreshButton onClick={() => fetchData(true)} loading={loading || refreshing} label="assets" />
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 md:w-72">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  aria-label="Search assets"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by name, code, serial, slip or person…"
+                  className={table.search.replace('pr-8', 'pr-3')}
+                />
+              </div>
+              <RefreshButton onClick={() => fetchData(true)} loading={loading || refreshing} label="assets" />
+            </div>
+          </div>
+
+          {/* Filters Bar */}
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 text-xs">
+            <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+            <select
+              aria-label="Filter by store location"
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-700 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+            >
+              <option value="ALL">All Stores & Locations</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {storeLocationLabel(loc)}
+                </option>
+              ))}
+            </select>
+
+            <select
+              aria-label="Filter by asset category"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-700 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+            >
+              <option value="ALL">All Categories</option>
+              {CATEGORY_OPTIONS.map((cat) => (
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+
+            {(locationFilter !== 'ALL' || categoryFilter !== 'ALL' || filter !== 'ALL' || search) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilter('ALL');
+                  setLocationFilter('ALL');
+                  setCategoryFilter('ALL');
+                  setSearch('');
+                }}
+                className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-emerald-700 hover:underline cursor-pointer"
+              >
+                <X className="w-3 h-3" /> Reset all filters
+              </button>
+            )}
           </div>
         </div>
 

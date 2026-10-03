@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, Clock, Lock, Paperclip, Printer, Users, X, FileText } from 'lucide-react';
+import { ArrowLeft, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText } from 'lucide-react';
 import { btn, statusTone, pill } from '../ui/theme';
 import { Row } from '../ui/RecordDetailModal';
 import { SlipViewerModal } from '../ui/SlipViewerModal';
@@ -95,6 +95,44 @@ const PrintButton: React.FC<{ prints: RowAction[] }> = ({ prints }) => {
   );
 };
 
+export const CopyButton: React.FC<{ text: string; label?: string; className?: string }> = ({
+  text,
+  label = 'Copy',
+  className = '',
+}) => {
+  const [copied, setCopied] = useState(false);
+  const copy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title={copied ? 'Copied to clipboard!' : `${label} (${text})`}
+      aria-label={copied ? 'Copied' : label}
+      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:bg-slate-200/80 hover:text-slate-800 transition cursor-pointer ${className}`}
+    >
+      {copied ? <Check className="h-3 w-3 text-emerald-600 shrink-0" /> : <Copy className="h-3 w-3 shrink-0" />}
+      {copied && <span className="text-[10px] font-bold text-emerald-700">Copied</span>}
+    </button>
+  );
+};
+
 const isBlank = (value: React.ReactNode) => value === undefined || value === null || value === '' || value === false;
 
 /** One detail: a small label over its value. `wide` spans both columns. Left out by its group when empty. */
@@ -181,11 +219,31 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
         <div className="flex flex-col gap-3 lg:pr-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
           <div className="min-w-0">
             <h3 className="truncate text-base font-extrabold text-slate-900" title={item.name}>{item.name}</h3>
-            <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
-              <span className="font-mono font-bold text-slate-600">{item.itemCode}</span>
-              {/* A rejection is explained under Custody, not repeated here */}
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-slate-700 bg-slate-100 pl-2 pr-1 py-0.5 rounded-md border border-slate-200">
+                {item.itemCode}
+                <CopyButton text={item.itemCode} label="Copy item code" />
+              </span>
+              {/* Quick Action Badges */}
               <AssetStatus row={{ ...row, rejected: undefined }} partly={partly} />
-            </p>
+              {item.category && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <Tag className="w-2.5 h-2.5 text-emerald-600" />
+                  {item.itemCategoryDisplay || item.category.replace(/_/g, ' ')}
+                </span>
+              )}
+              {item.condition && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                  {item.condition.replace(/_/g, ' ')}
+                </span>
+              )}
+              {row.where && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-800 border border-blue-200" title={`Location / Custody: ${row.where}`}>
+                  <MapPin className="w-2.5 h-2.5 text-blue-600" />
+                  <span className="max-w-[160px] truncate">{row.where}</span>
+                </span>
+              )}
+            </div>
           </div>
 
         <div role="toolbar" aria-label="Asset actions" className="flex flex-wrap items-center gap-2 2xl:justify-end">
@@ -234,8 +292,9 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
             <FieldGroup title="Receipt · Model 19">
               <Field label="Model 19 No." mono>
                 {item.ifmisSlipNumber && (
-                  <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1">
                     {item.ifmisSlipNumber}
+                    <CopyButton text={item.ifmisSlipNumber} label="Copy Model 19 number" />
                     {item.ifmisSlipAttachmentUrl && (
                       <button
                         type="button"
@@ -262,7 +321,14 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               </Field>
               <Field label="Supplier">{item.source}</Field>
               <Field label="Transaction type">{item.transactionType}</Field>
-              <Field label="PO number" mono>{item.poNumber}</Field>
+              <Field label="PO number" mono>
+                {item.poNumber ? (
+                  <span className="inline-flex items-center gap-1">
+                    {item.poNumber}
+                    <CopyButton text={item.poNumber} label="Copy PO number" />
+                  </span>
+                ) : undefined}
+              </Field>
               <Field label="Store">{item.storeLocation ? storeLocationLabel(item.storeLocation) : undefined}</Field>
             </FieldGroup>
 
@@ -271,7 +337,14 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               <Field label="Condition">{item.condition?.replace(/_/g, ' ')}</Field>
               <Field label="Quantity" mono>{totals ? `${totals.total} ${uom} received` : `${row.units} ${uom}`}</Field>
               <Field label="Unit price" mono>{formatETB(item.unitCostETB)}</Field>
-              <Field label="Serial number" mono>{item.serialNumber}</Field>
+              <Field label="Serial number" mono>
+                {item.serialNumber ? (
+                  <span className="inline-flex items-center gap-1">
+                    {item.serialNumber}
+                    <CopyButton text={item.serialNumber} label="Copy serial number" />
+                  </span>
+                ) : undefined}
+              </Field>
               <Field label="Lot / batch no." mono>{item.lotBatchNo}</Field>
               <Field label="Sub inventory">{item.subInventory}</Field>
               <Field label="Remark" wide>{item.remark}</Field>

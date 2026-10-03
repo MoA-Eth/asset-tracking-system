@@ -337,6 +337,54 @@ describe('Asset record', () => {
     await screen.findByText('MOA-S1');
     expect(toolbarOf(await open(user, 'MOA-I1'))).toEqual(['Print Model 21 (transfer)']);
   });
+
+  it('navigates through records with arrow keys and closes on Escape', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-S2');
+    expect(record).toBeInTheDocument();
+
+    await user.keyboard('{ArrowDown}');
+    expect(await screen.findByRole('region', { name: /Asset record MOA-X1/ })).toBeInTheDocument();
+
+    await user.keyboard('{ArrowUp}');
+    expect(await screen.findByRole('region', { name: /Asset record MOA-S2/ })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('region', { name: /Asset record/ })).not.toBeInTheDocument();
+  });
+
+  it('filters by store location and asset category', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+
+    const locSelect = screen.getByRole('combobox', { name: 'Filter by store location' });
+    const catSelect = screen.getByRole('combobox', { name: 'Filter by asset category' });
+
+    await user.selectOptions(locSelect, 'LOC-1');
+    expect(screen.getByText('MOA-S1')).toBeInTheDocument();
+
+    await user.selectOptions(catSelect, 'IT_EQUIPMENT');
+    expect(screen.getByText('MOA-S1')).toBeInTheDocument();
+
+    const resetBtn = screen.getByRole('button', { name: /Reset all filters/ });
+    await user.click(resetBtn);
+    expect(locSelect).toHaveValue('ALL');
+    expect(catSelect).toHaveValue('ALL');
+  });
+
+  it('renders copy buttons and quick action badges on asset record', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-S2');
+
+    const copyBtn = within(record).getByRole('button', { name: 'Copy item code' });
+    expect(copyBtn).toBeInTheDocument();
+    expect(within(record).getAllByText('IT EQUIPMENT').length).toBeGreaterThanOrEqual(1);
+  });
 });
 
 describe('ReturnToStoreModal', () => {

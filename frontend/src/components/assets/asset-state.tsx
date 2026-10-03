@@ -1,7 +1,16 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
 import { statusTone, pill } from '../ui/theme';
-import { ItemWithRelations, TransactionApproval } from '../../types/asset-management';
+import { ItemWithRelations, TransactionApproval, AssetCategory } from '../../types/asset-management';
+
+export const CATEGORY_OPTIONS: { value: AssetCategory; label: string }[] = [
+  { value: AssetCategory.IT_EQUIPMENT, label: 'IT Equipment & Accessories' },
+  { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery & Supplies' },
+  { value: AssetCategory.LAB_EQUIPMENT, label: 'Medical & Lab Supplies' },
+  { value: AssetCategory.VEHICLE, label: 'Vehicles & Transport' },
+  { value: AssetCategory.OFFICE_FURNITURE, label: 'Office Furniture & Fixtures' },
+  { value: AssetCategory.FIELD_GEAR, label: 'Field Gear & Uniforms' },
+];
 
 /**
  * Where an asset record is in its life: received into store (Model 19), issued to someone (Model 22),
