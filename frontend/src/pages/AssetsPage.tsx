@@ -795,7 +795,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
             <Boxes className="w-5 h-5 text-emerald-700" />
-            Assets — ንብረቶች
+            Assets - ንብረቶች
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Every asset from receipt to custody. Receive on Model 19, issue on Model 22, then transfer or return on Model 21.

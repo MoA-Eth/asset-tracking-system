@@ -248,7 +248,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             {pageInfo.title}
           </h1>
           <span className="text-xs text-slate-400 font-amharic hidden md:inline whitespace-nowrap truncate">
-            • {pageInfo.am}
+            - {pageInfo.am}
           </span>
         </div>
       </div>
