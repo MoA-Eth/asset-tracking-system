@@ -40,11 +40,15 @@ export interface TransferFormProps {
   editTransfer?: TransactionApproval;
   /** Asset chosen before the form opened, e.g. from its row in the register */
   initialItemId?: string;
+  /** Inside the asset record the toolbar has Save and Cancel, so the form leaves out its own */
+  hideFooter?: boolean;
+  /** Tells the toolbar while a save is in progress */
+  onSubmittingChange?: (submitting: boolean) => void;
   onCancel: () => void;
   onSaved: (voucher?: Model21Voucher) => void;
 }
 
-export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, editTransfer, initialItemId, onCancel, onSaved }) => {
+export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, editTransfer, initialItemId, hideFooter, onSubmittingChange, onCancel, onSaved }) => {
   const { user } = useAuth();
   const toast = useToast();
   const details = editTransfer?.requestDetails ?? {};
@@ -70,6 +74,10 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [tireSerials, setTireSerials] = useState(details.tireNos?.join(', ') ?? '');
   const [defectRemark, setDefectRemark] = useState(details.remark ?? '');
   const [submitting, setSubmitting] = useState(false);
+  useEffect(() => {
+    onSubmittingChange?.(submitting);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitting]);
 
   const selectedItemObj = items.find((i) => i.id === selectedItemId);
   const selectedIsVehicleLike = selectedItemObj?.category === 'VEHICLE' || selectedItemObj?.category === 'AGRI_MACHINERY';
@@ -208,7 +216,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form id="transfer-form" onSubmit={handleSubmit} className="space-y-4">
       {/* ── Section 1: Transfer voucher ── */}
       <FormSection step={1} title="Transfer voucher" subtitle="የዝውውር ሰነድ · Model 21 register" icon={FileText} accent="emerald">
         <FieldGrid>
@@ -459,12 +467,14 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         </div>
       </FormSection>
 
-      <FormFooter
-        accent="emerald"
-        submitting={submitting}
-        submitLabel={editTransfer ? 'Save changes' : 'Submit transfer for approval'}
-        onCancel={onCancel}
-      />
+      {!hideFooter && (
+        <FormFooter
+          accent="emerald"
+          submitting={submitting}
+          submitLabel={editTransfer ? 'Save changes' : 'Submit transfer for approval'}
+          onCancel={onCancel}
+        />
+      )}
     </form>
   );
 };

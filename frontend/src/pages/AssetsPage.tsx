@@ -23,9 +23,9 @@ import { Modal } from '../components/ui/Modal';
 import { StatCard } from '../components/ui/StatCard';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
-import { RecordDetailModal } from '../components/ui/RecordDetailModal';
+import { AssetRecord } from '../components/assets/AssetRecord';
 import { RefreshButton } from '../components/ui/RefreshButton';
-import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
+import { ReturnForm, ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { Model21PrintModal } from '../components/ui/Model21PrintModal';
@@ -49,12 +49,16 @@ import {
 import { formatETB } from '../utils/eth-date';
 import { storeLocationLabel } from '../utils/location';
 import { departmentLabel } from '../utils/department';
-
-/**
- * Where an asset record is in its life: received into store (Model 19), issued to someone (Model 22),
- * then transferred to someone else or returned to store (Model 21). Each step waits for approval.
- */
-type AssetState = 'RECEIPT_PENDING' | 'IN_STORE' | 'ISSUED' | 'REQUEST_PENDING' | 'REJECTED';
+import {
+  AssetGroup,
+  AssetRow,
+  AssetState,
+  AssetStatus,
+  ENDORSED_REASON,
+  REQUEST_LABELS,
+  ShownGroup,
+  decidedOn,
+} from '../components/assets/asset-state';
 
 type AssetFilter = 'ALL' | 'IN_STORE' | 'ISSUED' | 'PENDING' | 'REJECTED';
 const FILTERS: { value: AssetFilter; label: string }[] = [
@@ -64,103 +68,6 @@ const FILTERS: { value: AssetFilter; label: string }[] = [
   { value: 'PENDING', label: 'Pending' },
   { value: 'REJECTED', label: 'Rejected' },
 ];
-
-/** Who a pending request is waiting for */
-const STAGE_LABELS: Record<number, string> = {
-  1: 'With Team Leader',
-  2: 'With Dept. Head',
-};
-
-const REQUEST_LABELS: Record<string, { noun: string; pending: string; model: string }> = {
-  STOCK_IN: { noun: 'receipt', pending: 'Receipt pending', model: 'Model 19' },
-  STOCK_OUT: { noun: 'issue', pending: 'Issue pending', model: 'Model 22' },
-  TRANSFER: { noun: 'transfer', pending: 'Transfer pending', model: 'Model 21' },
-  RETURN: { noun: 'return', pending: 'Return pending', model: 'Model 21' },
-};
-
-const ENDORSED_REASON = 'The Team Leader has endorsed it. To correct it, ask an approver to reject it.';
-
-interface AssetRow {
-  item: ItemWithRelations;
-  state: AssetState;
-  /** The open request on this record, if any */
-  request?: TransactionApproval;
-  units: number;
-  /** Who holds it, or the store it sits in */
-  where: string;
-  /** Where a pending request takes it */
-  goingTo?: string;
-  /** Latest activity, for ordering */
-  activity: string;
-  /** The approved issue that put this record with someone, for reprinting its Model 22 */
-  lastIssue?: TransactionApproval;
-  /** The latest approved transfer or return, for reprinting its Model 21 */
-  lastMove?: TransactionApproval;
-  /** The record's latest decided request, when it was rejected */
-  rejected?: TransactionApproval;
-}
-
-/** A registration with the units issued from it */
-interface AssetGroup {
-  row: AssetRow;
-  children: AssetRow[];
-  /** Latest activity in the batch, for ordering */
-  activity: string;
-}
-
-interface ShownGroup extends AssetGroup {
-  /** The units listed under the batch: all of them, or those matching the filter or search */
-  units: AssetRow[];
-  /** Unfolded because a filter or search matched one of its units */
-  forceOpen: boolean;
-}
-
-/** When a request was decided; the request time breaks same-day ties */
-const decidedOn = (a: TransactionApproval) => `${a.reviewedAtGc || ''}|${a.createdAtGc || ''}`;
-const shortDate = (gc?: string) =>
-  gc ? new Date(gc).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-
-/** "Issue rejected · 30 Sep 2026", with the reviewer's reason underneath */
-const RejectionNote: React.FC<{ request: TransactionApproval }> = ({ request }) => {
-  const kind = REQUEST_LABELS[request.transactionType]?.noun ?? 'request';
-  const reason = request.reviewRemarks?.trim();
-  return (
-    <span className="block max-w-[220px] whitespace-normal text-[10px] leading-snug text-red-700" title={reason}>
-      <span className="font-semibold">
-        {kind.charAt(0).toUpperCase() + kind.slice(1)} rejected{request.reviewedAtGc ? ` · ${shortDate(request.reviewedAtGc)}` : ''}
-      </span>
-      {reason && <span className="block line-clamp-2 text-red-700/80">{reason}</span>}
-    </span>
-  );
-};
-
-/** `partly`: a batch with some units out and the rest still in store */
-const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row, partly }) => {
-  const settled =
-    row.state === 'REJECTED' ? <span className={`${pill} ${statusTone.rejected}`}>Rejected</span>
-    : row.state === 'IN_STORE' && partly ? <span className={`${pill} ${statusTone.partly}`}>Partly issued</span>
-    : row.state === 'IN_STORE' ? <span className={`${pill} ${statusTone.inStore}`}>In store</span>
-    : row.state === 'ISSUED' ? <span className={`${pill} ${statusTone.issued}`}>Issued</span>
-    : null;
-  if (settled) {
-    return (
-      <span className="inline-flex flex-col items-start gap-0.5">
-        {settled}
-        {row.rejected && <RejectionNote request={row.rejected} />}
-      </span>
-    );
-  }
-  const label = REQUEST_LABELS[row.request?.transactionType ?? 'STOCK_IN']?.pending ?? 'Pending';
-  return (
-    <span className="inline-flex flex-col items-start gap-0.5">
-      <span className={`${pill} ${statusTone.pending}`}>
-        <Clock className="h-3 w-3" />
-        {label}
-      </span>
-      {row.request && <span className="text-[10px] text-slate-500">{STAGE_LABELS[row.request.currentStage] ?? 'Waiting for approval'}</span>}
-    </span>
-  );
-};
 
 interface AssetsPageProps {
   currentRole: UserRole;
@@ -192,7 +99,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [returning, setReturning] = useState<{ item: ItemWithRelations; edit?: TransactionApproval } | null>(null);
-  const [viewing, setViewing] = useState<{ itemId: string; approval?: TransactionApproval } | null>(null);
+  // The asset record open beside the list, and whether what it has pending is being corrected in place
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const openRecord = (itemId: string) => {
+    setSelectedId(itemId);
+    setEditing(false);
+  };
+  const closeRecord = () => {
+    setSelectedId(null);
+    setEditing(false);
+  };
   const [voucher19, setVoucher19] = useState<Model19Voucher | null>(null);
   const [voucher22, setVoucher22] = useState<Model22Voucher | null>(null);
   const [voucher21, setVoucher21] = useState<Model21Voucher | null>(null);
@@ -378,16 +296,102 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     fetchData(true);
   };
 
-  const editRequest = (row: AssetRow) => {
-    const request = row.request!;
-    if (request.transactionType === 'STOCK_OUT') setIssue({ edit: request });
-    else if (request.transactionType === 'TRANSFER') setTransfer({ edit: request });
-    else if (request.transactionType === 'RETURN') setReturning({ item: row.item, edit: request });
+  /** Open a record straight into correcting what it has pending (its receipt or its request) */
+  const editInRecord = (itemId: string) => {
+    setSelectedId(itemId);
+    setEditing(true);
+  };
+
+  /**
+   * The form that corrects what a record has pending, shown in place of its details and saved from the record's
+   * toolbar. Only a receipt or request still with the Team Leader can be corrected.
+   */
+  const editFormFor = (row: AssetRow): { id: string; form: React.ReactNode } | undefined => {
+    const { item, request } = row;
+    const done = (voucher?: unknown, print?: (v: any) => void) => {
+      setEditing(false);
+      saved(item.id);
+      if (voucher && print) print(voucher);
+    };
+    const common = { hideFooter: true, onSubmittingChange: setEditSaving };
+    if (row.state === 'RECEIPT_PENDING') {
+      return {
+        id: 'stock-in-form',
+        form: (
+          <StockInForm
+            key={item.id}
+            locations={locations}
+            employees={employees}
+            editItem={item}
+            {...common}
+            onCancel={() => setEditing(false)}
+            onSuccess={(_result, voucher) => done(voucher, setVoucher19)}
+          />
+        ),
+      };
+    }
+    if (row.state !== 'REQUEST_PENDING' || !request) return undefined;
+    if (request.transactionType === 'STOCK_OUT') {
+      return {
+        id: 'stock-out-form',
+        form: (
+          <StockOutForm
+            key={request.id}
+            availableItems={availableItems}
+            departments={departments}
+            employees={employees}
+            editApproval={request}
+            editItem={item}
+            {...common}
+            onCancel={() => setEditing(false)}
+            onSuccess={(_result, voucher) => done(voucher, setVoucher22)}
+          />
+        ),
+      };
+    }
+    if (request.transactionType === 'TRANSFER') {
+      return {
+        id: 'transfer-form',
+        form: (
+          <TransferForm
+            key={request.id}
+            items={items}
+            employees={employees}
+            departments={departments}
+            locations={locations}
+            pendingByItem={pendingByItem}
+            editTransfer={request}
+            {...common}
+            onCancel={() => setEditing(false)}
+            onSaved={(voucher) => done(voucher, setVoucher21)}
+          />
+        ),
+      };
+    }
+    if (request.transactionType === 'RETURN') {
+      return {
+        id: 'return-form',
+        form: (
+          <ReturnForm
+            key={request.id}
+            isOpen
+            inline
+            item={item}
+            employees={employees}
+            editApproval={request}
+            onSubmittingChange={setEditSaving}
+            onClose={() => setEditing(false)}
+            onSuccess={(voucher) => done(voucher, setVoucher21)}
+          />
+        ),
+      };
+    }
+    return undefined;
   };
 
   const actionsFor = (row: AssetRow): RowAction[] => {
     const { item, request } = row;
-    const view: RowAction = { label: 'View details', icon: Eye, onClick: () => setViewing({ itemId: item.id, approval: request }) };
+    const view: RowAction = { label: 'View details', icon: Eye, onClick: () => openRecord(item.id) };
     const printReceipt: RowAction = { label: 'Print Model 19', icon: Printer, onClick: () => setVoucher19(buildModel19Voucher(item, items)) };
     // Vouchers of requests already approved, so signed copies can be printed again
     const printIssue: RowAction = { label: 'Print Model 22 (issue)', icon: Printer, onClick: () => printRequest(row.lastIssue!, item), hidden: !row.lastIssue };
@@ -403,7 +407,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           {
             label: 'Edit receipt',
             icon: Pencil,
-            onClick: () => setReceipt({ edit: item }),
+            // Corrected in place, in the asset's record
+            onClick: () => editInRecord(item.id),
             hidden: !canReceive || !request,
             disabled: request?.currentStage === 2,
             reason: request?.currentStage === 2 ? ENDORSED_REASON : undefined,
@@ -433,7 +438,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           {
             label: `Edit ${kind.noun}`,
             icon: Pencil,
-            onClick: () => editRequest(row),
+            onClick: () => editInRecord(item.id),
             hidden: !mayEdit,
             disabled: request!.currentStage === 2,
             reason: request!.currentStage === 2 ? ENDORSED_REASON : undefined,
@@ -461,6 +466,24 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     );
   }
 
+  /** Units of a whole batch, from the registration's balance (it covers the records issued from it) */
+  const batchSummary = (row: AssetRow, children: AssetRow[]) => {
+    const { item } = row;
+    const out = children.filter((c) => c.item.status === ItemStatus.ISSUED || c.item.status === ItemStatus.UNDER_TRANSFER);
+    const issuedUnits = item.balance?.issued ?? out.reduce((acc, c) => acc + c.units, 0) + (row.state === 'ISSUED' ? row.units : 0);
+    const inStoreUnits = item.balance?.available ?? (row.state === 'ISSUED' ? 0 : row.units) + children.filter((c) => c.state === 'IN_STORE').reduce((acc, c) => acc + c.units, 0);
+    const totalUnits = item.balance?.total ?? issuedUnits + inStoreUnits;
+    return {
+      isBatch: children.length > 0,
+      out,
+      issuedUnits,
+      inStoreUnits,
+      totalUnits,
+      holders: [...new Set(out.map((c) => c.where))],
+      partly: children.length > 0 && issuedUnits > 0 && inStoreUnits > 0,
+    };
+  };
+
   /**
    * One table row. A batch with issued units shows the whole batch (received · issued · in store) and a toggle
    * for those units; a unit listed under its batch is indented.
@@ -471,17 +494,24 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const nested = !batch && !!item.parentItemId && rows.some((r) => r.item.id === item.parentItemId);
     const orphanParent = !batch && !nested && item.parentItemId ? items.find((i) => i.id === item.parentItemId) : undefined;
     const children = batch?.group.children ?? [];
-    const isBatch = children.length > 0;
-
-    // Units of the whole batch, from the registration's balance (it covers the records issued from it)
-    const out = children.filter((c) => c.item.status === ItemStatus.ISSUED || c.item.status === ItemStatus.UNDER_TRANSFER);
-    const issuedUnits = item.balance?.issued ?? out.reduce((acc, c) => acc + c.units, 0) + (row.state === 'ISSUED' ? row.units : 0);
-    const inStoreUnits = item.balance?.available ?? (row.state === 'ISSUED' ? 0 : row.units) + children.filter((c) => c.state === 'IN_STORE').reduce((acc, c) => acc + c.units, 0);
-    const totalUnits = item.balance?.total ?? issuedUnits + inStoreUnits;
-    const holders = [...new Set(out.map((c) => c.where))];
+    const { isBatch, out, issuedUnits, inStoreUnits, totalUnits, holders } = batchSummary(row, children);
 
     return (
-      <tr key={item.id} className={item.id === lastTouchedId ? table.rowHighlight : nested ? 'bg-slate-50/70 hover:bg-slate-100/70 transition' : table.row}>
+      <tr
+        key={item.id}
+        tabIndex={0}
+        aria-label={`Open ${item.itemCode}`}
+        // The whole row opens the record; its own buttons (the toggle, ⋮) keep their meaning
+        onClick={(e) => {
+          if (!(e.target as HTMLElement).closest('button, a, input')) openRecord(item.id);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && e.target === e.currentTarget) openRecord(item.id);
+        }}
+        className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${
+          item.id === lastTouchedId ? table.rowHighlight : nested ? 'bg-slate-50/70 hover:bg-slate-100/70 transition' : table.row
+        }`}
+      >
         <td className={`py-2.5 pr-3 ${nested ? 'pl-9' : 'pl-3'}`}>
           <span className="block font-medium text-slate-900">
             {nested && <span className="mr-1 text-slate-400" aria-hidden="true">↳</span>}
@@ -534,6 +564,51 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     );
   };
 
+  // ── The open record ──
+  const selectedRow = selectedId ? rows.find((r) => r.item.id === selectedId) : undefined;
+  const selectedGroup = selectedRow
+    ? groups.find((g) => g.row.item.id === selectedRow.item.id || g.children.some((c) => c.item.id === selectedRow.item.id))
+    : undefined;
+  const selectedIsBatch = !!selectedGroup && selectedGroup.row.item.id === selectedRow?.item.id;
+  const selectedUnits = selectedIsBatch ? selectedGroup!.children : [];
+  const selectedSummary = selectedRow ? batchSummary(selectedRow, selectedUnits) : undefined;
+  // Requests made on this record, and the issue that created it when it is a unit split off a batch
+  const selectedRequests = selectedRow
+    ? approvals
+        .filter((a) => a.itemId === selectedRow.item.id || a.requestDetails?.issuedItemCode === selectedRow.item.itemCode)
+        .sort((a, b) => String(b.createdAtGc).localeCompare(String(a.createdAtGc)))
+    : [];
+
+  /** A line in the list beside an open record */
+  const listEntry = (row: AssetRow, opts: { partly?: boolean; nested?: boolean } = {}) => {
+    const selected = row.item.id === selectedId;
+    return (
+      <button
+        key={row.item.id}
+        type="button"
+        onClick={() => openRecord(row.item.id)}
+        aria-current={selected ? 'true' : undefined}
+        className={`flex w-full items-start justify-between gap-2 border-l-4 py-2.5 pr-3 text-left transition cursor-pointer ${opts.nested ? 'pl-7' : 'pl-3'} ${
+          selected ? 'border-emerald-600 bg-emerald-50' : 'border-transparent hover:bg-slate-50'
+        }`}
+      >
+        <span className="min-w-0">
+          <span className="block truncate text-xs font-semibold text-slate-900">
+            {opts.nested && <span className="mr-1 text-slate-400" aria-hidden="true">↳</span>}
+            {row.item.name}
+          </span>
+          <span className="block font-mono text-[11px] font-bold text-slate-600">{row.item.itemCode}</span>
+        </span>
+        <span className="flex shrink-0 flex-col items-end gap-1">
+          <AssetStatus row={{ ...row, rejected: undefined }} partly={opts.partly} />
+          <span className="font-mono text-[10px] text-slate-500">
+            {row.units} {row.item.uom || 'EA'}
+          </span>
+        </span>
+      </button>
+    );
+  };
+
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
   const availableItems = items.filter((i) => i.status === ItemStatus.AVAILABLE && !pendingByItem.has(i.id));
 
@@ -558,6 +633,77 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         )}
       </div>
 
+      {selectedRow ? (
+        /* ── Split view: the list on the left, the open record on the right ── */
+        <div className="grid items-start gap-4 lg:grid-cols-[264px_minmax(0,1fr)]">
+          <aside aria-label="Asset list" className="hidden max-h-[calc(100vh-11rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs lg:sticky lg:top-4 lg:flex">
+            <div className="space-y-2 border-b border-slate-200 p-3">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    aria-label="Search assets"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search assets…"
+                    className={table.search.replace('pr-8', 'pr-3')}
+                  />
+                </div>
+                <RefreshButton onClick={() => fetchData(true)} loading={refreshing} label="assets" />
+              </div>
+              <select
+                aria-label="Show assets"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as AssetFilter)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                {FILTERS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label} ({groups.filter((g) => visibleGroup(g, f.value)).length})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <ul className="flex-1 divide-y divide-slate-100 overflow-y-auto">
+              {shown.length === 0 && <li className="px-3 py-6 text-center text-xs text-slate-400">No assets match.</li>}
+              {shown.map((group) => {
+                const open =
+                  group.forceOpen || group.row.item.id === selectedId || group.children.some((c) => c.item.id === selectedId);
+                return (
+                  <li key={group.row.item.id}>
+                    {listEntry(group.row, { partly: batchSummary(group.row, group.children).partly })}
+                    {open && group.units.map((unit) => listEntry(unit, { nested: true }))}
+                  </li>
+                );
+              })}
+            </ul>
+          </aside>
+
+          <AssetRecord
+            row={selectedRow}
+            units={selectedUnits}
+            batch={selectedGroup && !selectedIsBatch ? selectedGroup.row : undefined}
+            partly={!!selectedSummary?.partly}
+            totals={
+              selectedSummary?.isBatch
+                ? { total: selectedSummary.totalUnits, issued: selectedSummary.issuedUnits, inStore: selectedSummary.inStoreUnits }
+                : undefined
+            }
+            requests={selectedRequests}
+            actions={actionsFor(selectedRow).filter((a) => a.label !== 'View details')}
+            editForm={editing ? editFormFor(selectedRow)?.form : undefined}
+            editFormId={editFormFor(selectedRow)?.id}
+            saving={editSaving}
+            onCancelEdit={() => setEditing(false)}
+            onPrintRequest={(r) => printRequest(r, selectedRow.item)}
+            onPrintReceipt={() => setVoucher19(buildModel19Voucher(selectedRow.item, items))}
+            onSelect={openRecord}
+            onClose={closeRecord}
+          />
+        </div>
+      ) : (
+        <>
       {/* ── Summary ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="In store" value={sumUnits(inStore).toLocaleString()} subtitle={`Units · ${formatETB(inStoreValue)}`} icon={<Warehouse className="w-5 h-5" />} />
@@ -661,6 +807,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           </>
         )}
       </div>
+        </>
+      )}
 
       {/* ── Receive (Model 19) ── */}
       <Modal
@@ -775,7 +923,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         }}
       />
 
-      {viewing && <RecordDetailModal itemId={viewing.itemId} approval={viewing.approval} onClose={() => setViewing(null)} />}
 
       <Model19PrintModal isOpen={!!voucher19} voucher={voucher19} onClose={() => setVoucher19(null)} />
       <Model22PrintModal isOpen={!!voucher22} voucher={voucher22} onClose={() => setVoucher22(null)} />

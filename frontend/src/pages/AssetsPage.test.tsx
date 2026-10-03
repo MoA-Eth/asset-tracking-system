@@ -212,6 +212,133 @@ describe('Assets page', () => {
   });
 });
 
+describe('Asset record', () => {
+  const open = async (user: ReturnType<typeof userEvent.setup>, code: string) => {
+    await user.click(within(rowOf(code)).getByText(code));
+    return screen.getByRole('region', { name: `Asset record ${code}` });
+  };
+  const toolbarOf = (record: HTMLElement) => within(within(record).getByRole('toolbar')).getAllByRole('button').map((b) => b.getAttribute('aria-label') || b.textContent?.trim());
+
+  it('opens a row as a record beside the list, with the next steps in the toolbar', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-S2');
+    expect(toolbarOf(record)).toEqual(['Issue (Model 22)', 'Print Model 19']);
+    expect(screen.getByRole('complementary', { name: 'Asset list' })).toBeInTheDocument();
+    // The last rejection shows in Custody
+    expect(within(record).getByText('Budget line closed')).toBeInTheDocument();
+    // The record has Custody and Requests, no History
+    expect(within(record).getAllByRole('tab').map((t) => t.textContent?.replace(/\d+$/, '').trim())).toEqual(['Custody', 'Requests']);
+
+    await user.click(screen.getByRole('button', { name: 'Close record' }));
+    expect(screen.queryByRole('region', { name: /Asset record/ })).not.toBeInTheDocument();
+    expect(rowOf('MOA-S2')).toBeInTheDocument();
+  });
+
+  it('shows a batch with its totals and opens an issued unit from Custody', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const batch = await open(user, 'MOA-S1');
+    expect(within(batch).getByText('Partly issued')).toBeInTheDocument();
+    expect(within(batch).getByText('Received').previousSibling).toHaveTextContent('10');
+    await user.click(within(batch).getByRole('button', { name: /MOA-S1-1/ }));
+
+    const unit = screen.getByRole('region', { name: 'Asset record MOA-S1-1' });
+    expect(toolbarOf(unit)).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'Print Model 22 (issue)']);
+    expect(within(unit).getByRole('button', { name: 'MOA-S1' })).toBeInTheDocument();
+    await user.click(within(unit).getByRole('tab', { name: /Requests/ }));
+    expect(within(unit).getByText('Approved')).toBeInTheDocument();
+  });
+
+  it('corrects a receipt in place while it waits for the Team Leader', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getApprovals).mockResolvedValue(approvals.map((a) => (a.id === 'A-R1' ? { ...a, currentStage: 1 } : a)) as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-R1');
+    await user.click(within(within(record).getByRole('toolbar')).getByRole('button', { name: 'Edit receipt' }));
+    expect(toolbarOf(record)).toEqual(['Save', 'Cancel']);
+    expect(record.querySelector('form#stock-in-form')).not.toBeNull();
+    // The toolbar's Save submits the form
+    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'stock-in-form');
+    await user.click(within(record).getByRole('button', { name: 'Cancel' }));
+    expect(toolbarOf(record)).toEqual(['Edit receipt', 'Print Model 19']);
+  });
+
+  it.each([
+    ['MOA-O1', 'Edit issue', 'stock-out-form'],
+    ['MOA-P1', 'Edit transfer', 'transfer-form'],
+    ['MOA-I1', 'Edit return', 'return-form'],
+  ])('⋮ → Edit on %s opens its record with the request form in place', async (code, label, formId) => {
+    const user = userEvent.setup();
+    // A pending return on MOA-I1, with the Team Leader
+    vi.mocked(api.getApprovals).mockResolvedValue([...approvals, request('RET', 'RETURN', 'I1')] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await menuFor(user, code);
+    await user.click(screen.getByRole('menuitem', { name: label }));
+
+    const record = screen.getByRole('region', { name: `Asset record ${code}` });
+    expect(record.querySelector(`form#${formId}`)).not.toBeNull();
+    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', formId);
+    // No pop-up: the form is in the record
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await user.click(within(record).getByRole('button', { name: 'Cancel' }));
+    expect(record.querySelector(`form#${formId}`)).toBeNull();
+  });
+
+  it('opens the receipt form in the record from ⋮ → Edit receipt as well', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getApprovals).mockResolvedValue(approvals.map((a) => (a.id === 'A-R1' ? { ...a, currentStage: 1 } : a)) as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await menuFor(user, 'MOA-R1');
+    await user.click(screen.getByRole('menuitem', { name: 'Edit receipt' }));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-R1' });
+    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'stock-in-form');
+  });
+
+  it('prints from one icon, listing the vouchers when there are several', async () => {
+    const user = userEvent.setup();
+    // MOA-S1-1 was issued, then transferred: it has a Model 22 and a Model 21
+    vi.mocked(api.getApprovals).mockResolvedValue([...approvals, request('T-S11', 'TRANSFER', 'S1-1', { status: 'APPROVED', reviewedAtGc: '2026-09-15' })] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const batch = await open(user, 'MOA-S1');
+    await user.click(within(batch).getByRole('button', { name: /MOA-S1-1/ }));
+    const unit = screen.getByRole('region', { name: 'Asset record MOA-S1-1' });
+
+    const print = within(unit).getByRole('button', { name: 'Print a voucher' });
+    expect(print).toHaveTextContent('');
+    await user.click(print);
+    expect(within(within(unit).getByRole('menu')).getAllByRole('menuitem').map((m) => m.textContent)).toEqual([
+      'Print Model 22 (issue)',
+      'Print Model 21 (transfer)',
+    ]);
+    await user.keyboard('{Escape}');
+    expect(within(unit).queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('locks the receipt once the Team Leader has endorsed it', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-R1');
+    expect(within(within(record).getByRole('toolbar')).getByRole('button', { name: 'Edit receipt' })).toBeDisabled();
+    expect(within(record).getByText(/The Team Leader has endorsed it/)).toBeInTheDocument();
+  });
+
+  it('is read-only for approvers: only printing', async () => {
+    const user = userEvent.setup();
+    auth.user.permissions = ['inventory.read', 'approvals.read', 'approvals.endorse'];
+    render(<AssetsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    expect(toolbarOf(await open(user, 'MOA-I1'))).toEqual(['Print Model 21 (transfer)']);
+  });
+});
+
 describe('ReturnToStoreModal', () => {
   it('opens for an asset given after first rendering without one', () => {
     const props = { isOpen: false, onClose: vi.fn(), employees: [], onSuccess: vi.fn() };

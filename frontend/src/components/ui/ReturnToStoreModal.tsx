@@ -45,13 +45,17 @@ interface ReturnToStoreModalProps {
   editApproval?: TransactionApproval;
 }
 
-interface ReturnFormProps extends Omit<ReturnToStoreModalProps, 'item' | 'assets' | 'pendingByItem'> {
+export interface ReturnFormProps extends Omit<ReturnToStoreModalProps, 'item' | 'assets' | 'pendingByItem'> {
   item: ItemWithRelations;
   /** Offered when the asset was picked in this window, to go back and pick another */
   onChangeAsset?: () => void;
+  /** Inside the asset record: no pop-up around the form, and the toolbar has Save and Cancel */
+  inline?: boolean;
+  /** Tells the toolbar while a save is in progress */
+  onSubmittingChange?: (submitting: boolean) => void;
 }
 
-const ReturnForm: React.FC<ReturnFormProps> = ({
+export const ReturnForm: React.FC<ReturnFormProps> = ({
   isOpen,
   onClose,
   item,
@@ -59,10 +63,16 @@ const ReturnForm: React.FC<ReturnFormProps> = ({
   onSuccess,
   editApproval,
   onChangeAsset,
+  inline,
+  onSubmittingChange,
 }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
+  useEffect(() => {
+    onSubmittingChange?.(submitting);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitting]);
 
   // Model 21 Fields
   const [model21No, setModel21No] = useState('');
@@ -312,19 +322,8 @@ const ReturnForm: React.FC<ReturnFormProps> = ({
 
   const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
 
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={editApproval ? `Edit return · ${item.itemCode}` : `Return to store · Model 21 · ${item.itemCode}`}
-      subtitle={
-        editApproval
-          ? 'You can correct this return until the Team Leader endorses it. Each change is recorded in the item history.'
-          : 'The item stays with its custodian until the Team Leader endorses and the Department Head approves the return.'
-      }
-      size="xl"
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
+  const form = (
+      <form id="return-form" onSubmit={handleSubmit} className="space-y-4">
         <FormError message={formError} />
 
         {/* ── Section 1: Return voucher ── */}
@@ -583,14 +582,32 @@ const ReturnForm: React.FC<ReturnFormProps> = ({
           </div>
         </FormSection>
 
-        <FormFooter
-          accent="emerald"
-          submitting={submitting}
-          submitLabel={editApproval ? 'Save changes' : 'Submit return for approval'}
-          onCancel={onClose}
-          onReset={editApproval ? undefined : handleReset}
-        />
+        {!inline && (
+          <FormFooter
+            accent="emerald"
+            submitting={submitting}
+            submitLabel={editApproval ? 'Save changes' : 'Submit return for approval'}
+            onCancel={onClose}
+            onReset={editApproval ? undefined : handleReset}
+          />
+        )}
       </form>
+  );
+
+  if (inline) return form;
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editApproval ? `Edit return · ${item.itemCode}` : `Return to store · Model 21 · ${item.itemCode}`}
+      subtitle={
+        editApproval
+          ? 'You can correct this return until the Team Leader endorses it. Each change is recorded in the item history.'
+          : 'The item stays with its custodian until the Team Leader endorses and the Department Head approves the return.'
+      }
+      size="xl"
+    >
+      {form}
     </Modal>
   );
 };

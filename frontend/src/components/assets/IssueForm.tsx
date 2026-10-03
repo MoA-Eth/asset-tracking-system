@@ -25,6 +25,10 @@ export interface StockOutFormProps {
   editItem?: ItemWithRelations;
   /** Item chosen before the form opened, e.g. from its row in the register */
   initialItemId?: string;
+  /** Inside the asset record the toolbar has Save and Cancel, so the form leaves out its own */
+  hideFooter?: boolean;
+  /** Tells the toolbar while a save is in progress */
+  onSubmittingChange?: (submitting: boolean) => void;
 }
 
 /** Splits the stored "purpose (Remark: remark)" text back into its two fields */
@@ -45,10 +49,16 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   editApproval,
   editItem,
   initialItemId,
+  hideFooter,
+  onSubmittingChange,
 }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
+  useEffect(() => {
+    onSubmittingChange?.(submitting);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitting]);
   const isEdit = !!editApproval;
   const editNotes = splitPurposeAndRemark(editApproval?.purposeOrRemarks ?? '');
 
@@ -667,13 +677,15 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         </div>
       </FormSection>
 
-      <FormFooter
-        accent="emerald"
-        submitting={submitting}
-        submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
-        onCancel={onCancel}
-        onReset={isEdit ? undefined : handleReset}
-      />
+      {!hideFooter && (
+        <FormFooter
+          accent="emerald"
+          submitting={submitting}
+          submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
+          onCancel={onCancel}
+          onReset={isEdit ? undefined : handleReset}
+        />
+      )}
     </form>
   );
 };
