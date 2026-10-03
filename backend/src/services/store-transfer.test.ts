@@ -264,6 +264,31 @@ describe('Asset Transfer approval workflow', () => {
     });
   });
 
+  describe('the order of an asset: received, issued, then transferred or returned', () => {
+    it('refuses to transfer an item that is still in store: it must be issued first', async () => {
+      db.item.findUnique.mockResolvedValue({ ...issuedItem, status: 'AVAILABLE', currentCustodianId: null });
+      await expect(store().transferItem(transferPayload as any)).rejects.toMatchObject({
+        statusCode: 409,
+        message: 'MOA-IT-2026-0001 is in store. Issue it first (Model 22); a transfer moves an issued item from one holder to another.',
+      });
+      expect(db.transactionApproval.create).not.toHaveBeenCalled();
+      expect(db.item.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses to return an item that is already in store', async () => {
+      db.item.findUnique.mockResolvedValue({ ...issuedItem, status: 'AVAILABLE', currentCustodianId: null });
+      await expect(
+        store().registerReturn({ itemId: 'item-1', ifmisSlipNumber: 'M21-3', ifmisSlipDateGc: '2026-10-01', returnReason: 'Done', condition: 'GOOD' } as any),
+      ).rejects.toMatchObject({ statusCode: 409, message: 'MOA-IT-2026-0001 is already in store. Only an issued item can be returned.' });
+      expect(db.transactionApproval.create).not.toHaveBeenCalled();
+    });
+
+    it('still transfers and returns an issued item', async () => {
+      db.item.findUnique.mockResolvedValue({ ...issuedItem });
+      await expect(store().transferItem(transferPayload as any)).resolves.toBeTruthy();
+    });
+  });
+
   describe('other requests respect a pending transfer', () => {
     it('blocks Stock-Out while another request is pending', async () => {
       db.item.findUnique.mockResolvedValue({ ...issuedItem, status: 'AVAILABLE', currentCustodianId: null });
