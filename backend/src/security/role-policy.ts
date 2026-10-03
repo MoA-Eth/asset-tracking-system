@@ -9,7 +9,7 @@ export const PERMISSION_GROUPS = [
     { key: 'slips.upload', label: 'Upload IFMIS slips' },
   ] },
   { name: 'Approvals', permissions: [
-    { key: 'approvals.read', label: 'View transaction requests' },
+    { key: 'approvals.read', label: 'See the status of requests' },
     { key: 'approvals.endorse', label: 'Endorse or reject Stage 1' },
     { key: 'approvals.authorize', label: 'Authorize or reject Stage 2' },
   ] },
@@ -46,14 +46,14 @@ export const ROLE_POLICY: Record<UserRole, {
   DATA_ENCODER: {
     name: 'Data Encoder', description: 'Records stock-in, requests stock-out, and initiates transfers and returns.',
     approvalResponsibility: 'Submits requests; cannot approve',
-    permissions: [...readPermissions, 'stock-in.write', 'stock-out.write', 'transfers.write', 'slips.upload', 'approvals.read'],
-    allowedTabs: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', ...referenceTabs], landingTab: 'stock-in',
+    permissions: [...readPermissions, 'stock-in.write', 'stock-out.write', 'transfers.write', 'slips.upload', 'approvals.read', 'reports.read'],
+    allowedTabs: ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset', 'reports', ...referenceTabs], landingTab: 'stock-in',
   },
   TEAM_LEADER: {
     name: 'Team Leader', description: 'Reviews technical details before final authorization.',
     approvalResponsibility: 'Stage 1 — endorse or reject',
     permissions: [...readPermissions, 'approvals.read', 'approvals.endorse', 'reports.read', 'audit.read'],
-    allowedTabs: ['approvals', 'reports', 'audit'], landingTab: 'approvals',
+    allowedTabs: ['approvals', 'reports', 'audit', ...referenceTabs], landingTab: 'approvals',
   },
   DEPARTMENT_HEAD: {
     name: 'Department Head', description: 'Authorizes endorsed requests and oversees directorate assets.',
@@ -180,7 +180,7 @@ export function computeAllowedTabs(role: UserRole, permissions: Permission[]): {
   if (permissions.includes('roles.assign')) tabs.add('settings-users');
   if (permissions.includes('roles.read')) tabs.add('settings-roles');
   if (permissions.includes('references.read')) {
-    if (role === UserRole.SYSTEM_ADMIN || role === UserRole.DATA_ENCODER || role === UserRole.DEPARTMENT_HEAD) {
+    if (role !== UserRole.MANAGER) {
       referenceTabs.forEach((t) => tabs.add(t));
     }
   }

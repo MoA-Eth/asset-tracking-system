@@ -226,4 +226,23 @@ describe('RBAC Permission Matrix Enforcement', () => {
       expect(hasPermission(UserRole.TEAM_LEADER, 'approvals.endorse')).toBe(true);
     });
   });
+
+  describe('Pages each role opens with the built-in permissions', () => {
+    const tabsOf = (role: UserRole) => computeAllowedTabs(role, ROLE_POLICY[role].permissions).allowedTabs;
+
+    it('Data Encoders see Reports alongside their inventory pages', () => {
+      expect(tabsOf(UserRole.DATA_ENCODER)).toEqual(expect.arrayContaining(['stock-in', 'stock-out', 'transfer-asset', 'reports']));
+      expect(tabsOf(UserRole.DATA_ENCODER)).not.toContain('approvals');
+    });
+
+    it('Team Leaders can look up Employees and Stores, view only', () => {
+      expect(tabsOf(UserRole.TEAM_LEADER)).toEqual(expect.arrayContaining(['approvals', 'settings-employees', 'settings-stores']));
+      expect(hasPermission(UserRole.TEAM_LEADER, 'employees.manage')).toBe(false);
+      expect(hasPermission(UserRole.TEAM_LEADER, 'references.manage')).toBe(false);
+    });
+
+    it('Managers keep the dashboard and reports only', () => {
+      expect(tabsOf(UserRole.MANAGER).sort()).toEqual(['dashboard', 'reports']);
+    });
+  });
 });
