@@ -301,16 +301,10 @@ export const EmployeesPage: React.FC = () => {
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
       {/* Header */}
-      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="flex items-center gap-2 text-xl font-extrabold text-slate-900">
-            <UserCheck className="h-5 w-5 text-emerald-700" />
-            Employees (ሰራተኞች)
-          </h2>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Staff who hold, receive or approve items. Only active employees appear in the issue and transfer forms.
-          </p>
-        </div>
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-slate-500">
+          Staff who hold, receive or approve items. Only active employees appear in the issue and transfer forms.
+        </p>
         {canManage && (
           <div className="flex flex-wrap items-center gap-2">
             <button

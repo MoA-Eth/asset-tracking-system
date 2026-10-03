@@ -878,18 +878,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
       {/* ── Page header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-            <Boxes className="w-5 h-5 text-emerald-700" />
-            Assets - ንብረቶች
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Every asset from receipt to custody. Receive on Model 19, issue on Model 22, then transfer or return on Model 21.
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3.5">
+        <p className="text-xs text-slate-500">
+          Every asset from receipt to custody. Receive on Model 19, issue on Model 22, then transfer or return on Model 21.
+        </p>
         {canReceive && (
-          <button type="button" onClick={() => openReceipt()} className={btn.primary}>
+          <button type="button" onClick={() => openReceipt()} className={`${btn.primary} shrink-0`}>
             <Plus className="w-4 h-4" />
             Receive items (Model 19)
           </button>

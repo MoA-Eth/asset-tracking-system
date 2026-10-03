@@ -52,12 +52,8 @@ export const SystemSettingsPage: React.FC = () => {
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
       {/* Page Header */}
-      <div className="border-b border-slate-200 pb-4">
-        <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-          <Sliders className="w-5 h-5 text-emerald-700" />
-          System Settings (የስርዓት ቅንብሮች)
-        </h2>
-        <p className="text-xs text-slate-500 mt-0.5">Rules that apply to every user and every store.</p>
+      <div className="border-b border-slate-200 pb-3.5">
+        <p className="text-xs text-slate-500">Rules that apply to every user and every store across the platform.</p>
       </div>
 
       <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">

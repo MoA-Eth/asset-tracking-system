@@ -542,12 +542,9 @@ export const ReportsPage: React.FC = () => {
     <div className="space-y-4 animate-fadeIn pb-16">
       {/* 1. Header Bar with Direct Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-emerald-700" />
-            Asset Reports (የንብረት ሪፖርት)
-          </h2>
-        </div>
+        <p className="text-xs text-slate-500">
+          Official asset registry, valuation breakdowns, and inventory movement reports across all ministry stores.
+        </p>
 
         <div className="flex items-center gap-2 shrink-0">
           <button

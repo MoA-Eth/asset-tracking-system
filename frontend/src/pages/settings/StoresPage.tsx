@@ -183,18 +183,12 @@ export const StoresPage: React.FC = () => {
 
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
-      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="flex items-center gap-2 text-xl font-extrabold text-slate-900">
-            <Warehouse className="h-5 w-5 text-emerald-700" />
-            Stores (መጋዘኖች)
-          </h2>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Each store receives and issues stock, and has one or more locations inside it (rooms, sections, shelves). Receiving picks a store, then a location.
-          </p>
-        </div>
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-slate-500">
+          Each store receives and issues stock, and has one or more locations inside it (rooms, sections, shelves). Receiving picks a store, then a location.
+        </p>
         {canManage && (
-          <button type="button" onClick={() => setEditing({ kind: 'store', store: null })} className={btn.primary}>
+          <button type="button" onClick={() => setEditing({ kind: 'store', store: null })} className={`${btn.primary} shrink-0`}>
             <Plus className="h-4 w-4" />
             Add store
           </button>

@@ -204,14 +204,8 @@ export const AuditLogsPage: React.FC = () => {
   return (
     <div className="space-y-4 animate-fadeIn pb-16">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-emerald-700" />
-            Audit log <span className="font-medium text-slate-500">(የኦዲት መዝገብ)</span>
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">Who did what, and when. Entries are written by the system and can't be edited or deleted.</p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3.5">
+        <p className="text-xs text-slate-500">Who did what, and when. Entries are written by the system and can't be edited or deleted.</p>
 
         <div className="no-print flex items-center gap-2 shrink-0">
           <button onClick={handleExportCSV} className={headButton} title="Save the entries shown as a CSV file">
