@@ -96,7 +96,7 @@ export class ItemController {
       await discardUnusedSlip(payload.ifmisSlipAttachmentUrl);
       throw err;
     });
-    return sendSuccess(res, result, 'Stock-In registered successfully', 201);
+    return sendSuccess(res, result, 'Receipt registered', 201);
   });
 
   /**
@@ -107,7 +107,7 @@ export class ItemController {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const payload: UpdateStockInRequest = req.body;
     const item = await this.store.updateStockIn(id, payload, req.user!.id);
-    return sendSuccess(res, { item }, 'Stock-In registration updated');
+    return sendSuccess(res, { item }, 'Receipt updated');
   });
 
   /**
@@ -131,7 +131,7 @@ export class ItemController {
       await discardUnusedSlip(payload.ifmisSlipAttachmentUrl);
       throw err;
     });
-    return sendSuccess(res, result, 'Stock-out submitted for Department Head approval', 201);
+    return sendSuccess(res, result, 'Issue request submitted for approval', 201);
   });
 
   /**
@@ -142,7 +142,7 @@ export class ItemController {
     const approvalId = Array.isArray(req.params.approvalId) ? req.params.approvalId[0] : req.params.approvalId;
     const payload: UpdateStockOutRequest = req.body;
     const approval = await this.store.updateStockOut(approvalId, payload, req.user!.id);
-    return sendSuccess(res, { approval }, 'Stock-Out request updated');
+    return sendSuccess(res, { approval }, 'Issue request updated');
   });
 
   /**

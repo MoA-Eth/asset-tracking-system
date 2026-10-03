@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { withRoleNames } from '../../utils/roles';
+import { actionText, withRoleNames } from '../../utils/roles';
 import { FileText, History, Package, Paperclip, RefreshCw, AlertCircle } from 'lucide-react';
 import { Modal } from './Modal';
 import { SlipViewerModal } from './SlipViewerModal';
@@ -23,8 +23,8 @@ interface RecordDetailModalProps {
 }
 
 const REQUEST_LABELS: Record<string, string> = {
-  STOCK_IN: 'Stock-In (Model 19)',
-  STOCK_OUT: 'Stock-Out (Model 22)',
+  STOCK_IN: 'Receipt (Model 19)',
+  STOCK_OUT: 'Issue (Model 22)',
   TRANSFER: 'Transfer (Model 21)',
   RETURN: 'Return (Model 21)',
 };
@@ -32,7 +32,7 @@ const REQUEST_LABELS: Record<string, string> = {
 const ITEM_STATUS: Record<string, { label: string; tone: keyof typeof statusTone }> = {
   [ItemStatus.PENDING_STOCK_IN]: { label: 'Awaiting registration approval', tone: 'pending' },
   [ItemStatus.AVAILABLE]: { label: 'In store', tone: 'inStore' },
-  [ItemStatus.PENDING_STOCK_OUT]: { label: 'Stock-Out pending', tone: 'pending' },
+  [ItemStatus.PENDING_STOCK_OUT]: { label: 'Issue pending', tone: 'pending' },
   [ItemStatus.ISSUED]: { label: 'Issued', tone: 'issued' },
   [ItemStatus.UNDER_TRANSFER]: { label: 'Under transfer', tone: 'pending' },
   // An item only leaves the register this way when its Stock-In is rejected
@@ -234,7 +234,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                   {item.history.map((h) => (
                     <li key={h.id} className="py-2">
                       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                        <span className="font-semibold text-slate-900">{h.action.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}</span>
+                        <span className="font-semibold text-slate-900">{actionText(h.action)}</span>
                         <span className="text-[11px] text-slate-500 font-mono">{h.dateEc} E.C. · {h.dateGc}</span>
                       </div>
                       <p className="text-slate-600">

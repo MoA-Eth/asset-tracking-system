@@ -149,9 +149,11 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             {collapsed ? (
               idx > 0 && <div aria-hidden="true" className="mx-3 mb-3 border-t border-white/[0.07]" />
             ) : (
-              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200/40">
-                {section.label}
-              </p>
+              section.items.length > 1 && (
+                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200/40">
+                  {section.label}
+                </p>
+              )
             )}
             <div className="space-y-0.5">{section.items.map(renderItem)}</div>
           </div>
@@ -159,13 +161,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
         {settingsGroups.length > 0 && (
           <div className="mt-4">
-            {collapsed ? (
-              <div aria-hidden="true" className="mx-3 mb-3 border-t border-white/[0.07]" />
-            ) : (
-              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200/40">
-                Administration
-              </p>
-            )}
+            {collapsed && <div aria-hidden="true" className="mx-3 mb-3 border-t border-white/[0.07]" />}
 
             <button
               onClick={() => (collapsed ? setActiveTab(settingsGroups[0].items[0].id) : setSettingsOpen((o) => !o))}

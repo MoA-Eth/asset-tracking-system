@@ -161,7 +161,7 @@ describe('Frontend RBAC Permission Matrix Enforcement', () => {
       mockAuth.role = UserRole.DATA_ENCODER;
 
       const { rerender } = render(<StockInPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(await screen.findByRole('button', { name: /Register New Model 19 Voucher/i })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: /New receipt \(Model 19\)/i })).toBeInTheDocument();
 
       // 2. With permission revoked
       mockAuth.user = {
@@ -172,7 +172,7 @@ describe('Frontend RBAC Permission Matrix Enforcement', () => {
         landingTab: 'stock-in',
       } as any;
       rerender(<StockInPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(screen.queryByRole('button', { name: /Register New Model 19 Voucher/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /New receipt \(Model 19\)/i })).not.toBeInTheDocument();
     });
 
     it('renders Stock-Out issue button only when stock-out.write is granted', async () => {
@@ -187,7 +187,7 @@ describe('Frontend RBAC Permission Matrix Enforcement', () => {
       mockAuth.role = UserRole.DATA_ENCODER;
 
       const { rerender } = render(<StockOutPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(await screen.findByRole('button', { name: /Issue Asset \(Model 22\)/i })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: /New issue \(Model 22\)/i })).toBeInTheDocument();
 
       // 2. With permission revoked
       mockAuth.user = {
@@ -198,7 +198,7 @@ describe('Frontend RBAC Permission Matrix Enforcement', () => {
         landingTab: 'stock-out',
       } as any;
       rerender(<StockOutPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(screen.queryByRole('button', { name: /Issue Asset \(Model 22\)/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /New issue \(Model 22\)/i })).not.toBeInTheDocument();
     });
 
     it('gates transfer and return action controls in TransferAssetPage by transfers.write', async () => {

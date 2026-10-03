@@ -704,7 +704,7 @@ export class StoreService {
           ifmisSlipDateEc: slipDateEc,
           ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
           requestedById: payload.registeredById,
-          purposeOrRemarks: lineItem.remark || payload.notes || `Stock-in inbound receipt (Model 19 #${payload.ifmisSlipNumber})`,
+          purposeOrRemarks: lineItem.remark || payload.notes || `Received into store (Model 19 #${payload.ifmisSlipNumber})`,
           status: 'PENDING' as any,
           createdAtGc: today.gc,
           createdAtEc: today.ec,
@@ -872,7 +872,7 @@ export class StoreService {
           ifmisSlipDateGc: after.ifmisSlipDateGc,
           ifmisSlipDateEc: formatGcToEc(after.ifmisSlipDateGc),
           ifmisSlipAttachmentUrl: after.ifmisSlipAttachmentUrl,
-          purposeOrRemarks: remark || `Stock-in inbound receipt (Model 19 #${after.ifmisSlipNumber})`,
+          purposeOrRemarks: remark || `Received into store (Model 19 #${after.ifmisSlipNumber})`,
         },
       });
 
@@ -906,18 +906,18 @@ export class StoreService {
   public async updateStockOut(approvalId: string, payload: UpdateStockOutRequest, actorId: string): Promise<TransactionApproval> {
     const approval = await prisma.transactionApproval.findUnique({ where: { id: approvalId } });
     if (!approval || approval.transactionType !== 'STOCK_OUT') {
-      throw new NotFoundError(`Stock-Out request ${approvalId} not found.`);
+      throw new NotFoundError(`Issue request ${approvalId} not found.`);
     }
     // Once the Team Leader has endorsed (or the request is decided) the request is locked
     if (approval.status !== 'PENDING' || approval.currentStage !== 1) {
       throw new ConflictError(
-        `The Stock-Out request for ${approval.itemCode} can only be edited while it is waiting for Team Leader endorsement. Ask an approver to reject it and submit it again.`
+        `The issue request for ${approval.itemCode} can only be edited while it is waiting for Team Leader endorsement. Ask an approver to reject it and submit it again.`
       );
     }
 
     const slipNo = (payload.ifmisSlipNumber || '').trim();
     const purpose = (payload.purpose || '').trim();
-    if (!slipNo) throw new BadRequestError('IFMIS Slip Number is mandatory for Stock-Out.');
+    if (!slipNo) throw new BadRequestError('The Model 22 slip number is required to issue an item.');
     if (!purpose) throw new BadRequestError('Purpose of issue is required.');
     if (!payload.recipientEmployeeId) throw new BadRequestError('Recipient staff member is required.');
     if (!payload.targetDepartmentId) throw new BadRequestError('Destination directorate is required.');
@@ -1049,10 +1049,10 @@ export class StoreService {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
     if (!item) throw new NotFoundError(`Item ${payload.itemId} not found.`);
     if (item.status !== 'AVAILABLE') {
-      throw new ConflictError(`Item ${item.itemCode} must be AVAILABLE to register Stock-Out. Current: ${item.status}`);
+      throw new ConflictError(`Item ${item.itemCode} must be in store to be issued. Current: ${item.status}`);
     }
     await assertNoPendingApproval(item);
-    if (isBlank(payload.ifmisSlipNumber)) throw new BadRequestError('IFMIS Slip Number is mandatory for Stock-Out.');
+    if (isBlank(payload.ifmisSlipNumber)) throw new BadRequestError('The Model 22 slip number is required to issue an item.');
     if (isBlank(payload.purpose)) throw new BadRequestError('Purpose of issue is required.');
     if (isBlank(payload.recipientEmployeeId)) throw new BadRequestError('Recipient staff member is required.');
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
@@ -1126,7 +1126,7 @@ export class StoreService {
       'REGISTER_STOCK_OUT',
       'STOCK_OUT',
       item.id,
-      `Stock-Out requested for ${item.itemCode} to ${recipient?.fullNameEn || 'a recipient not yet set'}. IFMIS: ${payload.ifmisSlipNumber}`,
+      `Issue requested for ${item.itemCode} to ${recipient?.fullNameEn || 'a recipient not yet set'}. IFMIS: ${payload.ifmisSlipNumber}`,
       payload.ifmisSlipNumber,
     );
 
@@ -1650,7 +1650,7 @@ export class StoreService {
         historyAction = 'STOCK_IN_APPROVED';
         fromEntity = 'Pending Approval';
         toEntity = `${storeName} (AVAILABLE)`;
-        histNote = payload.reviewRemarks || 'Stock-in approved. Item available for issuance.';
+        histNote = payload.reviewRemarks || 'Receipt approved. The item is in store and can be issued.';
         approvedById = payload.reviewedById;
       } else if (approval.transactionType === 'RETURN') {
         newItemStatus = 'AVAILABLE';
@@ -1686,7 +1686,7 @@ export class StoreService {
           ? await db.employee.findUnique({ where: { id: approval.recipientEmployeeId } })
           : null;
         toEntity = recipient ? recipient.fullNameEn : 'Assigned Custodian';
-        histNote = `Stock-out authorized for: ${approval.purposeOrRemarks}`;
+        histNote = `Issue approved for: ${approval.purposeOrRemarks}`;
         custodianId = approval.recipientEmployeeId ?? null;
         departmentId = approval.targetDepartmentId ?? null;
         approvedById = payload.reviewedById;
@@ -1711,7 +1711,7 @@ export class StoreService {
           custodianId = item.currentCustodianId;
           departmentId = item.assignedDepartmentId;
           approvedById = item.approvedById;
-          fromEntity = 'Pending Stock-Out';
+          fromEntity = 'Issue pending';
           toEntity = `${storeName} (AVAILABLE)`;
           histNote = `Issued ${requested} of ${inStore} ${partialIssue.uom} as ${partialIssue.code} to ${partialIssue.recipientName}; ${partialIssue.remaining} ${partialIssue.uom} remain in store. Purpose: ${approval.purposeOrRemarks}`;
         }
@@ -1740,7 +1740,7 @@ export class StoreService {
       } else {
         newItemStatus = 'AVAILABLE';
         historyAction = 'STOCK_OUT_REJECTED';
-        fromEntity = 'Pending Stock-Out';
+        fromEntity = 'Issue pending';
         toEntity = `${storeName} (AVAILABLE)`;
         histNote = rejectionNote;
       }

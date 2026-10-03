@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 
 const POLICY_TEXT: Record<AttachmentPolicy, string> = {
-  REQUIRED: 'A scanned slip must now be attached to every Stock-In, Stock-Out and Return request.',
+  REQUIRED: 'A scanned slip must now be attached to every receipt, issue and return.',
   OPTIONAL: 'Attaching a scanned slip is now optional.',
 };
 
@@ -77,7 +77,7 @@ export const SystemSettingsPage: React.FC = () => {
           <div className="space-y-1 max-w-2xl">
             <div className="flex items-center gap-2">
               <FileCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-              <p className="text-xs font-bold text-slate-900">Scanned slip on Stock-In, Stock-Out and Return requests</p>
+              <p className="text-xs font-bold text-slate-900">Scanned slip on receipts, issues and returns</p>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
               When required, a request can't be submitted without a scanned copy of its Model 19, 22 or 21 slip.

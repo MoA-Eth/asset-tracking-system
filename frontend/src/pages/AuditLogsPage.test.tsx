@@ -42,7 +42,7 @@ describe('Audit log', () => {
     expect(first).toHaveTextContent('Tigist Haile');
     // Roles and actions are written out, not shown as codes
     expect(first).toHaveTextContent('Department Head');
-    expect(first).toHaveTextContent('Approve stock in');
+    expect(first).toHaveTextContent('Approve receipt');
     expect(first).toHaveTextContent('M19-0044');
     expect(first).not.toHaveTextContent('DEPARTMENT_HEAD');
     expect(first).not.toHaveTextContent('APPROVE_STOCK_IN');
@@ -59,7 +59,7 @@ describe('Audit log', () => {
     await user.click(screen.getByRole('button', { name: 'Hide details of Update system settings by Admin Person' }));
     expect(screen.queryByText('Before')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Show details of Register stock in by Store Encoder' }));
+    await user.click(screen.getByRole('button', { name: 'Show details of Register receipt by Store Encoder' }));
     expect(screen.getByText('No before-and-after values were recorded for this entry.')).toBeInTheDocument();
   });
 
@@ -69,14 +69,14 @@ describe('Audit log', () => {
     await screen.findByRole('columnheader', { name: 'Who' });
     await user.click(screen.getByRole('button', { name: 'Approvals' }));
     expect(dataRows()).toHaveLength(1);
-    expect(dataRows()[0]).toHaveTextContent('Approve stock in');
-    await user.click(screen.getByRole('button', { name: 'Stock-In (M19)' }));
+    expect(dataRows()[0]).toHaveTextContent('Approve receipt');
+    await user.click(screen.getByRole('button', { name: 'Receiving (M19)' }));
     expect(dataRows()).toHaveLength(1);
-    expect(dataRows()[0]).toHaveTextContent('Register stock in');
+    expect(dataRows()[0]).toHaveTextContent('Register receipt');
     await user.click(screen.getByRole('button', { name: 'Users & settings' }));
     expect(dataRows()[0]).toHaveTextContent('Update system settings');
     await user.click(screen.getByRole('button', { name: 'Rejections' }));
-    expect(dataRows()[0]).toHaveTextContent('Reject stock out');
+    expect(dataRows()[0]).toHaveTextContent('Reject issue');
   });
 
   it('searches by person, slip number or description, and says when nothing matches', async () => {

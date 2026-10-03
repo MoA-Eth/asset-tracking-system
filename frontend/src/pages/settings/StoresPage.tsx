@@ -51,7 +51,7 @@ const StoreForm: React.FC<{ editing: Store | null; onCancel: () => void; onSaved
   return (
     <form onSubmit={submit} className="space-y-4">
       <FieldGrid cols={2}>
-        <Field label="Store name" required span="sm:col-span-2" htmlFor="store-name" hint="Shown in the Stock-In and Transfer forms, e.g. Kality.">
+        <Field label="Store name" required span="sm:col-span-2" htmlFor="store-name" hint="Shown in the Receiving and Transfers forms, e.g. Kality.">
           <input id="store-name" value={name} onChange={(e) => setName(e.target.value)} className={inputClass('emerald')} placeholder="e.g. Kality" autoFocus />
         </Field>
         <Field label="Building / address" optional span="sm:col-span-2" htmlFor="store-address">
@@ -190,7 +190,7 @@ export const StoresPage: React.FC = () => {
             Stores (መጋዘኖች)
           </h2>
           <p className="mt-0.5 text-xs text-slate-500">
-            Each store receives and issues stock, and has one or more locations inside it (rooms, sections, shelves). Stock-In picks a store, then a location.
+            Each store receives and issues stock, and has one or more locations inside it (rooms, sections, shelves). Receiving picks a store, then a location.
           </p>
         </div>
         {canManage && (
@@ -418,8 +418,8 @@ export const StoresPage: React.FC = () => {
               : 'This removes the location for good. It only works when no item or request has ever used it; otherwise deactivate it.'
             : confirm.action === 'deactivate'
               ? confirm.kind === 'store'
-                ? 'The store and all its locations will no longer appear in the Stock-In and Transfer forms. Past records keep their names.'
-                : 'It will no longer appear in the Stock-In and Transfer forms. Past records keep its name.'
+                ? 'The store and all its locations will no longer appear in the Receiving and Transfers forms. Past records keep their names.'
+                : 'It will no longer appear in the Receiving and Transfers forms. Past records keep its name.'
               : 'It will appear in the forms again.'}
       </ConfirmDialog>
     </div>

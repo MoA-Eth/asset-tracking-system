@@ -45,11 +45,11 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     id: 'operations',
-    label: 'Store Operations',
+    label: 'Inventory',
     items: [
-      { id: 'stock-in', label: 'Stock-In', icon: PackagePlus, formTag: 'M19', hint: 'Stock-In — Goods Received (Model 19 / የዕቃ መረከቢያ)' },
-      { id: 'stock-out', label: 'Stock-Out', icon: PackageMinus, formTag: 'M22', hint: 'Stock-Out — Property Issued (Model 22 / የዕቃ ወጪ)' },
-      { id: 'transfer-asset', label: 'Transfers & Returns', icon: ArrowRightLeft, formTag: 'M21', hint: 'Internal Transfers & Returns to Store (Model 21)' },
+      { id: 'stock-in', label: 'Receiving', icon: PackagePlus, formTag: 'M19', hint: 'Receiving — goods received into store (Model 19 / የዕቃ መረከቢያ)' },
+      { id: 'stock-out', label: 'Issuing', icon: PackageMinus, formTag: 'M22', hint: 'Issuing — property issued from store (Model 22 / የዕቃ ወጪ)' },
+      { id: 'transfer-asset', label: 'Transfers', icon: ArrowRightLeft, formTag: 'M21', hint: 'Transfers between custodians, and returns to store (Model 21)' },
     ],
   },
   {
@@ -61,7 +61,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     id: 'insights',
-    label: 'Insights',
+    label: 'Reports',
     items: [
       { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
       { id: 'audit', label: 'Audit Log', icon: ShieldCheck },
@@ -120,7 +120,7 @@ export function getSettingsGroups(allowedTabs: readonly string[] = []): Settings
 
 export function getMobileNavItems(allowedTabs: readonly string[] = []): { id: string; label: string; icon: LucideIcon; matches: (tab: string) => boolean }[] {
   const main = getNavSections(allowedTabs).flatMap((section) => section.items.map((item) => ({
-    id: item.id, label: item.id === 'transfer-asset' ? 'Transfers' : item.label, icon: item.icon,
+    id: item.id, label: item.label, icon: item.icon,
     matches: (tab: string) => tab === item.id,
   })));
   const firstSettings = getSettingsGroups(allowedTabs)[0]?.items[0];

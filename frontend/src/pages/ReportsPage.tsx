@@ -312,7 +312,7 @@ export const ReportsPage: React.FC = () => {
   const getReportTypeLabel = () => {
     switch (reportType) {
       case 'registered':
-        return 'Registered Assets (Stock-In)';
+        return 'Registered assets (Receiving)';
       case 'available':
         return 'Available Assets (In Store)';
       case 'issued':
@@ -501,7 +501,7 @@ export const ReportsPage: React.FC = () => {
 
   const reportTabs: { id: ReportType; label: string; icon: any }[] = [
     { id: 'all', label: 'All Assets', icon: Layers },
-    { id: 'registered', label: 'Registered (Stock-In)', icon: PackagePlus },
+    { id: 'registered', label: 'Received', icon: PackagePlus },
     { id: 'available', label: 'Available (In Store)', icon: CheckCircle2 },
     { id: 'issued', label: 'Issued (In Custody)', icon: FileCheck2 },
     { id: 'transferred', label: 'Transferred & Returned', icon: ArrowRightLeft },
