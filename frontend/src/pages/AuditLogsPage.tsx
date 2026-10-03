@@ -5,16 +5,16 @@ import { AuditLogEntry } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RefreshButton } from '../components/ui/RefreshButton';
-import { roleName, withRoleNames } from '../utils/roles';
+import { actionText, roleName, withRoleNames } from '../utils/roles';
 
 /** What kind of activity an entry is, for the filter and the colour of its label */
 type ActivityKind = 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'APPROVAL' | 'REJECTION' | 'ADMIN' | 'OTHER';
 
 const KIND_FILTERS: { label: string; value: ActivityKind | 'ALL' }[] = [
   { label: 'All activity', value: 'ALL' },
-  { label: 'Stock-In (M19)', value: 'STOCK_IN' },
-  { label: 'Stock-Out (M22)', value: 'STOCK_OUT' },
-  { label: 'Transfers & returns (M21)', value: 'TRANSFER' },
+  { label: 'Receiving (M19)', value: 'STOCK_IN' },
+  { label: 'Issuing (M22)', value: 'STOCK_OUT' },
+  { label: 'Transfers (M21)', value: 'TRANSFER' },
   { label: 'Approvals', value: 'APPROVAL' },
   { label: 'Rejections', value: 'REJECTION' },
   { label: 'Users & settings', value: 'ADMIN' },
@@ -41,11 +41,8 @@ export function activityKind(action: string): ActivityKind {
   return 'OTHER';
 }
 
-/** "APPROVE_STOCK_IN" → "Approve stock in" */
-export const actionLabel = (action: string): string => {
-  const text = action.replace(/_/g, ' ').toLowerCase();
-  return text.charAt(0).toUpperCase() + text.slice(1);
-};
+/** "APPROVE_STOCK_IN" → "Approve receipt" */
+export const actionLabel = (action: string): string => actionText(action);
 
 /** "2026-10-02 17:10:11" → date and time parts */
 const splitStamp = (stamp?: string): [string, string] => {

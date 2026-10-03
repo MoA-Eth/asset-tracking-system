@@ -257,9 +257,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     const itemCode = target?.itemCode || 'Transaction';
     const typeLabel =
       target?.transactionType === 'STOCK_IN'
-        ? 'Model 19 Stock-In'
+        ? 'Model 19 receipt'
         : target?.transactionType === 'STOCK_OUT'
-        ? 'Model 22 Stock-Out'
+        ? 'Model 22 issue'
         : target?.transactionType === 'TRANSFER'
         ? 'Model 21 Transfer'
         : 'Model 21 Return';
@@ -570,8 +570,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-700 cursor-pointer w-full sm:w-auto"
             >
               <option value="ALL">All Statutory Forms</option>
-              <option value={TransactionType.STOCK_IN}>Model 19 (Stock-In Receipt)</option>
-              <option value={TransactionType.STOCK_OUT}>Model 22 (Stock-Out Issue)</option>
+              <option value={TransactionType.STOCK_IN}>Receiving (Model 19)</option>
+              <option value={TransactionType.STOCK_OUT}>Issuing (Model 22)</option>
               <option value={TransactionType.RETURN}>Model 21 (Return to Store)</option>
               <option value={TransactionType.TRANSFER}>Model 21 (Asset Transfer)</option>
             </select>

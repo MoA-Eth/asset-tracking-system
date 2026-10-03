@@ -58,8 +58,8 @@ const ITEM_STATUS_LABELS: Record<string, { label: string; className: string }> =
   [ItemStatus.AVAILABLE]: { label: 'In store', className: statusTone.inStore },
   [ItemStatus.ISSUED]: { label: 'Issued', className: statusTone.issued },
   [ItemStatus.UNDER_TRANSFER]: { label: 'Under transfer', className: statusTone.pending },
-  [ItemStatus.PENDING_STOCK_IN]: { label: 'Stock-In pending', className: statusTone.pending },
-  [ItemStatus.PENDING_STOCK_OUT]: { label: 'Stock-Out pending', className: statusTone.pending },
+  [ItemStatus.PENDING_STOCK_IN]: { label: 'Receipt pending', className: statusTone.pending },
+  [ItemStatus.PENDING_STOCK_OUT]: { label: 'Issue pending', className: statusTone.pending },
   [ItemStatus.DISPOSED]: { label: 'Disposed', className: statusTone.neutral },
 };
 
@@ -79,8 +79,8 @@ const UnitsCell: React.FC<{ item: ItemWithRelations }> = ({ item }) => (
 );
 
 const REQUEST_TYPE_LABELS: Record<string, string> = {
-  STOCK_IN: 'Stock-In',
-  STOCK_OUT: 'Stock-Out',
+  STOCK_IN: 'Receipt',
+  STOCK_OUT: 'Issue',
   TRANSFER: 'Transfer',
   RETURN: 'Return',
 };
@@ -513,7 +513,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
           </div>
           <div>
             <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              Fixed Asset Internal Transfer & Return
+              Transfers
               <span className="text-xs font-normal text-emerald-800 font-amharic">
                 (የንብረት ዝውውር እና መመለሻ - ሞዴል 21)
               </span>
@@ -534,7 +534,7 @@ export const TransferAssetPage: React.FC<TransferAssetPageProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            All Movements & Returns
+            All transfers
           </button>
           {canWrite && (
             <>

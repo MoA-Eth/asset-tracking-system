@@ -27,7 +27,7 @@ type Hit = PageHit | ItemHit;
 const STATUS_LABELS: Record<string, string> = {
   PENDING_STOCK_IN: 'Awaiting approval',
   AVAILABLE: 'In store',
-  PENDING_STOCK_OUT: 'Stock-out pending',
+  PENDING_STOCK_OUT: 'Issue pending',
   ISSUED: 'Issued',
   UNDER_TRANSFER: 'Under transfer',
   DISPOSED: 'Rejected',

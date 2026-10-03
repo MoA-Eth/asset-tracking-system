@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { ColumnChart, Donut } from '../components/ui/charts';
-import { withRoleNames } from '../utils/roles';
+import { actionText, withRoleNames } from '../utils/roles';
 import { formatETB } from '../utils/eth-date';
 import { UserRole } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
@@ -58,8 +58,8 @@ const ITEM_STATUS_STYLE: Record<string, { label: string; color: string }> = {
   AVAILABLE:         { label: 'Available',         color: '#0ca30c' },
   ISSUED:            { label: 'Issued',            color: '#2a78d6' },
   PENDING:           { label: 'Pending',           color: '#eda100' },
-  PENDING_STOCK_IN:  { label: 'Pending stock-in',  color: '#eda100' },
-  PENDING_STOCK_OUT: { label: 'Pending stock-out', color: '#eda100' },
+  PENDING_STOCK_IN:  { label: 'Receipt pending',   color: '#eda100' },
+  PENDING_STOCK_OUT: { label: 'Issue pending',     color: '#eda100' },
   UNDER_TRANSFER:    { label: 'Under transfer',    color: '#eda100' },
   DISPOSED:          { label: 'Disposed',          color: '#94a3b8' },
   OTHER:             { label: 'Other',             color: '#cbd5e1' },
@@ -668,7 +668,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           action={<CountPill>{deptRows.length} directorates</CountPill>}
         >
           {deptRows.length === 0 ? (
-            <EmptyState icon={Building2}>No directorate allocations yet. Issue items to directorates via Stock-Out.</EmptyState>
+            <EmptyState icon={Building2}>No directorate allocations yet. Issue items to directorates from Issuing.</EmptyState>
           ) : (
             <div className="space-y-4">
               {deptRows.map((dept: any) => {
@@ -875,7 +875,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
                         <p className="truncate text-xs font-medium capitalize text-slate-900">
-                          {log.action.replace(/_/g, ' ').toLowerCase()}
+                          {actionText(log.action)}
                         </p>
                         {log.ifmisSlipNumber && (
                           <span className="shrink-0 font-mono text-[10px] text-slate-400">#{log.ifmisSlipNumber}</span>

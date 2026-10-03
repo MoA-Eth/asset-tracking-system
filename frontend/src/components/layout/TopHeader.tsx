@@ -185,9 +185,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       case 'dashboard':
         return { title: 'Dashboard', am: 'የንብረትና የመጋዘን ክምችት መከታተያ', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
       case 'stock-in':
-        return { title: 'Stock-In', am: 'የዕቃ መረከቢያ (ሞዴል 19)', icon: PackagePlus, iconColor: 'text-emerald-700' };
+        return { title: 'Receiving', am: 'የዕቃ መረከቢያ (ሞዴል 19)', icon: PackagePlus, iconColor: 'text-emerald-700' };
       case 'stock-out':
-        return { title: 'Stock-Out', am: 'የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 22)', icon: PackageMinus, iconColor: 'text-emerald-700' };
+        return { title: 'Issuing', am: 'የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 22)', icon: PackageMinus, iconColor: 'text-emerald-700' };
       case 'approvals':
         return { title: 'Approvals', am: 'የማረጋገጫና ፈቃድ መስጫ', icon: FileCheck2, iconColor: 'text-emerald-700' };
       case 'audit':
@@ -195,7 +195,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       case 'reports':
         return { title: 'Reports', am: 'የሪፖርት መዝገብ', icon: FileSpreadsheet, iconColor: 'text-emerald-700' };
       case 'transfer-asset':
-        return { title: 'Transfers & Returns', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 21)', icon: ArrowRightLeft, iconColor: 'text-emerald-700' };
+        return { title: 'Transfers', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 21)', icon: ArrowRightLeft, iconColor: 'text-emerald-700' };
       case 'settings-users':
         return { title: 'Users & Permissions', am: 'ተጠቃሚዎች እና ፈቃዶች', icon: Settings, iconColor: 'text-emerald-700' };
       case 'settings-roles':
@@ -374,9 +374,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       const isStockOut = item.transactionType === TransactionType.STOCK_OUT;
                       const stage = item.currentStage ?? 1;
                       const typeLabel = isStockIn
-                        ? 'Stock In'
+                        ? 'Receipt'
                         : isStockOut
-                        ? 'Stock Out'
+                        ? 'Issue'
                         : item.transactionType === TransactionType.RETURN
                         ? 'Return to Store'
                         : 'Asset Transfer';

@@ -68,7 +68,7 @@ export async function updateSystemSettings(input: { slipAttachmentPolicy?: unkno
           action: 'UPDATE_SYSTEM_SETTINGS',
           entityType: 'USER',
           entityId: actor.id,
-          details: 'Scanned slip attachment is now ' + (next.slipAttachmentPolicy === 'REQUIRED' ? 'required' : 'optional') + ' for Stock-In, Stock-Out and Return requests.',
+          details: 'Scanned slip attachment is now ' + (next.slipAttachmentPolicy === 'REQUIRED' ? 'required' : 'optional') + ' for receipts, issues and returns.',
           previousState: { ...previous },
           newState: { ...next },
         },

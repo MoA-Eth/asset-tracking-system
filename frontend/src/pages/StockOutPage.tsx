@@ -343,7 +343,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
           purpose: purpose.trim(),
           remark: remark.trim() || undefined,
         });
-        toast.success('Stock-Out Updated', `The request for ${editApproval.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
+        toast.success('Issue request updated', `The request for ${editApproval.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
         onSuccess(res.approval);
       } catch (err: any) {
         const errMsg = err.message || 'Server error';
@@ -428,7 +428,7 @@ const StockOutForm: React.FC<StockOutFormProps> = ({
       onSuccess(result, voucher);
     } catch (err: any) {
       const errMsg = err.message || 'Server error';
-      setFormError(`Stock-Out failed: ${errMsg}`);
+      setFormError(`The issue request could not be saved: ${errMsg}`);
     } finally {
       setSubmitting(false);
     }
@@ -887,7 +887,7 @@ const StockOutTable: React.FC<StockOutTableProps> = ({
       {/* Table */}
       {sorted.length === 0 ? (
         <div className="py-12 text-center text-slate-400 text-xs">
-          {search ? 'No requests match your search.' : 'No stock-out requests recorded yet.'}
+          {search ? 'No requests match your search.' : 'No issue requests recorded yet.'}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -1078,9 +1078,9 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
         };
       default:
         return {
-          title: 'Stock-Out — Property Issued (ሞዴል 22)',
+          title: 'Issuing — የዕቃ ወጪ (ሞዴል 22)',
           subtitle: 'Issue items from store following official FDRE Ministry of Agriculture Model 22 vouchers (Move Order Issue).',
-          buttonLabel: 'Issue Asset (Model 22)',
+          buttonLabel: 'New issue (Model 22)',
         };
     }
   };
@@ -1282,7 +1282,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
                 onClick={() => onNavigate('stock-in')}
                 className="font-bold underline cursor-pointer hover:no-underline"
               >
-                Stock-In
+                Receiving
               </button>{' '}
               first.
             </p>
@@ -1295,7 +1295,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 flex items-start gap-3 animate-fadeIn">
           <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
           <div className="flex-1 text-xs">
-            <p className="font-bold text-emerald-900">Stock-Out Request Submitted for Approval!</p>
+            <p className="font-bold text-emerald-900">Issue request submitted for approval</p>
             <p className="text-slate-700 mt-0.5">
               <span className="font-mono font-bold text-emerald-800">{lastSubmitted.itemCode}</span>{' '}
               — {lastSubmitted.itemName} is now{' '}
@@ -1318,7 +1318,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
             <Eye className="w-4 h-4 text-slate-500" />
-            Stock-Out Requests ({stockOutApprovals.length})
+            Issue requests ({stockOutApprovals.length})
           </h3>
           <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
             <span className="bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-bold">
@@ -1374,7 +1374,7 @@ export const StockOutPage: React.FC<StockOutPageProps> = ({ currentRole, onNavig
         ) : (
           <div className="py-8 text-center text-xs text-slate-500">
             <AlertCircle className="w-6 h-6 mx-auto mb-2 text-amber-500" />
-            No available items to issue. Register stock-in items first.
+            No available items to issue. Receive items first.
           </div>
         )}
       </Modal>

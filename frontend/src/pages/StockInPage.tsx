@@ -89,7 +89,7 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
     className: statusTone.rejected,
   },
   [ItemStatus.PENDING_STOCK_OUT]: {
-    label: 'Stock-out pending',
+    label: 'Issue pending',
     className: statusTone.pending,
   },
   [ItemStatus.ISSUED]: {
@@ -334,12 +334,12 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
           receivedBy: receivedBy.trim() || undefined,
           remark: remark.trim() || undefined,
         });
-        toast.success('Stock-In Updated', `${editItem.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
+        toast.success('Receipt updated', `${editItem.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
         onSuccess(res);
       } catch (err: any) {
         const errMsg = err.message || 'Server error';
         setFormError(`Update failed: ${errMsg}`);
-        toast.error('Stock-In Update Failed', errMsg);
+        toast.error("Receipt couldn't be updated", errMsg);
       } finally {
         setSubmitting(false);
       }
@@ -430,14 +430,14 @@ const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCance
       };
 
       toast.success(
-        'Stock-In Registered',
+        'Receipt registered',
         `Item "${name.trim()}" (Model 19 #${slipNo}, Total ${formatETB(totalAmount)}) registered and submitted for Team Leader verification.`
       );
 
       onSuccess(res, generatedVoucher);
     } catch (err: any) {
       const errMsg = err.message || 'Server error';
-      setFormError(`Stock-In failed: ${errMsg}`);
+      setFormError(`The receipt could not be saved: ${errMsg}`);
     } finally {
       setSubmitting(false);
     }
@@ -1145,9 +1145,9 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
     }
     return {
       badge: 'Inbound Store Receipt • የዕቃ መረከቢያ (ሞዴል 19)',
-      title: 'Stock-In — የዕቃ መረከቢያ (ሞዴል 19)',
+      title: 'Receiving — የዕቃ መረከቢያ (ሞዴል 19)',
       subtitle: 'Register incoming goods into store matching official Ethiopian IFMIS Model 19 receiving vouchers.',
-      buttonLabel: 'Register New Model 19 Voucher',
+      buttonLabel: 'New receipt (Model 19)',
     };
   };
 
@@ -1336,7 +1336,7 @@ export const StockInPage: React.FC<StockInPageProps> = ({ currentRole, onNavigat
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 flex items-start gap-3 animate-fadeIn">
           <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
           <div className="flex-1 text-xs">
-            <p className="font-bold text-emerald-900">Stock-In Voucher Successfully Registered!</p>
+            <p className="font-bold text-emerald-900">Receipt registered</p>
             <p className="text-slate-700 mt-0.5">
               <span className="font-mono font-bold text-emerald-800">
                 {lastRegistered.item?.itemCode || 'New Voucher'}
