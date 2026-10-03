@@ -44,12 +44,19 @@ const items = [
   item('P1', 'Printer', 'ISSUED'),
   item('O1', 'Chair', 'PENDING_STOCK_OUT'),
   item('X1', 'Broken tablet', 'DISPOSED'),
+  item('S2', 'Generator', 'AVAILABLE'),
+  item('B1', 'Camera', 'AVAILABLE'),
 ];
 const approvals = [
   request('A-R1', 'STOCK_IN', 'R1', { currentStage: 2 }),
   request('A-P1', 'TRANSFER', 'P1', { recipientEmployeeId: 'E2', recipientEmployee: receiver }),
   request('A-O1', 'STOCK_OUT', 'O1', { recipientEmployeeId: 'E2', recipientEmployee: receiver }),
-  request('OLD', 'TRANSFER', 'I1', { status: 'APPROVED' }),
+  request('OLD', 'TRANSFER', 'I1', { status: 'APPROVED', reviewedAtGc: '2026-09-20' }),
+  // A rejected issue from the batch, then an approved partial issue filed under the unit it created
+  request('NO-S1', 'STOCK_OUT', 'S1', { status: 'REJECTED', reviewedAtGc: '2026-09-05', reviewRemarks: 'Wrong slip' }),
+  request('ISS', 'STOCK_OUT', 'S1', { status: 'APPROVED', reviewedAtGc: '2026-09-10', requestDetails: { quantity: 3, issuedItemCode: 'MOA-S1-1' } }),
+  request('NO', 'STOCK_OUT', 'S2', { status: 'REJECTED', reviewedAtGc: '2026-09-30', reviewRemarks: 'Budget line closed' }),
+  request('BACK', 'RETURN', 'B1', { status: 'APPROVED', reviewedAtGc: '2026-09-25' }),
 ];
 
 const rowOf = (code: string) => screen.getAllByRole('row').find((r) => within(r).queryByText(code, { exact: true }))!;
@@ -86,6 +93,19 @@ describe('Assets page', () => {
     expect(rowOf('MOA-X1')).toHaveTextContent('Rejected');
   });
 
+  it('says why the last request was rejected, until a new one is made', async () => {
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    expect(rowOf('MOA-S2')).toHaveTextContent('In store');
+    expect(rowOf('MOA-S2')).toHaveTextContent('Issue rejected · 30 Sept 2026');
+    expect(rowOf('MOA-S2')).toHaveTextContent('Budget line closed');
+    // Approved requests leave no note
+    expect(rowOf('MOA-I1')).not.toHaveTextContent('rejected');
+    // The batch's later issue was approved (its record is the unit it created), so the old rejection is gone
+    expect(rowOf('MOA-S1')).not.toHaveTextContent('rejected');
+    expect(rowOf('MOA-S1-1')).not.toHaveTextContent('rejected');
+  });
+
   it('filters by state and counts each filter', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
@@ -93,8 +113,9 @@ describe('Assets page', () => {
     expect(screen.getByRole('button', { name: /^Pending 3$/ })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Issued/ }));
     expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent)).toEqual(['MOA-I1', 'MOA-S1-1']);
-    await user.click(screen.getByRole('button', { name: /^Rejected/ }));
-    expect(screen.getAllByRole('row')).toHaveLength(2);
+    // Rejected: the rejected receipt, and the record whose issue was turned down
+    await user.click(screen.getByRole('button', { name: /^Rejected 2$/ }));
+    expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent).sort()).toEqual(['MOA-S2', 'MOA-X1']);
   });
 
   it('offers the next step for each state', async () => {
@@ -104,7 +125,11 @@ describe('Assets page', () => {
 
     expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'View details', 'Print Model 19']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'View details']);
+    expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'View details', 'Print Model 21 (transfer)']);
+    await user.keyboard('{Escape}');
+    expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'View details', 'Print Model 22 (issue)']);
+    await user.keyboard('{Escape}');
+    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'View details', 'Print Model 19', 'Print Model 21 (return)']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-P1')).toEqual(['Edit transfer', 'View details', 'Print Model 21']);
     await user.keyboard('{Escape}');
@@ -155,7 +180,7 @@ describe('Assets page', () => {
     expect(screen.queryByRole('button', { name: /Receive items/ })).not.toBeInTheDocument();
     expect(await menuFor(user, 'MOA-S1')).toEqual(['View details', 'Print Model 19']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-I1')).toEqual(['View details']);
+    expect(await menuFor(user, 'MOA-I1')).toEqual(['View details', 'Print Model 21 (transfer)']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-P1')).toEqual(['View details', 'Print Model 21']);
   });

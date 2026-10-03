@@ -91,12 +91,47 @@ interface AssetRow {
   goingTo?: string;
   /** Latest activity, for ordering */
   activity: string;
+  /** The approved issue that put this record with someone, for reprinting its Model 22 */
+  lastIssue?: TransactionApproval;
+  /** The latest approved transfer or return, for reprinting its Model 21 */
+  lastMove?: TransactionApproval;
+  /** The record's latest decided request, when it was rejected */
+  rejected?: TransactionApproval;
 }
 
+/** When a request was decided; the request time breaks same-day ties */
+const decidedOn = (a: TransactionApproval) => `${a.reviewedAtGc || ''}|${a.createdAtGc || ''}`;
+const shortDate = (gc?: string) =>
+  gc ? new Date(gc).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+/** "Issue rejected · 30 Sep 2026", with the reviewer's reason underneath */
+const RejectionNote: React.FC<{ request: TransactionApproval }> = ({ request }) => {
+  const kind = REQUEST_LABELS[request.transactionType]?.noun ?? 'request';
+  const reason = request.reviewRemarks?.trim();
+  return (
+    <span className="block max-w-[220px] whitespace-normal text-[10px] leading-snug text-red-700" title={reason}>
+      <span className="font-semibold">
+        {kind.charAt(0).toUpperCase() + kind.slice(1)} rejected{request.reviewedAtGc ? ` · ${shortDate(request.reviewedAtGc)}` : ''}
+      </span>
+      {reason && <span className="block line-clamp-2 text-red-700/80">{reason}</span>}
+    </span>
+  );
+};
+
 const AssetStatus: React.FC<{ row: AssetRow }> = ({ row }) => {
-  if (row.state === 'REJECTED') return <span className={`${pill} ${statusTone.rejected}`}>Rejected</span>;
-  if (row.state === 'IN_STORE') return <span className={`${pill} ${statusTone.inStore}`}>In store</span>;
-  if (row.state === 'ISSUED') return <span className={`${pill} ${statusTone.issued}`}>Issued</span>;
+  const settled =
+    row.state === 'REJECTED' ? <span className={`${pill} ${statusTone.rejected}`}>Rejected</span>
+    : row.state === 'IN_STORE' ? <span className={`${pill} ${statusTone.inStore}`}>In store</span>
+    : row.state === 'ISSUED' ? <span className={`${pill} ${statusTone.issued}`}>Issued</span>
+    : null;
+  if (settled) {
+    return (
+      <span className="inline-flex flex-col items-start gap-0.5">
+        {settled}
+        {row.rejected && <RejectionNote request={row.rejected} />}
+      </span>
+    );
+  }
   const label = REQUEST_LABELS[row.request?.transactionType ?? 'STOCK_IN']?.pending ?? 'Pending';
   return (
     <span className="inline-flex flex-col items-start gap-0.5">
@@ -180,6 +215,24 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     [approvals],
   );
 
+  // Decided requests, newest first, grouped two ways:
+  // - vouchers: an approved partial issue is filed under the unit it created, whose custody it records
+  // - raised: every request under the record it was made on, to tell whether that record's last request was rejected
+  const decided = useMemo(() => {
+    const idByCode = new Map(items.map((i) => [i.itemCode, i.id] as const));
+    const vouchers = new Map<string, TransactionApproval[]>();
+    const raised = new Map<string, TransactionApproval[]>();
+    const add = (map: Map<string, TransactionApproval[]>, id: string, a: TransactionApproval) => map.set(id, [...(map.get(id) ?? []), a]);
+    for (const a of approvals) {
+      if (a.status === ApprovalStatus.PENDING) continue;
+      const issuedCode = a.status === ApprovalStatus.APPROVED ? a.requestDetails?.issuedItemCode : undefined;
+      add(vouchers, (issuedCode && idByCode.get(issuedCode)) || a.itemId, a);
+      add(raised, a.itemId, a);
+    }
+    for (const map of [vouchers, raised]) for (const list of map.values()) list.sort((x, y) => decidedOn(y).localeCompare(decidedOn(x)));
+    return { vouchers, raised };
+  }, [approvals, items]);
+
   const rows = useMemo<AssetRow[]>(() => {
     const employeeName = (id?: string | null) => employees.find((e) => e.id === id)?.fullNameEn;
     return items
@@ -203,6 +256,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         }
         // An issued record (or one waiting to be transferred or returned) is with someone; the rest is in store
         const withSomeone = item.status === ItemStatus.ISSUED || item.status === ItemStatus.UNDER_TRANSFER;
+        const approved = (decided.vouchers.get(item.id) ?? []).filter((a) => a.status === ApprovalStatus.APPROVED);
+        const lastRaised = decided.raised.get(item.id)?.[0];
         return {
           item,
           state,
@@ -211,14 +266,22 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           where: withSomeone ? holder || '—' : store,
           goingTo,
           activity: String(request?.createdAtGc || item.createdAtGc || ''),
+          lastIssue: approved.find((a) => a.transactionType === 'STOCK_OUT'),
+          lastMove: approved.find((a) => a.transactionType === 'TRANSFER' || a.transactionType === 'RETURN'),
+          // A new request replaces the rejected one; until then the row says what happened
+          rejected: !request && lastRaised?.status === ApprovalStatus.REJECTED ? lastRaised : undefined,
         };
       })
       .sort((a, b) => b.activity.localeCompare(a.activity) || a.item.itemCode.localeCompare(b.item.itemCode));
-  }, [items, pendingByItem, employees, locations]);
+  }, [items, pendingByItem, decided, employees, locations]);
 
   const inFilter = (row: AssetRow, f: AssetFilter) =>
     f === 'ALL' ||
-    (f === 'PENDING' ? row.state === 'RECEIPT_PENDING' || row.state === 'REQUEST_PENDING' : row.state === f);
+    (f === 'PENDING'
+      ? row.state === 'RECEIPT_PENDING' || row.state === 'REQUEST_PENDING'
+      : f === 'REJECTED'
+        ? row.state === 'REJECTED' || !!row.rejected
+        : row.state === f);
 
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -245,8 +308,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const inStoreValue = inStore.reduce((acc, r) => acc + (Number(r.item.unitCostETB) || 0) * r.units, 0);
 
   // ── Printing ──
-  const printRequest = async (request: TransactionApproval) => {
-    const item = items.find((i) => i.id === request.itemId);
+  const printRequest = async (request: TransactionApproval, record?: ItemWithRelations) => {
+    const item = record ?? items.find((i) => i.id === request.itemId);
     if (request.transactionType === 'STOCK_OUT') {
       setVoucher22(buildModel22Voucher(request, { item, departments, employees, printedBy: user?.payrollId }));
     } else {
@@ -271,6 +334,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const { item, request } = row;
     const view: RowAction = { label: 'View details', icon: Eye, onClick: () => setViewing({ itemId: item.id, approval: request }) };
     const printReceipt: RowAction = { label: 'Print Model 19', icon: Printer, onClick: () => setVoucher19(buildModel19Voucher(item, items)) };
+    // Vouchers of requests already approved, so signed copies can be printed again
+    const printIssue: RowAction = { label: 'Print Model 22 (issue)', icon: Printer, onClick: () => printRequest(row.lastIssue!, item), hidden: !row.lastIssue };
+    const printMove: RowAction = {
+      label: `Print Model 21 (${row.lastMove?.transactionType === 'RETURN' ? 'return' : 'transfer'})`,
+      icon: Printer,
+      onClick: () => printRequest(row.lastMove!, item),
+      hidden: !row.lastMove,
+    };
     switch (row.state) {
       case 'RECEIPT_PENDING':
         return [
@@ -290,12 +361,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           { label: 'Issue (Model 22)', icon: PackageMinus, onClick: () => setIssue({ itemId: item.id }), hidden: !canIssue },
           view,
           printReceipt,
+          { ...printMove, hidden: row.lastMove?.transactionType !== 'RETURN' },
         ];
       case 'ISSUED':
         return [
           { label: 'Transfer (Model 21)', icon: ArrowRightLeft, onClick: () => setTransfer({ itemId: item.id }), hidden: !canTransfer },
           { label: 'Return to store (Model 21)', icon: RotateCcw, onClick: () => setReturning({ item }), hidden: !canTransfer },
           view,
+          printIssue,
+          printMove,
         ];
       case 'REQUEST_PENDING': {
         const kind = REQUEST_LABELS[request!.transactionType];
@@ -310,7 +384,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             reason: request!.currentStage === 2 ? ENDORSED_REASON : undefined,
           },
           view,
-          { label: `Print ${kind.model}`, icon: Printer, onClick: () => printRequest(request!) },
+          { label: `Print ${kind.model}`, icon: Printer, onClick: () => printRequest(request!, item) },
         ];
       }
       default:
