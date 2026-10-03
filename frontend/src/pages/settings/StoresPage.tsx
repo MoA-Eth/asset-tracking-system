@@ -51,7 +51,7 @@ const StoreForm: React.FC<{ editing: Store | null; onCancel: () => void; onSaved
   return (
     <form onSubmit={submit} className="space-y-4">
       <FieldGrid cols={2}>
-        <Field label="Store name" required span="sm:col-span-2" htmlFor="store-name" hint="Shown in the Receiving and Transfers forms, e.g. Kality.">
+        <Field label="Store name" required span="sm:col-span-2" htmlFor="store-name" hint="Shown in the receive and transfer forms, e.g. Kality.">
           <input id="store-name" value={name} onChange={(e) => setName(e.target.value)} className={inputClass('emerald')} placeholder="e.g. Kality" autoFocus />
         </Field>
         <Field label="Building / address" optional span="sm:col-span-2" htmlFor="store-address">

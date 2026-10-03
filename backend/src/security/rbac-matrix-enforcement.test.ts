@@ -191,7 +191,7 @@ describe('RBAC Permission Matrix Enforcement', () => {
       const baselineAccess = getRoleAccess(UserRole.MANAGER);
       expect(baselineAccess.allowedTabs).toContain('dashboard');
       expect(baselineAccess.allowedTabs).toContain('reports');
-      expect(baselineAccess.allowedTabs).not.toContain('stock-in');
+      expect(baselineAccess.allowedTabs).not.toContain('assets');
 
       // Grant stock-in.write to MANAGER in matrix
       setRolePermissions(UserRole.MANAGER, [
@@ -200,7 +200,7 @@ describe('RBAC Permission Matrix Enforcement', () => {
       ]);
 
       const updatedAccess = getRoleAccess(UserRole.MANAGER);
-      expect(updatedAccess.allowedTabs).toContain('stock-in');
+      expect(updatedAccess.allowedTabs).toContain('assets');
       expect(updatedAccess.allowedTabs).toContain('dashboard');
 
       // Revoke dashboard.read and grant approvals.endorse
@@ -230,9 +230,25 @@ describe('RBAC Permission Matrix Enforcement', () => {
   describe('Pages each role opens with the built-in permissions', () => {
     const tabsOf = (role: UserRole) => computeAllowedTabs(role, ROLE_POLICY[role].permissions).allowedTabs;
 
-    it('Data Encoders see Reports alongside their inventory pages', () => {
-      expect(tabsOf(UserRole.DATA_ENCODER)).toEqual(expect.arrayContaining(['stock-in', 'stock-out', 'transfer-asset', 'reports']));
+    it('Data Encoders see Reports alongside the Assets register', () => {
+      expect(tabsOf(UserRole.DATA_ENCODER)).toEqual(expect.arrayContaining(['assets', 'reports']));
       expect(tabsOf(UserRole.DATA_ENCODER)).not.toContain('approvals');
+    });
+
+    it('opens one Assets page in place of Receiving, Issuing and Transfers', () => {
+      for (const role of Object.values(UserRole)) {
+        for (const retired of ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset']) {
+          expect(tabsOf(role)).not.toContain(retired);
+        }
+      }
+      expect(computeAllowedTabs(UserRole.DATA_ENCODER, ROLE_POLICY[UserRole.DATA_ENCODER].permissions).landingTab).toBe('assets');
+    });
+
+    it('lets approvers follow the Assets register, but not the Manager or System Administrator', () => {
+      expect(tabsOf(UserRole.TEAM_LEADER)).toContain('assets');
+      expect(tabsOf(UserRole.DEPARTMENT_HEAD)).toContain('assets');
+      expect(tabsOf(UserRole.MANAGER)).not.toContain('assets');
+      expect(tabsOf(UserRole.SYSTEM_ADMIN)).not.toContain('assets');
     });
 
     it('Data Encoders do not open System Settings, but still see Employees and Stores', () => {

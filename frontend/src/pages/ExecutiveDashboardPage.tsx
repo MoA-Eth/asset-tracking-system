@@ -534,13 +534,13 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
             <WorkTile label="Pending approvals" count={pendingApprovals} icon={Clock} tone="warning" note="Needs action" onClick={() => onNavigate('approvals')} />
           )}
           {pendingStockIn > 0 && (
-            <WorkTile label="Pending stock-in" count={pendingStockIn} icon={Package} onClick={() => onNavigate('stock-in')} />
+            <WorkTile label="Pending stock-in" count={pendingStockIn} icon={Package} onClick={() => onNavigate('assets')} />
           )}
           {pendingStockOut > 0 && (
-            <WorkTile label="Pending stock-out" count={pendingStockOut} icon={ArrowRightLeft} onClick={() => onNavigate('stock-out')} />
+            <WorkTile label="Pending stock-out" count={pendingStockOut} icon={ArrowRightLeft} onClick={() => onNavigate('assets')} />
           )}
           {pendingTransfer > 0 && (
-            <WorkTile label="Pending transfers" count={pendingTransfer} icon={ArrowRightLeft} onClick={() => onNavigate('transfer-asset')} />
+            <WorkTile label="Pending transfers" count={pendingTransfer} icon={ArrowRightLeft} onClick={() => onNavigate('assets')} />
           )}
           {atRiskCount > 0 && (
             <WorkTile label="At-risk assets" count={atRiskCount} icon={AlertTriangle} tone="critical" note="Damaged or needs repair" />
@@ -668,7 +668,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           action={<CountPill>{deptRows.length} directorates</CountPill>}
         >
           {deptRows.length === 0 ? (
-            <EmptyState icon={Building2}>No directorate allocations yet. Issue items to directorates from Issuing.</EmptyState>
+            <EmptyState icon={Building2}>No directorate allocations yet. Issue items to directorates from Assets.</EmptyState>
           ) : (
             <div className="space-y-4">
               {deptRows.map((dept: any) => {
@@ -744,7 +744,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           title="Highest-value assets"
           subtitle="ከፍተኛ ዋጋ ያላቸው ንብረቶች"
           icon={TrendingUp}
-          action={<LinkButton onClick={() => onNavigate('stock-in')}>View all</LinkButton>}
+          action={<LinkButton onClick={() => onNavigate('assets')}>View all</LinkButton>}
         >
           {topAssets.length === 0 ? (
             <EmptyState icon={Award}>No assets registered yet.</EmptyState>

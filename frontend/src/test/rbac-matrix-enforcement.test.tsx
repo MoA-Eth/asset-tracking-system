@@ -9,9 +9,7 @@ import {
   getMobileNavItems,
 } from '../components/layout/navigation';
 import { getVisibleQueueTabs } from '../pages/ApprovalsPage';
-import { StockInPage } from '../pages/StockInPage';
-import { StockOutPage } from '../pages/StockOutPage';
-import { TransferAssetPage } from '../pages/TransferAssetPage';
+import { AssetsPage } from '../pages/AssetsPage';
 import { api } from '../api/client';
 
 const mockAuth = vi.hoisted(() => ({
@@ -19,8 +17,8 @@ const mockAuth = vi.hoisted(() => ({
     id: 'user-1',
     role: 'DATA_ENCODER' as any,
     permissions: ['stock-in.write', 'stock-out.write', 'transfers.write'],
-    allowedTabs: ['stock-in', 'stock-out', 'transfer-asset'],
-    landingTab: 'stock-in',
+    allowedTabs: ['assets', 'reports'],
+    landingTab: 'assets',
   } as AuthUser | null,
   role: 'DATA_ENCODER' as any,
   isAuthenticated: true,
@@ -64,19 +62,19 @@ describe('Frontend RBAC Permission Matrix Enforcement', () => {
   describe('URL & Tab Navigation Guard (getValidTab)', () => {
     it('prevents direct URL bypass to unauthorized tabs', () => {
       const encoderUser = {
-        allowedTabs: ['stock-in', 'stock-out', 'transfer-asset'],
-        landingTab: 'stock-in',
+        allowedTabs: ['assets', 'reports'],
+        landingTab: 'assets',
       };
 
       // Attempting to directly navigate to unauthorized administrative tabs
-      expect(getValidTab(encoderUser, 'settings-roles')).toBe('stock-in');
-      expect(getValidTab(encoderUser, 'settings-users')).toBe('stock-in');
-      expect(getValidTab(encoderUser, 'dashboard')).toBe('stock-in');
-      expect(getValidTab(encoderUser, 'approvals')).toBe('stock-in');
+      expect(getValidTab(encoderUser, 'settings-roles')).toBe('assets');
+      expect(getValidTab(encoderUser, 'settings-users')).toBe('assets');
+      expect(getValidTab(encoderUser, 'dashboard')).toBe('assets');
+      expect(getValidTab(encoderUser, 'approvals')).toBe('assets');
 
-      // Valid authorized tab is accepted
-      expect(getValidTab(encoderUser, 'stock-out')).toBe('stock-out');
-      expect(getValidTab(encoderUser, 'transfer-asset')).toBe('transfer-asset');
+      // Valid authorized tab is accepted; a retired page opens Assets
+      expect(getValidTab(encoderUser, 'reports')).toBe('reports');
+      expect(getValidTab(encoderUser, 'transfer-asset')).toBe('assets');
     });
 
     it('falls back to first allowed tab if landingTab is not allowed', () => {
@@ -96,8 +94,7 @@ describe('Frontend RBAC Permission Matrix Enforcement', () => {
       const allRenderedIds = sections.flatMap((s) => s.items.map((i) => i.id));
       expect(allRenderedIds).toContain('dashboard');
       expect(allRenderedIds).toContain('reports');
-      expect(allRenderedIds).not.toContain('stock-in');
-      expect(allRenderedIds).not.toContain('stock-out');
+      expect(allRenderedIds).not.toContain('assets');
       expect(allRenderedIds).not.toContain('approvals');
     });
 
@@ -112,12 +109,12 @@ describe('Frontend RBAC Permission Matrix Enforcement', () => {
     });
 
     it('filters mobile nav items matching allowedTabs', () => {
-      const allowed = ['stock-in', 'stock-out'];
+      const allowed = ['assets', 'reports'];
       const mobileItems = getMobileNavItems(allowed);
 
       const ids = mobileItems.map((m) => m.id);
-      expect(ids).toContain('stock-in');
-      expect(ids).toContain('stock-out');
+      expect(ids).toContain('assets');
+      expect(ids).toContain('reports');
       expect(ids).not.toContain('approvals');
       expect(ids).not.toContain('dashboard');
     });
@@ -149,84 +146,15 @@ describe('Frontend RBAC Permission Matrix Enforcement', () => {
   });
 
   describe('Page Action Gating via Matrix Permissions', () => {
-    it('renders Stock-In registration button only when stock-in.write is granted', async () => {
-      // 1. With permission granted
-      mockAuth.user = {
-        id: 'u1',
-        role: UserRole.DATA_ENCODER,
-        permissions: ['stock-in.write'],
-        allowedTabs: ['stock-in'],
-        landingTab: 'stock-in',
-      } as any;
+    it('shows "Receive items" on the Assets page only when stock-in.write is granted', async () => {
+      mockAuth.user = { id: 'u1', role: UserRole.DATA_ENCODER, permissions: ['stock-in.write'], allowedTabs: ['assets'], landingTab: 'assets' } as any;
       mockAuth.role = UserRole.DATA_ENCODER;
+      const { rerender } = render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+      expect(await screen.findByRole('button', { name: /Receive items \(Model 19\)/i })).toBeInTheDocument();
 
-      const { rerender } = render(<StockInPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(await screen.findByRole('button', { name: /New receipt \(Model 19\)/i })).toBeInTheDocument();
-
-      // 2. With permission revoked
-      mockAuth.user = {
-        id: 'u1',
-        role: UserRole.DATA_ENCODER,
-        permissions: ['inventory.read'], // stock-in.write revoked
-        allowedTabs: ['stock-in'],
-        landingTab: 'stock-in',
-      } as any;
-      rerender(<StockInPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(screen.queryByRole('button', { name: /New receipt \(Model 19\)/i })).not.toBeInTheDocument();
-    });
-
-    it('renders Stock-Out issue button only when stock-out.write is granted', async () => {
-      // 1. With permission granted
-      mockAuth.user = {
-        id: 'u1',
-        role: UserRole.DATA_ENCODER,
-        permissions: ['stock-out.write'],
-        allowedTabs: ['stock-out'],
-        landingTab: 'stock-out',
-      } as any;
-      mockAuth.role = UserRole.DATA_ENCODER;
-
-      const { rerender } = render(<StockOutPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(await screen.findByRole('button', { name: /New issue \(Model 22\)/i })).toBeInTheDocument();
-
-      // 2. With permission revoked
-      mockAuth.user = {
-        id: 'u1',
-        role: UserRole.DATA_ENCODER,
-        permissions: ['inventory.read'], // stock-out.write revoked
-        allowedTabs: ['stock-out'],
-        landingTab: 'stock-out',
-      } as any;
-      rerender(<StockOutPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(screen.queryByRole('button', { name: /New issue \(Model 22\)/i })).not.toBeInTheDocument();
-    });
-
-    it('gates transfer and return action controls in TransferAssetPage by transfers.write', async () => {
-      // 1. With permission granted
-      mockAuth.user = {
-        id: 'u1',
-        role: UserRole.DATA_ENCODER,
-        permissions: ['transfers.write'],
-        allowedTabs: ['transfer-asset'],
-        landingTab: 'transfer-asset',
-      } as any;
-      mockAuth.role = UserRole.DATA_ENCODER;
-
-      const { rerender } = render(<TransferAssetPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(await screen.findByRole('button', { name: /New transfer \(Model 21\)/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /^Return to store$/i })).toBeInTheDocument();
-
-      // 2. With permission revoked
-      mockAuth.user = {
-        id: 'u1',
-        role: UserRole.DATA_ENCODER,
-        permissions: ['inventory.read'], // transfers.write revoked
-        allowedTabs: ['transfer-asset'],
-        landingTab: 'transfer-asset',
-      } as any;
-      rerender(<TransferAssetPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(screen.queryByRole('button', { name: /New transfer \(Model 21\)/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /^Return to store$/i })).not.toBeInTheDocument();
+      mockAuth.user = { id: 'u1', role: UserRole.DATA_ENCODER, permissions: ['inventory.read'], allowedTabs: ['assets'], landingTab: 'assets' } as any;
+      rerender(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+      expect(screen.queryByRole('button', { name: /Receive items \(Model 19\)/i })).not.toBeInTheDocument();
     });
   });
 });

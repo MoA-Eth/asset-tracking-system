@@ -308,7 +308,7 @@ export const EmployeesPage: React.FC = () => {
             Employees (ሰራተኞች)
           </h2>
           <p className="mt-0.5 text-xs text-slate-500">
-            Staff who hold, receive or approve items. Only active employees appear in the Issuing and Transfers forms.
+            Staff who hold, receive or approve items. Only active employees appear in the issue and transfer forms.
           </p>
         </div>
         {canManage && (
@@ -554,7 +554,7 @@ export const EmployeesPage: React.FC = () => {
           <div className="space-y-4">
             <p className="text-xs leading-relaxed text-slate-600">
               {confirming.isActive
-                ? 'They will no longer appear in the Issuing and Transfers forms' +
+                ? 'They will no longer appear in the issue and transfer forms' +
                   (confirming.role ? ' and will be signed out and unable to sign in' : '') +
                   '. Their name stays on past slips, approvals and history.'
                 : 'They will appear in the forms again' + (confirming.role ? ' and can sign in with their current password' : '') + '.'}

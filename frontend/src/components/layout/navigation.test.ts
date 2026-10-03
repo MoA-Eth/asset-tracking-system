@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getSettingsGroups, getMobileNavItems, getNavSections } from './navigation';
+import { getSettingsGroups, getMobileNavItems, getNavSections, getValidTab } from './navigation';
 import { getRoleAccess } from '../../../../backend/src/security/role-policy';
 
 const allowed = (role: string) => getRoleAccess(role).allowedTabs;
@@ -27,6 +27,14 @@ describe('Navigation consumes the server policy', () => {
   it('has no settings for Managers and no navigation without access', () => {
     expect(settings('MANAGER')).toEqual([]);
     expect(getMobileNavItems()).toEqual([]);
+  });
+  it('sends the retired Receiving, Issuing and Transfers pages to Assets', () => {
+    for (const tab of ['stock-in', 'stock-out', 'assign-asset', 'transfer-asset', 'return-asset']) {
+      expect(getValidTab(getRoleAccess('DATA_ENCODER'), tab)).toBe('assets');
+      expect(getValidTab(getRoleAccess('TEAM_LEADER'), tab)).toBe('assets');
+    }
+    // A Manager has no Assets page, so an old link lands on the dashboard
+    expect(getValidTab(getRoleAccess('MANAGER'), 'stock-in')).toBe('dashboard');
   });
   it('marks Settings active on its child pages', () => {
     expect(getMobileNavItems(allowed('SYSTEM_ADMIN')).find(item => item.label === 'Settings')?.matches('settings-roles')).toBe(true);
