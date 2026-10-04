@@ -58,9 +58,7 @@ export const LoginPage: React.FC = () => {
           >
             {/* Card header with logo */}
             <div className="flex flex-col items-center pt-8 pb-5 px-6 sm:px-7 border-b border-emerald-900/50 gap-3">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full ring-2 ring-amber-400/40 shadow-xl shadow-emerald-950 p-1 bg-white/5">
-                <MoaLogo className="w-full h-full" alt="Ministry of Agriculture logo" />
-              </div>
+              <MoaLogo className="w-20 h-20 sm:w-24 sm:h-24" alt="Ministry of Agriculture logo" />
               <div className="text-center">
                 <h1 className="text-2xl font-extrabold text-white tracking-tight">
                   Welcome Back!
