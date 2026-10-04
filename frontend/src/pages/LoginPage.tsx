@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getErrorStatus } from "../api/client";
 import { useToast } from "../context/ToastContext";
@@ -43,30 +43,10 @@ export const LoginPage: React.FC = () => {
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
         <div className="max-w-md w-full animate-fadeIn">
 
-          {/* Official Ministry Letterhead */}
-          <div className="text-center mb-6 space-y-3">
-            <div className="flex justify-center">
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full ring-2 ring-amber-400/40 shadow-2xl shadow-emerald-950 p-1 bg-white/5 backdrop-blur-sm">
-                <MoaLogo className="w-full h-full" alt="Ministry of Agriculture logo" />
-              </div>
-            </div>
-            <div className="space-y-0.5">
-              <p className="text-[10px] tracking-[0.18em] uppercase text-emerald-300/60 font-semibold">
-                Federal Democratic Republic of Ethiopia
-              </p>
-              <h1 className="text-base sm:text-lg font-extrabold text-white tracking-tight leading-tight">
-                Ministry of Agriculture
-              </h1>
-              <p className="text-xs text-emerald-200/70 font-medium">
-                Fixed Asset &amp; Store Management System
-              </p>
-              <div className="flex items-center justify-center gap-2 pt-1">
-                <span className="h-px w-10 bg-amber-400/30" />
-                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-400/15 text-[#FCDD09] border border-amber-400/35 tracking-wider">
-                  IFMIS Mirror · MoA-AMS
-                </span>
-                <span className="h-px w-10 bg-amber-400/30" />
-              </div>
+          {/* Official Ministry Emblem */}
+          <div className="flex justify-center mb-6">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full ring-2 ring-amber-400/40 shadow-2xl shadow-emerald-950 p-1 bg-white/5 backdrop-blur-sm">
+              <MoaLogo className="w-full h-full" alt="Ministry of Agriculture logo" />
             </div>
           </div>
 
