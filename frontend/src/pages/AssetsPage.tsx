@@ -987,7 +987,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     };
   }, [filterMenuOpen]);
 
-  const activeFilterCount = (locationFilter !== 'ALL' ? 1 : 0) + (categoryFilter !== 'ALL' ? 1 : 0);
+  const activeFilterCount =
+    (filter !== 'ALL' ? 1 : 0) +
+    (locationFilter !== 'ALL' ? 1 : 0) +
+    (categoryFilter !== 'ALL' ? 1 : 0);
 
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
   const availableItems = items.filter((i) => i.status === ItemStatus.AVAILABLE && !pendingByItem.has(i.id));
@@ -1044,6 +1047,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     <button
                       type="button"
                       onClick={() => {
+                        setFilter('ALL');
                         setLocationFilter('ALL');
                         setCategoryFilter('ALL');
                       }}
@@ -1054,7 +1058,33 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   )}
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3.5">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1.5">
+                      Asset Status
+                    </label>
+                    <div className="flex flex-wrap gap-1">
+                      {FILTERS.map((f) => (
+                        <button
+                          key={f.value}
+                          type="button"
+                          aria-pressed={filter === f.value}
+                          onClick={() => setFilter(f.value)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                            filter === f.value
+                              ? 'bg-emerald-800 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          {f.label}{' '}
+                          <span className="ml-0.5 opacity-75 text-[10px]">
+                            ({groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length})
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div>
                     <label htmlFor="filter-store-location" className="block text-[11px] font-semibold text-slate-700 mb-1">
                       Store & Location
@@ -1302,45 +1332,28 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         /* ── Register ── */
         <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
         <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
-          <div className="flex flex-col gap-2.5 md:flex-row md:items-center md:justify-between">
-            <div role="group" aria-label="Show assets" className="flex flex-wrap items-center gap-1.5">
-              {FILTERS.map((f) => (
-                <button
-                  key={f.value}
-                  type="button"
-                  aria-pressed={filter === f.value}
-                  onClick={() => setFilter(f.value)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    filter === f.value ? 'bg-emerald-800 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {f.label} <span className="ml-0.5 opacity-75">{groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length}</span>
-                </button>
-              ))}
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                aria-label="Search assets"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, code, serial, slip or person…"
+                className={table.search.replace('pr-8', 'pr-3')}
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 md:w-72">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  aria-label="Search assets"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name, code, serial, slip or person…"
-                  className={table.search.replace('pr-8', 'pr-3')}
-                />
-              </div>
-              {canReceive && (
-                <button
-                  type="button"
-                  onClick={() => openReceipt()}
-                  className={`${btn.primary} shrink-0`}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Receive items (Model 19)</span>
-                </button>
-              )}
-            </div>
+            {canReceive && (
+              <button
+                type="button"
+                onClick={() => openReceipt()}
+                className={`${btn.primary} shrink-0`}
+              >
+                <Plus className="w-4 h-4" />
+                <span>Receive items (Model 19)</span>
+              </button>
+            )}
           </div>
 
           {/* Active Filter Chips (if any filter, search, or sort is active) */}
@@ -1377,7 +1390,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               )}
               {filter !== 'ALL' && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
-                  <span>Status: {filter === 'IN_STORE' ? 'In store' : filter === 'ISSUED' ? 'Issued' : 'Pending'}</span>
+                  <span>Status: {FILTERS.find((f) => f.value === filter)?.label || filter}</span>
                   <button
                     type="button"
                     onClick={() => setFilter('ALL')}
