@@ -58,7 +58,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   const roleTitle = ROLE_TITLES[role] || '';
 
   const itemClass = (isActive: boolean) =>
-    `group relative w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2 rounded-lg text-[13px] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
+    `group relative w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-2 px-2'} py-1.5 rounded-lg text-xs transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
       isActive
         ? 'bg-white/[0.09] text-white font-semibold'
         : 'text-emerald-50/70 hover:bg-white/[0.05] hover:text-white font-medium'
@@ -93,7 +93,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {showCount && (
           <span
             className={`${
-              collapsed ? 'absolute top-0.5 right-2.5' : ''
+              collapsed ? 'absolute top-0.5 right-1.5' : ''
             } min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold leading-5 text-center bg-[#FCDD09] text-emerald-950`}
           >
             {pendingApprovalsCount}
@@ -106,15 +106,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   return (
     <aside
       className={`no-print hidden lg:flex flex-col bg-gradient-to-b from-[#0B3D25] via-[#08301D] to-[#062414] border-r border-black/20 text-white shadow-xl transition-all duration-300 select-none z-30 shrink-0 h-full overflow-hidden ${
-        collapsed ? 'w-20' : 'w-60'
+        collapsed ? 'w-14' : 'w-[192px]'
       }`}
     >
       {/* Brand */}
-      <div className={`h-[61px] px-4 border-b border-white/[0.07] flex items-center shrink-0 ${collapsed ? 'justify-center' : ''}`}>
-        <div className="flex items-center gap-3 min-w-0">
+      <div className={`h-[61px] px-2.5 border-b border-white/[0.07] flex items-center shrink-0 ${collapsed ? 'justify-center px-0' : ''}`}>
+        <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={collapsed ? onToggleCollapse : undefined}
-            className={`w-9 h-9 rounded-xl bg-gradient-to-br from-[#0F4A2B] to-[#062414] ring-1 ring-[#FCDD09]/40 flex items-center justify-center p-1 shadow-md shrink-0 transition-transform ${
+            className={`w-8 h-8 rounded-xl bg-gradient-to-br from-[#0F4A2B] to-[#062414] ring-1 ring-[#FCDD09]/40 flex items-center justify-center p-1 shadow-md shrink-0 transition-transform ${
               collapsed ? 'hover:scale-105 cursor-pointer' : 'cursor-default'
             }`}
             title={collapsed ? 'Expand sidebar' : undefined}
@@ -136,14 +136,14 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               <span className="block font-extrabold text-sm text-white tracking-tight">
                 MoA<span className="text-[#FCDD09]">-AMS</span>
               </span>
-              <span className="block text-[11px] text-emerald-100/60 truncate">Asset Tracking System</span>
+              <span className="block text-[10px] text-emerald-100/60 truncate">Asset Tracking System</span>
             </div>
           )}
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3" aria-label="Main navigation">
+      <nav className="flex-1 overflow-y-auto px-1.5 py-2.5" aria-label="Main navigation">
         {sections.map((section, idx) => (
           <div key={section.id} className={idx > 0 ? 'mt-4' : ''}>
             {collapsed ? (
@@ -220,15 +220,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       </nav>
 
       {/* Signed-in user */}
-      <div className="p-3 border-t border-white/[0.07] shrink-0">
+      <div className="p-1.5 border-t border-white/[0.07] shrink-0">
         {!collapsed ? (
-          <div className="flex items-center gap-3 p-2 rounded-xl bg-white/[0.04]">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04]">
             <div className="relative shrink-0">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#125835] to-[#258957] ring-1 ring-[#FCDD09]/40 text-white flex items-center justify-center font-bold text-xs">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#125835] to-[#258957] ring-1 ring-[#FCDD09]/40 text-white flex items-center justify-center font-bold text-[11px]">
                 {getInitials(user?.fullNameEn)}
               </div>
               <span
-                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#062414]"
+                className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#062414]"
                 title="Signed in"
               />
             </div>
@@ -236,41 +236,41 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               className="min-w-0 flex-1 leading-tight"
               title={[user?.fullNameEn, roleTitle, user?.payrollId].filter(Boolean).join(' · ')}
             >
-              <span className="block text-xs font-semibold text-white truncate">{user?.fullNameEn || roleTitle}</span>
-              <span className="block text-[11px] text-emerald-100/55 truncate">{roleTitle}</span>
+              <span className="block text-[11px] font-semibold text-white truncate">{user?.fullNameEn || roleTitle}</span>
+              <span className="block text-[9px] text-emerald-100/55 truncate">{roleTitle}</span>
             </div>
             <button
               onClick={() => setChangingPassword(true)}
-              className="p-2 rounded-lg text-emerald-100/60 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60"
+              className="p-1 rounded-lg text-emerald-100/60 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60"
               title="Change password"
               aria-label="Change password"
             >
-              <KeyRound className="w-4 h-4" />
+              <KeyRound className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={logout}
-              className="p-2 rounded-lg text-emerald-100/60 hover:text-white hover:bg-rose-500/20 transition cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60"
+              className="p-1 rounded-lg text-emerald-100/60 hover:text-white hover:bg-rose-500/20 transition cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60"
               title="Sign out"
               aria-label="Sign out"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
             <div
-              className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#125835] to-[#258957] ring-1 ring-[#FCDD09]/40 text-white flex items-center justify-center font-bold text-xs"
+              className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#125835] to-[#258957] ring-1 ring-[#FCDD09]/40 text-white flex items-center justify-center font-bold text-xs"
               title={user?.fullNameEn ? `${user.fullNameEn} (${roleTitle})` : roleTitle}
             >
               {getInitials(user?.fullNameEn)}
             </div>
             <button
               onClick={logout}
-              className="p-2 rounded-lg text-emerald-100/60 hover:text-white hover:bg-rose-500/20 transition cursor-pointer"
+              className="p-1.5 rounded-lg text-emerald-100/60 hover:text-white hover:bg-rose-500/20 transition cursor-pointer"
               title="Sign out"
               aria-label="Sign out"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
         )}

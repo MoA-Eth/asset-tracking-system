@@ -177,9 +177,12 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   const approved = row.state !== 'RECEIPT_PENDING' && row.state !== 'REJECTED';
 
   return (
-    <section aria-label={`Asset record ${item.itemCode}`} className="flex min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white shadow-xs">
+    <section
+      aria-label={`Asset record ${item.itemCode}`}
+      className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs lg:h-[calc(100vh-10rem)] lg:sticky lg:top-4"
+    >
       {/* ── Title and toolbar ── */}
-      <header className="relative space-y-2 border-b border-slate-200 px-5 py-4">
+      <header className="shrink-0 relative space-y-2 border-b border-slate-200 px-5 py-4 bg-white z-10">
         <button type="button" onClick={onClose} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer lg:hidden">
           <ArrowLeft className="h-3 w-3" /> All assets
         </button>
@@ -257,26 +260,65 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
       </header>
 
       {editing ? (
-        <div className="p-5">{editForm}</div>
+        <div className="flex-1 overflow-y-auto p-5">{editForm}</div>
       ) : (
-        <div className="space-y-4 p-5 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto space-y-4 p-5">
           {/* Status-based field locking notice */}
-          <FormNotice icon={Lock} tone={approved ? 'info' : 'warn'}>
-            <span className="font-bold">
-              {approved
-                ? 'Approved inventory record · Form fields locked'
-                : row.state === 'REJECTED'
-                  ? 'Rejected record · Archived'
-                  : 'Pending endorsement · Editable in correction mode'}
-            </span>
-            <p className="mt-0.5 text-[11px] text-slate-500">
-              {approved
-                ? 'Approved records are locked. To correct one, an approver rejects the request and it is registered again.'
-                : row.state === 'REJECTED'
-                  ? 'This receipt was rejected and is kept for the record.'
-                  : 'The receipt can be corrected until the Team Leader endorses it.'}
-            </p>
-          </FormNotice>
+          {(() => {
+            if (row.state === 'REQUEST_PENDING' && row.request) {
+              const reqNoun = REQUEST_LABELS[row.request.transactionType]?.noun || 'request';
+              const isStage1 = (row.request.currentStage ?? 1) === 1;
+              return (
+                <FormNotice icon={isStage1 ? Clock : Lock} tone={isStage1 ? 'warn' : 'info'}>
+                  <span className="font-bold">
+                    {isStage1
+                      ? `${capital(reqNoun)} request pending endorsement · Editable in correction mode`
+                      : `${capital(reqNoun)} request endorsed · Awaiting Dept. Head approval`}
+                  </span>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    {isStage1
+                      ? `The ${reqNoun} request (recipient, quantity, slip) can be edited using the toolbar button until the Team Leader endorses it. Inventory master fields are fixed.`
+                      : 'Endorsed by Team Leader — changes are locked while awaiting final Department Head approval.'}
+                  </p>
+                </FormNotice>
+              );
+            }
+            if (row.state === 'RECEIPT_PENDING') {
+              const isStage1 = (row.request?.currentStage ?? 1) === 1;
+              return (
+                <FormNotice icon={isStage1 ? Clock : Lock} tone={isStage1 ? 'warn' : 'info'}>
+                  <span className="font-bold">
+                    {isStage1
+                      ? 'Receipt pending endorsement · Editable in correction mode'
+                      : 'Receipt endorsed · Awaiting Dept. Head approval'}
+                  </span>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    {isStage1
+                      ? 'The receipt can be corrected until the Team Leader endorses it.'
+                      : 'Endorsed by Team Leader — changes are locked while awaiting final Department Head approval.'}
+                  </p>
+                </FormNotice>
+              );
+            }
+            if (row.state === 'REJECTED') {
+              return (
+                <FormNotice icon={Lock} tone="warn">
+                  <span className="font-bold">Rejected record · Archived</span>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    This receipt was rejected and is kept for the record.
+                  </p>
+                </FormNotice>
+              );
+            }
+            return (
+              <FormNotice icon={Lock} tone="info">
+                <span className="font-bold">Approved inventory record · Form fields locked</span>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  Approved records are locked. To issue, transfer, or return this asset, use the action buttons in the toolbar.
+                </p>
+              </FormNotice>
+            );
+          })()}
 
           {/* Section 1: Voucher & procurement */}
           <FormSection
@@ -288,27 +330,37 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
           >
             <FieldGrid>
               <FormKitField label="Model 19 No." required>
-                <div className="flex items-center gap-1.5">
-                  <ReadOnlyValue mono>{item.ifmisSlipNumber || '—'}</ReadOnlyValue>
-                  {item.ifmisSlipNumber && <CopyButton text={item.ifmisSlipNumber} label="Copy Model 19 number" />}
-                  {item.ifmisSlipAttachmentUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setSlipUrl(item.ifmisSlipAttachmentUrl!)}
-                      className="rounded p-1 text-emerald-700 hover:bg-emerald-50 cursor-pointer shrink-0"
-                      aria-label="View scanned Model 19 slip"
-                      title="View scanned Model 19 slip"
-                    >
-                      <Paperclip className="h-4 w-4" />
-                    </button>
-                  )}
+                <div className="relative flex items-center w-full">
+                  <ReadOnlyValue mono className={item.ifmisSlipNumber ? (item.ifmisSlipAttachmentUrl ? 'pr-16' : 'pr-9') : ''}>
+                    {item.ifmisSlipNumber || '—'}
+                  </ReadOnlyValue>
+                  <div className="absolute right-1.5 flex items-center gap-0.5">
+                    {item.ifmisSlipNumber && <CopyButton text={item.ifmisSlipNumber} label="Copy Model 19 number" />}
+                    {item.ifmisSlipAttachmentUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setSlipUrl(item.ifmisSlipAttachmentUrl!)}
+                        className="rounded p-1 text-emerald-700 hover:bg-emerald-50 cursor-pointer shrink-0"
+                        aria-label="View scanned Model 19 slip"
+                        title="View scanned Model 19 slip"
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </FormKitField>
 
               <FormKitField label="PO number" optional>
-                <div className="flex items-center gap-1.5">
-                  <ReadOnlyValue mono>{item.poNumber || '—'}</ReadOnlyValue>
-                  {item.poNumber && <CopyButton text={item.poNumber} label="Copy PO number" />}
+                <div className="relative flex items-center w-full">
+                  <ReadOnlyValue mono className={item.poNumber ? 'pr-9' : ''}>
+                    {item.poNumber || '—'}
+                  </ReadOnlyValue>
+                  {item.poNumber && (
+                    <div className="absolute right-1.5 flex items-center">
+                      <CopyButton text={item.poNumber} label="Copy PO number" />
+                    </div>
+                  )}
                 </div>
               </FormKitField>
 
@@ -332,14 +384,20 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <ReadOnlyValue>{item.buyer || '—'}</ReadOnlyValue>
               </FormKitField>
 
-              {item.programName && (
-                <FormKitField label="Program / project" optional span="sm:col-span-2">
-                  <ReadOnlyValue>{item.programName}</ReadOnlyValue>
-                </FormKitField>
-              )}
+              <FormKitField label="Program / project" optional>
+                <ReadOnlyValue>{item.programName || '—'}</ReadOnlyValue>
+              </FormKitField>
 
-              <FormKitField label="Receiving store & location" required span="sm:col-span-2">
-                <ReadOnlyValue>{item.storeLocation ? storeLocationLabel(item.storeLocation) : '—'}</ReadOnlyValue>
+              <FormKitField label="Receiving store" required>
+                <ReadOnlyValue>
+                  {item.storeLocation?.siteName || (item.storeLocation ? storeLocationLabel(item.storeLocation).split(' · ')[0] : '—')}
+                </ReadOnlyValue>
+              </FormKitField>
+
+              <FormKitField label="Location in store" required>
+                <ReadOnlyValue>
+                  {item.storeLocation?.roomNumber || (item.storeLocation ? storeLocationLabel(item.storeLocation).split(' · ')[1] || storeLocationLabel(item.storeLocation) : '—')}
+                </ReadOnlyValue>
               </FormKitField>
             </FieldGrid>
           </FormSection>
@@ -361,8 +419,25 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <ReadOnlyValue>{item.itemCategoryDisplay || item.category?.replace(/_/g, ' ')}</ReadOnlyValue>
               </FormKitField>
 
+              <FormKitField label="Item code" required>
+                <ReadOnlyValue mono>{item.itemCode}</ReadOnlyValue>
+              </FormKitField>
+
+              <FormKitField label="Serial number" optional>
+                <div className="relative flex items-center w-full">
+                  <ReadOnlyValue mono className={item.serialNumber ? 'pr-9' : ''}>
+                    {item.serialNumber || '—'}
+                  </ReadOnlyValue>
+                  {item.serialNumber && (
+                    <div className="absolute right-1.5 flex items-center">
+                      <CopyButton text={item.serialNumber} label="Copy serial number" />
+                    </div>
+                  )}
+                </div>
+              </FormKitField>
+
               <FormKitField label="Physical condition">
-                <ReadOnlyValue>{item.condition?.replace(/_/g, ' ')}</ReadOnlyValue>
+                <ReadOnlyValue>{item.condition ? item.condition.replace(/_/g, ' ') : '—'}</ReadOnlyValue>
               </FormKitField>
 
               <FormKitField label="Quantity" required>
@@ -382,21 +457,11 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                     ? `${formatETB((item.unitCostETB || 0) * totals.inStore)} in store · ${formatETB((item.unitCostETB || 0) * totals.issued)} issued`
                     : undefined
                 }
-                span="sm:col-span-2"
               >
                 <TotalValue accent="emerald">
                   {formatETB((item.unitCostETB || 0) * (totals?.total ?? row.units))}
                 </TotalValue>
               </FormKitField>
-
-              {item.serialNumber && (
-                <FormKitField label="Serial number" optional>
-                  <div className="flex items-center gap-1.5">
-                    <ReadOnlyValue mono>{item.serialNumber}</ReadOnlyValue>
-                    <CopyButton text={item.serialNumber} label="Copy serial number" />
-                  </div>
-                </FormKitField>
-              )}
 
               {item.lotBatchNo && (
                 <FormKitField label="Lot / batch no." optional>
@@ -411,7 +476,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               )}
 
               {item.remark && (
-                <FormKitField label="Remark / notes" optional span="sm:col-span-2">
+                <FormKitField label="Remark / notes" optional span={item.lotBatchNo && item.subInventory ? undefined : 'sm:col-span-2'}>
                   <ReadOnlyValue>{item.remark}</ReadOnlyValue>
                 </FormKitField>
               )}
@@ -587,7 +652,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
         </div>
       )}
 
-      {slipUrl && <SlipViewerModal slipUrl={slipUrl} onClose={() => setSlipUrl(null)} />}
+      {slipUrl && <SlipViewerModal url={slipUrl} onClose={() => setSlipUrl(null)} />}
     </section>
   );
 };

@@ -182,8 +182,10 @@ describe('Assets page', () => {
     await screen.findByText('MOA-S1');
     await menuFor(user, 'MOA-S1');
     await user.click(screen.getByRole('menuitem', { name: 'Issue (Model 22)' }));
-    const dialog = screen.getByRole('dialog', { name: 'Issue from store · Model 22' });
-    expect(within(dialog).getByRole('combobox', { name: /item/i })).toHaveTextContent('MOA-S1');
+    const record = screen.getByRole('region', { name: 'Asset record MOA-S1' });
+    expect(record.querySelector('form#stock-out-form')).not.toBeNull();
+    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'stock-out-form');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('opens the transfer form with the asset already chosen', async () => {
@@ -192,8 +194,10 @@ describe('Assets page', () => {
     await screen.findByText('MOA-S1');
     await menuFor(user, 'MOA-I1');
     await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
-    const dialog = screen.getByRole('dialog', { name: 'Transfer · Model 21' });
-    expect(within(dialog).getByRole('combobox', { name: /Issued asset/ })).toHaveTextContent('MOA-I1');
+    const record = screen.getByRole('region', { name: 'Asset record MOA-I1' });
+    expect(record.querySelector('form#transfer-form')).not.toBeNull();
+    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'transfer-form');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('opens the return form for the chosen asset', async () => {
@@ -202,8 +206,11 @@ describe('Assets page', () => {
     await screen.findByText('MOA-S1');
     await menuFor(user, 'MOA-I1');
     await user.click(screen.getByRole('menuitem', { name: 'Return to store (Model 21)' }));
-    const dialog = screen.getByRole('dialog', { name: /Return to store · Model 21 · MOA-I1/ });
-    expect(within(dialog).getByRole('button', { name: 'Submit return for approval' })).toBeInTheDocument();
+    const record = screen.getByRole('region', { name: 'Asset record MOA-I1' });
+    expect(record.querySelector('form#return-form')).not.toBeNull();
+    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'return-form');
+    // No pop-up dialog: the form is in the record
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('is read-only for approvers', async () => {
@@ -266,17 +273,97 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-R1');
-    // An editable pending receipt opens straight into edit mode with Save and Cancel
-    expect(toolbarOf(record)).toEqual(['Save', 'Cancel']);
-    expect(record.querySelector('form#stock-in-form')).not.toBeNull();
-    // The toolbar's Save submits the form
-    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'stock-in-form');
-    // Cancel exits edit mode into the locked/view mode with Edit receipt
-    await user.click(within(record).getByRole('button', { name: 'Cancel' }));
+    // Opens in view mode first with prominent Edit receipt button
     expect(toolbarOf(record)).toEqual(['Edit receipt', 'Print Model 19']);
-    // Clicking Edit receipt re-enters edit mode
+    expect(within(record).getByText('Receipt pending endorsement · Editable in correction mode')).toBeInTheDocument();
+
+    // Clicking Edit receipt enters edit mode with Save and Cancel
     await user.click(within(record).getByRole('button', { name: 'Edit receipt' }));
     expect(toolbarOf(record)).toEqual(['Save', 'Cancel']);
+    expect(record.querySelector('form#stock-in-form')).not.toBeNull();
+    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'stock-in-form');
+
+    // Cancel exits edit mode back to view mode
+    await user.click(within(record).getByRole('button', { name: 'Cancel' }));
+    expect(toolbarOf(record)).toEqual(['Edit receipt', 'Print Model 19']);
+  });
+
+  it('opens a pending issue in view mode, and allows editing with Save and Cancel', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-O1');
+    // Opens in view mode first with prominent Edit issue button
+    expect(toolbarOf(record)).toEqual(['Edit issue', 'Print Model 22']);
+    expect(within(record).getByText('Issue request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+
+    // Clicking Edit issue enters edit mode with Save and Cancel
+    await user.click(within(record).getByRole('button', { name: 'Edit issue' }));
+    expect(toolbarOf(record)).toEqual(['Save', 'Cancel']);
+    expect(record.querySelector('form#stock-out-form')).not.toBeNull();
+    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'stock-out-form');
+
+    // Cancel exits edit mode back to view mode
+    await user.click(within(record).getByRole('button', { name: 'Cancel' }));
+    expect(toolbarOf(record)).toEqual(['Edit issue', 'Print Model 22']);
+    expect(within(record).getByText('Issue request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+  });
+
+  it('opens a pending transfer in view mode, and allows editing with Save and Cancel', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-P1');
+    // Opens in view mode first with prominent Edit transfer button
+    expect(toolbarOf(record)).toEqual(['Edit transfer', 'Print Model 21']);
+    expect(within(record).getByText('Transfer request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+
+    // Clicking Edit transfer enters edit mode with Save and Cancel
+    await user.click(within(record).getByRole('button', { name: 'Edit transfer' }));
+    expect(toolbarOf(record)).toEqual(['Save', 'Cancel']);
+    expect(record.querySelector('form#transfer-form')).not.toBeNull();
+    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'transfer-form');
+
+    // Cancel exits edit mode back to view mode
+    await user.click(within(record).getByRole('button', { name: 'Cancel' }));
+    expect(toolbarOf(record)).toEqual(['Edit transfer', 'Print Model 21']);
+    expect(within(record).getByText('Transfer request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+  });
+
+  it('opens a pending return in view mode, and allows editing with Save and Cancel', async () => {
+    const user = userEvent.setup();
+    // A pending return on MOA-I1, with the Team Leader
+    vi.mocked(api.getApprovals).mockResolvedValue([...approvals, request('RET', 'RETURN', 'I1')] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-I1');
+    // Opens in view mode first with prominent Edit return button
+    expect(toolbarOf(record)).toEqual(['Edit return', 'Print Model 21']);
+    expect(within(record).getByText('Return request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+
+    // Clicking Edit return enters edit mode with Save and Cancel
+    await user.click(within(record).getByRole('button', { name: 'Edit return' }));
+    expect(toolbarOf(record)).toEqual(['Save', 'Cancel']);
+    expect(record.querySelector('form#return-form')).not.toBeNull();
+    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'return-form');
+
+    // Cancel exits edit mode back to view mode
+    await user.click(within(record).getByRole('button', { name: 'Cancel' }));
+    expect(toolbarOf(record)).toEqual(['Edit return', 'Print Model 21']);
+    expect(within(record).getByText('Return request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+  });
+
+  it('opens an endorsed stage-2 record in view mode with locked actions and accurate banner', async () => {
+    const user = userEvent.setup();
+    // MOA-R1 has currentStage: 2 (endorsed by Team Leader, awaiting Dept. Head)
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-R1');
+    // Does not auto-open in edit mode because stage 2 is locked
+    expect(record.querySelector('form#stock-in-form')).toBeNull();
+    expect(toolbarOf(record)).toEqual(['Edit receipt', 'Print Model 19']);
+    expect(within(record).getByRole('button', { name: 'Edit receipt' })).toBeDisabled();
+    expect(within(record).getByText('Receipt endorsed · Awaiting Dept. Head approval')).toBeInTheDocument();
   });
 
   it.each([
@@ -371,6 +458,9 @@ describe('Asset record', () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
+
+    const filterBtn = screen.getByRole('button', { name: /Filter assets/i });
+    await user.click(filterBtn);
 
     const locSelect = screen.getByRole('combobox', { name: 'Filter by store location' });
     const catSelect = screen.getByRole('combobox', { name: 'Filter by asset category' });

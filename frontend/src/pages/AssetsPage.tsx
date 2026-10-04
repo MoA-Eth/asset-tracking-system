@@ -1,14 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Boxes,
   Plus,
   Search,
   RefreshCw,
   AlertCircle,
-  Warehouse,
-  UserCheck,
-  Clock,
-  PackagePlus,
   PackageMinus,
   ArrowRightLeft,
   RotateCcw,
@@ -27,14 +23,11 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
-import { Modal } from '../components/ui/Modal';
 import { CloseButton } from '../components/ui/CloseButton';
-import { StatCard } from '../components/ui/StatCard';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
 import { AssetRecord } from '../components/assets/AssetRecord';
-import { RefreshButton } from '../components/ui/RefreshButton';
-import { ReturnForm, ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
+import { ReturnForm } from '../components/ui/ReturnToStoreModal';
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { Model21PrintModal } from '../components/ui/Model21PrintModal';
@@ -146,10 +139,16 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const closeRecord = () => {
     setSelectedId(null);
     setReceipt(null);
+    setReturning(null);
+    setTransfer(null);
+    setIssue(null);
     setEditing(false);
   };
   const openReceipt = (edit?: ItemWithRelations) => {
     setSelectedId(null);
+    setReturning(null);
+    setTransfer(null);
+    setIssue(null);
     setEditing(false);
     setReceipt({ edit });
   };
@@ -388,17 +387,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       return next;
     });
 
-  // Summary
-  const sumUnits = (list: AssetRow[]) => list.reduce((acc, r) => acc + r.units, 0);
-  const inStore = rows.filter((r) => r.state === 'IN_STORE' || (r.state === 'REQUEST_PENDING' && r.item.status !== ItemStatus.ISSUED && r.item.status !== ItemStatus.UNDER_TRANSFER));
-  const issued = rows.filter((r) => r.item.status === ItemStatus.ISSUED || r.item.status === ItemStatus.UNDER_TRANSFER);
-  const pendingReceipts = rows.filter((r) => r.state === 'RECEIPT_PENDING').length;
-  const pendingRequests = rows.filter((r) => r.state === 'REQUEST_PENDING').length;
-  const thisMonth = new Date().toISOString().slice(0, 7);
-  const receivedThisMonth = items.filter(
-    (i) => !i.parentItemId && i.status !== ItemStatus.PENDING_STOCK_IN && i.status !== ItemStatus.DISPOSED && String(i.ifmisSlipDateGc || i.createdAtGc || '').startsWith(thisMonth),
-  );
-  const inStoreValue = inStore.reduce((acc, r) => acc + (Number(r.item.unitCostETB) || 0) * r.units, 0);
 
   // ── Printing ──
   const printRequest = async (request: TransactionApproval, record?: ItemWithRelations) => {
@@ -417,22 +405,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
   };
 
-  /** Check if an asset row has an editable receipt */
-  const isRowEditable = (row?: AssetRow) => {
-    if (!row) return false;
-    return row.state === 'RECEIPT_PENDING' && canReceive && (row.request?.currentStage ?? 1) === 1;
-  };
-
-  /** Open a record. If it has an editable receipt, open straight into editing with Save button in toolbar */
-  const openRecord = (itemId: string, opts: { forceView?: boolean } = {}) => {
+  /** Open a record in view mode with its actions in the toolbar */
+  const openRecord = (itemId: string) => {
     setReceipt(null);
+    setReturning(null);
+    setTransfer(null);
+    setIssue(null);
     setSelectedId(itemId);
-    if (opts.forceView) {
-      setEditing(false);
-      return;
-    }
-    const targetRow = rows.find((r) => r.item.id === itemId);
-    setEditing(isRowEditable(targetRow));
+    setEditing(false);
   };
 
   /** Open a record straight into correcting what it has pending (its receipt or its request) */
@@ -449,6 +429,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const { item, request } = row;
     const done = (voucher?: unknown, print?: (v: any) => void) => {
       setEditing(false);
+      setReturning(null);
+      setTransfer(null);
+      setIssue(null);
       saved(item.id);
       if (voucher && print) print(voucher);
     };
@@ -465,6 +448,63 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             {...common}
             onCancel={() => setEditing(false)}
             onSuccess={(_result, voucher) => done(voucher, setVoucher19)}
+          />
+        ),
+      };
+    }
+    if (returning && returning.item.id === item.id) {
+      return {
+        id: 'return-form',
+        form: (
+          <ReturnForm
+            key={`return-${item.id}`}
+            isOpen
+            inline
+            item={item}
+            employees={employees}
+            editApproval={returning.edit}
+            onSubmittingChange={setEditSaving}
+            onClose={() => setReturning(null)}
+            onSuccess={(voucher) => done(voucher, setVoucher21)}
+          />
+        ),
+      };
+    }
+    if (transfer && (transfer.itemId === item.id || transfer.edit?.itemId === item.id)) {
+      return {
+        id: 'transfer-form',
+        form: (
+          <TransferForm
+            key={transfer.edit?.id ?? `transfer-${item.id}`}
+            items={items}
+            employees={employees}
+            departments={departments}
+            locations={locations}
+            pendingByItem={pendingByItem}
+            editTransfer={transfer.edit}
+            initialItemId={item.id}
+            {...common}
+            onCancel={() => setTransfer(null)}
+            onSaved={(voucher) => done(voucher, setVoucher21)}
+          />
+        ),
+      };
+    }
+    if (issue && (issue.itemId === item.id || issue.edit?.itemId === item.id)) {
+      return {
+        id: 'stock-out-form',
+        form: (
+          <StockOutForm
+            key={issue.edit?.id ?? `issue-${item.id}`}
+            availableItems={availableItems}
+            departments={departments}
+            employees={employees}
+            editApproval={issue.edit}
+            editItem={item}
+            initialItemId={item.id}
+            {...common}
+            onCancel={() => setIssue(null)}
+            onSuccess={(_result, voucher) => done(voucher, setVoucher22)}
           />
         ),
       };
@@ -530,7 +570,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   const actionsFor = (row: AssetRow): RowAction[] => {
     const { item, request } = row;
-    const view: RowAction = { label: 'View details', icon: Eye, onClick: () => openRecord(item.id, { forceView: true }) };
+    const view: RowAction = { label: 'View details', icon: Eye, onClick: () => openRecord(item.id) };
     const printReceipt: RowAction = { label: 'Print Model 19', icon: Printer, onClick: () => setVoucher19(buildModel19Voucher(item, items)) };
     // Vouchers of requests already approved, so signed copies can be printed again
     const printIssue: RowAction = { label: 'Print Model 22 (issue)', icon: Printer, onClick: () => printRequest(row.lastIssue!, item), hidden: !row.lastIssue };
@@ -557,15 +597,45 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         ];
       case 'IN_STORE':
         return [
-          { label: 'Issue (Model 22)', icon: PackageMinus, onClick: () => setIssue({ itemId: item.id }), hidden: !canIssue },
+          {
+            label: 'Issue (Model 22)',
+            icon: PackageMinus,
+            onClick: () => {
+              setSelectedId(item.id);
+              setIssue({ itemId: item.id });
+              setTransfer(null);
+              setReturning(null);
+            },
+            hidden: !canIssue,
+          },
           view,
           printReceipt,
           { ...printMove, hidden: row.lastMove?.transactionType !== 'RETURN' },
         ];
       case 'ISSUED':
         return [
-          { label: 'Transfer (Model 21)', icon: ArrowRightLeft, onClick: () => setTransfer({ itemId: item.id }), hidden: !canTransfer },
-          { label: 'Return to store (Model 21)', icon: RotateCcw, onClick: () => setReturning({ item }), hidden: !canTransfer },
+          {
+            label: 'Transfer (Model 21)',
+            icon: ArrowRightLeft,
+            onClick: () => {
+              setSelectedId(item.id);
+              setTransfer({ itemId: item.id });
+              setIssue(null);
+              setReturning(null);
+            },
+            hidden: !canTransfer,
+          },
+          {
+            label: 'Return to store (Model 21)',
+            icon: RotateCcw,
+            onClick: () => {
+              setSelectedId(item.id);
+              setReturning({ item });
+              setTransfer(null);
+              setIssue(null);
+            },
+            hidden: !canTransfer,
+          },
           view,
           printIssue,
           printMove,
@@ -798,20 +868,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         type="button"
         onClick={() => openRecord(row.item.id)}
         aria-current={selected ? 'true' : undefined}
-        className={`flex w-full items-start justify-between gap-2 border-l-4 py-2.5 pr-3 text-left transition cursor-pointer ${opts.nested ? 'pl-7' : 'pl-3'} ${
+        className={`flex w-full items-start justify-between gap-1.5 border-l-4 py-2 pr-2.5 text-left transition cursor-pointer ${opts.nested ? 'pl-5' : 'pl-2.5'} ${
           selected ? 'border-emerald-600 bg-emerald-50' : 'border-transparent hover:bg-slate-50'
         }`}
       >
-        <span className="min-w-0">
+        <span className="min-w-0 flex-1">
           <span className="block truncate text-xs font-semibold text-slate-900">
             {opts.nested && <span className="mr-1 text-slate-400" aria-hidden="true">↳</span>}
             {row.item.name}
           </span>
-          <span className="block font-mono text-[11px] font-bold text-slate-600">{row.item.itemCode}</span>
+          <span className="block font-mono text-[10px] font-bold text-slate-600 truncate">{row.item.itemCode}</span>
         </span>
-        <span className="flex shrink-0 flex-col items-end gap-1">
+        <span className="flex shrink-0 flex-col items-end gap-0.5">
           <AssetStatus row={{ ...row, rejected: undefined }} partly={opts.partly} />
-          <span className="font-mono text-[10px] text-slate-500">
+          <span className="font-mono text-[9px] text-slate-500">
             {row.units} {row.item.uom || 'EA'}
           </span>
         </span>
@@ -851,6 +921,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       if (e.key === 'Escape') {
         e.preventDefault();
         if (receipt) setReceipt(null);
+        else if (returning) setReturning(null);
+        else if (transfer) setTransfer(null);
+        else if (issue) setIssue(null);
         else closeRecord();
         return;
       }
@@ -885,39 +958,186 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     }
   }, [selectedId]);
 
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+  const filterBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!filterMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        filterMenuRef.current &&
+        !filterMenuRef.current.contains(e.target as Node) &&
+        !filterBtnRef.current?.contains(e.target as Node)
+      ) {
+        setFilterMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFilterMenuOpen(false);
+        filterBtnRef.current?.focus();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [filterMenuOpen]);
+
+  const activeFilterCount = (locationFilter !== 'ALL' ? 1 : 0) + (categoryFilter !== 'ALL' ? 1 : 0);
+
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
   const availableItems = items.filter((i) => i.status === ItemStatus.AVAILABLE && !pendingByItem.has(i.id));
 
   return (
-    <div className="space-y-5 animate-fadeIn pb-16">
+    <div className="space-y-4 animate-fadeIn pb-4 lg:pb-2">
       {/* ── Page header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3.5">
         <p className="text-xs text-slate-500">
           Every asset from receipt to custody. Receive on Model 19, issue on Model 22, then transfer or return on Model 21.
         </p>
-        {canReceive && (
-          <button type="button" onClick={() => openReceipt()} className={`${btn.primary} shrink-0`}>
-            <Plus className="w-4 h-4" />
-            Receive items (Model 19)
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Filter Popover Button */}
+          <div className="relative inline-block text-left" ref={filterMenuRef}>
+            <button
+              ref={filterBtnRef}
+              type="button"
+              id="assets-filter-button"
+              aria-haspopup="true"
+              aria-expanded={filterMenuOpen}
+              aria-label={`Filter assets${activeFilterCount > 0 ? ` (${activeFilterCount} active)` : ''}`}
+              onClick={() => setFilterMenuOpen((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer shadow-2xs shrink-0 ${
+                activeFilterCount > 0 || filterMenuOpen
+                  ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/20'
+                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-emerald-800'
+              }`}
+            >
+              <Filter className={`w-3.5 h-3.5 ${activeFilterCount > 0 ? 'text-emerald-700' : 'text-slate-500'}`} />
+              <span>Filter</span>
+              {activeFilterCount > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold text-white leading-none">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+
+            <div
+              className={`absolute right-0 top-full mt-2 w-72 sm:w-80 z-30 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xl animate-fadeIn ${
+                filterMenuOpen ? '' : 'hidden'
+              }`}
+            >
+                <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-1.5">
+                    <Filter className="w-3.5 h-3.5 text-emerald-700" />
+                    <span className="text-xs font-bold text-slate-900">Filter assets</span>
+                    {activeFilterCount > 0 && (
+                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded-full">
+                        {activeFilterCount} active
+                      </span>
+                    )}
+                  </div>
+                  {activeFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationFilter('ALL');
+                        setCategoryFilter('ALL');
+                      }}
+                      className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label htmlFor="filter-store-location" className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Store & Location
+                    </label>
+                    <select
+                      id="filter-store-location"
+                      aria-label="Filter by store location"
+                      value={locationFilter}
+                      onChange={(e) => setLocationFilter(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-2.5 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                    >
+                      <option value="ALL">All Stores & Locations</option>
+                      {locations.map((loc) => (
+                        <option key={loc.id} value={loc.id}>
+                          {storeLocationLabel(loc)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="filter-asset-category" className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Asset Category
+                    </label>
+                    <select
+                      id="filter-asset-category"
+                      aria-label="Filter by asset category"
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-2.5 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                    >
+                      <option value="ALL">All Categories</option>
+                      {CATEGORY_OPTIONS.map((cat) => (
+                        <option key={cat.value} value={cat.value}>
+                          {cat.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400">
+                    {sortedShown.length} {sortedShown.length === 1 ? 'asset group' : 'asset groups'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFilterMenuOpen(false)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold text-slate-700 cursor-pointer transition"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            title="Export filtered assets to CSV"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs shrink-0"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>Export CSV</span>
           </button>
-        )}
+        </div>
       </div>
 
       {selectedRow || receipt ? (
         /* ── Split view: the list on the left, the open record or registration on the right ── */
-        <div className="grid items-start gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside aria-label="Asset list" className="hidden max-h-[calc(100vh-11rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs lg:sticky lg:top-4 lg:flex">
-            <div className="space-y-2 border-b border-slate-200 p-3">
-              <div className="flex items-center gap-2">
+        <div className="grid items-start gap-3 lg:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[210px_minmax(0,1fr)]">
+          <aside aria-label="Asset list" className="hidden lg:flex flex-col lg:h-[calc(100vh-10rem)] lg:sticky lg:top-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+            <div className="shrink-0 space-y-1.5 border-b border-slate-200 p-2.5 bg-white z-10">
+              <div className="flex items-center gap-1.5">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     aria-label="Search assets"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search assets…"
-                    className={table.search.replace('pr-8', 'pr-3')}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
                 {canReceive && (
@@ -926,19 +1146,19 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     onClick={() => openReceipt()}
                     title="Receive items (Model 19)"
                     aria-label="Receive items (Model 19)"
-                    className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-xs font-bold transition cursor-pointer ${
+                    className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-bold transition cursor-pointer ${
                       receipt && !receipt.edit
                         ? 'border-emerald-800 bg-emerald-800 text-white shadow-xs'
                         : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-900 active:scale-95'
                     }`}
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
-              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5 px-0.5">
-                <span>↑ / ↓ or j / k to navigate</span>
+              <div className="flex items-center justify-between text-[9px] text-slate-400 pt-0.5 px-0.5">
+                <span>↑/↓ or j/k to navigate</span>
                 <span>Esc to close</span>
               </div>
             </div>
@@ -958,9 +1178,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           </aside>
 
           {receipt ? (
-            <section aria-label="Receive items" className="flex min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white shadow-xs">
+            <section
+              aria-label="Receive items"
+              className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs lg:h-[calc(100vh-10rem)] lg:sticky lg:top-4"
+            >
               {/* Fishbowl TitleBar */}
-              <header className="relative space-y-2 border-b border-slate-200 px-5 py-4">
+              <header className="shrink-0 relative space-y-2 border-b border-slate-200 px-5 py-4 bg-white z-10">
                 <button
                   type="button"
                   onClick={() => setReceipt(null)}
@@ -1008,7 +1231,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 </div>
               </header>
 
-              <div className="p-5 overflow-y-auto">
+              <div className="flex-1 p-5 overflow-y-auto">
                 {locations.length > 0 ? (
                   <StockInForm
                     key={receipt.edit?.id ?? 'new'}
@@ -1045,10 +1268,29 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               }
               requests={selectedRequests}
               actions={actionsFor(selectedRow).filter((a) => a.label !== 'View details')}
-              editForm={editing ? editFormFor(selectedRow)?.form : undefined}
-              editFormId={editFormFor(selectedRow)?.id}
+              editForm={
+                editing ||
+                (returning && returning.item.id === selectedRow.item.id) ||
+                (transfer && (transfer.itemId === selectedRow.item.id || transfer.edit?.itemId === selectedRow.item.id)) ||
+                (issue && (issue.itemId === selectedRow.item.id || issue.edit?.itemId === selectedRow.item.id))
+                  ? editFormFor(selectedRow)?.form
+                  : undefined
+              }
+              editFormId={
+                editing ||
+                (returning && returning.item.id === selectedRow.item.id) ||
+                (transfer && (transfer.itemId === selectedRow.item.id || transfer.edit?.itemId === selectedRow.item.id)) ||
+                (issue && (issue.itemId === selectedRow.item.id || issue.edit?.itemId === selectedRow.item.id))
+                  ? editFormFor(selectedRow)?.id
+                  : undefined
+              }
               saving={editSaving}
-              onCancelEdit={() => setEditing(false)}
+              onCancelEdit={() => {
+                setEditing(false);
+                setReturning(null);
+                setTransfer(null);
+                setIssue(null);
+              }}
               onPrintRequest={(r) => printRequest(r, selectedRow.item)}
               onPrintReceipt={() => setVoucher19(buildModel19Voucher(selectedRow.item, items))}
               onSelect={openRecord}
@@ -1057,27 +1299,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           ) : null}
         </div>
       ) : (
-        <>
-      {/* ── Summary ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="In store" value={sumUnits(inStore).toLocaleString()} subtitle={`Units · ${formatETB(inStoreValue)}`} icon={<Warehouse className="w-5 h-5" />} />
-        <StatCard label="Issued" value={sumUnits(issued).toLocaleString()} subtitle="Units with custodians" icon={<UserCheck className="w-5 h-5" />} />
-        <StatCard
-          label="Pending"
-          value={pendingReceipts + pendingRequests}
-          subtitle={`${pendingReceipts} ${pendingReceipts === 1 ? 'receipt' : 'receipts'} · ${pendingRequests} ${pendingRequests === 1 ? 'request' : 'requests'}`}
-          icon={<Clock className="w-5 h-5" />}
-        />
-        <StatCard
-          label="Received this month"
-          value={receivedThisMonth.length}
-          subtitle={`${receivedThisMonth.length === 1 ? 'Registration' : 'Registrations'} approved`}
-          icon={<PackagePlus className="w-5 h-5" />}
-        />
-      </div>
-
-      {/* ── Register ── */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+        /* ── Register ── */
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-slate-200 p-3.5">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div role="group" aria-label="Show assets" className="flex flex-wrap items-center gap-1.5">
@@ -1107,51 +1330,96 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   className={table.search.replace('pr-8', 'pr-3')}
                 />
               </div>
-              <button
-                type="button"
-                onClick={handleExportCSV}
-                title="Export filtered assets to CSV"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs"
-              >
-                <Download className="w-3.5 h-3.5 text-slate-500" />
-                <span className="hidden sm:inline">Export CSV</span>
-              </button>
-              <RefreshButton onClick={() => fetchData(true)} loading={loading || refreshing} label="assets" />
+              {canReceive && (
+                <button
+                  type="button"
+                  onClick={() => openReceipt()}
+                  className={`${btn.primary} shrink-0`}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Receive items (Model 19)</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Filters Bar */}
-          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 text-xs">
-            <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
-            <select
-              aria-label="Filter by store location"
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-700 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-            >
-              <option value="ALL">All Stores & Locations</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {storeLocationLabel(loc)}
-                </option>
-              ))}
-            </select>
-
-            <select
-              aria-label="Filter by asset category"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-700 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-            >
-              <option value="ALL">All Categories</option>
-              {CATEGORY_OPTIONS.map((cat) => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label}
-                </option>
-              ))}
-            </select>
-
-            {(locationFilter !== 'ALL' || categoryFilter !== 'ALL' || filter !== 'ALL' || search || sortColumn !== 'activity' || sortDirection !== 'desc') && (
+          {/* Active Filter Chips (if any filter, search, or sort is active) */}
+          {(locationFilter !== 'ALL' || categoryFilter !== 'ALL' || filter !== 'ALL' || search || sortColumn !== 'activity' || sortDirection !== 'desc') && (
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
+              <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
+              {locationFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                  <span>Store: {storeLocationLabel(locations.find((l) => l.id === locationFilter) || ({ nameEn: locationFilter } as any))}</span>
+                  <button
+                    type="button"
+                    onClick={() => setLocationFilter('ALL')}
+                    title="Remove store filter"
+                    aria-label="Remove store filter"
+                    className="hover:text-emerald-950 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {categoryFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                  <span>Category: {CATEGORY_OPTIONS.find((c) => c.value === categoryFilter)?.label || categoryFilter}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter('ALL')}
+                    title="Remove category filter"
+                    aria-label="Remove category filter"
+                    className="hover:text-emerald-950 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {filter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                  <span>Status: {filter === 'IN_STORE' ? 'In store' : filter === 'ISSUED' ? 'Issued' : 'Pending'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setFilter('ALL')}
+                    title="Remove status filter"
+                    aria-label="Remove status filter"
+                    className="hover:text-emerald-950 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {search && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                  <span>Search: "{search}"</span>
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    title="Clear search"
+                    aria-label="Clear search"
+                    className="hover:text-emerald-950 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {(sortColumn !== 'activity' || sortDirection !== 'desc') && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                  <span>Sorted by: {sortColumn} ({sortDirection})</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSortColumn('activity');
+                      setSortDirection('desc');
+                    }}
+                    title="Reset sort"
+                    aria-label="Reset sort"
+                    className="hover:text-emerald-950 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -1162,12 +1430,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   setSortColumn('activity');
                   setSortDirection('desc');
                 }}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-emerald-700 hover:underline cursor-pointer"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-emerald-700 hover:underline cursor-pointer ml-1"
               >
                 <X className="w-3 h-3" /> Clear filters
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {loading && rows.length === 0 ? (
@@ -1298,89 +1566,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           </>
         )}
       </div>
-        </>
       )}
-
-
-      {/* ── Issue (Model 22) ── */}
-      <Modal
-        isOpen={!!issue}
-        onClose={() => setIssue(null)}
-        title={issue?.edit ? `Edit issue · ${issue.edit.itemCode}` : 'Issue from store · Model 22'}
-        subtitle={
-          issue?.edit
-            ? 'You can correct this request until the Team Leader endorses it. Each change is recorded in the item history.'
-            : 'The item stays in store until the Team Leader endorses and the Department Head approves the issue.'
-        }
-        size="xl"
-      >
-        {issue && (
-          <StockOutForm
-            key={issue.edit?.id ?? issue.itemId ?? 'new'}
-            availableItems={availableItems}
-            departments={departments}
-            employees={employees}
-            editApproval={issue.edit}
-            editItem={issueItem}
-            initialItemId={issue.itemId}
-            onCancel={() => setIssue(null)}
-            onSuccess={(result, voucher) => {
-              setIssue(null);
-              saved(result?.itemId ?? issue.itemId);
-              if (voucher) setVoucher22(voucher);
-            }}
-          />
-        )}
-      </Modal>
-
-      {/* ── Transfer (Model 21) ── */}
-      <Modal
-        isOpen={!!transfer}
-        onClose={() => setTransfer(null)}
-        title={transfer?.edit ? `Edit transfer · ${transfer.edit.itemCode}` : 'Transfer · Model 21'}
-        subtitle={
-          transfer?.edit
-            ? 'You can correct this transfer until the Team Leader endorses it. Each change is recorded in the item history.'
-            : 'Custody moves to the new holder only after the Team Leader endorses and the Department Head approves it.'
-        }
-        size="xl"
-      >
-        {transfer && (
-          <TransferForm
-            key={transfer.edit?.id ?? transfer.itemId ?? 'new'}
-            items={items}
-            employees={employees}
-            departments={departments}
-            locations={locations}
-            pendingByItem={pendingByItem}
-            editTransfer={transfer.edit}
-            initialItemId={transfer.itemId}
-            onCancel={() => setTransfer(null)}
-            onSaved={(voucher) => {
-              const itemId = transfer.edit?.itemId ?? transfer.itemId;
-              setTransfer(null);
-              saved(itemId);
-              if (voucher) setVoucher21(voucher);
-            }}
-          />
-        )}
-      </Modal>
-
-      {/* ── Return to store (Model 21) ── */}
-      <ReturnToStoreModal
-        isOpen={!!returning}
-        item={returning?.item ?? null}
-        employees={employees}
-        editApproval={returning?.edit}
-        onClose={() => setReturning(null)}
-        onSuccess={(voucher) => {
-          const itemId = returning?.item.id;
-          setReturning(null);
-          saved(itemId);
-          if (voucher) setVoucher21(voucher);
-        }}
-      />
-
 
       <Model19PrintModal isOpen={!!voucher19} voucher={voucher19} onClose={() => setVoucher19(null)} />
       <Model22PrintModal isOpen={!!voucher22} voucher={voucher22} onClose={() => setVoucher22(null)} />
