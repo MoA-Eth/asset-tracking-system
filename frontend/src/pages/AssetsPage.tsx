@@ -791,7 +791,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           item.id === lastTouchedId ? table.rowHighlight : nested ? 'bg-slate-50/70 hover:bg-slate-100/70 transition' : table.row
         }`}
       >
-        <td className={`py-2.5 pr-3 ${nested ? 'pl-9' : 'pl-3'}`}>
+        <td className={`py-2 pr-3 ${nested ? 'pl-8' : 'pl-3'}`}>
           <span className="block font-medium text-slate-900">
             {nested && <span className="mr-1 text-slate-400" aria-hidden="true">↳</span>}
             {item.name}
@@ -810,10 +810,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </button>
           )}
         </td>
-        <td className="px-3 py-2.5 whitespace-nowrap">
+        <td className="px-3 py-2 whitespace-nowrap">
           <AssetStatus row={row} partly={isBatch && issuedUnits > 0 && inStoreUnits > 0} />
         </td>
-        <td className="px-3 py-2.5 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">
+        <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">
           {isBatch ? totalUnits : row.units}
           <span className="ml-1 text-[10px] font-normal uppercase text-slate-500">{uom}</span>
           {isBatch && (
@@ -822,7 +822,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </span>
           )}
         </td>
-        <td className="px-3 py-2.5 text-slate-700">
+        <td className="px-3 py-2 text-slate-700">
           <span className="block">{isBatch && row.state !== 'ISSUED' && inStoreUnits === 0 ? '—' : row.where}</span>
           {row.goingTo && <span className="block text-[10px] text-amber-800">→ {row.goingTo}</span>}
           {isBatch && out.length > 0 && (
@@ -831,12 +831,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </span>
           )}
         </td>
-        <td className="px-3 py-2.5 font-mono text-slate-700 whitespace-nowrap">
+        <td className="px-3 py-2 font-mono text-slate-700 whitespace-nowrap">
           <span className="block">{item.ifmisSlipNumber || '—'}</span>
           <span className="block text-[10px] text-slate-400">{item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10) || '—'}</span>
         </td>
-        <td className="px-3 py-2.5 text-right font-mono text-slate-700 whitespace-nowrap">{formatETB(item.unitCostETB)}</td>
-        <td className={`px-3 py-2.5 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
+        <td className="px-3 py-2 text-right font-mono text-slate-700 whitespace-nowrap">{formatETB(item.unitCostETB)}</td>
+        <td className={`px-3 py-2 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
           <RowActionsMenu label={item.itemCode} actions={actionsFor(row)} />
         </td>
       </tr>
@@ -993,9 +993,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const availableItems = items.filter((i) => i.status === ItemStatus.AVAILABLE && !pendingByItem.has(i.id));
 
   return (
-    <div className="space-y-4 animate-fadeIn pb-4 lg:pb-2">
+    <div className="space-y-2.5 animate-fadeIn pb-1">
       {/* ── Page header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
         <p className="text-xs text-slate-500">
           Every asset from receipt to custody. Receive on Model 19, issue on Model 22, then transfer or return on Model 21.
         </p>
@@ -1221,7 +1221,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       className={`${btn.primary} disabled:opacity-60`}
                     >
                       <Check className="h-4 w-4" />
-                      {receiptSaving ? 'Saving…' : receipt.edit ? 'Save changes' : 'Submit for Endorsement'}
+                      {receiptSaving ? 'Saving…' : receipt.edit ? 'Save changes' : 'Submit for approval'}
                     </button>
                     <button type="button" onClick={() => setReceipt(null)} className={btn.secondary}>
                       <X className="h-4 w-4" />
@@ -1301,8 +1301,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       ) : (
         /* ── Register ── */
         <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-slate-200 p-3.5">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
+          <div className="flex flex-col gap-2.5 md:flex-row md:items-center md:justify-between">
             <div role="group" aria-label="Show assets" className="flex flex-wrap items-center gap-1.5">
               {FILTERS.map((f) => (
                 <button
@@ -1345,7 +1345,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
           {/* Active Filter Chips (if any filter, search, or sort is active) */}
           {(locationFilter !== 'ALL' || categoryFilter !== 'ALL' || filter !== 'ALL' || search || sortColumn !== 'activity' || sortDirection !== 'desc') && (
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100 text-xs">
               <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
               {locationFilter !== 'ALL' && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
@@ -1478,7 +1478,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               <table className="w-full min-w-[900px] text-left text-xs">
                 <thead className={table.headRow}>
                   <tr>
-                    <th className="px-3 py-2.5 min-w-[200px]" aria-sort={sortColumn === 'name' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <th className="px-3 py-2 min-w-[200px]" aria-sort={sortColumn === 'name' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
                       <button
                         type="button"
                         onClick={() => handleSort('name')}
@@ -1489,7 +1489,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                         {renderSortIcon('name')}
                       </button>
                     </th>
-                    <th className="px-3 py-2.5 w-36" aria-sort={sortColumn === 'status' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <th className="px-3 py-2 w-36" aria-sort={sortColumn === 'status' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
                       <button
                         type="button"
                         onClick={() => handleSort('status')}
@@ -1500,7 +1500,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                         {renderSortIcon('status')}
                       </button>
                     </th>
-                    <th className="px-3 py-2.5 w-20 text-right" aria-sort={sortColumn === 'units' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <th className="px-3 py-2 w-20 text-right" aria-sort={sortColumn === 'units' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
                       <button
                         type="button"
                         onClick={() => handleSort('units')}
@@ -1511,7 +1511,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                         {renderSortIcon('units')}
                       </button>
                     </th>
-                    <th className="px-3 py-2.5 min-w-[170px]" aria-sort={sortColumn === 'where' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <th className="px-3 py-2 min-w-[170px]" aria-sort={sortColumn === 'where' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
                       <button
                         type="button"
                         onClick={() => handleSort('where')}
@@ -1522,7 +1522,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                         {renderSortIcon('where')}
                       </button>
                     </th>
-                    <th className="px-3 py-2.5 w-36 whitespace-nowrap" aria-sort={sortColumn === 'slip' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <th className="px-3 py-2 w-36 whitespace-nowrap" aria-sort={sortColumn === 'slip' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
                       <button
                         type="button"
                         onClick={() => handleSort('slip')}
@@ -1533,7 +1533,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                         {renderSortIcon('slip')}
                       </button>
                     </th>
-                    <th className="px-3 py-2.5 w-28 text-right whitespace-nowrap" aria-sort={sortColumn === 'cost' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <th className="px-3 py-2 w-28 text-right whitespace-nowrap" aria-sort={sortColumn === 'cost' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
                       <button
                         type="button"
                         onClick={() => handleSort('cost')}
@@ -1544,7 +1544,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                         {renderSortIcon('cost')}
                       </button>
                     </th>
-                    <th className={`px-3 py-2.5 ${table.actionsHead}`}>
+                    <th className={`px-3 py-2 ${table.actionsHead}`}>
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>

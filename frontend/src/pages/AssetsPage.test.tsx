@@ -566,7 +566,7 @@ describe('Asset record', () => {
     expect(panel).toBeInTheDocument();
     expect(within(panel).getByText('Receive items · Model 19')).toBeInTheDocument();
     expect(within(panel).getByText('New Delivery')).toBeInTheDocument();
-    expect(within(panel).getByRole('button', { name: /Submit for Endorsement/i })).toHaveAttribute('form', 'stock-in-form');
+    expect(within(panel).getByRole('button', { name: /Submit for approval/i })).toHaveAttribute('form', 'stock-in-form');
 
     // In split view, the left sidebar renders an icon-only plus button with no inner text
     const sidebar = screen.getByRole('complementary', { name: 'Asset list' });
@@ -623,7 +623,7 @@ describe('Asset record', () => {
     await user.type(unitPrice, '75000');
 
     // Submit via top toolbar button
-    const submitBtn = within(panel).getByRole('button', { name: /Submit for Endorsement/i });
+    const submitBtn = within(panel).getByRole('button', { name: /Submit for approval/i });
     await user.click(submitBtn);
 
     // Verify API called with proper payload

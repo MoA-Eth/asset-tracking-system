@@ -157,9 +157,8 @@ const AuthenticatedPortal: React.FC = () => {
           pendingApprovalsCount={pendingApprovalsCount}
         />
 
-        {/* Page Content with Generous Whitespace */}
         {/* Page Content - Strictly Gated to Authorized Role */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:px-5 lg:pt-5 lg:pb-4 max-w-7xl w-full mx-auto pb-20">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-3.5 lg:px-3.5 lg:pt-3 lg:pb-2.5 w-full pb-8">
           <ErrorBoundary fallbackTitle="Page Content Notice">
             {!activeTab && <p className="text-sm text-slate-600">No pages are available for this account. Contact your System Administrator.</p>}
             {activeTab.startsWith('settings-') && (

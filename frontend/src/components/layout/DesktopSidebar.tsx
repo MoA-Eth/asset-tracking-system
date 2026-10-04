@@ -58,7 +58,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   const roleTitle = ROLE_TITLES[role] || '';
 
   const itemClass = (isActive: boolean) =>
-    `group relative w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-2 px-2'} py-1.5 rounded-lg text-xs transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
+    `group relative w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-2.5 px-2.5'} py-1.5 rounded-lg text-xs transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
       isActive
         ? 'bg-white/[0.09] text-white font-semibold'
         : 'text-emerald-50/70 hover:bg-white/[0.05] hover:text-white font-medium'
@@ -106,11 +106,11 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   return (
     <aside
       className={`no-print hidden lg:flex flex-col bg-gradient-to-b from-[#0B3D25] via-[#08301D] to-[#062414] border-r border-black/20 text-white shadow-xl transition-all duration-300 select-none z-30 shrink-0 h-full overflow-hidden ${
-        collapsed ? 'w-14' : 'w-[192px]'
+        collapsed ? 'w-14' : 'w-56'
       }`}
     >
       {/* Brand */}
-      <div className={`h-[61px] px-2.5 border-b border-white/[0.07] flex items-center shrink-0 ${collapsed ? 'justify-center px-0' : ''}`}>
+      <div className={`h-[61px] px-3 border-b border-white/[0.07] flex items-center shrink-0 ${collapsed ? 'justify-center px-0' : ''}`}>
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={collapsed ? onToggleCollapse : undefined}
@@ -143,7 +143,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-1.5 py-2.5" aria-label="Main navigation">
+      <nav className="flex-1 overflow-y-auto px-2 py-2.5" aria-label="Main navigation">
         {sections.map((section, idx) => (
           <div key={section.id} className={idx > 0 ? 'mt-4' : ''}>
             {collapsed ? (
@@ -220,9 +220,9 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       </nav>
 
       {/* Signed-in user */}
-      <div className="p-1.5 border-t border-white/[0.07] shrink-0">
+      <div className="p-2 border-t border-white/[0.07] shrink-0">
         {!collapsed ? (
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04]">
+          <div className="flex items-center gap-2 p-1.5 rounded-xl bg-white/[0.04]">
             <div className="relative shrink-0">
               <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#125835] to-[#258957] ring-1 ring-[#FCDD09]/40 text-white flex items-center justify-center font-bold text-[11px]">
                 {getInitials(user?.fullNameEn)}
