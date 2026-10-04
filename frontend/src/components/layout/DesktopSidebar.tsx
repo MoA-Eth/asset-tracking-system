@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, KeyRound, LogOut } from 'lucide-react';
-import { Modal } from '../ui/Modal';
-import { ChangePasswordForm } from '../auth/ChangePasswordForm';
-import { useToast } from '../../context/ToastContext';
+import { ChevronDown } from 'lucide-react';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
 import { SETTINGS_NAV, getSettingsGroups, getNavSections, NavItem } from './navigation';
@@ -17,21 +14,6 @@ interface DesktopSidebarProps {
   onToggleCollapse: () => void;
 }
 
-const ROLE_TITLES: Partial<Record<UserRole, string>> = {
-  [UserRole.MANAGER]: 'Manager',
-  [UserRole.DEPARTMENT_HEAD]: 'Directorate Head',
-  [UserRole.TEAM_LEADER]: 'Team Leader',
-  [UserRole.DATA_ENCODER]: 'Data Encoder',
-  [UserRole.SYSTEM_ADMIN]: 'System Administrator',
-};
-
-const getInitials = (name?: string): string => {
-  if (!name) return 'MOA';
-  const parts = name.split(' ');
-  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-};
-
 /** Gold bar marking the current page, echoing the emblem colour. */
 const ActiveBar: React.FC = () => (
   <span aria-hidden="true" className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-[#FCDD09]" />
@@ -44,9 +26,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   collapsed,
   onToggleCollapse,
 }) => {
-  const { user, role, logout } = useAuth();
-  const toast = useToast();
-  const [changingPassword, setChangingPassword] = useState(false);
+  const { user } = useAuth();
   const isSettingsActive = activeTab.startsWith('settings');
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
 
@@ -56,7 +36,6 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
   const sections = getNavSections(user?.allowedTabs);
   const settingsGroups = getSettingsGroups(user?.allowedTabs);
-  const roleTitle = ROLE_TITLES[role] || '';
 
   const itemClass = (isActive: boolean) =>
     `group relative w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-2.5 px-2.5'} py-1.5 rounded-lg text-xs transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
@@ -211,75 +190,6 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           </div>
         )}
       </nav>
-
-      {/* Signed-in user */}
-      <div className="p-2 border-t border-white/[0.07] shrink-0">
-        {!collapsed ? (
-          <div className="flex items-center gap-2 p-1.5 rounded-xl bg-white/[0.04]">
-            <div className="relative shrink-0">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#125835] to-[#258957] ring-1 ring-[#FCDD09]/40 text-white flex items-center justify-center font-bold text-[11px]">
-                {getInitials(user?.fullNameEn)}
-              </div>
-              <span
-                className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#062414]"
-                title="Signed in"
-              />
-            </div>
-            <div
-              className="min-w-0 flex-1 leading-tight"
-              title={[user?.fullNameEn, roleTitle, user?.payrollId].filter(Boolean).join(' · ')}
-            >
-              <span className="block text-[11px] font-semibold text-white truncate">{user?.fullNameEn || roleTitle}</span>
-              <span className="block text-[9px] text-emerald-100/55 truncate">{roleTitle}</span>
-            </div>
-            <button
-              onClick={() => setChangingPassword(true)}
-              className="p-1 rounded-lg text-emerald-100/60 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60"
-              title="Change password"
-              aria-label="Change password"
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={logout}
-              className="p-1 rounded-lg text-emerald-100/60 hover:text-white hover:bg-rose-500/20 transition cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60"
-              title="Sign out"
-              aria-label="Sign out"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2">
-            <div
-              className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#125835] to-[#258957] ring-1 ring-[#FCDD09]/40 text-white flex items-center justify-center font-bold text-xs"
-              title={user?.fullNameEn ? `${user.fullNameEn} (${roleTitle})` : roleTitle}
-            >
-              {getInitials(user?.fullNameEn)}
-            </div>
-            <button
-              onClick={logout}
-              className="p-1.5 rounded-lg text-emerald-100/60 hover:text-white hover:bg-rose-500/20 transition cursor-pointer"
-              title="Sign out"
-              aria-label="Sign out"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-      </div>
-
-      <Modal isOpen={changingPassword} onClose={() => setChangingPassword(false)} title="Change password" subtitle={user?.fullNameEn} size="sm">
-        {changingPassword && (
-          <ChangePasswordForm
-            onCancel={() => setChangingPassword(false)}
-            onDone={() => {
-              setChangingPassword(false);
-              toast.success('Password changed', 'Use the new password next time you sign in.');
-            }}
-          />
-        )}
-      </Modal>
     </aside>
   );
 };
