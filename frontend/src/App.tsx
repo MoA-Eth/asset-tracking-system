@@ -167,10 +167,10 @@ const AuthenticatedPortal: React.FC = () => {
         />
 
         {/* Page Content - Strictly Gated to Authorized Role */}
-        <main ref={mainRef} className="flex-1 overflow-y-auto p-3 sm:p-3.5 lg:px-3.5 lg:pt-3 lg:pb-2.5 w-full pb-8">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-3 sm:p-3.5 lg:px-3.5 lg:pt-3 lg:pb-2.5 w-full pb-20 lg:pb-8">
           <ErrorBoundary fallbackTitle="Page Content Notice">
             {!activeTab && <p className="text-sm text-slate-600">No pages are available for this account. Contact your System Administrator.</p>}
-            {activeTab.startsWith('settings-') && (
+            {activeTab.startsWith('settings-') && activeTab !== 'settings-profile' && (
               <nav aria-label="Settings pages" className="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-4 border-b border-slate-200">
                 {getSettingsGroups(user?.allowedTabs).flatMap(group => group.items).map(item => (
                   <button key={item.id} onClick={() => handleTabChange(item.id)} aria-current={activeTab === item.id ? 'page' : undefined}

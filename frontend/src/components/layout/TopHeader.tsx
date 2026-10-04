@@ -344,9 +344,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               )}
             </button>
 
-            {/* Floating Notification Popover (YouTube-style clean drawer) */}
+            {/* Floating Notification Popover (Responsive mobile-friendly popover) */}
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800">
+              <div className="fixed sm:absolute top-14 sm:top-full left-2 right-2 sm:left-auto sm:right-0 mt-0 sm:mt-2 sm:w-96 max-w-sm sm:max-w-none bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800">
                 {/* Header */}
                 <div className="px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
