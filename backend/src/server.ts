@@ -75,6 +75,7 @@ app.get('/api/health', async (_req: Request, res: Response) => {
     database: 'connected',
     system: 'MoA Fixed Asset & Store Management (IFMIS Mirror)',
     scope: 'Store-level processing, tracking, and executive management dashboard',
+    environment: process.env.APP_ENV || (process.env.NODE_ENV === 'production' ? 'prod' : 'dev'),
     version: '2.0.0',
     timestamp: new Date().toISOString(),
   });

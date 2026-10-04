@@ -37,6 +37,8 @@ services:
       # "Today's date" on slips and in the audit log comes from this clock
       TZ: ${TZ:-Africa/Addis_Ababa}
       CORS_ORIGIN: ${CORS_ORIGIN:-}
+      # Deployment environment tier: dev | qa | stage | prod
+      APP_ENV: ${APP_ENV:-prod}
       # Used once, to create the first System Administrator; ignored when one already exists
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}

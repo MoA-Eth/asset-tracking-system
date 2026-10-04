@@ -32,6 +32,17 @@ browser ──HTTPS──> reverse proxy (nginx / IIS) ──HTTP──> Node ap
 
 Both run the same code and need the same reverse proxy for HTTPS. Pick one; do not mix them on one server.
 
+## Environment Tiers
+
+The system uses standard environment names configured via `APP_ENV`:
+
+| Tier | Name | Target | Purpose & Database State |
+| :--- | :--- | :--- | :--- |
+| **`dev`** | Developer | Local workstations | Hot-reloading (`npm run dev`), mock/demo seed (`npm run db:setup`), local ports. |
+| **`qa`** | Quality Assurance | QA testing server / CI | Automated test execution, regression testing, and verification of bug fixes. |
+| **`stage`** | Staging | Pre-production server | Mirror of production running Docker; validates schema migrations and release candidates. |
+| **`prod`** | Production | Official MoA server | Live Ministry operations, strict security headers, automated backups, and real admin provisioning. |
+
 ## Docker
 
 ### What you need
