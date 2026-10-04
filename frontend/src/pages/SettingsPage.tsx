@@ -168,7 +168,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
             <UserPlus className="w-3.5 h-3.5" />
             Add user
           </button>
-          <RefreshButton onClick={fetchData} label="users" />
         </div>
       </div>
 

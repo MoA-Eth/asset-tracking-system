@@ -209,7 +209,6 @@ export const StoresPage: React.FC = () => {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {canManage && <StatusTabs value={statusFilter} onChange={setStatusFilter} active={activeStores.length} inactive={stores.length - activeStores.length} />}
-          <RefreshButton onClick={load} loading={loading} label="stores" />
         </div>
       </div>
 

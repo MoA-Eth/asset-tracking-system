@@ -372,7 +372,6 @@ export const EmployeesPage: React.FC = () => {
               ))}
             </div>
           )}
-          <RefreshButton onClick={load} loading={loading} label="employees" />
         </div>
       </div>
 
