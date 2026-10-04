@@ -43,82 +43,82 @@ export const LoginPage: React.FC = () => {
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
         <div className="max-w-md w-full animate-fadeIn">
 
-          {/* Official Ministry Emblem */}
-          <div className="flex flex-col items-center mb-6 gap-2">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full ring-2 ring-amber-400/40 shadow-2xl shadow-emerald-950 p-1 bg-white/5 backdrop-blur-sm">
-              <MoaLogo className="w-full h-full" alt="Ministry of Agriculture logo" />
-            </div>
-            <div className="text-center mt-1">
-              <h1 className="text-2xl font-extrabold text-white tracking-tight">
-                Welcome Back!
-              </h1>
-              <p className="text-xs text-emerald-300/70 font-medium mt-0.5 uppercase tracking-widest">
-                Login
-              </p>
-            </div>
-          </div>
-
-          {/* Error banner */}
+          {/* Error banner — outside card so it stacks above it */}
           {errorMsg && (
-            <div className="mb-4 p-3.5 rounded-xl bg-red-950/80 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-shake">
+            <div className="mb-3 p-3.5 rounded-xl bg-red-950/80 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-shake">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          {/* Login Form */}
+          {/* Login Card — logo + headings + form all inside */}
           <form
             onSubmit={handleFormSubmit}
-            className="p-6 sm:p-7 rounded-2xl bg-[#092218] border border-emerald-900/70 shadow-2xl space-y-4"
+            className="rounded-2xl bg-[#092218] border border-emerald-900/70 shadow-2xl overflow-hidden"
           >
-            <p className="text-[11px] font-bold text-emerald-400/70 uppercase tracking-wider pb-1 border-b border-emerald-900/50">
-              Sign in to your account
-            </p>
-
-            <div>
-              <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
-                Email or employee ID
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  required
-                  value={usernameOrEmail}
-                  onChange={(e) => setUsernameOrEmail(e.target.value)}
-                  placeholder="e.g. name@moa.gov.et or 00123456"
-                  className="w-full pl-9 pr-3 py-2.5 bg-[#05160E] border border-emerald-900/80 rounded-xl text-xs text-white placeholder-emerald-700/60 focus:outline-none focus:border-amber-400 font-mono transition-colors"
-                />
+            {/* Card header with logo */}
+            <div className="flex flex-col items-center pt-8 pb-5 px-6 sm:px-7 border-b border-emerald-900/50 gap-3">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full ring-2 ring-amber-400/40 shadow-xl shadow-emerald-950 p-1 bg-white/5">
+                <MoaLogo className="w-full h-full" alt="Ministry of Agriculture logo" />
+              </div>
+              <div className="text-center">
+                <h1 className="text-2xl font-extrabold text-white tracking-tight">
+                  Welcome Back!
+                </h1>
+                <p className="text-[11px] text-emerald-300/60 font-medium mt-0.5 uppercase tracking-widest">
+                  Login
+                </p>
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your civil service password"
-                  className="w-full pl-9 pr-3 py-2.5 bg-[#05160E] border border-emerald-900/80 rounded-xl text-xs text-white placeholder-emerald-700/60 focus:outline-none focus:border-amber-400 font-mono transition-colors"
-                />
+            {/* Form fields */}
+            <div className="p-6 sm:p-7 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
+                  Email or employee ID
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    required
+                    value={usernameOrEmail}
+                    onChange={(e) => setUsernameOrEmail(e.target.value)}
+                    placeholder="e.g. name@moa.gov.et or 00123456"
+                    className="w-full pl-9 pr-3 py-2.5 bg-[#05160E] border border-emerald-900/80 rounded-xl text-xs text-white placeholder-emerald-700/60 focus:outline-none focus:border-amber-400 font-mono transition-colors"
+                  />
+                </div>
               </div>
-            </div>
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              isLoading={signingIn}
-              className="w-full bg-[#125835] hover:bg-[#186D42] text-white py-3 border border-amber-400/30 text-xs font-bold shadow-lg mt-2 cursor-pointer"
-              rightIcon={<ArrowRight className="w-4 h-4" />}
-            >
-              Sign In to AMS Portal
-            </Button>
+              <div>
+                <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your civil service password"
+                    className="w-full pl-9 pr-3 py-2.5 bg-[#05160E] border border-emerald-900/80 rounded-xl text-xs text-white placeholder-emerald-700/60 focus:outline-none focus:border-amber-400 font-mono transition-colors"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                isLoading={signingIn}
+                className="w-full bg-[#125835] hover:bg-[#186D42] text-white py-3 border border-amber-400/30 text-xs font-bold shadow-lg mt-2 cursor-pointer"
+                rightIcon={<ArrowRight className="w-4 h-4" />}
+              >
+                Sign In to AMS Portal
+              </Button>
+            </div>
           </form>
+
         </div>
       </div>
 
