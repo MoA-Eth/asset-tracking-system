@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
 import { SETTINGS_NAV, getSettingsGroups, getNavSections, NavItem } from './navigation';
+import { MoaLogo } from '../ui/MoaLogo';
 
 interface DesktopSidebarProps {
   activeTab: string;
@@ -120,15 +121,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             title={collapsed ? 'Expand sidebar' : undefined}
             aria-label={collapsed ? 'Expand sidebar' : 'MoA-AMS'}
           >
-            <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow">
-              <circle cx="50" cy="50" r="46" fill="#0A3F24" stroke="#FCDD09" strokeWidth="3" />
-              <path d="M50 16 L50 82" stroke="#FCDD09" strokeWidth="3.5" strokeLinecap="round" />
-              <path d="M50 28 Q66 22 68 34 Q58 38 50 34" fill="#FCDD09" />
-              <path d="M50 42 Q68 36 70 48 Q60 52 50 48" fill="#FCDD09" />
-              <path d="M50 28 Q34 22 32 34 Q42 38 50 34" fill="#FCDD09" />
-              <path d="M50 42 Q32 36 30 48 Q40 52 50 48" fill="#FCDD09" />
-              <circle cx="50" cy="50" r="4" fill="#FCDD09" />
-            </svg>
+            <MoaLogo className="w-full h-full drop-shadow" alt="MoA-AMS" />
           </button>
 
           {!collapsed && (
