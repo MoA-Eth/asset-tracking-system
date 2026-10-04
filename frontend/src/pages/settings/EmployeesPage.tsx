@@ -556,7 +556,7 @@ export const EmployeesPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setConfirming(null)}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+                className="rounded-[3px] border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
               >
                 Cancel
               </button>
@@ -566,8 +566,8 @@ export const EmployeesPage: React.FC = () => {
                 disabled={toggling}
                 className={
                   confirming.isActive
-                    ? 'flex items-center gap-1.5 rounded-lg bg-red-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-800 disabled:bg-slate-300 cursor-pointer'
-                    : 'flex items-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-800 disabled:bg-slate-300 cursor-pointer'
+                    ? 'flex items-center gap-1.5 rounded-[3px] bg-red-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-800 disabled:bg-slate-300 cursor-pointer'
+                    : 'flex items-center gap-1.5 rounded-[3px] bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-800 disabled:bg-slate-300 cursor-pointer'
                 }
               >
                 {toggling && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}

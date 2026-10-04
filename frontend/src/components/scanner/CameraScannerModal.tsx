@@ -167,7 +167,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
               </div>
               <button
                 onClick={startCamera}
-                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-lg shadow-xs transition active:scale-95"
+                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-[3px] shadow-xs transition active:scale-95"
               >
                 Launch Device Camera
               </button>
@@ -196,7 +196,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
               <button
                 onClick={() => handleLookup(manualCode)}
                 disabled={loading || !manualCode.trim()}
-                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5 shrink-0"
+                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white text-xs font-semibold rounded-[3px] transition flex items-center gap-1.5 shrink-0"
               >
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Search'}
               </button>

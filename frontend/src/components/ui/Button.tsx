@@ -25,7 +25,7 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center font-bold rounded-xl transition shadow-xs active:scale-95 cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100';
+    'inline-flex items-center justify-center font-bold rounded-[3px] transition shadow-xs active:scale-95 cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100';
 
   const sizeStyles: Record<ButtonSize, string> = {
     sm: 'px-3 py-1.5 text-xs gap-1.5',

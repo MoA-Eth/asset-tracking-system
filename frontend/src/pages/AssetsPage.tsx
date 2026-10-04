@@ -668,7 +668,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
         <h3 className="text-sm font-bold text-red-900">The assets could not be loaded</h3>
         <p className="text-xs text-red-700">{error}</p>
-        <button onClick={() => fetchData()} className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl transition cursor-pointer inline-flex items-center gap-1.5">
+        <button onClick={() => fetchData()} className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-[3px] transition cursor-pointer inline-flex items-center gap-1.5">
           <RefreshCw className="w-3.5 h-3.5" />
           Try again
         </button>

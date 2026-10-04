@@ -161,7 +161,7 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0B3D25] hover:bg-[#072F1C] text-white text-xs font-semibold cursor-pointer shadow-xs transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] bg-[#0B3D25] hover:bg-[#072F1C] text-white text-xs font-semibold cursor-pointer shadow-xs transition"
           >
             <Check className="w-3.5 h-3.5" />
             <span>Apply Filters</span>

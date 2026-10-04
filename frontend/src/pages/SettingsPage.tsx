@@ -12,7 +12,7 @@ import {
   UserX,
 } from 'lucide-react';
 import { api } from '../api/client';
-import { table } from '../components/ui/theme';
+import { table, btn } from '../components/ui/theme';
 import { UserRole, Employee, Department } from '../types/asset-management';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -146,7 +146,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
         <p className="text-xs text-red-700">{error}</p>
         <button
           onClick={fetchData}
-          className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl transition cursor-pointer inline-flex items-center gap-1.5"
+          className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-[3px] transition cursor-pointer inline-flex items-center gap-1.5"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Retry Loading
@@ -164,7 +164,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
         </p>
 
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={() => setAdding(true)} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5">
+          <button onClick={() => setAdding(true)} className={`${btn.primary} flex items-center gap-1.5`}>
             <UserPlus className="w-3.5 h-3.5" />
             Add user
           </button>
