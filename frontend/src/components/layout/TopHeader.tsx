@@ -25,17 +25,14 @@ import {
   CheckCircle2,
   CheckCheck,
   Clock,
-  KeyRound,
   Users,
+  User,
 } from 'lucide-react';
 import { getTodayGcAndEc } from '../../utils/eth-date';
 import { UserRole, TransactionApproval, TransactionType, ApprovalStatus, Location } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
 import { api } from '../../api/client';
 import { GlobalSearch } from './GlobalSearch';
-import { Modal } from '../ui/Modal';
-import { ChangePasswordForm } from '../auth/ChangePasswordForm';
 
 interface TopHeaderProps {
   activeTab: string;
@@ -74,11 +71,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   pendingApprovalsCount = 0,
 }) => {
   const { user, role, logout, canAccessTab } = useAuth();
-  const toast = useToast();
   const [showAmDate, setShowAmDate] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [changingPassword, setChangingPassword] = useState(false);
   const [notifications, setNotifications] = useState<TransactionApproval[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -230,6 +225,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         return { title: 'Audit Log', am: 'የኦዲት መዝገብ', icon: ShieldCheck, iconColor: 'text-emerald-700' };
       case 'reports':
         return { title: 'Reports', am: 'የሪፖርት መዝገብ', icon: FileSpreadsheet, iconColor: 'text-emerald-700' };
+      case 'settings-profile':
+        return { title: 'Profile', am: 'የተጠቃሚ መገለጫ', icon: User, iconColor: 'text-emerald-700' };
       case 'settings-users':
         return { title: 'Users & Permissions', am: 'ተጠቃሚዎች እና ፈቃዶች', icon: Settings, iconColor: 'text-emerald-700' };
       case 'settings-roles':
@@ -249,8 +246,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const PageIcon = pageInfo.icon;
 
   return (
-    <>
-      <header className="no-print bg-white border-b border-slate-200/90 sticky top-0 z-20 px-3.5 sm:px-4 lg:px-3.5 py-2.5 flex items-center justify-between gap-3">
+    <header className="no-print bg-white border-b border-slate-200/90 sticky top-0 z-20 px-3.5 sm:px-4 lg:px-3.5 py-2.5 flex items-center justify-between gap-3">
       {/* Left: Sidebar Toggle & Page Title */}
       <div className="flex items-center gap-3 min-w-0 md:shrink-0 flex-1 md:flex-none">
         <button
@@ -538,7 +534,20 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
                 {/* Menu Items */}
                 <div className="p-1 space-y-0.5 text-xs">
-                  {canAccessTab && canAccessTab('settings-users') && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      onNavigate('settings-profile');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:text-emerald-900 hover:bg-slate-50 rounded-lg transition cursor-pointer"
+                  >
+                    <User className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>Profile</span>
+                  </button>
+
+                  {Boolean(canAccessTab ? canAccessTab('settings-users') : user?.allowedTabs?.includes('settings-users')) && (
                     <button
                       type="button"
                       role="menuitem"
@@ -549,22 +558,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:text-emerald-900 hover:bg-slate-50 rounded-lg transition cursor-pointer"
                     >
                       <Users className="w-4 h-4 text-emerald-700 shrink-0" />
-                      <span>User Management</span>
+                      <span>Users</span>
                     </button>
                   )}
-
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      setChangingPassword(true);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:text-emerald-900 hover:bg-slate-50 rounded-lg transition cursor-pointer"
-                  >
-                    <KeyRound className="w-4 h-4 text-emerald-700 shrink-0" />
-                    <span>Change Password</span>
-                  </button>
                 </div>
 
                 {/* Sign out */}
@@ -588,26 +584,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         )}
       </div>
     </header>
-
-    {/* Change Password Modal */}
-    <Modal
-      isOpen={changingPassword}
-      onClose={() => setChangingPassword(false)}
-      title="Change password"
-      subtitle={user?.fullNameEn || user?.email}
-      size="sm"
-    >
-      {changingPassword && (
-        <ChangePasswordForm
-          onDone={() => {
-            setChangingPassword(false);
-            toast.success('Password changed', 'Use the new password next time you sign in.');
-          }}
-          onCancel={() => setChangingPassword(false)}
-        />
-      )}
-    </Modal>
-  </>
-);
+  );
 };
 

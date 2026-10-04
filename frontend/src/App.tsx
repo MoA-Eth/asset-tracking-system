@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TopHeader } from './components/layout/TopHeader';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { DesktopSidebar } from './components/layout/DesktopSidebar';
@@ -14,6 +14,7 @@ import { loadSystemSettings } from './utils/system-settings';
 import { RolesPage } from './pages/settings/RolesPage';
 import { EmployeesPage } from './pages/settings/EmployeesPage';
 import { StoresPage } from './pages/settings/StoresPage';
+import { ProfilePage } from './pages/settings/ProfilePage';
 import { LoginPage } from './pages/LoginPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -34,12 +35,20 @@ const AuthenticatedPortal: React.FC = () => {
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number>(0);
   const [selectedCenter, setSelectedCenter] = useState<string>('ALL');
 
+  const mainRef = useRef<HTMLElement>(null);
+
   useEffect(() => {
     setRequestedTab(localStorage.getItem('moa_active_tab') || '');
     setUsersRoleFilter('ALL');
     // The forms need the system-wide rules (e.g. whether a scanned slip is required)
     if (user?.id) loadSystemSettings().catch(() => {});
   }, [user?.id]);
+
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [activeTab]);
 
   const handleTabChange = (tab: string) => {
     const valid = getValidTab(user, tab);
@@ -158,7 +167,7 @@ const AuthenticatedPortal: React.FC = () => {
         />
 
         {/* Page Content - Strictly Gated to Authorized Role */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-3.5 lg:px-3.5 lg:pt-3 lg:pb-2.5 w-full pb-8">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-3 sm:p-3.5 lg:px-3.5 lg:pt-3 lg:pb-2.5 w-full pb-8">
           <ErrorBoundary fallbackTitle="Page Content Notice">
             {!activeTab && <p className="text-sm text-slate-600">No pages are available for this account. Contact your System Administrator.</p>}
             {activeTab.startsWith('settings-') && (
@@ -192,6 +201,9 @@ const AuthenticatedPortal: React.FC = () => {
             )}
             {activeTab === 'reports' && (
               <ReportsPage />
+            )}
+            {activeTab === 'settings-profile' && (
+              <ProfilePage />
             )}
             {activeTab === 'settings-users' && (
               <SettingsPage
