@@ -44,9 +44,17 @@ export const LoginPage: React.FC = () => {
         <div className="max-w-md w-full animate-fadeIn">
 
           {/* Official Ministry Emblem */}
-          <div className="flex justify-center mb-6">
+          <div className="flex flex-col items-center mb-6 gap-2">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full ring-2 ring-amber-400/40 shadow-2xl shadow-emerald-950 p-1 bg-white/5 backdrop-blur-sm">
               <MoaLogo className="w-full h-full" alt="Ministry of Agriculture logo" />
+            </div>
+            <div className="text-center mt-1">
+              <h1 className="text-2xl font-extrabold text-white tracking-tight">
+                Welcome Back!
+              </h1>
+              <p className="text-xs text-emerald-300/70 font-medium mt-0.5 uppercase tracking-widest">
+                Login
+              </p>
             </div>
           </div>
 
