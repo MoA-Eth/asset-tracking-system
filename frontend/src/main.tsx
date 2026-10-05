@@ -17,7 +17,7 @@ import './index.css';
 // Service Worker Registration for PWA support (active in production)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    if (import.meta.env.PROD) {
+    if (import.meta.env.PROD || window.location.search.includes('pwa=true')) {
       navigator.serviceWorker
         .register('/sw.js')
         .catch((err) => {
