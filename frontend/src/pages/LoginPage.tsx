@@ -167,7 +167,7 @@ export const LoginPage: React.FC = () => {
                   variant="primary"
                   size="lg"
                   isLoading={signingIn}
-                  className="w-full h-11 text-white py-3 text-xs font-bold shadow-xl cursor-pointer border border-amber-400/30 rounded-xl transition-all flex items-center justify-center gap-2"
+                  className="w-full h-11 text-white py-3 text-xs font-bold shadow-xl cursor-pointer border border-amber-400/30 rounded-[3px] transition-all flex items-center justify-center gap-2"
                   style={{ background: "linear-gradient(135deg, #12633C 0%, #0B3D25 100%)" }}
                   rightIcon={<ArrowRight className="w-4 h-4" />}
                 >

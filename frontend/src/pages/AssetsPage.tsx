@@ -24,6 +24,7 @@ import {
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { CloseButton } from '../components/ui/CloseButton';
+import { FilterPopover, FilterSection, FilterPill, FilterSelect } from '../components/ui/FilterPopover';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
 import { AssetRecord } from '../components/assets/AssetRecord';
@@ -667,7 +668,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
         <h3 className="text-sm font-bold text-red-900">The assets could not be loaded</h3>
         <p className="text-xs text-red-700">{error}</p>
-        <button onClick={() => fetchData()} className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl transition cursor-pointer inline-flex items-center gap-1.5">
+        <button onClick={() => fetchData()} className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-[3px] transition cursor-pointer inline-flex items-center gap-1.5">
           <RefreshCw className="w-3.5 h-3.5" />
           Try again
         </button>
@@ -958,36 +959,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     }
   }, [selectedId]);
 
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
-  const filterMenuRef = useRef<HTMLDivElement>(null);
-  const filterBtnRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!filterMenuOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        filterMenuRef.current &&
-        !filterMenuRef.current.contains(e.target as Node) &&
-        !filterBtnRef.current?.contains(e.target as Node)
-      ) {
-        setFilterMenuOpen(false);
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setFilterMenuOpen(false);
-        filterBtnRef.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [filterMenuOpen]);
-
-  const activeFilterCount = (locationFilter !== 'ALL' ? 1 : 0) + (categoryFilter !== 'ALL' ? 1 : 0);
+  const activeFilterCount =
+    (filter !== 'ALL' ? 1 : 0) +
+    (locationFilter !== 'ALL' ? 1 : 0) +
+    (categoryFilter !== 'ALL' ? 1 : 0);
 
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
   const availableItems = items.filter((i) => i.status === ItemStatus.AVAILABLE && !pendingByItem.has(i.id));
@@ -1000,116 +976,62 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           Every asset from receipt to custody. Receive on Model 19, issue on Model 22, then transfer or return on Model 21.
         </p>
         <div className="flex items-center gap-2 shrink-0">
-          {/* Filter Popover Button */}
-          <div className="relative inline-block text-left" ref={filterMenuRef}>
-            <button
-              ref={filterBtnRef}
-              type="button"
-              id="assets-filter-button"
-              aria-haspopup="true"
-              aria-expanded={filterMenuOpen}
-              aria-label={`Filter assets${activeFilterCount > 0 ? ` (${activeFilterCount} active)` : ''}`}
-              onClick={() => setFilterMenuOpen((prev) => !prev)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer shadow-2xs shrink-0 ${
-                activeFilterCount > 0 || filterMenuOpen
-                  ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/20'
-                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-emerald-800'
-              }`}
-            >
-              <Filter className={`w-3.5 h-3.5 ${activeFilterCount > 0 ? 'text-emerald-700' : 'text-slate-500'}`} />
-              <span>Filter</span>
-              {activeFilterCount > 0 && (
-                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold text-white leading-none">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-
-            <div
-              className={`absolute right-0 top-full mt-2 w-72 sm:w-80 z-30 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xl animate-fadeIn ${
-                filterMenuOpen ? '' : 'hidden'
-              }`}
-            >
-                <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-1.5">
-                    <Filter className="w-3.5 h-3.5 text-emerald-700" />
-                    <span className="text-xs font-bold text-slate-900">Filter assets</span>
-                    {activeFilterCount > 0 && (
-                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded-full">
-                        {activeFilterCount} active
-                      </span>
-                    )}
-                  </div>
-                  {activeFilterCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLocationFilter('ALL');
-                        setCategoryFilter('ALL');
-                      }}
-                      className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
-                    >
-                      Reset
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <label htmlFor="filter-store-location" className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Store & Location
-                    </label>
-                    <select
-                      id="filter-store-location"
-                      aria-label="Filter by store location"
-                      value={locationFilter}
-                      onChange={(e) => setLocationFilter(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-2.5 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                    >
-                      <option value="ALL">All Stores & Locations</option>
-                      {locations.map((loc) => (
-                        <option key={loc.id} value={loc.id}>
-                          {storeLocationLabel(loc)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="filter-asset-category" className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Asset Category
-                    </label>
-                    <select
-                      id="filter-asset-category"
-                      aria-label="Filter by asset category"
-                      value={categoryFilter}
-                      onChange={(e) => setCategoryFilter(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-2.5 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                    >
-                      <option value="ALL">All Categories</option>
-                      {CATEGORY_OPTIONS.map((cat) => (
-                        <option key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                  <span className="text-slate-400">
-                    {sortedShown.length} {sortedShown.length === 1 ? 'asset group' : 'asset groups'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setFilterMenuOpen(false)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold text-slate-700 cursor-pointer transition"
-                  >
-                    Done
-                  </button>
-                </div>
+          {/* Reusable Filter Popover */}
+          <FilterPopover
+            label="Filter"
+            ariaLabel="Filter assets"
+            title="Filters"
+            resetLabel="Reset"
+            activeCount={activeFilterCount}
+            onReset={() => {
+              setFilter('ALL');
+              setLocationFilter('ALL');
+              setCategoryFilter('ALL');
+            }}
+            resultCountText={`${sortedShown.length} ${sortedShown.length === 1 ? 'group' : 'groups'}`}
+          >
+            {/* Status Filter */}
+            <FilterSection label="Lifecycle Status">
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {FILTERS.map((f) => (
+                  <FilterPill
+                    key={f.value}
+                    label={f.label}
+                    count={groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length}
+                    active={filter === f.value}
+                    onClick={() => setFilter(f.value)}
+                  />
+                ))}
               </div>
-          </div>
+            </FilterSection>
+
+            {/* Store & Location */}
+            <FilterSection label="Store & Custody Location" htmlFor="filter-store-location">
+              <FilterSelect
+                id="filter-store-location"
+                ariaLabel="Filter by store location"
+                placeholder="All Stores & Locations"
+                value={locationFilter}
+                onChange={setLocationFilter}
+                options={locations.map((loc) => ({
+                  value: loc.id,
+                  label: storeLocationLabel(loc),
+                }))}
+              />
+            </FilterSection>
+
+            {/* Asset Category */}
+            <FilterSection label="Asset Category" htmlFor="filter-asset-category">
+              <FilterSelect
+                id="filter-asset-category"
+                ariaLabel="Filter by asset category"
+                placeholder="All Categories"
+                value={categoryFilter}
+                onChange={setCategoryFilter}
+                options={CATEGORY_OPTIONS}
+              />
+            </FilterSection>
+          </FilterPopover>
 
           <button
             type="button"
@@ -1302,45 +1224,28 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         /* ── Register ── */
         <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
         <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
-          <div className="flex flex-col gap-2.5 md:flex-row md:items-center md:justify-between">
-            <div role="group" aria-label="Show assets" className="flex flex-wrap items-center gap-1.5">
-              {FILTERS.map((f) => (
-                <button
-                  key={f.value}
-                  type="button"
-                  aria-pressed={filter === f.value}
-                  onClick={() => setFilter(f.value)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    filter === f.value ? 'bg-emerald-800 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {f.label} <span className="ml-0.5 opacity-75">{groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length}</span>
-                </button>
-              ))}
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                aria-label="Search assets"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, code, serial, slip or person…"
+                className={table.search.replace('pr-8', 'pr-3')}
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 md:w-72">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  aria-label="Search assets"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name, code, serial, slip or person…"
-                  className={table.search.replace('pr-8', 'pr-3')}
-                />
-              </div>
-              {canReceive && (
-                <button
-                  type="button"
-                  onClick={() => openReceipt()}
-                  className={`${btn.primary} shrink-0`}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Receive items (Model 19)</span>
-                </button>
-              )}
-            </div>
+            {canReceive && (
+              <button
+                type="button"
+                onClick={() => openReceipt()}
+                className={`${btn.primary} shrink-0`}
+              >
+                <Plus className="w-4 h-4" />
+                <span>Receive items (Model 19)</span>
+              </button>
+            )}
           </div>
 
           {/* Active Filter Chips (if any filter, search, or sort is active) */}
@@ -1377,7 +1282,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               )}
               {filter !== 'ALL' && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
-                  <span>Status: {filter === 'IN_STORE' ? 'In store' : filter === 'ISSUED' ? 'Issued' : 'Pending'}</span>
+                  <span>Status: {FILTERS.find((f) => f.value === filter)?.label || filter}</span>
                   <button
                     type="button"
                     onClick={() => setFilter('ALL')}

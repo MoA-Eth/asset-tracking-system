@@ -61,7 +61,7 @@ export const ConfirmDialog: React.FC<{
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+          className="rounded-[3px] border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
         >
           Cancel
         </button>
@@ -69,7 +69,7 @@ export const ConfirmDialog: React.FC<{
           type="button"
           onClick={onConfirm}
           disabled={busy}
-          className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white transition disabled:bg-slate-300 cursor-pointer ${
+          className={`flex items-center gap-1.5 rounded-[3px] px-4 py-2 text-xs font-semibold text-white transition disabled:bg-slate-300 cursor-pointer ${
             danger ? 'bg-red-700 hover:bg-red-800' : 'bg-emerald-700 hover:bg-emerald-800'
           }`}
         >

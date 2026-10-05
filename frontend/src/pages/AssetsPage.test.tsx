@@ -142,6 +142,8 @@ describe('Assets page', () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
+    const filterBtn = screen.getByRole('button', { name: /Filter assets/i });
+    await user.click(filterBtn);
     expect(screen.getByRole('button', { name: /^Pending 3$/ })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Issued/ }));
     // The batch shows with only its issued unit unfolded

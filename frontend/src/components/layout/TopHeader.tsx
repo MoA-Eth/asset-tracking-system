@@ -25,6 +25,8 @@ import {
   CheckCircle2,
   CheckCheck,
   Clock,
+  Users,
+  User,
 } from 'lucide-react';
 import { getTodayGcAndEc } from '../../utils/eth-date';
 import { UserRole, TransactionApproval, TransactionType, ApprovalStatus, Location } from '../../types/asset-management';
@@ -44,6 +46,21 @@ interface TopHeaderProps {
   pendingApprovalsCount?: number;
 }
 
+const ROLE_TITLES: Partial<Record<UserRole, string>> = {
+  [UserRole.MANAGER]: 'Manager',
+  [UserRole.DEPARTMENT_HEAD]: 'Directorate Head',
+  [UserRole.TEAM_LEADER]: 'Team Leader',
+  [UserRole.DATA_ENCODER]: 'Data Encoder',
+  [UserRole.SYSTEM_ADMIN]: 'System Administrator',
+};
+
+const getInitials = (name?: string): string => {
+  if (!name) return 'MOA';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
+
 export const TopHeader: React.FC<TopHeaderProps> = ({
   activeTab,
   sidebarCollapsed,
@@ -53,9 +70,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   setSelectedCenter,
   pendingApprovalsCount = 0,
 }) => {
-  const { user, role, logout } = useAuth();
+  const { user, role, logout, canAccessTab } = useAuth();
   const [showAmDate, setShowAmDate] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState<TransactionApproval[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -69,6 +87,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     }
   });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Sync stored read IDs when user switches
   useEffect(() => {
@@ -166,20 +185,33 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const unreadCount = notifications.filter((n) => !readIds.includes(n.id)).length;
   const displayBadgeCount = notifications.length > 0 ? unreadCount : pendingApprovalsCount;
 
-  // Click outside listener
+  // Click outside and escape key listener for dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
     };
-    if (showNotifications) {
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowNotifications(false);
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showNotifications || showUserMenu) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showNotifications]);
+  }, [showNotifications, showUserMenu]);
 
   const getPageInfo = () => {
     switch (activeTab) {
@@ -193,6 +225,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         return { title: 'Audit Log', am: 'የኦዲት መዝገብ', icon: ShieldCheck, iconColor: 'text-emerald-700' };
       case 'reports':
         return { title: 'Reports', am: 'የሪፖርት መዝገብ', icon: FileSpreadsheet, iconColor: 'text-emerald-700' };
+      case 'settings-profile':
+        return { title: 'Profile', am: 'የተጠቃሚ መገለጫ', icon: User, iconColor: 'text-emerald-700' };
       case 'settings-users':
         return { title: 'Users & Permissions', am: 'ተጠቃሚዎች እና ፈቃዶች', icon: Settings, iconColor: 'text-emerald-700' };
       case 'settings-roles':
@@ -310,9 +344,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               )}
             </button>
 
-            {/* Floating Notification Popover (YouTube-style clean drawer) */}
+            {/* Floating Notification Popover (Responsive mobile-friendly popover) */}
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800">
+              <div className="fixed sm:absolute top-14 sm:top-full left-2 right-2 sm:left-auto sm:right-0 mt-0 sm:mt-2 sm:w-96 max-w-sm sm:max-w-none bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800">
                 {/* Header */}
                 <div className="px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -438,6 +472,111 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       );
                     })
                   )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* User Profile Avatar & Dropdown Menu (LiveScreenMD style) */}
+        {user && (
+          <div className="relative" ref={userMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowUserMenu((prev) => !prev)}
+              aria-haspopup="true"
+              aria-expanded={showUserMenu}
+              aria-label={`Account menu for ${user.fullNameEn || ROLE_TITLES[role] || role}`}
+              title={`Account menu (${user.fullNameEn || ROLE_TITLES[role] || role})`}
+              className={`inline-flex size-8 items-center justify-center overflow-hidden rounded-full font-bold text-xs transition cursor-pointer select-none ${
+                showUserMenu
+                  ? 'ring-2 ring-emerald-600 bg-emerald-800 text-white shadow-xs'
+                  : 'bg-emerald-700 hover:bg-emerald-800 text-white hover:ring-2 hover:ring-emerald-600/40 shadow-2xs'
+              }`}
+            >
+              <span>{getInitials(user.fullNameEn || user.email)}</span>
+            </button>
+
+            {/* Floating Account Dropdown */}
+            {showUserMenu && (
+              <div
+                role="menu"
+                aria-label="User Account Menu"
+                className="absolute right-0 mt-2 w-64 bg-white rounded-xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800"
+              >
+                {/* Identity Header Card */}
+                <div className="p-3.5 bg-slate-50/80 border-b border-slate-100 flex items-start gap-2.5">
+                  <div className="size-9 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-emerald-600/30">
+                    {getInitials(user.fullNameEn || user.email)}
+                  </div>
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <span className="block font-bold text-xs text-slate-900 truncate">
+                      {user.fullNameEn || ROLE_TITLES[role] || role}
+                    </span>
+                    {user.email && (
+                      <span className="block text-[11px] text-slate-500 font-mono truncate mt-0.5">
+                        {user.email}
+                      </span>
+                    )}
+                    <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <Shield className="w-2.5 h-2.5 text-emerald-700" />
+                        {ROLE_TITLES[role] || role}
+                      </span>
+                      {user.payrollId && (
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          ID: {user.payrollId}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Menu Items */}
+                <div className="p-1 space-y-0.5 text-xs">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      onNavigate('settings-profile');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:text-emerald-900 hover:bg-slate-50 rounded-lg transition cursor-pointer"
+                  >
+                    <User className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>Profile</span>
+                  </button>
+
+                  {Boolean(canAccessTab ? canAccessTab('settings-users') : user?.allowedTabs?.includes('settings-users')) && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        onNavigate('settings-users');
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:text-emerald-900 hover:bg-slate-50 rounded-lg transition cursor-pointer"
+                    >
+                      <Users className="w-4 h-4 text-emerald-700 shrink-0" />
+                      <span>Users</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Sign out */}
+                <div className="p-1 border-t border-slate-100">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-semibold text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>Sign out</span>
+                  </button>
                 </div>
               </div>
             )}

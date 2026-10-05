@@ -13,6 +13,7 @@ import {
   Warehouse,
   Sliders,
   LucideIcon,
+  User,
 } from 'lucide-react';
 import { AuthUser } from '../../types/asset-management';
 
@@ -75,6 +76,12 @@ export const SETTINGS_NAV: { label: string; icon: LucideIcon; groups: SettingsNa
   icon: Settings,
   groups: [
     {
+      label: 'Account',
+      items: [
+        { id: 'settings-profile', label: 'Profile', icon: User },
+      ],
+    },
+    {
       label: 'People',
       items: [
         { id: 'settings-users', label: 'Users', icon: Users },
@@ -108,6 +115,7 @@ const RETIRED_TABS: Record<string, string> = {
 export function getValidTab(user: Pick<AuthUser, 'allowedTabs' | 'landingTab'> | null, requested?: string | null): string {
   const allowed = user?.allowedTabs ?? [];
   const candidate = requested ? RETIRED_TABS[requested] ?? requested : requested;
+  if (candidate === 'settings-profile') return candidate;
   if (candidate && allowed.includes(candidate)) return candidate;
   return user?.landingTab && allowed.includes(user.landingTab) ? user.landingTab : (allowed[0] ?? '');
 }

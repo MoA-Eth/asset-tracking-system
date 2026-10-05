@@ -237,7 +237,6 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
         <p className="text-xs text-slate-500">
           What each role is allowed to do. Switch a permission on or off, then save; every change is recorded in the audit log.
         </p>
-        <RefreshButton onClick={load} loading={loading} disabled={saving} label="roles" />
       </header>
 
       {loading ? (

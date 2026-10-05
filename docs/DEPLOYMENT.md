@@ -1,282 +1,224 @@
-# Deploying the Asset Tracking System
+# MoA-AMS Production Deployment Guide
 
-How to install the system on a real server, keep it running, and upgrade it.
-For running it on your own computer during development, see the root `README.md`.
+A concise, step-by-step specification for deploying the Ministry of Agriculture Fixed Asset & Store Management System (**MoA-AMS**) on a production Linux server.
 
-The quickest route is Docker: see "Docker" below.
+---
 
-## What runs
+## 1. Server Specifications & Requirements
 
-One Node.js process serves both the API and the web app, on one port. It needs a PostgreSQL database
-and a folder on disk for uploaded slips.
-
-```
-browser ──HTTPS──> reverse proxy (nginx / IIS) ──HTTP──> Node app (port 3000) ──> PostgreSQL
-                                                              └──> backend/uploads/slips
-```
-
-## Requirements
-
-- Node.js 20 or newer, npm 10 or newer
-- PostgreSQL 15 or newer
-- A reverse proxy that provides HTTPS (nginx, IIS, Caddy…)
-- The server's time zone set to **Africa/Addis_Ababa**. "Today's date" on slips and in the audit log
-  comes from the server's clock. Set the machine's time zone, or start the app with `TZ=Africa/Addis_Ababa`.
-
-## Two ways to install
-
-- **With Docker** (next section): one command starts the app and its database. Nothing else is installed
-  on the server apart from Docker itself.
-- **Directly on the server** (sections 1 to 4): Node.js and PostgreSQL are installed on the server and the
-  app is kept running with a process manager.
-
-Both run the same code and need the same reverse proxy for HTTPS. Pick one; do not mix them on one server.
-
-## Environment Tiers
-
-The system uses standard environment names configured via `APP_ENV`:
-
-| Tier | Name | Target | Purpose & Database State |
+| Resource | Minimum (Staging / Pilot) | Recommended (Production) | Notes |
 | :--- | :--- | :--- | :--- |
-| **`dev`** | Developer | Local workstations | Hot-reloading (`npm run dev`), mock/demo seed (`npm run db:setup`), local ports. |
-| **`qa`** | Quality Assurance | QA testing server / CI | Automated test execution, regression testing, and verification of bug fixes. |
-| **`stage`** | Staging | Pre-production server | Mirror of production running Docker; validates schema migrations and release candidates. |
-| **`prod`** | Production | Official MoA server | Live Ministry operations, strict security headers, automated backups, and real admin provisioning. |
+| **Operating System** | Ubuntu Server 22.04 LTS | **Ubuntu Server 24.04 LTS** (or RHEL 9 / Rocky 9) | 64-bit x86_64 Linux |
+| **Compute (vCPU)** | 2 vCPUs | **4 vCPUs** | 2.4 GHz+ |
+| **Memory (RAM)** | 4 GB | **8 GB** | Node.js + PostgreSQL buffer cache |
+| **Disk Storage** | 50 GB SSD | **100 GB – 150 GB NVMe / SSD** | System + DB + PDF voucher uploads |
+| **Timezone** | `Africa/Addis_Ababa` | **`Africa/Addis_Ababa`** (UTC+3) | Required for accurate Ethiopian fiscal dates |
+| **Runtimes** | Docker Engine 24+ & Docker Compose v2 | **Docker Engine 26+ & Compose v2** | Standard container runtime |
 
-## Docker
+---
 
-### What you need
+## 2. Architecture Overview
 
-- Docker Engine 24 or newer with the Compose plugin (`docker compose version` should answer)
-- A reverse proxy on the server that provides HTTPS, as in the "HTTPS" section below
+```
+Client (Desktop / Mobile PWA)
+           │
+      HTTPS (Port 443)
+           ▼
+[ Nginx Reverse Proxy / SSL Termination ]
+           │
+      HTTP (127.0.0.1:3000)
+           ▼
+[ MoA-AMS App Container (Node 22 / Express / Vite SPA) ]
+     ├── Persistent Volume: /app/backend/uploads (Scanned slips / PDFs)
+     └── Internal TCP (5432)
+           ▼
+[ PostgreSQL 16 Container ]
+     └── Persistent Volume: /var/lib/postgresql/data
+```
 
-### First start
+---
+
+## 3. Firewall & Ports Configuration
+
+Configure the Linux firewall (`ufw` on Ubuntu or `firewalld` on RHEL):
 
 ```bash
-git clone https://github.com/MoA-Eth/asset-tracking-system.git
-cd asset-tracking-system
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow 22/tcp    # SSH (Restrict to IT management subnet if applicable)
+sudo ufw allow 80/tcp    # HTTP (Auto-redirect to HTTPS)
+sudo ufw allow 443/tcp   # HTTPS (Production Web & PWA traffic)
+sudo ufw enable
+```
+
+*Ports `3000` (Node.js) and `5432` (PostgreSQL) must remain strictly internal.*
+
+---
+
+## 4. Production Deployment with Docker (Recommended)
+
+### Step 1: Install Docker on the Linux Host
+```bash
+sudo timedatectl set-timezone Africa/Addis_Ababa
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+### Step 2: Clone Repository & Create `.env`
+```bash
+git clone -b feat/asset-tracking-portal https://github.com/MoA-Eth/asset-tracking-system.git /opt/moa-ams
+cd /opt/moa-ams
 cp .env.docker.example .env
 ```
 
-Open `.env` and fill in:
+### Step 3: Configure `.env`
+Generate secrets and populate `/opt/moa-ams/.env`:
 
-| Setting | What to put |
-| :--- | :--- |
-| `POSTGRES_PASSWORD` | A long random password for the database (letters and numbers) |
-| `JWT_SECRET` | A random value of at least 32 characters; the file shows a command that makes one |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | The first System Administrator. The password needs 12 or more characters with letters and numbers |
-| `APP_BIND` | Leave `127.0.0.1:3000` when a reverse proxy on the same server provides HTTPS |
+```ini
+# Environment Tier
+APP_ENV=prod
+TZ=Africa/Addis_Ababa
 
-Then:
+# Database Password (generate a strong password)
+POSTGRES_PASSWORD=SetAStrongRandomPasswordHere123!
 
-```bash
-docker compose up -d --build
-docker compose logs -f app      # wait for "REST API running", then Ctrl+C
-```
+# Session Token Secret (generate with: openssl rand -hex 32)
+JWT_SECRET=ReplaceWith64CharacterRandomHexSecretGeneratedAbove
 
-The first start creates the database tables and the administrator. The administrator signs in with the
-email and password from `.env` and is asked to choose a new password straight away. After that first
-sign-in, remove `ADMIN_PASSWORD` from `.env`; it is not used again.
+# Initial System Administrator (used ONLY on first launch)
+ADMIN_EMAIL=admin@moa.gov.et
+ADMIN_PASSWORD=InitialAdminPassword123!
+ADMIN_NAME=System Administrator
+ADMIN_EMPLOYEE_ID=ADMIN-001
 
-Point the reverse proxy at `http://127.0.0.1:3000` (the nginx example under "HTTPS" applies unchanged),
-then continue with "2. First steps in the app".
-
-### Day-to-day
-
-```bash
-docker compose ps               # both services should say "healthy"
-docker compose logs --tail 100 app
-docker compose restart app
-docker compose down             # stop; the data stays
-```
-
-Never run `docker compose down -v`: the `-v` deletes the database and the scanned slips.
-
-### Backups
-
-Two things hold data: the database, and the scanned slips. Back up both, at the same time.
-
-```bash
-# database
-docker compose exec -T db pg_dump -U moa_ams -Fc moa_ams > moa_ams-$(date +%F).dump
-# scanned slips
-docker compose cp app:/app/backend/uploads ./slips-$(date +%F)
-```
-
-To restore onto a fresh installation: start it once, then
-
-```bash
-docker compose exec -T db pg_restore -U moa_ams -d moa_ams --clean --if-exists < moa_ams-2026-10-02.dump
-docker compose cp ./slips-2026-10-02/. app:/app/backend/uploads
-docker compose restart app
-```
-
-### Updating
-
-```bash
-git pull
-docker compose up -d --build
-```
-
-Take a backup first. On start, the app brings the database tables up to date by itself when the change
-only adds things. If a version needs a change that could lose data, the app refuses to start and says so
-in `docker compose logs app`; run the upgrade script named in that version's notes (the files are under `backend/prisma/migrations`), for example
-
-```bash
-docker compose run --rm --entrypoint "" app npx prisma db execute \n  --file prisma/migrations/202610050001_system_settings/migration.sql --schema prisma/schema.prisma
-docker compose up -d
-```
-
-### Time zone
-
-The containers run in `Africa/Addis_Ababa`, so "today" on slips and in the audit log is the Ethiopian
-day. To change it, set `TZ` in `.env`.
-
-## 1. First installation
-
-```bash
-git clone https://github.com/MoA-Eth/asset-tracking-system.git
-cd asset-tracking-system
-npm run install:all
-```
-
-### Settings
-
-Create `backend/.env` (never commit it):
-
-```bash
-PORT=3000
-NODE_ENV=production
-DATABASE_URL="postgresql://<user>:<password>@<host>:5432/moa_ams?schema=public"
-JWT_SECRET="<64 random hex characters>"
+# Bind address: keep local for Nginx reverse proxy
+APP_BIND=127.0.0.1:3000
 TRUST_PROXY=1
-CORS_ORIGIN=""
+CORS_ORIGIN=
 ```
 
-| Setting | What it is |
-| :--- | :--- |
-| `NODE_ENV=production` | Required. Turns off query logging and the demo seed, and makes `JWT_SECRET` mandatory. |
-| `DATABASE_URL` | Use a database user with its own strong password, not `postgres:postgres`. |
-| `JWT_SECRET` | Signs sign-in sessions. Generate with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. The server refuses to start in production without one. Changing it signs everyone out. |
-| `TRUST_PROXY=1` | Set when the app is behind one reverse proxy, so the sign-in limit sees each person's real address. |
-| `CORS_ORIGIN` | Leave empty. The API then only answers the app's own pages. List other addresses (comma-separated) only if a separate website must call the API. |
-
-The frontend needs no settings for production: it calls `/api` on the same address it was loaded from.
-
-### Database and first administrator
-
+### Step 4: Build & Launch
 ```bash
-cd backend
-npm run db:push                     # creates the tables in an empty database
-
-ADMIN_EMAIL="admin@moa.gov.et" \
-ADMIN_PASSWORD="<at least 12 characters, letters and numbers>" \
-ADMIN_NAME="<full name>" \
-ADMIN_EMPLOYEE_ID="<employee ID>" \
-npm run db:seed:production
+docker compose up -d --build
+docker compose ps
 ```
+*Both `app` and `db` services should report status `healthy` or `running`.*
 
-`db:seed:production` creates one System Administrator and nothing else: no demo items, no demo staff, no shared
-password. The administrator is asked to choose a new password at first sign-in. Running it again changes nothing.
+> **Security Note**: Once the administrator completes the initial sign-in, remove `ADMIN_PASSWORD` from `.env`.
 
-Do **not** run `npm run db:seed` or `npm run db:setup` on a real installation. They load demo data and are
-refused when `NODE_ENV=production`.
+---
 
-### Build and start
+## 5. Nginx Reverse Proxy & SSL Setup
 
+### Step 1: Install Nginx & Certbot
 ```bash
-cd ..            # repository root
-npm run build    # builds backend/dist and frontend/dist
-cd backend
-npm start        # node dist/server.js
+sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
 ```
 
-Run it under a process manager so it restarts after a crash or a reboot, for example:
-
-```bash
-npm install -g pm2
-pm2 start dist/server.js --name asset-tracking --cwd /path/to/asset-tracking-system/backend
-pm2 save && pm2 startup
-```
-
-Check it: `curl http://localhost:3000/api/health` should answer `"status":"healthy"`.
-
-### HTTPS
-
-Put the app behind a reverse proxy with a certificate, and do not expose port 3000 to the network.
-Sign-in passwords and sessions travel in every request, so plain HTTP is not acceptable. Example for nginx:
+### Step 2: Create Site Configuration
+Create `/etc/nginx/sites-available/moa-ams.conf`:
 
 ```nginx
 server {
-  listen 443 ssl;
-  server_name assets.moa.gov.et;
-  ssl_certificate     /etc/ssl/certs/assets.crt;
-  ssl_certificate_key /etc/ssl/private/assets.key;
-
-  client_max_body_size 12m;          # slips are up to 10 MB
-
-  location / {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
+    listen 80;
+    server_name ams.moa.gov.et; # Replace with your Ministry domain
+    return 301 https://$host$request_uri;
 }
-server { listen 80; server_name assets.moa.gov.et; return 301 https://$host$request_uri; }
+
+server {
+    listen 443 ssl http2;
+    server_name ams.moa.gov.et; # Replace with your Ministry domain
+
+    # SSL Certificates (managed by Certbot or internal Ministry PKI)
+    ssl_certificate /etc/letsencrypt/live/ams.moa.gov.et/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ams.moa.gov.et/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    # Maximum payload for scanned voucher attachments (Model 19, 20, 21, 22)
+    client_max_body_size 25M;
+
+    # Gzip Compression
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
 ```
 
-## 2. First steps in the app
+### Step 3: Enable Site & Issue SSL Certificate
+```bash
+sudo ln -sf /etc/nginx/sites-available/moa-ams.conf /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo certbot --nginx -d ams.moa.gov.et
+sudo nginx -t && sudo systemctl reload nginx
+```
 
-Sign in as the administrator, choose a new password, then:
+---
 
-1. **Settings → Stores**: add each store and the locations inside it.
-2. **Settings → Employees**: import HR's staff list (Import from Excel), or add staff by hand. Departments are created from this data.
-3. **Settings → Users → Add user**: give sign-in to the Data Encoder, Team Leader, Department Head and Manager.
-   Each gets a temporary password and must choose their own at first sign-in.
-4. **Settings → Roles**: review what each role is allowed to do.
+## 6. Daily Backups & Disaster Recovery
 
-## 3. Backups
+Two directories hold all critical data:
+1. **PostgreSQL Database** (`db-data` volume)
+2. **Scanned Voucher Files** (`slip-files` volume: `/app/backend/uploads`)
 
-Two things hold the data. Back up both, every day, to a different machine:
+### Automated Daily Backup Cron Job
+Create `/etc/cron.daily/moa-ams-backup`:
 
 ```bash
-pg_dump -Fc "$DATABASE_URL" > moa_ams-$(date +%F).dump     # the database
-tar czf slips-$(date +%F).tar.gz backend/uploads/slips      # scanned slips
+#!/bin/bash
+set -e
+BACKUP_DIR="/var/backups/moa-ams"
+DATE=$(date +%F_%H%M%S)
+mkdir -p "$BACKUP_DIR"
+
+# 1. Export database snapshot
+docker compose -f /opt/moa-ams/docker-compose.yml exec -T db pg_dump -U moa_ams -Fc moa_ams > "$BACKUP_DIR/moa_ams_db_$DATE.dump"
+
+# 2. Archive uploaded vouchers
+tar -czf "$BACKUP_DIR/moa_ams_slips_$DATE.tar.gz" -C /var/lib/docker/volumes/moa-ams_slip-files/_data .
+
+# 3. Purge backups older than 30 days
+find "$BACKUP_DIR" -type f -mtime +30 -delete
 ```
 
-To restore: `pg_restore --clean --dbname "$DATABASE_URL" moa_ams-<date>.dump`, and unpack the slips archive
-back into `backend/uploads/slips`. Test a restore once before going live.
-
-## 4. Upgrading to a new version
-
+Make it executable:
 ```bash
-pg_dump -Fc "$DATABASE_URL" > before-upgrade.dump    # always back up first
-git pull
-npm run install:all
-cd backend
-# run the upgrade scripts added since your version, oldest first (see the table below)
-cd .. && npm run build
-pm2 restart asset-tracking
+sudo chmod +x /etc/cron.daily/moa-ams-backup
 ```
 
-Database upgrade scripts, in order. Each is safe to run more than once:
+### Restoring from Backup
+```bash
+# Restore Database
+docker compose exec -T db pg_restore -U moa_ams -d moa_ams --clean --if-exists < /path/to/moa_ams_db_backup.dump
 
-| Script | Adds |
+# Restore Voucher Attachments
+docker cp /path/to/slips/. moa-ams-app-1:/app/backend/uploads/
+
+# Restart Application
+docker compose restart app
+```
+
+---
+
+## 7. Routine Operations & Maintenance
+
+| Action | Command |
 | :--- | :--- |
-| `npm run db:upgrade:roles` | Saved permission matrix, user audit entries |
-| `npm run db:upgrade:employees` | Staff without sign-in, job title, unit, gender, deactivation |
-| `npm run db:upgrade:reference` | Stores that contain locations (converts existing locations) |
-| `npm run db:upgrade:passwords` | Temporary passwords |
-| `npm run db:upgrade:settings` | System settings (whether a scanned slip is required) |
-
-Use these scripts on a database that already has data. `npm run db:push` is only for a new, empty database:
-on an existing one it can drop columns without converting what was in them.
-
-## 5. What the system protects, and what it doesn't
-
-- Passwords are stored hashed. A password set by an administrator is temporary and must be replaced at first sign-in.
-- After 5 wrong passwords for one account (or 30 from one address) in 15 minutes, sign-in is refused for the rest of that window.
-  This count is kept in memory: it resets if the app restarts, and it is per server.
-- Sessions last 8 hours. Deactivating someone or removing their sign-in ends their session at their next action.
-- Uploaded slips are only served to signed-in people.
-- The app does not provide HTTPS, backups or a firewall. Those come from the server it runs on.
+| **Check service status** | `docker compose ps` |
+| **View live logs** | `docker compose logs -f app` |
+| **Health check API** | `curl -f http://127.0.0.1:3000/api/health` |
+| **Restart services** | `docker compose restart` |
+| **Update to new release** | `git pull && docker compose up -d --build` |
+| **Stop application** | `docker compose down` *(Never run `-v` to preserve data)* |
