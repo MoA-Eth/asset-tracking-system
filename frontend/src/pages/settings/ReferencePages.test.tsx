@@ -44,7 +44,8 @@ describe('Stores page', () => {
     expect(screen.queryByRole('region', { name: 'Old Depot' })).not.toBeInTheDocument();
     expect(api.getStores).toHaveBeenCalledWith({ includeInactive: true });
 
-    await user.click(screen.getByRole('button', { name: /Deactivated \(1\)/ }));
+    await user.click(screen.getByRole('button', { name: /^Filter stores/i }));
+    await user.click(screen.getByRole('button', { name: /Deactivated/ }));
     expect(screen.getByRole('region', { name: 'Old Depot' })).toBeInTheDocument();
   });
 

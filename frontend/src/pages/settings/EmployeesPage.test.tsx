@@ -35,7 +35,8 @@ describe('Employees page', () => {
     expect(screen.getByText('No sign-in')).toBeInTheDocument();
     expect(screen.queryByText('Former Officer')).not.toBeInTheDocument();
     expect(api.getEmployees).toHaveBeenCalledWith(undefined, { includeInactive: true });
-    await user.click(screen.getByRole('button', { name: /Deactivated \(1\)/ }));
+    await user.click(screen.getByRole('button', { name: /^Filter employees/i }));
+    await user.click(screen.getByRole('button', { name: /Deactivated/ }));
     expect(screen.getByText('Former Officer')).toBeInTheDocument();
   });
 

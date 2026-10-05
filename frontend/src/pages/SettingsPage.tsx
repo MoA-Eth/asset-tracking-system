@@ -22,6 +22,7 @@ import { RowActionsMenu } from '../components/ui/RowActionsMenu';
 import { ConfirmDialog } from './settings/reference-ui';
 import { AddUserModal, ResetPasswordModal, ROLE_LABELS } from './settings/UserAccessModals';
 import { RefreshButton } from '../components/ui/RefreshButton';
+import { FilterPopover, FilterSection, FilterSelect } from '../components/ui/FilterPopover';
 
 interface SettingsPageProps {
   currentRole: UserRole;
@@ -125,6 +126,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
     return emp.isActive && !!emp.role && matchesSearch && matchesDept && (roleFilter === 'ALL' || emp.role === roleFilter);
   });
 
+  const activeFilterCount = (roleFilter !== 'ALL' ? 1 : 0) + (selectedDeptFilter !== 'ALL' ? 1 : 0);
+
+  const resetFilters = () => {
+    setRoleFilter('ALL');
+    setSelectedDeptFilter('ALL');
+  };
+
   const pager = usePagination(filteredEmployees, { resetKey: `${searchTerm}|${selectedDeptFilter}|${roleFilter}` });
 
   if (!canAssign) return <p role="alert" className="text-sm text-slate-600">Only System Administrators can manage user roles.</p>;
@@ -194,25 +202,47 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
-            <select aria-label="Filter users by role" value={roleFilter} onChange={e => setRoleFilter(e.target.value as UserRole | 'ALL')}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800">
-              <option value="ALL">All roles</option>
-              {Object.values(UserRole).map(code => <option key={code} value={code}>{code.replace(/_/g, ' ')}</option>)}
-            </select>
-            <select
-              value={selectedDeptFilter}
-              onChange={(e) => setSelectedDeptFilter(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-800 font-semibold focus:outline-none focus:border-emerald-600 cursor-pointer"
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Reusable Filter Popover */}
+            <FilterPopover
+              label="Filter"
+              ariaLabel="Filter users"
+              title="Filters"
+              resetLabel="Reset"
+              activeCount={activeFilterCount}
+              onReset={resetFilters}
+              resultCountText={`${filteredEmployees.length} ${filteredEmployees.length === 1 ? 'user' : 'users'}`}
             >
-              <option value="ALL">All Directorates ({departments.length})</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {departmentLabel(d)}
-                </option>
-              ))}
-            </select>
+              {/* Role Filter */}
+              <FilterSection label="System Role">
+                <FilterSelect
+                  id="user-role-filter"
+                  ariaLabel="Filter users by role"
+                  placeholder="All roles"
+                  value={roleFilter}
+                  onChange={(val) => setRoleFilter(val as UserRole | 'ALL')}
+                  options={Object.values(UserRole).map((code) => ({
+                    value: code,
+                    label: ROLE_LABELS[code] || code.replace(/_/g, ' '),
+                  }))}
+                />
+              </FilterSection>
+
+              {/* Directorate / Department Filter */}
+              <FilterSection label="Directorate / Department">
+                <FilterSelect
+                  id="user-dept-filter"
+                  ariaLabel="Filter users by directorate"
+                  placeholder={`All Directorates (${departments.length})`}
+                  value={selectedDeptFilter}
+                  onChange={setSelectedDeptFilter}
+                  options={departments.map((d) => ({
+                    value: d.id,
+                    label: departmentLabel(d),
+                  }))}
+                />
+              </FilterSection>
+            </FilterPopover>
           </div>
         </div>
 
@@ -312,7 +342,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                     </tr>
                   );
                 })}
-                {filteredEmployees.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-slate-500">No users match these filters.</td></tr>}
+                {filteredEmployees.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-slate-500">
+                      <div className="space-y-1.5">
+                        <p>No users match these filters.</p>
+                        {(activeFilterCount > 0 || searchTerm) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              resetFilters();
+                              setSearchTerm('');
+                            }}
+                            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                          >
+                            Clear all filters
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

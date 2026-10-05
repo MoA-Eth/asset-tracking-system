@@ -26,6 +26,7 @@ import { useToast } from '../../context/ToastContext';
 import { Department, Employee, EmployeeInput, UserRole } from '../../types/asset-management';
 import { EMPLOYEE_FIELDS, EmployeeField } from '../../utils/employee-import';
 import { RefreshButton } from '../../components/ui/RefreshButton';
+import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../../components/ui/FilterPopover';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.SYSTEM_ADMIN]: 'System Administrator',
@@ -296,6 +297,13 @@ export const EmployeesPage: React.FC = () => {
     }
   };
 
+  const activeFilterCount = (deptFilter !== 'ALL' ? 1 : 0) + (statusFilter !== 'ACTIVE' ? 1 : 0);
+
+  const resetFilters = () => {
+    setDeptFilter('ALL');
+    setStatusFilter('ACTIVE');
+  };
+
   const colCount = canManage ? 8 : 5;
 
   return (
@@ -336,42 +344,55 @@ export const EmployeesPage: React.FC = () => {
             className={table.search}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            id="employee-dept-filter"
-            value={deptFilter}
-            onChange={(e) => setDeptFilter(e.target.value)}
-            aria-label="Filter by department"
-            className="h-9 rounded-xl border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 focus:border-emerald-600 focus:outline-none"
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Reusable Filter Popover */}
+          <FilterPopover
+            label="Filter"
+            ariaLabel="Filter employees"
+            title="Filters"
+            resetLabel="Reset"
+            activeCount={activeFilterCount}
+            onReset={resetFilters}
+            resultCountText={`${rows.length} ${rows.length === 1 ? 'employee' : 'employees'}`}
           >
-            <option value="ALL">All departments</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.nameEn}
-              </option>
-            ))}
-          </select>
-          {canManage && (
-            <div role="group" aria-label="Filter by status" className="flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 text-xs font-semibold">
-              {(
-                [
-                  ['ACTIVE', `Active (${counts.active})`],
-                  ['INACTIVE', `Deactivated (${counts.inactive})`],
-                  ['ALL', 'All'],
-                ] as [StatusFilter, string][]
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={statusFilter === value}
-                  onClick={() => setStatusFilter(value)}
-                  className={`rounded-lg px-3 py-1.5 transition cursor-pointer ${statusFilter === value ? btn.tabActive : 'text-slate-600 hover:text-slate-900'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+            {/* Employment Status Filter */}
+            {canManage && (
+              <FilterSection label="Employment Status">
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {(
+                    [
+                      ['ACTIVE', 'Active', counts.active],
+                      ['INACTIVE', 'Deactivated', counts.inactive],
+                      ['ALL', 'All', employees.length],
+                    ] as [StatusFilter, string, number][]
+                  ).map(([value, label, count]) => (
+                    <FilterPill
+                      key={value}
+                      label={label}
+                      count={count}
+                      active={statusFilter === value}
+                      onClick={() => setStatusFilter(value)}
+                    />
+                  ))}
+                </div>
+              </FilterSection>
+            )}
+
+            {/* Department Filter */}
+            <FilterSection label="Department">
+              <FilterSelect
+                id="employee-dept-filter"
+                ariaLabel="Filter by department"
+                placeholder="All departments"
+                value={deptFilter}
+                onChange={setDeptFilter}
+                options={departments.map((d) => ({
+                  value: d.id,
+                  label: d.nameEn,
+                }))}
+              />
+            </FilterSection>
+          </FilterPopover>
         </div>
       </div>
 
@@ -427,7 +448,21 @@ export const EmployeesPage: React.FC = () => {
                           {canManage && ' Add the first one with "Add employee".'}
                         </>
                       ) : (
-                        'No employees match these filters.'
+                        <div className="space-y-1.5">
+                          <p>No employees match these filters.</p>
+                          {(activeFilterCount > 0 || search) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                resetFilters();
+                                setSearch('');
+                              }}
+                              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                            >
+                              Clear all filters
+                            </button>
+                          )}
+                        </div>
                       )}
                     </td>
                   </tr>

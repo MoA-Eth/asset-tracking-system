@@ -8,8 +8,9 @@ import { Field, FieldGrid, FormError, FormFooter, inputClass } from '../../compo
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Location, Store } from '../../types/asset-management';
-import { ActivePill, ConfirmDialog, StatusFilter, StatusTabs, matchesStatus } from './reference-ui';
+import { ActivePill, ConfirmDialog, StatusFilter, matchesStatus } from './reference-ui';
 import { RefreshButton } from '../../components/ui/RefreshButton';
+import { FilterPopover, FilterSection, FilterPill } from '../../components/ui/FilterPopover';
 
 /** What the add / edit window is working on */
 type Editing =
@@ -207,8 +208,38 @@ export const StoresPage: React.FC = () => {
             className={table.search}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {canManage && <StatusTabs value={statusFilter} onChange={setStatusFilter} active={activeStores.length} inactive={stores.length - activeStores.length} />}
+        <div className="flex items-center gap-2 shrink-0">
+          {canManage && (
+            <FilterPopover
+              label="Filter"
+              ariaLabel="Filter stores"
+              title="Filters"
+              resetLabel="Reset"
+              activeCount={statusFilter !== 'ACTIVE' ? 1 : 0}
+              onReset={() => setStatusFilter('ACTIVE')}
+              resultCountText={`${shown.length} ${shown.length === 1 ? 'store' : 'stores'}`}
+            >
+              <FilterSection label="Store Status">
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {(
+                    [
+                      ['ACTIVE', 'Active', activeStores.length],
+                      ['INACTIVE', 'Deactivated', stores.length - activeStores.length],
+                      ['ALL', 'All', stores.length],
+                    ] as [StatusFilter, string, number][]
+                  ).map(([value, label, count]) => (
+                    <FilterPill
+                      key={value}
+                      label={label}
+                      count={count}
+                      active={statusFilter === value}
+                      onClick={() => setStatusFilter(value)}
+                    />
+                  ))}
+                </div>
+              </FilterSection>
+            </FilterPopover>
+          )}
         </div>
       </div>
 
@@ -227,7 +258,25 @@ export const StoresPage: React.FC = () => {
         </div>
       ) : shown.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-xs text-slate-500">
-          {stores.length === 0 ? `No stores yet.${canManage ? ' Add the first one with "Add store".' : ''}` : 'No stores match these filters.'}
+          {stores.length === 0 ? (
+            `No stores yet.${canManage ? ' Add the first one with "Add store".' : ''}`
+          ) : (
+            <div className="space-y-1.5">
+              <p>No stores match these filters.</p>
+              {(statusFilter !== 'ACTIVE' || search) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter('ACTIVE');
+                    setSearch('');
+                  }}
+                  className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-4">

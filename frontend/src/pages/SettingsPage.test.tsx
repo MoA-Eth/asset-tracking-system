@@ -25,6 +25,7 @@ describe('Role assignments in Users', () => {
     render(<SettingsPage currentRole={UserRole.SYSTEM_ADMIN} initialRoleFilter={UserRole.MANAGER} />);
     expect(await screen.findByText('Example Manager')).toBeInTheDocument();
     expect(screen.queryByText('Example Encoder')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Filter users/i }));
     await user.selectOptions(screen.getByLabelText('Filter users by role'), 'ALL');
     expect(screen.getByText('Example Encoder')).toBeInTheDocument();
   });
