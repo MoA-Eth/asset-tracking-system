@@ -243,7 +243,9 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             className={`w-full flex items-center ${
               collapsed ? 'justify-center p-1.5' : 'gap-2.5 p-2'
             } rounded-xl transition-all cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
-              showUserMenu ? 'bg-white/[0.12]' : 'hover:bg-white/[0.06]'
+              showUserMenu
+                ? 'bg-black/40 border border-white/15 shadow-inner'
+                : 'bg-black/25 border border-white/10 hover:bg-black/35 hover:border-white/20 shadow-2xs'
             }`}
           >
             {/* Avatar Circle */}
