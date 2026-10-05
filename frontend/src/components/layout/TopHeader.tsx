@@ -472,9 +472,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           </div>
         )}
 
-        {/* User Profile Avatar & Dropdown Menu (LiveScreenMD style) */}
+        {/* User Profile Avatar & Dropdown Menu (Mobile Only - on Desktop it lives at the bottom of the sidebar) */}
         {user && (
-          <div className="relative" ref={userMenuRef}>
+          <div className="relative lg:hidden" ref={userMenuRef}>
             <button
               type="button"
               onClick={() => setShowUserMenu((prev) => !prev)}
