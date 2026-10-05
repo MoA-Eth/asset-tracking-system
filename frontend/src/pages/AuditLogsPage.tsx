@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RefreshButton } from '../components/ui/RefreshButton';
 import { actionText, roleName, withRoleNames } from '../utils/roles';
+import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../components/ui/FilterPopover';
 
 /** What kind of activity an entry is, for the filter and the colour of its label */
 type ActivityKind = 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'APPROVAL' | 'REJECTION' | 'ADMIN' | 'OTHER';
@@ -93,6 +94,8 @@ export const AuditLogsPage: React.FC = () => {
   const [selectedKind, setSelectedKind] = useState<ActivityKind | 'ALL'>('ALL');
   const [dateFilter, setDateFilter] = useState<string>('ALL_TIME');
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+
+  const activeFilterCount = (selectedKind !== 'ALL' ? 1 : 0) + (dateFilter !== 'ALL_TIME' ? 1 : 0);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -208,6 +211,49 @@ export const AuditLogsPage: React.FC = () => {
         <p className="text-xs text-slate-500">Who did what, and when. Entries are written by the system and can't be edited or deleted.</p>
 
         <div className="no-print flex items-center gap-2 shrink-0">
+          <FilterPopover
+            label="Filter"
+            ariaLabel="Filter audit logs"
+            title="Filters"
+            resetLabel="Reset"
+            activeCount={activeFilterCount}
+            onReset={() => {
+              setSelectedKind('ALL');
+              setDateFilter('ALL_TIME');
+            }}
+            resultCountText={`${filteredLogs.length} ${filteredLogs.length === 1 ? 'entry' : 'entries'}`}
+          >
+            {/* Activity Type */}
+            <FilterSection label="Activity Type">
+              <div role="group" aria-label="Kind of activity" className="flex flex-wrap gap-1.5 pt-0.5">
+                {KIND_FILTERS.map((tab) => (
+                  <FilterPill
+                    key={tab.value}
+                    label={tab.label}
+                    active={selectedKind === tab.value}
+                    onClick={() => setSelectedKind(tab.value)}
+                  />
+                ))}
+              </div>
+            </FilterSection>
+
+            {/* Time Period */}
+            <FilterSection label="Time Period" htmlFor="filter-time-period">
+              <FilterSelect
+                id="filter-time-period"
+                ariaLabel="Period"
+                value={dateFilter}
+                onChange={setDateFilter}
+                options={[
+                  { label: 'All time', value: 'ALL_TIME' },
+                  { label: 'Today', value: 'TODAY' },
+                  { label: 'Past 7 days', value: 'THIS_WEEK' },
+                  { label: 'This month', value: 'THIS_MONTH' },
+                ]}
+              />
+            </FilterSection>
+          </FilterPopover>
+
           <button onClick={handleExportCSV} className={headButton} title="Save the entries shown as a CSV file">
             <Download className="w-3.5 h-3.5 text-slate-500" />
             <span className="hidden sm:inline">Export CSV</span>
@@ -224,46 +270,18 @@ export const AuditLogsPage: React.FC = () => {
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-        {/* Search & filters */}
-        <div className="no-print space-y-2.5 border-b border-slate-200 px-3.5 py-2.5">
-          <div className="flex flex-col md:flex-row items-center gap-3">
-            <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                aria-label="Search the audit log"
-                placeholder="Search by person, action, slip number or description…"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white"
-              />
-            </div>
-            <select
-              aria-label="Period"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full md:w-auto px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
-            >
-              <option value="ALL_TIME">All time</option>
-              <option value="TODAY">Today</option>
-              <option value="THIS_WEEK">Past 7 days</option>
-              <option value="THIS_MONTH">This month</option>
-            </select>
-          </div>
-
-          <div role="group" aria-label="Kind of activity" className="flex flex-wrap items-center gap-1.5">
-            {KIND_FILTERS.map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => setSelectedKind(tab.value)}
-                aria-pressed={selectedKind === tab.value}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  selectedKind === tab.value ? 'bg-emerald-800 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+        {/* Search */}
+        <div className="no-print border-b border-slate-200 px-3.5 py-2.5">
+          <div className="relative w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              aria-label="Search the audit log"
+              placeholder="Search by person, action, slip number or description…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition"
+            />
           </div>
         </div>
 
@@ -272,6 +290,19 @@ export const AuditLogsPage: React.FC = () => {
             <ShieldCheck className="w-8 h-8 text-slate-300 mx-auto" />
             <p className="text-sm font-bold text-slate-800">No entries match</p>
             <p className="text-xs text-slate-500">Try a different search, period or kind of activity.</p>
+            {(activeFilterCount > 0 || searchTerm) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedKind('ALL');
+                  setDateFilter('ALL_TIME');
+                }}
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition cursor-pointer"
+              >
+                Clear all filters
+              </button>
+            )}
           </div>
         ) : (
           <>
