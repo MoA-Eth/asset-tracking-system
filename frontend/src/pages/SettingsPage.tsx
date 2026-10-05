@@ -24,6 +24,7 @@ import { ConfirmDialog } from './settings/reference-ui';
 import { AddUserModal, ResetPasswordModal, ROLE_LABELS } from './settings/UserAccessModals';
 import { RefreshButton } from '../components/ui/RefreshButton';
 import { FilterPopover, FilterSection, FilterSelect } from '../components/ui/FilterPopover';
+import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
 
 interface SettingsPageProps {
   currentRole: UserRole;
@@ -144,6 +145,38 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
     return emp.isActive && !!emp.role && matchesSearch && matchesDept && (roleFilter === 'ALL' || emp.role === roleFilter);
   });
 
+  type UserSortColumn = 'name' | 'email' | 'department' | 'role';
+  const [sortColumn, setSortColumn] = useState<UserSortColumn>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (colKey: string) => {
+    const col = colKey as UserSortColumn;
+    if (sortColumn === col) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(col);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedEmployees = [...filteredEmployees].sort((a, b) => {
+    let diff = 0;
+    if (sortColumn === 'name') {
+      diff = a.fullNameEn.localeCompare(b.fullNameEn);
+    } else if (sortColumn === 'email') {
+      diff = (a.email || '').localeCompare(b.email || '');
+    } else if (sortColumn === 'department') {
+      const deptA = departmentLabel(departments.find((d) => d.id === a.departmentId));
+      const deptB = departmentLabel(departments.find((d) => d.id === b.departmentId));
+      diff = deptA.localeCompare(deptB);
+    } else if (sortColumn === 'role') {
+      const roleA = ROLE_LABELS[a.role || ''] || a.role || '';
+      const roleB = ROLE_LABELS[b.role || ''] || b.role || '';
+      diff = roleA.localeCompare(roleB);
+    }
+    return sortDirection === 'asc' ? diff : -diff;
+  });
+
   const activeFilterCount = (roleFilter !== 'ALL' ? 1 : 0) + (selectedDeptFilter !== 'ALL' ? 1 : 0);
 
   const resetFilters = () => {
@@ -151,7 +184,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
     setSelectedDeptFilter('ALL');
   };
 
-  const pager = usePagination(filteredEmployees, { resetKey: `${searchTerm}|${selectedDeptFilter}|${roleFilter}` });
+  const pager = usePagination(sortedEmployees, { resetKey: `${searchTerm}|${selectedDeptFilter}|${roleFilter}|${sortColumn}|${sortDirection}` });
 
   if (!canAssign) return <p role="alert" className="text-sm text-slate-600">Only System Administrators can manage user roles.</p>;
 
@@ -190,10 +223,46 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
         </p>
 
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={() => setAdding(true)} className={`${btn.primary} flex items-center gap-1.5`}>
-            <UserPlus className="w-3.5 h-3.5" />
-            Add user
-          </button>
+          {/* Reusable Filter Popover */}
+          <FilterPopover
+            label="Filter"
+            ariaLabel="Filter users"
+            title="Filters"
+            resetLabel="Reset"
+            activeCount={activeFilterCount}
+            onReset={resetFilters}
+            resultCountText={`${filteredEmployees.length} ${filteredEmployees.length === 1 ? 'user' : 'users'}`}
+          >
+            {/* Role Filter */}
+            <FilterSection label="System Role">
+              <FilterSelect
+                id="user-role-filter"
+                ariaLabel="Filter users by role"
+                placeholder="All roles"
+                value={roleFilter}
+                onChange={(val) => setRoleFilter(val as UserRole | 'ALL')}
+                options={Object.values(UserRole).map((code) => ({
+                  value: code,
+                  label: ROLE_LABELS[code] || code.replace(/_/g, ' '),
+                }))}
+              />
+            </FilterSection>
+
+            {/* Directorate / Department Filter */}
+            <FilterSection label="Directorate / Department">
+              <FilterSelect
+                id="user-dept-filter"
+                ariaLabel="Filter users by directorate"
+                placeholder={`All Directorates (${departments.length})`}
+                value={selectedDeptFilter}
+                onChange={setSelectedDeptFilter}
+                options={departments.map((d) => ({
+                  value: d.id,
+                  label: departmentLabel(d),
+                }))}
+              />
+            </FilterSection>
+          </FilterPopover>
         </div>
       </div>
 
@@ -205,75 +274,68 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
         </div>
       )}
 
-      {/* ── User Permissions ── */}
-      <div className="space-y-4 animate-fadeIn">
-        {/* Search & Filter Bar */}
-        <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="Search staff by name, email, or payroll ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-emerald-600"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Reusable Filter Popover */}
-            <FilterPopover
-              label="Filter"
-              ariaLabel="Filter users"
-              title="Filters"
-              resetLabel="Reset"
-              activeCount={activeFilterCount}
-              onReset={resetFilters}
-              resultCountText={`${filteredEmployees.length} ${filteredEmployees.length === 1 ? 'user' : 'users'}`}
+      {/* ── User Permissions Table ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        {/* Table Card Header matching Assets & Employees: Search on left, Action button on right */}
+        <div className="border-b border-slate-200 px-3.5 py-2.5">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search staff by name, email, or payroll ID…"
+                aria-label="Search staff"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className={`${btn.primary} shrink-0`}
             >
-              {/* Role Filter */}
-              <FilterSection label="System Role">
-                <FilterSelect
-                  id="user-role-filter"
-                  ariaLabel="Filter users by role"
-                  placeholder="All roles"
-                  value={roleFilter}
-                  onChange={(val) => setRoleFilter(val as UserRole | 'ALL')}
-                  options={Object.values(UserRole).map((code) => ({
-                    value: code,
-                    label: ROLE_LABELS[code] || code.replace(/_/g, ' '),
-                  }))}
-                />
-              </FilterSection>
-
-              {/* Directorate / Department Filter */}
-              <FilterSection label="Directorate / Department">
-                <FilterSelect
-                  id="user-dept-filter"
-                  ariaLabel="Filter users by directorate"
-                  placeholder={`All Directorates (${departments.length})`}
-                  value={selectedDeptFilter}
-                  onChange={setSelectedDeptFilter}
-                  options={departments.map((d) => ({
-                    value: d.id,
-                    label: departmentLabel(d),
-                  }))}
-                />
-              </FilterSection>
-            </FilterPopover>
+              <UserPlus className="h-4 w-4" />
+              <span>Add user</span>
+            </button>
           </div>
         </div>
-
-        {/* Users Permission Table */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs min-w-[860px]">
               <thead>
                 <tr className={table.headRow}>
-                  <th className="py-3 px-4 min-w-[200px]">Civil Servant / User</th>
-                  <th className="py-3 px-4 w-48 whitespace-nowrap">Official Email</th>
-                  <th className="py-3 px-4 min-w-[180px]">Directorate / Dept</th>
-                  <th className="py-3 px-4 w-48 whitespace-nowrap">Assigned Authorization Role</th>
+                  <SortableHeader
+                    label="Civil Servant / User"
+                    columnKey="name"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-3 px-4 min-w-[200px]"
+                  />
+                  <SortableHeader
+                    label="Official Email"
+                    columnKey="email"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-3 px-4 w-48 whitespace-nowrap"
+                  />
+                  <SortableHeader
+                    label="Directorate / Dept"
+                    columnKey="department"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-3 px-4 min-w-[180px]"
+                  />
+                  <SortableHeader
+                    label="Assigned Authorization Role"
+                    columnKey="role"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-3 px-4 w-48 whitespace-nowrap"
+                  />
                   <th className="py-3 px-4 text-right w-56 whitespace-nowrap">Update Role</th>
                 </tr>
               </thead>
@@ -398,9 +460,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
           </div>
           <Pagination pager={pager} label="users" />
         </div>
-      </div>
 
-      <AddUserModal isOpen={adding} employees={employees} onClose={() => setAdding(false)} onSaved={applyUpdate} />
+        <AddUserModal isOpen={adding} employees={employees} onClose={() => setAdding(false)} onSaved={applyUpdate} />
       <ResetPasswordModal employee={resetting} onClose={() => setResetting(null)} onSaved={applyUpdate} />
       <ConfirmDialog
         isOpen={!!removing}

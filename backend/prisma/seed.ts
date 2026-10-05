@@ -9,7 +9,7 @@ async function main() {
     throw new Error('The demo seed is disabled when NODE_ENV=production. Run "npm run db:seed:production" instead.');
   }
   const seedPassword = await hashPassword('moaams2024');
-  console.log('🌱 Seeding MoA-AMS database...');
+  console.log('🌱 Seeding MoA-ATS database...');
 
   // ── Departments ───────────────────────────────────────────────────────────
   const departments = await Promise.all([

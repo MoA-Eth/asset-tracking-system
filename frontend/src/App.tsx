@@ -110,7 +110,7 @@ const AuthenticatedPortal: React.FC = () => {
           </div>
           <div>
             <h2 className="text-lg font-bold text-white tracking-tight">
-              MoA<span className="text-[#FCDD09]">-AMS</span>
+              MoA<span className="text-[#FCDD09]">-ATS</span>
             </h2>
             <p className="text-xs text-emerald-200/80">
               Verifying your Session Credentials...

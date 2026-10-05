@@ -63,7 +63,7 @@ export const ProfilePage: React.FC = () => {
           <h2 className="text-sm font-semibold text-slate-900">Profile</h2>
         </header>
         <p className="text-xs text-slate-500 mb-4">
-          Your account identity across the MoA Asset Management System.
+          Your account identity across the MoA Asset Tracking System.
         </p>
 
         {/* User Identity Header */}

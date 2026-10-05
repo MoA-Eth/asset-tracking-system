@@ -44,7 +44,7 @@ async function request(endpoint, options = {}) {
 
 async function runTests() {
   console.log('========================================================');
-  console.log(' MoA AMS Critical Flows & Functionalities Verification ');
+  console.log(' MoA ATS Critical Flows & Functionalities Verification ');
   console.log('========================================================\n');
 
   // ── TEST SUITE 1: Authentication for All Roles ────────────────────────

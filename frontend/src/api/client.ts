@@ -34,7 +34,7 @@ const BASE_URL = '/api';
 // Generous enough for a 10 MB slip upload on a slow connection
 const REQUEST_TIMEOUT_MS = 30000;
 
-/** HTTP status of a failed AMS request, or undefined when the server could not be reached */
+/** HTTP status of a failed ATS request, or undefined when the server could not be reached */
 export const getErrorStatus = (err: unknown): number | undefined => {
   // Read the field rather than using instanceof: Vite can load this module twice in development
   const status = (err as { status?: unknown } | null)?.status;
@@ -63,8 +63,8 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
       if (options?.signal?.aborted) throw error;
       throw new Error(
         controller.signal.aborted
-          ? 'The AMS server took too long to respond. Check your connection and try again.'
-          : 'Cannot reach the AMS server. Check your connection and that the app is running.'
+          ? 'The ATS server took too long to respond. Check your connection and try again.'
+          : 'Cannot reach the ATS server. Check your connection and that the app is running.'
       );
     }
 
@@ -73,7 +73,7 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
         if (response.status === 401 && endpoint !== '/auth/login') window.dispatchEvent(new Event('moa_session_expired'));
         if (response.status === 403) window.dispatchEvent(new Event('moa_access_changed'));
       }
-      let errorMsg = `AMS server returned HTTP ${response.status}.`;
+      let errorMsg = `ATS server returned HTTP ${response.status}.`;
       try {
         const errorJson = await response.json();
         errorMsg = errorJson.message || errorJson.error?.message || errorMsg;
@@ -89,7 +89,7 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     try {
       json = await response.json();
     } catch {
-      throw new Error('The AMS server returned an invalid response. Check that you opened the correct app address.');
+      throw new Error('The ATS server returned an invalid response. Check that you opened the correct app address.');
     }
     return json.data;
   } finally {

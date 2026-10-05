@@ -239,7 +239,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       case 'settings-system':
         return { title: 'System Settings', am: 'የስርዓት ቅንብሮች', icon: Sliders, iconColor: 'text-emerald-700' };
       default:
-        return { title: 'AMS Portal', am: 'የግብርና ሚኒስቴር', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
+        return { title: 'ATS Portal', am: 'የግብርና ሚኒስቴር', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
     }
   };
 

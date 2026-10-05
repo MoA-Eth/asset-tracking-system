@@ -1,4 +1,4 @@
-# Ministry of Agriculture – Asset & Store Management System (MoA-AMS)
+# Ministry of Agriculture – Asset & Store Management System (MoA-ATS)
 ## Functional Technical Specification (IFMIS Store Mirror & Executive Dashboard)
 
 - **Target Organization:** Federal Democratic Republic of Ethiopia – Ministry of Agriculture (MoA)

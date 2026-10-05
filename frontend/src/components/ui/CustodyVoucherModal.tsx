@@ -210,7 +210,7 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
             <p className="font-bold text-slate-900 mb-1">Custodial Accountability Terms (የንብረት ኃላፊነት መግለጫ):</p>
             <p>
               The recipient acknowledges full physical custody and accountability for the government property listed above.
-              Any damage, transfer, or disposal must be officially processed through the Ministry of Agriculture Fixed Asset System (MoA-AMS)
+              Any damage, transfer, or disposal must be officially processed through the Ministry of Agriculture Fixed Asset Tracking System (MoA-ATS)
               in compliance with Federal Democratic Republic of Ethiopia property administration directives.
             </p>
           </div>

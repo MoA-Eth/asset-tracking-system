@@ -136,15 +136,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               collapsed ? 'hover:scale-110 cursor-pointer' : 'cursor-default'
             }`}
             title={collapsed ? 'Expand sidebar' : undefined}
-            aria-label={collapsed ? 'Expand sidebar' : 'MoA-AMS'}
+            aria-label={collapsed ? 'Expand sidebar' : 'MoA-ATS'}
           >
-            <MoaLogo className="w-8 h-8 drop-shadow-md" alt="MoA-AMS" />
+            <MoaLogo className="w-8 h-8 drop-shadow-md" alt="MoA-ATS" />
           </button>
 
           {!collapsed && (
             <div className="min-w-0 leading-tight">
               <span className="block font-extrabold text-sm text-white tracking-tight">
-                MoA<span className="text-[#FCDD09]">-AMS</span>
+                MoA<span className="text-[#FCDD09]">-ATS</span>
               </span>
               <span className="block text-[10px] text-emerald-100/60 truncate">Asset Tracking System</span>
             </div>

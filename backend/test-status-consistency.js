@@ -1,5 +1,5 @@
 /**
- * MoA-AMS Deep Status Transition & Data Consistency Verification Test
+ * MoA-ATS Deep Status Transition & Data Consistency Verification Test
  * Verifies before/after statuses, store availability, custodian liability,
  * and rejection rollbacks across all scenarios.
  */
@@ -47,7 +47,7 @@ async function login(usernameOrEmail, password = 'moaams2024') {
 
 async function runStatusConsistencyTests() {
   console.log('================================================================');
-  console.log('  MoA-AMS Deep Status Transition & Consistency Verification     ');
+  console.log('  MoA-ATS Deep Status Transition & Consistency Verification     ');
   console.log('================================================================\n');
 
   try {

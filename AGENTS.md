@@ -6,5 +6,5 @@
   - All verification must be done via `npm run build`, `npm test`, terminal output, or checking source files.
 
 ## Project Scope
-- Application: Ministry of Agriculture - Fixed Asset Management System (MoA-AMS)
+- Application: Ministry of Agriculture - Fixed Asset Tracking System (MoA-ATS)
 - UI: English-only, clean, modern government design system.

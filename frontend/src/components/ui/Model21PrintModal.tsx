@@ -75,7 +75,7 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
             className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden z-0"
           >
             <span className="text-[120px] sm:text-[160px] font-black text-slate-300/15 transform -rotate-25 tracking-[0.2em]">
-              MOA-AMS
+              MOA-ATS
             </span>
           </div>
 

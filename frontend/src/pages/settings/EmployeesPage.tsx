@@ -27,6 +27,7 @@ import { Department, Employee, EmployeeInput, UserRole } from '../../types/asset
 import { EMPLOYEE_FIELDS, EmployeeField } from '../../utils/employee-import';
 import { RefreshButton } from '../../components/ui/RefreshButton';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../../components/ui/FilterPopover';
+import { SortableHeader, SortDirection } from '../../components/ui/SortableHeader';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.SYSTEM_ADMIN]: 'System Administrator',
@@ -238,16 +239,52 @@ export const EmployeesPage: React.FC = () => {
 
   const deptById = useMemo(() => new Map(departments.map((d) => [d.id, d])), [departments]);
 
+  type EmployeeSortColumn = 'name' | 'payrollId' | 'department' | 'role' | 'heldItemCount' | 'status';
+  const [sortColumn, setSortColumn] = useState<EmployeeSortColumn>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (colKey: string) => {
+    const col = colKey as EmployeeSortColumn;
+    if (sortColumn === col) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(col);
+      setSortDirection(col === 'heldItemCount' ? 'desc' : 'asc');
+    }
+  };
+
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return employees.filter((e) => {
+    const filtered = employees.filter((e) => {
       if (statusFilter === 'ACTIVE' && !e.isActive) return false;
       if (statusFilter === 'INACTIVE' && e.isActive) return false;
       if (deptFilter !== 'ALL' && e.departmentId !== deptFilter) return false;
       if (!q) return true;
       return [e.fullNameEn, e.fullNameAm, e.payrollId, e.jobTitle, e.unit, e.email, e.phone].some((v) => (v || '').toLowerCase().includes(q));
     });
-  }, [employees, search, deptFilter, statusFilter]);
+
+    return [...filtered].sort((a, b) => {
+      let diff = 0;
+      if (sortColumn === 'name') {
+        diff = a.fullNameEn.localeCompare(b.fullNameEn);
+      } else if (sortColumn === 'payrollId') {
+        diff = (a.payrollId || '').localeCompare(b.payrollId || '', undefined, { numeric: true });
+      } else if (sortColumn === 'department') {
+        const deptA = deptById.get(a.departmentId)?.nameEn || '';
+        const deptB = deptById.get(b.departmentId)?.nameEn || '';
+        diff = deptA.localeCompare(deptB);
+      } else if (sortColumn === 'role') {
+        const roleA = a.role ? (ROLE_LABELS[a.role] || a.role) : '';
+        const roleB = b.role ? (ROLE_LABELS[b.role] || b.role) : '';
+        diff = roleA.localeCompare(roleB);
+      } else if (sortColumn === 'heldItemCount') {
+        diff = (a.heldItemCount || 0) - (b.heldItemCount || 0);
+      } else if (sortColumn === 'status') {
+        diff = a.isActive === b.isActive ? 0 : a.isActive ? -1 : 1;
+      }
+      return sortDirection === 'asc' ? diff : -diff;
+    });
+  }, [employees, search, deptFilter, statusFilter, sortColumn, sortDirection, deptById]);
 
   const counts = useMemo(
     () => ({
@@ -258,7 +295,7 @@ export const EmployeesPage: React.FC = () => {
     [employees],
   );
 
-  const pager = usePagination(rows, { pageSize: 25, resetKey: `${search}|${deptFilter}|${statusFilter}` });
+  const pager = usePagination(rows, { pageSize: 25, resetKey: `${search}|${deptFilter}|${statusFilter}|${sortColumn}|${sortDirection}` });
 
   const openAdd = () => {
     setEditing(null);
@@ -421,13 +458,58 @@ export const EmployeesPage: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className={table.headRow}>
-                  <th className="px-4 py-2.5">Employee</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">Employee ID</th>
-                  <th className="px-3 py-2.5">Department / Unit</th>
-                  {canManage && <th className="px-3 py-2.5">Contact</th>}
-                  <th className="px-3 py-2.5 whitespace-nowrap">Sign-in</th>
-                  {canManage && <th className="px-3 py-2.5 text-right whitespace-nowrap">Items held</th>}
-                  <th className="px-3 py-2.5">Status</th>
+                  <SortableHeader
+                    label="Employee"
+                    columnKey="name"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="px-4 py-2.5"
+                  />
+                  <SortableHeader
+                    label="Employee ID"
+                    columnKey="payrollId"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="px-3 py-2.5 whitespace-nowrap"
+                  />
+                  <SortableHeader
+                    label="Department / Unit"
+                    columnKey="department"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="px-3 py-2.5"
+                  />
+                  {canManage && <th className="px-3 py-2.5 font-semibold text-slate-700">Contact</th>}
+                  <SortableHeader
+                    label="Sign-in"
+                    columnKey="role"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="px-3 py-2.5 whitespace-nowrap"
+                  />
+                  {canManage && (
+                    <SortableHeader
+                      label="Items held"
+                      columnKey="heldItemCount"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={handleSort}
+                      align="right"
+                      thClassName="px-3 py-2.5 text-right whitespace-nowrap"
+                    />
+                  )}
+                  <SortableHeader
+                    label="Status"
+                    columnKey="status"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="px-3 py-2.5"
+                  />
                   {canManage && (
                     <th className={`px-3 py-2.5 ${table.actionsHead}`}>
                       <span className="sr-only">Actions</span>

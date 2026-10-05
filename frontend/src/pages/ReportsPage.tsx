@@ -32,6 +32,7 @@ import { formatETB, getTodayGcAndEc } from '../utils/eth-date';
 import { useToast } from '../context/ToastContext';
 import { RefreshButton } from '../components/ui/RefreshButton';
 import { ReportCharts } from '../components/reports/ReportCharts';
+import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
 
 export type ReportType = 'all' | 'registered' | 'available' | 'issued' | 'transferred';
 export type TimeframePreset =
@@ -509,8 +510,56 @@ export const ReportsPage: React.FC = () => {
     { id: 'transferred', label: 'Transferred & Returned', icon: ArrowRightLeft },
   ];
 
+  type ReportSortColumn = 'code' | 'name' | 'category' | 'status' | 'received' | 'issued' | 'available' | 'slip' | 'date' | 'custodian' | 'cost';
+  const [sortColumn, setSortColumn] = useState<ReportSortColumn>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (colKey: string) => {
+    const col = colKey as ReportSortColumn;
+    if (sortColumn === col) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(col);
+      setSortDirection(col === 'cost' || col === 'received' || col === 'issued' || col === 'available' ? 'desc' : 'asc');
+    }
+  };
+
+  const sortedItems = useMemo(() => {
+    return [...filteredItems].sort((a, b) => {
+      let diff = 0;
+      if (sortColumn === 'code') {
+        diff = a.itemCode.localeCompare(b.itemCode, undefined, { numeric: true });
+      } else if (sortColumn === 'name') {
+        diff = a.name.localeCompare(b.name);
+      } else if (sortColumn === 'category') {
+        diff = a.category.localeCompare(b.category);
+      } else if (sortColumn === 'status') {
+        diff = statusLabel(a).localeCompare(statusLabel(b));
+      } else if (sortColumn === 'received') {
+        diff = balanceOf(a).total - balanceOf(b).total;
+      } else if (sortColumn === 'issued') {
+        diff = balanceOf(a).issued - balanceOf(b).issued;
+      } else if (sortColumn === 'available') {
+        diff = balanceOf(a).available - balanceOf(b).available;
+      } else if (sortColumn === 'slip') {
+        diff = (a.ifmisSlipNumber || '').localeCompare(b.ifmisSlipNumber || '');
+      } else if (sortColumn === 'date') {
+        const timeA = new Date(a.createdAtGc || 0).getTime();
+        const timeB = new Date(b.createdAtGc || 0).getTime();
+        diff = timeA - timeB;
+      } else if (sortColumn === 'custodian') {
+        const custA = a.currentCustodian?.fullNameEn || a.assignedDepartment?.nameEn || storeLocationLabel(a.storeLocation);
+        const custB = b.currentCustodian?.fullNameEn || b.assignedDepartment?.nameEn || storeLocationLabel(b.storeLocation);
+        diff = custA.localeCompare(custB);
+      } else if (sortColumn === 'cost') {
+        diff = a.unitCostETB - b.unitCostETB;
+      }
+      return sortDirection === 'asc' ? diff : -diff;
+    });
+  }, [filteredItems, sortColumn, sortDirection]);
+
   // Exports still use every filtered row; only the table on screen is paged
-  const pager = usePagination(filteredItems, { resetKey: `${searchTerm}|${timeframe}` });
+  const pager = usePagination(sortedItems, { resetKey: `${searchTerm}|${timeframe}|${reportType}|${selectedCategory}|${selectedLocation}|${sortColumn}|${sortDirection}` });
 
   if (loading) {
     return (
@@ -788,18 +837,102 @@ export const ReportsPage: React.FC = () => {
           <table className="w-full text-left text-xs min-w-[1140px]">
             <thead className={table.headRow}>
               <tr>
-                <th className="py-2.5 px-3 w-10 text-center shrink-0">#</th>
-                <th className="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap">Tracking Code</th>
-                <th className="py-2.5 px-3 min-w-[180px] max-w-[260px]">Asset Item</th>
-                <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Category</th>
-                <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Status</th>
-                <th className="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap" title="All units received">Received</th>
-                <th className="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap" title="Units with custodians">Issued</th>
-                <th className="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap" title="Units in store">In Store</th>
-                <th className="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap">IFMIS Slip #</th>
-                <th className="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap">Date (E.C.)</th>
-                <th className="py-2.5 px-3 min-w-[150px] max-w-[220px]">Custodian / Location</th>
-                <th className="py-2.5 px-3 w-28 shrink-0 text-right whitespace-nowrap">Unit Cost</th>
+                <th className="py-2.5 px-3 w-10 text-center shrink-0 font-semibold text-slate-700">#</th>
+                <SortableHeader
+                  label="Tracking Code"
+                  columnKey="code"
+                  currentSortColumn={sortColumn}
+                  currentSortDirection={sortDirection}
+                  onSort={handleSort}
+                  thClassName="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap"
+                />
+                <SortableHeader
+                  label="Asset Item"
+                  columnKey="name"
+                  currentSortColumn={sortColumn}
+                  currentSortDirection={sortDirection}
+                  onSort={handleSort}
+                  thClassName="py-2.5 px-3 min-w-[180px] max-w-[260px]"
+                />
+                <SortableHeader
+                  label="Category"
+                  columnKey="category"
+                  currentSortColumn={sortColumn}
+                  currentSortDirection={sortDirection}
+                  onSort={handleSort}
+                  thClassName="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap"
+                />
+                <SortableHeader
+                  label="Status"
+                  columnKey="status"
+                  currentSortColumn={sortColumn}
+                  currentSortDirection={sortDirection}
+                  onSort={handleSort}
+                  thClassName="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap"
+                />
+                <SortableHeader
+                  label="Received"
+                  columnKey="received"
+                  currentSortColumn={sortColumn}
+                  currentSortDirection={sortDirection}
+                  onSort={handleSort}
+                  align="right"
+                  title="Sort by All units received"
+                  thClassName="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
+                />
+                <SortableHeader
+                  label="Issued"
+                  columnKey="issued"
+                  currentSortColumn={sortColumn}
+                  currentSortDirection={sortDirection}
+                  onSort={handleSort}
+                  align="right"
+                  title="Sort by Units with custodians"
+                  thClassName="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
+                />
+                <SortableHeader
+                  label="In Store"
+                  columnKey="available"
+                  currentSortColumn={sortColumn}
+                  currentSortDirection={sortDirection}
+                  onSort={handleSort}
+                  align="right"
+                  title="Sort by Units in store"
+                  thClassName="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
+                />
+                <SortableHeader
+                  label="IFMIS Slip #"
+                  columnKey="slip"
+                  currentSortColumn={sortColumn}
+                  currentSortDirection={sortDirection}
+                  onSort={handleSort}
+                  thClassName="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap"
+                />
+                <SortableHeader
+                  label="Date (E.C.)"
+                  columnKey="date"
+                  currentSortColumn={sortColumn}
+                  currentSortDirection={sortDirection}
+                  onSort={handleSort}
+                  thClassName="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap"
+                />
+                <SortableHeader
+                  label="Custodian / Location"
+                  columnKey="custodian"
+                  currentSortColumn={sortColumn}
+                  currentSortDirection={sortDirection}
+                  onSort={handleSort}
+                  thClassName="py-2.5 px-3 min-w-[150px] max-w-[220px]"
+                />
+                <SortableHeader
+                  label="Unit Cost"
+                  columnKey="cost"
+                  currentSortColumn={sortColumn}
+                  currentSortDirection={sortDirection}
+                  onSort={handleSort}
+                  align="right"
+                  thClassName="py-2.5 px-3 w-28 shrink-0 text-right whitespace-nowrap"
+                />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

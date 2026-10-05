@@ -21,7 +21,7 @@ if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
         .catch((err) => {
-          console.warn('MoA-AMS PWA ServiceWorker registration failed: ', err);
+          console.warn('MoA-ATS PWA ServiceWorker registration failed: ', err);
         });
     } else {
       // In development mode, unregister any active service worker to avoid stale HMR / dev cache

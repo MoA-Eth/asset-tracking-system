@@ -17,7 +17,7 @@ export interface FilterPopoverProps {
 }
 
 /**
- * Clean, accessible filter popover card designed for MoA-AMS enterprise tables.
+ * Clean, accessible filter popover card designed for MoA-ATS enterprise tables.
  * Matches official MoA design system with ListFilter icon and clean card layout.
  */
 export const FilterPopover: React.FC<FilterPopoverProps> = ({

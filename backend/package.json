@@ -1,7 +1,7 @@
 {
   "name": "moa-ams-platform",
   "version": "1.0.0",
-  "description": "Express REST API for Ministry of Agriculture Asset Tracking System (MoA-AMS)",
+  "description": "Express REST API for Ministry of Agriculture Asset Tracking System (MoA-ATS)",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",

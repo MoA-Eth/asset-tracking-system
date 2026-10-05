@@ -1,6 +1,6 @@
-# MoA-AMS Production Deployment Guide
+# MoA-ATS Production Deployment Guide
 
-A concise, step-by-step specification for deploying the Ministry of Agriculture Fixed Asset & Store Management System (**MoA-AMS**) on a production Linux server.
+A concise, step-by-step specification for deploying the Ministry of Agriculture Fixed Asset & Store Management System (**MoA-ATS**) on a production Linux server.
 
 ---
 
@@ -28,7 +28,7 @@ Client (Desktop / Mobile PWA)
            │
       HTTP (127.0.0.1:3000)
            ▼
-[ MoA-AMS App Container (Node 22 / Express / Vite SPA) ]
+[ MoA-ATS App Container (Node 22 / Express / Vite SPA) ]
      ├── Persistent Volume: /app/backend/uploads (Scanned slips / PDFs)
      └── Internal TCP (5432)
            ▼

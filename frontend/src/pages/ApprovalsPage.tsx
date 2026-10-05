@@ -34,6 +34,7 @@ import { api } from '../api/client';
 import { table, btn } from '../components/ui/theme';
 import { RecordDetailModal } from '../components/ui/RecordDetailModal';
 import { Pagination, usePagination } from '../components/ui/Pagination';
+import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
 import {
   ApprovalStatus,
   TransactionApproval,
@@ -204,8 +205,47 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
       return true;
     });
-  }, [approvals, activeTab, typeFilter, searchTerm, role]);
-  const pager = usePagination(filteredApprovals, { resetKey: `${activeTab}|${typeFilter}|${searchTerm}` });
+  }, [approvals, activeTab, typeFilter, searchTerm, canEndorse, canApprove]);
+
+  type ApprovalSortColumn = 'type' | 'item' | 'slip' | 'stage' | 'requester';
+  const [sortColumn, setSortColumn] = useState<ApprovalSortColumn>('type');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (colKey: string) => {
+    const col = colKey as ApprovalSortColumn;
+    if (sortColumn === col) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(col);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedApprovals = useMemo(() => {
+    return [...filteredApprovals].sort((a, b) => {
+      let diff = 0;
+      if (sortColumn === 'type') {
+        diff = a.transactionType.localeCompare(b.transactionType);
+      } else if (sortColumn === 'item') {
+        const itemA = a.itemName || a.itemCode || '';
+        const itemB = b.itemName || b.itemCode || '';
+        diff = itemA.localeCompare(itemB);
+      } else if (sortColumn === 'slip') {
+        const slipA = a.ifmisSlipNumber || '';
+        const slipB = b.ifmisSlipNumber || '';
+        diff = slipA.localeCompare(slipB);
+      } else if (sortColumn === 'stage') {
+        diff = (a.currentStage ?? 1) - (b.currentStage ?? 1);
+      } else if (sortColumn === 'requester') {
+        const reqA = a.requestedBy?.fullNameEn || '';
+        const reqB = b.requestedBy?.fullNameEn || '';
+        diff = reqA.localeCompare(reqB);
+      }
+      return sortDirection === 'asc' ? diff : -diff;
+    });
+  }, [filteredApprovals, sortColumn, sortDirection]);
+
+  const pager = usePagination(sortedApprovals, { resetKey: `${activeTab}|${typeFilter}|${searchTerm}|${sortColumn}|${sortDirection}` });
 
   // Checkbox selection. "Select all" covers the page on screen, so nothing out of sight is approved in bulk.
   const actionablePendingItems = useMemo(() => {
@@ -649,11 +689,46 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       />
                     </th>
                   )}
-                  <th className="py-2 px-3 w-32 whitespace-nowrap shrink-0">Statutory Form</th>
-                  <th className="py-2 px-3 min-w-[190px]">Tracking Code & Asset Description</th>
-                  <th className="py-2 px-3 w-36 whitespace-nowrap shrink-0">IFMIS Slip Reference</th>
-                  <th className="py-2 px-3 w-36 whitespace-nowrap shrink-0">Workflow Stage</th>
-                  <th className="py-2 px-3 min-w-[170px]">Requester / Justification</th>
+                  <SortableHeader
+                    label="Statutory Form"
+                    columnKey="type"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-2 px-3 w-32 whitespace-nowrap shrink-0"
+                  />
+                  <SortableHeader
+                    label="Tracking Code & Asset Description"
+                    columnKey="item"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-2 px-3 min-w-[190px]"
+                  />
+                  <SortableHeader
+                    label="IFMIS Slip Reference"
+                    columnKey="slip"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-2 px-3 w-36 whitespace-nowrap shrink-0"
+                  />
+                  <SortableHeader
+                    label="Workflow Stage"
+                    columnKey="stage"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-2 px-3 w-36 whitespace-nowrap shrink-0"
+                  />
+                  <SortableHeader
+                    label="Requester / Justification"
+                    columnKey="requester"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-2 px-3 min-w-[170px]"
+                  />
                   <th className="sticky right-0 z-[1] bg-slate-50 py-2 px-3 text-right w-36 whitespace-nowrap shrink-0">Review Action</th>
                 </tr>
               </thead>

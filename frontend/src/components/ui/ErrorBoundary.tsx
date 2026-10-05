@@ -24,7 +24,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('MoA-AMS ErrorBoundary caught error:', error, errorInfo);
+    console.error('MoA-ATS ErrorBoundary caught error:', error, errorInfo);
     this.setState({ errorInfo });
   }
 
@@ -57,7 +57,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
               <div>
                 <h1 className="text-lg font-bold text-white tracking-tight">
-                  MoA<span className="text-[#FCDD09]">-AMS</span>
+                  MoA<span className="text-[#FCDD09]">-ATS</span>
                 </h1>
                 <p className="text-xs text-emerald-200/80">
                   {this.props.fallbackTitle || 'Application Notice'}

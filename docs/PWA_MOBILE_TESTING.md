@@ -1,6 +1,6 @@
-# MoA-AMS Progressive Web App (PWA) — Mobile Testing & Setup Guide
+# MoA-ATS Progressive Web App (PWA) — Mobile Testing & Setup Guide
 
-This guide details how to install, run, and test the **Ministry of Agriculture Fixed Asset Management System (MoA-AMS)** Progressive Web App (PWA) directly on mobile devices (Android and iOS).
+This guide details how to install, run, and test the **Ministry of Agriculture Fixed Asset Tracking System (MoA-ATS)** Progressive Web App (PWA) directly on mobile devices (Android and iOS).
 
 ---
 
@@ -43,7 +43,7 @@ Recommended when both your PC and Android mobile device are connected to the sam
      http://192.168.100.60:3001?pwa=true
      ```
    - The top banner will display:
-     > **"Install MoA-AMS on your mobile or desktop for full offline field access"** with an **Install** button.
+     > **"Install MoA-ATS on your mobile or desktop for full offline field access"** with an **Install** button.
    - Alternatively, tap the Chrome menu (`⋮`) and select **Install app** or **Add to Home screen**.
    - The app will install with the official Ministry of Agriculture emblem and launch in full-screen standalone mode.
 
@@ -88,7 +88,7 @@ Apple's iOS Safari does not have an insecure origins flag; it requires an actual
 3. **Install on iOS Safari**:
    - Tap the **Share** button (box with upward arrow) at the bottom of Safari.
    - Scroll down and tap **Add to Home Screen**.
-   - Confirm the name ("MoA-AMS") and tap **Add**.
+   - Confirm the name ("MoA-ATS") and tap **Add**.
    - Open the app from your home screen; it will launch standalone with splash branding and without Safari browser chrome.
 
 4. **Install on Android Chrome**:
@@ -98,7 +98,7 @@ Apple's iOS Safari does not have an insecure origins flag; it requires an actual
 
 ## 3. Running Production Mode vs. Development Mode
 
-The MoA-AMS application includes intelligent environment gating for the Service Worker:
+The MoA-ATS application includes intelligent environment gating for the Service Worker:
 
 | Mode | Command | Behavior |
 | :--- | :--- | :--- |
@@ -119,13 +119,13 @@ The preview server listens on `0.0.0.0:3001` with API proxying to port `3000`.
 
 Once installed on your phone:
 
-1. Log into MoA-AMS while connected to the network and navigate between pages (e.g., Assets, Stores, Employees) to populate the local cache.
+1. Log into MoA-ATS while connected to the network and navigate between pages (e.g., Assets, Stores, Employees) to populate the local cache.
 2. Put your phone in **Airplane Mode** (disable Wi-Fi and Cellular Data).
-3. Re-open MoA-AMS from your phone's home screen.
+3. Re-open MoA-ATS from your phone's home screen.
 4. **Expected Behavior**:
    - The application shell loads instantly from cache.
    - An amber offline status bar appears at the top:
-     > *"You are currently Offline. MoA-AMS PWA is serving cached asset records."*
+     > *"You are currently Offline. MoA-ATS PWA is serving cached asset records."*
    - Critical views remain responsive.
 5. Disable Airplane Mode; the offline banner will dismiss automatically when connectivity is restored.
 

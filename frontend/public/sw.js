@@ -1,4 +1,4 @@
-const CACHE_NAME = 'moa-ams-v2';
+const CACHE_NAME = 'moa-ats-v1';
 const APP_SHELL = [
   '/',
   '/index.html',

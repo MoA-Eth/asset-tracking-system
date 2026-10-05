@@ -1,5 +1,5 @@
 # Federal Democratic Republic of Ethiopia – Ministry of Agriculture (MoA)
-## Asset Tracking System (MoA-AMS) — IFMIS Mirror Platform
+## Asset Tracking System (MoA-ATS) — IFMIS Mirror Platform
 
 A modern, enterprise-grade asset tracking system and REST API built to mirror the Ethiopian Government's **Integrated Financial Management Information System (IFMIS)**. Implements statutory Ethiopian property management vouchers (**Model 19**, **Model 20**, **Model 22**), dual Gregorian/Ethiopian calendar synchronization, and role-based access control.
 

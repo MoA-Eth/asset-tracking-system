@@ -7,6 +7,7 @@ import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RefreshButton } from '../components/ui/RefreshButton';
 import { actionText, roleName, withRoleNames } from '../utils/roles';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../components/ui/FilterPopover';
+import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
 
 /** What kind of activity an entry is, for the filter and the colour of its label */
 type ActivityKind = 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'APPROVAL' | 'REJECTION' | 'ADMIN' | 'OTHER';
@@ -163,7 +164,7 @@ export const AuditLogsPage: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `MoA_AMS_Audit_Trail_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `MoA_ATS_Audit_Trail_${new Date().toISOString().split('T')[0]}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -173,8 +174,40 @@ export const AuditLogsPage: React.FC = () => {
     }
   };
 
+  type AuditSortColumn = 'date' | 'who' | 'action' | 'slip';
+  const [sortColumn, setSortColumn] = useState<AuditSortColumn>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  const handleSort = (colKey: string) => {
+    const col = colKey as AuditSortColumn;
+    if (sortColumn === col) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(col);
+      setSortDirection(col === 'date' ? 'desc' : 'asc');
+    }
+  };
+
+  const sortedLogs = useMemo(() => {
+    return [...filteredLogs].sort((a, b) => {
+      let diff = 0;
+      if (sortColumn === 'date') {
+        const timeA = new Date(a.timestampGc || 0).getTime();
+        const timeB = new Date(b.timestampGc || 0).getTime();
+        diff = timeA - timeB;
+      } else if (sortColumn === 'who') {
+        diff = a.userName.localeCompare(b.userName);
+      } else if (sortColumn === 'action') {
+        diff = actionLabel(a.action).localeCompare(actionLabel(b.action));
+      } else if (sortColumn === 'slip') {
+        diff = (a.ifmisSlipNumber || '').localeCompare(b.ifmisSlipNumber || '');
+      }
+      return sortDirection === 'asc' ? diff : -diff;
+    });
+  }, [filteredLogs, sortColumn, sortDirection]);
+
   // The export still uses every filtered entry; only the table on screen is paged
-  const pager = usePagination(filteredLogs, { pageSize: 25, resetKey: `${searchTerm}|${dateFilter}|${selectedKind}` });
+  const pager = usePagination(sortedLogs, { pageSize: 25, resetKey: `${searchTerm}|${dateFilter}|${selectedKind}|${sortColumn}|${sortDirection}` });
 
   if (loading) {
     return (
@@ -311,10 +344,38 @@ export const AuditLogsPage: React.FC = () => {
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     <th scope="col" className="w-8 px-2 py-2"><span className="sr-only">Details</span></th>
-                    <th scope="col" className="w-40 px-3 py-2 whitespace-nowrap">Date &amp; time</th>
-                    <th scope="col" className="w-48 px-3 py-2">Who</th>
-                    <th scope="col" className="w-44 px-3 py-2">Action</th>
-                    <th scope="col" className="w-36 px-3 py-2 whitespace-nowrap">Slip no.</th>
+                    <SortableHeader
+                      label="Date & time"
+                      columnKey="date"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={handleSort}
+                      thClassName="w-40 px-3 py-2 whitespace-nowrap"
+                    />
+                    <SortableHeader
+                      label="Who"
+                      columnKey="who"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={handleSort}
+                      thClassName="w-48 px-3 py-2"
+                    />
+                    <SortableHeader
+                      label="Action"
+                      columnKey="action"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={handleSort}
+                      thClassName="w-44 px-3 py-2"
+                    />
+                    <SortableHeader
+                      label="Slip no."
+                      columnKey="slip"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={handleSort}
+                      thClassName="w-36 px-3 py-2 whitespace-nowrap"
+                    />
                     <th scope="col" className="px-3 py-2">What happened</th>
                   </tr>
                 </thead>

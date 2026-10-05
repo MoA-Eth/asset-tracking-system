@@ -136,7 +136,7 @@ app.use(errorHandler);
 // Start server once the saved permission matrix is loaded
 void Promise.all([initRolePermissions(), initSystemSettings()]).then(() => app.listen(PORT, () => {
   console.log(`=======================================================`);
-  console.log(` Federal Democratic Republic of Ethiopia - MoA AMS `);
+  console.log(` Federal Democratic Republic of Ethiopia - MoA ATS `);
   console.log(` IFMIS Store-Level Tracking & Executive Visibility API `);
   console.log(` REST API running on: http://localhost:${PORT}`);
   console.log(` Health check: http://localhost:${PORT}/api/health`);

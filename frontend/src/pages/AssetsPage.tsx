@@ -14,9 +14,6 @@ import {
   ChevronRight,
   X,
   Filter,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
   Download,
   ArrowLeft,
   Check,
@@ -25,6 +22,7 @@ import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { CloseButton } from '../components/ui/CloseButton';
 import { FilterPopover, FilterSection, FilterPill, FilterSelect } from '../components/ui/FilterPopover';
+import { SortableHeader } from '../components/ui/SortableHeader';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
 import { AssetRecord } from '../components/assets/AssetRecord';
@@ -114,17 +112,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       setSortColumn(col);
       setSortDirection(col === 'cost' || col === 'units' || col === 'activity' ? 'desc' : 'asc');
     }
-  };
-
-  const renderSortIcon = (col: SortColumn) => {
-    if (sortColumn === col) {
-      return sortDirection === 'asc' ? (
-        <ArrowUp className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
-      ) : (
-        <ArrowDown className="w-3.5 h-3.5 text-emerald-700 shrink-0" aria-hidden="true" />
-      );
-    }
-    return <ArrowUpDown className="w-3 h-3 text-slate-400 group-hover:text-slate-600 shrink-0 opacity-40 group-hover:opacity-100 transition" aria-hidden="true" />;
   };
 
   // Pop-ups: one per form, each either new (from a row or the header) or correcting a pending request
@@ -1383,72 +1370,56 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               <table className="w-full min-w-[900px] text-left text-xs">
                 <thead className={table.headRow}>
                   <tr>
-                    <th className="px-3 py-2 min-w-[200px]" aria-sort={sortColumn === 'name' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                      <button
-                        type="button"
-                        onClick={() => handleSort('name')}
-                        className="group inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer"
-                        title="Sort by Asset name"
-                      >
-                        Asset
-                        {renderSortIcon('name')}
-                      </button>
-                    </th>
-                    <th className="px-3 py-2 w-36" aria-sort={sortColumn === 'status' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                      <button
-                        type="button"
-                        onClick={() => handleSort('status')}
-                        className="group inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer"
-                        title="Sort by Status"
-                      >
-                        Status
-                        {renderSortIcon('status')}
-                      </button>
-                    </th>
-                    <th className="px-3 py-2 w-20 text-right" aria-sort={sortColumn === 'units' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                      <button
-                        type="button"
-                        onClick={() => handleSort('units')}
-                        className="group ml-auto inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer"
-                        title="Sort by Quantity"
-                      >
-                        Qty
-                        {renderSortIcon('units')}
-                      </button>
-                    </th>
-                    <th className="px-3 py-2 min-w-[170px]" aria-sort={sortColumn === 'where' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                      <button
-                        type="button"
-                        onClick={() => handleSort('where')}
-                        className="group inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer"
-                        title="Sort by Location or Custodian"
-                      >
-                        Held by / where
-                        {renderSortIcon('where')}
-                      </button>
-                    </th>
-                    <th className="px-3 py-2 w-36 whitespace-nowrap" aria-sort={sortColumn === 'slip' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                      <button
-                        type="button"
-                        onClick={() => handleSort('slip')}
-                        className="group inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer"
-                        title="Sort by Model 19 slip number"
-                      >
-                        Model 19 slip
-                        {renderSortIcon('slip')}
-                      </button>
-                    </th>
-                    <th className="px-3 py-2 w-28 text-right whitespace-nowrap" aria-sort={sortColumn === 'cost' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                      <button
-                        type="button"
-                        onClick={() => handleSort('cost')}
-                        className="group ml-auto inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer"
-                        title="Sort by Unit cost"
-                      >
-                        Unit cost
-                        {renderSortIcon('cost')}
-                      </button>
-                    </th>
+                    <SortableHeader
+                      label="Asset"
+                      columnKey="name"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={(key) => handleSort(key as SortColumn)}
+                      thClassName="px-3 py-2 min-w-[200px]"
+                    />
+                    <SortableHeader
+                      label="Status"
+                      columnKey="status"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={(key) => handleSort(key as SortColumn)}
+                      thClassName="px-3 py-2 w-36"
+                    />
+                    <SortableHeader
+                      label="Qty"
+                      columnKey="units"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={(key) => handleSort(key as SortColumn)}
+                      align="right"
+                      thClassName="px-3 py-2 w-20 text-right"
+                    />
+                    <SortableHeader
+                      label="Held by / where"
+                      columnKey="where"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={(key) => handleSort(key as SortColumn)}
+                      thClassName="px-3 py-2 min-w-[170px]"
+                    />
+                    <SortableHeader
+                      label="Model 19 slip"
+                      columnKey="slip"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={(key) => handleSort(key as SortColumn)}
+                      thClassName="px-3 py-2 w-36 whitespace-nowrap"
+                    />
+                    <SortableHeader
+                      label="Unit cost"
+                      columnKey="cost"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={(key) => handleSort(key as SortColumn)}
+                      align="right"
+                      thClassName="px-3 py-2 w-28 text-right whitespace-nowrap"
+                    />
                     <th className={`px-3 py-2 ${table.actionsHead}`}>
                       <span className="sr-only">Actions</span>
                     </th>

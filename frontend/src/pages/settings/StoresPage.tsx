@@ -11,6 +11,7 @@ import { Location, Store } from '../../types/asset-management';
 import { ActivePill, ConfirmDialog, StatusFilter, matchesStatus } from './reference-ui';
 import { RefreshButton } from '../../components/ui/RefreshButton';
 import { FilterPopover, FilterSection, FilterPill } from '../../components/ui/FilterPopover';
+import { SortableHeader, SortDirection } from '../../components/ui/SortableHeader';
 
 /** What the add / edit window is working on */
 type Editing =
@@ -151,6 +152,34 @@ export const StoresPage: React.FC = () => {
         (!q || [s.name, s.address, ...s.locations.map((l) => l.name)].some((v) => (v || '').toLowerCase().includes(q))),
     );
   }, [stores, search, statusFilter]);
+
+  type LocationSortColumn = 'name' | 'items' | 'status';
+  const [locSortColumn, setLocSortColumn] = useState<LocationSortColumn>('name');
+  const [locSortDirection, setLocSortDirection] = useState<SortDirection>('asc');
+
+  const handleLocSort = (colKey: string) => {
+    const col = colKey as LocationSortColumn;
+    if (locSortColumn === col) {
+      setLocSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setLocSortColumn(col);
+      setLocSortDirection(col === 'items' ? 'desc' : 'asc');
+    }
+  };
+
+  const sortLocations = (locations: Location[]) => {
+    return [...locations].sort((a, b) => {
+      let diff = 0;
+      if (locSortColumn === 'name') {
+        diff = a.name.localeCompare(b.name);
+      } else if (locSortColumn === 'items') {
+        diff = (a.itemCount ?? 0) - (b.itemCount ?? 0);
+      } else if (locSortColumn === 'status') {
+        diff = a.isActive === b.isActive ? 0 : a.isActive ? -1 : 1;
+      }
+      return locSortDirection === 'asc' ? diff : -diff;
+    });
+  };
 
   const activeStores = stores.filter((s) => s.isActive);
   // Places stock can be received into right now
@@ -355,9 +384,33 @@ export const StoresPage: React.FC = () => {
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className={table.headRow}>
-                      <th className="px-4 py-2 pl-16">Location</th>
-                      {canManage && <th className="px-3 py-2 text-right whitespace-nowrap">Item records in store</th>}
-                      <th className="px-3 py-2 w-32">Status</th>
+                      <SortableHeader
+                        label="Location"
+                        columnKey="name"
+                        currentSortColumn={locSortColumn}
+                        currentSortDirection={locSortDirection}
+                        onSort={handleLocSort}
+                        thClassName="px-4 py-2 pl-16"
+                      />
+                      {canManage && (
+                        <SortableHeader
+                          label="Item records in store"
+                          columnKey="items"
+                          currentSortColumn={locSortColumn}
+                          currentSortDirection={locSortDirection}
+                          onSort={handleLocSort}
+                          align="right"
+                          thClassName="px-3 py-2 text-right whitespace-nowrap"
+                        />
+                      )}
+                      <SortableHeader
+                        label="Status"
+                        columnKey="status"
+                        currentSortColumn={locSortColumn}
+                        currentSortDirection={locSortDirection}
+                        onSort={handleLocSort}
+                        thClassName="px-3 py-2 w-32"
+                      />
                       {canManage && (
                         <th className={`px-3 py-2 ${table.actionsHead}`}>
                           <span className="sr-only">Actions</span>
@@ -366,7 +419,7 @@ export const StoresPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {store.locations.map((l) => {
+                    {sortLocations(store.locations).map((l) => {
                       const here = l.itemCount ?? 0;
                       const lastHere = store.locations.length === 1;
                       const lastUsable = store.isActive && l.isActive && usableLocations <= 1;
