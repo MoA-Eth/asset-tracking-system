@@ -94,13 +94,13 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={collapsed ? onToggleCollapse : undefined}
-            className={`w-8 h-8 rounded-xl bg-gradient-to-br from-[#0F4A2B] to-[#062414] ring-1 ring-[#FCDD09]/40 flex items-center justify-center p-1 shadow-md shrink-0 transition-transform ${
-              collapsed ? 'hover:scale-105 cursor-pointer' : 'cursor-default'
+            className={`w-9 h-9 flex items-center justify-center shrink-0 transition-transform ${
+              collapsed ? 'hover:scale-110 cursor-pointer' : 'cursor-default'
             }`}
             title={collapsed ? 'Expand sidebar' : undefined}
             aria-label={collapsed ? 'Expand sidebar' : 'MoA-AMS'}
           >
-            <MoaLogo className="w-full h-full drop-shadow" alt="MoA-AMS" />
+            <MoaLogo className="w-8 h-8 drop-shadow-md" alt="MoA-AMS" />
           </button>
 
           {!collapsed && (

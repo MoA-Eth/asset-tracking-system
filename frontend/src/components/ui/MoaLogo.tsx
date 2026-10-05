@@ -32,7 +32,7 @@ export const MoaLogo: React.FC<MoaLogoProps> = ({
       src={moaLogoUrl}
       alt={alt}
       onError={() => setHasError(true)}
-      className={`${className} object-contain inline-block shrink-0`}
+      className={`${className} rounded-full object-contain inline-block shrink-0`}
       loading="eager"
     />
   );

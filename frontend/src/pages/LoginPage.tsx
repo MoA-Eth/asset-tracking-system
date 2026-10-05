@@ -80,7 +80,7 @@ export const LoginPage: React.FC = () => {
           {/* Authentic MoA Card */}
           <form
             onSubmit={handleFormSubmit}
-            className="rounded-3xl border border-emerald-500/20 backdrop-blur-xl p-8 sm:p-9 shadow-2xl relative overflow-hidden"
+            className="rounded-[32px] border border-emerald-500/20 backdrop-blur-xl p-8 sm:p-9 shadow-2xl relative overflow-hidden"
             style={{
               background: "linear-gradient(165deg, rgba(13, 48, 29, 0.94) 0%, rgba(8, 32, 20, 0.96) 60%, rgba(5, 20, 12, 0.98) 100%)",
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.65), 0 0 30px rgba(11, 61, 37, 0.3)",
@@ -91,7 +91,7 @@ export const LoginPage: React.FC = () => {
 
             {/* Brand Header */}
             <div className="text-center mb-8 pt-1">
-              <MoaLogo className="w-16 h-16 mx-auto mb-3.5 drop-shadow-lg" alt="Ministry of Agriculture" />
+              <MoaLogo className="w-20 h-20 sm:w-22 sm:h-22 mx-auto mb-3.5 drop-shadow-xl" alt="Ministry of Agriculture" />
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/80 mb-1">
                 Ministry of Agriculture
               </p>
