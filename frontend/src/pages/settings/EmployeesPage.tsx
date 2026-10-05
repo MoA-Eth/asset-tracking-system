@@ -307,43 +307,12 @@ export const EmployeesPage: React.FC = () => {
   const colCount = canManage ? 8 : 5;
 
   return (
-    <div className="space-y-5 animate-fadeIn pb-16">
-      {/* Header */}
-      <div className="flex flex-col gap-3 border-b border-slate-200 pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4 animate-fadeIn pb-16">
+      {/* ── Page header matching AssetsPage ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
         <p className="text-xs text-slate-500">
           Staff who hold, receive or approve items. Only active employees appear in the issue and transfer forms.
         </p>
-        {canManage && (
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 cursor-pointer"
-            >
-              <FileSpreadsheet className="h-4 w-4 text-emerald-700" />
-              Import from Excel
-            </button>
-            <button type="button" onClick={openAdd} className={btn.primary}>
-              <UserPlus className="h-4 w-4" />
-              Add employee
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs lg:flex-row lg:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-          <input
-            id="employee-search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, employee ID, unit or job title…"
-            aria-label="Search employees"
-            className={table.search}
-          />
-        </div>
         <div className="flex items-center gap-2 shrink-0">
           {/* Reusable Filter Popover */}
           <FilterPopover
@@ -393,6 +362,18 @@ export const EmployeesPage: React.FC = () => {
               />
             </FilterSection>
           </FilterPopover>
+
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              title="Import employees from Excel"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs shrink-0"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Import from Excel</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -407,11 +388,34 @@ export const EmployeesPage: React.FC = () => {
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 text-xs text-slate-500">
-            <span>
-              <span className="font-semibold text-slate-900">{rows.length}</span> of {employees.length} employees
-            </span>
-            {canManage && <span>{counts.signIn} can sign in</span>}
+          {/* Table Card Header matching AssetsPage: Search on left, Action button on right */}
+          <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  id="employee-search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by name, employee ID, unit or job title…"
+                  aria-label="Search employees"
+                  className={table.search.replace('pr-8', 'pr-3')}
+                />
+              </div>
+              {canManage && (
+                <button type="button" onClick={openAdd} className={`${btn.primary} shrink-0`}>
+                  <UserPlus className="h-4 w-4" />
+                  <span>Add employee</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-slate-500 pt-0.5">
+              <span>
+                <span className="font-semibold text-slate-900">{rows.length}</span> of {employees.length} employees
+              </span>
+              {canManage && <span>{counts.signIn} can sign in</span>}
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">

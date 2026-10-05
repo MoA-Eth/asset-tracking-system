@@ -183,31 +183,12 @@ export const StoresPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 animate-fadeIn pb-16">
-      <div className="flex flex-col gap-3 border-b border-slate-200 pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4 animate-fadeIn pb-16">
+      {/* ── Page header matching AssetsPage ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
         <p className="text-xs text-slate-500">
           Each store receives and issues stock, and has one or more locations inside it (rooms, sections, shelves). Receiving picks a store, then a location.
         </p>
-        {canManage && (
-          <button type="button" onClick={() => setEditing({ kind: 'store', store: null })} className={`${btn.primary} shrink-0`}>
-            <Plus className="h-4 w-4" />
-            Add store
-          </button>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs lg:flex-row lg:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-          <input
-            id="store-search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by store, address or location…"
-            aria-label="Search stores and locations"
-            className={table.search}
-          />
-        </div>
         <div className="flex items-center gap-2 shrink-0">
           {canManage && (
             <FilterPopover
@@ -240,6 +221,40 @@ export const StoresPage: React.FC = () => {
               </FilterSection>
             </FilterPopover>
           )}
+        </div>
+      </div>
+
+      {/* ── Toolbar Card matching AssetsPage: Search on left, Action button on right ── */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-xs p-3 sm:px-4 sm:py-3">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              id="store-search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by store, address or location…"
+              aria-label="Search stores and locations"
+              className={table.search.replace('pr-8', 'pr-3')}
+            />
+          </div>
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => setEditing({ kind: 'store', store: null })}
+              className={`${btn.primary} shrink-0`}
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add store</span>
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100 mt-2.5">
+          <span>
+            <span className="font-semibold text-slate-900">{shown.length}</span> of {stores.length} stores
+          </span>
+          <span>{usableLocations} active locations</span>
         </div>
       </div>
 
