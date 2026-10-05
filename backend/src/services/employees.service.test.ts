@@ -253,6 +253,15 @@ describe('Amharic name', () => {
     expect(result.counts).toMatchObject({ create: 1, unchanged: 1, error: 0 });
     expect(db.employee.createMany.mock.calls[0][0].data[0]).toMatchObject({ payrollId: 'MOA/9', fullNameAm: '' });
   });
+
+  it('rejects Latin characters and requires Ethiopic script', async () => {
+    await expect(createEmployee(form({ fullNameAm: 'Abebe Kebede' }), 'admin')).rejects.toThrow(
+      'Full name (Amharic) must be written in the Ethiopic script and cannot contain Latin characters.',
+    );
+    await expect(createEmployee(form({ fullNameAm: '---' }), 'admin')).rejects.toThrow(
+      'Full name (Amharic) must contain Ethiopic script characters.',
+    );
+  });
 });
 
 describe("HR's sheet", () => {

@@ -192,6 +192,14 @@ function checkDetails(input: EmployeeInput) {
     email: text(input.email, 'Email', 160, false)?.toLowerCase() ?? null,
     phone: text(input.phone, 'Phone', 20, false),
   };
+  if (details.fullNameAm) {
+    if (/[a-zA-Z]/.test(details.fullNameAm)) {
+      throw new BadRequestError('Full name (Amharic) must be written in the Ethiopic script and cannot contain Latin characters.');
+    }
+    if (!/[\u1200-\u137F\u1380-\u139F\u2D80-\u2DDF\uAB00-\uAB2F]/.test(details.fullNameAm)) {
+      throw new BadRequestError('Full name (Amharic) must contain Ethiopic script characters.');
+    }
+  }
   if (details.email && !EMAIL_PATTERN.test(details.email)) throw new BadRequestError('Enter a valid email address.');
   if (details.phone && !PHONE_PATTERN.test(details.phone)) throw new BadRequestError('Enter a valid phone number, e.g. +251 911 000000.');
   return details;

@@ -79,7 +79,7 @@ const FORM_KEY: Record<EmployeeField, keyof EmployeeInput> = {
 const PLACEHOLDERS: Partial<Record<EmployeeField, string>> = {
   department: 'Choose from the list, or type a new one',
   unit: 'e.g. የትራንስፖርት ስምሪት አገልግሎት',
-  fullNameAm: 'ሙሉ ስም',
+  fullNameAm: 'e.g. አበበ ከበደ',
   fullNameEn: 'e.g. Hana Tesfaye Bekele',
   payrollId: 'e.g. 00123456',
   jobTitle: 'e.g. ሾፌር II',
@@ -99,8 +99,23 @@ const EmployeeForm: React.FC<{
   const [form, setForm] = useState<EmployeeInput>(editing ? formOf(editing, departments) : emptyForm());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const set = (key: keyof EmployeeInput) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const set = (key: keyof EmployeeInput) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setError(null);
     setForm((f) => ({ ...f, [key]: e.target.value }));
+  };
+
+  // Ethiopic script validation for Amharic full name
+  const hasAmharicLatin = Boolean(form.fullNameAm && /[a-zA-Z]/.test(form.fullNameAm));
+  const hasAmharicNonEthiopic = Boolean(
+    form.fullNameAm &&
+      form.fullNameAm.trim() &&
+      !/[\u1200-\u137F\u1380-\u139F\u2D80-\u2DDF\uAB00-\uAB2F]/.test(form.fullNameAm)
+  );
+  const amharicError = hasAmharicLatin
+    ? 'Ethiopic script only (e.g. አበበ ከበደ). Latin letters are not allowed.'
+    : hasAmharicNonEthiopic
+    ? 'Full name (Amharic) must contain Ethiopic script characters (e.g. አበበ ከበደ).'
+    : null;
 
   // A name that matches no existing department will be created with the employee
   const typedDepartment = form.departmentName.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -118,6 +133,10 @@ const EmployeeForm: React.FC<{
     ].filter(([value]) => !String(value ?? '').trim()).map(([, label]) => label);
     if (missing.length > 0) {
       setError(`Fill in: ${missing.join(', ')}.`);
+      return;
+    }
+    if (amharicError) {
+      setError(amharicError);
       return;
     }
     setSubmitting(true);
@@ -142,6 +161,20 @@ const EmployeeForm: React.FC<{
             const key = FORM_KEY[field.key];
             const id = `emp-${field.key}`;
             const common = { id, value: form[key] ?? '', onChange: set(key) };
+            const isAmharic = field.key === 'fullNameAm';
+            const hint = isAmharic
+              ? amharicError ? (
+                  <span className="font-medium text-rose-600 flex items-center gap-1">
+                    <AlertCircle className="size-3 shrink-0 inline" />
+                    {amharicError}
+                  </span>
+                ) : (
+                  <span className="text-slate-400">Ethiopic script only · የግዕዝ/አማርኛ ፊደላት ብቻ</span>
+                )
+              : field.key === 'department' && isNewDepartment
+              ? 'New department. It will be added when you save.'
+              : undefined;
+
             return (
               <Field
                 key={field.key}
@@ -149,7 +182,7 @@ const EmployeeForm: React.FC<{
                 required={field.required}
                 optional={!field.required}
                 htmlFor={id}
-                hint={field.key === 'department' && isNewDepartment ? 'New department. It will be added when you save.' : undefined}
+                hint={hint}
               >
                 {field.key === 'department' ? (
                   <>
@@ -177,8 +210,14 @@ const EmployeeForm: React.FC<{
                   <input
                     {...common}
                     type={field.key === 'email' ? 'email' : field.key === 'phone' ? 'tel' : 'text'}
+                    lang={isAmharic ? 'am' : undefined}
+                    dir={isAmharic ? 'ltr' : undefined}
+                    aria-invalid={isAmharic && Boolean(amharicError) ? 'true' : undefined}
                     placeholder={PLACEHOLDERS[field.key]}
-                    className={inputClass('emerald', { mono: field.key === 'payrollId' })}
+                    className={inputClass('emerald', {
+                      mono: field.key === 'payrollId',
+                      invalid: isAmharic && Boolean(amharicError),
+                    })}
                   />
                 )}
               </Field>

@@ -69,6 +69,37 @@ describe('Employees page', () => {
     expect(await screen.findByText('Hana Tesfaye')).toBeInTheDocument();
   });
 
+  it('validates and restricts Full name (Amharic) to Ethiopic script', async () => {
+    const user = userEvent.setup();
+    render(<EmployeesPage />);
+    await user.click(await screen.findByRole('button', { name: 'Add employee' }));
+
+    const amharicInput = screen.getByLabelText(/Full name .Amharic./);
+    await user.type(screen.getByLabelText(/Full name .English./), 'Abebe Kebede');
+    await user.type(screen.getByLabelText(/Employee ID/), 'MOA/999');
+    await user.type(screen.getByLabelText(/^Department/), 'Procurement');
+
+    // Type Latin characters into Amharic field
+    await user.type(amharicInput, 'Abebe');
+    expect(screen.getByText(/Ethiopic script only/i)).toBeInTheDocument();
+    expect(amharicInput).toHaveAttribute('aria-invalid', 'true');
+
+    // Attempt to submit with Latin characters
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add employee' }));
+    expect(api.createEmployee).not.toHaveBeenCalled();
+    expect(screen.getAllByText(/Latin letters are not allowed/i).length).toBeGreaterThanOrEqual(1);
+
+    // Clear and type valid Ethiopic characters
+    await user.clear(amharicInput);
+    await user.type(amharicInput, 'አበበ');
+    expect(screen.queryByText(/Latin letters are not allowed/i)).not.toBeInTheDocument();
+    expect(amharicInput).not.toHaveAttribute('aria-invalid', 'true');
+
+    vi.mocked(api.createEmployee).mockResolvedValue({ ...custodian, id: 'emp-999', fullNameAm: 'አበበ' } as any);
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add employee' }));
+    expect(api.createEmployee).toHaveBeenCalledWith(expect.objectContaining({ fullNameAm: 'አበበ' }));
+  });
+
   it('checks an HR file, shows what will happen, and imports on confirmation', async () => {
     const user = userEvent.setup();
     const preview = {

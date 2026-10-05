@@ -21,15 +21,17 @@ const ACCENT = {
   },
 } as const;
 
-/** Text input / select styling. Pass `mono` for codes and numbers. */
-export const inputClass = (accent: FormAccent, opts: { mono?: boolean; align?: 'left' | 'right' | 'center' } = {}) =>
+/** Text input / select styling. Pass `mono` for codes and numbers, `invalid` for error states. */
+export const inputClass = (accent: FormAccent, opts: { mono?: boolean; align?: 'left' | 'right' | 'center'; invalid?: boolean } = {}) =>
   [
-    'w-full h-9 px-3 bg-white border border-slate-300 rounded-lg text-[13px] text-slate-900 placeholder:text-slate-400',
+    'w-full h-9 px-3 bg-white rounded-lg text-[13px] text-slate-900 placeholder:text-slate-400',
     'focus:outline-none focus:ring-2 transition disabled:bg-slate-50 disabled:text-slate-500',
-    ACCENT[accent].focus,
+    opts.invalid
+      ? 'border border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20 text-slate-900'
+      : `border border-slate-300 ${ACCENT[accent].focus}`,
     opts.mono ? 'font-mono' : '',
     opts.align === 'right' ? 'text-right' : opts.align === 'center' ? 'text-center' : '',
-  ].join(' ');
+  ].filter(Boolean).join(' ');
 
 export const textareaClass = (accent: FormAccent) =>
   `w-full min-h-[72px] px-3 py-2 bg-white border border-slate-300 rounded-lg text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${ACCENT[accent].focus}`;
