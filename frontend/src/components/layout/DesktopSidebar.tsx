@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronDown, ChevronsUpDown, User, LogOut, Shield, Users } from 'lucide-react';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
 import { SETTINGS_NAV, getSettingsGroups, getNavSections, NavItem } from './navigation';
@@ -14,6 +14,21 @@ interface DesktopSidebarProps {
   onToggleCollapse: () => void;
 }
 
+const ROLE_TITLES: Partial<Record<UserRole, string>> = {
+  [UserRole.MANAGER]: 'Manager',
+  [UserRole.DEPARTMENT_HEAD]: 'Directorate Head',
+  [UserRole.TEAM_LEADER]: 'Team Leader',
+  [UserRole.DATA_ENCODER]: 'Data Encoder',
+  [UserRole.SYSTEM_ADMIN]: 'System Administrator',
+};
+
+const getInitials = (name?: string): string => {
+  if (!name) return 'MOA';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
+
 /** Gold bar marking the current page, echoing the emblem colour. */
 const ActiveBar: React.FC = () => (
   <span aria-hidden="true" className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-[#FCDD09]" />
@@ -26,13 +41,36 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   collapsed,
   onToggleCollapse,
 }) => {
-  const { user } = useAuth();
+  const { user, role, logout, canAccessTab } = useAuth();
   const isSettingsActive = activeTab.startsWith('settings');
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (isSettingsActive) setSettingsOpen(true);
   }, [isSettingsActive]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowUserMenu(false);
+      }
+    };
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showUserMenu]);
 
   const sections = getNavSections(user?.allowedTabs);
   const settingsGroups = getSettingsGroups(user?.allowedTabs);
@@ -190,6 +228,134 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           </div>
         )}
       </nav>
+
+      {/* Pinned Bottom User Profile Card */}
+      {user && (
+        <div className="p-2 border-t border-white/[0.08] relative shrink-0" ref={userMenuRef}>
+          {/* Menu Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setShowUserMenu((v) => !v)}
+            aria-haspopup="true"
+            aria-expanded={showUserMenu}
+            aria-label={`Account menu for ${user.fullNameEn || ROLE_TITLES[role] || role}`}
+            title={collapsed ? `${user.fullNameEn || 'Account'} (${ROLE_TITLES[role] || role})` : undefined}
+            className={`w-full flex items-center ${
+              collapsed ? 'justify-center p-1.5' : 'gap-2.5 p-2'
+            } rounded-xl transition-all cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
+              showUserMenu ? 'bg-white/[0.12]' : 'hover:bg-white/[0.06]'
+            }`}
+          >
+            {/* Avatar Circle */}
+            <div className="size-9 rounded-full bg-emerald-600 border border-emerald-400/40 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+              {getInitials(user.fullNameEn || user.email)}
+            </div>
+
+            {!collapsed && (
+              <>
+                <div className="min-w-0 flex-1 leading-tight">
+                  <span className="block font-semibold text-xs text-white truncate">
+                    {user.fullNameEn || ROLE_TITLES[role] || role}
+                  </span>
+                  <span className="block text-[10px] text-emerald-200/60 truncate mt-0.5">
+                    {ROLE_TITLES[role] || role}
+                  </span>
+                </div>
+                <ChevronsUpDown className="w-4 h-4 text-emerald-200/40 group-hover:text-emerald-100 shrink-0 transition-colors" />
+              </>
+            )}
+          </button>
+
+          {/* Upward-popping Account Dropdown Menu */}
+          {showUserMenu && (
+            <div
+              role="menu"
+              aria-label="User Account Menu"
+              className={`absolute bottom-full mb-2 ${
+                collapsed ? 'left-1 w-64' : 'left-2 right-2'
+              } bg-[#0A2E1D] border border-emerald-500/30 rounded-2xl shadow-2xl z-50 overflow-hidden text-white backdrop-blur-xl animate-fadeIn`}
+              style={{
+                boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 20px rgba(16, 185, 129, 0.15)',
+              }}
+            >
+              {/* Header Info */}
+              <div className="p-3 bg-white/[0.04] border-b border-white/[0.08] flex items-start gap-2.5">
+                <div className="size-9 rounded-full bg-emerald-600 border border-emerald-400/50 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  {getInitials(user.fullNameEn || user.email)}
+                </div>
+                <div className="min-w-0 flex-1 leading-tight">
+                  <span className="block font-bold text-xs text-white truncate">
+                    {user.fullNameEn || ROLE_TITLES[role] || role}
+                  </span>
+                  {user.email && (
+                    <span className="block text-[10px] text-emerald-200/70 font-mono truncate mt-0.5">
+                      {user.email}
+                    </span>
+                  )}
+                  <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/20 text-[#FCDD09] border border-[#FCDD09]/30">
+                      <Shield className="w-2.5 h-2.5" />
+                      {ROLE_TITLES[role] || role}
+                    </span>
+                    {user.payrollId && (
+                      <span className="text-[9px] text-emerald-200/50 font-mono">
+                        ID: {user.payrollId}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Menu Actions */}
+              <div className="p-1 space-y-0.5 text-xs">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    setActiveTab('settings-profile');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-emerald-50 hover:text-white hover:bg-white/[0.08] rounded-xl transition cursor-pointer"
+                >
+                  <User className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Profile</span>
+                </button>
+
+                {Boolean(canAccessTab ? canAccessTab('settings-users') : user?.allowedTabs?.includes('settings-users')) && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      setActiveTab('settings-users');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-emerald-50 hover:text-white hover:bg-white/[0.08] rounded-xl transition cursor-pointer"
+                  >
+                    <Users className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Users & Permissions</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Sign out */}
+              <div className="p-1 border-t border-white/[0.08]">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    logout();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-semibold text-rose-300 hover:text-rose-200 hover:bg-rose-500/15 rounded-xl transition cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>Sign out</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </aside>
   );
 };
