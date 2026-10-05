@@ -10,6 +10,7 @@ import {
   UserPlus,
   KeyRound,
   UserX,
+  UserMinus,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { table, btn } from '../components/ui/theme';
@@ -50,6 +51,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
   const [resetting, setResetting] = useState<Employee | null>(null);
   const [removing, setRemoving] = useState<Employee | null>(null);
   const [removeBusy, setRemoveBusy] = useState(false);
+  const [deactivating, setDeactivating] = useState<Employee | null>(null);
+  const [deactivateBusy, setDeactivateBusy] = useState(false);
 
   const applyUpdate = (updated: Employee) => setEmployees((prev) => prev.map((emp) => (emp.id === updated.id ? { ...emp, ...updated } : emp)));
 
@@ -64,6 +67,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
       toast.error('Could not remove sign-in', err.message);
     } finally {
       setRemoveBusy(false);
+    }
+  };
+
+  const deactivateUser = async () => {
+    if (!deactivating) return;
+    setDeactivateBusy(true);
+    try {
+      const updated = await api.setEmployeeActive(deactivating.id, false);
+      applyUpdate(updated);
+      toast.success('User deactivated', `${deactivating.fullNameEn} has been deactivated.`);
+      setDeactivating(null);
+    } catch (err: any) {
+      toast.error('Could not deactivate user', err.message);
+    } finally {
+      setDeactivateBusy(false);
     }
   };
 
@@ -330,10 +348,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                               },
                               {
                                 label: 'Remove sign-in',
-                                icon: UserX,
+                                icon: UserMinus,
                                 onClick: () => setRemoving(emp),
                                 disabled: emp.id === user?.id,
                                 reason: emp.id === user?.id ? "You can't remove your own sign-in." : undefined,
+                              },
+                              {
+                                label: 'Deactivate user',
+                                icon: UserX,
+                                onClick: () => setDeactivating(emp),
+                                disabled: emp.id === user?.id || (emp.heldItemCount !== undefined && emp.heldItemCount > 0),
+                                reason:
+                                  emp.id === user?.id
+                                    ? "You can't deactivate your own account."
+                                    : emp.heldItemCount
+                                      ? `Holds ${emp.heldItemCount} ${emp.heldItemCount === 1 ? 'item' : 'items'}. Transfer or return ${emp.heldItemCount === 1 ? 'it' : 'them'} first.`
+                                      : undefined,
                               },
                             ]}
                           />
@@ -382,6 +412,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
         onClose={() => setRemoving(null)}
       >
         They will be signed out and can no longer sign in. They stay on the staff list and keep any items they hold.
+      </ConfirmDialog>
+      <ConfirmDialog
+        isOpen={!!deactivating}
+        title={`Deactivate ${deactivating?.fullNameEn ?? ''}?`}
+        confirmLabel="Deactivate user"
+        danger
+        busy={deactivateBusy}
+        onConfirm={deactivateUser}
+        onClose={() => setDeactivating(null)}
+      >
+        They will be signed out immediately and can no longer sign in or receive asset items. Their past slips, approvals and history remain preserved.
       </ConfirmDialog>
     </div>
   );

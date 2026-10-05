@@ -16,6 +16,7 @@ vi.mock('../../api/client', () => ({
   api: {
     getEmployees: vi.fn(), getDepartments: vi.fn(), updateEmployeeRole: vi.fn(),
     grantAccess: vi.fn(), removeAccess: vi.fn(), resetEmployeePassword: vi.fn(), changePassword: vi.fn(),
+    setEmployeeActive: vi.fn(),
   },
 }));
 
@@ -80,6 +81,7 @@ describe('Users page: sign-in access', () => {
     await user.click(await screen.findByRole('button', { name: 'Actions for Admin Person' }));
     expect((screen.getByRole('menuitem', { name: /Remove sign-in/ }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('menuitem', { name: /Reset password/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('menuitem', { name: /Deactivate user/ }) as HTMLButtonElement).disabled).toBe(true);
     await user.keyboard('{Escape}');
 
     await user.click(screen.getByRole('button', { name: 'Actions for Example Encoder' }));
@@ -94,6 +96,20 @@ describe('Users page: sign-in access', () => {
     dialog = screen.getByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Remove sign-in' }));
     expect(api.removeAccess).toHaveBeenCalledWith('encoder');
+    expect(screen.queryByText('Example Encoder')).not.toBeInTheDocument();
+  });
+
+  it('deactivates a user from the row menu with confirmation', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.setEmployeeActive).mockResolvedValue({ ...encoder, isActive: false } as any);
+    render(<SettingsPage currentRole={UserRole.SYSTEM_ADMIN} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Actions for Example Encoder' }));
+    await user.click(screen.getByRole('menuitem', { name: /Deactivate user/ }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/Deactivate Example Encoder\?/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Deactivate user' }));
+    expect(api.setEmployeeActive).toHaveBeenCalledWith('encoder', false);
     expect(screen.queryByText('Example Encoder')).not.toBeInTheDocument();
   });
 });
