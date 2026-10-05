@@ -1,7 +1,9 @@
 import React, { useRef } from 'react';
 import { VoucherStatusBanner } from './VoucherStatusBanner';
-import { Printer, X, FileText, CheckCircle2 } from 'lucide-react';
+import { Printer, FileText, CheckCircle2 } from 'lucide-react';
+import { CloseButton } from './CloseButton';
 import { Model21Voucher } from '../../types/asset-management';
+import { MoaLogo } from './MoaLogo';
 
 interface Model21PrintModalProps {
   isOpen: boolean;
@@ -53,13 +55,12 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
               <Printer className="w-4 h-4" />
               <span>Print Model 21 / PDF</span>
             </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+            <CloseButton
+              onClose={onClose}
               title="Close Preview"
-            >
-              <X className="w-4 h-4" />
-            </button>
+              label="Close Preview"
+              tone="dark"
+            />
           </div>
         </div>
 
@@ -82,21 +83,9 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({
             <VoucherStatusBanner state={voucher.approvalState} />
             {/* ── Document Top Header ── */}
             <div className="flex items-start justify-between border-b border-slate-900 pb-3">
-              {/* Left: Ethiopian National Emblem */}
+              {/* Left: Official Ministry of Agriculture Emblem */}
               <div className="w-16 h-16 shrink-0 flex items-center justify-center">
-                <svg viewBox="0 0 100 100" className="w-14 h-14 text-slate-800" fill="currentColor">
-                  {/* Outer circle */}
-                  <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="2.5" />
-                  {/* Radiant rays ring */}
-                  <circle cx="50" cy="50" r="39" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2,2" />
-                  {/* National Star with central rays */}
-                  <path
-                    d="M 50 16 L 58 38 L 82 38 L 63 52 L 70 75 L 50 61 L 30 75 L 37 52 L 18 38 L 42 38 Z"
-                    fill="currentColor"
-                  />
-                  <circle cx="50" cy="48" r="8" fill="white" />
-                  <path d="M 50 42 L 50 54 M 44 48 L 56 48" stroke="currentColor" strokeWidth="1.5" />
-                </svg>
+                <MoaLogo className="w-14 h-14" />
               </div>
 
               {/* Center: Official Ministry Headings */}

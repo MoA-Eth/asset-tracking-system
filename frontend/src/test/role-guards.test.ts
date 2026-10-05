@@ -5,7 +5,7 @@ import { getRoleAccess } from '../../../backend/src/security/role-policy';
 // Exercise the actual session policy and navigation guard, not a copied matrix.
 describe('Session navigation access', () => {
   it.each([
-    ['SYSTEM_ADMIN', 'dashboard'], ['DATA_ENCODER', 'stock-in'],
+    ['SYSTEM_ADMIN', 'dashboard'], ['DATA_ENCODER', 'assets'],
     ['TEAM_LEADER', 'approvals'], ['DEPARTMENT_HEAD', 'approvals'], ['MANAGER', 'dashboard'],
   ])('%s has the expected landing page', (role, page) => {
     expect(getValidTab(getRoleAccess(role), null)).toBe(page);
@@ -16,7 +16,7 @@ describe('Session navigation access', () => {
   });
   it('immediately invalidates the open tab when a refreshed session loses access', () => {
     expect(getValidTab(getRoleAccess('SYSTEM_ADMIN'), 'settings-roles')).toBe('settings-roles');
-    expect(getValidTab(getRoleAccess('DATA_ENCODER'), 'settings-roles')).toBe('stock-in');
+    expect(getValidTab(getRoleAccess('DATA_ENCODER'), 'settings-roles')).toBe('assets');
   });
   it('denies missing or unknown access and preserves a permitted tab', () => {
     expect(getValidTab(null, 'settings-roles')).toBe('');

@@ -7,6 +7,7 @@ import {
   Building2,
   UserCheck2,
   LogOut,
+  Boxes,
   PackagePlus,
   PackageMinus,
   LayoutDashboard,
@@ -184,18 +185,14 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     switch (activeTab) {
       case 'dashboard':
         return { title: 'Dashboard', am: 'የንብረትና የመጋዘን ክምችት መከታተያ', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
-      case 'stock-in':
-        return { title: 'Receiving', am: 'የዕቃ መረከቢያ (ሞዴል 19)', icon: PackagePlus, iconColor: 'text-emerald-700' };
-      case 'stock-out':
-        return { title: 'Issuing', am: 'የዕቃ ወጪ ማዘዣ እና መረከቢያ (ሞዴል 22)', icon: PackageMinus, iconColor: 'text-emerald-700' };
+      case 'assets':
+        return { title: 'Assets', am: 'ንብረቶች', icon: Boxes, iconColor: 'text-emerald-700' };
       case 'approvals':
         return { title: 'Approvals', am: 'የማረጋገጫና ፈቃድ መስጫ', icon: FileCheck2, iconColor: 'text-emerald-700' };
       case 'audit':
         return { title: 'Audit Log', am: 'የኦዲት መዝገብ', icon: ShieldCheck, iconColor: 'text-emerald-700' };
       case 'reports':
         return { title: 'Reports', am: 'የሪፖርት መዝገብ', icon: FileSpreadsheet, iconColor: 'text-emerald-700' };
-      case 'transfer-asset':
-        return { title: 'Transfers', am: 'የንብረት ዝውውር እና መመለሻ (ሞዴል 21)', icon: ArrowRightLeft, iconColor: 'text-emerald-700' };
       case 'settings-users':
         return { title: 'Users & Permissions', am: 'ተጠቃሚዎች እና ፈቃዶች', icon: Settings, iconColor: 'text-emerald-700' };
       case 'settings-roles':
@@ -215,7 +212,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const PageIcon = pageInfo.icon;
 
   return (
-    <header className="no-print bg-white border-b border-slate-200/90 sticky top-0 z-20 px-4 sm:px-5 py-3 flex items-center justify-between gap-4">
+    <header className="no-print bg-white border-b border-slate-200/90 sticky top-0 z-20 px-3.5 sm:px-4 lg:px-3.5 py-2.5 flex items-center justify-between gap-3">
       {/* Left: Sidebar Toggle & Page Title */}
       <div className="flex items-center gap-3 min-w-0 md:shrink-0 flex-1 md:flex-none">
         <button
@@ -251,7 +248,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             {pageInfo.title}
           </h1>
           <span className="text-xs text-slate-400 font-amharic hidden md:inline whitespace-nowrap truncate">
-            • {pageInfo.am}
+            - {pageInfo.am}
           </span>
         </div>
       </div>

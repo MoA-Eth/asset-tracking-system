@@ -158,22 +158,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-            <Settings className="w-5 h-5 text-emerald-700" />
-            Users (ተጠቃሚዎች)
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            The people who can sign in, and their roles. Staff are added under Settings → Employees; give them sign-in here.
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3.5">
+        <p className="text-xs text-slate-500">
+          The people who can sign in, and their roles. Staff are added under Settings → Employees; give them sign-in here.
+        </p>
 
-        <button onClick={() => setAdding(true)} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5">
-          <UserPlus className="w-3.5 h-3.5" />
-          Add user
-        </button>
-        <RefreshButton onClick={fetchData} label="users" />
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={() => setAdding(true)} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5">
+            <UserPlus className="w-3.5 h-3.5" />
+            Add user
+          </button>
+          <RefreshButton onClick={fetchData} label="users" />
+        </div>
       </div>
 
       {/* Success Notification */}

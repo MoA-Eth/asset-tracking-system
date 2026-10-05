@@ -40,7 +40,7 @@ const ITEM_STATUS: Record<string, { label: string; tone: keyof typeof statusTone
 };
 
 /** Label / value pair; empty values show a dash */
-const Row: React.FC<{ label: string; children?: React.ReactNode; mono?: boolean }> = ({ label, children, mono }) => (
+export const Row: React.FC<{ label: string; children?: React.ReactNode; mono?: boolean }> = ({ label, children, mono }) => (
   <div className="flex items-start justify-between gap-3 py-1.5 border-b border-slate-100 last:border-b-0">
     <span className="text-slate-500 shrink-0">{label}</span>
     <span className={`text-right text-slate-900 font-medium break-words ${mono ? 'font-mono' : ''}`}>
@@ -49,7 +49,7 @@ const Row: React.FC<{ label: string; children?: React.ReactNode; mono?: boolean 
   </div>
 );
 
-const Section: React.FC<{ title: string; icon: React.ElementType; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
+export const Section: React.FC<{ title: string; icon: React.ElementType; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
   <section className="rounded-xl border border-slate-200 bg-white">
     <h4 className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 bg-slate-50 rounded-t-xl text-[11px] font-bold uppercase tracking-wider text-slate-600">
       <Icon className="w-3.5 h-3.5 text-emerald-700" />
@@ -58,6 +58,28 @@ const Section: React.FC<{ title: string; icon: React.ElementType; children: Reac
     <div className="px-4 py-2 text-xs">{children}</div>
   </section>
 );
+
+/** An item's history, newest first, as recorded with each step */
+export const HistoryList: React.FC<{ history?: ItemWithRelations['history'] }> = ({ history }) =>
+  (history ?? []).length === 0 ? (
+    <p className="py-2 text-slate-400">No history recorded.</p>
+  ) : (
+    <ol className="divide-y divide-slate-100">
+      {history!.map((h) => (
+        <li key={h.id} className="py-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+            <span className="font-semibold text-slate-900">{actionText(h.action)}</span>
+            <span className="text-[11px] text-slate-500 font-mono">{h.dateEc} E.C. · {h.dateGc}</span>
+          </div>
+          <p className="text-slate-600">
+            {withRoleNames(h.performedBy)}
+            {h.fromEntity || h.toEntity ? ` · ${h.fromEntity ?? '—'} → ${h.toEntity ?? '—'}` : ''}
+          </p>
+          {h.notes && <p className="text-slate-500 mt-0.5">{h.notes}</p>}
+        </li>
+      ))}
+    </ol>
+  );
 
 /** Read-only view of a record: the request (if any), the item and its history */
 export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, approval, onClose }) => {
@@ -227,25 +249,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
             </div>
 
             <Section title={`History (${item.history?.length ?? 0})`} icon={History}>
-              {(item.history ?? []).length === 0 ? (
-                <p className="py-2 text-slate-400">No history recorded.</p>
-              ) : (
-                <ol className="divide-y divide-slate-100">
-                  {item.history.map((h) => (
-                    <li key={h.id} className="py-2">
-                      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                        <span className="font-semibold text-slate-900">{actionText(h.action)}</span>
-                        <span className="text-[11px] text-slate-500 font-mono">{h.dateEc} E.C. · {h.dateGc}</span>
-                      </div>
-                      <p className="text-slate-600">
-                        {withRoleNames(h.performedBy)}
-                        {h.fromEntity || h.toEntity ? ` · ${h.fromEntity ?? '—'} → ${h.toEntity ?? '—'}` : ''}
-                      </p>
-                      {h.notes && <p className="text-slate-500 mt-0.5">{h.notes}</p>}
-                    </li>
-                  ))}
-                </ol>
-              )}
+              <HistoryList history={item.history} />
             </Section>
           </div>
         )}

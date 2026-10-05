@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Car, Tag, UserCheck } from 'lucide-react';
+import { FileText, Car, Tag, UserCheck, RotateCcw } from 'lucide-react';
 import { api } from '../../api/client';
 import { storeLocationLabel } from '../../utils/location';
 import {
@@ -33,24 +33,46 @@ import { formatETB, formatGcToEc } from '../../utils/eth-date';
 interface ReturnToStoreModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** The asset to return; leave empty to let the user pick one from `assets` */
   item: ItemWithRelations | null;
+  /** Issued assets to choose from when no `item` is given */
+  assets?: ItemWithRelations[];
+  /** Open request per asset: those assets are listed but can't be chosen */
+  pendingByItem?: Map<string, TransactionApproval>;
   employees: Employee[];
   onSuccess: (voucher?: Model21Voucher) => void;
   /** When set, the modal corrects this pending return instead of creating a new one */
   editApproval?: TransactionApproval;
 }
 
-export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
+export interface ReturnFormProps extends Omit<ReturnToStoreModalProps, 'item' | 'assets' | 'pendingByItem'> {
+  item: ItemWithRelations;
+  /** Offered when the asset was picked in this window, to go back and pick another */
+  onChangeAsset?: () => void;
+  /** Inside the asset record: no pop-up around the form, and the toolbar has Save and Cancel */
+  inline?: boolean;
+  /** Tells the toolbar while a save is in progress */
+  onSubmittingChange?: (submitting: boolean) => void;
+}
+
+export const ReturnForm: React.FC<ReturnFormProps> = ({
   isOpen,
   onClose,
   item,
   employees,
   onSuccess,
   editApproval,
+  onChangeAsset,
+  inline,
+  onSubmittingChange,
 }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
+  useEffect(() => {
+    onSubmittingChange?.(submitting);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitting]);
 
   // Model 21 Fields
   const [model21No, setModel21No] = useState('');
@@ -66,9 +88,10 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
   const [engineNo, setEngineNo] = useState('');
   const [depreciation, setDepreciation] = useState<number>(0);
   const [bookValue, setBookValue] = useState<number>(0);
-  const [jackQty, setJackQty] = useState(1);
-  const [tireWrenchQty, setTireWrenchQty] = useState(1);
-  const [keyQty, setKeyQty] = useState(2);
+  // Accessories start at zero: the encoder enters what was actually handed back
+  const [jackQty, setJackQty] = useState(0);
+  const [tireWrenchQty, setTireWrenchQty] = useState(0);
+  const [keyQty, setKeyQty] = useState(0);
   const [tireSerials, setTireSerials] = useState('');
   const [defectRemark, setDefectRemark] = useState('');
 
@@ -88,10 +111,9 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
       setEngineNo('');
       setTireSerials('');
       setDefectRemark('');
-      const vehicle = item.category === 'VEHICLE' || item.category === 'AGRI_MACHINERY';
-      setJackQty(vehicle ? 1 : 0);
-      setTireWrenchQty(vehicle ? 1 : 0);
-      setKeyQty(vehicle ? 2 : 0);
+      setJackQty(0);
+      setTireWrenchQty(0);
+      setKeyQty(0);
     }
     if (item && editApproval) {
       const d = editApproval.requestDetails ?? {};
@@ -119,8 +141,6 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
       setFormError(null);
     }
   }, [item, editApproval]);
-
-  if (!item) return null;
 
   const policy = useSystemSettings().slipAttachmentPolicy;
   const isAttachmentReq = policy === 'REQUIRED';
@@ -302,19 +322,8 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
 
   const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
 
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={editApproval ? `Edit return · ${item.itemCode}` : `Return to store · Model 21 · ${item.itemCode}`}
-      subtitle={
-        editApproval
-          ? 'You can correct this return until the Team Leader endorses it. Each change is recorded in the item history.'
-          : 'The item stays with its custodian until the Team Leader endorses and the Department Head approves the return.'
-      }
-      size="xl"
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
+  const form = (
+      <form id="return-form" onSubmit={handleSubmit} className="space-y-4">
         <FormError message={formError} />
 
         {/* ── Section 1: Return voucher ── */}
@@ -357,6 +366,11 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
         {/* ── Section 2: Asset & condition ── */}
         <FormSection step={2} title="Asset & condition" subtitle="የንብረቱ ሁኔታ" icon={Tag} accent="emerald">
           <div className="space-y-3.5">
+            {onChangeAsset && (
+              <button type="button" onClick={onChangeAsset} className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer">
+                ← Choose a different asset
+              </button>
+            )}
             <SummaryGrid
               items={[
                 { label: 'Tag number', value: item.itemCode, mono: true },
@@ -568,14 +582,88 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({
           </div>
         </FormSection>
 
-        <FormFooter
-          accent="emerald"
-          submitting={submitting}
-          submitLabel={editApproval ? 'Save changes' : 'Submit return for approval'}
-          onCancel={onClose}
-          onReset={editApproval ? undefined : handleReset}
-        />
+        {!inline && (
+          <FormFooter
+            accent="emerald"
+            submitting={submitting}
+            submitLabel={editApproval ? 'Save changes' : 'Submit return for approval'}
+            onCancel={onClose}
+            onReset={editApproval ? undefined : handleReset}
+          />
+        )}
       </form>
+  );
+
+  if (inline) return form;
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editApproval ? `Edit return · ${item.itemCode}` : `Return to store · Model 21 · ${item.itemCode}`}
+      subtitle={
+        editApproval
+          ? 'You can correct this return until the Team Leader endorses it. Each change is recorded in the item history.'
+          : 'The item stays with its custodian until the Team Leader endorses and the Department Head approves the return.'
+      }
+      size="xl"
+    >
+      {form}
+    </Modal>
+  );
+};
+
+/**
+ * Return to store (Model 21). Given an `item`, it opens the form for that asset (from a row menu, or to correct a request).
+ * Without one, it first asks which issued asset is coming back.
+ */
+export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({ item, assets, pendingByItem, ...rest }) => {
+  const [pickedId, setPickedId] = useState('');
+  // Every opening starts with a fresh choice
+  useEffect(() => {
+    if (!rest.isOpen) setPickedId('');
+  }, [rest.isOpen]);
+
+  const picked = item ?? assets?.find((a) => a.id === pickedId) ?? null;
+  if (!rest.isOpen) return null;
+  if (picked) return <ReturnForm key={picked.id} {...rest} item={picked} onChangeAsset={item ? undefined : () => setPickedId('')} />;
+  if (!assets) return null;
+
+  return (
+    <Modal isOpen onClose={rest.onClose} title="Return to store · Model 21" subtitle="Choose the issued asset that is coming back to store." size="md">
+      {assets.length === 0 ? (
+        <p className="py-6 text-center text-xs text-slate-500">No asset is issued to anyone, so there is nothing to return.</p>
+      ) : (
+        <div className="space-y-4">
+          <Field label="Issued asset" required htmlFor="return-item" hint="Type a name, code or the person who holds it.">
+            <SearchableSelect
+              id="return-item"
+              value={pickedId}
+              onChange={setPickedId}
+              autoFocus
+              placeholder="Select an asset…"
+              searchPlaceholder="Search by name, code or holder…"
+              groups={[
+                {
+                  label: 'Issued assets',
+                  options: assets.map((asset) => {
+                    const open = pendingByItem?.get(asset.id);
+                    return {
+                      value: asset.id,
+                      label: `${asset.itemCode} — ${asset.name}`,
+                      note: `${asset.currentCustodian?.fullNameEn || 'assigned'}${open ? ' · request pending' : ''}`,
+                      disabled: !!open,
+                    };
+                  }),
+                },
+              ]}
+            />
+          </Field>
+          <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+            <RotateCcw className="h-3.5 w-3.5 text-emerald-700" />
+            The return form opens once you choose the asset.
+          </p>
+        </div>
+      )}
     </Modal>
   );
 };

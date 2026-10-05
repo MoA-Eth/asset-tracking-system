@@ -8,6 +8,9 @@ export const btn = {
   /** Main action of a page, e.g. "Register goods received", "Issue asset" */
   primary:
     'inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 cursor-pointer shrink-0',
+  /** Second action next to the main one, e.g. "Return to store" beside "New transfer" */
+  secondary:
+    'inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-emerald-50 text-slate-800 hover:text-emerald-900 border border-slate-300 hover:border-emerald-300 font-bold text-xs rounded-xl shadow-xs transition active:scale-95 cursor-pointer shrink-0',
   /** Small action inside a table row: Edit, Print, Return… */
   row: 'inline-flex items-center justify-center gap-1 px-2 py-1 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-300 hover:border-emerald-300 rounded-lg text-[11px] font-bold transition cursor-pointer whitespace-nowrap',
   /** Icon inside a row action */

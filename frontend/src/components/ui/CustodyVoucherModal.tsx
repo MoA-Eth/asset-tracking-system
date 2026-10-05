@@ -1,10 +1,12 @@
 import React from 'react';
-import { Printer, X, ShieldCheck, FileCheck, Building2, UserCheck, Barcode, ExternalLink } from 'lucide-react';
+import { Printer, ShieldCheck, FileCheck, Building2, UserCheck, Barcode, ExternalLink } from 'lucide-react';
+import { CloseButton } from './CloseButton';
 import { TransactionApproval, ItemWithRelations } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { ConditionBadge } from './Badge';
 import { useToast } from '../../context/ToastContext';
 import { openSlipInNewTab } from '../../utils/slip-upload';
+import { MoaLogo } from './MoaLogo';
 
 interface CustodyVoucherModalProps {
   isOpen: boolean;
@@ -82,12 +84,12 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
               <Printer className="w-4 h-4" />
               Print Certificate
             </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <CloseButton
+              onClose={onClose}
+              title="Close Preview"
+              label="Close Preview"
+              tone="dark"
+            />
           </div>
         </div>
 
@@ -102,6 +104,9 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
                 <p>Date (E.C.): {slipDateEc}</p>
               </div>
               <div className="text-center flex-1 px-4">
+                <div className="flex justify-center mb-1.5">
+                  <MoaLogo className="w-14 h-14" alt="Ministry of Agriculture logo" />
+                </div>
                 <h1 className="text-sm sm:text-base font-black uppercase text-emerald-950 tracking-tight">
                   የኢትዮጵያ ፌደራላዊ ዲሞክራሲያዊ ሪፐብሊክ
                 </h1>

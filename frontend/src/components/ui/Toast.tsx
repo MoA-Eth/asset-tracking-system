@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { CheckCircle2, AlertTriangle, XCircle, Info, X } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
+import { CloseButton } from './CloseButton';
 
 export type ToastType = 'success' | 'warning' | 'error' | 'info';
 
@@ -116,14 +117,13 @@ export const Toast: React.FC<ToastProps> = ({
           {message && <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{message}</p>}
         </div>
 
-        <button
-          type="button"
-          onClick={dismiss}
-          className="-mr-1 shrink-0 rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 cursor-pointer"
-          aria-label="Close notification"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <CloseButton
+          onClose={dismiss}
+          label="Close notification"
+          size="sm"
+          tone="subtle"
+          className="-mr-1 shrink-0"
+        />
       </div>
 
       {/* Countdown bar */}

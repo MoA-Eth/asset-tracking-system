@@ -233,16 +233,10 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
   return (
     <div className="space-y-4 animate-fadeIn pb-12">
       {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-emerald-700" />
-            Roles & permissions <span className="font-medium text-slate-500">(ሚናዎች እና ፈቃዶች)</span>
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            What each role is allowed to do. Switch a permission on or off, then save; every change is recorded in the audit log.
-          </p>
-        </div>
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3.5">
+        <p className="text-xs text-slate-500">
+          What each role is allowed to do. Switch a permission on or off, then save; every change is recorded in the audit log.
+        </p>
         <RefreshButton onClick={load} loading={loading} disabled={saving} label="roles" />
       </header>
 

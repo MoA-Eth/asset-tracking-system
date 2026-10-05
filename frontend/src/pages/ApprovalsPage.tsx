@@ -471,7 +471,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   };
 
   return (
-    <div className="space-y-4 animate-fadeIn pb-24">
+    <div className="space-y-2.5 animate-fadeIn pb-8">
       {/* ── 1. Page Header & Live Role Alert Banner ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
         <div>
@@ -641,7 +641,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               <thead>
                 <tr className={table.headRow}>
                   {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
-                    <th className="py-3 px-3 w-10 text-center shrink-0">
+                    <th className="py-2 px-3 w-10 text-center shrink-0">
                       <input
                         type="checkbox"
                         checked={isAllSelected}
@@ -651,12 +651,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       />
                     </th>
                   )}
-                  <th className="py-3 px-3 w-32 whitespace-nowrap shrink-0">Statutory Form</th>
-                  <th className="py-3 px-4 min-w-[190px]">Tracking Code & Asset Description</th>
-                  <th className="py-3 px-4 w-36 whitespace-nowrap shrink-0">IFMIS Slip Reference</th>
-                  <th className="py-3 px-4 w-36 whitespace-nowrap shrink-0">Workflow Stage</th>
-                  <th className="py-3 px-4 min-w-[170px]">Requester / Justification</th>
-                  <th className="sticky right-0 z-[1] bg-slate-50 py-3 px-4 text-right w-36 whitespace-nowrap shrink-0">Review Action</th>
+                  <th className="py-2 px-3 w-32 whitespace-nowrap shrink-0">Statutory Form</th>
+                  <th className="py-2 px-3 min-w-[190px]">Tracking Code & Asset Description</th>
+                  <th className="py-2 px-3 w-36 whitespace-nowrap shrink-0">IFMIS Slip Reference</th>
+                  <th className="py-2 px-3 w-36 whitespace-nowrap shrink-0">Workflow Stage</th>
+                  <th className="py-2 px-3 min-w-[170px]">Requester / Justification</th>
+                  <th className="sticky right-0 z-[1] bg-slate-50 py-2 px-3 text-right w-36 whitespace-nowrap shrink-0">Review Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -677,7 +677,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       }`}
                     >
                       {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
-                        <td className="py-3 px-3 text-center">
+                        <td className="py-2 px-3 text-center">
                           {isActionableForMe ? (
                             <input
                               type="checkbox"
@@ -692,12 +692,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       )}
 
                       {/* Statutory Type Badge */}
-                      <td className="py-3 px-3 whitespace-nowrap">
+                      <td className="py-2 px-3 whitespace-nowrap">
                         {getTypeBadge(appr.transactionType)}
                       </td>
 
                       {/* Tracking Code & Item Name */}
-                      <td className="py-3 px-4">
+                      <td className="py-2 px-3">
                         <div className="flex flex-col">
                           <span className="font-mono font-bold text-slate-800 text-xs">
                             {appr.itemCode}
@@ -712,7 +712,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       </td>
 
                       {/* IFMIS Slip Number & Slip Date */}
-                      <td className="py-3 px-4 whitespace-nowrap">
+                      <td className="py-2 px-3 whitespace-nowrap">
                         <div className="flex flex-col">
                           <div className="flex items-center gap-1">
                             <span className="font-mono font-medium text-slate-800 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded w-fit text-[11px]">
@@ -737,12 +737,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       </td>
 
                       {/* 2-Stage Progress Indicator */}
-                      <td className="py-3 px-4 whitespace-nowrap">
+                      <td className="py-2 px-3 whitespace-nowrap">
                         {getStageIndicator(appr)}
                       </td>
 
                       {/* Requester & Justification */}
-                      <td className="py-3 px-4 max-w-xs">
+                      <td className="py-2 px-3 max-w-xs">
                         <div className="flex flex-col text-slate-600">
                           <span className="font-medium text-slate-800 truncate">
                             {appr.requestedBy?.fullNameEn || '—'}
@@ -754,7 +754,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       </td>
 
                       {/* Review & Signing Button: pinned to the right edge so it never needs sideways scrolling */}
-                      <td className="sticky right-0 z-[1] bg-white py-3 px-4 text-right whitespace-nowrap shadow-[-10px_0_10px_-10px_rgba(15,23,42,0.18)]">
+                      <td className="sticky right-0 z-[1] bg-white py-2 px-3 text-right whitespace-nowrap shadow-[-10px_0_10px_-10px_rgba(15,23,42,0.18)]">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"

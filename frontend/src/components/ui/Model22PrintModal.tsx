@@ -1,6 +1,7 @@
 import React from 'react';
 import { VoucherStatusBanner } from './VoucherStatusBanner';
-import { Printer, X, FileText } from 'lucide-react';
+import { Printer, FileText } from 'lucide-react';
+import { CloseButton } from './CloseButton';
 import { Model22Voucher, Model22LineItem } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
 import { MoaLogo } from './MoaLogo';
@@ -56,13 +57,12 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({
               <Printer className="w-4 h-4" />
               <span>Print Model 22 / PDF</span>
             </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+            <CloseButton
+              onClose={onClose}
               title="Close Preview"
-            >
-              <X className="w-4 h-4" />
-            </button>
+              label="Close Preview"
+              tone="dark"
+            />
           </div>
         </div>
 

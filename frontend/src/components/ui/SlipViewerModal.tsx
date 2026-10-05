@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ExternalLink, FileText, FileX, RefreshCw, X } from 'lucide-react';
+import { ExternalLink, FileText, FileX, RefreshCw } from 'lucide-react';
+import { CloseButton } from './CloseButton';
 import { getSlipDisplayName, fetchSlip } from '../../utils/slip-upload';
 
 interface SlipViewerModalProps {
@@ -90,14 +91,11 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, onClose }
                 Open in new tab
               </a>
             )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
-              aria-label="Close slip viewer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <CloseButton
+              onClose={onClose}
+              label="Close slip viewer"
+              size="sm"
+            />
           </div>
         </div>
 

@@ -133,15 +133,21 @@ export const Field: React.FC<FieldProps> = ({ label, required, optional, hint, s
 );
 
 /** Value copied from a record that the user shouldn't edit here. */
-export const ReadOnlyValue: React.FC<{ children: React.ReactNode; mono?: boolean; align?: 'left' | 'right' }> = ({
+export const ReadOnlyValue: React.FC<{
+  children: React.ReactNode;
+  mono?: boolean;
+  align?: 'left' | 'right';
+  className?: string;
+}> = ({
   children,
   mono,
   align,
+  className = '',
 }) => (
   <div
     className={`flex h-9 w-full items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13px] text-slate-700 ${
       mono ? 'font-mono' : ''
-    } ${align === 'right' ? 'justify-end' : ''}`}
+    } ${align === 'right' ? 'justify-end' : ''} ${className}`}
   >
     <span className="truncate">{children}</span>
   </div>

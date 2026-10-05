@@ -4,8 +4,7 @@ import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { DesktopSidebar } from './components/layout/DesktopSidebar';
 import { OfflineBanner } from './components/layout/OfflineBanner';
 import { ExecutiveDashboardPage } from './pages/ExecutiveDashboardPage';
-import { StockInPage } from './pages/StockInPage';
-import { StockOutPage } from './pages/StockOutPage';
+import { AssetsPage } from './pages/AssetsPage';
 import { ApprovalsPage } from './pages/ApprovalsPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -15,7 +14,6 @@ import { loadSystemSettings } from './utils/system-settings';
 import { RolesPage } from './pages/settings/RolesPage';
 import { EmployeesPage } from './pages/settings/EmployeesPage';
 import { StoresPage } from './pages/settings/StoresPage';
-import { TransferAssetPage } from './pages/TransferAssetPage';
 import { LoginPage } from './pages/LoginPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -24,6 +22,7 @@ import { UserRole } from './types/asset-management';
 import { api } from './api/client';
 
 import { getValidTab, getSettingsGroups } from './components/layout/navigation';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 const AuthenticatedPortal: React.FC = () => {
   const { user, role, isAuthenticated, isLoading } = useAuth();
@@ -158,63 +157,56 @@ const AuthenticatedPortal: React.FC = () => {
           pendingApprovalsCount={pendingApprovalsCount}
         />
 
-        {/* Page Content with Generous Whitespace */}
         {/* Page Content - Strictly Gated to Authorized Role */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:px-5 lg:py-6 max-w-7xl w-full mx-auto pb-24 lg:pb-8">
-          {!activeTab && <p className="text-sm text-slate-600">No pages are available for this account. Contact your System Administrator.</p>}
-          {activeTab.startsWith('settings-') && (
-            <nav aria-label="Settings pages" className="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-4 border-b border-slate-200">
-              {getSettingsGroups(user?.allowedTabs).flatMap(group => group.items).map(item => (
-                <button key={item.id} onClick={() => handleTabChange(item.id)} aria-current={activeTab === item.id ? 'page' : undefined}
-                  className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold ${activeTab === item.id ? 'bg-emerald-700 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
-                  {item.label}
-                </button>
-              ))}
-            </nav>
-          )}
-          {activeTab === 'dashboard' && (
-            <ExecutiveDashboardPage
-              onNavigate={handleTabChange}
-              currentRole={role}
-              selectedCenter={selectedCenter}
-              setSelectedCenter={setSelectedCenter}
-            />
-          )}
-          {activeTab === 'stock-in' && (
-            <StockInPage currentRole={role} onNavigate={handleTabChange} mode="stock-in" />
-          )}
-          {(activeTab === 'stock-out' || activeTab === 'assign-asset') && (
-            <StockOutPage currentRole={role} onNavigate={handleTabChange} mode="stock-out" />
-          )}
-          {(activeTab === 'transfer-asset' || activeTab === 'return-asset') && (
-            <TransferAssetPage currentRole={role} onNavigate={handleTabChange} />
-          )}
-          {activeTab === 'approvals' && (
-            <ApprovalsPage
-              currentRole={role}
-              onNavigate={handleTabChange}
-              onRefreshPendingCount={fetchPending}
-            />
-          )}
-          {activeTab === 'audit' && (
-            <AuditLogsPage />
-          )}
-          {activeTab === 'reports' && (
-            <ReportsPage />
-          )}
-          {activeTab === 'settings-users' && (
-            <SettingsPage
-              currentRole={role}
-              userEmail={user?.email}
-              initialRoleFilter={usersRoleFilter}
-            />
-          )}
-          {activeTab === 'settings-roles' && <RolesPage onViewUsers={viewRoleUsers} />}
-          {activeTab === 'settings-employees' && <EmployeesPage />}
-          {activeTab === 'settings-stores' && <StoresPage />}
-          {activeTab === 'settings-system' && (
-            <SystemSettingsPage />
-          )}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-3.5 lg:px-3.5 lg:pt-3 lg:pb-2.5 w-full pb-8">
+          <ErrorBoundary fallbackTitle="Page Content Notice">
+            {!activeTab && <p className="text-sm text-slate-600">No pages are available for this account. Contact your System Administrator.</p>}
+            {activeTab.startsWith('settings-') && (
+              <nav aria-label="Settings pages" className="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-4 border-b border-slate-200">
+                {getSettingsGroups(user?.allowedTabs).flatMap(group => group.items).map(item => (
+                  <button key={item.id} onClick={() => handleTabChange(item.id)} aria-current={activeTab === item.id ? 'page' : undefined}
+                    className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold ${activeTab === item.id ? 'bg-emerald-700 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+            )}
+            {activeTab === 'dashboard' && (
+              <ExecutiveDashboardPage
+                onNavigate={handleTabChange}
+                currentRole={role}
+                selectedCenter={selectedCenter}
+                setSelectedCenter={setSelectedCenter}
+              />
+            )}
+            {activeTab === 'assets' && <AssetsPage currentRole={role} onNavigate={handleTabChange} />}
+            {activeTab === 'approvals' && (
+              <ApprovalsPage
+                currentRole={role}
+                onNavigate={handleTabChange}
+                onRefreshPendingCount={fetchPending}
+              />
+            )}
+            {activeTab === 'audit' && (
+              <AuditLogsPage />
+            )}
+            {activeTab === 'reports' && (
+              <ReportsPage />
+            )}
+            {activeTab === 'settings-users' && (
+              <SettingsPage
+                currentRole={role}
+                userEmail={user?.email}
+                initialRoleFilter={usersRoleFilter}
+              />
+            )}
+            {activeTab === 'settings-roles' && <RolesPage onViewUsers={viewRoleUsers} />}
+            {activeTab === 'settings-employees' && <EmployeesPage />}
+            {activeTab === 'settings-stores' && <StoresPage />}
+            {activeTab === 'settings-system' && (
+              <SystemSettingsPage />
+            )}
+          </ErrorBoundary>
         </main>
 
         {/* Mobile Bottom Navigation (Visible on mobile/tablet, hidden on lg) */}

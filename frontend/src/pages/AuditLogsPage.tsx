@@ -202,16 +202,10 @@ export const AuditLogsPage: React.FC = () => {
   const headButton = 'px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer';
 
   return (
-    <div className="space-y-4 animate-fadeIn pb-16">
+    <div className="space-y-2.5 animate-fadeIn pb-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-emerald-700" />
-            Audit log <span className="font-medium text-slate-500">(የኦዲት መዝገብ)</span>
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">Who did what, and when. Entries are written by the system and can't be edited or deleted.</p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
+        <p className="text-xs text-slate-500">Who did what, and when. Entries are written by the system and can't be edited or deleted.</p>
 
         <div className="no-print flex items-center gap-2 shrink-0">
           <button onClick={handleExportCSV} className={headButton} title="Save the entries shown as a CSV file">
@@ -228,7 +222,7 @@ export const AuditLogsPage: React.FC = () => {
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
         {/* Search & filters */}
-        <div className="no-print space-y-3 border-b border-slate-200 p-3.5">
+        <div className="no-print space-y-2.5 border-b border-slate-200 px-3.5 py-2.5">
           <div className="flex flex-col md:flex-row items-center gap-3">
             <div className="relative flex-1 w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -282,12 +276,12 @@ export const AuditLogsPage: React.FC = () => {
               <table className="w-full min-w-[860px] text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    <th scope="col" className="w-8 px-2 py-2.5"><span className="sr-only">Details</span></th>
-                    <th scope="col" className="w-40 px-3 py-2.5 whitespace-nowrap">Date &amp; time</th>
-                    <th scope="col" className="w-48 px-3 py-2.5">Who</th>
-                    <th scope="col" className="w-44 px-3 py-2.5">Action</th>
-                    <th scope="col" className="w-36 px-3 py-2.5 whitespace-nowrap">Slip no.</th>
-                    <th scope="col" className="px-3 py-2.5">What happened</th>
+                    <th scope="col" className="w-8 px-2 py-2"><span className="sr-only">Details</span></th>
+                    <th scope="col" className="w-40 px-3 py-2 whitespace-nowrap">Date &amp; time</th>
+                    <th scope="col" className="w-48 px-3 py-2">Who</th>
+                    <th scope="col" className="w-44 px-3 py-2">Action</th>
+                    <th scope="col" className="w-36 px-3 py-2 whitespace-nowrap">Slip no.</th>
+                    <th scope="col" className="px-3 py-2">What happened</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -302,7 +296,7 @@ export const AuditLogsPage: React.FC = () => {
                           onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
                           className={`cursor-pointer align-top transition-colors hover:bg-slate-50 ${isExpanded ? 'bg-emerald-50/40' : ''}`}
                         >
-                          <td className="px-2 py-2.5">
+                          <td className="px-2 py-2">
                             <button
                               type="button"
                               aria-expanded={isExpanded}
@@ -316,23 +310,23 @@ export const AuditLogsPage: React.FC = () => {
                               <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                             </button>
                           </td>
-                          <td className="px-3 py-2.5 whitespace-nowrap">
+                          <td className="px-3 py-2 whitespace-nowrap">
                             <span className="block font-mono font-semibold tabular-nums text-slate-900">
                               {ecDate} <span className="font-normal text-slate-500">{ecTime}</span>
                             </span>
                             <span className="block font-mono text-[10px] tabular-nums text-slate-400">{gcDate} G.C.</span>
                           </td>
-                          <td className="px-3 py-2.5">
+                          <td className="px-3 py-2">
                             <span className="block font-semibold text-slate-900">{log.userName}</span>
                             <span className="block text-[11px] text-slate-500">{roleName(log.userRole)}</span>
                           </td>
-                          <td className="px-3 py-2.5">
+                          <td className="px-3 py-2">
                             <span className={`inline-block rounded-md border px-2 py-0.5 text-[11px] font-semibold ${KIND_TONE[activityKind(log.action)]}`}>
                               {actionLabel(log.action)}
                             </span>
                           </td>
-                          <td className="px-3 py-2.5 font-mono text-slate-700">{log.ifmisSlipNumber || <span className="text-slate-300">—</span>}</td>
-                          <td className="px-3 py-2.5 text-slate-700">
+                          <td className="px-3 py-2 font-mono text-slate-700">{log.ifmisSlipNumber || <span className="text-slate-300">—</span>}</td>
+                          <td className="px-3 py-2 text-slate-700">
                             <span className={isExpanded ? '' : 'line-clamp-2'}>{withRoleNames(log.details)}</span>
                           </td>
                         </tr>

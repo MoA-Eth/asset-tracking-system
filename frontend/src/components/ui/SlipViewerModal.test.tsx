@@ -6,12 +6,14 @@ import { SlipViewerModal } from './SlipViewerModal';
 const SLIP_URL = '/api/uploads/slips/f10839f2-8d8b-4213-b801-a9ab7c3cfcca-Model-19-slip.pdf';
 
 const mockFetchResponse = (status: number, contentType: string) =>
-  vi.fn().mockResolvedValue(
-    new Response(new Blob(['%PDF-1.4'], { type: contentType }), {
-      status,
-      headers: { 'Content-Type': contentType },
-    })
-  );
+  vi.fn().mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    headers: {
+      get: (header: string) => (header.toLowerCase() === 'content-type' ? contentType : null),
+    },
+    blob: async () => new Blob(['%PDF-1.4'], { type: contentType }),
+  });
 
 describe('<SlipViewerModal />', () => {
   beforeEach(() => {
