@@ -33,6 +33,7 @@ import { UserRole, TransactionApproval, TransactionType, ApprovalStatus, Locatio
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import { GlobalSearch } from './GlobalSearch';
+import { MoaLogo } from '../ui/MoaLogo';
 
 interface TopHeaderProps {
   activeTab: string;
@@ -264,15 +265,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         {/* Vertical Separator line between minimizer and page title */}
         <div className="hidden lg:block w-px h-5 bg-slate-200 shrink-0" />
 
-        {/* Mobile Mini Emblem */}
+        {/* Mobile Ministry logo */}
         <div className="lg:hidden flex items-center shrink-0">
           <div className="w-7 h-7 rounded-lg bg-emerald-900 border border-amber-400/40 flex items-center justify-center p-0.5">
-            <svg viewBox="0 0 100 100" className="w-full h-full">
-              <circle cx="50" cy="50" r="46" fill="#0A3F24" stroke="#FCDD09" strokeWidth="4" />
-              <path d="M50 16 L50 82" stroke="#FCDD09" strokeWidth="4" />
-              <path d="M50 28 Q66 22 68 34 Q58 38 50 34" fill="#FCDD09" />
-              <path d="M50 42 Q68 36 70 48 Q60 52 50 48" fill="#FCDD09" />
-            </svg>
+            <MoaLogo className="w-full h-full" />
           </div>
         </div>
 

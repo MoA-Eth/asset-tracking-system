@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { MoaLogo } from '../ui/MoaLogo';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
 import { SETTINGS_NAV, getSettingsGroups, getNavSections, NavItem } from './navigation';
-import { MoaLogo } from '../ui/MoaLogo';
 
 interface DesktopSidebarProps {
   activeTab: string;

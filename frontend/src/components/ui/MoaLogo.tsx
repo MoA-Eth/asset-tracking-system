@@ -31,10 +31,11 @@ export const MoaLogo: React.FC<MoaLogoProps> = ({
     <img
       src={moaLogoUrl}
       alt={alt}
+      width={332}
+      height={328}
       onError={() => setHasError(true)}
       className={`${className} object-contain inline-block shrink-0`}
       loading="eager"
     />
   );
 };
-
