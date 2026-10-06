@@ -32,11 +32,9 @@ export interface StockInFormProps {
   hideFooter?: boolean;
   /** Tells the toolbar while a save is in progress */
   onSubmittingChange?: (submitting: boolean) => void;
-  /** Tells the toolbar which required fields are still empty, so it can hold Submit until there are none */
-  onMissingChange?: (missing: string[]) => void;
 }
 
-export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, hideFooter, onSubmittingChange, onMissingChange }) => {
+export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, hideFooter, onSubmittingChange }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
@@ -113,11 +111,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !(unitCostETB > 0) && 'unit price',
     isAttachmentRequired && !attachmentFileName && 'scanned slip',
   ].filter(Boolean) as string[];
-  const missingKey = missingFields.join('|');
-  useEffect(() => {
-    onMissingChange?.(missingKey ? missingKey.split('|') : []);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [missingKey]);
 
   const handleReset = () => {
     setIfmisSlipNumber('');
@@ -712,7 +705,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         <FormFooter
           accent="emerald"
           submitting={submitting}
-          submitLabel={isEdit ? 'Save changes' : 'Register Model 19 item'}
+          submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
+          // Submit stays off until every required field is filled
+          submitDisabled={missingFields.length > 0}
+          note={missingFields.length > 0 ? 'Fill in all required fields (*) to submit' : undefined}
           onCancel={onCancel}
           onReset={isEdit ? undefined : handleReset}
         />

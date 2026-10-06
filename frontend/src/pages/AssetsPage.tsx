@@ -16,7 +16,6 @@ import {
   Filter,
   Download,
   ArrowLeft,
-  Check,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -123,9 +122,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
-  const [receiptSaving, setReceiptSaving] = useState(false);
-  // Required receipt fields still empty; Submit stays off until there are none
-  const [receiptMissing, setReceiptMissing] = useState<string[]>([]);
   const closeRecord = () => {
     setSelectedId(null);
     setReceipt(null);
@@ -1108,7 +1104,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   title="Close (Esc)"
                   className="absolute right-3 top-3 hidden lg:inline-flex"
                 />
-                <div className="flex flex-col gap-3 lg:pr-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
+                <div className="lg:pr-8">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2.5">
                       <h3 className="text-base font-extrabold text-slate-900">
@@ -1124,40 +1120,17 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                         : 'The items are held as pending until the Team Leader endorses and the Department Head approves the receipt.'}
                     </p>
                   </div>
-                  <div role="toolbar" aria-label="Receipt actions" className="flex flex-wrap items-center gap-2 2xl:justify-end">
-                    {receiptMissing.length > 0 && (
-                      <p id="receipt-missing" className="text-[11px] text-slate-500" title={`Still needed: ${receiptMissing.join(', ')}`}>
-                        {receiptMissing.length} required {receiptMissing.length === 1 ? 'field' : 'fields'} left
-                      </p>
-                    )}
-                    <button
-                      type="submit"
-                      form="stock-in-form"
-                      disabled={receiptSaving || receiptMissing.length > 0}
-                      aria-describedby={receiptMissing.length > 0 ? 'receipt-missing' : undefined}
-                      className={`${btn.primary} disabled:opacity-60 disabled:cursor-not-allowed`}
-                    >
-                      <Check className="h-4 w-4" />
-                      {receiptSaving ? 'Saving…' : receipt.edit ? 'Save changes' : 'Submit for approval'}
-                    </button>
-                    <button type="button" onClick={() => setReceipt(null)} className={btn.secondary}>
-                      <X className="h-4 w-4" />
-                      Cancel
-                    </button>
-                  </div>
                 </div>
               </header>
 
-              <div className="flex-1 p-5 overflow-y-auto">
+              {/* Submit and Cancel are in the form's footer, after the last section, pinned to the bottom while scrolling */}
+              <div className="flex-1 px-6 py-5 overflow-y-auto">
                 {locations.length > 0 ? (
                   <StockInForm
                     key={receipt.edit?.id ?? 'new'}
                     locations={locations}
                     employees={employees}
                     editItem={receipt.edit}
-                    hideFooter
-                    onSubmittingChange={setReceiptSaving}
-                    onMissingChange={setReceiptMissing}
                     onCancel={() => setReceipt(null)}
                     onSuccess={(result, voucher) => {
                       setReceipt(null);
