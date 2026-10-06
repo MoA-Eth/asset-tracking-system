@@ -306,6 +306,13 @@ function assertStockInLine(line: any): void {
   const quantity = isBlank(line.quantity) ? 1 : Number(line.quantity);
   if (!Number.isInteger(quantity) || quantity < 1) throw new BadRequestError('Quantity must be a whole number, at least 1.');
   if (!isBlank(line.condition) && !RETURN_CONDITIONS.includes(line.condition)) throw new BadRequestError('Choose a valid item condition.');
+  assertUnitOfMeasure(line.uom);
+}
+
+/** A unit sent blank is refused rather than saved as EA; callers that leave it out still get EA */
+function assertUnitOfMeasure(uom: unknown): void {
+  if (uom !== undefined && isBlank(uom)) throw new BadRequestError('Unit of measure is required, e.g. EA, KG or BOX.');
+  assertMaxLength(uom, 20, 'Unit of measure');
 }
 
 /** Transfer summary shown to approvers, e.g. "Reassignment | [Model/21 # 0004386] | Book: MOA MC BOOK" */
@@ -621,7 +628,7 @@ export class StoreService {
           remark: payload.remark,
         }];
     // Check every line before saving any, so a bad line can't leave half a slip registered
-    for (const line of rawItems) assertStockInLine({ ...line, name: line.name || payload.name, category: line.category || payload.category });
+    for (const line of rawItems) assertStockInLine({ ...line, name: line.name || payload.name, category: line.category || payload.category, uom: line.uom ?? payload.uom });
     const typedSerials = rawItems.map((line) => String(line.serialNumber ?? '').trim().toLowerCase()).filter(Boolean);
     if (new Set(typedSerials).size !== typedSerials.length) throw new BadRequestError('Two lines on this slip have the same serial number.');
     for (const line of rawItems) await assertSerialNumberFree(line.serialNumber);
@@ -754,6 +761,7 @@ export class StoreService {
     if (!payload.storeLocationId) throw new BadRequestError('Receiving store is required.');
     if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price cannot be negative.');
     if (!Number.isInteger(quantity) || quantity < 1) throw new BadRequestError('Quantity must be at least 1.');
+    assertUnitOfMeasure(payload.uom);
     if (payload.serialNumber?.trim() && payload.serialNumber.trim() !== item.serialNumber) await assertSerialNumberFree(payload.serialNumber, itemId);
     if (payload.storeLocationId !== item.storeLocationId) {
       const receivingStore = await prisma.location.findUnique({ where: { id: payload.storeLocationId }, include: { store: true } });
@@ -778,7 +786,7 @@ export class StoreService {
       source: payload.source?.trim() || undefined,
       buyer: payload.buyer?.trim() || undefined,
       programName: payload.programName?.trim() || previousMeta.programName,
-      uom: payload.uom?.trim() || 'EA',
+      uom: payload.uom?.trim() || previousMeta.uom || 'EA',
       subInventory: payload.subInventory?.trim() || undefined,
       itemCategoryDisplay: payload.itemCategoryDisplay || previousMeta.itemCategoryDisplay,
       lotBatchNo: payload.lotBatchNo?.trim() || undefined,
@@ -2025,12 +2033,14 @@ export class StoreService {
     const pendingIn = allItems.filter((i) => i.status === 'PENDING_STOCK_IN');
     const pendingOut = allItems.filter((i) => i.status === 'PENDING_STOCK_OUT');
     const inTransfer = allItems.filter((i) => i.status === 'UNDER_TRANSFER');
-    const active = allItems.filter((i) => i.status !== 'DISPOSED');
+    // Assets on record: approved and in store or with a custodian. Receipts still awaiting endorsement or
+    // approval, and rejected or disposed ones, are left out; pending receipts are counted on their own.
+    const onRecord = [...available, ...issued];
 
     const sum = (arr: typeof allItems) => arr.reduce((s, i) => s + (i.unitCostETB || 0) * unitsOf(i), 0);
 
     const departmentDistribution = departments.map((dept) => {
-      const deptItems = allItems.filter((i) => i.assignedDepartmentId === dept.id);
+      const deptItems = onRecord.filter((i) => i.assignedDepartmentId === dept.id);
       return {
         departmentId: dept.id,
         departmentCode: dept.code,
@@ -2040,12 +2050,12 @@ export class StoreService {
         totalValueETB: sum(deptItems),
         availableCount: units(deptItems.filter((i) => IN_STORE_STATUSES.includes(i.status))),
         issuedCount: units(deptItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
-        otherStatusCount: units(deptItems.filter((i) => i.status === 'PENDING_STOCK_IN')),
+        otherStatusCount: units(pendingIn.filter((i) => i.assignedDepartmentId === dept.id)),
         items: deptItems,
       };
     });
 
-    const unassignedItems = allItems.filter((i) => !i.assignedDepartmentId);
+    const unassignedItems = onRecord.filter((i) => !i.assignedDepartmentId);
 
     // Units that have stayed in store longer than the distribution limit, oldest first
     const todayMs = Date.parse(getTodayGcAndEc().gc);
@@ -2098,7 +2108,7 @@ export class StoreService {
     }));
 
     const conditionDistribution = ['NEW', 'GOOD', 'FAIR', 'NEEDS_REPAIR', 'DAMAGED'].map((cond) => {
-      const matching = allItems.filter((i) => i.condition === cond);
+      const matching = onRecord.filter((i) => i.condition === cond);
       return {
         condition: cond,
         count: units(matching),
@@ -2107,10 +2117,10 @@ export class StoreService {
     });
 
     const locationUtilization = locations.map((loc) => {
-      const locItems = allItems.filter((i) => i.storeLocationId === loc.id);
+      const locItems = onRecord.filter((i) => i.storeLocationId === loc.id);
       const locAvailable = locItems.filter((i) => IN_STORE_STATUSES.includes(i.status));
       const locIssued    = locItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status));
-      const locPending   = locItems.filter((i) => i.status === 'PENDING_STOCK_IN');
+      const locPending   = pendingIn.filter((i) => i.storeLocationId === loc.id);
       // category breakdown per location
       const locCategoryBreakdown = Object.values(AssetCategory).map((cat) => {
         const matching = locItems.filter((i) => i.category === cat);
@@ -2136,18 +2146,18 @@ export class StoreService {
 
 
     const categoryBreakdown = Object.values(AssetCategory).map((cat) => {
-      const matching = allItems.filter((i) => i.category === cat);
+      const matching = onRecord.filter((i) => i.category === cat);
       return { category: cat, count: units(matching), totalValueETB: sum(matching) };
     });
 
-    const topValuationAssets = allItems
+    const topValuationAssets = onRecord
       .slice()
       .sort((a, b) => (b.unitCostETB || 0) * unitsOf(b) - (a.unitCostETB || 0) * unitsOf(a))
       .slice(0, 8);
 
     return {
-      // Units on record, not counting rejected registrations
-      totalItems: units(active),
+      // Approved units only; pending receipts are in pendingStockInCount
+      totalItems: units(onRecord),
       availableCount: units(available),
       availableValuationETB: sum(available),
       issuedCount: units(issued),
@@ -2156,7 +2166,7 @@ export class StoreService {
       pendingStockOutCount: pendingOut.length,
       pendingTransferCount: inTransfer.length,
       pendingApprovalsCount: pendingApprovals,
-      totalValuationETB: sum(active),
+      totalValuationETB: sum(onRecord),
       unassignedItemsCount: units(unassignedItems),
       unassignedValuationETB: sum(unassignedItems),
       unassignedItems,

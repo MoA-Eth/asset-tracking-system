@@ -202,6 +202,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       return;
     }
 
+    if (!uom.trim()) {
+      const msg = 'Unit of measure is required, e.g. EA, KG or BOX.';
+      setFormError(msg);
+      toast.warning('Unit Required', msg);
+      return;
+    }
+
     if (unitCostETB < 0) {
       const msg = 'Unit price cannot be negative.';
       setFormError(msg);
@@ -238,7 +245,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           source: source.trim() || undefined,
           buyer: buyer.trim() || undefined,
           programName: programName.trim() || undefined,
-          uom: uom.trim() || 'EA',
+          uom: uom.trim(),
           subInventory: subInventory.trim() || undefined,
           itemCategoryDisplay: selectedCat?.label,
           lotBatchNo: lotBatchNo.trim() || undefined,
@@ -270,7 +277,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         serialNumber: serialNumber.trim() || undefined,
         unitCostETB: Number(unitCostETB) || 0,
         condition: condition as ItemCondition,
-        uom: uom.trim() || 'EA',
+        uom: uom.trim(),
         subInventory: subInventory.trim() || undefined,
         itemCategoryDisplay: selectedCat?.label,
         lotBatchNo: lotBatchNo.trim() || undefined,
@@ -312,7 +319,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         sNo: 1,
         itemCode: itemCode.trim() || (res.items?.[0]?.itemCode || res.item?.itemCode || '—'),
         itemDescription: name.trim(),
-        uom: uom.trim() || 'EA',
+        uom: uom.trim(),
         subInventory: subInventory.trim() || targetStore?.name || '',
         itemCategory: selectedCat?.label || category.replace(/_/g, ' '),
         lotBatchNo: lotBatchNo.trim() || '',
@@ -554,14 +561,16 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               <QuantityInput min={1} required value={quantity} onChange={setQuantity} />
             </Field>
 
-            <Field label="Unit of measure" required>
+            <Field label="Unit of measure" required htmlFor="stock-in-uom">
               <input
+                id="stock-in-uom"
                 type="text"
                 list="uom-options"
+                required
                 value={uom}
                 onChange={(e) => setUom(e.target.value.toUpperCase())}
                 className={`${input({ mono: true })} uppercase`}
-                placeholder="EA"
+                placeholder="EA, KG, BOX…"
               />
             </Field>
 

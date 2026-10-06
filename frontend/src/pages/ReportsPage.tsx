@@ -164,9 +164,16 @@ export const ReportsPage: React.FC = () => {
     return reportType === 'available' ? b.available : reportType === 'issued' ? b.issued : b.total;
   };
 
+  // Reports cover approved assets only: receipts awaiting endorsement or approval, and rejected ones, have no
+  // units in store or issued, so they are left out (as on the dashboard)
+  const recordedItems = useMemo(
+    () => items.filter((item) => balanceOf(item).available + balanceOf(item).issued > 0),
+    [items]
+  );
+
   // Filter items based on report type, timeframe, category, location, and search
   const filteredItems = useMemo(() => {
-    return items.filter((item) => {
+    return recordedItems.filter((item) => {
       // 1. Report Type Filter
       // Rows are registrations, so filter on where their units are, not on one record's status
       if (reportType === 'available') {
@@ -188,7 +195,7 @@ export const ReportsPage: React.FC = () => {
           );
         if (!hasTransfer) return false;
       }
-      // 'registered' & 'all' include all records
+      // 'registered' & 'all' include every approved registration
 
       // 2. Timeframe Filter
       const dateStr = item.ifmisSlipDateGc || item.createdAtGc;
@@ -239,7 +246,7 @@ export const ReportsPage: React.FC = () => {
       return true;
     });
   }, [
-    items,
+    recordedItems,
     splitsByRoot,
     reportType,
     timeframe,
@@ -1058,7 +1065,7 @@ export const ReportsPage: React.FC = () => {
         {filteredItems.length > 0 && (
           <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-mono">
             <div>
-              Showing {filteredItems.length} of {items.length} registrations · Units: {unitTotals.total} received, {unitTotals.issued} issued, {unitTotals.available} in store
+              Showing {filteredItems.length} of {recordedItems.length} registrations · Units: {unitTotals.total} received, {unitTotals.issued} issued, {unitTotals.available} in store
             </div>
             <div className="font-bold text-slate-800">
               Total: <span className="text-emerald-800">{formatETB(totalValuation)}</span>
