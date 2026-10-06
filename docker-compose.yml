@@ -6,12 +6,20 @@
 #
 # See docs/DEPLOYMENT.md.
 
+# Docker keeps container logs forever by default; cap them so they can't fill the disk
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
 
   # ── PostgreSQL database ───────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - db-data:/var/lib/postgresql/data
     environment:
@@ -33,6 +41,7 @@ services:
       dockerfile: Dockerfile
     image: moa-ams-backend:latest
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       db:
         condition: service_healthy
@@ -63,6 +72,7 @@ services:
       dockerfile: nginx/Dockerfile
     image: moa-ams-nginx:latest
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       backend:
         condition: service_healthy
