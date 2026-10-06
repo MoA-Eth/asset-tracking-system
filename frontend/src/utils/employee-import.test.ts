@@ -43,7 +43,9 @@ describe('HR spreadsheet reading', () => {
     ]);
     expect(sheet.missing).toEqual([]);
     expect(sheet.rows.map((r) => r.row)).toEqual([4, 6]);
-    expect(sheet.rows[0]).toMatchObject({ payrollId: '1234', fullNameEn: 'Abebe Kebede', department: 'Transport', jobTitle: 'Driver', phone: '251911000000', gender: 'M' });
+    // A numeric cell lost its leading zeros in Excel; text IDs are left as typed
+    expect(sheet.rows[0]).toMatchObject({ payrollId: '00001234', fullNameEn: 'Abebe Kebede', department: 'Transport', jobTitle: 'Driver', phone: '251911000000', gender: 'M' });
+    expect(sheet.rows[1]).toMatchObject({ payrollId: 'MOA/2' });
   });
 
   it('reports the required columns a sheet lacks', () => {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Settings,
-  Shield,
   CheckCircle2,
   AlertCircle,
   RefreshCw,
@@ -145,7 +144,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
     return emp.isActive && !!emp.role && matchesSearch && matchesDept && (roleFilter === 'ALL' || emp.role === roleFilter);
   });
 
-  type UserSortColumn = 'name' | 'email' | 'department' | 'role';
+  type UserSortColumn = 'name' | 'payrollId' | 'email' | 'department' | 'role';
   const [sortColumn, setSortColumn] = useState<UserSortColumn>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -163,6 +162,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
     let diff = 0;
     if (sortColumn === 'name') {
       diff = a.fullNameEn.localeCompare(b.fullNameEn);
+    } else if (sortColumn === 'payrollId') {
+      diff = (a.payrollId || '').localeCompare(b.payrollId || '', undefined, { numeric: true });
     } else if (sortColumn === 'email') {
       diff = (a.email || '').localeCompare(b.email || '');
     } else if (sortColumn === 'department') {
@@ -283,7 +284,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search staff by name, email, or payroll ID…"
+                placeholder="Search by name, email or employee ID…"
                 aria-label="Search staff"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -300,90 +301,93 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
             </button>
           </div>
         </div>
+          {/* Email and directorate fold under the name on narrow screens, so the role and actions stay in view */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs min-w-[860px]">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className={table.headRow}>
                   <SortableHeader
-                    label="Civil Servant / User"
+                    label="User"
                     columnKey="name"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-3 px-4 min-w-[200px]"
+                    thClassName="py-3 px-4"
                   />
                   <SortableHeader
-                    label="Official Email"
+                    label="Employee ID"
+                    columnKey="payrollId"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-3 px-3 whitespace-nowrap"
+                  />
+                  <SortableHeader
+                    label="Email"
                     columnKey="email"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-3 px-4 w-48 whitespace-nowrap"
+                    thClassName="hidden md:table-cell py-3 px-3"
                   />
                   <SortableHeader
-                    label="Directorate / Dept"
+                    label="Directorate"
                     columnKey="department"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-3 px-4 min-w-[180px]"
+                    thClassName="hidden lg:table-cell py-3 px-3"
                   />
                   <SortableHeader
-                    label="Assigned Authorization Role"
+                    label="Role"
                     columnKey="role"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-3 px-4 w-48 whitespace-nowrap"
+                    thClassName="py-3 px-3"
                   />
-                  <th className="py-3 px-4 text-right w-56 whitespace-nowrap">Update Role</th>
+                  <th className={`py-3 px-3 ${table.actionsHead}`}>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {pager.pageItems.map((emp) => {
                   const dept = departments.find((d) => d.id === emp.departmentId);
+                  const deptName = dept ? departmentLabel(dept) : '—';
                   const isUpdating = updatingId === emp.id;
 
                   return (
-                    <tr key={emp.id} className="hover:bg-slate-50 transition">
+                    <tr key={emp.id} className={table.row}>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs shrink-0 border border-emerald-300">
                             {emp.fullNameEn.slice(0, 2).toUpperCase()}
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <p className="font-bold text-slate-900">
                               {emp.fullNameEn}
                               {emp.mustChangePassword && (
-                                <span className="ml-2 rounded-full border border-amber-200 bg-amber-100 px-1.5 py-px text-[10px] font-semibold text-amber-800" title="They haven't chosen their own password yet">
+                                <span className="ml-2 inline-block rounded-full border border-amber-200 bg-amber-100 px-1.5 py-px text-[10px] font-semibold text-amber-800" title="They haven't chosen their own password yet">
                                   Temporary password
                                 </span>
                               )}
                             </p>
-                            <p className="text-[10px] text-slate-500">{emp.fullNameAm}</p>
+                            {emp.fullNameAm && <p className="text-[10px] text-slate-500">{emp.fullNameAm}</p>}
+                            <p className="md:hidden max-w-[220px] truncate text-[11px] text-slate-500" title={emp.email ?? undefined}>{emp.email}</p>
+                            <p className="lg:hidden max-w-[220px] truncate text-[11px] text-slate-500" title={deptName}>{deptName}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-4 font-mono text-slate-700">{emp.email}</td>
-                      <td className="py-3 px-4 text-slate-700 font-medium">
-                        {dept ? departmentLabel(dept) : '—'}
+                      <td className={`py-3 px-3 whitespace-nowrap ${table.code}`}>{emp.payrollId}</td>
+                      <td className="hidden md:table-cell py-3 px-3 font-mono text-slate-700">
+                        <p className="max-w-[220px] truncate" title={emp.email ?? undefined}>{emp.email}</p>
                       </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                            emp.role === UserRole.MANAGER
-                              ? 'bg-amber-100 text-amber-900 border-amber-300'
-                              : emp.role === UserRole.DEPARTMENT_HEAD
-                              ? 'bg-blue-100 text-blue-900 border-blue-300'
-                              : 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                          }`}
-                        >
-                          <Shield className="w-3 h-3" />
-                          {emp.role.replace(/_/g, ' ')}
-                        </span>
+                      <td className="hidden lg:table-cell py-3 px-3 text-slate-700 font-medium">
+                        <p className="max-w-[260px] truncate" title={deptName}>{deptName}</p>
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2">
                           <select
                             value={emp.role}
                             disabled={updatingId !== null || !canAssign}
@@ -397,46 +401,48 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                               </option>
                             ))}
                           </select>
-                          {isUpdating && <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />}
-                          <RowActionsMenu
-                            label={emp.fullNameEn}
-                            actions={[
-                              {
-                                label: 'Reset password',
-                                icon: KeyRound,
-                                onClick: () => setResetting(emp),
-                                disabled: emp.id === user?.id,
-                                reason: emp.id === user?.id ? 'Use "Change password" in the sidebar for your own.' : undefined,
-                              },
-                              {
-                                label: 'Remove sign-in',
-                                icon: UserMinus,
-                                onClick: () => setRemoving(emp),
-                                disabled: emp.id === user?.id,
-                                reason: emp.id === user?.id ? "You can't remove your own sign-in." : undefined,
-                              },
-                              {
-                                label: 'Deactivate user',
-                                icon: UserX,
-                                onClick: () => setDeactivating(emp),
-                                disabled: emp.id === user?.id || (emp.heldItemCount !== undefined && emp.heldItemCount > 0),
-                                reason:
-                                  emp.id === user?.id
-                                    ? "You can't deactivate your own account."
-                                    : emp.heldItemCount
-                                      ? `Holds ${emp.heldItemCount} ${emp.heldItemCount === 1 ? 'item' : 'items'}. Transfer or return ${emp.heldItemCount === 1 ? 'it' : 'them'} first.`
-                                      : undefined,
-                              },
-                            ]}
-                          />
+                          {isUpdating && <RefreshCw className="w-3.5 h-3.5 shrink-0 animate-spin text-emerald-600" />}
                         </div>
+                      </td>
+                      <td className={`py-3 px-3 ${table.actionsCell}`}>
+                        <RowActionsMenu
+                          label={emp.fullNameEn}
+                          actions={[
+                            {
+                              label: 'Reset password',
+                              icon: KeyRound,
+                              onClick: () => setResetting(emp),
+                              disabled: emp.id === user?.id,
+                              reason: emp.id === user?.id ? 'Use "Change password" in the sidebar for your own.' : undefined,
+                            },
+                            {
+                              label: 'Remove sign-in',
+                              icon: UserMinus,
+                              onClick: () => setRemoving(emp),
+                              disabled: emp.id === user?.id,
+                              reason: emp.id === user?.id ? "You can't remove your own sign-in." : undefined,
+                            },
+                            {
+                              label: 'Deactivate user',
+                              icon: UserX,
+                              onClick: () => setDeactivating(emp),
+                              disabled: emp.id === user?.id || (emp.heldItemCount !== undefined && emp.heldItemCount > 0),
+                              reason:
+                                emp.id === user?.id
+                                  ? "You can't deactivate your own account."
+                                  : emp.heldItemCount
+                                    ? `Holds ${emp.heldItemCount} ${emp.heldItemCount === 1 ? 'item' : 'items'}. Transfer or return ${emp.heldItemCount === 1 ? 'it' : 'them'} first.`
+                                    : undefined,
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
                   );
                 })}
                 {filteredEmployees.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-slate-500">
+                    <td colSpan={6} className="p-8 text-center text-slate-500">
                       <div className="space-y-1.5">
                         <p>No users match these filters.</p>
                         {(activeFilterCount > 0 || searchTerm) && (

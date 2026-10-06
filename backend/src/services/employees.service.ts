@@ -32,6 +32,14 @@ export interface EmployeeRecord extends Employee {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\+?[0-9][0-9\s-]{5,19}$/;
+/** HR's payroll employee ID: 8 digits, leading zeros kept (e.g. 00123456) */
+const EMPLOYEE_ID_PATTERN = /^\d{8}$/;
+const EMPLOYEE_ID_FORMAT = 'Employee ID must be 8 digits, as on the HR payroll (e.g. 00123456).';
+
+/** New and changed IDs must follow HR's format; older IDs (e.g. MOA/DIR-008) stay valid until changed */
+function assertEmployeeIdFormat(payrollId: string): void {
+  if (!EMPLOYEE_ID_PATTERN.test(payrollId)) throw new BadRequestError(EMPLOYEE_ID_FORMAT);
+}
 
 const text = (value: unknown, label: string, max: number, required: boolean): string | null => {
   if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
@@ -179,6 +187,25 @@ async function assertAdminRemains(tx: any, previous: any) {
   }
 }
 
+/** Roles a department has only one active holder of */
+const ONE_PER_DEPARTMENT: UserRole[] = [UserRole.TEAM_LEADER, UserRole.DEPARTMENT_HEAD, UserRole.MANAGER];
+
+/**
+ * Refuses to give a Team Leader, Department Head or Manager role that another active employee
+ * of the department already holds. `employeeId` is the person receiving it (left out when adding).
+ */
+export async function assertRoleSeatFree(tx: any, employeeId: string | undefined, role: UserRole | null | undefined, departmentId: string) {
+  if (!role || !ONE_PER_DEPARTMENT.includes(role)) return;
+  const holder = await tx.employee.findFirst({
+    where: { role, departmentId, isActive: true, ...(employeeId ? { id: { not: employeeId } } : {}) },
+    include: { department: true },
+  });
+  if (holder) {
+    const department = holder.department?.nameEn ?? 'this department';
+    throw new ConflictError(`${holder.fullNameEn} is already the ${ROLE_POLICY[role].name} of ${department}. Remove their role first.`);
+  }
+}
+
 /** Staff details shared by the form and the Excel import (no department lookup, no sign-in) */
 function checkDetails(input: EmployeeInput) {
   const details = {
@@ -273,7 +300,9 @@ export async function createEmployee(input: EmployeeInput, actorId: string): Pro
   return serializable(async (tx) => {
     const actor = await loadActor(tx, actorId);
     const { data, passwordHash, newDepartment } = await normalize(tx, input);
+    assertEmployeeIdFormat(data.payrollId);
     await assertEmployeeIdFree(tx, data.payrollId);
+    await assertRoleSeatFree(tx, undefined, data.role, data.departmentId);
     const created = await tx.employee.create({
       data: { id: `EMP-${randomUUID().slice(0, 8).toUpperCase()}`, ...data, password: passwordHash ?? null, isActive: true },
     });
@@ -288,11 +317,18 @@ export async function updateEmployee(id: string, input: EmployeeInput, actorId: 
     const previous = await tx.employee.findUnique({ where: { id } });
     if (!previous) throw new NotFoundError('Employee not found.');
     const { data, passwordHash, newDepartment } = await normalize(tx, input, previous);
-    if (data.payrollId !== previous.payrollId) await assertEmployeeIdFree(tx, data.payrollId, id);
+    if (data.payrollId !== previous.payrollId) {
+      assertEmployeeIdFormat(data.payrollId);
+      await assertEmployeeIdFree(tx, data.payrollId, id);
+    }
 
     if (data.role !== (previous.role ?? null)) {
       if (id === actor.id) throw new ConflictError("You can't change your own role.");
       if (data.role !== UserRole.SYSTEM_ADMIN) await assertAdminRemains(tx, previous);
+    }
+    // Only a new role or a move to another department takes a seat; editing other details of a holder never does
+    if (previous.isActive !== false && (data.role !== (previous.role ?? null) || data.departmentId !== previous.departmentId)) {
+      await assertRoleSeatFree(tx, id, data.role, data.departmentId);
     }
 
     const updated = await tx.employee.update({
@@ -339,6 +375,9 @@ export async function setEmployeeActive(id: string, active: unknown, actorId: st
           `${previous.fullNameEn} is named on ${pending} pending ${pending === 1 ? 'request' : 'requests'}. Finish or reject ${pending === 1 ? 'it' : 'them'} first.`,
         );
       }
+    } else {
+      // Someone may have taken their department role while they were away
+      await assertRoleSeatFree(tx, id, previous.role, previous.departmentId);
     }
 
     const updated = await tx.employee.update({
@@ -496,6 +535,11 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
       seenPayroll.set(pKey, rowNo);
 
       const current = byPayroll.get(pKey);
+      // Rows for staff already on file keep their ID; only new staff must use HR's format
+      if (!current && !EMPLOYEE_ID_PATTERN.test(details.payrollId)) {
+        fail(EMPLOYEE_ID_FORMAT);
+        continue;
+      }
       if (details.email) {
         const eKey = matchKey(details.email);
         const owner = byEmail.get(eKey);

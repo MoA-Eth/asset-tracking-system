@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PackageMinus, FileText, Search, User } from 'lucide-react';
 import { api } from '../../api/client';
-import { FormSection, FieldGrid, Field, ReadOnlyValue, TotalValue, FormError, FileDropField, FormFooter, inputClass } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, ReadOnlyValue, TotalValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { ItemWithRelations, TransactionApproval, Department, Employee, Model22Voucher } from '../../types/asset-management';
@@ -414,15 +414,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
               <ReadOnlyValue>{editApproval.itemName}</ReadOnlyValue>
             </Field>
             <Field label="Quantity to issue" required hint={`${inStore} ${inStoreUom} in store`}>
-              <input
-                type="number"
-                min="1"
-                max={inStore}
-                required
-                value={quantity}
-                onChange={(e) => setQuantity(Math.min(inStore, Math.max(1, parseInt(e.target.value) || 1)))}
-                className={input({ mono: true, align: 'right' })}
-              />
+              <QuantityInput min={1} max={inStore} required value={quantity} onChange={setQuantity} />
             </Field>
           </FieldGrid>
         ) : (
@@ -516,15 +508,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           {/* Quantity & cost */}
           <FieldGrid cols={4}>
             <Field label="Quantity to issue" required hint={`${inStore} ${inStoreUom} in store`}>
-              <input
-                type="number"
-                min="1"
-                max={inStore}
-                required
-                value={quantity}
-                onChange={(e) => setQuantity(Math.min(inStore, Math.max(1, parseInt(e.target.value) || 1)))}
-                className={input({ mono: true, align: 'right' })}
-              />
+              <QuantityInput min={1} max={inStore} required value={quantity} onChange={setQuantity} />
             </Field>
 
             <Field label="Unit of measure" required>

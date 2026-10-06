@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PackagePlus, FileText, Upload } from 'lucide-react';
 import { api } from '../../api/client';
-import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FileDropField, FormFooter, inputClass } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass } from '../ui/FormKit';
 import { AssetCategory, ItemStatus, ItemCondition, ItemWithRelations, Location, Employee, Model19Voucher, Model19LineItem } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
@@ -32,9 +32,11 @@ export interface StockInFormProps {
   hideFooter?: boolean;
   /** Tells the toolbar while a save is in progress */
   onSubmittingChange?: (submitting: boolean) => void;
+  /** Tells the toolbar which required fields are still empty, so it can hold Submit until there are none */
+  onMissingChange?: (missing: string[]) => void;
 }
 
-export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, hideFooter, onSubmittingChange }) => {
+export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, hideFooter, onSubmittingChange, onMissingChange }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
@@ -81,7 +83,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   // Section 3: Signatures & Document Scan
   const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? '');
-  const [receivedBy, setReceivedBy] = useState(editItem?.receivedBy || user?.fullNameEn || '');
+  // Left empty: the person who signs for the delivery isn't necessarily the one entering it
+  const [receivedBy, setReceivedBy] = useState(editItem?.receivedBy ?? '');
   // In edit mode the current slip is kept unless a new file is chosen
   const [attachmentFileName, setAttachmentFileName] = useState(
     editItem?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editItem.ifmisSlipAttachmentUrl) : ''
@@ -89,16 +92,32 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user?.fullNameEn && !receivedBy) {
-      setReceivedBy(user.fullNameEn);
-    }
-  }, [user, receivedBy]);
-
   const policy = useSystemSettings().slipAttachmentPolicy;
   const isAttachmentRequired = policy === 'REQUIRED';
 
   const totalAmount = (Number(quantity) || 0) * (Number(unitCostETB) || 0);
+
+  // Required fields still empty; the receipt can only be submitted once this is empty
+  const missingFields = [
+    !ifmisSlipNumber.trim() && 'Model 19 No.',
+    !ifmisSlipDateGc && 'received date',
+    !transactionType && 'transaction type',
+    !source.trim() && 'source',
+    !storeId && 'receiving store',
+    storeId && !storeLocationId && 'location in store',
+    !name.trim() && 'item description',
+    !category && 'category',
+    !condition && 'physical condition',
+    !(quantity >= 1) && 'quantity',
+    !uom.trim() && 'unit of measure',
+    !(unitCostETB > 0) && 'unit price',
+    isAttachmentRequired && !attachmentFileName && 'scanned slip',
+  ].filter(Boolean) as string[];
+  const missingKey = missingFields.join('|');
+  useEffect(() => {
+    onMissingChange?.(missingKey ? missingKey.split('|') : []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [missingKey]);
 
   const handleReset = () => {
     setIfmisSlipNumber('');
@@ -123,7 +142,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setCondition('');
     setRemark('');
     setDeliveredBy('');
-    setReceivedBy(user?.fullNameEn || '');
+    setReceivedBy('');
     setAttachmentFileName('');
     setAttachmentFile(null);
     setFormError(null);
@@ -319,7 +338,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         storeLocationId,
         storeLocationName: targetStore?.siteName,
         deliveredByName: deliveredBy.trim(),
-        receivedByName: receivedBy.trim() || user?.fullNameEn,
+        receivedByName: receivedBy.trim(),
         reportTakenBy: user?.fullNameEn || '—',
         items: voucherItems,
         grandTotal: totalAmount,
@@ -532,14 +551,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           {/* Quantity & valuation */}
           <FieldGrid cols={4}>
             <Field label="Quantity" required>
-              <input
-                type="number"
-                min="1"
-                required
-                value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value, 10) || 1)}
-                className={input({ mono: true, align: 'right' })}
-              />
+              <QuantityInput min={1} required value={quantity} onChange={setQuantity} />
             </Field>
 
             <Field label="Unit of measure" required>
@@ -658,8 +670,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               />
             </Field>
 
-            <Field label="Received by" optional>
+            <Field label="Received by" optional htmlFor="stock-in-received-by">
               <input
+                id="stock-in-received-by"
                 type="text"
                 placeholder="Store custodian name"
                 value={receivedBy}
@@ -741,7 +754,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
     storeLocationId: item.storeLocationId,
     storeLocationName: item.storeLocation?.siteName,
     deliveredByName: item.deliveredBy,
-    receivedByName: item.receivedBy || item.registeredBy?.fullNameEn,
+    receivedByName: item.receivedBy,
     reportTakenBy: item.registeredBy?.fullNameEn || '—',
     items: voucherItems,
     grandTotal: voucherItems.reduce((acc, curr) => acc + curr.totalAmount, 0),

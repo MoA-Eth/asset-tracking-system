@@ -11,12 +11,12 @@ const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../context/ToastContext', () => ({ useToast: () => toast }));
 vi.mock('../api/client', () => ({ api: { getEmployees: vi.fn(), getDepartments: vi.fn(), updateEmployeeRole: vi.fn() } }));
-const encoder = { id: 'encoder', fullNameEn: 'Example Encoder', fullNameAm: '', role: UserRole.DATA_ENCODER, email: 'encoder@example.test', departmentId: 'dept', isActive: true };
+const encoder = { id: 'encoder', payrollId: '00275823', fullNameEn: 'Example Encoder', fullNameAm: '', role: UserRole.DATA_ENCODER, email: 'encoder@example.test', departmentId: 'dept', isActive: true };
 
 beforeEach(() => {
   vi.resetAllMocks();
   auth.user.permissions = ['roles.assign'];
-  vi.mocked(api.getEmployees).mockResolvedValue([encoder, { ...encoder, id: 'manager', fullNameEn: 'Example Manager', role: UserRole.MANAGER }] as any);
+  vi.mocked(api.getEmployees).mockResolvedValue([encoder, { ...encoder, id: 'manager', payrollId: '00012345', fullNameEn: 'Example Manager', role: UserRole.MANAGER }] as any);
   vi.mocked(api.getDepartments).mockResolvedValue([]);
 });
 describe('Role assignments in Users', () => {
@@ -28,6 +28,19 @@ describe('Role assignments in Users', () => {
     await user.click(screen.getByRole('button', { name: /^Filter users/i }));
     await user.selectOptions(screen.getByLabelText('Filter users by role'), 'ALL');
     expect(screen.getByText('Example Encoder')).toBeInTheDocument();
+  });
+  it('shows each user\'s Employee ID, sortable like the other columns', async () => {
+    const user = userEvent.setup();
+    render(<SettingsPage currentRole={UserRole.SYSTEM_ADMIN} />);
+    expect(await screen.findByRole('columnheader', { name: /Employee ID/ })).toBeInTheDocument();
+    expect(screen.getByText('00275823')).toBeInTheDocument();
+    expect(screen.getByText('00012345')).toBeInTheDocument();
+
+    const ids = () => screen.getAllByText(/^\d{8}$/).map((el) => el.textContent);
+    await user.click(screen.getByRole('button', { name: /Employee ID/ }));
+    expect(ids()).toEqual(['00012345', '00275823']);
+    await user.click(screen.getByRole('button', { name: /Employee ID/ }));
+    expect(ids()).toEqual(['00275823', '00012345']);
   });
   it('persists a change, refreshes the session, and leaves the saved role intact on failure', async () => {
     const user = userEvent.setup();

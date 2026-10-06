@@ -605,6 +605,13 @@ describe('Asset record', () => {
 
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
+    const submitBtn = within(panel).getByRole('button', { name: /Submit for approval/i });
+
+    // Submit stays off until every required field is filled
+    expect(submitBtn).toBeDisabled();
+    expect(within(panel).getByText('8 required fields left')).toBeInTheDocument();
+    // The encoder isn't assumed to be the person who received the goods
+    expect(within(panel).getByLabelText(/Received by/i)).toHaveValue('');
 
     // Fill form
     await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000999');
@@ -618,6 +625,8 @@ describe('Asset record', () => {
     await user.type(within(panel).getByLabelText(/Item description/i), 'Precision Workstation');
     await user.selectOptions(within(panel).getByLabelText(/Category/i), 'IT_EQUIPMENT');
     await user.selectOptions(within(panel).getByLabelText(/Physical condition/i), 'NEW');
+    expect(submitBtn).toBeDisabled();
+    expect(within(panel).getByText('1 required field left')).toHaveAttribute('title', 'Still needed: unit price');
 
     // Unit price
     const unitPrice = within(panel).getByLabelText(/Unit price/i);
@@ -625,7 +634,8 @@ describe('Asset record', () => {
     await user.type(unitPrice, '75000');
 
     // Submit via top toolbar button
-    const submitBtn = within(panel).getByRole('button', { name: /Submit for approval/i });
+    expect(submitBtn).toBeEnabled();
+    expect(within(panel).queryByText(/required fields? left/)).not.toBeInTheDocument();
     await user.click(submitBtn);
 
     // Verify API called with proper payload

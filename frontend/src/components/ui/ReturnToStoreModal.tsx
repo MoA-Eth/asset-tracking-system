@@ -20,6 +20,7 @@ import {
   FormError,
   FileDropField,
   FormFooter,
+  QuantityInput,
   inputClass,
   textareaClass,
 } from './FormKit';
@@ -540,33 +541,15 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
 
             <FieldGrid>
               <Field label="Jack with handle (qty)">
-                <input
-                  type="number"
-                  min="0"
-                  value={jackQty}
-                  onChange={(e) => setJackQty(parseInt(e.target.value) || 0)}
-                  className={input({ mono: true, align: 'right' })}
-                />
+                <QuantityInput value={jackQty} onChange={setJackQty} />
               </Field>
 
               <Field label="Tire wrench (qty)">
-                <input
-                  type="number"
-                  min="0"
-                  value={tireWrenchQty}
-                  onChange={(e) => setTireWrenchQty(parseInt(e.target.value) || 0)}
-                  className={input({ mono: true, align: 'right' })}
-                />
+                <QuantityInput value={tireWrenchQty} onChange={setTireWrenchQty} />
               </Field>
 
               <Field label="Keys (qty)">
-                <input
-                  type="number"
-                  min="0"
-                  value={keyQty}
-                  onChange={(e) => setKeyQty(parseInt(e.target.value) || 0)}
-                  className={input({ mono: true, align: 'right' })}
-                />
+                <QuantityInput value={keyQty} onChange={setKeyQty} />
               </Field>
             </FieldGrid>
 

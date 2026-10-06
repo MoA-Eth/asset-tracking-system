@@ -58,15 +58,27 @@ describe('Employees page', () => {
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     await user.type(screen.getByLabelText(/Full name .English./), 'Hana Tesfaye');
     await user.type(screen.getByLabelText(/Full name .Amharic./), 'ሐና');
-    await user.type(screen.getByLabelText(/Employee ID/), 'MOA/200');
+    await user.type(screen.getByLabelText(/Employee ID/), '00000200');
     await user.type(screen.getByLabelText(/^Department/), 'New Desk');
     expect(screen.getByText('New department. It will be added when you save.')).toBeInTheDocument();
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add employee' }));
     const sent = vi.mocked(api.createEmployee).mock.calls[0][0];
-    expect(sent).toMatchObject({ payrollId: 'MOA/200', fullNameEn: 'Hana Tesfaye', departmentName: 'New Desk' });
+    expect(sent).toMatchObject({ payrollId: '00000200', fullNameEn: 'Hana Tesfaye', departmentName: 'New Desk' });
     expect(sent).not.toHaveProperty('role');
     expect(sent).not.toHaveProperty('password');
     expect(await screen.findByText('Hana Tesfaye')).toBeInTheDocument();
+  });
+
+  it("refuses a new employee ID that isn't in HR's 8-digit format", async () => {
+    const user = userEvent.setup();
+    render(<EmployeesPage />);
+    await user.click(await screen.findByRole('button', { name: 'Add employee' }));
+    await user.type(screen.getByLabelText(/Full name .English./), 'Hana Tesfaye');
+    await user.type(screen.getByLabelText(/Employee ID/), 'MOA/200');
+    await user.type(screen.getByLabelText(/^Department/), 'New Desk');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add employee' }));
+    expect(api.createEmployee).not.toHaveBeenCalled();
+    expect(screen.getByText(/Employee ID must be 8 digits/)).toBeInTheDocument();
   });
 
   it('validates and restricts Full name (Amharic) to Ethiopic script', async () => {
@@ -76,7 +88,7 @@ describe('Employees page', () => {
 
     const amharicInput = screen.getByLabelText(/Full name .Amharic./);
     await user.type(screen.getByLabelText(/Full name .English./), 'Abebe Kebede');
-    await user.type(screen.getByLabelText(/Employee ID/), 'MOA/999');
+    await user.type(screen.getByLabelText(/Employee ID/), '00000999');
     await user.type(screen.getByLabelText(/^Department/), 'Procurement');
 
     // Type Latin characters into Amharic field

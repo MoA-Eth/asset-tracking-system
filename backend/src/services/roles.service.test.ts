@@ -4,7 +4,7 @@ import { getEffectiveRolePermissions, resetAllRolePermissions } from '../securit
 import { UserRole } from '../types/asset-management';
 
 const db = vi.hoisted(() => ({
-  employee: { findUnique: vi.fn(), update: vi.fn(), count: vi.fn(), groupBy: vi.fn() },
+  employee: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(), count: vi.fn(), groupBy: vi.fn() },
   auditLog: { create: vi.fn() }, $transaction: vi.fn(),
   rolePermissionSet: { upsert: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn() },
 }));
@@ -45,6 +45,19 @@ describe('Role assignments', () => {
       userId: 'admin', userRole: 'SYSTEM_ADMIN', entityType: 'USER', entityId: 'admin',
       previousState: { role: 'SYSTEM_ADMIN' }, newState: { role: 'MANAGER' },
     }) });
+  });
+  it('refuses a Team Leader, Department Head or Manager role another active employee of the department holds', async () => {
+    db.employee.findUnique.mockImplementation(({ where }) => Promise.resolve({
+      id: where.id, fullNameEn: where.id, role: where.id === 'admin' ? 'SYSTEM_ADMIN' : 'DATA_ENCODER', departmentId: 'DEP-03',
+    }));
+    db.employee.findFirst.mockResolvedValue({ id: 'tl', fullNameEn: 'Sara Alemu', department: { nameEn: 'Procurement' } });
+    await expect(assignEmployeeRole('target', 'TEAM_LEADER', 'admin')).rejects.toMatchObject({
+      statusCode: 409, message: 'Sara Alemu is already the Team Leader of Procurement. Remove their role first.',
+    });
+    expect(db.employee.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { role: 'TEAM_LEADER', departmentId: 'DEP-03', isActive: true, id: { not: 'target' } },
+    }));
+    expect(db.employee.update).not.toHaveBeenCalled();
   });
   it('propagates audit failure so the transaction rolls back', async () => {
     db.auditLog.create.mockRejectedValue(new Error('audit failed'));

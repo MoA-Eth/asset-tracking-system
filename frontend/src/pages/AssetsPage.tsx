@@ -124,6 +124,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [editing, setEditing] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [receiptSaving, setReceiptSaving] = useState(false);
+  // Required receipt fields still empty; Submit stays off until there are none
+  const [receiptMissing, setReceiptMissing] = useState<string[]>([]);
   const closeRecord = () => {
     setSelectedId(null);
     setReceipt(null);
@@ -1123,11 +1125,17 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     </p>
                   </div>
                   <div role="toolbar" aria-label="Receipt actions" className="flex flex-wrap items-center gap-2 2xl:justify-end">
+                    {receiptMissing.length > 0 && (
+                      <p id="receipt-missing" className="text-[11px] text-slate-500" title={`Still needed: ${receiptMissing.join(', ')}`}>
+                        {receiptMissing.length} required {receiptMissing.length === 1 ? 'field' : 'fields'} left
+                      </p>
+                    )}
                     <button
                       type="submit"
                       form="stock-in-form"
-                      disabled={receiptSaving}
-                      className={`${btn.primary} disabled:opacity-60`}
+                      disabled={receiptSaving || receiptMissing.length > 0}
+                      aria-describedby={receiptMissing.length > 0 ? 'receipt-missing' : undefined}
+                      className={`${btn.primary} disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
                       <Check className="h-4 w-4" />
                       {receiptSaving ? 'Saving…' : receipt.edit ? 'Save changes' : 'Submit for approval'}
@@ -1149,6 +1157,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     editItem={receipt.edit}
                     hideFooter
                     onSubmittingChange={setReceiptSaving}
+                    onMissingChange={setReceiptMissing}
                     onCancel={() => setReceipt(null)}
                     onSuccess={(result, voucher) => {
                       setReceipt(null);

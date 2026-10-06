@@ -24,7 +24,7 @@ const STAFF = {
 const people: Record<string, any> = { admin: ADMIN, encoder: ENCODER, staff: STAFF };
 
 const form = (extra: Record<string, unknown> = {}) => ({
-  payrollId: 'MOA/200', fullNameEn: 'Hana Tesfaye', fullNameAm: 'ሐና ተስፋዬ', departmentId: 'DEP-01', ...extra,
+  payrollId: '00000200', fullNameEn: 'Hana Tesfaye', fullNameAm: 'ሐና ተስፋዬ', departmentId: 'DEP-01', ...extra,
 });
 
 beforeEach(() => {
@@ -94,10 +94,10 @@ describe('Employee registry: adding and editing', () => {
     await expect(createEmployee(form(), 'admin')).rejects.toMatchObject({ statusCode: 409, message: 'Another employee already has this employee ID.' });
   });
 
-  it('refuses an employee ID that differs from an existing one only by letter case', async () => {
-    db.employee.findFirst.mockResolvedValueOnce({ id: 'other', payrollId: 'ab-100' });
-    await expect(createEmployee(form({ payrollId: 'AB-100' }), 'admin')).rejects.toMatchObject({ statusCode: 409, message: 'Another employee already has this employee ID.' });
-    expect(db.employee.findFirst.mock.calls.at(-1)[0].where).toMatchObject({ payrollId: { equals: 'AB-100', mode: 'insensitive' } });
+  it('refuses an employee ID another employee already has, matching older IDs in any letter case', async () => {
+    db.employee.findFirst.mockResolvedValueOnce({ id: 'other', payrollId: '00000100' });
+    await expect(createEmployee(form({ payrollId: '00000100' }), 'admin')).rejects.toMatchObject({ statusCode: 409, message: 'Another employee already has this employee ID.' });
+    expect(db.employee.findFirst.mock.calls.at(-1)[0].where).toMatchObject({ payrollId: { equals: '00000100', mode: 'insensitive' } });
     expect(db.employee.create).not.toHaveBeenCalled();
   });
 
@@ -180,11 +180,11 @@ describe('Employee registry: importing an HR spreadsheet', () => {
   const sheet = [
     { row: 2, payrollId: 'MOA/1', fullNameEn: 'Abebe Kebede', fullNameAm: 'አበበ', department: 'prop', jobTitle: 'Senior Driver' },
     { row: 3, payrollId: 'MOA/2', fullNameEn: 'Sara Ali', fullNameAm: 'ሳራ', department: 'Procurement & Property', phone: '' },
-    { row: 4, payrollId: 'MOA/3', fullNameEn: 'Hana Tesfaye', fullNameAm: 'ሐና', department: 'ICT', phone: 251922000000 },
-    { row: 5, payrollId: 'MOA/3', fullNameEn: 'Hana Again', fullNameAm: 'ሐና', department: 'ICT' },
-    { row: 6, payrollId: 'MOA/4', fullNameEn: 'Lost Dept', fullNameAm: 'ሀ', department: 'Finance' },
-    { row: 7, payrollId: 'MOA/5', fullNameEn: 'Taken Email', fullNameAm: 'ሀ', department: 'ICT', email: 'SARA@moa.gov.et' },
-    { row: 8, payrollId: 'MOA/6', fullNameEn: '', fullNameAm: 'ሀ', department: 'ICT' },
+    { row: 4, payrollId: '00000003', fullNameEn: 'Hana Tesfaye', fullNameAm: 'ሐና', department: 'ICT', phone: 251922000000 },
+    { row: 5, payrollId: '00000003', fullNameEn: 'Hana Again', fullNameAm: 'ሐና', department: 'ICT' },
+    { row: 6, payrollId: '00000004', fullNameEn: 'Lost Dept', fullNameAm: 'ሀ', department: 'Finance' },
+    { row: 7, payrollId: '00000005', fullNameEn: 'Taken Email', fullNameAm: 'ሀ', department: 'ICT', email: 'SARA@moa.gov.et' },
+    { row: 8, payrollId: '00000006', fullNameEn: '', fullNameAm: 'ሀ', department: 'ICT' },
   ];
 
   beforeEach(() => {
@@ -220,11 +220,11 @@ describe('Employee registry: importing an HR spreadsheet', () => {
     expect(db.$transaction).toHaveBeenCalledTimes(1);
     const added = db.employee.createMany.mock.calls[0][0].data;
     expect(added).toHaveLength(2);
-    expect(added[0]).toMatchObject({ payrollId: 'MOA/3', departmentId: 'DEP-02', phone: '251922000000', role: null, password: null, isActive: true });
+    expect(added[0]).toMatchObject({ payrollId: '00000003', departmentId: 'DEP-02', phone: '251922000000', role: null, password: null, isActive: true });
     // The department the file names but the system lacks is created, and its staff are attached to it
     const [newDept] = db.department.createMany.mock.calls[0][0].data;
     expect(newDept).toMatchObject({ code: 'U001', nameEn: 'Finance', nameAm: 'Finance' });
-    expect(added[1]).toMatchObject({ payrollId: 'MOA/4', departmentId: newDept.id });
+    expect(added[1]).toMatchObject({ payrollId: '00000004', departmentId: newDept.id });
     expect(db.employee.update).toHaveBeenCalledWith({ where: { id: 'e1' }, data: { jobTitle: 'Senior Driver' } });
     expect(db.auditLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: 'IMPORT_EMPLOYEES' }) });
   });
@@ -244,14 +244,14 @@ describe('Amharic name', () => {
     db.employee.findMany.mockResolvedValue([{ id: 'e1', payrollId: 'MOA/1', fullNameEn: 'Abebe Kebede', fullNameAm: 'አበበ', departmentId: 'DEP-01', isActive: true }]);
     const result = await importEmployees(
       [
-        { row: 2, payrollId: 'MOA/9', fullNameEn: 'No Amharic', department: 'PROP' },
+        { row: 2, payrollId: '00000009', fullNameEn: 'No Amharic', department: 'PROP' },
         { row: 3, payrollId: 'MOA/1', fullNameEn: 'Abebe Kebede', department: 'PROP' },
       ],
       true,
       'admin',
     );
     expect(result.counts).toMatchObject({ create: 1, unchanged: 1, error: 0 });
-    expect(db.employee.createMany.mock.calls[0][0].data[0]).toMatchObject({ payrollId: 'MOA/9', fullNameAm: '' });
+    expect(db.employee.createMany.mock.calls[0][0].data[0]).toMatchObject({ payrollId: '00000009', fullNameAm: '' });
   });
 
   it('rejects Latin characters and requires Ethiopic script', async () => {
@@ -311,13 +311,13 @@ describe('Department on the employee form', () => {
   });
 
   it('uses an existing department when its name is typed, whatever the spacing or case', async () => {
-    await createEmployee({ payrollId: 'MOA/300', fullNameEn: 'Hana', departmentName: ' የፋይናንስ   ሥራ አስፈጻሚ ' }, 'admin');
+    await createEmployee({ payrollId: '00000300', fullNameEn: 'Hana', departmentName: ' የፋይናንስ   ሥራ አስፈጻሚ ' }, 'admin');
     expect((db.department as any).create).not.toHaveBeenCalled();
     expect(db.employee.create.mock.calls[0][0].data.departmentId).toBe('DEP-01');
   });
 
   it('creates the department when the name is new, and says so in the audit log', async () => {
-    await createEmployee({ payrollId: 'MOA/301', fullNameEn: 'Sara', departmentName: 'የግዥ ሥራ አስፈጻሚ' }, 'admin');
+    await createEmployee({ payrollId: '00000301', fullNameEn: 'Sara', departmentName: 'የግዥ ሥራ አስፈጻሚ' }, 'admin');
     const dept = (db.department as any).create.mock.calls[0][0].data;
     expect(dept).toMatchObject({ code: 'U002', nameEn: 'የግዥ ሥራ አስፈጻሚ', nameAm: 'የግዥ ሥራ አስፈጻሚ' });
     expect(db.employee.create.mock.calls[0][0].data.departmentId).toBe(dept.id);
@@ -325,6 +325,88 @@ describe('Department on the employee form', () => {
   });
 
   it('needs a department either way', async () => {
-    await expect(createEmployee({ payrollId: 'MOA/302', fullNameEn: 'No Dept' }, 'admin')).rejects.toThrow('Department is required.');
+    await expect(createEmployee({ payrollId: '00000302', fullNameEn: 'No Dept' }, 'admin')).rejects.toThrow('Department is required.');
+  });
+});
+
+describe('One Team Leader, Department Head and Manager per department', () => {
+  const HOLDER = { id: 'tl', fullNameEn: 'Sara Alemu', role: 'TEAM_LEADER', departmentId: 'DEP-01', isActive: true, department: { nameEn: 'Extension' } };
+  const leader = (extra: Record<string, unknown> = {}) => form({ role: 'TEAM_LEADER', email: 'h@moa.gov.et', password: 'longenough', ...extra });
+
+  it('refuses to add a second holder in the same department, naming the current one', async () => {
+    db.employee.findFirst.mockImplementation(({ where }) => Promise.resolve(where.role === 'TEAM_LEADER' ? HOLDER : null));
+    await expect(createEmployee(leader(), 'admin')).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'Sara Alemu is already the Team Leader of Extension. Remove their role first.',
+    });
+    expect(db.employee.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { role: 'TEAM_LEADER', departmentId: 'DEP-01', isActive: true },
+    }));
+    expect(db.employee.create).not.toHaveBeenCalled();
+  });
+
+  it('allows the role when the department has no active holder', async () => {
+    await createEmployee(leader(), 'admin');
+    expect(db.employee.create).toHaveBeenCalledWith({ data: expect.objectContaining({ role: 'TEAM_LEADER' }) });
+  });
+
+  it('does not limit Data Encoders or System Administrators', async () => {
+    db.employee.findFirst.mockResolvedValue(null);
+    await createEmployee(leader({ role: 'DATA_ENCODER' }), 'admin');
+    expect(db.employee.findFirst.mock.calls.some(([q]) => 'role' in q.where)).toBe(false);
+  });
+
+  it('checks when an edit gives the role or moves a holder to another department, excluding the person themself', async () => {
+    db.employee.findFirst.mockImplementation(({ where }) => Promise.resolve(where.role === 'DEPARTMENT_HEAD' ? { ...HOLDER, role: 'DEPARTMENT_HEAD' } : null));
+    await expect(updateEmployee('encoder', form({ role: 'DEPARTMENT_HEAD', email: 'e@moa.gov.et' }), 'admin')).rejects.toThrow('already the Department Head');
+
+    people.head = { ...STAFF, id: 'head', role: 'DEPARTMENT_HEAD', departmentId: 'DEP-02', email: 'd@moa.gov.et', password: 'scrypt$x' };
+    await expect(updateEmployee('head', form({ email: 'd@moa.gov.et' }), 'admin')).rejects.toThrow('already the Department Head');
+    expect(db.employee.findFirst.mock.calls.at(-1)[0].where).toMatchObject({ id: { not: 'head' }, departmentId: 'DEP-01' });
+    expect(db.employee.update).not.toHaveBeenCalled();
+    delete people.head;
+  });
+
+  it('lets existing duplicate holders still edit their other details', async () => {
+    people.head = { ...STAFF, id: 'head', role: 'DEPARTMENT_HEAD', email: 'd@moa.gov.et', password: 'scrypt$x' };
+    db.employee.findFirst.mockImplementation(({ where }) => Promise.resolve(where.role ? HOLDER : null));
+    await updateEmployee('head', form({ email: 'd@moa.gov.et', jobTitle: 'Director' }), 'admin');
+    expect(db.employee.update).toHaveBeenCalled();
+    delete people.head;
+  });
+
+  it('refuses to reactivate someone whose role was taken while they were deactivated', async () => {
+    people.head = { ...STAFF, id: 'head', role: 'MANAGER', isActive: false };
+    db.employee.findFirst.mockResolvedValue({ ...HOLDER, role: 'MANAGER' });
+    await expect(setEmployeeActive('head', true, 'admin')).rejects.toThrow('already the Manager of Extension');
+    expect(db.employee.update).not.toHaveBeenCalled();
+    delete people.head;
+  });
+});
+
+describe("Employee ID follows HR's payroll format", () => {
+  it('refuses a new employee whose ID is not 8 digits', async () => {
+    for (const payrollId of ['MOA/200', '1234567', '123456789', '0012345A', '00 12345']) {
+      await expect(createEmployee(form({ payrollId }), 'admin')).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('8 digits') });
+    }
+    expect(db.employee.create).not.toHaveBeenCalled();
+  });
+
+  it('keeps older IDs when editing other details, but a changed ID must follow the format', async () => {
+    await updateEmployee('staff', form({ payrollId: 'MOA/100', jobTitle: 'Driver' }), 'admin');
+    expect(db.employee.update).toHaveBeenCalledTimes(1);
+    await expect(updateEmployee('staff', form({ payrollId: 'MOA/101' }), 'admin')).rejects.toThrow('8 digits');
+    expect(db.employee.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('in an import, refuses new rows with another format and still updates staff already on file', async () => {
+    db.department.findMany.mockResolvedValue([{ id: 'DEP-01', code: 'PROP', nameEn: 'Procurement & Property', nameAm: 'ግዥ' }]);
+    db.employee.findMany.mockResolvedValue([{ id: 'e1', payrollId: 'MOA/1', fullNameEn: 'Abebe Kebede', fullNameAm: 'አበበ', departmentId: 'DEP-01', isActive: true }]);
+    const result = await importEmployees([
+      { row: 2, payrollId: 'MOA/1', fullNameEn: 'Abebe Kebede', department: 'PROP', jobTitle: 'Driver' },
+      { row: 3, payrollId: 'MOA/7', fullNameEn: 'New Person', department: 'PROP' },
+    ], false, 'admin');
+    expect(result.rows.map((r) => r.action)).toEqual(['update', 'error']);
+    expect(result.rows[1].message).toContain('8 digits');
   });
 });

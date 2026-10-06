@@ -24,7 +24,7 @@ import { Field, FieldGrid, FormError, FormFooter, FormNotice, FormSection, input
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Department, Employee, EmployeeInput, UserRole } from '../../types/asset-management';
-import { EMPLOYEE_FIELDS, EmployeeField } from '../../utils/employee-import';
+import { EMPLOYEE_FIELDS, EMPLOYEE_ID_FORMAT, EMPLOYEE_ID_PATTERN, EmployeeField } from '../../utils/employee-import';
 import { RefreshButton } from '../../components/ui/RefreshButton';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../../components/ui/FilterPopover';
 import { SortableHeader, SortDirection } from '../../components/ui/SortableHeader';
@@ -139,6 +139,12 @@ const EmployeeForm: React.FC<{
       setError(amharicError);
       return;
     }
+    // Older IDs (e.g. MOA/DIR-008) can stay as they are; a new or changed ID must follow HR's format
+    const payrollId = form.payrollId.trim();
+    if (payrollId !== editing?.payrollId && !EMPLOYEE_ID_PATTERN.test(payrollId)) {
+      setError(EMPLOYEE_ID_FORMAT);
+      return;
+    }
     setSubmitting(true);
     try {
       // Staff details only: any sign-in the employee has is left as it is
@@ -173,6 +179,8 @@ const EmployeeForm: React.FC<{
                 )
               : field.key === 'department' && isNewDepartment
               ? 'New department. It will be added when you save.'
+              : field.key === 'payrollId'
+              ? '8 digits, as on the HR payroll'
               : undefined;
 
             return (
@@ -212,6 +220,7 @@ const EmployeeForm: React.FC<{
                     type={field.key === 'email' ? 'email' : field.key === 'phone' ? 'tel' : 'text'}
                     lang={isAmharic ? 'am' : undefined}
                     dir={isAmharic ? 'ltr' : undefined}
+                    inputMode={field.key === 'payrollId' ? 'numeric' : undefined}
                     aria-invalid={isAmharic && Boolean(amharicError) ? 'true' : undefined}
                     placeholder={PLACEHOLDERS[field.key]}
                     className={inputClass('emerald', {
