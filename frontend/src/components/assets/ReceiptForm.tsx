@@ -32,9 +32,11 @@ export interface StockInFormProps {
   hideFooter?: boolean;
   /** Tells the toolbar while a save is in progress */
   onSubmittingChange?: (submitting: boolean) => void;
+  /** Tells the toolbar which required fields are still empty, so it can hold Submit until there are none */
+  onMissingChange?: (missing: string[]) => void;
 }
 
-export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, hideFooter, onSubmittingChange }) => {
+export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, hideFooter, onSubmittingChange, onMissingChange }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
@@ -99,6 +101,28 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const isAttachmentRequired = policy === 'REQUIRED';
 
   const totalAmount = (Number(quantity) || 0) * (Number(unitCostETB) || 0);
+
+  // Required fields still empty; the receipt can only be submitted once this is empty
+  const missingFields = [
+    !ifmisSlipNumber.trim() && 'Model 19 No.',
+    !ifmisSlipDateGc && 'received date',
+    !transactionType && 'transaction type',
+    !source.trim() && 'source',
+    !storeId && 'receiving store',
+    storeId && !storeLocationId && 'location in store',
+    !name.trim() && 'item description',
+    !category && 'category',
+    !condition && 'physical condition',
+    !(quantity >= 1) && 'quantity',
+    !uom.trim() && 'unit of measure',
+    !(unitCostETB > 0) && 'unit price',
+    isAttachmentRequired && !attachmentFileName && 'scanned slip',
+  ].filter(Boolean) as string[];
+  const missingKey = missingFields.join('|');
+  useEffect(() => {
+    onMissingChange?.(missingKey ? missingKey.split('|') : []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [missingKey]);
 
   const handleReset = () => {
     setIfmisSlipNumber('');
