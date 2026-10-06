@@ -58,6 +58,14 @@ const HEADING_TO_FIELD = new Map<string, EmployeeField>(
 
 const columnFor = (heading: unknown): EmployeeField | undefined => HEADING_TO_FIELD.get(normalizeHeading(heading));
 
+/** HR's payroll employee ID: 8 digits, leading zeros kept (e.g. 00123456) */
+export const EMPLOYEE_ID_PATTERN = /^\d{8}$/;
+export const EMPLOYEE_ID_FORMAT = 'Employee ID must be 8 digits, as on the HR payroll (e.g. 00123456).';
+
+/** Excel drops the leading zeros of IDs saved as numbers (00277240 → 277240); put them back */
+const payrollCell = (value: unknown) =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < 1e8 ? String(value).padStart(8, '0') : cell(value);
+
 const cell = (value: unknown) => {
   if (value === null || value === undefined) return '';
   if (value instanceof Date) return value.toISOString().slice(0, 10);
@@ -131,7 +139,7 @@ export function rowsFromSheet(data: unknown[][]): SheetReadResult {
   data.slice(headerIndex + 1).forEach((r, i) => {
     const out = emptyRow(headerIndex + i + 2);
     map.forEach((col, idx) => {
-      out[col] = cell(r[idx]);
+      out[col] = col === 'payrollId' ? payrollCell(r[idx]) : cell(r[idx]);
     });
     if (EMPLOYEE_FIELDS.some((f) => out[f.key] !== '')) rows.push(out);
   });

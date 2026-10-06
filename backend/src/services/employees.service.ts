@@ -32,6 +32,14 @@ export interface EmployeeRecord extends Employee {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\+?[0-9][0-9\s-]{5,19}$/;
+/** HR's payroll employee ID: 8 digits, leading zeros kept (e.g. 00123456) */
+const EMPLOYEE_ID_PATTERN = /^\d{8}$/;
+const EMPLOYEE_ID_FORMAT = 'Employee ID must be 8 digits, as on the HR payroll (e.g. 00123456).';
+
+/** New and changed IDs must follow HR's format; older IDs (e.g. MOA/DIR-008) stay valid until changed */
+function assertEmployeeIdFormat(payrollId: string): void {
+  if (!EMPLOYEE_ID_PATTERN.test(payrollId)) throw new BadRequestError(EMPLOYEE_ID_FORMAT);
+}
 
 const text = (value: unknown, label: string, max: number, required: boolean): string | null => {
   if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
@@ -292,6 +300,7 @@ export async function createEmployee(input: EmployeeInput, actorId: string): Pro
   return serializable(async (tx) => {
     const actor = await loadActor(tx, actorId);
     const { data, passwordHash, newDepartment } = await normalize(tx, input);
+    assertEmployeeIdFormat(data.payrollId);
     await assertEmployeeIdFree(tx, data.payrollId);
     await assertRoleSeatFree(tx, undefined, data.role, data.departmentId);
     const created = await tx.employee.create({
@@ -308,7 +317,10 @@ export async function updateEmployee(id: string, input: EmployeeInput, actorId: 
     const previous = await tx.employee.findUnique({ where: { id } });
     if (!previous) throw new NotFoundError('Employee not found.');
     const { data, passwordHash, newDepartment } = await normalize(tx, input, previous);
-    if (data.payrollId !== previous.payrollId) await assertEmployeeIdFree(tx, data.payrollId, id);
+    if (data.payrollId !== previous.payrollId) {
+      assertEmployeeIdFormat(data.payrollId);
+      await assertEmployeeIdFree(tx, data.payrollId, id);
+    }
 
     if (data.role !== (previous.role ?? null)) {
       if (id === actor.id) throw new ConflictError("You can't change your own role.");
@@ -523,6 +535,11 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
       seenPayroll.set(pKey, rowNo);
 
       const current = byPayroll.get(pKey);
+      // Rows for staff already on file keep their ID; only new staff must use HR's format
+      if (!current && !EMPLOYEE_ID_PATTERN.test(details.payrollId)) {
+        fail(EMPLOYEE_ID_FORMAT);
+        continue;
+      }
       if (details.email) {
         const eKey = matchKey(details.email);
         const owner = byEmail.get(eKey);
