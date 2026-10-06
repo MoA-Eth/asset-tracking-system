@@ -134,8 +134,14 @@ export interface VoucherField {
 /** Boxed label/value pairs under the letterhead, two to a row */
 export const VoucherDetails: React.FC<{ fields: VoucherField[] }> = ({ fields }) => (
   <dl className="grid grid-cols-1 sm:grid-cols-2 border-l border-t border-slate-400 print:border-black text-[11px]">
-    {fields.map((f) => (
-      <div key={f.label} className="flex items-baseline gap-2 p-2 border-r border-b border-slate-400 print:border-black">
+    {fields.map((f, i) => (
+      <div
+        key={f.label}
+        // With an odd number of fields the last one spans the row, so the box has no empty half
+        className={`flex items-baseline gap-2 p-2 border-r border-b border-slate-400 print:border-black ${
+          fields.length % 2 === 1 && i === fields.length - 1 ? 'sm:col-span-2' : ''
+        }`}
+      >
         <dt className="font-bold text-slate-800 whitespace-nowrap min-w-[130px]">{f.label} :</dt>
         <dd className={`font-semibold text-slate-950 ${f.mono ? 'font-mono' : ''}`}>{orDash(f.value)}</dd>
       </div>
@@ -168,13 +174,14 @@ export const VoucherSignatures: React.FC<{ signatories: { label: string; name?: 
     {signatories.map((s) => (
       <div key={s.label} className="space-y-3">
         <p className="font-bold">{s.label}</p>
-        <div className="flex items-baseline gap-2">
+        {/* Fixed-height rows aligned to the line, so a blank name sits level with a filled one */}
+        <div className="flex items-end gap-2 h-6">
           <span className="font-semibold whitespace-nowrap">Name :</span>
-          <span className="font-medium flex-1 min-h-[1.25rem] pb-0.5 border-b border-slate-500 print:border-black">{s.name || ''}</span>
+          <span className="font-medium flex-1 truncate border-b border-slate-500 print:border-black">{s.name || ' '}</span>
         </div>
-        <div className="flex items-baseline gap-2">
+        <div className="flex items-end gap-2 h-6">
           <span className="font-semibold whitespace-nowrap">Signature :</span>
-          <span className="flex-1 min-h-[1.25rem] border-b border-slate-500 print:border-black" />
+          <span className="flex-1 border-b border-slate-500 print:border-black">{' '}</span>
         </div>
       </div>
     ))}
