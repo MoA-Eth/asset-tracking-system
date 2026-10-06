@@ -361,7 +361,14 @@ If an update goes wrong, go back to the previous version (`git checkout <previou
 
 ## 9. Automated Deployment with Jenkins
 
-`Jenkinsfile` deploys the `main` branch to the server, the same way as the Ministry's other systems. Each run:
+`Jenkinsfile` deploys the `main` branch to one of two servers, the same way as the Ministry's other systems. Choose it in **Build with Parameters → TARGET**:
+
+| TARGET | Server |
+|---|---|
+| `staging` (default) | `10.10.20.156` |
+| `production` | `10.10.20.155` |
+
+Deploy to staging first, check the release there, then run the job again with `production`. Each run:
 
 1. **Checkout**: fetches the repository on Jenkins.
 2. **Backup Database**: saves `pg_dump` output in `/opt/moa-ams/backups/pre-deploy-<date>.dump` on the server (skipped on the very first deploy) and removes copies older than 30 days.
@@ -378,8 +385,8 @@ If an update goes wrong, go back to the previous version (`git checkout <previou
 - Credentials:
   - `github-moa-ams`: GitHub username + token with read access to `MoA-Eth/asset-tracking-system`.
   - `deploy-server-ssh`: "SSH Username with private key" for the `ams` account; put its public key in `/home/ams/.ssh/authorized_keys` on the server.
-- In `Jenkinsfile`, set `DEPLOY_HOST` to the server's IP address (and `DEPLOY_USER` if the account isn't `ams`).
-- Create a **Pipeline** job, "Pipeline script from SCM", pointing at this repository's `main` branch and `Jenkinsfile`. Run it by hand, or add a trigger (GitHub webhook or "Poll SCM").
+- Both servers are set up as above, each with its own `.env`: `APP_ENV=stage` on staging and `APP_ENV=prod` on production, with different passwords and `JWT_SECRET`. To change a server address, edit `DEPLOY_HOST` in `Jenkinsfile` (and `DEPLOY_USER` if the account isn't `ams`).
+- Create a **Pipeline** job, "Pipeline script from SCM", pointing at this repository's `main` branch and `Jenkinsfile`. Its first run deploys to staging; after that Jenkins shows **Build with Parameters**. Run it by hand. A trigger (GitHub webhook or "Poll SCM") always deploys to staging.
 
 Run the first Jenkins deployment only after the manual install in §4A has succeeded once.
 

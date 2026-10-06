@@ -5,9 +5,13 @@ pipeline {
         timestamps()
         disableConcurrentBuilds()
     }
+    // Staging is the default, so a run started without choosing never reaches production
+    parameters {
+        choice(name: 'TARGET', choices: ['staging', 'production'], description: 'Server to deploy main to: staging (10.10.20.156) or production (10.10.20.155)')
+    }
     environment {
         // The on-premise server and the account Jenkins signs in with over SSH
-        DEPLOY_HOST = 'REPLACE_WITH_SERVER_IP'
+        DEPLOY_HOST = "${params.TARGET == 'production' ? '10.10.20.155' : '10.10.20.156'}"
         DEPLOY_USER = 'ams'
         APP_DIR     = '/opt/moa-ams'
         COMPOSE     = 'docker compose'
@@ -101,7 +105,7 @@ pipeline {
 
     post {
         success {
-            echo "Deployment to ams.moa.gov.et (${DEPLOY_HOST}) succeeded."
+            echo "Deployment to ${params.TARGET ?: 'staging'} (${DEPLOY_HOST}) succeeded."
         }
         failure {
             sshagent(['deploy-server-ssh']) {
