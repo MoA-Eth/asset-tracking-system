@@ -1,0 +1,10 @@
+# Keep the backend image small and free of local data and secrets
+node_modules
+dist
+uploads
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+test-*.js

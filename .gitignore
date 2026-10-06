@@ -52,3 +52,9 @@ backend/uploads/
 scratch/
 tmp/
 *.tmp
+
+# TLS certificate and key for nginx (docker-compose.yml mounts ./ssl); never commit them
+ssl/
+
+# Database copies the Jenkins pipeline takes before each deploy (on the server)
+backups/

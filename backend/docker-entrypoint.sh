@@ -3,11 +3,11 @@
 set -e
 
 if [ -z "$DATABASE_URL" ]; then
-  echo "DATABASE_URL is not set. See .env.docker.example." >&2
+  echo "DATABASE_URL is not set. See .env.example." >&2
   exit 1
 fi
 if [ "${#JWT_SECRET}" -lt 32 ]; then
-  echo "JWT_SECRET must be a random value of at least 32 characters. See .env.docker.example." >&2
+  echo "JWT_SECRET must be a random value of at least 32 characters. See .env.example." >&2
   exit 1
 fi
 

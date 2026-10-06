@@ -1,13 +1,15 @@
-# Keep the image build small and free of local data and secrets
+# Build context for nginx/Dockerfile (the web app). The backend image uses backend/ as its
+# own context, with backend/.dockerignore. Keep this small and free of local data and secrets.
 .git
 .github
+backend
 **/node_modules
 **/dist
 **/*.tsbuildinfo
 **/.env
 **/.env.*
 !**/.env.example
-backend/uploads
+ssl
 scratch
 docs
 *.md
