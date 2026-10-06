@@ -82,7 +82,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   // Line item particulars matching photo columns
   const [itemCode, setItemCode] = useState<string>('');
   const [itemDescription, setItemDescription] = useState<string>('');
-  const [uom, setUom] = useState<string>('EA');
   const [subInventory, setSubInventory] = useState<string>(
     ''
   );
@@ -116,7 +115,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       setQuantity(Number(item.quantity) || 1);
       setItemCode(item.itemCode || '');
       setItemDescription(item.name || '');
-      setUom(item.uom || 'EA');
       setSubInventory(item.subInventory || item.storeLocation?.roomNumber || '');
       setItemCategory(item.itemCategoryDisplay || item.category?.replace(/_/g, ' ') || '');
       setLotBatchNo(item.lotBatchNo || '');
@@ -165,7 +163,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     setRecipientEmployeeId('');
     setItemCode('');
     setItemDescription('');
-    setUom('EA');
     setSubInventory('');
     setItemCategory('');
     setLotBatchNo('');
@@ -184,7 +181,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
   const quantityItem = editItem ?? availableItems.find((i) => i.id === selectedItemId);
   const inStore = Number(quantityItem?.quantity) || 1;
-  const inStoreUom = quantityItem?.uom || uom || 'EA';
+  // Items registered before units were recorded count in EA, as on the server
+  const inStoreUom = quantityItem?.uom || 'EA';
   const totalAmount = quantity * unitPrice;
   const grandTotal = totalAmount + transportationCost;
   const ethDate = formatGcToEc(issuedDateGc);
@@ -325,7 +323,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             sNo: 1,
             itemCode: itemCode || selectedItem?.itemCode || '—',
             itemDescription: itemDescription || selectedItem?.name || '—',
-            uom,
+            uom: inStoreUom,
             subInventory,
             itemCategory,
             lotBatchNo,
@@ -511,14 +509,9 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
               <QuantityInput min={1} max={inStore} required value={quantity} onChange={setQuantity} />
             </Field>
 
-            <Field label="Unit of measure" required>
-              <input
-                type="text"
-                value={uom}
-                onChange={(e) => setUom(e.target.value.toUpperCase())}
-                className={`${input({ mono: true })} uppercase`}
-                placeholder="EA"
-              />
+            {/* Stock is counted in the unit it was received in, so the issue uses the item's unit */}
+            <Field label="Unit of measure" hint={selectedItemId ? 'As received on Model 19' : undefined}>
+              <ReadOnlyValue mono>{selectedItemId ? inStoreUom : '—'}</ReadOnlyValue>
             </Field>
 
             <Field label="Unit price (ETB)" required>

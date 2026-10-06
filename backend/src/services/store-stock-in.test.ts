@@ -64,6 +64,17 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(JSON.parse(db.item.create.mock.calls[1][0].data.notes).receivedBy).toBe('Almaz Ayana');
   });
 
+  it('refuses a unit of measure sent blank, and keeps EA only when none is sent', async () => {
+    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, uom: '  ' } as any))
+      .rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('Unit of measure is required') });
+    expect(db.item.create).not.toHaveBeenCalled();
+
+    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, uom: 'KG' } as any);
+    expect(JSON.parse(db.item.create.mock.calls[0][0].data.notes).uom).toBe('KG');
+    await StoreService.getInstance().registerStockIn({ ...basePayload, serialNumber: 'LAP-002', isHistoricalData: true } as any);
+    expect(JSON.parse(db.item.create.mock.calls[1][0].data.notes).uom).toBe('EA');
+  });
+
   it('never registers an item directly as AVAILABLE', async () => {
     await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any);
 

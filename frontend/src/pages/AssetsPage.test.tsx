@@ -633,6 +633,13 @@ describe('Asset record', () => {
     await user.clear(unitPrice);
     await user.type(unitPrice, '75000');
 
+    // The unit of measure can't be left empty; it is no longer saved as EA behind the user's back
+    const uom = within(panel).getByLabelText(/Unit of measure/i);
+    await user.clear(uom);
+    expect(submitBtn).toBeDisabled();
+    expect(within(panel).getByText('1 required field left')).toHaveAttribute('title', 'Still needed: unit of measure');
+    await user.type(uom, 'kg');
+
     // Submit via top toolbar button
     expect(submitBtn).toBeEnabled();
     expect(within(panel).queryByText(/required fields? left/)).not.toBeInTheDocument();
@@ -645,6 +652,7 @@ describe('Asset record', () => {
       ifmisSlipNumber: '0000999',
       unitCostETB: 75000,
       storeLocationId: 'LOC-1',
+      items: [expect.objectContaining({ uom: 'KG' })],
     }));
 
     // Success toast shown

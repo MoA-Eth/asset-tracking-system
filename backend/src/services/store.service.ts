@@ -306,6 +306,13 @@ function assertStockInLine(line: any): void {
   const quantity = isBlank(line.quantity) ? 1 : Number(line.quantity);
   if (!Number.isInteger(quantity) || quantity < 1) throw new BadRequestError('Quantity must be a whole number, at least 1.');
   if (!isBlank(line.condition) && !RETURN_CONDITIONS.includes(line.condition)) throw new BadRequestError('Choose a valid item condition.');
+  assertUnitOfMeasure(line.uom);
+}
+
+/** A unit sent blank is refused rather than saved as EA; callers that leave it out still get EA */
+function assertUnitOfMeasure(uom: unknown): void {
+  if (uom !== undefined && isBlank(uom)) throw new BadRequestError('Unit of measure is required, e.g. EA, KG or BOX.');
+  assertMaxLength(uom, 20, 'Unit of measure');
 }
 
 /** Transfer summary shown to approvers, e.g. "Reassignment | [Model/21 # 0004386] | Book: MOA MC BOOK" */
@@ -621,7 +628,7 @@ export class StoreService {
           remark: payload.remark,
         }];
     // Check every line before saving any, so a bad line can't leave half a slip registered
-    for (const line of rawItems) assertStockInLine({ ...line, name: line.name || payload.name, category: line.category || payload.category });
+    for (const line of rawItems) assertStockInLine({ ...line, name: line.name || payload.name, category: line.category || payload.category, uom: line.uom ?? payload.uom });
     const typedSerials = rawItems.map((line) => String(line.serialNumber ?? '').trim().toLowerCase()).filter(Boolean);
     if (new Set(typedSerials).size !== typedSerials.length) throw new BadRequestError('Two lines on this slip have the same serial number.');
     for (const line of rawItems) await assertSerialNumberFree(line.serialNumber);
@@ -754,6 +761,7 @@ export class StoreService {
     if (!payload.storeLocationId) throw new BadRequestError('Receiving store is required.');
     if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price cannot be negative.');
     if (!Number.isInteger(quantity) || quantity < 1) throw new BadRequestError('Quantity must be at least 1.');
+    assertUnitOfMeasure(payload.uom);
     if (payload.serialNumber?.trim() && payload.serialNumber.trim() !== item.serialNumber) await assertSerialNumberFree(payload.serialNumber, itemId);
     if (payload.storeLocationId !== item.storeLocationId) {
       const receivingStore = await prisma.location.findUnique({ where: { id: payload.storeLocationId }, include: { store: true } });
@@ -778,7 +786,7 @@ export class StoreService {
       source: payload.source?.trim() || undefined,
       buyer: payload.buyer?.trim() || undefined,
       programName: payload.programName?.trim() || previousMeta.programName,
-      uom: payload.uom?.trim() || 'EA',
+      uom: payload.uom?.trim() || previousMeta.uom || 'EA',
       subInventory: payload.subInventory?.trim() || undefined,
       itemCategoryDisplay: payload.itemCategoryDisplay || previousMeta.itemCategoryDisplay,
       lotBatchNo: payload.lotBatchNo?.trim() || undefined,
