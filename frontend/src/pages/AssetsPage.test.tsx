@@ -568,7 +568,10 @@ describe('Asset record', () => {
     expect(panel).toBeInTheDocument();
     expect(within(panel).getByText('Receive items · Model 19')).toBeInTheDocument();
     expect(within(panel).getByText('New Delivery')).toBeInTheDocument();
-    expect(within(panel).getByRole('button', { name: /Submit for approval/i })).toHaveAttribute('form', 'stock-in-form');
+    // Submit sits in the form's footer, after the last section
+    const submit = within(panel).getByRole('button', { name: /Submit for approval/i });
+    expect(panel.querySelector('form#stock-in-form')).toContainElement(submit);
+    expect(within(panel).getByLabelText(/Received by/i).compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     // In split view, the left sidebar renders an icon-only plus button with no inner text
     const sidebar = screen.getByRole('complementary', { name: 'Asset list' });
@@ -593,7 +596,7 @@ describe('Asset record', () => {
     expect(screen.queryByRole('region', { name: 'Receive items' })).not.toBeInTheDocument();
   });
 
-  it('submits a new asset registration via the top action bar and triggers Model 19 print modal', async () => {
+  it('submits a new asset registration from the form footer and triggers Model 19 print modal', async () => {
     const user = userEvent.setup();
     vi.mocked(api.registerStockIn).mockResolvedValue({
       item: { id: 'NEW-ITEM-1', itemCode: 'MOA-NEW-1', name: 'Precision Workstation' } as any,
@@ -609,7 +612,7 @@ describe('Asset record', () => {
 
     // Submit stays off until every required field is filled
     expect(submitBtn).toBeDisabled();
-    expect(within(panel).getByText('8 required fields left')).toBeInTheDocument();
+    expect(within(panel).getByText('Fill in all required fields (*) to submit')).toBeInTheDocument();
     // The encoder isn't assumed to be the person who received the goods
     expect(within(panel).getByLabelText(/Received by/i)).toHaveValue('');
 
@@ -626,7 +629,6 @@ describe('Asset record', () => {
     await user.selectOptions(within(panel).getByLabelText(/Category/i), 'IT_EQUIPMENT');
     await user.selectOptions(within(panel).getByLabelText(/Physical condition/i), 'NEW');
     expect(submitBtn).toBeDisabled();
-    expect(within(panel).getByText('1 required field left')).toHaveAttribute('title', 'Still needed: unit price');
 
     // Unit price
     const unitPrice = within(panel).getByLabelText(/Unit price/i);
@@ -637,12 +639,11 @@ describe('Asset record', () => {
     const uom = within(panel).getByLabelText(/Unit of measure/i);
     await user.clear(uom);
     expect(submitBtn).toBeDisabled();
-    expect(within(panel).getByText('1 required field left')).toHaveAttribute('title', 'Still needed: unit of measure');
     await user.type(uom, 'kg');
 
-    // Submit via top toolbar button
+    // Submit from the footer
     expect(submitBtn).toBeEnabled();
-    expect(within(panel).queryByText(/required fields? left/)).not.toBeInTheDocument();
+    expect(within(panel).queryByText('Fill in all required fields (*) to submit')).not.toBeInTheDocument();
     await user.click(submitBtn);
 
     // Verify API called with proper payload

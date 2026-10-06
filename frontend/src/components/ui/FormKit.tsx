@@ -322,9 +322,13 @@ interface FormFooterProps {
   onReset?: () => void;
   /** Use inside the Modal body so the actions stay visible while scrolling */
   sticky?: boolean;
+  /** Keeps the submit button off, e.g. until every required field is filled */
+  submitDisabled?: boolean;
+  /** Short line beside the buttons, e.g. why Submit is still off */
+  note?: React.ReactNode;
 }
 
-export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true }) => (
+export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, note }) => (
   <div
     className={`flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white py-3 ${
       sticky ? 'sticky -bottom-5 z-10 -mx-6 -mb-5 px-6' : 'pt-4'
@@ -342,7 +346,8 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
     ) : (
       <span />
     )}
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {note && <p id="form-footer-note" className="text-[11px] text-slate-500">{note}</p>}
       <button
         type="button"
         onClick={onCancel}
@@ -353,7 +358,8 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
       </button>
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || submitDisabled}
+        aria-describedby={note ? 'form-footer-note' : undefined}
         className={`flex items-center gap-2 rounded-lg px-5 py-2 text-xs font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 focus:outline-none focus-visible:ring-2 cursor-pointer ${ACCENT[accent].button}`}
       >
         {submitting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
