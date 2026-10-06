@@ -37,9 +37,7 @@ const mockModel21Voucher: Model21Voucher = {
       remark: 'The right side mirror is missing.\nBoth rear lights are broken.',
     },
   ],
-  famuAccountantName: 'FAMU Reviewer',
-  reportTakenBy: 'lidlyats',
-  reportTakenDate: '28-Sep-2026 @ 02:37 pm',
+  printedBy: 'lidlyats',
 };
 
 describe('Model21PrintModal Component', () => {
@@ -56,7 +54,7 @@ describe('Model21PrintModal Component', () => {
     expect(screen.getByText(/The Federal Democratic Republic of Ethiopia/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Ministry of Agriculture/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Fixed Asset Internal Transfer Form/i).length).toBeGreaterThan(0);
-    expect(screen.getByText('Model/21')).toBeInTheDocument();
+    expect(screen.getByText('Model 21')).toBeInTheDocument();
     expect(screen.getByText('0004386')).toBeInTheDocument();
 
     // From and To Employee info
@@ -90,9 +88,9 @@ describe('Model21PrintModal Component', () => {
     ).toBeInTheDocument();
 
     // Signatures
-    expect(screen.getByText(/Transferor Name and Signature/i)).toBeInTheDocument();
-    expect(screen.getByText(/FAMU Accountant Name and Signature/i)).toBeInTheDocument();
-    expect(screen.getByText(/Recipient's Name and Signature/i)).toBeInTheDocument();
+    expect(screen.getByText('Transferor')).toBeInTheDocument();
+    expect(screen.getByText('FAMU Accountant')).toBeInTheDocument();
+    expect(screen.getByText('Recipient')).toBeInTheDocument();
 
     // Footer
     expect(screen.getByText('lidlyats')).toBeInTheDocument();

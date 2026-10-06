@@ -244,8 +244,8 @@ export interface Model19Voucher {
   storeLocationName?: string;
   deliveredByName?: string;
   receivedByName?: string;
-  reportTakenBy?: string;
-  reportTakenDate?: string;
+  /** Name of the person printing; shown in the footer */
+  printedBy?: string;
   items: Model19LineItem[];
   grandTotal: number;
 }
@@ -285,8 +285,8 @@ export interface Model22Voucher {
   total: number;
   transportationCost?: number;
   grandTotal: number;
-  reportPrintedBy?: string;
-  reportPrintedDate?: string;
+  /** Name of the person printing; shown in the footer */
+  printedBy?: string;
 }
 
 export interface Model21Accessory {
@@ -328,8 +328,8 @@ export interface Model21Voucher {
   toEmployeeId: string;
   items: Model21LineItem[];
   famuAccountantName?: string;
-  reportTakenBy?: string;
-  reportTakenDate?: string;
+  /** Name of the person printing; shown in the footer */
+  printedBy?: string;
 }
 
 /** Units of one registered item across the records split off it by partial Stock-Outs */

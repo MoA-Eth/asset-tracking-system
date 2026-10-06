@@ -339,8 +339,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         total: totalAmount,
         transportationCost,
         grandTotal,
-        reportPrintedBy: user?.payrollId || '—',
-        reportPrintedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+        printedBy: user?.fullNameEn,
       };
 
       toast.success(
@@ -713,7 +712,6 @@ export const buildModel22Voucher = (
     total: totalAmount,
     transportationCost: 0,
     grandTotal: totalAmount,
-    reportPrintedBy: context.printedBy || '—',
-    reportPrintedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+    printedBy: context.printedBy,
   };
 };

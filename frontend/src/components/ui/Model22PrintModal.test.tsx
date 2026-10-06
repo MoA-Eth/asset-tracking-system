@@ -34,8 +34,7 @@ const mockModel22Voucher: Model22Voucher = {
   total: 18963.50,
   transportationCost: 0,
   grandTotal: 18963.50,
-  reportPrintedBy: 'lidlyats',
-  reportPrintedDate: '18th June 2026 @ 08:15 am',
+  printedBy: 'lidlyats',
 };
 
 describe('Model22PrintModal Component', () => {
@@ -65,11 +64,11 @@ describe('Model22PrintModal Component', () => {
     expect(screen.getByText('Battery 12v - 70 Amp')).toBeInTheDocument();
     expect(screen.getAllByText('Spareparts').length).toBeGreaterThan(0);
     expect(screen.getByText('Spare parts')).toBeInTheDocument();
-    expect(screen.getAllByText('18,963.50000').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('18,963.50').length).toBeGreaterThan(0);
 
     // Signatures
-    expect(screen.getByText(/Issued By : Name/i)).toBeInTheDocument();
-    expect(screen.getByText(/Received By : Name/i)).toBeInTheDocument();
+    expect(screen.getByText('Issued By')).toBeInTheDocument();
+    expect(screen.getByText('Received By')).toBeInTheDocument();
     expect(screen.getByText('Mulugeta Tesfaye')).toBeInTheDocument();
     expect(screen.getByText('Kassaye, Tesfaye Tadesse')).toBeInTheDocument();
 

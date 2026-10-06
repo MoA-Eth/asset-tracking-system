@@ -301,9 +301,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
             remark: defectRemark.trim() || returnReason.trim(),
           },
         ],
-        famuAccountantName: 'FAMU Reviewer',
-        reportTakenBy: user?.payrollId || '—',
-        reportTakenDate: `${todayGc} @ ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`,
+        printedBy: user?.fullNameEn,
       };
 
       toast.success(

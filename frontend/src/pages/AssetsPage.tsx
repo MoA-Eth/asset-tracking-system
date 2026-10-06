@@ -378,9 +378,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const printRequest = async (request: TransactionApproval, record?: ItemWithRelations) => {
     const item = record ?? items.find((i) => i.id === request.itemId);
     if (request.transactionType === 'STOCK_OUT') {
-      setVoucher22(buildModel22Voucher(request, { item, departments, employees, printedBy: user?.payrollId }));
+      setVoucher22(buildModel22Voucher(request, { item, departments, employees, printedBy: user?.fullNameEn }));
     } else {
-      setVoucher21(await buildModel21Voucher(request, { item, employees, locations, printedBy: user?.payrollId }));
+      setVoucher21(await buildModel21Voucher(request, { item, employees, locations, printedBy: user?.fullNameEn }));
     }
   };
 
@@ -557,7 +557,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const actionsFor = (row: AssetRow): RowAction[] => {
     const { item, request } = row;
     const view: RowAction = { label: 'View details', icon: Eye, onClick: () => openRecord(item.id) };
-    const printReceipt: RowAction = { label: 'Print Model 19', icon: Printer, onClick: () => setVoucher19(buildModel19Voucher(item, items)) };
+    const printReceipt: RowAction = { label: 'Print Model 19', icon: Printer, onClick: () => setVoucher19(buildModel19Voucher(item, items, user?.fullNameEn)) };
     // Vouchers of requests already approved, so signed copies can be printed again
     const printIssue: RowAction = { label: 'Print Model 22 (issue)', icon: Printer, onClick: () => printRequest(row.lastIssue!, item), hidden: !row.lastIssue };
     const printMove: RowAction = {
@@ -1188,7 +1188,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 setIssue(null);
               }}
               onPrintRequest={(r) => printRequest(r, selectedRow.item)}
-              onPrintReceipt={() => setVoucher19(buildModel19Voucher(selectedRow.item, items))}
+              onPrintReceipt={() => setVoucher19(buildModel19Voucher(selectedRow.item, items, user?.fullNameEn))}
               onSelect={openRecord}
               onClose={closeRecord}
             />

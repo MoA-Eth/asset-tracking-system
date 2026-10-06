@@ -339,7 +339,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         storeLocationName: targetStore?.siteName,
         deliveredByName: deliveredBy.trim(),
         receivedByName: receivedBy.trim(),
-        reportTakenBy: user?.fullNameEn || '—',
+        printedBy: user?.fullNameEn,
         items: voucherItems,
         grandTotal: totalAmount,
       };
@@ -721,7 +721,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
  * Model 19 voucher for a registration. Records received on the same slip print together;
  * units issued off a registration print under their registration.
  */
-export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWithRelations[]): Model19Voucher => {
+export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWithRelations[], printedBy?: string): Model19Voucher => {
   const item = (record.parentItemId && allItems.find((i) => i.id === record.parentItemId)) || record;
   const registrations = allItems.filter((i) => !i.parentItemId);
   const siblingItems = registrations.filter((i) => i.ifmisSlipNumber && i.ifmisSlipNumber === item.ifmisSlipNumber);
@@ -749,7 +749,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
   return {
     approvalState: item.status === ItemStatus.PENDING_STOCK_IN ? 'PENDING' : item.status === ItemStatus.DISPOSED ? 'REJECTED' : undefined,
     invModel19No: item.ifmisSlipNumber,
-    poNumber: item.poNumber || '186',
+    poNumber: item.poNumber || '—',
     receivedDateGc: item.ifmisSlipDateGc,
     receivedDateEc: item.ifmisSlipDateEc || formatGcToEc(item.ifmisSlipDateGc),
     transactionType: item.transactionType || '—',
@@ -760,7 +760,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
     storeLocationName: item.storeLocation?.siteName,
     deliveredByName: item.deliveredBy,
     receivedByName: item.receivedBy,
-    reportTakenBy: item.registeredBy?.fullNameEn || '—',
+    printedBy,
     items: voucherItems,
     grandTotal: voucherItems.reduce((acc, curr) => acc + curr.totalAmount, 0),
   };

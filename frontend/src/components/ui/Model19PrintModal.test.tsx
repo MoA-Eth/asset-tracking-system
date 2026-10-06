@@ -15,7 +15,7 @@ const mockVoucher: Model19Voucher = {
   programName: 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa',
   deliveredByName: 'Abebe Kebede',
   receivedByName: 'Almaz Ayana',
-  reportTakenBy: 'azebmif',
+  printedBy: 'azebmif',
   grandTotal: 716425,
   items: [
     {
@@ -66,7 +66,7 @@ describe('Model19PrintModal Component', () => {
 
     expect(screen.getByText(/The Federal Democratic Republic of Ethiopia/i)).toBeInTheDocument();
     expect(screen.getByText(/MoA-Program to Build Resilience for Food and Nutrition Security/i)).toBeInTheDocument();
-    expect(screen.getByText(/Print Model19 Report/i)).toBeInTheDocument();
+    expect(screen.getByText('Goods Receiving Report')).toBeInTheDocument();
     expect(screen.getByText('0000044')).toBeInTheDocument();
     expect(screen.getByText('186')).toBeInTheDocument();
     expect(screen.getByText('ERMEJA TRADING ONE MEMBER P.L.C')).toBeInTheDocument();
@@ -80,16 +80,16 @@ describe('Model19PrintModal Component', () => {
     expect(screen.getByText('107101102.4336')).toBeInTheDocument();
     expect(screen.getByText('Sulfa Drug In Vial')).toBeInTheDocument();
     expect(screen.getByText('Medical Supplies & Related Accessories')).toBeInTheDocument();
-    expect(screen.getByText('82,500')).toBeInTheDocument();
+    expect(screen.getByText('82,500.00')).toBeInTheDocument();
 
     // Item 2
     expect(screen.getByText('105101102.0415')).toBeInTheDocument();
     expect(screen.getByText('Streptomycine')).toBeInTheDocument();
-    expect(screen.getByText('17,050')).toBeInTheDocument();
+    expect(screen.getByText('17,050.00')).toBeInTheDocument();
 
     // Signatures
-    expect(screen.getByText(/Delivered By : Name :/i)).toBeInTheDocument();
-    expect(screen.getByText(/Received By : Name :/i)).toBeInTheDocument();
+    expect(screen.getByText('Delivered By')).toBeInTheDocument();
+    expect(screen.getByText('Received By')).toBeInTheDocument();
     expect(screen.getByText('Abebe Kebede')).toBeInTheDocument();
     expect(screen.getByText('Almaz Ayana')).toBeInTheDocument();
   });
@@ -120,12 +120,12 @@ describe('Model19PrintModal Component', () => {
       <Model19PrintModal
         isOpen
         onClose={vi.fn()}
-        voucher={{ ...mockVoucher, programName: '', transactionType: '' as any, reportTakenBy: '' }}
+        voucher={{ ...mockVoucher, programName: '', transactionType: '' as any, printedBy: '' }}
       />
     );
     expect(screen.queryByText(/MoA-Program to Build Resilience/)).toBeNull();
     expect(screen.queryByText(/ifmisdb/)).toBeNull();
-    expect(screen.getByText(/from the Asset Tracking System/)).toBeTruthy();
+    expect(screen.getByText(/from the MoA Asset Tracking System/)).toBeTruthy();
     expect(screen.queryByText('PO Receipt')).toBeNull();
   });
 });

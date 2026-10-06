@@ -25,8 +25,6 @@ const accessoriesOf = (jack: number, wrench: number, keys: number) =>
     { name: 'key', quantity: keys },
   ].filter((a) => a.quantity > 0);
 
-const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
-
 // ─── Transfer form (inside the pop-up) ──────────────────────────────────────
 
 export interface TransferFormProps {
@@ -199,9 +197,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             remark: defectRemark.trim() || undefined,
           },
         ],
-        famuAccountantName: 'FAMU Reviewer',
-        reportTakenBy: user?.payrollId || '—',
-        reportTakenDate: `${todayGc} @ ${timeNow()}`,
+        printedBy: user?.fullNameEn,
       };
       toast.success(
         'Transfer submitted for approval',
@@ -539,8 +535,6 @@ export const buildModel21Voucher = async (
         remark: d.remark || undefined,
       },
     ],
-    famuAccountantName: 'FAMU Reviewer',
-    reportTakenBy: context.printedBy || '—',
-    reportTakenDate: `${todayGc} @ ${timeNow()}`,
+    printedBy: context.printedBy,
   };
 };
