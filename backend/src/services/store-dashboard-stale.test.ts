@@ -93,3 +93,26 @@ describe('dashboard: stock movement', () => {
     expect(stockMovement.slice(0, 5).every((m: any) => m.received === 0 && m.issued === 0)).toBe(true);
   });
 });
+
+describe('dashboard: totals count approved assets only', () => {
+  it('leaves receipts awaiting endorsement or approval, and rejected ones, out of every total', async () => {
+    db.location.findMany.mockResolvedValue([{ id: 'LOC-01', name: 'Store-01', store: { name: 'Kality' } }]);
+    db.item.findMany.mockResolvedValue([
+      record('IN-STORE', 'AVAILABLE', 3),
+      record('WITH-STAFF', 'ISSUED', 3, { condition: 'GOOD' }),
+      record('AWAITING-ENDORSEMENT', 'PENDING_STOCK_IN', 1, { unitCostETB: 900000 }),
+      record('REJECTED', 'DISPOSED', 1, { unitCostETB: 500000 }),
+    ]);
+
+    const d = await StoreService.getInstance().getExecutiveDashboard();
+
+    // 4 units each for the two approved records; the pending receipt is reported on its own
+    expect(d).toMatchObject({ totalItems: 8, totalValuationETB: 8000, availableCount: 4, issuedCount: 4, pendingStockInCount: 1 });
+    expect(d.availableCount + d.issuedCount).toBe(d.totalItems);
+    expect(d.unassignedItemsCount).toBe(8);
+    expect(d.topValuationAssets.map((i: any) => i.itemCode).sort()).toEqual(['IN-STORE', 'WITH-STAFF']);
+    expect(d.categoryBreakdown.find((c: any) => c.category === 'IT_EQUIPMENT')).toMatchObject({ count: 8, totalValueETB: 8000 });
+    expect(d.conditionDistribution.find((c: any) => c.condition === 'NEW')).toMatchObject({ count: 4 });
+    expect(d.locationUtilization[0]).toMatchObject({ itemCount: 8, totalValueETB: 8000, pendingCount: 4 });
+  });
+});
