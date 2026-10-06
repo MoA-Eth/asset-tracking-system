@@ -91,9 +91,26 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build unified Docker image
+      - name: Build backend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: moa-ams-backend:ci
+
+      - name: Build nginx (web app) Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./nginx/Dockerfile
           push: false
-          tags: moa-asset-tracking:ci
+          load: true
+          tags: moa-ams-nginx:ci
+
+      - name: Check nginx configuration
+        run: |
+          mkdir -p /tmp/ssl
+          openssl req -x509 -nodes -newkey rsa:2048 -days 1 -subj "/CN=ci" \
+            -keyout /tmp/ssl/privkey.pem -out /tmp/ssl/fullchain.pem
+          docker run --rm --add-host backend:127.0.0.1 -v /tmp/ssl:/etc/nginx/ssl:ro moa-ams-nginx:ci nginx -t
