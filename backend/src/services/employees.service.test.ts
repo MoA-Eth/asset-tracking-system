@@ -328,3 +328,58 @@ describe('Department on the employee form', () => {
     await expect(createEmployee({ payrollId: 'MOA/302', fullNameEn: 'No Dept' }, 'admin')).rejects.toThrow('Department is required.');
   });
 });
+
+describe('One Team Leader, Department Head and Manager per department', () => {
+  const HOLDER = { id: 'tl', fullNameEn: 'Sara Alemu', role: 'TEAM_LEADER', departmentId: 'DEP-01', isActive: true, department: { nameEn: 'Extension' } };
+  const leader = (extra: Record<string, unknown> = {}) => form({ role: 'TEAM_LEADER', email: 'h@moa.gov.et', password: 'longenough', ...extra });
+
+  it('refuses to add a second holder in the same department, naming the current one', async () => {
+    db.employee.findFirst.mockImplementation(({ where }) => Promise.resolve(where.role === 'TEAM_LEADER' ? HOLDER : null));
+    await expect(createEmployee(leader(), 'admin')).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'Sara Alemu is already the Team Leader of Extension. Remove their role first.',
+    });
+    expect(db.employee.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { role: 'TEAM_LEADER', departmentId: 'DEP-01', isActive: true },
+    }));
+    expect(db.employee.create).not.toHaveBeenCalled();
+  });
+
+  it('allows the role when the department has no active holder', async () => {
+    await createEmployee(leader(), 'admin');
+    expect(db.employee.create).toHaveBeenCalledWith({ data: expect.objectContaining({ role: 'TEAM_LEADER' }) });
+  });
+
+  it('does not limit Data Encoders or System Administrators', async () => {
+    db.employee.findFirst.mockResolvedValue(null);
+    await createEmployee(leader({ role: 'DATA_ENCODER' }), 'admin');
+    expect(db.employee.findFirst.mock.calls.some(([q]) => 'role' in q.where)).toBe(false);
+  });
+
+  it('checks when an edit gives the role or moves a holder to another department, excluding the person themself', async () => {
+    db.employee.findFirst.mockImplementation(({ where }) => Promise.resolve(where.role === 'DEPARTMENT_HEAD' ? { ...HOLDER, role: 'DEPARTMENT_HEAD' } : null));
+    await expect(updateEmployee('encoder', form({ role: 'DEPARTMENT_HEAD', email: 'e@moa.gov.et' }), 'admin')).rejects.toThrow('already the Department Head');
+
+    people.head = { ...STAFF, id: 'head', role: 'DEPARTMENT_HEAD', departmentId: 'DEP-02', email: 'd@moa.gov.et', password: 'scrypt$x' };
+    await expect(updateEmployee('head', form({ email: 'd@moa.gov.et' }), 'admin')).rejects.toThrow('already the Department Head');
+    expect(db.employee.findFirst.mock.calls.at(-1)[0].where).toMatchObject({ id: { not: 'head' }, departmentId: 'DEP-01' });
+    expect(db.employee.update).not.toHaveBeenCalled();
+    delete people.head;
+  });
+
+  it('lets existing duplicate holders still edit their other details', async () => {
+    people.head = { ...STAFF, id: 'head', role: 'DEPARTMENT_HEAD', email: 'd@moa.gov.et', password: 'scrypt$x' };
+    db.employee.findFirst.mockImplementation(({ where }) => Promise.resolve(where.role ? HOLDER : null));
+    await updateEmployee('head', form({ email: 'd@moa.gov.et', jobTitle: 'Director' }), 'admin');
+    expect(db.employee.update).toHaveBeenCalled();
+    delete people.head;
+  });
+
+  it('refuses to reactivate someone whose role was taken while they were deactivated', async () => {
+    people.head = { ...STAFF, id: 'head', role: 'MANAGER', isActive: false };
+    db.employee.findFirst.mockResolvedValue({ ...HOLDER, role: 'MANAGER' });
+    await expect(setEmployeeActive('head', true, 'admin')).rejects.toThrow('already the Manager of Extension');
+    expect(db.employee.update).not.toHaveBeenCalled();
+    delete people.head;
+  });
+});

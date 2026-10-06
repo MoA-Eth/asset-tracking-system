@@ -179,6 +179,25 @@ async function assertAdminRemains(tx: any, previous: any) {
   }
 }
 
+/** Roles a department has only one active holder of */
+const ONE_PER_DEPARTMENT: UserRole[] = [UserRole.TEAM_LEADER, UserRole.DEPARTMENT_HEAD, UserRole.MANAGER];
+
+/**
+ * Refuses to give a Team Leader, Department Head or Manager role that another active employee
+ * of the department already holds. `employeeId` is the person receiving it (left out when adding).
+ */
+export async function assertRoleSeatFree(tx: any, employeeId: string | undefined, role: UserRole | null | undefined, departmentId: string) {
+  if (!role || !ONE_PER_DEPARTMENT.includes(role)) return;
+  const holder = await tx.employee.findFirst({
+    where: { role, departmentId, isActive: true, ...(employeeId ? { id: { not: employeeId } } : {}) },
+    include: { department: true },
+  });
+  if (holder) {
+    const department = holder.department?.nameEn ?? 'this department';
+    throw new ConflictError(`${holder.fullNameEn} is already the ${ROLE_POLICY[role].name} of ${department}. Remove their role first.`);
+  }
+}
+
 /** Staff details shared by the form and the Excel import (no department lookup, no sign-in) */
 function checkDetails(input: EmployeeInput) {
   const details = {
@@ -274,6 +293,7 @@ export async function createEmployee(input: EmployeeInput, actorId: string): Pro
     const actor = await loadActor(tx, actorId);
     const { data, passwordHash, newDepartment } = await normalize(tx, input);
     await assertEmployeeIdFree(tx, data.payrollId);
+    await assertRoleSeatFree(tx, undefined, data.role, data.departmentId);
     const created = await tx.employee.create({
       data: { id: `EMP-${randomUUID().slice(0, 8).toUpperCase()}`, ...data, password: passwordHash ?? null, isActive: true },
     });
@@ -293,6 +313,10 @@ export async function updateEmployee(id: string, input: EmployeeInput, actorId: 
     if (data.role !== (previous.role ?? null)) {
       if (id === actor.id) throw new ConflictError("You can't change your own role.");
       if (data.role !== UserRole.SYSTEM_ADMIN) await assertAdminRemains(tx, previous);
+    }
+    // Only a new role or a move to another department takes a seat; editing other details of a holder never does
+    if (previous.isActive !== false && (data.role !== (previous.role ?? null) || data.departmentId !== previous.departmentId)) {
+      await assertRoleSeatFree(tx, id, data.role, data.departmentId);
     }
 
     const updated = await tx.employee.update({
@@ -339,6 +363,9 @@ export async function setEmployeeActive(id: string, active: unknown, actorId: st
           `${previous.fullNameEn} is named on ${pending} pending ${pending === 1 ? 'request' : 'requests'}. Finish or reject ${pending === 1 ? 'it' : 'them'} first.`,
         );
       }
+    } else {
+      // Someone may have taken their department role while they were away
+      await assertRoleSeatFree(tx, id, previous.role, previous.departmentId);
     }
 
     const updated = await tx.employee.update({

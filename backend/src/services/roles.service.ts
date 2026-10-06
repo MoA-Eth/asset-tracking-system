@@ -15,6 +15,7 @@ import {
   loadSavedRolePermissions,
 } from '../security/role-policy';
 import { UserRole } from '../types/asset-management';
+import { assertRoleSeatFree } from './employees.service';
 
 /** Load the saved matrix at startup; if the database isn't ready yet, the built-in defaults apply */
 export async function initRolePermissions(): Promise<void> {
@@ -57,6 +58,7 @@ export async function assignEmployeeRole(id: string, role: unknown, actorId: str
           const admins = await tx.employee.count({ where: { role: UserRole.SYSTEM_ADMIN, isActive: true } });
           if (admins <= 1) throw new ConflictError('The last System Administrator cannot be reassigned. Assign another administrator first.');
         }
+        await assertRoleSeatFree(tx, id, role, previous.departmentId);
         const updated = await tx.employee.update({ where: { id }, data: { role } });
         const today = getTodayGcAndEc();
         const time = new Date().toLocaleTimeString('en-US', { hour12: false });
