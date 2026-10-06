@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, UserCheck, FileText, Car, Tag } from 'lucide-react';
 import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
-import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, inputClass, textareaClass } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, QuantityInput, inputClass, textareaClass } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
@@ -445,13 +445,13 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
           <FieldGrid>
             <Field label="Jack with handle (qty)">
-              <input type="number" min="0" value={jackQty} onChange={(e) => setJackQty(parseInt(e.target.value) || 0)} className={input({ mono: true, align: 'right' })} />
+              <QuantityInput value={jackQty} onChange={setJackQty} />
             </Field>
             <Field label="Tire wrench (qty)">
-              <input type="number" min="0" value={tireWrenchQty} onChange={(e) => setTireWrenchQty(parseInt(e.target.value) || 0)} className={input({ mono: true, align: 'right' })} />
+              <QuantityInput value={tireWrenchQty} onChange={setTireWrenchQty} />
             </Field>
             <Field label="Keys (qty)">
-              <input type="number" min="0" value={keyQty} onChange={(e) => setKeyQty(parseInt(e.target.value) || 0)} className={input({ mono: true, align: 'right' })} />
+              <QuantityInput value={keyQty} onChange={setKeyQty} />
             </Field>
           </FieldGrid>
 

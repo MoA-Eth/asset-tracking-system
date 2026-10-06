@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PackagePlus, FileText, Upload } from 'lucide-react';
 import { api } from '../../api/client';
-import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FileDropField, FormFooter, inputClass } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass } from '../ui/FormKit';
 import { AssetCategory, ItemStatus, ItemCondition, ItemWithRelations, Location, Employee, Model19Voucher, Model19LineItem } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
@@ -532,14 +532,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           {/* Quantity & valuation */}
           <FieldGrid cols={4}>
             <Field label="Quantity" required>
-              <input
-                type="number"
-                min="1"
-                required
-                value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value, 10) || 1)}
-                className={input({ mono: true, align: 'right' })}
-              />
+              <QuantityInput min={1} required value={quantity} onChange={setQuantity} />
             </Field>
 
             <Field label="Unit of measure" required>

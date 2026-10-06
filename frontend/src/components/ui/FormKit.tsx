@@ -36,6 +36,70 @@ export const inputClass = (accent: FormAccent, opts: { mono?: boolean; align?: '
 export const textareaClass = (accent: FormAccent) =>
   `w-full min-h-[72px] px-3 py-2 bg-white border border-slate-300 rounded-lg text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${ACCENT[accent].focus}`;
 
+// ─── Quantity input ─────────────────────────────────────────────────────────
+
+interface QuantityInputProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange' | 'min' | 'max'> {
+  value: number;
+  onChange: (value: number) => void;
+  /** Smallest accepted whole number (default 0) */
+  min?: number;
+  /** Largest accepted whole number; larger entries are capped while typing */
+  max?: number;
+}
+
+/**
+ * Whole-number input for counts. Keeps its own text so users can clear the
+ * field and type a new number; only valid values reach `onChange`. If left
+ * empty or below `min`, it falls back to the last valid value on blur.
+ */
+export const QuantityInput: React.FC<QuantityInputProps> = ({
+  value,
+  onChange,
+  min = 0,
+  max,
+  onBlur,
+  className = inputClass('emerald', { mono: true, align: 'right' }),
+  ...props
+}) => {
+  const [draft, setDraft] = useState(String(value));
+
+  // Follow outside changes (form reset, record loaded) without overwriting what the user is typing
+  useEffect(() => {
+    setDraft((d) => (d !== '' && Number(d) === value ? d : String(value)));
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/\D/g, '');
+    if (digits === '') {
+      setDraft('');
+      return;
+    }
+    let n = parseInt(digits, 10);
+    if (max !== undefined && n > max) n = max;
+    setDraft(String(n));
+    if (n >= min) onChange(n);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (draft === '' || Number(draft) < min) setDraft(String(value));
+    onBlur?.(e);
+  };
+
+  return (
+    <input
+      {...props}
+      type="text"
+      inputMode="numeric"
+      autoComplete="off"
+      value={draft}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className={className}
+    />
+  );
+};
+
 // ─── Layout ─────────────────────────────────────────────────────────────────
 
 interface FormSectionProps {
