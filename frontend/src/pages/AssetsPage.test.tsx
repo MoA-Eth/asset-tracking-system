@@ -610,6 +610,8 @@ describe('Asset record', () => {
     // Submit stays off until every required field is filled
     expect(submitBtn).toBeDisabled();
     expect(within(panel).getByText('8 required fields left')).toBeInTheDocument();
+    // The encoder isn't assumed to be the person who received the goods
+    expect(within(panel).getByLabelText(/Received by/i)).toHaveValue('');
 
     // Fill form
     await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000999');

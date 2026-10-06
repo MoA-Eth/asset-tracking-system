@@ -653,7 +653,7 @@ export class StoreService {
         quantity,
         totalAmount,
         deliveredBy: payload.deliveredBy,
-        receivedBy: payload.receivedBy || (user ? user.fullNameEn : undefined),
+        receivedBy: payload.receivedBy?.trim() || undefined,
         remark: lineItem.remark || payload.remark,
         userNotes: payload.notes,
       };
@@ -787,7 +787,7 @@ export class StoreService {
       quantity,
       totalAmount: unitCost * quantity,
       deliveredBy: payload.deliveredBy?.trim() || undefined,
-      receivedBy: payload.receivedBy?.trim() || previousMeta.receivedBy,
+      receivedBy: payload.receivedBy?.trim() || undefined,
       remark,
       userNotes: remark,
     };

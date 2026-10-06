@@ -56,6 +56,14 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(result.approval).toBeDefined();
   });
 
+  it('leaves Received by empty rather than naming the encoder who entered the receipt', async () => {
+    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any);
+    expect(JSON.parse(db.item.create.mock.calls[0][0].data.notes).receivedBy).toBeUndefined();
+
+    await StoreService.getInstance().registerStockIn({ ...basePayload, serialNumber: 'LAP-002', isHistoricalData: true, receivedBy: ' Almaz Ayana ' } as any);
+    expect(JSON.parse(db.item.create.mock.calls[1][0].data.notes).receivedBy).toBe('Almaz Ayana');
+  });
+
   it('never registers an item directly as AVAILABLE', async () => {
     await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any);
 

@@ -81,6 +81,15 @@ describe('Stock-In correction before Stage 1 endorsement', () => {
     expect(db.auditLog.create.mock.calls[0][0].data).toMatchObject({ action: 'EDIT_STOCK_IN', entityId: 'item-1' });
   });
 
+  it('lets the correction clear Received by, or change it', async () => {
+    db.item.findUnique.mockResolvedValue({ ...pendingItem, notes: JSON.stringify({ quantity: 1, receivedBy: 'Store Encoder' }) });
+    await store().updateStockIn('item-1', { ...edit, receivedBy: '' } as any, 'EMP-ENC');
+    expect(JSON.parse(db.item.update.mock.calls[0][0].data.notes).receivedBy).toBeUndefined();
+
+    await store().updateStockIn('item-1', { ...edit, receivedBy: ' Almaz Ayana ' } as any, 'EMP-ENC');
+    expect(JSON.parse(db.item.update.mock.calls[1][0].data.notes).receivedBy).toBe('Almaz Ayana');
+  });
+
   it('is refused once the Team Leader has endorsed (Stage 2)', async () => {
     db.transactionApproval.findFirst.mockResolvedValue({ ...stage1Approval, currentStage: 2 });
     await expect(store().updateStockIn('item-1', edit as any, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 409 });

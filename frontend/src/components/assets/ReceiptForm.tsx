@@ -83,19 +83,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   // Section 3: Signatures & Document Scan
   const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? '');
-  const [receivedBy, setReceivedBy] = useState(editItem?.receivedBy || user?.fullNameEn || '');
+  // Left empty: the person who signs for the delivery isn't necessarily the one entering it
+  const [receivedBy, setReceivedBy] = useState(editItem?.receivedBy ?? '');
   // In edit mode the current slip is kept unless a new file is chosen
   const [attachmentFileName, setAttachmentFileName] = useState(
     editItem?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editItem.ifmisSlipAttachmentUrl) : ''
   );
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (user?.fullNameEn && !receivedBy) {
-      setReceivedBy(user.fullNameEn);
-    }
-  }, [user, receivedBy]);
 
   const policy = useSystemSettings().slipAttachmentPolicy;
   const isAttachmentRequired = policy === 'REQUIRED';
@@ -147,7 +142,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setCondition('');
     setRemark('');
     setDeliveredBy('');
-    setReceivedBy(user?.fullNameEn || '');
+    setReceivedBy('');
     setAttachmentFileName('');
     setAttachmentFile(null);
     setFormError(null);
@@ -343,7 +338,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         storeLocationId,
         storeLocationName: targetStore?.siteName,
         deliveredByName: deliveredBy.trim(),
-        receivedByName: receivedBy.trim() || user?.fullNameEn,
+        receivedByName: receivedBy.trim(),
         reportTakenBy: user?.fullNameEn || '—',
         items: voucherItems,
         grandTotal: totalAmount,
@@ -675,8 +670,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               />
             </Field>
 
-            <Field label="Received by" optional>
+            <Field label="Received by" optional htmlFor="stock-in-received-by">
               <input
+                id="stock-in-received-by"
                 type="text"
                 placeholder="Store custodian name"
                 value={receivedBy}
@@ -758,7 +754,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
     storeLocationId: item.storeLocationId,
     storeLocationName: item.storeLocation?.siteName,
     deliveredByName: item.deliveredBy,
-    receivedByName: item.receivedBy || item.registeredBy?.fullNameEn,
+    receivedByName: item.receivedBy,
     reportTakenBy: item.registeredBy?.fullNameEn || '—',
     items: voucherItems,
     grandTotal: voucherItems.reduce((acc, curr) => acc + curr.totalAmount, 0),
