@@ -1069,6 +1069,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 <span>Esc to close</span>
               </div>
             </div>
+            {/* Column names for the two sides of each entry, worded as in the full table; stays put while the list scrolls */}
+            <div aria-hidden="true" className={`shrink-0 flex items-center justify-between gap-1.5 py-1.5 pl-3.5 pr-2.5 ${table.headRow}`}>
+              <span>Asset</span>
+              <span>Status / Qty</span>
+            </div>
             <ul className="flex-1 divide-y divide-slate-100 overflow-y-auto">
               {sortedShown.length === 0 && <li className="px-3 py-6 text-center text-xs text-slate-400">No assets match.</li>}
               {sortedShown.map((group) => {

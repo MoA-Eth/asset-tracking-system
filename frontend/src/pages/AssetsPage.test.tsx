@@ -578,6 +578,9 @@ describe('Asset record', () => {
     const sidebarPlusBtn = within(sidebar).getByRole('button', { name: 'Receive items (Model 19)' });
     expect(sidebarPlusBtn).toBeInTheDocument();
     expect(sidebarPlusBtn.textContent).toBe('');
+    // The list's two columns are named, as in the full table
+    expect(within(sidebar).getByText('Asset')).toBeInTheDocument();
+    expect(within(sidebar).getByText('Status / Qty')).toBeInTheDocument();
 
     // 1. Cancel button closes it
     await user.click(within(panel).getByRole('button', { name: 'Cancel' }));
