@@ -11,6 +11,14 @@ export default defineConfig({
   resolve: {
     preserveSymlinks: true
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // React changes far less often than the app, so browsers keep it cached across releases
+        manualChunks: { react: ['react', 'react-dom'] }
+      }
+    }
+  },
   server: {
     port: 3001,
     host: true,

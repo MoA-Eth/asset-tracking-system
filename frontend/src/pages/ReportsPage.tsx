@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import {
   Search,
   RefreshCw,
@@ -397,13 +395,15 @@ export const ReportsPage: React.FC = () => {
   };
 
   // PDF Export handler
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (filteredItems.length === 0) {
       toast.warning('No Records', 'There are no asset records matching current filters to export.');
       return;
     }
 
     try {
+      // The PDF library is large, so it is loaded only when someone exports
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
       const doc = new jsPDF({
         orientation: 'landscape',
         unit: 'pt',

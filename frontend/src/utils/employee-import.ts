@@ -1,4 +1,3 @@
-import { readSheet } from 'read-excel-file/browser';
 import { strToU8, zipSync } from 'fflate';
 
 export type EmployeeField =
@@ -150,7 +149,11 @@ export function rowsFromSheet(data: unknown[][]): SheetReadResult {
 export async function readEmployeeFile(file: File): Promise<SheetReadResult> {
   const name = file.name.toLowerCase();
   if (name.endsWith('.csv')) return rowsFromSheet(parseCsv(await file.text()));
-  if (name.endsWith('.xlsx')) return rowsFromSheet((await readSheet(file)) as unknown[][]);
+  if (name.endsWith('.xlsx')) {
+    // The Excel reader is loaded only when someone imports a workbook
+    const { readSheet } = await import('read-excel-file/browser');
+    return rowsFromSheet((await readSheet(file)) as unknown[][]);
+  }
   throw new Error('Choose an Excel (.xlsx) or CSV file. Older .xls files: open in Excel and save as .xlsx first.');
 }
 
