@@ -2,83 +2,98 @@
 ## Functional Technical Specification (IFMIS Store Mirror & Executive Dashboard)
 
 - **Target Organization:** Federal Democratic Republic of Ethiopia – Ministry of Agriculture (MoA)
-- **Primary Frameworks:** React 18+ (Mobile-First PWA) | Node.js + Express (Backend REST API)
+- **Primary Frameworks:** React 18+ (Mobile-First PWA) | Node.js + Express (Backend REST API) | PostgreSQL (Prisma)
 - **System Scope:** Store-Level Processing, IFMIS Slip Mirroring, and Top Management Visibility
 - **Official System of Record:** Integrated Financial Management Information System (IFMIS)
-- **Date:** September 2026
+- **Date:** October 2026
 
 ---
 
 ## 1. System Purpose & Core Concept
 
-Top management and Directorate Heads currently lack real-time visibility into inventory levels, inbound shipments, and outbound requisitions handled in the central and regional stores. 
+Top management and Directorate Heads currently lack real-time visibility into inventory levels, inbound shipments, and outbound requisitions handled in the central and regional stores.
 
 While **IFMIS remains the national official system of record**, this system acts as a responsive store-level mirror:
-1. **Duplicate Recording:** When items are registered or issued in IFMIS, store data encoders duplicate-register them here with the official IFMIS slip number and document attachment.
-2. **Department Head Approvals:** Inbound stock and outbound issues require Department Head review and sign-off before items become available in stock or are released to custodians.
-3. **Executive Dashboard:** Top management, including the **Minister**, has instant, real-time visibility into inventory valuation, category distribution, stock-out status, and pending approvals.
+1. **Duplicate Recording:** When items are received or issued in IFMIS, store Data Encoders record them here with the official IFMIS slip number, slip date and (optionally) a scanned copy.
+2. **Two-Stage Approval:** Every request (receipt, issue, transfer, return) is endorsed by a Team Leader and then approved by a Department Head before it takes effect.
+3. **Executive Dashboard:** Top management has real-time visibility into inventory value, category distribution, issues, stock waiting in store, and pending approvals.
+
+All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 
 ---
 
-## 2. Major Functional Scenarios
+## 2. Approval Workflow (all request types)
 
-### 2.1 Stock-In
 ```
-[ IFMIS Delivery ] 
+[ Data Encoder submits request ] ──► Pending, Stage 1
        │
-       ▼ (Attach IFMIS Slip)
-[ Data Encoder Registers Item ] ──► Status: PENDING_STOCK_IN
+       ▼ Team Leader endorses (or rejects with a reason)
+[ Pending, Stage 2 ]
        │
-       ▼ (Review & Sign-Off)
-[ Department Head Approves ] ──► Status: AVAILABLE (In Central Store)
+       ▼ Department Head approves (or rejects with a reason)
+[ Request takes effect ]
 ```
-- Data Encoder enters item specifications (Name, Category, Serial, Valuation, Store Location).
-- Data Encoder attaches the official IFMIS receiving slip number, slip date, and scanned document.
-- Item enters `PENDING_STOCK_IN` status.
-- Department Head reviews slip details and approves. Only after approval does the item become `AVAILABLE` in stock.
-- Historical data can be marked to make slip attachment optional and bypass approval.
-
-### 2.2 Stock-Out
-```
-[ Stock-Out Requisition ]
-       │
-       ▼ (Attach IFMIS Issue Slip)
-[ Data Encoder Registers Issue ] ──► Status: PENDING_STOCK_OUT
-       │
-       ▼ (Authorization Review)
-[ Department Head Approves ] ──► Status: ISSUED (Assigned to Custodian)
-```
-- Data Encoder selects an available item from store.
-- Assigns recipient employee, department, purpose, and attaches the IFMIS Stock-Out voucher.
-- Item transitions to `PENDING_STOCK_OUT`.
-- Department Head reviews and approves/rejects.
-- Once approved, item status updates to `ISSUED` and the active custodian is recorded.
-
-### 2.3 Item Transfer & Reassignment
-- Supports reassigning items between employees, directorates, or physical research center stores.
-- Maintains a chronological movement history timeline for every asset.
+- A request can be corrected by the requester until it is endorsed; after that, an approver must reject it.
+- Nobody can endorse, approve or reject a request they submitted.
+- A rejection always records the reason, which the requester sees on the asset.
+- An item can have only one open request at a time.
+- Until approved, a printed voucher carries a "NOT YET APPROVED" banner; a rejected one is marked "REJECTED".
 
 ---
 
-## 3. Executive Dashboard & Reporting (For Minister & Directors)
-- **Live KPIs:** Total Managed Assets, Available in Store, Issued to Staff, Pending Approvals, Total Inventory Valuation (ETB).
-- **Directorate Allocation:** Distribution of equipment across Agricultural Extension, Horticulture, ICT, Procurement, Natural Resource Management.
-- **Category Breakdown:** Vehicles, Agricultural Machinery, IT Equipment, Office Furniture, Lab Equipment, Field Gear.
-- **Activity Stream:** Live audit feed of all store activities.
+## 3. Major Functional Scenarios
+
+### 3.1 Receiving – Model 19
+- Data Encoder enters the items (name, category, serial, unit of measure, quantity, unit cost, store location) and the IFMIS receiving slip number and date.
+- The receipt waits for approval (`PENDING_STOCK_IN`); once approved, the items are `AVAILABLE` in store.
+- "Historical" receipts (goods received before the system) may be recorded without a scanned slip; they still go through approval.
+
+### 3.2 Issue – Model 22
+- Data Encoder issues available stock to a recipient employee and directorate, with purpose and the IFMIS issue voucher.
+- **Partial issues** are supported: issuing part of a batch creates a separate record for the issued units, linked to the original receipt; the rest stays in store.
+- Once approved, the issued units are `ISSUED` and the custodian is recorded.
+
+### 3.3 Transfer and Return – Model 21
+- **Transfer:** reassigns an issued asset to another employee, directorate or location. Custody changes only after approval.
+- **Return to store:** brings an issued asset back to a store location, with its condition and any defects noted.
+- Vehicle particulars (plate, engine, tires, accessories) can be recorded on the Model 21.
+
+### 3.4 Movement History
+- Every asset keeps a chronological history of receipts, issues, transfers, returns and decisions.
+
+### 3.5 System Settings
+- The System Administrator decides whether a scanned slip is required on every voucher or optional.
 
 ---
 
-## 4. User Roles & Permissions
-1. **👑 Top Management (Minister / State Minister / Directors):** Executive dashboard visibility, inventory breakdown, audit logs, and reports.
-2. **✍️ Department Head / Approver:** Authorization queue for reviewing, approving, or rejecting Stock-In and Stock-Out requests.
-3. **📦 Data Encoder (Storekeeper):** Registration of incoming goods, registration of stock-out issues, initiating transfers.
+## 4. Executive Dashboard & Reporting
+- **Live KPIs:** total assets, in store, issued, pending approvals, inventory value (ETB).
+- **Directorate allocation** and **category breakdown**.
+- **Stock waiting in store:** items not issued within 30 days of arriving, oldest first (also flagged on the Assets page).
+- **Monthly movement:** units received and issued over the last six months.
+- **Reports and exports:** filtered asset reports and CSV exports (Assets, Reports, Audit Log) that open correctly in Excel, including Amharic text.
 
 ---
 
-## 5. Audit Log & Compliance
-Every transaction records:
-- Who performed the action (User & Role)
-- Timestamp (Ethiopian E.C. & Gregorian G.C.)
-- Action (`REGISTER_STOCK_IN`, `APPROVE_STOCK_IN`, `REGISTER_STOCK_OUT`, `APPROVE_STOCK_OUT`, `TRANSFER_ITEM`)
-- Affected item & IFMIS slip reference
-- Context details
+## 5. User Roles & Permissions
+
+| Role | Responsibility | Main access |
+|---|---|---|
+| **System Administrator** | User access and platform governance; no store or approval work | Dashboard, reports, audit log, users, roles, employees, stores, system settings |
+| **Data Encoder** | Records receipts, requests issues, transfers and returns; cannot approve | Assets, reports, employees and stores (view) |
+| **Team Leader** | Stage 1: endorse or reject | Approvals, assets, reports, audit log |
+| **Department Head** | Stage 2: approve or reject | Approvals, assets, reports, audit log |
+| **Manager** (top management) | Monitors the portfolio; no approval authority | Dashboard, reports |
+
+- Each directorate has at most one Team Leader, one Department Head and one Manager.
+- Segregation of duties is enforced whatever the permission matrix says: whoever raises requests cannot approve them, and the System Administrator cannot do store or approval work. See [ROLES.md](ROLES.md).
+
+---
+
+## 6. Audit Log & Compliance
+Every action records:
+- Who performed it (user and role)
+- When (E.C. and G.C.)
+- What: e.g. `REGISTER_STOCK_IN`, `STOCK_OUT_REQUESTED`, `TRANSFER_REQUESTED`, `RETURN_REQUESTED`, `ENDORSE`, `APPROVE`, `REJECT`, edits of pending requests, and administrative changes (users, roles, employees, stores, settings)
+- The affected item and IFMIS slip reference
+- Details, with the state before and after where relevant
