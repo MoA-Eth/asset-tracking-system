@@ -941,6 +941,16 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     (filter !== 'ALL' ? 1 : 0) +
     (locationFilter !== 'ALL' ? 1 : 0) +
     (categoryFilter !== 'ALL' ? 1 : 0);
+  // Anything that narrows or reorders the list: filters, search or a non-default sort
+  const viewChanged = activeFilterCount > 0 || !!search || sortColumn !== 'activity' || sortDirection !== 'desc';
+  const resetView = () => {
+    setFilter('ALL');
+    setLocationFilter('ALL');
+    setCategoryFilter('ALL');
+    setSearch('');
+    setSortColumn('activity');
+    setSortDirection('desc');
+  };
 
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
   const availableItems = items.filter((i) => i.status === ItemStatus.AVAILABLE && !pendingByItem.has(i.id));
@@ -965,6 +975,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               setLocationFilter('ALL');
               setCategoryFilter('ALL');
             }}
+            onClear={resetView}
+            showClear={viewChanged}
             resultCountText={`${sortedShown.length} ${sortedShown.length === 1 ? 'group' : 'groups'}`}
           >
             {/* Status Filter */}
@@ -1215,7 +1227,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           </div>
 
           {/* Active Filter Chips (if any filter, search, or sort is active) */}
-          {(locationFilter !== 'ALL' || categoryFilter !== 'ALL' || filter !== 'ALL' || search || sortColumn !== 'activity' || sortDirection !== 'desc') && (
+          {viewChanged && (
             <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100 text-xs">
               <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
               {locationFilter !== 'ALL' && (
@@ -1291,20 +1303,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   </button>
                 </span>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  setFilter('ALL');
-                  setLocationFilter('ALL');
-                  setCategoryFilter('ALL');
-                  setSearch('');
-                  setSortColumn('activity');
-                  setSortDirection('desc');
-                }}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-emerald-700 hover:underline cursor-pointer ml-1"
-              >
-                <X className="w-3 h-3" /> Clear filters
-              </button>
             </div>
           )}
         </div>

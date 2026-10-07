@@ -8,6 +8,10 @@ export interface FilterPopoverProps {
   title?: string;
   activeCount?: number;
   onReset?: () => void;
+  /** What the Clear button beside the trigger does; defaults to onReset. Use it to also clear search or sort. */
+  onClear?: () => void;
+  /** Whether the Clear button shows; defaults to "any filter in the popover is active" */
+  showClear?: boolean;
   resetLabel?: string;
   resultCountText?: string;
   children: React.ReactNode;
@@ -27,6 +31,8 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
   title = 'Filters',
   activeCount = 0,
   onReset,
+  onClear,
+  showClear,
   resetLabel = 'Reset all',
   resultCountText,
   children,
@@ -67,6 +73,8 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
   }, [isOpen]);
 
   const hasActive = activeCount > 0;
+  const clear = onClear ?? onReset;
+  const clearShown = !!clear && (showClear ?? hasActive);
   const showText = !iconOnly && !!label;
   const accessibleLabel = ariaLabel || label || title || 'Filter assets';
 
@@ -100,11 +108,11 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
       </button>
 
       {/* Clear sits beside the trigger, so filters can be removed without opening the popover */}
-      {hasActive && onReset && (
+      {clearShown && (
         <button
           type="button"
-          onClick={onReset}
-          aria-label="Clear all filters"
+          onClick={clear}
+          aria-label="Clear filters"
           title="Clear all filters"
           className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition cursor-pointer select-none"
         >
