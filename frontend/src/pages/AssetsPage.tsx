@@ -50,6 +50,7 @@ import {
 import { formatETB } from '../utils/eth-date';
 import { storeLocationLabel } from '../utils/location';
 import { departmentLabel } from '../utils/department';
+import { downloadCsv } from '../utils/csv';
 import {
   AssetGroup,
   AssetRow,
@@ -717,32 +718,23 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
         return [
           index + 1,
-          `"${item.itemCode}"`,
-          `"${item.name.replace(/"/g, '""')}"`,
-          `"${item.category || ''}"`,
-          `"${group.row.state}"`,
-          `"${uom}"`,
+          item.itemCode,
+          item.name,
+          item.category || '',
+          group.row.state,
+          uom,
           isBatch ? totalUnits : group.row.units,
           isBatch ? inStoreUnits : (group.row.state === 'IN_STORE' ? group.row.units : 0),
           isBatch ? issuedUnits : (group.row.state === 'ISSUED' ? group.row.units : 0),
-          `"${custodySummary.replace(/"/g, '""')}"`,
-          `"${item.ifmisSlipNumber || ''}"`,
-          `"${item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10)}"`,
+          custodySummary,
+          item.ifmisSlipNumber || '',
+          item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10),
           item.unitCostETB || 0,
           totalValue,
         ];
       });
 
-      const csvContent = [headers.join(','), ...csvRows.map((r) => r.join(','))].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `moa-assets-export-${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadCsv(`moa-assets-export-${new Date().toISOString().split('T')[0]}.csv`, headers, csvRows);
       toast.success('CSV Exported', `Exported ${sortedShown.length} asset records.`);
     } catch {
       toast.error('Export Failed', 'Failed to generate asset spreadsheet.');

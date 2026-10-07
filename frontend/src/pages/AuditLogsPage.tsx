@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RefreshButton } from '../components/ui/RefreshButton';
 import { actionText, roleName, withRoleNames } from '../utils/roles';
+import { downloadCsv } from '../utils/csv';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../components/ui/FilterPopover';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
 
@@ -156,18 +157,9 @@ export const AuditLogsPage: React.FC = () => {
       return;
     }
     try {
-      const cell = (value: string) => `"${String(value ?? '').replace(/"/g, '""')}"`;
       const headers = ['Log ID', 'Action', 'User Name', 'User Role', 'IFMIS Slip #', 'Timestamp (E.C.)', 'Timestamp (G.C.)', 'Details'];
-      const rows = filteredLogs.map((l) => [l.id, l.action, cell(l.userName), l.userRole, cell(l.ifmisSlipNumber || ''), cell(l.timestampEc || ''), cell(l.timestampGc || ''), cell(l.details)]);
-      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `MoA_ATS_Audit_Trail_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const rows = filteredLogs.map((l) => [l.id, l.action, l.userName, l.userRole, l.ifmisSlipNumber || '', l.timestampEc || '', l.timestampGc || '', l.details]);
+      downloadCsv(`MoA_ATS_Audit_Trail_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
       toast.success('Audit log exported', `${filteredLogs.length} ${filteredLogs.length === 1 ? 'entry' : 'entries'} saved as CSV.`);
     } catch (err: any) {
       toast.error('Export failed', err.message || 'The audit log could not be exported.');

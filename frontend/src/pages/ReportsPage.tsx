@@ -29,6 +29,7 @@ import {
   ItemStatus,
 } from '../types/asset-management';
 import { formatETB, getTodayGcAndEc } from '../utils/eth-date';
+import { downloadCsv } from '../utils/csv';
 import { useToast } from '../context/ToastContext';
 import { RefreshButton } from '../components/ui/RefreshButton';
 import { ReportCharts } from '../components/reports/ReportCharts';
@@ -366,16 +367,16 @@ export const ReportsPage: React.FC = () => {
       const rows = filteredItems.map((item, index) => [
         index + 1,
         item.itemCode,
-        `"${item.name.replace(/"/g, '""')}"`,
+        item.name,
         item.category,
         statusLabel(item),
         item.ifmisSlipNumber,
-        `"${item.ifmisSlipDateEc || item.createdAtEc}"`,
-        `"${item.ifmisSlipDateGc || item.createdAtGc}"`,
-        `"${item.currentCustodian?.fullNameEn || 'In Store'}"`,
-        `"${item.assignedDepartment?.nameEn || ''}"`,
-        `"${item.storeLocation?.siteName || ''}"`,
-        `"${item.serialNumber || 'N/A'}"`,
+        item.ifmisSlipDateEc || item.createdAtEc,
+        item.ifmisSlipDateGc || item.createdAtGc,
+        item.currentCustodian?.fullNameEn || 'In Store',
+        item.assignedDepartment?.nameEn || '',
+        item.storeLocation?.siteName || '',
+        item.serialNumber || 'N/A',
         item.uom || 'EA',
         balanceOf(item).total,
         balanceOf(item).issued,
@@ -384,15 +385,7 @@ export const ReportsPage: React.FC = () => {
         item.unitCostETB * reportUnits(item),
       ]);
 
-      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `MoA_Asset_Report_${reportType}_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadCsv(`MoA_Asset_Report_${reportType}_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
 
       toast.success(
         'CSV Export Completed',
