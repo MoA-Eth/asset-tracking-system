@@ -71,7 +71,7 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
   const accessibleLabel = ariaLabel || label || title || 'Filter assets';
 
   return (
-    <div className={`relative inline-block text-left ${className}`} ref={popoverRef}>
+    <div className={`relative inline-flex items-center gap-1.5 text-left ${className}`} ref={popoverRef}>
       {/* Trigger Button - exactly matching [ <ListFilter> Filter ] */}
       <button
         ref={buttonRef}
@@ -98,6 +98,20 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
           </span>
         )}
       </button>
+
+      {/* Clear sits beside the trigger, so filters can be removed without opening the popover */}
+      {hasActive && onReset && (
+        <button
+          type="button"
+          onClick={onReset}
+          aria-label="Clear all filters"
+          title="Clear all filters"
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition cursor-pointer select-none"
+        >
+          <X className="w-3.5 h-3.5" />
+          <span>Clear</span>
+        </button>
+      )}
 
       {/* Popover Dropdown Card */}
       <div
