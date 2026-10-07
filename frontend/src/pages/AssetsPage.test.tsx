@@ -1,5 +1,5 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AssetsPage } from './AssetsPage';
@@ -677,5 +677,51 @@ describe('ReturnToStoreModal', () => {
     expect(() => rerender(<ReturnToStoreModal {...props} isOpen item={item('I3', 'Desk', 'ISSUED') as any} />)).not.toThrow();
     expect(screen.getByRole('dialog', { name: /Return to store · Model 21 · MOA-I3/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Choose a different asset/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('AssetsPage: time in store, totals and remembered view', () => {
+  beforeEach(() => {
+    auth.user.permissions = ENCODER;
+    // Fixtures were received on 2026-09-01, so on this day they have been in store 36 days
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-07T09:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('tags records waiting in store more than 30 days', async () => {
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    // Desk (batch remainder), Generator and Camera are in store; issued and pending records are not tagged
+    expect(screen.getAllByText('36 days in store')).toHaveLength(3);
+  });
+
+  it('filters to stale stock and remembers the filter after the page is opened again', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+
+    await user.click(screen.getByRole('button', { name: /Filter assets/i }));
+    await user.click(screen.getByRole('button', { name: /Over 30 days/ }));
+    expect(screen.getByText('In store over 30 days')).toBeInTheDocument();
+    expect(screen.getByText('MOA-S2')).toBeInTheDocument();
+    expect(screen.queryByText('MOA-I1')).not.toBeInTheDocument();
+
+    unmount();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S2');
+    expect(screen.getByText('In store over 30 days')).toBeInTheDocument();
+    expect(screen.queryByText('MOA-I1')).not.toBeInTheDocument();
+  });
+
+  it('totals the value of the listed assets, leaving out pending and rejected receipts', async () => {
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    // 10 desks + laptop + printer + chair + generator + camera at 1,000 each; 7 desks + generator + camera in store
+    const totals = screen.getByRole('group', { name: 'Totals of listed assets' });
+    expect(within(totals).getByText(/Total value/).textContent).toMatch(/15,000/);
+    expect(within(totals).getByText(/In store/).textContent).toMatch(/9,000/);
   });
 });

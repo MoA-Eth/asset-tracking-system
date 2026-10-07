@@ -51,7 +51,31 @@ export interface AssetRow {
   lastMove?: TransactionApproval;
   /** The record's latest decided request, when it was rejected */
   rejected?: TransactionApproval;
+  /** Whole days its units have waited in store; set only for records in store */
+  daysInStore?: number;
 }
+
+/** Items should be distributed within this many days of arriving in store (same limit as the dashboard) */
+export const STALE_IN_STORE_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Days a record's units have been in store, counted the same way as the dashboard:
+ * from the latest approved return if it came back, otherwise from the Model 19 receiving date.
+ */
+export function daysInStore(item: ItemWithRelations, today: Date = new Date()): number | undefined {
+  const returned = (item.history ?? [])
+    .filter((h) => h.action === 'RETURN_APPROVED')
+    .map((h) => h.dateGc)
+    .sort();
+  const since = (returned[returned.length - 1] ?? item.ifmisSlipDateGc ?? String(item.createdAtGc || '')).slice(0, 10);
+  const sinceMs = Date.parse(since);
+  if (!Number.isFinite(sinceMs)) return undefined;
+  const todayMs = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.max(0, Math.floor((todayMs - sinceMs) / DAY_MS));
+}
+
+export const isStale = (row: AssetRow) => (row.daysInStore ?? 0) > STALE_IN_STORE_DAYS;
 
 /** A registration with the units issued from it */
 export interface AssetGroup {
@@ -99,6 +123,14 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
     return (
       <span className="inline-flex flex-col items-start gap-0.5">
         {settled}
+        {row.state === 'IN_STORE' && isStale(row) && (
+          <span
+            className="text-[10px] font-semibold text-amber-800"
+            title={`Waiting in store longer than ${STALE_IN_STORE_DAYS} days; items should be issued sooner`}
+          >
+            {row.daysInStore} days in store
+          </span>
+        )}
         {row.rejected && <RejectionNote request={row.rejected} />}
       </span>
     );

@@ -59,8 +59,11 @@ import {
   CATEGORY_OPTIONS,
   ENDORSED_REASON,
   REQUEST_LABELS,
+  STALE_IN_STORE_DAYS,
   ShownGroup,
+  daysInStore,
   decidedOn,
+  isStale,
 } from '../components/assets/asset-state';
 
 type AssetFilter = 'ALL' | 'IN_STORE' | 'ISSUED' | 'PENDING' | 'REJECTED';
@@ -74,6 +77,35 @@ const FILTERS: { value: AssetFilter; label: string }[] = [
 
 export type SortColumn = 'activity' | 'name' | 'status' | 'units' | 'where' | 'slip' | 'cost';
 export type SortDirection = 'asc' | 'desc';
+const SORT_COLUMNS: SortColumn[] = ['activity', 'name', 'status', 'units', 'where', 'slip', 'cost'];
+
+/** Filters and sort, remembered per person in this browser so a refresh keeps the view */
+interface SavedView {
+  filter: AssetFilter;
+  location: string;
+  category: string;
+  staleOnly: boolean;
+  sortColumn: SortColumn;
+  sortDirection: SortDirection;
+}
+const DEFAULT_VIEW: SavedView = { filter: 'ALL', location: 'ALL', category: 'ALL', staleOnly: false, sortColumn: 'activity', sortDirection: 'desc' };
+const viewKey = (userId?: string) => `moa_assets_view_${userId || 'anon'}`;
+
+function loadView(userId?: string): SavedView {
+  try {
+    const saved = JSON.parse(localStorage.getItem(viewKey(userId)) || '{}');
+    return {
+      filter: FILTERS.some((f) => f.value === saved.filter) ? saved.filter : DEFAULT_VIEW.filter,
+      location: typeof saved.location === 'string' && saved.location ? saved.location : DEFAULT_VIEW.location,
+      category: typeof saved.category === 'string' && saved.category ? saved.category : DEFAULT_VIEW.category,
+      staleOnly: saved.staleOnly === true,
+      sortColumn: SORT_COLUMNS.includes(saved.sortColumn) ? saved.sortColumn : DEFAULT_VIEW.sortColumn,
+      sortDirection: saved.sortDirection === 'asc' ? 'asc' : DEFAULT_VIEW.sortDirection,
+    };
+  } catch {
+    return DEFAULT_VIEW;
+  }
+}
 
 interface AssetsPageProps {
   currentRole: UserRole;
@@ -97,12 +129,23 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [filter, setFilter] = useState<AssetFilter>('ALL');
-  const [locationFilter, setLocationFilter] = useState<string>('ALL');
-  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [savedView] = useState(() => loadView(user?.id));
+  const [filter, setFilter] = useState<AssetFilter>(savedView.filter);
+  const [locationFilter, setLocationFilter] = useState<string>(savedView.location);
+  const [categoryFilter, setCategoryFilter] = useState<string>(savedView.category);
+  const [staleOnly, setStaleOnly] = useState<boolean>(savedView.staleOnly);
   const [search, setSearch] = useState('');
-  const [sortColumn, setSortColumn] = useState<SortColumn>('activity');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sortColumn, setSortColumn] = useState<SortColumn>(savedView.sortColumn);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(savedView.sortDirection);
+
+  useEffect(() => {
+    try {
+      const view: SavedView = { filter, location: locationFilter, category: categoryFilter, staleOnly, sortColumn, sortDirection };
+      localStorage.setItem(viewKey(user?.id), JSON.stringify(view));
+    } catch {
+      // Storage can be unavailable (private window); the view then simply isn't remembered
+    }
+  }, [user?.id, filter, locationFilter, categoryFilter, staleOnly, sortColumn, sortDirection]);
   const [lastTouchedId, setLastTouchedId] = useState<string | null>(null);
 
   const handleSort = (col: SortColumn) => {
@@ -207,6 +250,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   const rows = useMemo<AssetRow[]>(() => {
     const employeeName = (id?: string | null) => employees.find((e) => e.id === id)?.fullNameEn;
+    const today = new Date();
     return items
       .map((item) => {
         const request = pendingByItem.get(item.id);
@@ -242,6 +286,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           lastMove: approved.find((a) => a.transactionType === 'TRANSFER' || a.transactionType === 'RETURN'),
           // A new request replaces the rejected one; until then the row says what happened
           rejected: !request && lastRaised?.status === ApprovalStatus.REJECTED ? lastRaised : undefined,
+          daysInStore: state === 'IN_STORE' ? daysInStore(item, today) : undefined,
         };
       })
       .sort((a, b) => b.activity.localeCompare(a.activity) || a.item.itemCode.localeCompare(b.item.itemCode));
@@ -262,6 +307,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     }
 
     if (cat !== 'ALL' && row.item.category !== cat) {
+      return false;
+    }
+
+    if (staleOnly && !(row.state === 'IN_STORE' && isStale(row))) {
       return false;
     }
 
@@ -305,7 +354,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const shown = useMemo(
     () => groups.map((g) => visibleGroup(g, filter, locationFilter, categoryFilter)).filter((g): g is ShownGroup => !!g),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [groups, filter, locationFilter, categoryFilter, search],
+    [groups, filter, locationFilter, categoryFilter, staleOnly, search],
   );
 
   const sortedShown = useMemo(() => {
@@ -364,7 +413,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     });
   }, [shown, sortColumn, sortDirection]);
 
-  const pager = usePagination(sortedShown, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${search}|${sortColumn}|${sortDirection}` });
+  const pager = usePagination(sortedShown, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}` });
   const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
   const toggleBatch = (id: string) =>
     setOpenBatches((prev) => {
@@ -940,17 +989,39 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const activeFilterCount =
     (filter !== 'ALL' ? 1 : 0) +
     (locationFilter !== 'ALL' ? 1 : 0) +
-    (categoryFilter !== 'ALL' ? 1 : 0);
+    (categoryFilter !== 'ALL' ? 1 : 0) +
+    (staleOnly ? 1 : 0);
   // Anything that narrows or reorders the list: filters, search or a non-default sort
   const viewChanged = activeFilterCount > 0 || !!search || sortColumn !== 'activity' || sortDirection !== 'desc';
-  const resetView = () => {
+  const resetFilters = () => {
     setFilter('ALL');
     setLocationFilter('ALL');
     setCategoryFilter('ALL');
+    setStaleOnly(false);
+  };
+  const resetView = () => {
+    resetFilters();
     setSearch('');
     setSortColumn('activity');
     setSortDirection('desc');
   };
+
+  // Records waiting in store longer than the limit, across the whole list
+  const staleCount = groups.filter((g) => [g.row, ...g.children].some((r) => r.state === 'IN_STORE' && isStale(r))).length;
+
+  // Value of what is listed (same figures as the CSV export); receipts not yet approved and rejected ones don't count
+  const totals = sortedShown.reduce(
+    (acc, group) => {
+      const { row } = group;
+      if (row.state === 'REJECTED' || row.state === 'RECEIPT_PENDING') return acc;
+      const { isBatch, totalUnits, inStoreUnits } = batchSummary(row, group.children ?? []);
+      const cost = row.item.unitCostETB || 0;
+      acc.value += cost * (isBatch ? totalUnits : row.units);
+      acc.inStore += cost * (isBatch ? inStoreUnits : row.state === 'IN_STORE' ? row.units : 0);
+      return acc;
+    },
+    { value: 0, inStore: 0 }
+  );
 
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
   const availableItems = items.filter((i) => i.status === ItemStatus.AVAILABLE && !pendingByItem.has(i.id));
@@ -970,11 +1041,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             title="Filters"
             resetLabel="Reset"
             activeCount={activeFilterCount}
-            onReset={() => {
-              setFilter('ALL');
-              setLocationFilter('ALL');
-              setCategoryFilter('ALL');
-            }}
+            onReset={resetFilters}
             onClear={resetView}
             showClear={viewChanged}
             resultCountText={`${sortedShown.length} ${sortedShown.length === 1 ? 'group' : 'groups'}`}
@@ -1019,6 +1086,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 onChange={setCategoryFilter}
                 options={CATEGORY_OPTIONS}
               />
+            </FilterSection>
+
+            {/* Stock waiting too long to be issued */}
+            <FilterSection label="Time in Store">
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                <FilterPill
+                  label={`Over ${STALE_IN_STORE_DAYS} days`}
+                  count={staleCount}
+                  active={staleOnly}
+                  onClick={() => setStaleOnly((v) => !v)}
+                />
+              </div>
             </FilterSection>
           </FilterPopover>
 
@@ -1230,6 +1309,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           {viewChanged && (
             <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100 text-xs">
               <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
+              {staleOnly && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 text-amber-900 text-[11px] font-medium border border-amber-200">
+                  <span>In store over {STALE_IN_STORE_DAYS} days</span>
+                  <button
+                    type="button"
+                    onClick={() => setStaleOnly(false)}
+                    title="Remove time-in-store filter"
+                    aria-label="Remove time-in-store filter"
+                    className="hover:text-amber-950 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
               {locationFilter !== 'ALL' && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
                   <span>Store: {storeLocationLabel(locations.find((l) => l.id === locationFilter) || ({ nameEn: locationFilter } as any))}</span>
@@ -1414,6 +1507,19 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   })}
                 </tbody>
               </table>
+            </div>
+            <div
+              className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 border-t border-slate-100 px-3 py-2 text-xs text-slate-600"
+              title="Approved records only: receipts waiting for approval and rejected receipts are not counted"
+              role="group"
+              aria-label="Totals of listed assets"
+            >
+              <span>
+                Total value <span className="font-mono font-semibold text-slate-900">{formatETB(totals.value)}</span>
+              </span>
+              <span>
+                In store <span className="font-mono font-semibold text-slate-900">{formatETB(totals.inStore)}</span>
+              </span>
             </div>
             <Pagination pager={pager} label="assets" />
           </>
