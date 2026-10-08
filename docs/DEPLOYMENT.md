@@ -414,7 +414,7 @@ Run the first Jenkins deployment only after the manual install in §4B has succe
 | **Health check API** | `curl -skf https://localhost/api/health` |
 | **Restart services** | `docker compose restart` |
 | **Replace the certificate** | new files in `./ssl`, then `docker compose restart nginx` |
-| **Which version is running** | `git -C /opt/moa-ams log -1 --oneline` |
+| **Which version is running** | `curl -sk https://localhost/api/health`: `commit` is the Git commit the running image was built from |
 | **Update to new release** | Jenkins, or see [§8](#8-updating-to-a-new-release) |
 | **Run backup now** | `sudo /etc/cron.daily/moa-ams-backup` |
 | **Stop application** | `docker compose down` *(Never add `-v`: it deletes the database and scanned slips)* |

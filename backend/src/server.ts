@@ -77,6 +77,8 @@ app.get('/api/health', async (_req: Request, res: Response) => {
     scope: 'Store-level processing, tracking, and executive management dashboard',
     environment: process.env.APP_ENV || (process.env.NODE_ENV === 'production' ? 'prod' : 'dev'),
     version: '2.0.0',
+    // Git commit the running image was built from (set by the Jenkins build); "dev" when run from source
+    commit: process.env.APP_COMMIT || 'dev',
     timestamp: new Date().toISOString(),
   });
 });

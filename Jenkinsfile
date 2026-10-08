@@ -36,6 +36,8 @@ pipeline {
         stage('Build Images') {
             steps {
                 sh '''
+                    # The commit ends up in /api/health, so you can see which version each server runs
+                    export APP_COMMIT=$(git rev-parse --short HEAD)
                     docker compose -p moa-ams-ci build --pull
                     docker image ls --format '{{.Repository}}:{{.Tag}}  {{.Size}}' | grep '^moa-ams-'
                 '''

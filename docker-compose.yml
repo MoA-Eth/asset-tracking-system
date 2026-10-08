@@ -39,6 +39,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        # Shown by /api/health; Jenkins passes the commit being deployed
+        APP_COMMIT: ${APP_COMMIT:-dev}
     image: moa-ams-backend:latest
     restart: unless-stopped
     logging: *default-logging
