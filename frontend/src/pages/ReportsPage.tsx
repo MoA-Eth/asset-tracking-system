@@ -154,7 +154,8 @@ export const ReportsPage: React.FC = () => {
 /** Status wording for a registration; "Partly issued" when units are both out and in store */
   const statusLabel = (item: ItemWithRelations) => {
     const b = balanceOf(item);
-    return b.issued > 0 && b.available > 0 ? 'Partly issued' : item.status.replace(/_/g, ' ');
+    if (b.issued > 0 && b.available > 0) return 'Partly issued';
+    return item.status === 'PENDING_DISPOSAL' ? 'Disposal pending' : item.status.replace(/_/g, ' ');
   };
 
   /** Units a row contributes to this report: in store, issued, or all of them */

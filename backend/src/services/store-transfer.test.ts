@@ -118,7 +118,7 @@ describe('Asset Transfer approval workflow', () => {
       expect(db.transactionApproval.create).not.toHaveBeenCalled();
     });
 
-    it.each(['UNDER_TRANSFER', 'PENDING_STOCK_IN', 'PENDING_STOCK_OUT', 'DISPOSED'])(
+    it.each(['UNDER_TRANSFER', 'PENDING_STOCK_IN', 'PENDING_STOCK_OUT', 'PENDING_DISPOSAL', 'DISPOSED', 'REJECTED'])(
       'rejects a transfer when the item is %s',
       async (status) => {
         db.item.findUnique.mockResolvedValue({ ...issuedItem, status });

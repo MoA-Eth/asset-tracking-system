@@ -11,6 +11,8 @@ import {
   UpdateTransferRequest,
   UpdateReturnRequest,
   CreateStockOutRequest,
+  CreateDisposalRequest,
+  UpdateDisposalRequest,
   CreateTransferRequest,
   ApprovalActionRequest,
   UserRole,
@@ -143,6 +145,37 @@ export class ItemController {
     const payload: UpdateStockOutRequest = req.body;
     const approval = await this.store.updateStockOut(approvalId, payload, req.user!.id);
     return sendSuccess(res, { approval }, 'Issue request updated');
+  });
+
+  /**
+   * POST /api/items/disposal
+   * Requests disposal of units in store; they leave the register after Stage 2 approval.
+   */
+  public registerDisposal = asyncHandler(async (req: Request, res: Response) => {
+    assertPermission(req, 'disposals.write');
+    const payload: CreateDisposalRequest = req.body ?? {};
+    // The signed-in user is always the requester
+    payload.registeredById = req.user!.id;
+    if (!payload.itemId || !payload.disposalNo || !payload.reason) {
+      throw new BadRequestError('Asset item, disposal reference number and reason are required.');
+    }
+    const result = await this.store.registerDisposal(payload).catch(async (err) => {
+      await discardUnusedSlip(payload.ifmisSlipAttachmentUrl);
+      throw err;
+    });
+    return sendSuccess(res, result, 'Disposal request submitted for approval', 201);
+  });
+
+  /**
+   * PUT /api/items/disposal/:approvalId
+   * Corrects a disposal request while it still waits for Stage 1 endorsement.
+   */
+  public updateDisposal = asyncHandler(async (req: Request, res: Response) => {
+    assertPermission(req, 'disposals.write');
+    const approvalId = Array.isArray(req.params.approvalId) ? req.params.approvalId[0] : req.params.approvalId;
+    const payload: UpdateDisposalRequest = req.body ?? {};
+    const approval = await this.store.updateDisposal(approvalId, payload, req.user!.id);
+    return sendSuccess(res, { approval }, 'Disposal request updated');
   });
 
   /**

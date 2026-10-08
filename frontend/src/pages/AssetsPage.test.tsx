@@ -7,7 +7,7 @@ import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
 
-const ENCODER = ['stock-in.write', 'stock-out.write', 'transfers.write', 'inventory.read'];
+const ENCODER = ['stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write', 'inventory.read'];
 const auth = vi.hoisted(() => ({ user: { id: 'enc', payrollId: 'ENC-1', permissions: [] as string[] } }));
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn() }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
@@ -16,7 +16,7 @@ vi.mock('../api/client', () => ({
   api: {
     getItems: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn(), getApprovals: vi.fn(),
     getItemById: vi.fn(), transferItem: vi.fn(), updateTransfer: vi.fn(), registerReturn: vi.fn(), registerStockOut: vi.fn(),
-    registerStockIn: vi.fn(), updateStockIn: vi.fn(),
+    registerStockIn: vi.fn(), updateStockIn: vi.fn(), registerDisposal: vi.fn(), updateDisposal: vi.fn(),
   },
 }));
 
@@ -44,7 +44,9 @@ const items = [
   item('I1', 'Laptop', 'ISSUED'),
   item('P1', 'Printer', 'ISSUED'),
   item('O1', 'Chair', 'PENDING_STOCK_OUT'),
-  item('X1', 'Broken tablet', 'DISPOSED'),
+  item('X1', 'Broken tablet', 'REJECTED'),
+  item('D1', 'Old printer', 'DISPOSED'),
+  item('Q1', 'Filing cabinet', 'PENDING_DISPOSAL'),
   item('S2', 'Generator', 'AVAILABLE'),
   item('B1', 'Camera', 'AVAILABLE'),
 ];
@@ -58,6 +60,8 @@ const approvals = [
   request('ISS', 'STOCK_OUT', 'S1', { status: 'APPROVED', reviewedAtGc: '2026-09-10', requestDetails: { quantity: 3, issuedItemCode: 'MOA-S1-1' } }),
   request('NO', 'STOCK_OUT', 'S2', { status: 'REJECTED', reviewedAtGc: '2026-09-30', reviewRemarks: 'Budget line closed' }),
   request('BACK', 'RETURN', 'B1', { status: 'APPROVED', reviewedAtGc: '2026-09-25' }),
+  request('DSP', 'DISPOSAL', 'D1', { status: 'APPROVED', reviewedAtGc: '2026-09-28', requestDetails: { quantity: 1, reason: 'Damaged beyond repair', recipientName: 'Scrap dealer' } }),
+  request('A-Q1', 'DISPOSAL', 'Q1', { requestDetails: { quantity: 1, reason: 'Gift / donation', recipientName: 'Kality School' } }),
 ];
 
 const rowOf = (code: string) => screen.getAllByRole('row').find((r) => within(r).queryByText(code, { exact: true }))!;
@@ -98,6 +102,9 @@ describe('Assets page', () => {
     expect(rowOf('MOA-O1')).toHaveTextContent('Issue pending');
     expect(rowOf('MOA-I1')).toHaveTextContent('Issued');
     expect(rowOf('MOA-X1')).toHaveTextContent('Rejected');
+    expect(rowOf('MOA-D1')).toHaveTextContent('Disposed');
+    expect(rowOf('MOA-Q1')).toHaveTextContent('Disposal pending');
+    expect(rowOf('MOA-Q1')).toHaveTextContent('→ Kality School');
   });
 
   it('shows a partly issued batch as one row, with its issued units underneath', async () => {
@@ -144,13 +151,16 @@ describe('Assets page', () => {
     await screen.findByText('MOA-S1');
     const filterBtn = screen.getByRole('button', { name: /Filter assets/i });
     await user.click(filterBtn);
-    expect(screen.getByRole('button', { name: /^Pending 3$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Pending 4$/ })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Issued/ }));
     // The batch shows with only its issued unit unfolded
     expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent)).toEqual(['MOA-I1', 'MOA-S1', 'MOA-S1-1']);
     // Rejected: the rejected receipt, and the record whose issue was turned down
     await user.click(screen.getByRole('button', { name: /^Rejected 2$/ }));
     expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent).sort()).toEqual(['MOA-S2', 'MOA-X1']);
+    // Disposed: only what an approved disposal took off the register
+    await user.click(screen.getByRole('button', { name: /^Disposed 1$/ }));
+    expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent)).toEqual(['MOA-D1']);
   });
 
   it('offers the next step for each state', async () => {
@@ -158,20 +168,24 @@ describe('Assets page', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
 
-    expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'View details', 'Print Model 19']);
+    expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'Dispose', 'View details', 'Print Model 19']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'View details', 'Print Model 21 (transfer)']);
     await user.keyboard('{Escape}');
     await user.click(within(rowOf('MOA-S1')).getByRole('button', { name: 'Show 1 issued record' }));
     expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'View details', 'Print Model 22 (issue)']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'View details', 'Print Model 19', 'Print Model 21 (return)']);
+    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Dispose', 'View details', 'Print Model 19', 'Print Model 21 (return)']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-P1')).toEqual(['Edit transfer', 'View details', 'Print Model 21']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-O1')).toEqual(['Edit issue', 'View details', 'Print Model 22']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-X1')).toEqual(['View details']);
+    await user.keyboard('{Escape}');
+    expect(await menuFor(user, 'MOA-Q1')).toEqual(['Edit disposal', 'View details', 'Print disposal voucher']);
+    await user.keyboard('{Escape}');
+    expect(await menuFor(user, 'MOA-D1')).toEqual(['View details', 'Print disposal voucher']);
     await user.keyboard('{Escape}');
     // Endorsed by the Team Leader: the receipt can no longer be edited here
     await menuFor(user, 'MOA-R1');
@@ -215,6 +229,27 @@ describe('Assets page', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('opens the disposal form in the record and submits the request', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.registerDisposal).mockResolvedValue(request('NEW', 'DISPOSAL', 'S2', { requestDetails: { quantity: 1, reason: 'Gift / donation' } }) as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await menuFor(user, 'MOA-S2');
+    await user.click(screen.getByRole('menuitem', { name: 'Dispose' }));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-S2' });
+    expect(record.querySelector('form#disposal-form')).not.toBeNull();
+    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'disposal-form');
+
+    await user.type(within(record).getByPlaceholderText('e.g. DSP-2026-001'), 'DSP-0007');
+    await user.type(within(record).getByLabelText(/Reason for disposal/), 'Gift / donation');
+    await user.type(within(record).getByPlaceholderText('e.g. Kality Primary School'), 'Kality School');
+    await user.click(within(record).getByRole('button', { name: 'Save' }));
+
+    expect(api.registerDisposal).toHaveBeenCalledWith(expect.objectContaining({
+      itemId: 'S2', quantity: 1, disposalNo: 'DSP-0007', reason: 'Gift / donation', recipientName: 'Kality School', bookValue: 1000,
+    }));
+  });
+
   it('is read-only for approvers', async () => {
     const user = userEvent.setup();
     auth.user.permissions = ['inventory.read', 'approvals.read', 'approvals.endorse'];
@@ -241,7 +276,7 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-S2');
-    expect(toolbarOf(record)).toEqual(['Issue (Model 22)', 'Print Model 19']);
+    expect(toolbarOf(record)).toEqual(['Issue (Model 22)', 'Dispose', 'Print Model 19']);
     expect(screen.getByRole('complementary', { name: 'Asset list' })).toBeInTheDocument();
     // The last rejection shows in Custody
     expect(within(record).getByText('Budget line closed')).toBeInTheDocument();
@@ -716,12 +751,13 @@ describe('AssetsPage: time in store, totals and remembered view', () => {
     expect(screen.queryByText('MOA-I1')).not.toBeInTheDocument();
   });
 
-  it('totals the value of the listed assets, leaving out pending and rejected receipts', async () => {
+  it('totals the value of the listed assets, leaving out pending and rejected receipts and disposed assets', async () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    // 10 desks + laptop + printer + chair + generator + camera at 1,000 each; 7 desks + generator + camera in store
+    // 10 desks + laptop + printer + chair + generator + camera + cabinet awaiting disposal at 1,000 each
+    // (the disposed printer and the rejected receipt don't count); 7 desks + generator + camera in store
     const totals = screen.getByRole('group', { name: 'Totals of listed assets' });
-    expect(within(totals).getByText(/Total value/).textContent).toMatch(/15,000/);
+    expect(within(totals).getByText(/Total value/).textContent).toMatch(/16,000/);
     expect(within(totals).getByText(/In store/).textContent).toMatch(/9,000/);
   });
 });

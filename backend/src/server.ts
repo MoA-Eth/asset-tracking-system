@@ -8,6 +8,7 @@ import uploadRoutes from './routes/upload.routes';
 import rolesRoutes from './routes/roles.routes';
 import { initRolePermissions } from './services/roles.service';
 import { initSystemSettings } from './services/settings.service';
+import { runStartupUpgrades } from './services/upgrades.service';
 import settingsRoutes from './routes/settings.routes';
 import { SLIP_PUBLIC_PATH, SLIP_UPLOAD_DIR } from './lib/uploads';
 import { errorHandler } from './middleware/error-handler';
@@ -136,8 +137,11 @@ app.use((req: Request, res: Response) => {
 // Centralized error handling middleware
 app.use(errorHandler);
 
-// Start server once the saved permission matrix is loaded
-void Promise.all([initRolePermissions(), initSystemSettings()]).then(() => app.listen(PORT, () => {
+// Start server once release data changes have run and the saved permission matrix is loaded
+// (the upgrades may change saved role permissions, so they run first)
+void runStartupUpgrades()
+  .then(() => Promise.all([initRolePermissions(), initSystemSettings()]))
+  .then(() => app.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(` Federal Democratic Republic of Ethiopia - MoA ATS `);
   console.log(` IFMIS Store-Level Tracking & Executive Visibility API `);

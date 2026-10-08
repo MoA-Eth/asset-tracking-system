@@ -92,7 +92,7 @@ function toRecord(e: any, withContact: boolean): EmployeeRecord {
 }
 
 /** Items an employee holds that would be left without a custodian */
-const HELD_ITEMS = { custodiedItems: { where: { status: { not: 'DISPOSED' as any } } } };
+const HELD_ITEMS = { custodiedItems: { where: { status: { notIn: ['DISPOSED', 'REJECTED'] as any } } } };
 
 /**
  * Staff registry. Everyone with "View employees" sees active staff (name, payroll ID, department, job title)

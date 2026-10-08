@@ -105,7 +105,7 @@ describe('Stock-In correction before Stage 1 endorsement', () => {
     expect(db.item.update).not.toHaveBeenCalled();
   });
 
-  it.each(['AVAILABLE', 'DISPOSED', 'ISSUED'])('is refused when the item is %s', async (status) => {
+  it.each(['AVAILABLE', 'DISPOSED', 'REJECTED', 'PENDING_DISPOSAL', 'ISSUED'])('is refused when the item is %s', async (status) => {
     db.item.findUnique.mockResolvedValue({ ...pendingItem, status });
     db.transactionApproval.findFirst.mockResolvedValue(null);
     await expect(store().updateStockIn('item-1', edit as any, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 409 });

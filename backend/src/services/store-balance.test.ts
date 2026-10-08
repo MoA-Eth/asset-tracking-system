@@ -70,16 +70,21 @@ describe('item balance', () => {
     expect(item.balance).toEqual({ total: 10, issued: 4, available: 6, pending: 0 });
   });
 
-  it('counts a pending registration in the total only, and leaves disposed units out', async () => {
+  it('counts a pending registration in the total only, and leaves disposed units and rejected receipts out', async () => {
     db.item.findMany
       .mockResolvedValueOnce([
         { ...batch, id: 'a', status: 'PENDING_STOCK_IN' },
         { ...batch, id: 'b', status: 'DISPOSED' },
+        { ...batch, id: 'c', status: 'REJECTED' },
+        { ...batch, id: 'd', status: 'PENDING_DISPOSAL' },
       ])
       .mockResolvedValueOnce([]);
-    const [pending, disposed] = await store().getItems();
+    const [pending, disposed, rejected, awaitingDisposal] = await store().getItems();
     expect(pending.balance).toEqual({ total: 10, issued: 0, available: 0, pending: 10 });
     expect(disposed.balance).toEqual({ total: 0, issued: 0, available: 0, pending: 0 });
+    expect(rejected.balance).toEqual({ total: 0, issued: 0, available: 0, pending: 0 });
+    // Units waiting for disposal approval are still in store
+    expect(awaitingDisposal.balance).toEqual({ total: 10, issued: 0, available: 10, pending: 0 });
   });
 });
 

@@ -66,7 +66,7 @@ export function computePostApprovalItemStatus(
   }
 
   if (approvalStatus === ApprovalStatus.REJECTED) {
-    if (txType === TransactionType.STOCK_IN) return ItemStatus.DISPOSED;
+    if (txType === TransactionType.STOCK_IN) return ItemStatus.REJECTED;
     if (txType === TransactionType.STOCK_OUT) return ItemStatus.AVAILABLE;
     if (txType === TransactionType.RETURN) return ItemStatus.ISSUED;
   }

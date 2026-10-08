@@ -11,6 +11,7 @@ import {
   computeAllowedTabs,
   getRoleAccess,
   PROTECTED_ROLE_PERMISSIONS,
+  segregationViolations,
 } from './role-policy';
 import { requirePermission } from '../middleware/auth.middleware';
 import { UserRole, AuthUser } from '../types/asset-management';
@@ -75,6 +76,18 @@ describe('RBAC Permission Matrix Enforcement', () => {
       expect(hasPermission(UserRole.MANAGER, 'approvals.endorse')).toBe(false);
       expect(hasPermission(UserRole.MANAGER, 'approvals.authorize')).toBe(false);
       expect(hasPermission(UserRole.MANAGER, 'stock-in.write')).toBe(false);
+    });
+
+    it('lets only the Data Encoder request disposals, and treats it as store work', () => {
+      expect(hasPermission(UserRole.DATA_ENCODER, 'disposals.write')).toBe(true);
+      for (const role of [UserRole.TEAM_LEADER, UserRole.DEPARTMENT_HEAD, UserRole.MANAGER, UserRole.SYSTEM_ADMIN]) {
+        expect(hasPermission(role, 'disposals.write')).toBe(false);
+      }
+      // A role that requests disposals can't also endorse them, and the administrator can't request them
+      expect(segregationViolations(UserRole.TEAM_LEADER, ['disposals.write', 'approvals.endorse'])).toHaveLength(1);
+      expect(segregationViolations(UserRole.SYSTEM_ADMIN, ['disposals.write'])).toHaveLength(1);
+      // Requesting disposals alone is enough to work in the asset register
+      expect(computeAllowedTabs(UserRole.DATA_ENCODER, ['disposals.write'] as Permission[]).allowedTabs).toContain('assets');
     });
   });
 

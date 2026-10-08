@@ -21,6 +21,7 @@ import {
   XCircle,
   Eye,
   BarChart3,
+  Trash2,
   LucideIcon,
 } from 'lucide-react';
 import { api } from '../api/client';
@@ -61,7 +62,9 @@ const ITEM_STATUS_STYLE: Record<string, { label: string; color: string }> = {
   PENDING_STOCK_IN:  { label: 'Receipt pending',   color: '#eda100' },
   PENDING_STOCK_OUT: { label: 'Issue pending',     color: '#eda100' },
   UNDER_TRANSFER:    { label: 'Under transfer',    color: '#eda100' },
+  PENDING_DISPOSAL:  { label: 'Disposal pending',  color: '#eda100' },
   DISPOSED:          { label: 'Disposed',          color: '#94a3b8' },
+  REJECTED:          { label: 'Rejected',          color: '#dc2626' },
   OTHER:             { label: 'Other',             color: '#cbd5e1' },
 };
 
@@ -81,6 +84,7 @@ const ACTION_ICON: Record<string, LucideIcon> = {
   REGISTER_TRANSFER: ArrowRightLeft,
   TRANSFER_ITEM: ArrowRightLeft,
   REGISTER_RETURN: RotateCcw,
+  REGISTER_DISPOSAL: Trash2,
 };
 
 function getActionVisual(action: string): { icon: LucideIcon; tone: string } {
@@ -455,6 +459,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
   const pendingStockIn    = data?.pendingStockInCount   || 0;
   const pendingStockOut   = data?.pendingStockOutCount  || 0;
   const pendingTransfer   = data?.pendingTransferCount  || 0;
+  const pendingDisposal   = data?.pendingDisposalCount  || 0;
   const totalValuation    = data?.totalValuationETB     || 0;
   const issuedValuation   = data?.issuedValuationETB    || 0;
   const availableValuation= data?.availableValuationETB || 0;
@@ -530,7 +535,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
       </div>
 
       {/* ── Row 2: Workflow counts ──────────────────────────────────────────── */}
-      {(pendingApprovals > 0 || pendingStockIn > 0 || pendingStockOut > 0 || pendingTransfer > 0 || atRiskCount > 0 || stale.itemCount > 0) && (
+      {(pendingApprovals > 0 || pendingStockIn > 0 || pendingStockOut > 0 || pendingTransfer > 0 || pendingDisposal > 0 || atRiskCount > 0 || stale.itemCount > 0) && (
         <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-xs">
           <h2 className="mb-3 flex items-baseline gap-2 text-sm font-bold text-slate-800">
             Needs attention
@@ -548,6 +553,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           )}
           {pendingTransfer > 0 && (
             <WorkTile label="Pending transfers" count={pendingTransfer} icon={ArrowRightLeft} onClick={() => onNavigate('assets')} />
+          )}
+          {pendingDisposal > 0 && (
+            <WorkTile label="Pending disposals" count={pendingDisposal} icon={Trash2} onClick={() => onNavigate('assets')} />
           )}
           {atRiskCount > 0 && (
             <WorkTile label="At-risk assets" count={atRiskCount} icon={AlertTriangle} tone="critical" note="Damaged or needs repair" />
@@ -627,6 +635,11 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
                             {i.issuePending && (
                               <span className="rounded-full border border-slate-200 bg-white px-1.5 py-px text-[10px] font-medium text-slate-600">
                                 Issue requested
+                              </span>
+                            )}
+                            {i.disposalPending && (
+                              <span className="rounded-full border border-slate-200 bg-white px-1.5 py-px text-[10px] font-medium text-slate-600">
+                                Disposal requested
                               </span>
                             )}
                           </p>

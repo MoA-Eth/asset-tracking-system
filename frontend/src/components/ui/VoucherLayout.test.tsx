@@ -4,7 +4,8 @@ import { render, screen, within } from '@testing-library/react';
 import { Model19PrintModal } from './Model19PrintModal';
 import { Model21PrintModal } from './Model21PrintModal';
 import { Model22PrintModal } from './Model22PrintModal';
-import { Model19Voucher, Model21Voucher, Model22Voucher } from '../../types/asset-management';
+import { DisposalPrintModal } from './DisposalPrintModal';
+import { DisposalVoucher, Model19Voucher, Model21Voucher, Model22Voucher } from '../../types/asset-management';
 
 const model19: Model19Voucher = {
   invModel19No: 'R-19', poNumber: '—', receivedDateGc: '2026-10-01', transactionType: 'PO Receipt', source: 'Supplier', buyer: 'Buyer',
@@ -22,10 +23,16 @@ const model21: Model21Voucher = {
   items: [{ sNo: 1, description: 'Laptop', tagNumber: 'IT-1', uom: 'EA', unit: 1, origCost: 1500, depreciation: 0, bookValue: 1500, dateGc: '2026-10-03', fromLocation: 'Store A', toLocation: 'Office 12' }],
 };
 
+const disposal: DisposalVoucher = {
+  disposalNo: 'D-01', dateGc: '2026-10-04', reason: 'Damaged beyond repair', printedBy: 'Hana Tesfaye',
+  items: [{ sNo: 1, itemCode: 'IT-1', description: 'Laptop', uom: 'EA', quantity: 1, unitPrice: 1500, bookValue: 1500 }],
+};
+
 const vouchers = [
   ['Model 19', () => <Model19PrintModal isOpen onClose={vi.fn()} voucher={model19} />, 'R-19'],
   ['Model 21', () => <Model21PrintModal isOpen onClose={vi.fn()} voucher={model21} />, 'T-21'],
   ['Model 22', () => <Model22PrintModal isOpen onClose={vi.fn()} voucher={model22} />, 'I-22'],
+  ['Disposal', () => <DisposalPrintModal isOpen onClose={vi.fn()} voucher={disposal} />, 'D-01'],
 ] as const;
 
 describe('Printed vouchers share one format', () => {

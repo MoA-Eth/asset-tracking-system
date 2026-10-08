@@ -90,6 +90,29 @@ describe('ItemController - Authenticated User Activity Claiming', () => {
     });
   });
 
+  describe('POST /api/items/disposal (registerDisposal)', () => {
+    const body = { itemId: 'item-1', disposalNo: 'DSP-1', reason: 'Damaged beyond repair', registeredById: 'SPOOFED_ID' };
+    const res = () => ({ status: vi.fn().mockReturnThis(), json: vi.fn() } as any);
+
+    it('records the signed-in user as the requester', async () => {
+      const registerSpy = vi.spyOn(mockStore, 'registerDisposal').mockResolvedValue({ id: 'appr-1' } as any);
+      await controller.registerDisposal({ user: { id: 'EMP-ENC', role: UserRole.DATA_ENCODER }, body: { ...body } } as any, res(), () => {});
+      expect(registerSpy).toHaveBeenCalledWith(expect.objectContaining({ registeredById: 'EMP-ENC' }));
+    });
+
+    it('is refused for roles without "Request disposals"', async () => {
+      const next = vi.fn();
+      await controller.registerDisposal({ user: { id: 'EMP-TL', role: UserRole.TEAM_LEADER }, body: { ...body } } as any, res(), next);
+      expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+    });
+
+    it('asks for the item, reference number and reason', async () => {
+      const next = vi.fn();
+      await controller.registerDisposal({ user: { id: 'EMP-ENC', role: UserRole.DATA_ENCODER }, body: { itemId: 'item-1' } } as any, res(), next);
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+    });
+  });
+
   describe('POST /api/items/return-to-store (registerReturn)', () => {
     it('unconditionally sets registeredById to req.user.id for Model 22 return', async () => {
       const returnSpy = vi.spyOn(mockStore, 'registerReturn').mockResolvedValue({

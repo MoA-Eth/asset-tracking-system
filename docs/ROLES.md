@@ -11,7 +11,7 @@ part of this release. Other existing Settings sections retain their previous acc
 Desktop navigation, mobile settings links, and page selection consume those tabs.
 The backend independently enforces action permissions on every protected route.
 
-- Data Encoder records stock movements and requests transfers/returns.
+- Data Encoder records stock movements and requests transfers, returns and disposals (permission "Request disposals", `disposals.write`). Like the other request permissions, it can't be combined with endorsing or authorizing.
 - Team Leader endorses or rejects Stage 1.
 - Department Head authorizes or rejects Stage 2.
 - Manager reads dashboard and reports.
