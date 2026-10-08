@@ -15,6 +15,11 @@ pipeline {
     parameters {
         choice(name: 'TARGET', choices: ['staging', 'production'], description: 'Server to deploy main to: staging (10.10.20.156) or production (10.10.20.155)')
     }
+    // Check GitHub every 5 minutes; new commits on main deploy to staging on their own.
+    // Triggered runs use the default TARGET, so production is only ever deployed by hand.
+    triggers {
+        pollSCM('H/5 * * * *')
+    }
     environment {
         DEPLOY_HOST = "${params.TARGET == 'production' ? '10.10.20.155' : '10.10.20.156'}"
         DEPLOY_USER = "${params.TARGET == 'production' ? 'assetmgtp' : 'assetmgts'}"
