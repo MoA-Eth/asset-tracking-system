@@ -361,6 +361,8 @@ If an update goes wrong, go back to the previous version (`git checkout <previou
 
 ## 9. Automated Deployment with Jenkins
 
+> Step-by-step setup, daily use and troubleshooting for new developers: [CI-CD.md](CI-CD.md).
+
 `Jenkinsfile` deploys the `main` branch to one of two servers. Choose it in **Build with Parameters → TARGET**:
 
 | TARGET | Server | SSH account |

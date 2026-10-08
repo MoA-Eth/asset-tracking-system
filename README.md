@@ -23,6 +23,8 @@ asset-tracking-system/
 └── README.md                 # Root repository overview (this file)
 ```
 
+**Deploying:** servers are installed as in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md); releases go out through Jenkins as described in [docs/CI-CD.md](docs/CI-CD.md).
+
 ---
 
 ## 🚀 Setup & Running Instructions
