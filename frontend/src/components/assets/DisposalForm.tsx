@@ -25,16 +25,12 @@ export interface DisposalFormProps {
   editApproval?: TransactionApproval;
   onCancel: () => void;
   onSuccess: (result: TransactionApproval, voucher?: DisposalVoucher) => void;
-  /** Inside the asset record the toolbar has Save and Cancel, so the form leaves out its own */
-  hideFooter?: boolean;
-  /** Tells the toolbar while a save is in progress */
-  onSubmittingChange?: (submitting: boolean) => void;
 }
 
 const today = () => new Date().toISOString().split('T')[0];
 const amountOrUndefined = (text: string) => (text.trim() === '' ? undefined : Math.max(0, Number(text) || 0));
 
-export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, onCancel, onSuccess, hideFooter, onSubmittingChange }) => {
+export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, onCancel, onSuccess }) => {
   const { user } = useAuth();
   const toast = useToast();
   const isEdit = !!editApproval;
@@ -45,10 +41,6 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   const unitPrice = item.unitCostETB || 0;
 
   const [submitting, setSubmitting] = useState(false);
-  useEffect(() => {
-    onSubmittingChange?.(submitting);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submitting]);
 
   const [quantity, setQuantity] = useState<number>(Number(details?.quantity) || inStore);
   const [disposalNo, setDisposalNo] = useState(editApproval?.ifmisSlipNumber ?? '');
@@ -72,6 +64,15 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   const bookValue = bookValueEdited ? amountOrUndefined(bookValueText) ?? 0 : unitPrice * quantity;
   const ethDate = formatGcToEc(dateGc);
   const isAttachmentReq = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
+
+  // Required fields still empty; the request can only be submitted once this is empty
+  const missingFields = [
+    !(Number.isInteger(quantity) && quantity >= 1 && quantity <= inStore) && 'quantity',
+    !disposalNo.trim() && 'disposal reference no.',
+    !dateGc && 'disposal date',
+    !reason.trim() && 'reason',
+    isAttachmentReq && !attachmentFileName && 'supporting document',
+  ].filter(Boolean) as string[];
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -277,14 +278,13 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
         </div>
       </FormSection>
 
-      {!hideFooter && (
-        <FormFooter
-          accent="emerald"
-          submitting={submitting}
-          submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
-          onCancel={onCancel}
-        />
-      )}
+      <FormFooter
+        accent="emerald"
+        submitting={submitting}
+        submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
+        missingFields={missingFields}
+        onCancel={onCancel}
+      />
     </form>
   );
 };

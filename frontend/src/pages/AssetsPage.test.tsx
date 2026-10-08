@@ -87,6 +87,12 @@ beforeEach(() => {
   vi.mocked(api.getApprovals).mockResolvedValue(approvals as any);
 });
 
+/** A form's own Submit / Save changes button, at the bottom of the form, and its Cancel */
+const submitOf = (record: HTMLElement, formId: string) =>
+  within(record.querySelector(`form#${formId}`) as HTMLElement).getByRole('button', { name: /^(Submit|Save changes)/ });
+const cancelOf = (record: HTMLElement, formId: string) =>
+  within(record.querySelector(`form#${formId}`) as HTMLElement).getByRole('button', { name: 'Cancel' });
+
 describe('Assets page', () => {
   it('lists each asset with where it is and what it waits for', async () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
@@ -200,7 +206,8 @@ describe('Assets page', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Issue (Model 22)' }));
     const record = screen.getByRole('region', { name: 'Asset record MOA-S1' });
     expect(record.querySelector('form#stock-out-form')).not.toBeNull();
-    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'stock-out-form');
+    // Submit is the form's own button and stays off until the required fields are filled
+    expect(submitOf(record, 'stock-out-form')).toBeDisabled();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -212,7 +219,8 @@ describe('Assets page', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
     const record = screen.getByRole('region', { name: 'Asset record MOA-I1' });
     expect(record.querySelector('form#transfer-form')).not.toBeNull();
-    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'transfer-form');
+    // Submit is the form's own button and stays off until the required fields are filled
+    expect(submitOf(record, 'transfer-form')).toBeDisabled();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -224,7 +232,8 @@ describe('Assets page', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Return to store (Model 21)' }));
     const record = screen.getByRole('region', { name: 'Asset record MOA-I1' });
     expect(record.querySelector('form#return-form')).not.toBeNull();
-    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'return-form');
+    // Submit is the form's own button and stays off until the required fields are filled
+    expect(submitOf(record, 'return-form')).toBeDisabled();
     // No pop-up dialog: the form is in the record
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -238,12 +247,14 @@ describe('Assets page', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Dispose' }));
     const record = screen.getByRole('region', { name: 'Asset record MOA-S2' });
     expect(record.querySelector('form#disposal-form')).not.toBeNull();
-    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'disposal-form');
+    // Submit is the form's own button and stays off until the required fields are filled
+    expect(submitOf(record, 'disposal-form')).toBeDisabled();
 
     await user.type(within(record).getByPlaceholderText('e.g. DSP-2026-001'), 'DSP-0007');
     await user.type(within(record).getByLabelText(/Reason for disposal/), 'Gift / donation');
     await user.type(within(record).getByPlaceholderText('e.g. Kality Primary School'), 'Kality School');
-    await user.click(within(record).getByRole('button', { name: 'Save' }));
+    expect(submitOf(record, 'disposal-form')).toBeEnabled();
+    await user.click(submitOf(record, 'disposal-form'));
 
     expect(api.registerDisposal).toHaveBeenCalledWith(expect.objectContaining({
       itemId: 'S2', quantity: 1, disposalNo: 'DSP-0007', reason: 'Gift / donation', recipientName: 'Kality School', bookValue: 1000,
@@ -316,12 +327,13 @@ describe('Asset record', () => {
 
     // Clicking Edit receipt enters edit mode with Save and Cancel
     await user.click(within(record).getByRole('button', { name: 'Edit receipt' }));
-    expect(toolbarOf(record)).toEqual(['Save', 'Cancel']);
+    // The form's own Submit and Cancel replace the toolbar while it is open
+    expect(within(record).queryByRole('toolbar')).toBeNull();
     expect(record.querySelector('form#stock-in-form')).not.toBeNull();
-    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'stock-in-form');
+    expect(submitOf(record, 'stock-in-form')).toHaveTextContent('Save changes');
 
     // Cancel exits edit mode back to view mode
-    await user.click(within(record).getByRole('button', { name: 'Cancel' }));
+    await user.click(cancelOf(record, 'stock-in-form'));
     expect(toolbarOf(record)).toEqual(['Edit receipt', 'Print Model 19']);
   });
 
@@ -336,12 +348,13 @@ describe('Asset record', () => {
 
     // Clicking Edit issue enters edit mode with Save and Cancel
     await user.click(within(record).getByRole('button', { name: 'Edit issue' }));
-    expect(toolbarOf(record)).toEqual(['Save', 'Cancel']);
+    // The form's own Submit and Cancel replace the toolbar while it is open
+    expect(within(record).queryByRole('toolbar')).toBeNull();
     expect(record.querySelector('form#stock-out-form')).not.toBeNull();
-    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'stock-out-form');
+    expect(submitOf(record, 'stock-out-form')).toHaveTextContent('Save changes');
 
     // Cancel exits edit mode back to view mode
-    await user.click(within(record).getByRole('button', { name: 'Cancel' }));
+    await user.click(cancelOf(record, 'stock-out-form'));
     expect(toolbarOf(record)).toEqual(['Edit issue', 'Print Model 22']);
     expect(within(record).getByText('Issue request pending endorsement · Editable in correction mode')).toBeInTheDocument();
   });
@@ -357,12 +370,13 @@ describe('Asset record', () => {
 
     // Clicking Edit transfer enters edit mode with Save and Cancel
     await user.click(within(record).getByRole('button', { name: 'Edit transfer' }));
-    expect(toolbarOf(record)).toEqual(['Save', 'Cancel']);
+    // The form's own Submit and Cancel replace the toolbar while it is open
+    expect(within(record).queryByRole('toolbar')).toBeNull();
     expect(record.querySelector('form#transfer-form')).not.toBeNull();
-    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'transfer-form');
+    expect(submitOf(record, 'transfer-form')).toHaveTextContent('Save changes');
 
     // Cancel exits edit mode back to view mode
-    await user.click(within(record).getByRole('button', { name: 'Cancel' }));
+    await user.click(cancelOf(record, 'transfer-form'));
     expect(toolbarOf(record)).toEqual(['Edit transfer', 'Print Model 21']);
     expect(within(record).getByText('Transfer request pending endorsement · Editable in correction mode')).toBeInTheDocument();
   });
@@ -380,12 +394,13 @@ describe('Asset record', () => {
 
     // Clicking Edit return enters edit mode with Save and Cancel
     await user.click(within(record).getByRole('button', { name: 'Edit return' }));
-    expect(toolbarOf(record)).toEqual(['Save', 'Cancel']);
+    // The form's own Submit and Cancel replace the toolbar while it is open
+    expect(within(record).queryByRole('toolbar')).toBeNull();
     expect(record.querySelector('form#return-form')).not.toBeNull();
-    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'return-form');
+    expect(submitOf(record, 'return-form')).toHaveTextContent('Save changes');
 
     // Cancel exits edit mode back to view mode
-    await user.click(within(record).getByRole('button', { name: 'Cancel' }));
+    await user.click(cancelOf(record, 'return-form'));
     expect(toolbarOf(record)).toEqual(['Edit return', 'Print Model 21']);
     expect(within(record).getByText('Return request pending endorsement · Editable in correction mode')).toBeInTheDocument();
   });
@@ -418,10 +433,10 @@ describe('Asset record', () => {
 
     const record = screen.getByRole('region', { name: `Asset record ${code}` });
     expect(record.querySelector(`form#${formId}`)).not.toBeNull();
-    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', formId);
+    expect(submitOf(record, formId)).toHaveTextContent('Save changes');
     // No pop-up: the form is in the record
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    await user.click(within(record).getByRole('button', { name: 'Cancel' }));
+    await user.click(cancelOf(record, formId));
     expect(record.querySelector(`form#${formId}`)).toBeNull();
   });
 
@@ -433,7 +448,7 @@ describe('Asset record', () => {
     await menuFor(user, 'MOA-R1');
     await user.click(screen.getByRole('menuitem', { name: 'Edit receipt' }));
     const record = screen.getByRole('region', { name: 'Asset record MOA-R1' });
-    expect(within(record).getByRole('button', { name: 'Save' })).toHaveAttribute('form', 'stock-in-form');
+    expect(submitOf(record, 'stock-in-form')).toHaveTextContent('Save changes');
   });
 
   it('prints from one icon, listing the vouchers when there are several', async () => {
