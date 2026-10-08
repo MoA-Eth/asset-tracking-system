@@ -1,6 +1,6 @@
 # CI/CD with Jenkins: setup and daily use
 
-How code gets from GitHub to the staging and production servers, and how to set the pipeline up again from scratch. For installing the servers themselves, see [DEPLOYMENT.md](DEPLOYMENT.md).
+How code gets from GitHub to the staging and production servers, and how to set the pipeline up again from scratch. For installing the servers themselves, see [ON-PREMISE-SETUP.md](ON-PREMISE-SETUP.md).
 
 ---
 
@@ -41,7 +41,7 @@ Do these once, in order. Steps 1–3 connect Jenkins to the servers; steps 4–5
 
 ### 1. Prepare each server
 
-Each server must already run the app once by hand ([DEPLOYMENT.md](DEPLOYMENT.md) §4B):
+Each server must already run the app once by hand ([ON-PREMISE-SETUP.md](ON-PREMISE-SETUP.md)):
 
 - Docker installed, and the deploy account (`assetmgts` / `assetmgtp`) in the `docker` group.
 - `/opt/moa-ams` owned by that account, containing `.env` and `ssl/`.

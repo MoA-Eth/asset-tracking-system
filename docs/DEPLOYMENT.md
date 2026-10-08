@@ -1,5 +1,7 @@
 # MoA-ATS Production Deployment Guide
 
+> **Setting up a server now?** The short step-by-step version for the Ministry's offline servers is [ON-PREMISE-SETUP.md](ON-PREMISE-SETUP.md); Jenkins setup is in [CI-CD.md](CI-CD.md). This guide holds the background and alternatives.
+
 A step-by-step guide for deploying the Ministry of Agriculture Fixed Asset Tracking System (**MoA-ATS**) on an on-premise Linux server. The layout matches the Ministry's other systems (e.g. moa_budget): an **nginx** container, a **backend** container and a **PostgreSQL** container, deployed by **Jenkins**.
 
 ---
