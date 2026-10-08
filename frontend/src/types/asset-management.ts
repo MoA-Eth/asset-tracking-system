@@ -12,7 +12,9 @@ export enum ItemStatus {
   PENDING_STOCK_OUT = 'PENDING_STOCK_OUT', // Stock out registered, waiting for approval
   ISSUED = 'ISSUED',                     // Issued to an employee or department
   UNDER_TRANSFER = 'UNDER_TRANSFER',     // In transit between locations/employees
-  DISPOSED = 'DISPOSED',                 // Delisted
+  PENDING_DISPOSAL = 'PENDING_DISPOSAL', // Disposal requested, waiting for approval (still in store)
+  DISPOSED = 'DISPOSED',                 // Disposed of through an approved disposal
+  REJECTED = 'REJECTED',                 // Receipt (Stock-In) rejected
 }
 
 export enum TransactionType {
@@ -20,6 +22,7 @@ export enum TransactionType {
   STOCK_OUT = 'STOCK_OUT',
   TRANSFER = 'TRANSFER',
   RETURN = 'RETURN',
+  DISPOSAL = 'DISPOSAL',
 }
 
 export enum ItemCondition {
@@ -289,6 +292,36 @@ export interface Model22Voucher {
   printedBy?: string;
 }
 
+/** Printed record of a disposal request (Asset Disposal Certificate) */
+export interface DisposalVoucher {
+  /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
+  approvalState?: 'PENDING' | 'REJECTED';
+  disposalNo: string;
+  dateGc: string;
+  dateEc?: string;
+  reason: string;
+  description?: string;
+  condition?: string;
+  recipientName?: string;
+  proceedsETB?: number;
+  committeeRef?: string;
+  items: {
+    sNo: number;
+    itemCode: string;
+    description: string;
+    serialNo?: string;
+    uom: string;
+    quantity: number;
+    unitPrice: number;
+    bookValue: number;
+  }[];
+  requestedByName?: string;
+  endorsedByName?: string;
+  approvedByName?: string;
+  /** Name of the person printing; shown in the footer */
+  printedBy?: string;
+}
+
 export interface Model21Accessory {
   name: string;
   quantity: number;
@@ -412,7 +445,7 @@ export interface AuditLogEntry {
   userName: string;
   userRole: UserRole;
   action: string;
-  entityType: 'USER' | 'ITEM' | 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'APPROVAL';
+  entityType: 'USER' | 'ITEM' | 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'RETURN' | 'DISPOSAL' | 'APPROVAL';
   entityId: string;
   ifmisSlipNumber?: string;
   details: string;
@@ -589,7 +622,30 @@ export interface CreateTransferRequest {
   remark?: string;
 }
 
-/** Model 21 particulars of a transfer or return request, or the quantity of a Stock-Out */
+/** A request to dispose of units in store (damaged, gifted, obsolete, sold…) */
+export interface CreateDisposalRequest {
+  itemId: string;
+  /** Units to dispose of; omit for all units in store */
+  quantity?: number;
+  /** Disposal reference number, printed as the voucher number */
+  disposalNo: string;
+  disposalDateGc?: string;
+  /** Supporting document (e.g. committee minutes) */
+  ifmisSlipAttachmentUrl?: string;
+  reason: string;
+  description?: string;
+  condition?: ItemCondition;
+  /** Value written off; defaults to unit price × units */
+  bookValue?: number;
+  recipientName?: string;
+  proceedsETB?: number;
+  committeeRef?: string;
+}
+
+/** Corrections to a disposal request while it still waits for Stage 1 endorsement */
+export type UpdateDisposalRequest = Omit<CreateDisposalRequest, 'itemId'>;
+
+/** Model 21 particulars of a transfer or return request, the quantity of a Stock-Out, or a disposal's details */
 export interface Model21RequestDetails {
   /** Stock-Out: units requested */
   quantity?: number;
@@ -597,8 +653,18 @@ export interface Model21RequestDetails {
   uom?: string;
   /** Stock-Out: code of the record split off for a partial issue, set on approval */
   issuedItemCode?: string;
-  /** Transfer reason or return reason */
+  /** Disposal: code of the record split off for a partial disposal, set on approval */
+  disposedItemCode?: string;
+  /** Transfer, return or disposal reason */
   reason?: string;
+  /** Disposal: justification */
+  description?: string;
+  /** Disposal: who receives the asset (gift, sale, another body) */
+  recipientName?: string;
+  /** Disposal: money received, in ETB */
+  proceedsETB?: number;
+  /** Disposal: disposal committee decision reference */
+  committeeRef?: string;
   /** Transfer remark or return defects / missing parts */
   remark?: string;
   /** Condition on return (applied to the item when the return is approved) */

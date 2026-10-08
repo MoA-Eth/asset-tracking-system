@@ -310,6 +310,19 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 </FormNotice>
               );
             }
+            if (row.state === 'DISPOSED') {
+              const d = row.lastDisposal;
+              return (
+                <FormNotice icon={Lock} tone="info">
+                  <span className="font-bold">Disposed · Archived</span>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    {d
+                      ? `Disposed of${d.reviewedAtGc ? ` on ${shortDate(d.reviewedAtGc)}` : ''}${d.requestDetails?.reason ? `: ${d.requestDetails.reason}` : ''}${d.requestDetails?.recipientName ? ` (to ${d.requestDetails.recipientName})` : ''}. Kept for the record.`
+                      : 'This asset was disposed of and is kept for the record.'}
+                  </p>
+                </FormNotice>
+              );
+            }
             return (
               <FormNotice icon={Lock} tone="info">
                 <span className="font-bold">Approved inventory record · Form fields locked</span>
@@ -621,7 +634,9 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                       ? r.recipientEmployee?.fullNameEn
                       : r.transactionType === 'RETURN'
                         ? 'Store'
-                        : undefined;
+                        : r.transactionType === 'DISPOSAL'
+                          ? r.requestDetails?.recipientName || 'Disposal'
+                          : undefined;
                   return (
                     <li key={r.id} className="space-y-1 py-2.5">
                       <div className="flex flex-wrap items-center justify-between gap-2">

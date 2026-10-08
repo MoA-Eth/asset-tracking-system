@@ -101,7 +101,8 @@ describe('dashboard: totals count approved assets only', () => {
       record('IN-STORE', 'AVAILABLE', 3),
       record('WITH-STAFF', 'ISSUED', 3, { condition: 'GOOD' }),
       record('AWAITING-ENDORSEMENT', 'PENDING_STOCK_IN', 1, { unitCostETB: 900000 }),
-      record('REJECTED', 'DISPOSED', 1, { unitCostETB: 500000 }),
+      record('REJECTED', 'REJECTED', 1, { unitCostETB: 500000 }),
+      record('DISPOSED-OF', 'DISPOSED', 1, { unitCostETB: 700000 }),
     ]);
 
     const d = await StoreService.getInstance().getExecutiveDashboard();

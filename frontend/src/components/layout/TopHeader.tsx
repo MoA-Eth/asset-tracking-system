@@ -404,6 +404,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                         ? 'Issue'
                         : item.transactionType === TransactionType.RETURN
                         ? 'Return to Store'
+                        : item.transactionType === TransactionType.DISPOSAL
+                        ? 'Disposal'
                         : 'Asset Transfer';
                       const stageText = stage === 1 ? 'Endorsement' : 'Authorization';
                       const isRead = readIds.includes(item.id);

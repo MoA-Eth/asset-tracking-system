@@ -11,13 +11,14 @@ import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../compo
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
 
 /** What kind of activity an entry is, for the filter and the colour of its label */
-type ActivityKind = 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'APPROVAL' | 'REJECTION' | 'ADMIN' | 'OTHER';
+type ActivityKind = 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'DISPOSAL' | 'APPROVAL' | 'REJECTION' | 'ADMIN' | 'OTHER';
 
 const KIND_FILTERS: { label: string; value: ActivityKind | 'ALL' }[] = [
   { label: 'All activity', value: 'ALL' },
   { label: 'Receiving (M19)', value: 'STOCK_IN' },
   { label: 'Issuing (M22)', value: 'STOCK_OUT' },
   { label: 'Transfers (M21)', value: 'TRANSFER' },
+  { label: 'Disposals', value: 'DISPOSAL' },
   { label: 'Approvals', value: 'APPROVAL' },
   { label: 'Rejections', value: 'REJECTION' },
   { label: 'Users & settings', value: 'ADMIN' },
@@ -27,6 +28,7 @@ const KIND_TONE: Record<ActivityKind, string> = {
   STOCK_IN: 'bg-blue-50 text-blue-800 border-blue-200',
   STOCK_OUT: 'bg-amber-50 text-amber-900 border-amber-200',
   TRANSFER: 'bg-purple-50 text-purple-800 border-purple-200',
+  DISPOSAL: 'bg-slate-100 text-slate-800 border-slate-300',
   APPROVAL: 'bg-emerald-50 text-emerald-800 border-emerald-200',
   REJECTION: 'bg-rose-50 text-rose-800 border-rose-200',
   ADMIN: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -39,6 +41,8 @@ export function activityKind(action: string): ActivityKind {
   if (/APPROVE|ENDORSE/.test(action)) return 'APPROVAL';
   if (/ACCESS|PASSWORD|ROLE|PERMISSION|EMPLOYEE|STORE|LOCATION|SETTING|LOGIN/.test(action)) return 'ADMIN';
   if (/TRANSFER|RETURN/.test(action)) return 'TRANSFER';
+  // Before the REGISTER rule, so "REGISTER_DISPOSAL" isn't counted as receiving
+  if (/DISPOSAL/.test(action)) return 'DISPOSAL';
   if (/STOCK_OUT/.test(action)) return 'STOCK_OUT';
   if (/STOCK_IN|REGISTER|ITEM/.test(action)) return 'STOCK_IN';
   return 'OTHER';

@@ -18,6 +18,8 @@ import {
   UpdateStockInRequest,
   CreateStockOutRequest,
   UpdateStockOutRequest,
+  CreateDisposalRequest,
+  UpdateDisposalRequest,
   UpdateTransferRequest,
   UpdateReturnRequest,
   CreateReturnRequest,
@@ -212,6 +214,20 @@ export const api = {
   registerStockOut: (payload: CreateStockOutRequest) => {
     return request<TransactionApproval>('/items/stock-out', {
       method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  registerDisposal: (payload: CreateDisposalRequest) => {
+    return request<TransactionApproval>('/items/disposal', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateDisposal: (approvalId: string, payload: UpdateDisposalRequest) => {
+    return request<{ approval: TransactionApproval }>(`/items/disposal/${encodeURIComponent(approvalId)}`, {
+      method: 'PUT',
       body: JSON.stringify(payload),
     });
   },

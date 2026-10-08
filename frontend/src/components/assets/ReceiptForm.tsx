@@ -747,7 +747,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
   }));
 
   return {
-    approvalState: item.status === ItemStatus.PENDING_STOCK_IN ? 'PENDING' : item.status === ItemStatus.DISPOSED ? 'REJECTED' : undefined,
+    approvalState: item.status === ItemStatus.PENDING_STOCK_IN ? 'PENDING' : item.status === ItemStatus.REJECTED ? 'REJECTED' : undefined,
     invModel19No: item.ifmisSlipNumber,
     poNumber: item.poNumber || '—',
     receivedDateGc: item.ifmisSlipDateGc,

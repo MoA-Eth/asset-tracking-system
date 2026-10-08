@@ -17,6 +17,8 @@ import {
   CreateStockOutRequest,
   CreateTransferRequest,
   CreateReturnRequest,
+  CreateDisposalRequest,
+  UpdateDisposalRequest,
   UpdateTransferRequest,
   UpdateReturnRequest,
   Model21RequestDetails,
@@ -285,7 +287,7 @@ async function assertSerialNumberFree(serialNumber: unknown, exceptItemId?: stri
   const other = await prisma.item.findFirst({
     where: {
       serialNumber: { equals: String(serialNumber).trim(), mode: 'insensitive' },
-      status: { not: 'DISPOSED' as any },
+      status: { notIn: ['DISPOSED', 'REJECTED'] as any },
       ...(exceptItemId ? { id: { not: exceptItemId } } : {}),
     },
     select: { itemCode: true, name: true },
@@ -391,10 +393,70 @@ function formatStockOutNotes(purpose: string, remark?: string): string {
   return remark ? `${purpose} (Remark: ${remark})` : purpose;
 }
 
+/** Disposal summary shown to approvers, e.g. "Disposal: Damaged beyond repair | 3 EA | Book value ETB 1200 | To: …" */
+function formatDisposalNotes(d: Model21RequestDetails): string {
+  return [
+    `Disposal: ${d.reason}`,
+    d.quantity ? `${d.quantity} ${d.uom ?? 'EA'}` : '',
+    d.bookValue !== undefined ? `Book value ETB ${d.bookValue}` : '',
+    d.recipientName ? `To: ${d.recipientName}` : '',
+    d.proceedsETB !== undefined ? `Proceeds ETB ${d.proceedsETB}` : '',
+    d.committeeRef ? `Committee ref: ${d.committeeRef}` : '',
+    d.description ? `Details: ${d.description}` : '',
+  ].filter(Boolean).join(' | ');
+}
+
+function optionalAmount(value: unknown, what: string): number | undefined {
+  if (isBlank(value)) return undefined;
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0) throw new BadRequestError(what + ' must be a number, zero or more.');
+  return amount;
+}
+
+/** Checks a disposal request against the item and returns what is stored with it */
+function disposalDetailsOf(
+  payload: UpdateDisposalRequest,
+  item: { notes?: string | null; unitCostETB: number },
+): { disposalNo: string; details: Model21RequestDetails } {
+  const inStore = quantityOf(item);
+  const uom = uomOf(item);
+  const disposalNo = String(payload.disposalNo ?? '').trim();
+  const reason = String(payload.reason ?? '').trim();
+  if (!disposalNo) throw new BadRequestError('The disposal reference number is required.');
+  if (!reason) throw new BadRequestError('The reason for disposal is required.');
+  assertMaxLength(disposalNo, 50, 'Disposal reference number');
+  assertMaxLength(reason, 200, 'Reason for disposal');
+  assertMaxLength(payload.description, 500, 'Justification');
+  assertMaxLength(payload.recipientName, 200, 'Recipient');
+  assertMaxLength(payload.committeeRef, 100, 'Committee decision reference');
+  assertSlipDate(payload.disposalDateGc, 'The disposal date');
+  if (!isBlank(payload.condition) && !RETURN_CONDITIONS.includes(String(payload.condition))) {
+    throw new BadRequestError('Choose a valid item condition.');
+  }
+  const quantity = isBlank(payload.quantity) ? inStore : Number(payload.quantity);
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
+    throw new BadRequestError(`Quantity must be a whole number from 1 to ${inStore} (${uom} in store).`);
+  }
+  const text = (value: unknown) => (isBlank(value) ? undefined : String(value).trim());
+  const details: Model21RequestDetails = {
+    quantity,
+    uom,
+    reason,
+    description: text(payload.description),
+    condition: (text(payload.condition) as ItemCondition | undefined),
+    bookValue: optionalAmount(payload.bookValue, 'Book value') ?? item.unitCostETB * quantity,
+    recipientName: text(payload.recipientName),
+    proceedsETB: optionalAmount(payload.proceedsETB, 'Proceeds'),
+    committeeRef: text(payload.committeeRef),
+  };
+  // Leave out what wasn't given, so the saved details stay tidy
+  return { disposalNo, details: Object.fromEntries(Object.entries(details).filter(([, v]) => v !== undefined)) as Model21RequestDetails };
+}
+
 async function addAuditLog(
   userId: string,
   action: string,
-  entityType: 'ITEM' | 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'RETURN' | 'APPROVAL',
+  entityType: 'ITEM' | 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'RETURN' | 'DISPOSAL' | 'APPROVAL',
   entityId: string,
   details: string,
   ifmisSlipNumber?: string,
@@ -452,8 +514,8 @@ function notesWithQuantity(notes: string | null | undefined, quantity: number, u
   return JSON.stringify({ ...readItemMeta(notes), quantity, totalAmount: unitCost * quantity });
 }
 
-/** Units still in store: available, or requested by a Stock-Out that isn't approved yet */
-const IN_STORE_STATUSES = ['AVAILABLE', 'PENDING_STOCK_OUT'];
+/** Units still in store: available, or requested by a Stock-Out or disposal that isn't approved yet */
+const IN_STORE_STATUSES = ['AVAILABLE', 'PENDING_STOCK_OUT', 'PENDING_DISPOSAL'];
 /** Units with a custodian: issued, or being transferred to someone else */
 const WITH_CUSTODIAN_STATUSES = ['ISSUED', 'UNDER_TRANSFER'];
 
@@ -481,7 +543,7 @@ function computeBalance(records: { status: string; notes?: string | null }[]): I
     if (IN_STORE_STATUSES.includes(record.status)) balance.available += units;
     else if (WITH_CUSTODIAN_STATUSES.includes(record.status)) balance.issued += units;
     else if (record.status === 'PENDING_STOCK_IN') balance.pending += units;
-    else continue; // disposed units are not part of the balance
+    else continue; // disposed units and rejected receipts are not part of the balance
     balance.total += units;
   }
   return balance;
@@ -510,6 +572,19 @@ async function assertNoPendingApproval(item: { id: string; itemCode: string }) {
   if (pending) {
     throw new ConflictError(`Item ${item.itemCode} already has a pending ${pending.transactionType} approval (${pending.ifmisSlipNumber}).`);
   }
+}
+
+/**
+ * Code for a record split off a registration by a partial issue or disposal:
+ * the registration's code with the next free number, e.g. MOA-FUR-2026-0004-2
+ */
+async function nextSplitCode(db: any, item: { id: string; itemCode: string; parentItemId?: string | null }): Promise<string> {
+  const rootId = item.parentItemId ?? item.id;
+  const root = item.parentItemId ? await db.item.findUnique({ where: { id: rootId } }) : item;
+  const rootCode = root?.itemCode ?? item.itemCode;
+  let next = (await db.item.count({ where: { parentItemId: rootId } })) + 1;
+  while (await db.item.findUnique({ where: { itemCode: `${rootCode}-${next}` } })) next += 1;
+  return `${rootCode}-${next}`;
 }
 
 /** Resting status for an item once no request is in flight. */
@@ -1141,6 +1216,182 @@ export class StoreService {
     return mapApproval(approval);
   }
 
+  // ── Disposal ─────────────────────────────────────────────────────────────
+
+  /**
+   * Requests disposal of units in store (damaged, gifted, obsolete, sold…).
+   * They leave the register only when a Department Head approves; until then they stay in store.
+   */
+  public async registerDisposal(payload: CreateDisposalRequest): Promise<TransactionApproval> {
+    const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
+    if (!item) throw new NotFoundError(`Item ${payload.itemId} not found.`);
+    if (item.status !== 'AVAILABLE') {
+      throw new ConflictError(`Item ${item.itemCode} must be in store to be disposed of; return it to store first. Current: ${item.status}`);
+    }
+    await assertNoPendingApproval(item);
+    const { disposalNo, details } = disposalDetailsOf(payload, item);
+    if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
+
+    const today = getTodayGcAndEc();
+    const dateGc = payload.disposalDateGc || today.gc;
+    const inStore = quantityOf(item);
+    const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
+    const notesText = formatDisposalNotes(details);
+
+    await prisma.item.update({
+      where: { id: item.id },
+      data: {
+        status: 'PENDING_DISPOSAL' as any,
+        history: {
+          create: {
+            dateGc: today.gc,
+            dateEc: today.ec,
+            action: 'DISPOSAL_REQUESTED',
+            fromEntity: `${await storeLabel(item.storeLocationId)} (Available)`,
+            toEntity: 'Disposal (Pending Approval)',
+            performedBy: user ? user.fullNameEn : payload.registeredById,
+            performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
+            ifmisSlipNumber: disposalNo,
+            notes: details.quantity! < inStore ? `Partial disposal: ${details.quantity} of ${inStore} ${details.uom}. ${notesText}` : notesText,
+          },
+        },
+      },
+    });
+
+    const approval = await prisma.transactionApproval.create({
+      data: {
+        transactionType: 'DISPOSAL' as any,
+        itemId: item.id,
+        itemCode: item.itemCode,
+        itemName: item.name,
+        ifmisSlipNumber: disposalNo,
+        ifmisSlipDateGc: dateGc,
+        ifmisSlipDateEc: formatGcToEc(dateGc),
+        ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
+        requestedById: payload.registeredById,
+        purposeOrRemarks: notesText,
+        requestDetails: details as any,
+        status: 'PENDING' as any,
+        createdAtGc: today.gc,
+        createdAtEc: today.ec,
+      },
+    });
+
+    await addAuditLog(
+      payload.registeredById,
+      'REGISTER_DISPOSAL',
+      'DISPOSAL',
+      item.id,
+      `Disposal requested for ${item.itemCode}: ${details.quantity} ${details.uom}, reason: ${details.reason}. Ref: ${disposalNo}`,
+      disposalNo,
+    );
+
+    return mapApproval(approval);
+  }
+
+  /** Corrects a disposal request while it still waits for Stage 1 endorsement. The item can't change. */
+  public async updateDisposal(approvalId: string, payload: UpdateDisposalRequest, actorId: string): Promise<TransactionApproval> {
+    const approval = await prisma.transactionApproval.findUnique({ where: { id: approvalId } });
+    if (!approval || approval.transactionType !== ('DISPOSAL' as any)) {
+      throw new NotFoundError(`Disposal request ${approvalId} not found.`);
+    }
+    if (approval.status !== 'PENDING' || approval.currentStage !== 1) {
+      throw new ConflictError(
+        `The disposal request for ${approval.itemCode} can only be edited while it is waiting for Team Leader endorsement. Ask an approver to reject it and submit it again.`
+      );
+    }
+    const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
+    if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
+
+    const { disposalNo, details } = disposalDetailsOf(payload, item);
+    const attachment = payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl || undefined;
+    if (isSlipRequired() && !attachment) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
+    const dateGc = payload.disposalDateGc || approval.ifmisSlipDateGc;
+    const previous = (approval.requestDetails ?? {}) as Model21RequestDetails;
+
+    const snapshot = (no: string, date: string, file: string | null | undefined, d: Model21RequestDetails) => ({
+      'reference no.': no,
+      date,
+      document: file,
+      quantity: d.quantity,
+      reason: d.reason,
+      justification: d.description,
+      condition: d.condition,
+      'book value': d.bookValue,
+      recipient: d.recipientName,
+      proceeds: d.proceedsETB,
+      'committee ref': d.committeeRef,
+    });
+    const before = snapshot(approval.ifmisSlipNumber, approval.ifmisSlipDateGc, approval.ifmisSlipAttachmentUrl, previous);
+    const after = snapshot(disposalNo, dateGc, attachment, details);
+    const changes = describeChanges(before, after).map((c) => (c.startsWith('document ') ? 'supporting document replaced' : c));
+    if (changes.length === 0) {
+      const unchanged = await prisma.transactionApproval.findUnique({ where: { id: approvalId }, include: APPROVAL_INCLUDES });
+      return mapApproval(unchanged);
+    }
+    const summary = `Corrected before endorsement: ${changes.join('; ')}`;
+
+    const actor = await prisma.employee.findUnique({ where: { id: actorId } });
+    const today = getTodayGcAndEc();
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const store = await storeLabel(item.storeLocationId);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const saved = await tx.transactionApproval.update({
+        where: { id: approvalId },
+        data: {
+          ifmisSlipNumber: disposalNo,
+          ifmisSlipDateGc: dateGc,
+          ifmisSlipDateEc: formatGcToEc(dateGc),
+          ifmisSlipAttachmentUrl: attachment,
+          purposeOrRemarks: formatDisposalNotes(details),
+          requestDetails: details as any,
+        },
+        include: APPROVAL_INCLUDES,
+      });
+
+      await tx.item.update({
+        where: { id: approval.itemId },
+        data: {
+          history: {
+            create: {
+              dateGc: today.gc,
+              dateEc: today.ec,
+              action: 'DISPOSAL_EDITED',
+              fromEntity: `${store} (Available)`,
+              toEntity: 'Disposal (Pending Approval)',
+              performedBy: actor ? actor.fullNameEn : actorId,
+              performedByRole: (actor?.role ?? 'DATA_ENCODER') as any,
+              ifmisSlipNumber: disposalNo,
+              notes: summary,
+            },
+          },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          timestampGc: `${today.gc} ${time}`,
+          timestampEc: `${today.ec} ${time}`,
+          userId: actorId,
+          userName: actor ? actor.fullNameEn : 'System',
+          userRole: (actor?.role ?? 'DATA_ENCODER') as any,
+          action: 'EDIT_DISPOSAL',
+          entityType: 'DISPOSAL' as any,
+          entityId: approval.itemId,
+          ifmisSlipNumber: disposalNo,
+          details: `Item ${approval.itemCode}: ${summary}`,
+          previousState: before as any,
+          newState: after as any,
+        },
+      });
+
+      return saved;
+    });
+
+    return mapApproval(updated);
+  }
+
   // ── Model 22 Return to Store ─────────────────────────────────────────────
 
   public async registerReturn(payload: CreateReturnRequest): Promise<TransactionApproval> {
@@ -1653,8 +1904,22 @@ export class StoreService {
     const storeName = await storeLabel(item.storeLocationId);
     let approvedById: string | null = item.approvedById;
     let approvedCondition: string | undefined;
-    // Set when a Stock-Out issues only part of the record's units
-    let partialIssue: { quantity: number; remaining: number; uom: string; code: string; recipientName: string } | null = null;
+    // Set when a Stock-Out or disposal covers only part of the record's units: those units get their own record
+    let split: {
+      quantity: number;
+      remaining: number;
+      uom: string;
+      code: string;
+      status: 'ISSUED' | 'DISPOSED';
+      custodianId: string | null;
+      departmentId: string | null;
+      condition?: string;
+      historyAction: string;
+      toEntity: string;
+      notes: string;
+      /** Where the approval remembers the split-off record's code */
+      detailsKey: 'issuedItemCode' | 'disposedItemCode';
+    } | null = null;
 
     if (isApprove) {
       if (approval.transactionType === 'STOCK_IN') {
@@ -1690,7 +1955,49 @@ export class StoreService {
         toEntity = toEmp ? toEmp.fullNameEn : 'Store';
         histNote = payload.reviewRemarks || `Model 21 transfer approved: ${approval.purposeOrRemarks}`;
         approvedById = payload.reviewedById;
-      } else {
+      } else if (approval.transactionType === 'DISPOSAL') {
+        const details = (approval.requestDetails ?? {}) as Model21RequestDetails;
+        const disposedTo = details.recipientName ? `Disposed: to ${details.recipientName}` : 'Disposed';
+        newItemStatus = 'DISPOSED';
+        historyAction = 'DISPOSAL_APPROVED';
+        fromEntity = storeName;
+        toEntity = disposedTo;
+        histNote = `Disposal approved. ${approval.purposeOrRemarks}`;
+        approvedCondition = details.condition;
+        custodianId = null;
+        departmentId = null;
+        approvedById = payload.reviewedById;
+
+        const requested = Number(details.quantity);
+        const inStore = quantityOf(item);
+        if (Number.isInteger(requested) && requested > 0 && requested < inStore) {
+          // The rest stays in store on this record; the disposed units get their own record
+          const uom = uomOf(item);
+          const code = await nextSplitCode(db, item);
+          split = {
+            quantity: requested,
+            remaining: inStore - requested,
+            uom,
+            code,
+            status: 'DISPOSED',
+            custodianId: null,
+            departmentId: null,
+            condition: details.condition,
+            historyAction: 'DISPOSAL_APPROVED',
+            toEntity: disposedTo,
+            notes: `${requested} ${uom} disposed of from ${item.itemCode} (ref ${approval.ifmisSlipNumber}). ${approval.purposeOrRemarks}`,
+            detailsKey: 'disposedItemCode',
+          };
+          newItemStatus = 'AVAILABLE';
+          approvedCondition = undefined;
+          custodianId = item.currentCustodianId;
+          departmentId = item.assignedDepartmentId;
+          approvedById = item.approvedById;
+          fromEntity = 'Disposal pending';
+          toEntity = `${storeName} (AVAILABLE)`;
+          histNote = `Disposed of ${requested} of ${inStore} ${uom} as ${code}; ${inStore - requested} ${uom} remain in store. ${approval.purposeOrRemarks}`;
+        }
+      } else if (approval.transactionType === 'STOCK_OUT') {
         newItemStatus = 'ISSUED';
         historyAction = 'STOCK_OUT_APPROVED';
         fromEntity = storeName;
@@ -1707,17 +2014,21 @@ export class StoreService {
         const inStore = quantityOf(item);
         if (Number.isInteger(requested) && requested > 0 && requested < inStore) {
           // The rest stays in store on this record; the issued units get their own record
-          const rootId = item.parentItemId ?? item.id;
-          const root = item.parentItemId ? await db.item.findUnique({ where: { id: rootId } }) : item;
-          const rootCode = root?.itemCode ?? item.itemCode;
-          let next = (await db.item.count({ where: { parentItemId: rootId } })) + 1;
-          while (await db.item.findUnique({ where: { itemCode: `${rootCode}-${next}` } })) next += 1;
-          partialIssue = {
+          const uom = uomOf(item);
+          const code = await nextSplitCode(db, item);
+          const recipientName = toEntity;
+          split = {
             quantity: requested,
             remaining: inStore - requested,
-            uom: uomOf(item),
-            code: `${rootCode}-${next}`,
-            recipientName: toEntity,
+            uom,
+            code,
+            status: 'ISSUED',
+            custodianId: approval.recipientEmployeeId ?? null,
+            departmentId: approval.targetDepartmentId ?? null,
+            historyAction: 'STOCK_OUT_APPROVED',
+            toEntity: recipientName,
+            notes: `${requested} ${uom} issued from ${item.itemCode} (Model 22 ${approval.ifmisSlipNumber}). Purpose: ${approval.purposeOrRemarks}`,
+            detailsKey: 'issuedItemCode',
           };
           newItemStatus = 'AVAILABLE';
           custodianId = item.currentCustodianId;
@@ -1725,12 +2036,14 @@ export class StoreService {
           approvedById = item.approvedById;
           fromEntity = 'Issue pending';
           toEntity = `${storeName} (AVAILABLE)`;
-          histNote = `Issued ${requested} of ${inStore} ${partialIssue.uom} as ${partialIssue.code} to ${partialIssue.recipientName}; ${partialIssue.remaining} ${partialIssue.uom} remain in store. Purpose: ${approval.purposeOrRemarks}`;
+          histNote = `Issued ${requested} of ${inStore} ${uom} as ${code} to ${recipientName}; ${inStore - requested} ${uom} remain in store. Purpose: ${approval.purposeOrRemarks}`;
         }
+      } else {
+        throw new BadRequestError(`Unknown request type ${approval.transactionType}.`);
       }
     } else {
       if (approval.transactionType === 'STOCK_IN') {
-        newItemStatus = 'DISPOSED';
+        newItemStatus = 'REJECTED';
         historyAction = 'STOCK_IN_REJECTED';
         fromEntity = 'Pending Approval';
         toEntity = 'Rejected / Returned to Supplier';
@@ -1749,12 +2062,21 @@ export class StoreService {
         fromEntity = 'Pending Transfer';
         toEntity = 'Current Custodian (Retained)';
         histNote = rejectionNote;
-      } else {
+      } else if (approval.transactionType === 'DISPOSAL') {
+        // Nothing left the store while the disposal was pending
+        newItemStatus = 'AVAILABLE';
+        historyAction = 'DISPOSAL_REJECTED';
+        fromEntity = 'Disposal pending';
+        toEntity = `${storeName} (AVAILABLE)`;
+        histNote = rejectionNote;
+      } else if (approval.transactionType === 'STOCK_OUT') {
         newItemStatus = 'AVAILABLE';
         historyAction = 'STOCK_OUT_REJECTED';
         fromEntity = 'Issue pending';
         toEntity = `${storeName} (AVAILABLE)`;
         histNote = rejectionNote;
+      } else {
+        throw new BadRequestError(`Unknown request type ${approval.transactionType}.`);
       }
     }
 
@@ -1767,7 +2089,7 @@ export class StoreService {
         storeLocationId: locationId,
         approvedById,
         ...(approvedCondition ? { condition: approvedCondition as any } : {}),
-        ...(partialIssue ? { notes: notesWithQuantity(item.notes, partialIssue.remaining, item.unitCostETB) } : {}),
+        ...(split ? { notes: notesWithQuantity(item.notes, split.remaining, item.unitCostETB) } : {}),
         history: {
           create: {
             dateGc: today.gc,
@@ -1786,24 +2108,24 @@ export class StoreService {
     });
 
     let finalApproval = updatedApproval;
-    if (partialIssue) {
+    if (split) {
       await db.item.create({
         data: {
-          itemCode: partialIssue.code,
+          itemCode: split.code,
           name: item.name,
           category: item.category,
           unitCostETB: item.unitCostETB,
-          status: 'ISSUED' as any,
-          condition: item.condition,
+          status: split.status as any,
+          condition: (split.condition ?? item.condition) as any,
           storeLocationId: item.storeLocationId,
-          currentCustodianId: approval.recipientEmployeeId,
-          assignedDepartmentId: approval.targetDepartmentId,
+          currentCustodianId: split.custodianId,
+          assignedDepartmentId: split.departmentId,
           ifmisSlipNumber: item.ifmisSlipNumber,
           ifmisSlipDateGc: item.ifmisSlipDateGc,
           ifmisSlipDateEc: item.ifmisSlipDateEc,
           ifmisSlipAttachmentUrl: item.ifmisSlipAttachmentUrl,
           isHistoricalData: item.isHistoricalData,
-          notes: notesWithQuantity(item.notes, partialIssue.quantity, item.unitCostETB),
+          notes: notesWithQuantity(item.notes, split.quantity, item.unitCostETB),
           parentItemId: item.parentItemId ?? item.id,
           registeredById: item.registeredById,
           approvedById: payload.reviewedById,
@@ -1813,23 +2135,23 @@ export class StoreService {
             create: {
               dateGc: today.gc,
               dateEc: today.ec,
-              action: 'STOCK_OUT_APPROVED',
+              action: split.historyAction,
               fromEntity: `${storeName} (${item.itemCode})`,
-              toEntity: partialIssue.recipientName,
+              toEntity: split.toEntity,
               performedBy: reviewerName,
               performedByRole: (reviewer ? reviewer.role : 'DEPARTMENT_HEAD') as any,
               approvedBy: reviewerName,
               ifmisSlipNumber: approval.ifmisSlipNumber,
-              notes: `${partialIssue.quantity} ${partialIssue.uom} issued from ${item.itemCode} (Model 22 ${approval.ifmisSlipNumber}). Purpose: ${approval.purposeOrRemarks}`,
+              notes: split.notes,
             },
           },
         },
       });
-      // Remember which record holds the issued units
+      // Remember which record holds the issued or disposed units
       finalApproval = await db.transactionApproval.update({
         where: { id: approval.id },
         data: {
-          requestDetails: { ...((approval.requestDetails ?? {}) as Record<string, any>), issuedItemCode: partialIssue.code } as any,
+          requestDetails: { ...((approval.requestDetails ?? {}) as Record<string, any>), [split.detailsKey]: split.code } as any,
         },
         include: APPROVAL_INCLUDES,
       });
@@ -1840,7 +2162,7 @@ export class StoreService {
       isApprove ? `APPROVE_${approval.transactionType}` : `REJECT_${approval.transactionType}`,
       'APPROVAL',
       item.id,
-      `${approval.transactionType} ${isApprove ? 'APPROVED' : 'REJECTED'} by ${reviewerName} for item ${item.itemCode}.${partialIssue ? ` Partial issue: ${partialIssue.quantity} ${partialIssue.uom} as ${partialIssue.code}.` : ''} Remarks: ${updatedApproval.reviewRemarks}`,
+      `${approval.transactionType} ${isApprove ? 'APPROVED' : 'REJECTED'} by ${reviewerName} for item ${item.itemCode}.${split ? ` Partial ${split.status === 'ISSUED' ? 'issue' : 'disposal'}: ${split.quantity} ${split.uom} as ${split.code}.` : ''} Remarks: ${updatedApproval.reviewRemarks}`,
       approval.ifmisSlipNumber,
       undefined,
       undefined,
@@ -2033,6 +2355,8 @@ export class StoreService {
     const pendingIn = allItems.filter((i) => i.status === 'PENDING_STOCK_IN');
     const pendingOut = allItems.filter((i) => i.status === 'PENDING_STOCK_OUT');
     const inTransfer = allItems.filter((i) => i.status === 'UNDER_TRANSFER');
+    const pendingDisposal = allItems.filter((i) => i.status === ItemStatus.PENDING_DISPOSAL);
+    const disposed = allItems.filter((i) => i.status === ItemStatus.DISPOSED);
     // Assets on record: approved and in store or with a custodian. Receipts still awaiting endorsement or
     // approval, and rejected or disposed ones, are left out; pending receipts are counted on their own.
     const onRecord = [...available, ...issued];
@@ -2074,6 +2398,7 @@ export class StoreService {
           daysInStore,
           valueETB: (i.unitCostETB || 0) * unitsOf(i),
           issuePending: i.status === 'PENDING_STOCK_OUT',
+          disposalPending: i.status === ItemStatus.PENDING_DISPOSAL,
         };
       })
       .filter((i) => i.daysInStore > STALE_IN_STORE_DAYS)
@@ -2086,10 +2411,11 @@ export class StoreService {
     );
     const receivedByMonth = new Map<string, number>();
     const issuedByMonth = new Map<string, number>();
-    // Received: each approved registration with the units split off it, by its receiving (Model 19) month
-    for (const reg of allItems.filter((i) => !i.parentItemId && i.status !== 'PENDING_STOCK_IN' && i.status !== 'DISPOSED')) {
+    // Received: each approved registration with the units split off it, by its receiving (Model 19) month.
+    // Units disposed of later were still received; rejected receipts never were.
+    for (const reg of allItems.filter((i) => !i.parentItemId && i.status !== 'PENDING_STOCK_IN' && i.status !== ItemStatus.REJECTED)) {
       const month = (reg.ifmisSlipDateGc || reg.createdAtGc || '').slice(0, 7);
-      const unitsReceived = unitsOf(reg) + units(allItems.filter((c) => c.parentItemId === reg.id && c.status !== 'DISPOSED'));
+      const unitsReceived = unitsOf(reg) + units(allItems.filter((c) => c.parentItemId === reg.id && c.status !== ItemStatus.REJECTED));
       receivedByMonth.set(month, (receivedByMonth.get(month) ?? 0) + unitsReceived);
     }
     // Issued: each approved Stock-Out by the month it was approved (a partial issue counts its own units)
@@ -2165,6 +2491,10 @@ export class StoreService {
       pendingStockInCount: pendingIn.length,
       pendingStockOutCount: pendingOut.length,
       pendingTransferCount: inTransfer.length,
+      pendingDisposalCount: pendingDisposal.length,
+      // Units disposed of through approved disposals, and their value at unit price
+      disposedCount: units(disposed),
+      disposedValuationETB: sum(disposed),
       pendingApprovalsCount: pendingApprovals,
       totalValuationETB: sum(onRecord),
       unassignedItemsCount: units(unassignedItems),

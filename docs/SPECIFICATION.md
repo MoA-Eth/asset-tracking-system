@@ -15,7 +15,7 @@ Top management and Directorate Heads currently lack real-time visibility into in
 
 While **IFMIS remains the national official system of record**, this system acts as a responsive store-level mirror:
 1. **Duplicate Recording:** When items are received or issued in IFMIS, store Data Encoders record them here with the official IFMIS slip number, slip date and (optionally) a scanned copy.
-2. **Two-Stage Approval:** Every request (receipt, issue, transfer, return) is endorsed by a Team Leader and then approved by a Department Head before it takes effect.
+2. **Two-Stage Approval:** Every request (receipt, issue, transfer, return, disposal) is endorsed by a Team Leader and then approved by a Department Head before it takes effect.
 3. **Executive Dashboard:** Top management has real-time visibility into inventory value, category distribution, issues, stock waiting in store, and pending approvals.
 
 All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
@@ -58,16 +58,25 @@ All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 - **Return to store:** brings an issued asset back to a store location, with its condition and any defects noted.
 - Vehicle particulars (plate, engine, tires, accessories) can be recorded on the Model 21.
 
-### 3.4 Movement History
-- Every asset keeps a chronological history of receipts, issues, transfers, returns and decisions.
+### 3.4 Disposal
+- Removes assets from the register at the end of their life: damaged beyond repair, gifted or donated, obsolete, sold, lost, etc. The reason is written by the requester (common reasons are suggested).
+- Only items **in store** (`AVAILABLE`) can be disposed of; an issued item is returned to store first.
+- The request records: quantity, disposal reference number and date, reason, justification, condition, book value (defaults to unit price × quantity), recipient or buyer, proceeds (ETB), committee decision reference, and an optional supporting document (required when the slip policy requires attachments).
+- While pending, the units stay in store with status `PENDING_DISPOSAL`. On approval they become `DISPOSED` and leave the stock balance; on rejection they return to `AVAILABLE`.
+- **Partial disposals** are supported, like partial issues: the disposed units get their own record, the rest stays in store.
+- The printed **Fixed Asset Disposal Form** follows the Ministry's form: public body, who it is sold, transferred or donated to, then per asset the tag number, serial number, disposal type (the reason), original cost, accumulated depreciation (original cost less book value), book value and remark. Chassis, engine and declaration numbers are left blank to write in. It ends with the recipient's statement and signature lines for the storekeeper, Team Leader, Department Head, FAMU accountant and recipient. It prints on A4 landscape.
+- A rejected receipt has status `REJECTED`; `DISPOSED` only ever means an approved disposal.
 
-### 3.5 System Settings
+### 3.5 Movement History
+- Every asset keeps a chronological history of receipts, issues, transfers, returns, disposals and decisions.
+
+### 3.6 System Settings
 - The System Administrator decides whether a scanned slip is required on every voucher or optional.
 
 ---
 
 ## 4. Executive Dashboard & Reporting
-- **Live KPIs:** total assets, in store, issued, pending approvals, inventory value (ETB).
+- **Live KPIs:** total assets, in store, issued, pending approvals, pending disposals, inventory value (ETB). Disposed assets are left out of the totals.
 - **Directorate allocation** and **category breakdown**.
 - **Stock waiting in store:** items not issued within 30 days of arriving, oldest first (also flagged on the Assets page).
 - **Monthly movement:** units received and issued over the last six months.
@@ -80,7 +89,7 @@ All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 | Role | Responsibility | Main access |
 |---|---|---|
 | **System Administrator** | User access and platform governance; no store or approval work | Dashboard, reports, audit log, users, roles, employees, stores, system settings |
-| **Data Encoder** | Records receipts, requests issues, transfers and returns; cannot approve | Assets, reports, employees and stores (view) |
+| **Data Encoder** | Records receipts, requests issues, transfers, returns and disposals; cannot approve | Assets, reports, employees and stores (view) |
 | **Team Leader** | Stage 1: endorse or reject | Approvals, assets, reports, audit log |
 | **Department Head** | Stage 2: approve or reject | Approvals, assets, reports, audit log |
 | **Manager** (top management) | Monitors the portfolio; no approval authority | Dashboard, reports |
@@ -94,6 +103,6 @@ All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 Every action records:
 - Who performed it (user and role)
 - When (E.C. and G.C.)
-- What: e.g. `REGISTER_STOCK_IN`, `STOCK_OUT_REQUESTED`, `TRANSFER_REQUESTED`, `RETURN_REQUESTED`, `ENDORSE`, `APPROVE`, `REJECT`, edits of pending requests, and administrative changes (users, roles, employees, stores, settings)
+- What: e.g. `REGISTER_STOCK_IN`, `STOCK_OUT_REQUESTED`, `TRANSFER_REQUESTED`, `RETURN_REQUESTED`, `REGISTER_DISPOSAL`, `ENDORSE`, `APPROVE`, `REJECT`, edits of pending requests, and administrative changes (users, roles, employees, stores, settings)
 - The affected item and IFMIS slip reference
 - Details, with the state before and after where relevant

@@ -6,6 +6,7 @@ export const PERMISSION_GROUPS = [
     { key: 'stock-in.write', label: 'Register and correct stock-in' },
     { key: 'stock-out.write', label: 'Request and correct stock-out' },
     { key: 'transfers.write', label: 'Request transfers and returns' },
+    { key: 'disposals.write', label: 'Request disposals' },
     { key: 'slips.upload', label: 'Upload IFMIS slips' },
   ] },
   { name: 'Approvals', permissions: [
@@ -44,9 +45,9 @@ export const ROLE_POLICY: Record<UserRole, {
     allowedTabs: ['dashboard', 'reports', 'audit', 'settings-users', 'settings-roles', ...referenceTabs], landingTab: 'dashboard',
   },
   DATA_ENCODER: {
-    name: 'Data Encoder', description: 'Records stock-in, requests stock-out, and initiates transfers and returns.',
+    name: 'Data Encoder', description: 'Records stock-in, requests stock-out, initiates transfers and returns, and requests disposals.',
     approvalResponsibility: 'Submits requests; cannot approve',
-    permissions: [...readPermissions, 'stock-in.write', 'stock-out.write', 'transfers.write', 'slips.upload', 'approvals.read', 'reports.read'],
+    permissions: [...readPermissions, 'stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write', 'slips.upload', 'approvals.read', 'reports.read'],
     allowedTabs: ['assets', 'reports', 'settings-employees', 'settings-stores'], landingTab: 'assets',
   },
   TEAM_LEADER: {
@@ -81,8 +82,8 @@ export const PROTECTED_ROLE_PERMISSIONS: Partial<Record<UserRole, Permission[]>>
 };
 
 /** Permissions for raising stock requests, and for deciding on them */
-const REQUEST_PERMISSIONS: Permission[] = ['stock-in.write', 'stock-out.write', 'transfers.write'];
-const DECISION_PERMISSIONS: Permission[] = ['approvals.endorse', 'approvals.authorize'];
+export const REQUEST_PERMISSIONS: Permission[] = ['stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write'];
+export const DECISION_PERMISSIONS: Permission[] = ['approvals.endorse', 'approvals.authorize'];
 
 /**
  * Segregation-of-duties rules that hold whatever the matrix says. Returns one message per broken rule.
@@ -164,8 +165,7 @@ export function computeAllowedTabs(role: UserRole, permissions: Permission[]): {
 
   if (permissions.includes('dashboard.read')) tabs.add('dashboard');
   // One register for every asset: those who record store work act on it, approvers follow it read-only
-  const storeWork: Permission[] = ['stock-in.write', 'stock-out.write', 'transfers.write'];
-  if (storeWork.some((p) => permissions.includes(p)) || permissions.includes('approvals.read')) tabs.add('assets');
+  if (REQUEST_PERMISSIONS.some((p) => permissions.includes(p)) || permissions.includes('approvals.read')) tabs.add('assets');
   if (permissions.includes('approvals.endorse') || permissions.includes('approvals.authorize')) {
     tabs.add('approvals');
   }

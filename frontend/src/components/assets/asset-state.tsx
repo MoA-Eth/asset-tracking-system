@@ -14,9 +14,9 @@ export const CATEGORY_OPTIONS: { value: AssetCategory; label: string }[] = [
 
 /**
  * Where an asset record is in its life: received into store (Model 19), issued to someone (Model 22),
- * then transferred to someone else or returned to store (Model 21). Each step waits for approval.
+ * then transferred to someone else or returned to store (Model 21), and finally disposed of. Each step waits for approval.
  */
-export type AssetState = 'RECEIPT_PENDING' | 'IN_STORE' | 'ISSUED' | 'REQUEST_PENDING' | 'REJECTED';
+export type AssetState = 'RECEIPT_PENDING' | 'IN_STORE' | 'ISSUED' | 'REQUEST_PENDING' | 'REJECTED' | 'DISPOSED';
 
 /** Who a pending request is waiting for */
 export const STAGE_LABELS: Record<number, string> = {
@@ -29,7 +29,11 @@ export const REQUEST_LABELS: Record<string, { noun: string; pending: string; mod
   STOCK_OUT: { noun: 'issue', pending: 'Issue pending', model: 'Model 22' },
   TRANSFER: { noun: 'transfer', pending: 'Transfer pending', model: 'Model 21' },
   RETURN: { noun: 'return', pending: 'Return pending', model: 'Model 21' },
+  DISPOSAL: { noun: 'disposal', pending: 'Disposal pending', model: 'disposal voucher' },
 };
+
+/** Labels for a request type, with a plain fallback for a type this screen doesn't know yet */
+export const requestLabel = (type?: string) => REQUEST_LABELS[type ?? ''] ?? { noun: 'request', pending: 'Pending', model: 'voucher' };
 
 export const ENDORSED_REASON = 'The Team Leader has endorsed it. To correct it, ask an approver to reject it.';
 
@@ -49,6 +53,8 @@ export interface AssetRow {
   lastIssue?: TransactionApproval;
   /** The latest approved transfer or return, for reprinting its Model 21 */
   lastMove?: TransactionApproval;
+  /** The approved disposal that took this record off the register, for reprinting its voucher */
+  lastDisposal?: TransactionApproval;
   /** The record's latest decided request, when it was rejected */
   rejected?: TransactionApproval;
   /** Whole days its units have waited in store; set only for records in store */
@@ -99,7 +105,7 @@ export const shortDate = (gc?: string) =>
 
 /** "Issue rejected · 30 Sep 2026", with the reviewer's reason underneath */
 export const RejectionNote: React.FC<{ request: TransactionApproval }> = ({ request }) => {
-  const kind = REQUEST_LABELS[request.transactionType]?.noun ?? 'request';
+  const kind = requestLabel(request.transactionType).noun;
   const reason = request.reviewRemarks?.trim();
   return (
     <span className="block max-w-[220px] whitespace-normal text-[10px] leading-snug text-red-700" title={reason}>
@@ -115,6 +121,7 @@ export const RejectionNote: React.FC<{ request: TransactionApproval }> = ({ requ
 export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row, partly }) => {
   const settled =
     row.state === 'REJECTED' ? <span className={`${pill} ${statusTone.rejected}`}>Rejected</span>
+    : row.state === 'DISPOSED' ? <span className={`${pill} ${statusTone.neutral}`}>Disposed</span>
     : row.state === 'IN_STORE' && partly ? <span className={`${pill} ${statusTone.partly}`}>Partly issued</span>
     : row.state === 'IN_STORE' ? <span className={`${pill} ${statusTone.inStore}`}>In store</span>
     : row.state === 'ISSUED' ? <span className={`${pill} ${statusTone.issued}`}>Issued</span>
@@ -135,7 +142,7 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
       </span>
     );
   }
-  const label = REQUEST_LABELS[row.request?.transactionType ?? 'STOCK_IN']?.pending ?? 'Pending';
+  const label = requestLabel(row.request?.transactionType ?? 'STOCK_IN').pending;
   return (
     <span className="inline-flex flex-col items-start gap-0.5">
       <span className={`${pill} ${statusTone.pending}`}>

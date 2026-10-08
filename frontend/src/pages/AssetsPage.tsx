@@ -16,6 +16,7 @@ import {
   Filter,
   Download,
   ArrowLeft,
+  Trash2,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -32,11 +33,14 @@ import { Model21PrintModal } from '../components/ui/Model21PrintModal';
 import { StockInForm, buildModel19Voucher } from '../components/assets/ReceiptForm';
 import { StockOutForm, buildModel22Voucher } from '../components/assets/IssueForm';
 import { TransferForm, buildModel21Voucher } from '../components/assets/TransferForm';
+import { DisposalForm, buildDisposalVoucher } from '../components/assets/DisposalForm';
+import { DisposalPrintModal } from '../components/ui/DisposalPrintModal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import {
   ApprovalStatus,
   Department,
+  DisposalVoucher,
   Employee,
   ItemStatus,
   ItemWithRelations,
@@ -58,7 +62,7 @@ import {
   AssetStatus,
   CATEGORY_OPTIONS,
   ENDORSED_REASON,
-  REQUEST_LABELS,
+  requestLabel,
   STALE_IN_STORE_DAYS,
   ShownGroup,
   daysInStore,
@@ -66,13 +70,14 @@ import {
   isStale,
 } from '../components/assets/asset-state';
 
-type AssetFilter = 'ALL' | 'IN_STORE' | 'ISSUED' | 'PENDING' | 'REJECTED';
+type AssetFilter = 'ALL' | 'IN_STORE' | 'ISSUED' | 'PENDING' | 'REJECTED' | 'DISPOSED';
 const FILTERS: { value: AssetFilter; label: string }[] = [
   { value: 'ALL', label: 'All' },
   { value: 'IN_STORE', label: 'In store' },
   { value: 'ISSUED', label: 'Issued' },
   { value: 'PENDING', label: 'Pending' },
   { value: 'REJECTED', label: 'Rejected' },
+  { value: 'DISPOSED', label: 'Disposed' },
 ];
 
 export type SortColumn = 'activity' | 'name' | 'status' | 'units' | 'where' | 'slip' | 'cost';
@@ -119,6 +124,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const canReceive = can('stock-in.write');
   const canIssue = can('stock-out.write');
   const canTransfer = can('transfers.write');
+  const canDispose = can('disposals.write');
 
   const [items, setItems] = useState<ItemWithRelations[]>([]);
   const [approvals, setApprovals] = useState<TransactionApproval[]>([]);
@@ -162,6 +168,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [returning, setReturning] = useState<{ item: ItemWithRelations; edit?: TransactionApproval } | null>(null);
+  const [disposing, setDisposing] = useState<{ itemId: string } | null>(null);
   // The asset record open beside the list, and whether what it has pending is being corrected in place
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -172,6 +179,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setReturning(null);
     setTransfer(null);
     setIssue(null);
+    setDisposing(null);
     setEditing(false);
   };
   const openReceipt = (edit?: ItemWithRelations) => {
@@ -179,12 +187,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setReturning(null);
     setTransfer(null);
     setIssue(null);
+    setDisposing(null);
     setEditing(false);
     setReceipt({ edit });
   };
   const [voucher19, setVoucher19] = useState<Model19Voucher | null>(null);
   const [voucher22, setVoucher22] = useState<Model22Voucher | null>(null);
   const [voucher21, setVoucher21] = useState<Model21Voucher | null>(null);
+  const [voucherDisposal, setVoucherDisposal] = useState<DisposalVoucher | null>(null);
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -240,8 +250,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const add = (map: Map<string, TransactionApproval[]>, id: string, a: TransactionApproval) => map.set(id, [...(map.get(id) ?? []), a]);
     for (const a of approvals) {
       if (a.status === ApprovalStatus.PENDING) continue;
-      const issuedCode = a.status === ApprovalStatus.APPROVED ? a.requestDetails?.issuedItemCode : undefined;
-      add(vouchers, (issuedCode && idByCode.get(issuedCode)) || a.itemId, a);
+      // A partial issue or disposal is filed under the record split off for those units
+      const splitCode = a.status === ApprovalStatus.APPROVED ? a.requestDetails?.issuedItemCode ?? a.requestDetails?.disposedItemCode : undefined;
+      add(vouchers, (splitCode && idByCode.get(splitCode)) || a.itemId, a);
       add(raised, a.itemId, a);
     }
     for (const map of [vouchers, raised]) for (const list of map.values()) list.sort((x, y) => decidedOn(y).localeCompare(decidedOn(x)));
@@ -257,7 +268,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         const store = item.storeLocation ? storeLocationLabel(item.storeLocation) : 'Store';
         const holder = item.currentCustodian?.fullNameEn || employeeName(item.currentCustodianId) || (item.assignedDepartment ? departmentLabel(item.assignedDepartment) : undefined);
         let state: AssetState;
-        if (item.status === ItemStatus.DISPOSED) state = 'REJECTED';
+        if (item.status === ItemStatus.REJECTED) state = 'REJECTED';
+        else if (item.status === ItemStatus.DISPOSED) state = 'DISPOSED';
         else if (item.status === ItemStatus.PENDING_STOCK_IN) state = 'RECEIPT_PENDING';
         else if (request) state = 'REQUEST_PENDING';
         else if (item.status === ItemStatus.AVAILABLE) state = 'IN_STORE';
@@ -269,21 +281,27 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         } else if (request?.transactionType === 'RETURN') {
           const target = locations.find((l) => l.id === request.targetLocationId);
           goingTo = target ? storeLocationLabel(target) : store;
+        } else if (request?.transactionType === 'DISPOSAL') {
+          goingTo = request.requestDetails?.recipientName || 'Disposal';
         }
         // An issued record (or one waiting to be transferred or returned) is with someone; the rest is in store
         const withSomeone = item.status === ItemStatus.ISSUED || item.status === ItemStatus.UNDER_TRANSFER;
         const approved = (decided.vouchers.get(item.id) ?? []).filter((a) => a.status === ApprovalStatus.APPROVED);
         const lastRaised = decided.raised.get(item.id)?.[0];
+        const lastDisposal = approved.find((a) => a.transactionType === 'DISPOSAL');
+        // A disposed record has left the store: say where it went instead
+        const disposedTo = state === 'DISPOSED' ? lastDisposal?.requestDetails?.recipientName || 'Disposed' : undefined;
         return {
           item,
           state,
           request,
           units: Number(item.quantity) || 1,
-          where: withSomeone ? holder || '—' : store,
+          where: disposedTo ?? (withSomeone ? holder || '—' : store),
           goingTo,
           activity: String(request?.createdAtGc || item.createdAtGc || ''),
           lastIssue: approved.find((a) => a.transactionType === 'STOCK_OUT'),
           lastMove: approved.find((a) => a.transactionType === 'TRANSFER' || a.transactionType === 'RETURN'),
+          lastDisposal,
           // A new request replaces the rejected one; until then the row says what happened
           rejected: !request && lastRaised?.status === ApprovalStatus.REJECTED ? lastRaised : undefined,
           daysInStore: state === 'IN_STORE' ? daysInStore(item, today) : undefined,
@@ -429,7 +447,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const item = record ?? items.find((i) => i.id === request.itemId);
     if (request.transactionType === 'STOCK_OUT') {
       setVoucher22(buildModel22Voucher(request, { item, departments, employees, printedBy: user?.fullNameEn }));
-    } else {
+    } else if (request.transactionType === 'DISPOSAL') {
+      setVoucherDisposal(buildDisposalVoucher(request, { item, employees, printedBy: user?.fullNameEn }));
+    } else if (request.transactionType === 'TRANSFER' || request.transactionType === 'RETURN') {
       setVoucher21(await buildModel21Voucher(request, { item, employees, locations, printedBy: user?.fullNameEn }));
     }
   };
@@ -447,9 +467,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setReturning(null);
     setTransfer(null);
     setIssue(null);
+    setDisposing(null);
     setSelectedId(itemId);
     setEditing(false);
   };
+
+  /** Whether a form is open on this record: a correction, or a new issue, transfer, return or disposal */
+  const formOpenFor = (itemId: string) =>
+    editing ||
+    returning?.item.id === itemId ||
+    (!!transfer && (transfer.itemId === itemId || transfer.edit?.itemId === itemId)) ||
+    (!!issue && (issue.itemId === itemId || issue.edit?.itemId === itemId)) ||
+    disposing?.itemId === itemId;
 
   /** Open a record straight into correcting what it has pending (its receipt or its request) */
   const editInRecord = (itemId: string) => {
@@ -468,6 +497,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       setReturning(null);
       setTransfer(null);
       setIssue(null);
+      setDisposing(null);
       saved(item.id);
       if (voucher && print) print(voucher);
     };
@@ -545,7 +575,36 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         ),
       };
     }
+    if (disposing && disposing.itemId === item.id) {
+      return {
+        id: 'disposal-form',
+        form: (
+          <DisposalForm
+            key={`disposal-${item.id}`}
+            item={item}
+            {...common}
+            onCancel={() => setDisposing(null)}
+            onSuccess={(_result, voucher) => done(voucher, setVoucherDisposal)}
+          />
+        ),
+      };
+    }
     if (row.state !== 'REQUEST_PENDING' || !request) return undefined;
+    if (request.transactionType === 'DISPOSAL') {
+      return {
+        id: 'disposal-form',
+        form: (
+          <DisposalForm
+            key={request.id}
+            item={item}
+            editApproval={request}
+            {...common}
+            onCancel={() => setEditing(false)}
+            onSuccess={() => done()}
+          />
+        ),
+      };
+    }
     if (request.transactionType === 'STOCK_OUT') {
       return {
         id: 'stock-out-form',
@@ -641,8 +700,21 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               setIssue({ itemId: item.id });
               setTransfer(null);
               setReturning(null);
+              setDisposing(null);
             },
             hidden: !canIssue,
+          },
+          {
+            label: 'Dispose',
+            icon: Trash2,
+            onClick: () => {
+              setSelectedId(item.id);
+              setDisposing({ itemId: item.id });
+              setIssue(null);
+              setTransfer(null);
+              setReturning(null);
+            },
+            hidden: !canDispose,
           },
           view,
           printReceipt,
@@ -677,8 +749,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           printMove,
         ];
       case 'REQUEST_PENDING': {
-        const kind = REQUEST_LABELS[request!.transactionType];
-        const mayEdit = request!.transactionType === 'STOCK_OUT' ? canIssue : canTransfer;
+        const kind = requestLabel(request!.transactionType);
+        const editPermission: Record<string, boolean> = { STOCK_OUT: canIssue, DISPOSAL: canDispose, TRANSFER: canTransfer, RETURN: canTransfer };
+        const mayEdit = editPermission[request!.transactionType] ?? false;
         return [
           {
             label: `Edit ${kind.noun}`,
@@ -692,6 +765,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           { label: `Print ${kind.model}`, icon: Printer, onClick: () => printRequest(request!, item) },
         ];
       }
+      case 'DISPOSED':
+        return [
+          view,
+          { label: 'Print disposal voucher', icon: Printer, onClick: () => printRequest(row.lastDisposal!, item), hidden: !row.lastDisposal },
+        ];
       default:
         return [view];
     }
@@ -718,11 +796,17 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const issuedUnits = item.balance?.issued ?? out.reduce((acc, c) => acc + c.units, 0) + (row.state === 'ISSUED' ? row.units : 0);
     const inStoreUnits = item.balance?.available ?? (row.state === 'ISSUED' ? 0 : row.units) + children.filter((c) => c.state === 'IN_STORE').reduce((acc, c) => acc + c.units, 0);
     const totalUnits = item.balance?.total ?? issuedUnits + inStoreUnits;
+    // Disposed units left the batch for good; they're listed under it but not counted in it
+    const disposed = children.filter((c) => c.item.status === ItemStatus.DISPOSED);
+    const disposedUnits = disposed.reduce((acc, c) => acc + c.units, 0);
+    const recordsKind = disposed.length === children.length ? 'disposed ' : disposed.length === 0 ? 'issued ' : '';
     return {
       isBatch: children.length > 0,
       out,
       issuedUnits,
       inStoreUnits,
+      disposedUnits,
+      recordsKind,
       totalUnits,
       holders: [...new Set(out.map((c) => c.where))],
       partly: children.length > 0 && issuedUnits > 0 && inStoreUnits > 0,
@@ -800,7 +884,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const nested = !batch && !!item.parentItemId && rows.some((r) => r.item.id === item.parentItemId);
     const orphanParent = !batch && !nested && item.parentItemId ? items.find((i) => i.id === item.parentItemId) : undefined;
     const children = batch?.group.children ?? [];
-    const { isBatch, out, issuedUnits, inStoreUnits, totalUnits, holders } = batchSummary(row, children);
+    const { isBatch, out, issuedUnits, inStoreUnits, disposedUnits, recordsKind, totalUnits, holders } = batchSummary(row, children);
 
     return (
       <tr
@@ -833,7 +917,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               className="mt-1 inline-flex items-center gap-1 rounded-md text-[10px] font-semibold text-emerald-800 hover:text-emerald-950 hover:underline cursor-pointer"
             >
               <ChevronRight className={`h-3 w-3 transition-transform ${batch!.open ? 'rotate-90' : ''}`} />
-              {batch!.open ? 'Hide' : 'Show'} {children.length} issued {children.length === 1 ? 'record' : 'records'}
+              {batch!.open ? 'Hide' : 'Show'} {children.length} {recordsKind}{children.length === 1 ? 'record' : 'records'}
             </button>
           )}
         </td>
@@ -845,7 +929,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <span className="ml-1 text-[10px] font-normal uppercase text-slate-500">{uom}</span>
           {isBatch && (
             <span className="block font-sans text-[10px] font-normal text-slate-500">
-              {issuedUnits} issued · {inStoreUnits} in store
+              {issuedUnits} issued · {inStoreUnits} in store{disposedUnits > 0 && ` · ${disposedUnits} disposed`}
             </span>
           )}
         </td>
@@ -941,7 +1025,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable) {
         return;
       }
-      if (voucher19 || voucher21 || voucher22 || issue || transfer || returning) {
+      if (voucher19 || voucher21 || voucher22 || voucherDisposal || issue || transfer || returning || disposing) {
         return;
       }
 
@@ -951,6 +1035,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         else if (returning) setReturning(null);
         else if (transfer) setTransfer(null);
         else if (issue) setIssue(null);
+        else if (disposing) setDisposing(null);
         else closeRecord();
         return;
       }
@@ -974,7 +1059,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, flatSelectableIds, voucher19, voucher21, voucher22, receipt, issue, transfer, returning]);
+  }, [selectedId, flatSelectableIds, voucher19, voucher21, voucher22, voucherDisposal, receipt, issue, transfer, returning, disposing]);
 
   useEffect(() => {
     if (selectedId) {
@@ -1013,7 +1098,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const totals = sortedShown.reduce(
     (acc, group) => {
       const { row } = group;
-      if (row.state === 'REJECTED' || row.state === 'RECEIPT_PENDING') return acc;
+      if (row.state === 'REJECTED' || row.state === 'RECEIPT_PENDING' || row.state === 'DISPOSED') return acc;
       const { isBatch, totalUnits, inStoreUnits } = batchSummary(row, group.children ?? []);
       const cost = row.item.unitCostETB || 0;
       acc.value += cost * (isBatch ? totalUnits : row.units);
@@ -1247,28 +1332,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               }
               requests={selectedRequests}
               actions={actionsFor(selectedRow).filter((a) => a.label !== 'View details')}
-              editForm={
-                editing ||
-                (returning && returning.item.id === selectedRow.item.id) ||
-                (transfer && (transfer.itemId === selectedRow.item.id || transfer.edit?.itemId === selectedRow.item.id)) ||
-                (issue && (issue.itemId === selectedRow.item.id || issue.edit?.itemId === selectedRow.item.id))
-                  ? editFormFor(selectedRow)?.form
-                  : undefined
-              }
-              editFormId={
-                editing ||
-                (returning && returning.item.id === selectedRow.item.id) ||
-                (transfer && (transfer.itemId === selectedRow.item.id || transfer.edit?.itemId === selectedRow.item.id)) ||
-                (issue && (issue.itemId === selectedRow.item.id || issue.edit?.itemId === selectedRow.item.id))
-                  ? editFormFor(selectedRow)?.id
-                  : undefined
-              }
+              editForm={formOpenFor(selectedRow.item.id) ? editFormFor(selectedRow)?.form : undefined}
+              editFormId={formOpenFor(selectedRow.item.id) ? editFormFor(selectedRow)?.id : undefined}
               saving={editSaving}
               onCancelEdit={() => {
                 setEditing(false);
                 setReturning(null);
                 setTransfer(null);
                 setIssue(null);
+                setDisposing(null);
               }}
               onPrintRequest={(r) => printRequest(r, selectedRow.item)}
               onPrintReceipt={() => setVoucher19(buildModel19Voucher(selectedRow.item, items, user?.fullNameEn))}
@@ -1530,6 +1602,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       <Model19PrintModal isOpen={!!voucher19} voucher={voucher19} onClose={() => setVoucher19(null)} />
       <Model22PrintModal isOpen={!!voucher22} voucher={voucher22} onClose={() => setVoucher22(null)} />
       <Model21PrintModal isOpen={!!voucher21} voucher={voucher21} onClose={() => setVoucher21(null)} />
+      <DisposalPrintModal isOpen={!!voucherDisposal} voucher={voucherDisposal} onClose={() => setVoucherDisposal(null)} />
     </div>
   );
 };

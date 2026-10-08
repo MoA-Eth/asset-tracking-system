@@ -169,8 +169,12 @@ export const VoucherTotals: React.FC<{ rows: { label: string; value: number | un
 );
 
 /** One column per signatory: role, the recorded name (or a blank line to write it), and a signature line */
-export const VoucherSignatures: React.FC<{ signatories: { label: string; name?: string }[] }> = ({ signatories }) => (
-  <div className={`pt-6 grid grid-cols-1 gap-8 text-[11px] text-slate-900 ${signatories.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+export const VoucherSignatures: React.FC<{ signatories: { label: string; name?: string }[]; columns?: 2 | 3 | 4 | 5 }> = ({ signatories, columns }) => (
+  <div
+    className={`pt-6 grid grid-cols-1 gap-8 text-[11px] text-slate-900 ${
+      { 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4', 5: 'sm:grid-cols-5' }[columns ?? (signatories.length === 3 ? 3 : 2)]
+    }`}
+  >
     {signatories.map((s) => (
       <div key={s.label} className="space-y-3">
         <p className="font-bold">{s.label}</p>

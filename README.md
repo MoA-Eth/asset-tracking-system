@@ -27,66 +27,65 @@ asset-tracking-system/
 
 ---
 
-## 🚀 Setup & Running Instructions
+## 🚀 Run it locally
 
-### Prerequisites
-- **Node.js**: `v20.x` or higher
-- **PostgreSQL**: `v15.x` or higher
-- **npm**: `v10.x` or higher
+Two ways: **A. Node + PostgreSQL** (for development, with hot reload) or **B. Docker** (the same containers the servers run). Neither needs a certificate: HTTPS and nginx are only used on staging and production.
 
----
+### A. Development (Node + PostgreSQL)
 
-### Step 1: Clone Repository
+**You need:** Node.js 20 or newer (with npm) and PostgreSQL 15 or newer running on `localhost:5432`.
+
 ```bash
 git clone https://github.com/MoA-Eth/asset-tracking-system.git
 cd asset-tracking-system
-```
 
-### Step 2: Configure Environment Variables
-Copy `.env.example` templates to `.env` in both `backend/` and `frontend/`:
-```bash
-# Backend environment setup
+# 1. Environment files (Windows PowerShell: use  copy  instead of  cp)
 cp backend/.env.example backend/.env
-
-# Frontend environment setup
 cp frontend/.env.example frontend/.env
 ```
 
-### Step 3: Install Workspace Dependencies
-*(Must be executed from the root directory `asset-tracking-system/`)*
+2. In `backend/.env`, set `DATABASE_URL` to your PostgreSQL user and password (the default is `postgres:postgres`). `JWT_SECRET` can stay empty while developing, but then everyone is signed out whenever the backend restarts.
+
 ```bash
+# 3. Install everything (run from the repository root)
 npm run install:all
-```
 
-### Step 4: Database Setup (Prisma & Seed Data)
-Ensure PostgreSQL is running locally, then execute from the root directory (`asset-tracking-system/`):
-```bash
+# 4. Create the database tables and the demo data (PostgreSQL must be running)
 npm run db:setup
-```
-*Note: If the `moa_ams` database does not exist yet in PostgreSQL, Prisma automatically creates it, applies all tables/relations, and seeds demo data.*
 
-*Useful Database Helper Scripts (Run from `asset-tracking-system/`):*
-- `npm run db:push` — Push schema updates to database
-- `npm run db:seed` — Seed demo users and initial store assets
-- `npm run db:studio` — Open interactive Prisma Studio DB browser GUI (`http://localhost:5555`)
-
-### Step 5: Start Development Services (Recommended)
-From the root directory (`asset-tracking-system/`), run both backend Express API and frontend Vite React app concurrently:
-```bash
+# 5. Start the API and the web app together
 npm run dev
 ```
-* **Frontend Web App**: `http://localhost:3001`
-* **Backend Express API**: `http://localhost:3000/api`
 
-### Step 6: Run Services Independently
-* **Backend Service (`backend/`)**:
-  ```bash
-  npm run dev:backend
-  ```
-* **Frontend Web App (`frontend/`)**:
-  ```bash
-  npm run dev:frontend
-  ```
+Open **http://localhost:3001** (the API is at http://localhost:3000/api, health check at `/api/health`). Sign in with a demo account from [Roles, Credentials & Access Matrix](#-roles-credentials--access-matrix), all with password `moaams2024`, for example `sysadmin@moa.gov.et` or `encoder@moa.gov.et`.
+
+| Command (from the repository root) | What it does |
+|---|---|
+| `npm run dev:backend` / `npm run dev:frontend` | Start only the API or only the web app |
+| `npm run db:push` | Apply schema changes to the database |
+| `npm run db:seed` | Add the demo users and store items again |
+| `npm run db:studio` | Browse the database at http://localhost:5555 |
+
+### B. Docker (database, API and nginx)
+
+**You need:** Docker with Compose. No Node or PostgreSQL install.
+
+```bash
+cp .env.example .env        # then set POSTGRES_PASSWORD and JWT_SECRET (see the comments inside)
+npm run docker:local        # build and start; open http://localhost:8080
+npm run docker:local:down   # stop (keeps the local database)
+```
+
+This runs over plain HTTP on port 8080 (`LOCAL_PORT` in `.env` changes it) using `docker-compose.local.yml` and `nginx/nginx.local.conf`. These two files exist only for local runs: staging and production use `docker-compose.yml` and `nginx/nginx.conf` with the certificate, and Jenkins ships only those. The database starts empty, so the first System Administrator comes from `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`. To get the demo accounts instead, use option A.
+
+### Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `npm run db:setup` can't connect | PostgreSQL isn't running, or `DATABASE_URL` in `backend/.env` has the wrong user, password or port. |
+| Browser shows a certificate warning, or a redirect to `https://` | You opened a server address. Use `http://localhost:3001` (option A) or `http://localhost:8080` (option B). If the browser remembered HTTPS for localhost, open `chrome://net-internals/#hsts` and delete `localhost`. |
+| Port 3000, 3001 or 8080 is in use | Stop what uses it; for option B set `LOCAL_PORT` in `.env`. |
+| Signed out after every backend restart | Set `JWT_SECRET` in `backend/.env`. |
 
 ---
 
@@ -97,7 +96,7 @@ The system utilizes **[Vitest](https://vitest.dev/)** as the unified, high-perfo
 ### Test Suites Overview (114 Unit Tests + 87 Integration Assertions)
 
 - **Backend Unit Tests (`backend/src/**/*.test.ts`)** — *36 Tests / 5 Suites (~400ms)*:
-  - **Store Service Invariants** (`store-rules.test.ts`): Model 19 mandatory IFMIS slip validation, 2-stage sequential approval transitions (Stage 1 Team Leader endorsement, Stage 2 Dept Head sign-off), and atomic status transitions (`AVAILABLE`, `ISSUED`, `DISPOSED`).
+  - **Store Service Invariants** (`store-rules.test.ts`): Model 19 mandatory IFMIS slip validation, 2-stage sequential approval transitions (Stage 1 Team Leader endorsement, Stage 2 Dept Head sign-off), and atomic status transitions (`AVAILABLE`, `ISSUED`, `PENDING_DISPOSAL`, `DISPOSED`, `REJECTED`).
   - **Auth Middleware & SOD** (`auth.middleware.test.ts`): Strict Segregation of Duties guards blocking Data Encoders from approvals and System Admins from operational transactions.
   - **Authentication Service** (`auth.service.test.ts`): Singleton lifecycle, token decoding, and malformed token rejection.
   - **Ethiopian Date Engine** (`eth-date.test.ts`): Julian Day Number calculations, Pagume leap year rules, and GC ↔ EC conversions.

@@ -27,6 +27,7 @@ const REQUEST_LABELS: Record<string, string> = {
   STOCK_OUT: 'Issue (Model 22)',
   TRANSFER: 'Transfer (Model 21)',
   RETURN: 'Return (Model 21)',
+  DISPOSAL: 'Disposal',
 };
 
 const ITEM_STATUS: Record<string, { label: string; tone: keyof typeof statusTone }> = {
@@ -35,8 +36,9 @@ const ITEM_STATUS: Record<string, { label: string; tone: keyof typeof statusTone
   [ItemStatus.PENDING_STOCK_OUT]: { label: 'Issue pending', tone: 'pending' },
   [ItemStatus.ISSUED]: { label: 'Issued', tone: 'issued' },
   [ItemStatus.UNDER_TRANSFER]: { label: 'Under transfer', tone: 'pending' },
-  // An item only leaves the register this way when its Stock-In is rejected
-  [ItemStatus.DISPOSED]: { label: 'Rejected', tone: 'rejected' },
+  [ItemStatus.PENDING_DISPOSAL]: { label: 'Disposal pending', tone: 'pending' },
+  [ItemStatus.DISPOSED]: { label: 'Disposed', tone: 'neutral' },
+  [ItemStatus.REJECTED]: { label: 'Rejected', tone: 'rejected' },
 };
 
 /** Label / value pair; empty values show a dash */
@@ -154,7 +156,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                   <Row label="Status">
                     {requestStatus && <span className={`${pill} ${statusTone[requestStatus.tone]}`}>{requestStatus.label}</span>}
                   </Row>
-                  {approval.transactionType === 'STOCK_OUT' && (
+                  {(approval.transactionType === 'STOCK_OUT' || approval.transactionType === 'DISPOSAL') && (
                     <Row label="Quantity" mono>
                       {d?.quantity ? `${d.quantity} ${uom}` : undefined}
                     </Row>
@@ -180,7 +182,16 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                   </Row>
                   <Row label="Requested by">{approval.requestedBy?.fullNameEn}</Row>
                   <Row label="Submitted">{approval.createdAtEc} E.C.</Row>
-                  {approval.transactionType !== 'STOCK_IN' && (
+                  {approval.transactionType === 'DISPOSAL' && (
+                    <>
+                      {d?.recipientName && <Row label="Disposed to">{d.recipientName}</Row>}
+                      {d?.bookValue !== undefined && <Row label="Book value" mono>{formatETB(d.bookValue)}</Row>}
+                      {d?.proceedsETB !== undefined && <Row label="Proceeds" mono>{formatETB(d.proceedsETB)}</Row>}
+                      {d?.committeeRef && <Row label="Committee ref." mono>{d.committeeRef}</Row>}
+                      {d?.description && <Row label="Justification">{d.description}</Row>}
+                    </>
+                  )}
+                  {approval.transactionType !== 'STOCK_IN' && approval.transactionType !== 'DISPOSAL' && (
                     <>
                       <Row label={approval.transactionType === 'RETURN' ? 'Returned by' : 'Recipient'}>
                         {approval.recipientEmployee?.fullNameEn}

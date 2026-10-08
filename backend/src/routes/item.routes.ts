@@ -17,6 +17,8 @@ router.post('/stock-in', requirePermission('stock-in.write'), controller.registe
 router.put('/:id/stock-in', requirePermission('stock-in.write'), controller.updateStockIn);
 router.post('/stock-out', requirePermission('stock-out.write'), controller.registerStockOut);
 router.put('/stock-out/:approvalId', requirePermission('stock-out.write'), controller.updateStockOut);
+router.post('/disposal', requirePermission('disposals.write'), controller.registerDisposal);
+router.put('/disposal/:approvalId', requirePermission('disposals.write'), controller.updateDisposal);
 router.post('/return-to-store', requirePermission('transfers.write'), controller.registerReturn);
 router.put('/return-to-store/:approvalId', requirePermission('transfers.write'), controller.updateReturn);
 router.post('/transfer', requirePermission('transfers.write'), controller.transferItem);

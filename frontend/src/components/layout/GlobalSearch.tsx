@@ -30,7 +30,9 @@ const STATUS_LABELS: Record<string, string> = {
   PENDING_STOCK_OUT: 'Issue pending',
   ISSUED: 'Issued',
   UNDER_TRANSFER: 'Under transfer',
-  DISPOSED: 'Rejected',
+  PENDING_DISPOSAL: 'Disposal pending',
+  DISPOSED: 'Disposed',
+  REJECTED: 'Rejected',
 };
 
 const MAX_ITEMS = 6;

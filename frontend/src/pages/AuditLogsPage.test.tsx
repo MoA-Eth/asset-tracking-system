@@ -99,6 +99,11 @@ describe('Audit log', () => {
     expect(activityKind('REGISTER_RETURN')).toBe('TRANSFER');
     expect(activityKind('GRANT_ACCESS')).toBe('ADMIN');
     expect(activityKind('REGISTER_STOCK_OUT')).toBe('STOCK_OUT');
+    // A disposal request is its own kind, not receiving; its decisions stay approvals and rejections
+    expect(activityKind('REGISTER_DISPOSAL')).toBe('DISPOSAL');
+    expect(activityKind('EDIT_DISPOSAL')).toBe('DISPOSAL');
+    expect(activityKind('APPROVE_DISPOSAL')).toBe('APPROVAL');
+    expect(activityKind('REJECT_DISPOSAL')).toBe('REJECTION');
     expect(actionLabel('RESET_ROLE_PERMISSIONS')).toBe('Reset role permissions');
     expect(withRoleNames('Rejected by Abebe (TEAM_LEADER); permissions updated for role MANAGER. The MANAGER word alone stays.')).toBe(
       'Rejected by Abebe (Team Leader); permissions updated for role Manager. The MANAGER word alone stays.',

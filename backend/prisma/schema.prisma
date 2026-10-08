@@ -26,7 +26,12 @@ enum ItemStatus {
   PENDING_STOCK_OUT
   ISSUED
   UNDER_TRANSFER
+  // Disposal requested and waiting for approval; the units are still in store
+  PENDING_DISPOSAL
+  // Disposed of through an approved disposal request
   DISPOSED
+  // Receipt (Stock-In) rejected by an approver
+  REJECTED
 }
 
 enum AssetCategory {
@@ -43,6 +48,7 @@ enum TransactionType {
   STOCK_OUT
   TRANSFER
   RETURN
+  DISPOSAL
 }
 
 enum ItemCondition {
@@ -68,6 +74,7 @@ enum AuditEntityType {
   TRANSFER
   RETURN
   APPROVAL
+  DISPOSAL
 }
 
 // ─── Reference Tables ─────────────────────────────────────────────────────────

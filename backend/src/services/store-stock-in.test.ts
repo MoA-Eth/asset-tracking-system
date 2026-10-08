@@ -90,7 +90,7 @@ describe('StoreService.registerStockIn approval gate', () => {
       message: 'Serial number lap-001 is already registered on MOA-IT-2026-0007 (Dell Latitude). Check the number, or leave it empty for items without one.',
     });
     // Compared without regard to case, and a rejected or disposed item frees its number
-    expect(db.item.findFirst.mock.calls[0][0].where).toMatchObject({ serialNumber: { equals: 'lap-001', mode: 'insensitive' }, status: { not: 'DISPOSED' } });
+    expect(db.item.findFirst.mock.calls[0][0].where).toMatchObject({ serialNumber: { equals: 'lap-001', mode: 'insensitive' }, status: { notIn: ['DISPOSED', 'REJECTED'] } });
     expect(db.item.create).not.toHaveBeenCalled();
   });
 

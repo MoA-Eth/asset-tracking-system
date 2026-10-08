@@ -23,6 +23,7 @@ import {
   PackagePlus,
   PackageMinus,
   RotateCcw,
+  Trash2,
   Sparkles,
   Layers,
   ChevronRight,
@@ -75,9 +76,19 @@ type ViewMode = 'table' | 'cards';
  * Units a request covers. Stock-Out keeps its requested quantity; other requests use the units on the
  * item record, which only stays meaningful while the request is pending (a later partial issue changes it).
  */
+/** How each request type is named in messages, and what its approval does */
+const TYPE_TEXT: Record<string, { label: string; approved: string }> = {
+  STOCK_IN: { label: 'Model 19 receipt', approved: 'The item is now available in store.' },
+  STOCK_OUT: { label: 'Model 22 issue', approved: 'Asset is now ISSUED to staff custodian.' },
+  TRANSFER: { label: 'Model 21 Transfer', approved: 'Custody has moved to the new custodian.' },
+  RETURN: { label: 'Model 21 Return', approved: 'Asset is now RETURNED to store inventory.' },
+  DISPOSAL: { label: 'Disposal request', approved: 'The asset is now recorded as DISPOSED.' },
+};
+const typeText = (type?: string) => TYPE_TEXT[type ?? ''] ?? { label: 'Request', approved: 'The request is approved.' };
+
 const approvalUnits = (a: TransactionApproval): string | null => {
   const uom = a.requestDetails?.uom || a.itemUom || 'EA';
-  if (a.transactionType === 'STOCK_OUT' && a.requestDetails?.quantity) {
+  if ((a.transactionType === 'STOCK_OUT' || a.transactionType === 'DISPOSAL') && a.requestDetails?.quantity) {
     const partOf =
       a.status === 'PENDING' && a.itemUnits && a.requestDetails.quantity < a.itemUnits ? ` of ${a.itemUnits} in store` : '';
     return `Qty ${a.requestDetails.quantity} ${uom}${partOf}`;
@@ -295,14 +306,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
     const target = approvals.find((a) => a.id === approvalId) || selectedApproval;
     const itemCode = target?.itemCode || 'Transaction';
-    const typeLabel =
-      target?.transactionType === 'STOCK_IN'
-        ? 'Model 19 receipt'
-        : target?.transactionType === 'STOCK_OUT'
-        ? 'Model 22 issue'
-        : target?.transactionType === 'TRANSFER'
-        ? 'Model 21 Transfer'
-        : 'Model 21 Return';
+    const typeLabel = typeText(target?.transactionType).label;
 
     setActionLoading(true);
     // The server records the signed-in reviewer
@@ -329,14 +333,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           `${typeLabel} (${itemCode}) verified and advanced to Directorate Head for Stage 2 final approval.`
         );
       } else if (action === 'APPROVE') {
-        const resultDesc =
-          target?.transactionType === 'STOCK_IN'
-            ? 'The item is now available in store.'
-            : target?.transactionType === 'STOCK_OUT'
-            ? 'Asset is now ISSUED to staff custodian.'
-            : target?.transactionType === 'TRANSFER'
-            ? 'Custody has moved to the new custodian.'
-            : 'Asset is now RETURNED to store inventory.';
+        const resultDesc = typeText(target?.transactionType).approved;
         toast.success(
           'Authorization Approved',
           `${typeLabel} (${itemCode}) granted final sign-off. ${resultDesc}`
@@ -450,6 +447,13 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-violet-50 text-violet-800 border border-violet-200">
             <ArrowRightLeft className="w-3 h-3 text-violet-700" />
             Model 21 (TRF)
+          </span>
+        );
+      case TransactionType.DISPOSAL:
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-800 border border-slate-300">
+            <Trash2 className="w-3 h-3 text-slate-600" />
+            Disposal (DSP)
           </span>
         );
       default:
@@ -612,6 +616,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               <option value={TransactionType.STOCK_OUT}>Issuing (Model 22)</option>
               <option value={TransactionType.RETURN}>Model 21 (Return to Store)</option>
               <option value={TransactionType.TRANSFER}>Model 21 (Asset Transfer)</option>
+              <option value={TransactionType.DISPOSAL}>Disposal</option>
             </select>
           </div>
         </div>

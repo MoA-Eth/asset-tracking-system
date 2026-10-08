@@ -62,8 +62,13 @@ export const StatusBadge: React.FC<{ status: ItemStatus | ApprovalStatus | strin
     case ItemStatus.UNDER_TRANSFER:
       return <Badge variant="purple">In-Transfer</Badge>;
 
+    case ItemStatus.PENDING_DISPOSAL:
+      return <Badge variant="warning">Disposal pending</Badge>;
+
     case ItemStatus.DISPOSED:
-      return <Badge variant="danger">Disposed</Badge>;
+      return <Badge variant="neutral">Disposed</Badge>;
+
+    // ItemStatus.REJECTED (a rejected receipt) shares the value of ApprovalStatus.REJECTED below
 
     case ApprovalStatus.APPROVED:
       return <Badge variant="success">Approved</Badge>;

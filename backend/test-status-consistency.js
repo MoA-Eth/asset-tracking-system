@@ -129,7 +129,7 @@ async function runStatusConsistencyTests() {
     assert(item1After.data.history.length >= 3, `Complete lifecycle recorded in item movement history (${item1After.data.history.length} events)`);
 
     // =========================================================================
-    // SCENARIO 2: Stock-In Rejection -> Transition to DISPOSED
+    // SCENARIO 2: Stock-In Rejection -> Transition to REJECTED
     // =========================================================================
     console.log('\n▶ [Scenario 2] Model 19 Stock-In Rejection (Rejected at Stage 1)');
     const ts2 = Date.now().toString().slice(-6);
@@ -164,7 +164,7 @@ async function runStatusConsistencyTests() {
     assert(rej1Res.data.status === 'REJECTED', 'Approval status finalized as REJECTED');
 
     const item2After = await request(`/items/${item2Id}`, {}, encoderToken);
-    assert(item2After.data.status === 'DISPOSED', 'ON REJECTION: Stock-In item status transitioned to DISPOSED (not in stock)');
+    assert(item2After.data.status === 'REJECTED', 'ON REJECTION: Stock-In item status transitioned to REJECTED (not in stock)');
 
     // =========================================================================
     // SCENARIO 3: Stock-Out 2-Stage Approval -> Transition to ISSUED
@@ -331,12 +331,12 @@ async function runStatusConsistencyTests() {
     // =========================================================================
     console.log('\n▶ [Scenario 6] Asset Custody Transfer Invariant Guards');
 
-    // Invariant 6a: Cannot transfer DISPOSED item
+    // Invariant 6a: Cannot transfer a rejected receipt
     const transferDisposed = await request('/items/transfer', {
       method: 'POST',
       body: { itemId: item2Id, toEmployeeId: emp2.id, reason: 'Illegal transfer attempt on disposed asset' },
     }, encoderToken);
-    assert(!transferDisposed.ok, 'Status Invariant: Transfer rejected on DISPOSED asset');
+    assert(!transferDisposed.ok, 'Status Invariant: Transfer rejected on a rejected receipt');
 
     // Invariant 6b: Legitimate custody transfer on issued item
     // First, issue item4 to emp1
