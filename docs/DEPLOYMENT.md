@@ -368,7 +368,7 @@ If an update goes wrong, go back to the previous version (`git checkout <previou
 | `staging` (default) | `10.10.20.156` | `assetmgts` |
 | `production` | `10.10.20.155` | `assetmgtp` |
 
-The servers have no internet access, so Jenkins does the building and the servers only receive finished images. Deploy to staging first, check the release there, then run the job again with `production`. Each run:
+The servers have no internet access, so Jenkins does the building and the servers only receive finished images. New commits on `main` reach staging by themselves within about 5 minutes; check the release there, then run the job with `production`. Each run:
 
 1. **Build Images**: builds `moa-ams-backend` and `moa-ams-nginx` on Jenkins from the checked-out `main`.
 2. **Backup Database**: saves `pg_dump` output in `/opt/moa-ams/backups/pre-deploy-<date>.dump` on the server (skipped on the very first deploy) and removes copies older than 30 days.
@@ -396,7 +396,9 @@ If the database was changed, also restore the `pre-deploy` backup (§7, *Restori
 **In Jenkins:**
 - Plugins: **Pipeline**, **Git**, **SSH Agent**, **Timestamper**. The job runs on the node labelled `docker`, which needs Docker with Compose v2 and internet access to GitHub, npm, Docker Hub and `deb.debian.org`.
 - Credential `moa-ams-deploy-ssh`: "SSH Username with private key", holding the private half of the key above. The repository is public, so checkout needs no credential.
-- Create a **Pipeline** job, "Pipeline script from SCM", pointing at `https://github.com/MoA-Eth/asset-tracking-system.git`, branch `*/main`, script path `Jenkinsfile`. Its first run deploys to staging; after that Jenkins shows **Build with Parameters**. Run it by hand; a trigger (GitHub webhook or "Poll SCM") always deploys to staging.
+- Create a **Pipeline** job, "Pipeline script from SCM", pointing at `https://github.com/MoA-Eth/asset-tracking-system.git`, branch `*/main`, script path `Jenkinsfile`. Its first run deploys to staging; after that Jenkins shows **Build with Parameters**.
+- **Staging deploys itself:** the `Jenkinsfile` has Jenkins check GitHub every 5 minutes, and new commits on `main` start a run with the default TARGET, `staging`. The check is registered by the first run of a `Jenkinsfile` that contains it.
+- **Production is always by hand:** **Build with Parameters → TARGET `production`**, after checking staging.
 - To change a server address or account, edit `DEPLOY_HOST` / `DEPLOY_USER` in `Jenkinsfile`.
 
 Run the first Jenkins deployment only after the manual install in §4B has succeeded once on that server.
