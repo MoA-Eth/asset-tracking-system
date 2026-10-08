@@ -6,9 +6,12 @@ COPY frontend/package*.json ./
 RUN npm ci
 
 COPY frontend/ .
+# Shown in the sidebar and on the Profile page (src/version.ts); set by the Jenkins build
+ARG APP_VERSION=dev
+ARG APP_COMMIT=
 # Bundle only: the type check (npm run build) also checks test files that import backend
 # code, which isn't in this image. CI runs the full type check and tests on every push.
-RUN npx vite build
+RUN VITE_APP_VERSION=$APP_VERSION VITE_APP_COMMIT=$APP_COMMIT npx vite build
 
 FROM nginx:1.27-alpine
 

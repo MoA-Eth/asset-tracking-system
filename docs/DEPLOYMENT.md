@@ -180,7 +180,7 @@ All commands run on the server, in `/opt/moa-ams`.
 | Task | How |
 |---|---|
 | Status / logs | `docker compose ps` · `docker compose logs -f backend` (or `nginx`) |
-| Running version | `curl -sk https://localhost/api/health` → `commit` |
+| Running version | `curl -sk https://localhost/api/health` → `version`, `commit` (also shown in the app's sidebar) |
 | Restart | `docker compose restart` |
 | Deploy a new version | Jenkins ([CI-CD.md](CI-CD.md)) |
 | Stop | `docker compose down`, **never** with `-v` (it deletes the database and scanned slips) |

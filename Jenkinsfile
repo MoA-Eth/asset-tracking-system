@@ -1,4 +1,4 @@
-// Deploys main to the staging or production server.
+// Deploys to the staging or production server: staging gets the latest main, production a release tag.
 // The servers have no internet access, so Jenkins builds the images and sends them over SSH;
 // the servers only load them and restart. See docs/CI-CD.md.
 pipeline {
@@ -13,7 +13,8 @@ pipeline {
     }
     // Staging is the default, so a run started without choosing never reaches production
     parameters {
-        choice(name: 'TARGET', choices: ['staging', 'production'], description: 'Server to deploy main to: staging (10.10.20.156) or production (10.10.20.155)')
+        choice(name: 'TARGET', choices: ['staging', 'production'], description: 'Server to deploy to: staging (10.10.20.156) or production (10.10.20.155)')
+        string(name: 'VERSION', defaultValue: '', trim: true, description: 'Release tag to deploy, e.g. v2.1.0. Required for production. Empty on staging: the latest main.')
     }
     // Check GitHub every 5 minutes; new commits on main deploy to staging on their own.
     // Triggered runs use the default TARGET, so production is only ever deployed by hand.
@@ -33,11 +34,32 @@ pipeline {
 
     stages {
 
+        // Production only takes a release, so it never gets code staging hasn't run
+        stage('Select Version') {
+            steps {
+                script {
+                    def version = (params.VERSION ?: '').trim()
+                    if (params.TARGET == 'production' && !version) {
+                        error('Production deploys a release: set VERSION to a release tag such as v2.1.0 (docs/CI-CD.md, "Releasing").')
+                    }
+                    if (version && !version.matches(/v\d+\.\d+\.\d+/)) {
+                        error("VERSION must look like v2.1.0, not '${version}'.")
+                    }
+                    if (version) {
+                        sh "git fetch --tags --force origin && git checkout --detach refs/tags/${version}"
+                    }
+                    env.APP_VERSION = version ?: 'main'
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} ${params.TARGET} ${env.APP_VERSION}"
+                }
+            }
+        }
+
         stage('Build Images') {
             steps {
                 sh '''
-                    # The commit ends up in /api/health, so you can see which version each server runs
+                    # Version and commit end up in /api/health and in the app, so you can see what each server runs
                     export APP_COMMIT=$(git rev-parse --short HEAD)
+                    echo "Building $APP_VERSION ($APP_COMMIT)"
                     docker compose -p moa-ams-ci build --pull
                     docker image ls --format '{{.Repository}}:{{.Tag}}  {{.Size}}' | grep '^moa-ams-'
                 '''
@@ -130,7 +152,7 @@ pipeline {
 
     post {
         success {
-            echo "Deployment to ${params.TARGET ?: 'staging'} (${DEPLOY_HOST}) succeeded."
+            echo "Deployment of ${env.APP_VERSION} to ${params.TARGET ?: 'staging'} (${DEPLOY_HOST}) succeeded."
         }
         failure {
             sshagent(['moa-ams-deploy-ssh']) {
