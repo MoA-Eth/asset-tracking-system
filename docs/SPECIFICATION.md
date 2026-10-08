@@ -64,7 +64,7 @@ All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 - The request records: quantity, disposal reference number and date, reason, justification, condition, book value (defaults to unit price × quantity), recipient or buyer, proceeds (ETB), committee decision reference, and an optional supporting document (required when the slip policy requires attachments).
 - While pending, the units stay in store with status `PENDING_DISPOSAL`. On approval they become `DISPOSED` and leave the stock balance; on rejection they return to `AVAILABLE`.
 - **Partial disposals** are supported, like partial issues: the disposed units get their own record, the rest stays in store.
-- A printed **Asset Disposal Certificate** lists the item, reason and values, with signature lines for the requester, Team Leader, Department Head and recipient.
+- The printed **Fixed Asset Disposal Form** follows the Ministry's form: public body, who it is sold, transferred or donated to, then per asset the tag number, serial number, disposal type (the reason), original cost, accumulated depreciation (original cost less book value), book value and remark. Chassis, engine and declaration numbers are left blank to write in. It ends with the recipient's statement and signature lines for the storekeeper, Team Leader, Department Head, FAMU accountant and recipient. It prints on A4 landscape.
 - A rejected receipt has status `REJECTED`; `DISPOSED` only ever means an approved disposal.
 
 ### 3.5 Movement History

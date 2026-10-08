@@ -40,7 +40,8 @@ describe('Printed vouchers share one format', () => {
     render(renderVoucher());
 
     expect(screen.getByText('The Federal Democratic Republic of Ethiopia')).toBeInTheDocument();
-    expect(screen.getByText('Ministry of Agriculture')).toBeInTheDocument();
+    // The disposal form also names the public body in its details
+    expect(screen.getAllByText('Ministry of Agriculture').length).toBeGreaterThan(0);
     expect(screen.getByText(model)).toBeInTheDocument();
     expect(screen.getByText(number)).toBeInTheDocument();
     expect(screen.getByText('MOA-ATS')).toBeInTheDocument();

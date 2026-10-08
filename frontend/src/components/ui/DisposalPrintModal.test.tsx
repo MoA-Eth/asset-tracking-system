@@ -15,24 +15,28 @@ const voucher: DisposalVoucher = {
   recipientName: 'Kality School',
   proceedsETB: 0,
   committeeRef: 'DC/12/2026',
-  items: [{ sNo: 1, itemCode: 'MOA-FUR-1-2', description: 'Office chair', uom: 'EA', quantity: 3, unitPrice: 1500, bookValue: 4500 }],
+  items: [{ sNo: 1, itemCode: 'MOA-FUR-1-2', description: 'Office chair', uom: 'EA', quantity: 3, unitPrice: 1500, bookValue: 1000 }],
   requestedByName: 'Bikila Desta',
   printedBy: 'Bikila Desta',
 };
 
 describe('Disposal voucher', () => {
-  it('prints the disposal, its item and who signs it', () => {
+  it("prints the Ministry form: the recipient, one line per asset with its cost and depreciation, and who signs", () => {
     render(<DisposalPrintModal isOpen onClose={vi.fn()} voucher={voucher} />);
-    expect(screen.getByText('Asset Disposal Certificate')).toBeInTheDocument();
-    expect(screen.getByText('DSP-0007')).toBeInTheDocument();
-    expect(screen.getByText('Gift / donation')).toBeInTheDocument();
-    expect(screen.getByText('Fair')).toBeInTheDocument();
-    expect(screen.getByText('MOA-FUR-1-2')).toBeInTheDocument();
-    // Requester, Team Leader, Department Head, and the recipient because there is one
-    expect(screen.getByText('Requested By (Store)')).toBeInTheDocument();
-    expect(screen.getByText('Endorsed By (Team Leader)')).toBeInTheDocument();
-    expect(screen.getByText('Approved By (Department Head)')).toBeInTheDocument();
-    expect(screen.getByText('Received By')).toBeInTheDocument();
+    expect(screen.getAllByText("Fixed Asset Disposal Form").length).toBeGreaterThan(0);
+    expect(screen.getByText("DSP-0007")).toBeInTheDocument();
+    expect(screen.getByText("Kality School", { selector: "dd" })).toBeInTheDocument();
+    expect(screen.getByText("Fair")).toBeInTheDocument();
+    for (const heading of ["Tag Number", "Serial Number", "Chassis No", "Engine No", "Declaration Number", "Disposal Type", "Original Cost", "Accumulated Depreciation", "Book Value", "Remark"]) {
+      expect(screen.getAllByText(heading).length).toBeGreaterThan(0);
+    }
+    expect(screen.getByText("MOA-FUR-1-2")).toBeInTheDocument();
+    // 3 chairs at 1,500 = 4,500 cost, all of it depreciated but the 1,000 book value: so 3,500
+    expect(screen.getByText("3,500.00", { selector: "td" })).toBeInTheDocument();
+    expect(screen.getByText(/correctly counted and received the items/i)).toBeInTheDocument();
+    for (const role of ["Storekeeper", "Endorsed By (Team Leader)", "Approved By (Department Head)", "FAMU Accountant", "Recipient"]) {
+      expect(screen.getByText(role)).toBeInTheDocument();
+    }
   });
 
   it('marks a request that is not approved yet', () => {
