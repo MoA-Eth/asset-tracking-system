@@ -172,7 +172,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   // The asset record open beside the list, and whether what it has pending is being corrected in place
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
-  const [editSaving, setEditSaving] = useState(false);
   const closeRecord = () => {
     setSelectedId(null);
     setReceipt(null);
@@ -501,7 +500,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       saved(item.id);
       if (voucher && print) print(voucher);
     };
-    const common = { hideFooter: true, onSubmittingChange: setEditSaving };
     if (row.state === 'RECEIPT_PENDING') {
       return {
         id: 'stock-in-form',
@@ -511,7 +509,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             locations={locations}
             employees={employees}
             editItem={item}
-            {...common}
             onCancel={() => setEditing(false)}
             onSuccess={(_result, voucher) => done(voucher, setVoucher19)}
           />
@@ -529,7 +526,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             item={item}
             employees={employees}
             editApproval={returning.edit}
-            onSubmittingChange={setEditSaving}
             onClose={() => setReturning(null)}
             onSuccess={(voucher) => done(voucher, setVoucher21)}
           />
@@ -549,7 +545,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             pendingByItem={pendingByItem}
             editTransfer={transfer.edit}
             initialItemId={item.id}
-            {...common}
             onCancel={() => setTransfer(null)}
             onSaved={(voucher) => done(voucher, setVoucher21)}
           />
@@ -568,7 +563,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             editApproval={issue.edit}
             editItem={item}
             initialItemId={item.id}
-            {...common}
             onCancel={() => setIssue(null)}
             onSuccess={(_result, voucher) => done(voucher, setVoucher22)}
           />
@@ -582,7 +576,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <DisposalForm
             key={`disposal-${item.id}`}
             item={item}
-            {...common}
             onCancel={() => setDisposing(null)}
             onSuccess={(_result, voucher) => done(voucher, setVoucherDisposal)}
           />
@@ -598,7 +591,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             key={request.id}
             item={item}
             editApproval={request}
-            {...common}
             onCancel={() => setEditing(false)}
             onSuccess={() => done()}
           />
@@ -616,7 +608,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             employees={employees}
             editApproval={request}
             editItem={item}
-            {...common}
             onCancel={() => setEditing(false)}
             onSuccess={(_result, voucher) => done(voucher, setVoucher22)}
           />
@@ -635,7 +626,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             locations={locations}
             pendingByItem={pendingByItem}
             editTransfer={request}
-            {...common}
             onCancel={() => setEditing(false)}
             onSaved={(voucher) => done(voucher, setVoucher21)}
           />
@@ -653,7 +643,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             item={item}
             employees={employees}
             editApproval={request}
-            onSubmittingChange={setEditSaving}
             onClose={() => setEditing(false)}
             onSuccess={(voucher) => done(voucher, setVoucher21)}
           />
@@ -1333,15 +1322,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               requests={selectedRequests}
               actions={actionsFor(selectedRow).filter((a) => a.label !== 'View details')}
               editForm={formOpenFor(selectedRow.item.id) ? editFormFor(selectedRow)?.form : undefined}
-              editFormId={formOpenFor(selectedRow.item.id) ? editFormFor(selectedRow)?.id : undefined}
-              saving={editSaving}
-              onCancelEdit={() => {
-                setEditing(false);
-                setReturning(null);
-                setTransfer(null);
-                setIssue(null);
-                setDisposing(null);
-              }}
               onPrintRequest={(r) => printRequest(r, selectedRow.item)}
               onPrintReceipt={() => setVoucher19(buildModel19Voucher(selectedRow.item, items, user?.fullNameEn))}
               onSelect={openRecord}

@@ -25,10 +25,6 @@ export interface StockOutFormProps {
   editItem?: ItemWithRelations;
   /** Item chosen before the form opened, e.g. from its row in the register */
   initialItemId?: string;
-  /** Inside the asset record the toolbar has Save and Cancel, so the form leaves out its own */
-  hideFooter?: boolean;
-  /** Tells the toolbar while a save is in progress */
-  onSubmittingChange?: (submitting: boolean) => void;
 }
 
 /** Splits the stored "purpose (Remark: remark)" text back into its two fields */
@@ -49,16 +45,10 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   editApproval,
   editItem,
   initialItemId,
-  hideFooter,
-  onSubmittingChange,
 }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
-  useEffect(() => {
-    onSubmittingChange?.(submitting);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submitting]);
   const isEdit = !!editApproval;
   const editNotes = splitPurposeAndRemark(editApproval?.purposeOrRemarks ?? '');
 
@@ -186,6 +176,20 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const totalAmount = quantity * unitPrice;
   const grandTotal = totalAmount + transportationCost;
   const ethDate = formatGcToEc(issuedDateGc);
+  const isAttachmentReq = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
+
+  // Required fields still empty; the request can only be submitted once this is empty
+  const missingFields = [
+    !isEdit && !selectedItemId && 'store item',
+    !model22No.trim() && 'Model 22 No.',
+    !issuedDateGc && 'issued date',
+    !isEdit && !transactionType && 'transaction type',
+    !(Number.isInteger(quantity) && quantity >= 1 && quantity <= inStore) && 'quantity',
+    !purpose.trim() && 'purpose of issue',
+    !destinationDepartmentId && 'destination directorate',
+    !recipientEmployeeId && 'recipient',
+    isAttachmentReq && !attachmentFileName && 'scanned slip',
+  ].filter(Boolean) as string[];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -356,7 +360,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   };
 
   const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
-  const isAttachmentReq = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
 
   return (
     <form id="stock-out-form" onSubmit={handleSubmit} className="space-y-4">
@@ -653,15 +656,14 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         </div>
       </FormSection>
 
-      {!hideFooter && (
-        <FormFooter
-          accent="emerald"
-          submitting={submitting}
-          submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
-          onCancel={onCancel}
-          onReset={isEdit ? undefined : handleReset}
-        />
-      )}
+      <FormFooter
+        accent="emerald"
+        submitting={submitting}
+        submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
+        missingFields={missingFields}
+        onCancel={onCancel}
+        onReset={isEdit ? undefined : handleReset}
+      />
     </form>
   );
 };

@@ -28,20 +28,12 @@ export interface StockInFormProps {
   onSuccess: (result: any, voucher?: Model19Voucher) => void;
   /** When set, the form corrects this registration instead of creating a new one */
   editItem?: ItemWithRelations;
-  /** Inside the asset record the toolbar has Save and Cancel, so the form leaves out its own */
-  hideFooter?: boolean;
-  /** Tells the toolbar while a save is in progress */
-  onSubmittingChange?: (submitting: boolean) => void;
 }
 
-export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, hideFooter, onSubmittingChange }) => {
+export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
-  useEffect(() => {
-    onSubmittingChange?.(submitting);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submitting]);
   const isEdit = !!editItem;
 
   // Section 1: Document Voucher Header Metadata
@@ -701,18 +693,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         ))}
       </datalist>
 
-      {!hideFooter && (
-        <FormFooter
-          accent="emerald"
-          submitting={submitting}
-          submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
-          // Submit stays off until every required field is filled
-          submitDisabled={missingFields.length > 0}
-          note={missingFields.length > 0 ? 'Fill in all required fields (*) to submit' : undefined}
-          onCancel={onCancel}
-          onReset={isEdit ? undefined : handleReset}
-        />
-      )}
+      <FormFooter
+        accent="emerald"
+        submitting={submitting}
+        submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
+        // Submit stays off until every required field is filled
+        missingFields={missingFields}
+        onCancel={onCancel}
+        onReset={isEdit ? undefined : handleReset}
+      />
     </form>
   );
 };

@@ -324,11 +324,16 @@ interface FormFooterProps {
   sticky?: boolean;
   /** Keeps the submit button off, e.g. until every required field is filled */
   submitDisabled?: boolean;
+  /** Required fields still empty: while there are any, Submit stays off and says so */
+  missingFields?: string[];
   /** Short line beside the buttons, e.g. why Submit is still off */
   note?: React.ReactNode;
 }
 
-export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, note }) => (
+export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, missingFields = [], note: customNote }) => {
+  const incomplete = missingFields.length > 0;
+  const note = customNote ?? (incomplete ? 'Fill in all required fields (*) to submit' : undefined);
+  return (
   <div
     className={`flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white py-3 ${
       sticky ? 'sticky -bottom-5 z-10 -mx-6 -mb-5 px-6' : 'pt-4'
@@ -358,7 +363,7 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
       </button>
       <button
         type="submit"
-        disabled={submitting || submitDisabled}
+        disabled={submitting || submitDisabled || incomplete}
         aria-describedby={note ? 'form-footer-note' : undefined}
         className={`flex items-center gap-2 rounded-lg px-5 py-2 text-xs font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 focus:outline-none focus-visible:ring-2 cursor-pointer ${ACCENT[accent].button}`}
       >
@@ -367,4 +372,5 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
       </button>
     </div>
   </div>
-);
+  );
+};

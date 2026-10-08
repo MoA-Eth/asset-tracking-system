@@ -25,12 +25,8 @@ export interface AssetRecordProps {
   requests: TransactionApproval[];
   /** What can be done now (Issue, Transfer, Return, Edit…); the print actions go in their own group */
   actions: RowAction[];
-  /** Form shown in place of the details while the pending receipt or request is being corrected */
+  /** Form shown in place of the details while a request is being made or the pending receipt or request corrected; it has its own Submit and Cancel at the bottom */
   editForm?: React.ReactNode;
-  /** Id of that form, so the toolbar's Save submits it */
-  editFormId?: string;
-  saving: boolean;
-  onCancelEdit: () => void;
   onPrintRequest: (request: TransactionApproval) => void;
   onPrintReceipt: () => void;
   onSelect: (itemId: string) => void;
@@ -158,9 +154,6 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   requests,
   actions,
   editForm,
-  editFormId,
-  saving,
-  onCancelEdit,
   onPrintRequest,
   onPrintReceipt,
   onSelect,
@@ -222,19 +215,9 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
             </div>
           </div>
 
+          {/* While a form is open, its own Submit and Cancel at the bottom replace these */}
+          {!editing && (
           <div role="toolbar" aria-label="Asset actions" className="flex flex-wrap items-center gap-2 2xl:justify-end">
-            {editing ? (
-              <>
-                <button type="submit" form={editFormId} disabled={saving} className={btn.primary}>
-                  <Check className="h-4 w-4" />
-                  {saving ? 'Saving…' : 'Save'}
-                </button>
-                <button type="button" onClick={onCancelEdit} disabled={saving} className={btn.secondary}>
-                  <X className="h-4 w-4" />
-                  Cancel
-                </button>
-              </>
-            ) : (
               <>
                 {steps.map((a, i) => (
                   <button
@@ -251,8 +234,8 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 ))}
                 {prints.length > 0 && <PrintButton prints={prints} />}
               </>
-            )}
           </div>
+          )}
         </div>
         {!editing && steps.some((a) => a.disabled) && (
           <p className="text-[11px] text-slate-500">{steps.find((a) => a.disabled)?.reason}</p>
@@ -260,7 +243,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
       </header>
 
       {editing ? (
-        <div className="flex-1 overflow-y-auto p-5">{editForm}</div>
+        <div className="flex-1 overflow-y-auto px-6 py-5">{editForm}</div>
       ) : (
         <div className="flex-1 overflow-y-auto space-y-4 p-5">
           {/* Status-based field locking notice */}
@@ -277,7 +260,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                   </span>
                   <p className="mt-0.5 text-[11px] text-slate-500">
                     {isStage1
-                      ? `The ${reqNoun} request (recipient, quantity, slip) can be edited using the toolbar button until the Team Leader endorses it. Inventory master fields are fixed.`
+                      ? `The ${reqNoun} request (recipient, quantity, slip) can be corrected with the Edit button until the Team Leader endorses it. Inventory master fields are fixed.`
                       : 'Endorsed by Team Leader — changes are locked while awaiting final Department Head approval.'}
                   </p>
                 </FormNotice>

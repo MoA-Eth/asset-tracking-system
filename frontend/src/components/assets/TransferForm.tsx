@@ -38,15 +38,11 @@ export interface TransferFormProps {
   editTransfer?: TransactionApproval;
   /** Asset chosen before the form opened, e.g. from its row in the register */
   initialItemId?: string;
-  /** Inside the asset record the toolbar has Save and Cancel, so the form leaves out its own */
-  hideFooter?: boolean;
-  /** Tells the toolbar while a save is in progress */
-  onSubmittingChange?: (submitting: boolean) => void;
   onCancel: () => void;
   onSaved: (voucher?: Model21Voucher) => void;
 }
 
-export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, editTransfer, initialItemId, hideFooter, onSubmittingChange, onCancel, onSaved }) => {
+export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, editTransfer, initialItemId, onCancel, onSaved }) => {
   const { user } = useAuth();
   const toast = useToast();
   const details = editTransfer?.requestDetails ?? {};
@@ -72,10 +68,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [tireSerials, setTireSerials] = useState(details.tireNos?.join(', ') ?? '');
   const [defectRemark, setDefectRemark] = useState(details.remark ?? '');
   const [submitting, setSubmitting] = useState(false);
-  useEffect(() => {
-    onSubmittingChange?.(submitting);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submitting]);
 
   const selectedItemObj = items.find((i) => i.id === selectedItemId);
   const selectedIsVehicleLike = selectedItemObj?.category === 'VEHICLE' || selectedItemObj?.category === 'AGRI_MACHINERY';
@@ -105,6 +97,15 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     if (!editTransfer && initialItemId) handleItemSelect(initialItemId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Required fields still empty; the request can only be submitted once this is empty
+  const missingFields = [
+    !selectedItemId && 'asset',
+    !model21No.trim() && 'Model 21 No.',
+    !book.trim() && 'register book',
+    !targetEmployeeId && 'recipient',
+    !transferReason.trim() && 'reason',
+  ].filter(Boolean) as string[];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -463,14 +464,13 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         </div>
       </FormSection>
 
-      {!hideFooter && (
-        <FormFooter
-          accent="emerald"
-          submitting={submitting}
-          submitLabel={editTransfer ? 'Save changes' : 'Submit transfer for approval'}
-          onCancel={onCancel}
-        />
-      )}
+      <FormFooter
+        accent="emerald"
+        submitting={submitting}
+        submitLabel={editTransfer ? 'Save changes' : 'Submit transfer for approval'}
+        missingFields={missingFields}
+        onCancel={onCancel}
+      />
     </form>
   );
 };

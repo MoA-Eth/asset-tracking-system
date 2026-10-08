@@ -50,10 +50,8 @@ export interface ReturnFormProps extends Omit<ReturnToStoreModalProps, 'item' | 
   item: ItemWithRelations;
   /** Offered when the asset was picked in this window, to go back and pick another */
   onChangeAsset?: () => void;
-  /** Inside the asset record: no pop-up around the form, and the toolbar has Save and Cancel */
+  /** Inside the asset record: no pop-up around the form */
   inline?: boolean;
-  /** Tells the toolbar while a save is in progress */
-  onSubmittingChange?: (submitting: boolean) => void;
 }
 
 export const ReturnForm: React.FC<ReturnFormProps> = ({
@@ -65,15 +63,10 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
   editApproval,
   onChangeAsset,
   inline,
-  onSubmittingChange,
 }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
-  useEffect(() => {
-    onSubmittingChange?.(submitting);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submitting]);
 
   // Model 21 Fields
   const [model21No, setModel21No] = useState('');
@@ -171,6 +164,16 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
     setAttachmentFile(null);
     setFormError(null);
   };
+
+  // Required fields still empty; the return can only be submitted once this is empty
+  const missingFields = [
+    !model21No.trim() && 'Model 21 No.',
+    !book.trim() && 'register book',
+    !ifmisSlipDateGc && 'return date',
+    !condition && 'condition on return',
+    !returnReason.trim() && 'reason',
+    isAttachmentReq && !attachmentFileName && 'scanned slip',
+  ].filter(Boolean) as string[];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -563,15 +566,14 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
           </div>
         </FormSection>
 
-        {!inline && (
-          <FormFooter
-            accent="emerald"
-            submitting={submitting}
-            submitLabel={editApproval ? 'Save changes' : 'Submit return for approval'}
-            onCancel={onClose}
-            onReset={editApproval ? undefined : handleReset}
-          />
-        )}
+      <FormFooter
+          accent="emerald"
+          submitting={submitting}
+          submitLabel={editApproval ? 'Save changes' : 'Submit return for approval'}
+          missingFields={missingFields}
+          onCancel={onClose}
+          onReset={editApproval ? undefined : handleReset}
+        />
       </form>
   );
 
