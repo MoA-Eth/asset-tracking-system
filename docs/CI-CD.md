@@ -15,7 +15,7 @@ How code gets from GitHub to the staging and production servers, and how to set 
 
 1. A pull request is merged into `main`. GitHub Actions has already run the tests on it.
 2. Jenkins checks GitHub every 5 minutes. When `main` has a new commit, it **deploys to staging by itself**.
-3. Someone checks staging, then deploys to **production by hand** in Jenkins.
+3. Someone checks staging, creates a **release** (a version tag such as `v2.1.0`) on GitHub, and deploys that release to **production by hand** in Jenkins.
 
 Each deploy: build images → back up the database → send images over SSH → restart the app → health check.
 
@@ -31,7 +31,8 @@ Each deploy: build images → back up the database → send images over SSH → 
 | Staging | `10.10.20.156`, account `assetmgts` |
 | Production | `10.10.20.155`, account `assetmgtp` |
 | App folder on servers | `/opt/moa-ams` (`docker-compose.yml`, `.env`, `ssl/`) |
-| Running version | `https://<server>/api/health` → `commit` |
+| Running version | In the app: bottom of the sidebar, or the Profile page. Also `https://<server>/api/health` → `version`, `commit` |
+| Releases | https://github.com/MoA-Eth/asset-tracking-system/releases |
 
 ---
 
@@ -87,11 +88,12 @@ It is already in the repository. The parts you might change:
 | Part | Purpose |
 |---|---|
 | `agent { label 'docker' }` | Runs on the Jenkins node that has Docker |
-| `parameters { choice(name: 'TARGET', ...) }` | Staging (default) or production |
+| `parameters` | `TARGET`: staging (default) or production. `VERSION`: release tag; required for production |
+| Stage *Select Version* | Checks out the release tag, refuses production without one, names the run (e.g. `#9 production v2.1.0`) |
 | `triggers { pollSCM('H/5 * * * *') }` | Checks GitHub every 5 minutes; new commits deploy to staging |
 | `DEPLOY_HOST`, `DEPLOY_USER` | Server address and SSH account per target |
 | `sshagent(['moa-ams-deploy-ssh'])` | The credential from step 3 |
-| Stages | Build Images → Backup Database → Send Images → Deploy → Health Check |
+| Stages | Select Version → Build Images → Backup Database → Send Images → Deploy → Health Check |
 
 Change it like any code: branch → pull request → merge. Jenkins reads the new version on its next run. To check the syntax before merging (needs a Jenkins API token from *your user → Security*):
 
@@ -115,7 +117,7 @@ curl -X POST -u '<user>:<api-token>' -F "jenkinsfile=<Jenkinsfile" \
    | Script Path | `Jenkinsfile` |
 
 3. **Save**, then **Build Now** once. This first run deploys to staging and registers the TARGET choice and the 5-minute check. From then on the job shows **Build with Parameters**.
-4. Confirm: the run is green, and `https://10.10.20.156/api/health` shows the latest `main` commit.
+4. Confirm: the run is green, and staging's sidebar (or `/api/health`) shows `main` with the latest commit.
 
 ---
 
@@ -123,14 +125,24 @@ curl -X POST -u '<user>:<api-token>' -F "jenkinsfile=<Jenkinsfile" \
 
 | Task | How |
 |---|---|
-| Release a change | Merge the PR into `main`. Within 5 minutes staging deploys itself. |
-| Deploy to production | After checking staging: **moa-ams-deploy → Build with Parameters → `production` → Build** |
-| Redeploy staging by hand | **Build with Parameters → `staging` → Build** |
-| See what each server runs | `https://<server>/api/health` → `commit` |
-| Follow a run | Click the run number → **Stages** or **Console Output** |
-| Roll back a bad release | On the server: [DEPLOYMENT.md → Rolling back](DEPLOYMENT.md#rolling-back) (`:previous` images) |
+| Get a change onto staging | Merge the PR into `main`. Within 5 minutes staging deploys itself. |
+| Deploy to production | Create a release (below), then **Build with Parameters → TARGET `production`, VERSION `v2.1.0` → Build** |
+| Redeploy staging by hand | **Build with Parameters → `staging` → Build** (VERSION empty) |
+| See what each server runs | Bottom of the app's sidebar (or the Profile page), or `https://<server>/api/health` |
+| Follow a run | Click the run (named e.g. `#9 production v2.1.0`) → **Stages** or **Console Output** |
+| Roll back a bad release | Quick: [DEPLOYMENT.md → Rolling back](DEPLOYMENT.md#rolling-back) (`:previous` images). Or deploy the previous release tag to production. |
 
-Deploy production soon after checking staging: each run builds from the latest `main`.
+### Releasing
+
+A release is a Git tag on `main` named `vMAJOR.MINOR.PATCH`. Increase **PATCH** for fixes (`v2.1.0` → `v2.1.1`), **MINOR** for new features (`v2.2.0`), **MAJOR** for large or breaking changes (`v3.0.0`).
+
+1. Check staging: it runs the latest `main`, shown as `main · <commit>` in the sidebar.
+2. On GitHub: **Releases → Draft a new release → Choose a tag**, type the new version (e.g. `v2.1.0`) → *Create new tag on publish*, target **`main`**.
+3. Click **Generate release notes** (lists the merged pull requests since the last release), review, **Publish release**.
+4. In Jenkins: **Build with Parameters → TARGET `production`, VERSION `v2.1.0` → Build**.
+5. Check production: the sidebar shows `v2.1.0`.
+
+Tag only commits that staging has run: production then gets exactly what was tested.
 
 ---
 
@@ -141,6 +153,8 @@ Deploy production soon after checking staging: each run builds from the latest `
 | Run stuck on *"Still waiting to schedule task … reserved for jobs with matching label"* | The pipeline needs `agent { label 'docker' }`. |
 | *"Could not find specified credentials: moa-ams-deploy-ssh"* | The credential is missing or its ID differs from the `Jenkinsfile`. |
 | *"Permission denied (publickey,password)"* at Backup Database | The credential's private key doesn't match the public key in the server's `~/.ssh/authorized_keys`. |
+| *"Production deploys a release: set VERSION…"* | Production needs a release tag in VERSION ([Releasing](#releasing)). |
+| `git checkout` fails in *Select Version* | The tag doesn't exist on GitHub: check the spelling, or publish the release first. |
 | Merges don't reach staging by themselves | Run the job once by hand; check **Git Polling Log** on the job page. |
 | Health Check fails | The run prints the server logs. On the server: `cd /opt/moa-ams && docker compose logs backend`. |
 | Backend log: *"The database needs an upgrade step"* | Run the upgrade scripts: [DEPLOYMENT.md → Database upgrades](DEPLOYMENT.md#database-upgrades). |

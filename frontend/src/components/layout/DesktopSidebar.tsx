@@ -4,6 +4,7 @@ import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
 import { SETTINGS_NAV, getSettingsGroups, getNavSections, NavItem } from './navigation';
 import { MoaLogo } from '../ui/MoaLogo';
+import { APP_COMMIT, APP_VERSION } from '../../version';
 
 interface DesktopSidebarProps {
   activeTab: string;
@@ -355,6 +356,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 </button>
               </div>
             </div>
+          )}
+
+          {!collapsed && (
+            <p
+              className="mt-1.5 text-center text-[10px] font-mono text-emerald-200/35 truncate"
+              title={APP_COMMIT ? `Commit ${APP_COMMIT}` : undefined}
+            >
+              {APP_VERSION}
+            </p>
           )}
         </div>
       )}

@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { ChangePasswordForm } from '../../components/auth/ChangePasswordForm';
 import { UserRole } from '../../types/asset-management';
+import { APP_COMMIT, APP_VERSION } from '../../version';
 
 const ROLE_TITLES: Partial<Record<UserRole, string>> = {
   [UserRole.MANAGER]: 'Manager',
@@ -165,6 +166,13 @@ export const ProfilePage: React.FC = () => {
           </button>
         </div>
       </section>
+
+      <p
+        className="text-center text-[11px] font-mono text-slate-400"
+        title={APP_COMMIT ? `Commit ${APP_COMMIT}` : undefined}
+      >
+        Version {APP_VERSION}
+      </p>
     </div>
   );
 };

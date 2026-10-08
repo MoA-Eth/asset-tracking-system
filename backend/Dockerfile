@@ -36,9 +36,11 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN mkdir -p uploads/slips && chown -R node:node uploads && chmod +x /usr/local/bin/docker-entrypoint.sh
 VOLUME /app/backend/uploads
 
-# Reported by /api/health. Set last, so a new commit doesn't rebuild the layers above.
+# Reported by /api/health. Set last, so a new version doesn't rebuild the layers above.
+ARG APP_VERSION=dev
 ARG APP_COMMIT=dev
-ENV APP_COMMIT=$APP_COMMIT
+ENV APP_VERSION=$APP_VERSION \
+    APP_COMMIT=$APP_COMMIT
 
 USER node
 EXPOSE 3000

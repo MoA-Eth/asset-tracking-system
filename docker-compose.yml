@@ -40,7 +40,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       args:
-        # Shown by /api/health; Jenkins passes the commit being deployed
+        # Shown by /api/health; Jenkins passes the release tag (or branch) and commit being deployed
+        APP_VERSION: ${APP_VERSION:-dev}
         APP_COMMIT: ${APP_COMMIT:-dev}
     image: moa-ams-backend:latest
     restart: unless-stopped
@@ -73,6 +74,10 @@ services:
     build:
       context: .
       dockerfile: nginx/Dockerfile
+      args:
+        # Shown in the app's sidebar and Profile page
+        APP_VERSION: ${APP_VERSION:-dev}
+        APP_COMMIT: ${APP_COMMIT:-}
     image: moa-ams-nginx:latest
     restart: unless-stopped
     logging: *default-logging
