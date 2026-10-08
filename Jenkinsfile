@@ -1,6 +1,6 @@
 // Deploys main to the staging or production server.
 // The servers have no internet access, so Jenkins builds the images and sends them over SSH;
-// the servers only load them and restart. See docs/DEPLOYMENT.md, section 9.
+// the servers only load them and restart. See docs/CI-CD.md.
 pipeline {
     // The Jenkins controller node that has Docker
     agent { label 'docker' }
@@ -136,7 +136,7 @@ pipeline {
             sshagent(['moa-ams-deploy-ssh']) {
                 sh 'ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "cd $APP_DIR && docker compose logs --tail=100 backend nginx" || true'
             }
-            echo "Deployment FAILED. Check the logs above. The database copy from before this deploy is in ${APP_DIR}/backups; the previous images are tagged :previous (docs/DEPLOYMENT.md, section 8)."
+            echo "Deployment FAILED. Check the logs above. The database copy from before this deploy is in ${APP_DIR}/backups; the previous images are tagged :previous (docs/DEPLOYMENT.md, 'Rolling back')."
         }
         always {
             sshagent(['moa-ams-deploy-ssh']) {

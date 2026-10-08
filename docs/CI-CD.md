@@ -1,6 +1,6 @@
 # CI/CD with Jenkins: setup and daily use
 
-How code gets from GitHub to the staging and production servers, and how to set the pipeline up again from scratch. For installing the servers themselves, see [ON-PREMISE-SETUP.md](ON-PREMISE-SETUP.md).
+How code gets from GitHub to the staging and production servers, and how to set the pipeline up again from scratch. For installing the servers themselves, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ---
 
@@ -41,7 +41,7 @@ Do these once, in order. Steps 1–3 connect Jenkins to the servers; steps 4–5
 
 ### 1. Prepare each server
 
-Each server must already run the app once by hand ([ON-PREMISE-SETUP.md](ON-PREMISE-SETUP.md)):
+Each server must already run the app once by hand ([DEPLOYMENT.md](DEPLOYMENT.md), setup steps 1–8):
 
 - Docker installed, and the deploy account (`assetmgts` / `assetmgtp`) in the `docker` group.
 - `/opt/moa-ams` owned by that account, containing `.env` and `ssl/`.
@@ -128,7 +128,7 @@ curl -X POST -u '<user>:<api-token>' -F "jenkinsfile=<Jenkinsfile" \
 | Redeploy staging by hand | **Build with Parameters → `staging` → Build** |
 | See what each server runs | `https://<server>/api/health` → `commit` |
 | Follow a run | Click the run number → **Stages** or **Console Output** |
-| Roll back a bad release | On the server: [DEPLOYMENT.md](DEPLOYMENT.md) §9, *Rolling back* (`:previous` images) |
+| Roll back a bad release | On the server: [DEPLOYMENT.md → Rolling back](DEPLOYMENT.md#rolling-back) (`:previous` images) |
 
 Deploy production soon after checking staging: each run builds from the latest `main`.
 
@@ -143,4 +143,4 @@ Deploy production soon after checking staging: each run builds from the latest `
 | *"Permission denied (publickey,password)"* at Backup Database | The credential's private key doesn't match the public key in the server's `~/.ssh/authorized_keys`. |
 | Merges don't reach staging by themselves | Run the job once by hand; check **Git Polling Log** on the job page. |
 | Health Check fails | The run prints the server logs. On the server: `cd /opt/moa-ams && docker compose logs backend`. |
-| Backend log: *"The database needs an upgrade step"* | Run the upgrade scripts: [DEPLOYMENT.md](DEPLOYMENT.md) §8. |
+| Backend log: *"The database needs an upgrade step"* | Run the upgrade scripts: [DEPLOYMENT.md → Database upgrades](DEPLOYMENT.md#database-upgrades). |
