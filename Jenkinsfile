@@ -1,67 +1,87 @@
+// Deploys main to the staging or production server.
+// The servers have no internet access, so Jenkins builds the images and sends them over SSH;
+// the servers only load them and restart. See docs/DEPLOYMENT.md, section 9.
 pipeline {
-    agent { label 'built-in' }
+    // The Jenkins controller node that has Docker
+    agent { label 'docker' }
 
     options {
         timestamps()
         disableConcurrentBuilds()
+        timeout(time: 45, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '30'))
     }
     // Staging is the default, so a run started without choosing never reaches production
     parameters {
         choice(name: 'TARGET', choices: ['staging', 'production'], description: 'Server to deploy main to: staging (10.10.20.156) or production (10.10.20.155)')
     }
     environment {
-        // The on-premise server and the account Jenkins signs in with over SSH
         DEPLOY_HOST = "${params.TARGET == 'production' ? '10.10.20.155' : '10.10.20.156'}"
-        DEPLOY_USER = 'ams'
+        DEPLOY_USER = "${params.TARGET == 'production' ? 'assetmgtp' : 'assetmgts'}"
         APP_DIR     = '/opt/moa-ams'
-        COMPOSE     = 'docker compose'
+        APP_IMAGES  = 'moa-ams-backend:latest moa-ams-nginx:latest'
+        SSH_OPTS    = '-o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30'
+        // docker-compose.yml requires these even to build; the real values are in the server's .env
+        POSTGRES_PASSWORD = 'build-only'
+        JWT_SECRET        = 'build-only-not-used-build-only-not-used'
     }
 
     stages {
 
-        stage('Checkout') {
+        stage('Build Images') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '*/main']],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/MoA-Eth/asset-tracking-system.git',
-                        credentialsId: 'github-moa-ams'
-                    ]]
-                ])
+                sh '''
+                    docker compose -p moa-ams-ci build --pull
+                    docker image ls --format '{{.Repository}}:{{.Tag}}  {{.Size}}' | grep '^moa-ams-'
+                '''
             }
         }
 
         // Start-up brings the database tables up to date, so keep a copy from just before every deploy
         stage('Backup Database') {
             steps {
-                sshagent(['deploy-server-ssh']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} '
-                            cd ${APP_DIR} &&
-                            mkdir -p backups &&
-                            if ${COMPOSE} ps --services --status running | grep -qx db; then
-                                ${COMPOSE} exec -T db pg_dump -U moa_ams -Fc moa_ams > backups/pre-deploy-\$(date +%F_%H%M%S).dump &&
-                                find backups -name "pre-deploy-*.dump" -mtime +30 -delete;
+                sshagent(['moa-ams-deploy-ssh']) {
+                    sh '''
+                        ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "
+                            cd $APP_DIR && mkdir -p backups &&
+                            if docker compose ps --services --status running | grep -qx db; then
+                                f=backups/pre-deploy-\\$(date +%F_%H%M%S).dump &&
+                                docker compose exec -T db pg_dump -U moa_ams -Fc moa_ams > \\$f &&
+                                ls -lh \\$f &&
+                                find backups -name 'pre-deploy-*.dump' -mtime +30 -delete;
                             else
-                                echo "Database not running yet (first deploy): no backup taken";
+                                echo 'Database not running (first deploy): no backup taken';
                             fi
-                        '
-                    """
+                        "
+                    '''
                 }
             }
         }
 
-        stage('Pull & Build on Deploy Server') {
+        stage('Send Images') {
             steps {
-                sshagent(['deploy-server-ssh']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} '
-                            cd ${APP_DIR} &&
-                            git pull origin main &&
-                            ${COMPOSE} build --pull
+                sshagent(['moa-ams-deploy-ssh']) {
+                    sh '''
+                        TARGET_SSH="$DEPLOY_USER@$DEPLOY_HOST"
+
+                        # Keep the running version as :previous, for a quick rollback
+                        ssh $SSH_OPTS "$TARGET_SSH" '
+                            for i in moa-ams-backend moa-ams-nginx; do
+                                docker image inspect $i:latest >/dev/null 2>&1 && docker tag $i:latest $i:previous || true
+                            done
                         '
-                    """
+
+                        docker save $APP_IMAGES | gzip -1 | ssh $SSH_OPTS "$TARGET_SSH" 'gunzip | docker load'
+
+                        # The database image rarely changes: send it only when the server doesn't have it
+                        DB_IMAGE=$(docker compose config --images | grep '^postgres')
+                        if ! ssh $SSH_OPTS "$TARGET_SSH" "docker image inspect $DB_IMAGE" >/dev/null 2>&1; then
+                            docker pull "$DB_IMAGE"
+                            docker save "$DB_IMAGE" | gzip -1 | ssh $SSH_OPTS "$TARGET_SSH" 'gunzip | docker load'
+                        fi
+
+                        scp $SSH_OPTS docker-compose.yml "$TARGET_SSH:$APP_DIR/docker-compose.yml"
+                    '''
                 }
             }
         }
@@ -69,35 +89,33 @@ pipeline {
         // Replaces only the containers whose image changed; the database keeps running
         stage('Deploy') {
             steps {
-                sshagent(['deploy-server-ssh']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} '
-                            cd ${APP_DIR} &&
-                            ${COMPOSE} up -d --remove-orphans
-                        '
-                    """
+                sshagent(['moa-ams-deploy-ssh']) {
+                    sh '''
+                        ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "
+                            cd $APP_DIR &&
+                            docker compose up -d --no-build --remove-orphans &&
+                            docker image prune -f
+                        "
+                    '''
                 }
             }
         }
 
         // The API answers once the database is ready; the first start can take a minute.
-        // -k: the certificate names ams.moa.gov.et, not localhost.
+        // -k: the certificate names *.moa.gov.et, not localhost.
         stage('Health Check') {
             steps {
-                sshagent(['deploy-server-ssh']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} '
-                            for i in \$(seq 1 24); do
-                                if curl -skf https://localhost/api/health > /dev/null; then
-                                    echo "Healthy";
-                                    exit 0;
-                                fi;
-                                sleep 5;
-                            done;
-                            cd ${APP_DIR} && ${COMPOSE} logs --tail=50 backend nginx;
+                sshagent(['moa-ams-deploy-ssh']) {
+                    sh '''
+                        ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" '
+                            for i in $(seq 1 24); do
+                                if curl -skf https://localhost/api/health; then echo; echo Healthy; exit 0; fi
+                                sleep 5
+                            done
+                            echo "No healthy answer after 2 minutes"
                             exit 1
                         '
-                    """
+                    '''
                 }
             }
         }
@@ -108,14 +126,14 @@ pipeline {
             echo "Deployment to ${params.TARGET ?: 'staging'} (${DEPLOY_HOST}) succeeded."
         }
         failure {
-            sshagent(['deploy-server-ssh']) {
-                sh "ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} 'cd ${APP_DIR} && ${COMPOSE} logs --tail=100'"
+            sshagent(['moa-ams-deploy-ssh']) {
+                sh 'ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "cd $APP_DIR && docker compose logs --tail=100 backend nginx" || true'
             }
-            echo "Deployment FAILED. Check logs above. The database copy from before this deploy is in ${APP_DIR}/backups."
+            echo "Deployment FAILED. Check the logs above. The database copy from before this deploy is in ${APP_DIR}/backups; the previous images are tagged :previous (docs/DEPLOYMENT.md, section 8)."
         }
         always {
-            sshagent(['deploy-server-ssh']) {
-                sh "ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} 'cd ${APP_DIR} && ${COMPOSE} ps'"
+            sshagent(['moa-ams-deploy-ssh']) {
+                sh 'ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "cd $APP_DIR && docker compose ps" || true'
             }
         }
     }

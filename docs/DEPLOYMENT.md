@@ -87,7 +87,7 @@ If the server can't reach public time servers, point it at the Ministry's intern
 #### Step 1: Install Docker and create the deploy account
 ```bash
 curl -fsSL https://get.docker.com | sudo sh
-sudo useradd -m -s /bin/bash ams          # the account Jenkins deploys with (§9)
+sudo useradd -m -s /bin/bash ams          # the account that runs and deploys the app
 sudo usermod -aG docker ams
 sudo mkdir -p /opt/moa-ams && sudo chown ams:ams /opt/moa-ams
 sudo -iu ams                               # continue as this user
@@ -101,7 +101,7 @@ cp .env.example .env
 chmod 600 .env               # it holds passwords
 ```
 
-> Jenkins deploys the `main` branch with `git pull`, so leave the folder on `main`. To install a fixed release by hand instead, `git checkout v1.0.0` (and don't use Jenkins for that server).
+> To install a fixed release by hand, `git checkout v1.0.0`. Jenkins (§9) doesn't use this clone: it builds the images itself and replaces them on the server.
 >
 > Keep the folder name `/opt/moa-ams`. Docker names the data volumes after it (`moa-ams_db-data`, `moa-ams_slip-files`).
 
@@ -191,7 +191,7 @@ docker compose ps
 curl -skf https://localhost/api/health
 ```
 
-`--no-build` makes Compose use the loaded images instead of trying to build them. The upgrade scripts (§8) are inside the backend image, so the server needs no source code. Jenkins (§9) can't be used on an offline server, because it builds on the server.
+`--no-build` makes Compose use the loaded images instead of trying to build them. The upgrade scripts (§8) are inside the backend image, so the server needs no source code. Jenkins (§9) works the same way: it builds the images and sends them to the server, so later releases need no USB drive or file share.
 
 > If the server reaches the internet only through a proxy, you can use §4A: configure the proxy for Docker (`/etc/systemd/system/docker.service.d/http-proxy.conf`) and for git.
 
@@ -355,40 +355,51 @@ docker compose up -d
 
 A new installation (empty database) never needs these scripts.
 
-If an update goes wrong, go back to the previous version (`git checkout <previous commit or tag>`, then `docker compose up -d --build`). If the database was changed, also restore the backup taken in step 1.
+If an update goes wrong, go back to the previous version (`git checkout <previous commit or tag>`, then `docker compose up -d --build`; after a Jenkins deploy, use the `:previous` images as in §9). If the database was changed, also restore the backup taken in step 1.
 
 ---
 
 ## 9. Automated Deployment with Jenkins
 
-`Jenkinsfile` deploys the `main` branch to one of two servers, the same way as the Ministry's other systems. Choose it in **Build with Parameters → TARGET**:
+`Jenkinsfile` deploys the `main` branch to one of two servers. Choose it in **Build with Parameters → TARGET**:
 
-| TARGET | Server |
-|---|---|
-| `staging` (default) | `10.10.20.156` |
-| `production` | `10.10.20.155` |
+| TARGET | Server | SSH account |
+|---|---|---|
+| `staging` (default) | `10.10.20.156` | `assetmgts` |
+| `production` | `10.10.20.155` | `assetmgtp` |
 
-Deploy to staging first, check the release there, then run the job again with `production`. Each run:
+The servers have no internet access, so Jenkins does the building and the servers only receive finished images. Deploy to staging first, check the release there, then run the job again with `production`. Each run:
 
-1. **Checkout**: fetches the repository on Jenkins.
+1. **Build Images**: builds `moa-ams-backend` and `moa-ams-nginx` on Jenkins from the checked-out `main`.
 2. **Backup Database**: saves `pg_dump` output in `/opt/moa-ams/backups/pre-deploy-<date>.dump` on the server (skipped on the very first deploy) and removes copies older than 30 days.
-3. **Pull & Build on Deploy Server**: `git pull origin main` and `docker compose build --pull` on the server.
-4. **Deploy**: `docker compose up -d --remove-orphans`, which replaces only the containers whose image changed; the database keeps running.
+3. **Send Images**: tags the running images `:previous`, streams the new ones to the server (`docker save | ssh … docker load`), sends the database image only if the server lacks it, and copies `docker-compose.yml`.
+4. **Deploy**: `docker compose up -d --no-build --remove-orphans`, which replaces only the containers whose image changed; the database keeps running.
 5. **Health Check**: calls `https://localhost/api/health` on the server for up to 2 minutes; if it never answers, prints the backend and nginx logs and fails the build.
+
+**Rolling back** a release that misbehaves, on the server:
+
+```bash
+cd /opt/moa-ams
+docker tag moa-ams-backend:previous moa-ams-backend:latest
+docker tag moa-ams-nginx:previous moa-ams-nginx:latest
+docker compose up -d --no-build
+```
+
+If the database was changed, also restore the `pre-deploy` backup (§7, *Restoring from Backup*).
 
 ### One-time setup
 
-**On the server** (as in §4A): the `ams` account in the `docker` group, the repository cloned in `/opt/moa-ams` on `main`, `.env` filled in, and the certificate in `./ssl`. `git pull` must work without a prompt, so give the server read access to the repository: a GitHub **deploy key** (read-only) for the `ams` account, or a token stored with `git config credential.helper store`.
+**On each server** (as in §4B): Docker, `/opt/moa-ams` owned by the SSH account, with `.env` and the certificate in `./ssl`. No source code or internet is needed there.
+
+**SSH key:** the public key goes in the SSH account's `~/.ssh/authorized_keys` on both servers. Keep administrators' own keys in `~/.ssh/authorized_keys2`, which sshd also reads, so the two are managed separately.
 
 **In Jenkins:**
-- Plugins: **Pipeline**, **Git**, **SSH Agent**, **Timestamper**.
-- Credentials:
-  - `github-moa-ams`: GitHub username + token with read access to `MoA-Eth/asset-tracking-system`.
-  - `deploy-server-ssh`: "SSH Username with private key" for the `ams` account; put its public key in `/home/ams/.ssh/authorized_keys` on the server.
-- Both servers are set up as above, each with its own `.env`: `APP_ENV=stage` on staging and `APP_ENV=prod` on production, with different passwords and `JWT_SECRET`. To change a server address, edit `DEPLOY_HOST` in `Jenkinsfile` (and `DEPLOY_USER` if the account isn't `ams`).
-- Create a **Pipeline** job, "Pipeline script from SCM", pointing at this repository's `main` branch and `Jenkinsfile`. Its first run deploys to staging; after that Jenkins shows **Build with Parameters**. Run it by hand. A trigger (GitHub webhook or "Poll SCM") always deploys to staging.
+- Plugins: **Pipeline**, **Git**, **SSH Agent**, **Timestamper**. The job runs on the node labelled `docker`, which needs Docker with Compose v2 and internet access to GitHub, npm, Docker Hub and `deb.debian.org`.
+- Credential `moa-ams-deploy-ssh`: "SSH Username with private key", holding the private half of the key above. The repository is public, so checkout needs no credential.
+- Create a **Pipeline** job, "Pipeline script from SCM", pointing at `https://github.com/MoA-Eth/asset-tracking-system.git`, branch `*/main`, script path `Jenkinsfile`. Its first run deploys to staging; after that Jenkins shows **Build with Parameters**. Run it by hand; a trigger (GitHub webhook or "Poll SCM") always deploys to staging.
+- To change a server address or account, edit `DEPLOY_HOST` / `DEPLOY_USER` in `Jenkinsfile`.
 
-Run the first Jenkins deployment only after the manual install in §4A has succeeded once.
+Run the first Jenkins deployment only after the manual install in §4B has succeeded once on that server.
 
 ---
 
