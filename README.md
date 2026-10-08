@@ -23,6 +23,8 @@ asset-tracking-system/
 └── README.md                 # Root repository overview (this file)
 ```
 
+**Deploying:** install a server step by step with [docs/ON-PREMISE-SETUP.md](docs/ON-PREMISE-SETUP.md); releases then go out through Jenkins as in [docs/CI-CD.md](docs/CI-CD.md). Background and options: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ---
 
 ## 🚀 Setup & Running Instructions
