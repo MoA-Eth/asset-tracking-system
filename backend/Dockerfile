@@ -36,6 +36,10 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN mkdir -p uploads/slips && chown -R node:node uploads && chmod +x /usr/local/bin/docker-entrypoint.sh
 VOLUME /app/backend/uploads
 
+# Reported by /api/health. Set last, so a new commit doesn't rebuild the layers above.
+ARG APP_COMMIT=dev
+ENV APP_COMMIT=$APP_COMMIT
+
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
