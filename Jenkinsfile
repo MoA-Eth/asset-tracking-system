@@ -46,7 +46,11 @@ pipeline {
                         error("VERSION must look like v2.1.0, not '${version}'.")
                     }
                     if (version) {
-                        sh "git fetch --tags --force origin && git checkout --detach refs/tags/${version}"
+                        sh 'git fetch --tags --force origin'
+                        if (sh(returnStatus: true, script: "git rev-parse -q --verify 'refs/tags/${version}^{commit}' >/dev/null") != 0) {
+                            error("Release ${version} doesn't exist on GitHub: publish it first, or check the spelling (docs/CI-CD.md, \"Releasing\").")
+                        }
+                        sh "git checkout -q --detach 'refs/tags/${version}^{commit}'"
                     }
                     env.APP_VERSION = version ?: 'main'
                     currentBuild.displayName = "#${env.BUILD_NUMBER} ${params.TARGET} ${env.APP_VERSION}"
@@ -158,7 +162,7 @@ pipeline {
             sshagent(['moa-ams-deploy-ssh']) {
                 sh 'ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "cd $APP_DIR && docker compose logs --tail=100 backend nginx" || true'
             }
-            echo "Deployment FAILED. Check the logs above. The database copy from before this deploy is in ${APP_DIR}/backups; the previous images are tagged :previous (docs/DEPLOYMENT.md, 'Rolling back')."
+            echo "Deployment FAILED. Check the logs above. If it failed at Deploy or Health Check, the previous version is tagged :previous and the database copy from before this deploy is in ${APP_DIR}/backups (docs/DEPLOYMENT.md, 'Rolling back'). If it failed before Deploy, the running app was not changed."
         }
         always {
             sshagent(['moa-ams-deploy-ssh']) {
