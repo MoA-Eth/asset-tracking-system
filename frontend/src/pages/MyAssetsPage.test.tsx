@@ -5,7 +5,6 @@ import userEvent from '@testing-library/user-event';
 import { MyAssetsPage } from './MyAssetsPage';
 import { api } from '../api/client';
 
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'EMP-ME', fullNameEn: 'Almaz Ayana' } }) }));
 vi.mock('../api/client', () => ({ api: { getMyAssets: vi.fn() } }));
 
 const asset = (extra: Record<string, unknown> = {}) => ({
@@ -61,7 +60,9 @@ describe('My assets', () => {
     vi.mocked(api.getMyAssets).mockResolvedValue([]);
     render(<MyAssetsPage />);
     expect(await screen.findByText('Nothing is assigned to you')).toBeInTheDocument();
-    expect(screen.getByText(/Almaz Ayana, no assets are assigned to you at the moment/)).toBeInTheDocument();
+    expect(screen.getByText(/If you think an asset should be assigned to you, contact the store/)).toBeInTheDocument();
+    // The message is said once, not twice
+    expect(screen.queryByText(/no assets are assigned to you/i)).toBeNull();
     expect(screen.queryByRole('table')).toBeNull();
   });
 

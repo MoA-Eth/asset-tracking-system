@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { PackageCheck, RefreshCw, AlertCircle, Clock } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
-import { useAuth } from '../context/AuthContext';
 import { MyAsset } from '../types/asset-management';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -33,7 +32,6 @@ const units = (asset: MyAsset) => `${asset.quantity} ${asset.uom || 'EA'}`;
 
 /** The assets issued to the signed-in employee. Read-only, and about nobody else. */
 export const MyAssetsPage: React.FC = () => {
-  const { user } = useAuth();
   const [assets, setAssets] = useState<MyAsset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -63,7 +61,7 @@ export const MyAssetsPage: React.FC = () => {
           {assets === null
             ? 'Loading the assets assigned to you…'
             : count === 0
-              ? `${user?.fullNameEn ? `${user.fullNameEn}, no` : 'No'} assets are assigned to you at the moment.`
+              ? ''
               : `${count} ${count === 1 ? 'asset is' : 'assets are'} assigned to you.`}
         </p>
         <button type="button" onClick={load} disabled={loading} className={btn.secondary}>
@@ -85,6 +83,9 @@ export const MyAssetsPage: React.FC = () => {
           <p className="text-sm font-semibold text-slate-700">Nothing is assigned to you</p>
           <p className="max-w-sm text-xs text-slate-500">
             When the store issues an asset to you, it appears here with its serial number and the slip it was issued on.
+          </p>
+          <p className="max-w-sm text-xs text-slate-500">
+            If you think an asset should be assigned to you, contact the store.
           </p>
         </div>
       )}
