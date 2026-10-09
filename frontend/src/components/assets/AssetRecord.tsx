@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload } from 'lucide-react';
 import { btn, statusTone, pill } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { Row } from '../ui/RecordDetailModal';
@@ -31,6 +31,10 @@ export interface AssetRecordProps {
   onPrintReceipt: () => void;
   onSelect: (itemId: string) => void;
   onClose: () => void;
+  /** Where this record sits in the list, and the way to the one before and after it */
+  position?: { index: number; total: number };
+  onPrevious?: () => void;
+  onNext?: () => void;
 }
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -158,6 +162,9 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   onPrintReceipt,
   onSelect,
   onClose,
+  position,
+  onPrevious,
+  onNext,
 }) => {
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
   const { item } = row;
@@ -176,9 +183,36 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
     >
       {/* ── Title and toolbar ── */}
       <header className="shrink-0 relative space-y-2 border-b border-slate-200 px-5 py-4 bg-white z-10">
-        <button type="button" onClick={onClose} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer lg:hidden">
-          <ArrowLeft className="h-3 w-3" /> All assets
-        </button>
+        <div className="flex items-center justify-between gap-3 lg:pr-8">
+          <button type="button" onClick={onClose} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">
+            <ArrowLeft className="h-3 w-3" /> Back to assets
+          </button>
+          {position && (
+            <div className="flex items-center gap-1 text-[11px] text-slate-500">
+              <button
+                type="button"
+                onClick={onPrevious}
+                disabled={!onPrevious}
+                aria-label="Previous asset"
+                title="Previous asset (↑)"
+                className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <span className="min-w-[3.5rem] text-center font-medium tabular-nums">{position.index + 1} of {position.total}</span>
+              <button
+                type="button"
+                onClick={onNext}
+                disabled={!onNext}
+                aria-label="Next asset"
+                title="Next asset (↓)"
+                className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
         <CloseButton
           onClose={onClose}
           label="Close record"

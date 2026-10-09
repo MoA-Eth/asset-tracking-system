@@ -958,38 +958,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         .sort((a, b) => String(b.createdAtGc).localeCompare(String(a.createdAtGc)))
     : [];
 
-  /** A line in the list beside an open record */
-  const listEntry = (row: AssetRow, opts: { partly?: boolean; nested?: boolean } = {}) => {
-    const selected = row.item.id === selectedId;
-    return (
-      <button
-        key={row.item.id}
-        id={`asset-list-item-${row.item.id}`}
-        type="button"
-        onClick={() => openRecord(row.item.id)}
-        aria-current={selected ? 'true' : undefined}
-        className={`flex w-full items-start justify-between gap-1.5 border-l-4 py-2 pr-2.5 text-left transition cursor-pointer ${opts.nested ? 'pl-5' : 'pl-2.5'} ${
-          selected ? 'border-emerald-600 bg-emerald-50' : 'border-transparent hover:bg-slate-50'
-        }`}
-      >
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-xs font-semibold text-slate-900">
-            {opts.nested && <span className="mr-1 text-slate-400" aria-hidden="true">↳</span>}
-            {row.item.name}
-          </span>
-          <span className="block font-mono text-[10px] font-bold text-slate-600 truncate">{row.item.itemCode}</span>
-        </span>
-        <span className="flex shrink-0 flex-col items-end gap-0.5">
-          <AssetStatus row={{ ...row, rejected: undefined }} partly={opts.partly} />
-          <span className="font-mono text-[9px] text-slate-500">
-            {row.units} {row.item.uom || 'EA'}
-          </span>
-        </span>
-      </button>
-    );
-  };
-
-  // ── Keyboard Navigation in Master-Detail View ──
+  // ── Keyboard: ↑/↓ or j/k open the previous or next asset, Esc goes back to the list ──
   const flatSelectableIds = useMemo(() => {
     const ids: string[] = [];
     for (const g of sortedShown) {
@@ -1003,6 +972,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     }
     return ids;
   }, [sortedShown, selectedId]);
+
+  // The assets either side of the open one, in the order of the list (also what ↑/↓ and j/k step through)
+  const recordIndex = selectedId ? flatSelectableIds.indexOf(selectedId) : -1;
+  const previousId = recordIndex > 0 ? flatSelectableIds[recordIndex - 1] : undefined;
+  const nextId = recordIndex >= 0 && recordIndex < flatSelectableIds.length - 1 ? flatSelectableIds[recordIndex + 1] : undefined;
 
   useEffect(() => {
     if (!selectedId && !receipt) return;
@@ -1049,15 +1023,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedId, flatSelectableIds, voucher19, voucher21, voucher22, voucherDisposal, receipt, issue, transfer, returning, disposing]);
-
-  useEffect(() => {
-    if (selectedId) {
-      const el = document.getElementById(`asset-list-item-${selectedId}`);
-      if (typeof el?.scrollIntoView === 'function') {
-        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-    }
-  }, [selectedId]);
 
 
   const activeFilterCount =
@@ -1188,64 +1153,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       </div>
 
       {selectedRow || receipt ? (
-        /* ── Split view: the list on the left, the open record or registration on the right ── */
-        <div className="grid items-start gap-3 lg:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[210px_minmax(0,1fr)]">
-          <aside aria-label="Asset list" className="hidden lg:flex flex-col lg:h-[calc(100vh-10rem)] lg:sticky lg:top-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-            <div className="shrink-0 space-y-1.5 border-b border-slate-200 p-2.5 bg-white z-10">
-              <div className="flex items-center gap-1.5">
-                <div className="relative flex-1">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    aria-label="Search assets"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search assets…"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                </div>
-                {canReceive && (
-                  <button
-                    type="button"
-                    onClick={() => openReceipt()}
-                    title="Receive items (Model 19)"
-                    aria-label="Receive items (Model 19)"
-                    className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-bold transition cursor-pointer ${
-                      receipt && !receipt.edit
-                        ? 'border-emerald-800 bg-emerald-800 text-white shadow-xs'
-                        : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-900 active:scale-95'
-                    }`}
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between text-[9px] text-slate-400 pt-0.5 px-0.5">
-                <span>↑/↓ or j/k to navigate</span>
-                <span>Esc to close</span>
-              </div>
-            </div>
-            {/* Column names for the two sides of each entry, worded as in the full table; stays put while the list scrolls */}
-            <div aria-hidden="true" className={`shrink-0 flex items-center justify-between gap-1.5 py-1.5 pl-3.5 pr-2.5 ${table.headRow}`}>
-              <span>Asset</span>
-              <span>Status / Qty</span>
-            </div>
-            <ul className="flex-1 divide-y divide-slate-100 overflow-y-auto">
-              {sortedShown.length === 0 && <li className="px-3 py-6 text-center text-xs text-slate-400">No assets match.</li>}
-              {sortedShown.map((group) => {
-                const open =
-                  group.forceOpen || group.row.item.id === selectedId || group.children.some((c) => c.item.id === selectedId);
-                return (
-                  <li key={group.row.item.id}>
-                    {listEntry(group.row, { partly: batchSummary(group.row, group.children).partly })}
-                    {open && group.units.map((unit) => listEntry(unit, { nested: true }))}
-                  </li>
-                );
-              })}
-            </ul>
-          </aside>
-
+        /* ── The open record or registration, using the whole page; "Back to assets" returns to the list as it was ── */
+        <div className="grid items-start gap-3">
           {receipt ? (
             <section
               aria-label="Receive items"
@@ -1256,9 +1165,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 <button
                   type="button"
                   onClick={() => setReceipt(null)}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer lg:hidden"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer"
                 >
-                  <ArrowLeft className="h-3 w-3" /> All assets
+                  <ArrowLeft className="h-3 w-3" /> Back to assets
                 </button>
                 <CloseButton
                   onClose={() => setReceipt(null)}
@@ -1326,6 +1235,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               onPrintReceipt={() => setVoucher19(buildModel19Voucher(selectedRow.item, items, user?.fullNameEn))}
               onSelect={openRecord}
               onClose={closeRecord}
+              position={recordIndex >= 0 ? { index: recordIndex, total: flatSelectableIds.length } : undefined}
+              onPrevious={previousId ? () => openRecord(previousId) : undefined}
+              onNext={nextId ? () => openRecord(nextId) : undefined}
             />
           ) : null}
         </div>
