@@ -6,6 +6,7 @@ import { OfflineBanner } from './components/layout/OfflineBanner';
 import { ExecutiveDashboardPage } from './pages/ExecutiveDashboardPage';
 import { AssetsPage } from './pages/AssetsPage';
 import { MyAssetsPage } from './pages/MyAssetsPage';
+import { DocsPage } from './pages/DocsPage';
 import { ApprovalsPage } from './pages/ApprovalsPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -184,6 +185,7 @@ const AuthenticatedPortal: React.FC = () => {
             )}
             {activeTab === 'assets' && <AssetsPage currentRole={role} onNavigate={handleTabChange} />}
             {activeTab === 'my-assets' && <MyAssetsPage />}
+            {activeTab === 'docs' && <DocsPage />}
             {activeTab === 'approvals' && (
               <ApprovalsPage
                 currentRole={role}

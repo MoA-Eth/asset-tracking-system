@@ -23,6 +23,8 @@ asset-tracking-system/
 └── README.md                 # Root repository overview (this file)
 ```
 
+**User manual:** in the app under **Documentation** (left menu). The guides are Markdown files in [frontend/src/docs/](frontend/src/docs/), built into the app, so they work offline and match the running version. Update the matching guide when a screen changes.
+
 **Deploying:** install and run a server with [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md); releases go out through Jenkins as in [docs/CI-CD.md](docs/CI-CD.md).
 
 ---

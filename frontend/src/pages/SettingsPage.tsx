@@ -413,7 +413,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                               icon: KeyRound,
                               onClick: () => setResetting(emp),
                               disabled: emp.id === user?.id,
-                              reason: emp.id === user?.id ? 'Use "Change password" in the sidebar for your own.' : undefined,
+                              reason: emp.id === user?.id ? 'Change your own password on your Profile page.' : undefined,
                             },
                             {
                               label: 'Remove sign-in',

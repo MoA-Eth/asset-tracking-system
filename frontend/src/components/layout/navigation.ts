@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   FileCheck2,
   Boxes,
+  BookOpen,
   PackageCheck,
   FileSpreadsheet,
   ShieldCheck,
@@ -27,6 +28,8 @@ export interface NavItem {
   /** Hover text with the full form name */
   hint?: string;
   showsPendingCount?: boolean;
+  /** Open to everyone who is signed in, whatever the role allows (the user manual) */
+  always?: boolean;
 }
 
 export interface NavSection {
@@ -70,6 +73,13 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
       { id: 'audit', label: 'Audit Log', icon: ShieldCheck },
+    ],
+  },
+  {
+    id: 'help',
+    label: 'Help',
+    items: [
+      { id: 'docs', label: 'Documentation', icon: BookOpen, hint: 'The user manual', always: true },
     ],
   },
 ];
@@ -123,14 +133,15 @@ const RETIRED_TABS: Record<string, string> = {
 export function getValidTab(user: Pick<AuthUser, 'allowedTabs' | 'landingTab'> | null, requested?: string | null): string {
   const allowed = user?.allowedTabs ?? [];
   const candidate = requested ? RETIRED_TABS[requested] ?? requested : requested;
-  if (candidate === 'settings-profile') return candidate;
+  // Profile and the user manual are for everyone
+  if (candidate === 'settings-profile' || candidate === 'docs') return candidate;
   if (candidate && allowed.includes(candidate)) return candidate;
   return user?.landingTab && allowed.includes(user.landingTab) ? user.landingTab : (allowed[0] ?? '');
 }
 
 export function getNavSections(allowedTabs: readonly string[] = []): NavSection[] {
   return NAV_SECTIONS.map((section) => ({ ...section,
-    items: section.items.filter((item) => allowedTabs.includes(item.id)),
+    items: section.items.filter((item) => item.always || allowedTabs.includes(item.id)),
   })).filter((section) => section.items.length > 0);
 }
 
@@ -141,7 +152,7 @@ export function getSettingsGroups(allowedTabs: readonly string[] = []): Settings
 }
 
 export function getMobileNavItems(allowedTabs: readonly string[] = []): { id: string; label: string; icon: LucideIcon; matches: (tab: string) => boolean }[] {
-  const main = getNavSections(allowedTabs).flatMap((section) => section.items.map((item) => ({
+  const main = getNavSections(allowedTabs).flatMap((section) => section.items.filter((item) => !item.always).map((item) => ({
     id: item.id, label: item.label, icon: item.icon,
     matches: (tab: string) => tab === item.id,
   })));

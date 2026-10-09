@@ -9,6 +9,7 @@ import {
   LogOut,
   Boxes,
   PackageCheck,
+  BookOpen,
   PackagePlus,
   PackageMinus,
   LayoutDashboard,
@@ -223,6 +224,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         return { title: 'Dashboard', am: 'የንብረትና የመጋዘን ክምችት መከታተያ', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
       case 'assets':
         return { title: 'Assets', am: 'ንብረቶች', icon: Boxes, iconColor: 'text-emerald-700' };
+      case 'docs':
+        return { title: 'Documentation', am: 'የተጠቃሚ መመሪያ', icon: BookOpen, iconColor: 'text-emerald-700' };
       case 'my-assets':
         return { title: 'My assets', am: 'የእኔ ንብረቶች', icon: PackageCheck, iconColor: 'text-emerald-700' };
       case 'approvals':
@@ -546,6 +549,19 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   >
                     <User className="w-4 h-4 text-emerald-700 shrink-0" />
                     <span>Profile</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      onNavigate('docs');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:text-emerald-900 hover:bg-slate-50 rounded-lg transition cursor-pointer"
+                  >
+                    <BookOpen className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>Documentation</span>
                   </button>
 
                   {Boolean(canAccessTab ? canAccessTab('settings-users') : user?.allowedTabs?.includes('settings-users')) && (
