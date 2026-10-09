@@ -9,7 +9,8 @@ vi.mock('../api/client', () => ({ api: { getMyAssets: vi.fn() } }));
 
 const asset = (extra: Record<string, unknown> = {}) => ({
   id: 'item-1', itemCode: 'MOA-IT-2024-0002', name: 'HP ProBook 450 Laptop', category: 'IT_EQUIPMENT', serialNumber: 'SN-HP-1',
-  condition: 'GOOD', quantity: 1, uom: 'EA', status: 'ISSUED', assignedOnGc: '2026-09-01', voucherNo: 'M22-77', ...extra,
+  condition: 'GOOD', quantity: 1, uom: 'EA', status: 'ISSUED', assignedOnGc: '2026-09-01', voucherNo: 'M22-77',
+  department: 'Agricultural Extension', issuedFrom: 'Head office · Central Store', purpose: 'Crop surveys', ...extra,
 }) as any;
 
 beforeEach(() => {
@@ -54,6 +55,32 @@ describe('My assets', () => {
     const moving = within(table).getByText('MOA-VEH-1').closest('tr')!;
     expect(within(moving).getByText('Transfer pending')).toBeInTheDocument();
     expect(within(moving).getByText('Waiting for final approval')).toBeInTheDocument();
+  });
+
+  it('opens the details of an asset when its row is clicked, and closes them again', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getMyAssets).mockResolvedValue([asset(), asset({ id: 'item-2', itemCode: 'MOA-FUR-1', name: 'Office chair', serialNumber: '', purpose: undefined })]);
+    render(<MyAssetsPage />);
+    await screen.findByText('2 assets are assigned to you.');
+
+    await user.click(within(screen.getByRole('table')).getByRole('row', { name: 'Open MOA-IT-2024-0002' }));
+    const details = await screen.findByRole('dialog');
+    expect(within(details).getByText('HP ProBook 450 Laptop')).toBeInTheDocument();
+    expect(within(details).getByText('SN-HP-1')).toBeInTheDocument();
+    expect(within(details).getByText('Agricultural Extension')).toBeInTheDocument();
+    expect(within(details).getByText('Head office · Central Store')).toBeInTheDocument();
+    expect(within(details).getByText('Crop surveys')).toBeInTheDocument();
+    expect(within(details).getByText('M22-77')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    // With the keyboard, and a missing detail shows a dash
+    const chair = within(screen.getByRole('table')).getByRole('row', { name: 'Open MOA-FUR-1' });
+    chair.focus();
+    await user.keyboard('{Enter}');
+    const second = await screen.findByRole('dialog');
+    expect(within(second).getByText('Purpose').nextSibling).toHaveTextContent('—');
   });
 
   it('has a friendly empty state when nothing is assigned', async () => {

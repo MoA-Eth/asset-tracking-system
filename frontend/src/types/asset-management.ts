@@ -289,6 +289,10 @@ export interface MyAsset {
   /** When it was issued or transferred to this person (G.C.), and the slip it was done on */
   assignedOnGc?: string;
   voucherNo?: string;
+  /** Where it comes from, the directorate it is assigned to, and what it was issued for */
+  issuedFrom?: string;
+  department?: string;
+  purpose?: string;
   /** A transfer or return of it is waiting for approval */
   pendingRequest?: { type: 'TRANSFER' | 'RETURN'; stage: number };
 }

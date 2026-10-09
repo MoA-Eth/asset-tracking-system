@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { PackageCheck, RefreshCw, AlertCircle, Clock } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
+import { Modal } from '../components/ui/Modal';
 import { MyAsset } from '../types/asset-management';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -30,11 +31,20 @@ const statusOf = (asset: MyAsset): { label: string; tone: string; detail?: strin
 
 const units = (asset: MyAsset) => `${asset.quantity} ${asset.uom || 'EA'}`;
 
+/** One labelled line of the details */
+const Detail: React.FC<{ label: string; mono?: boolean; children?: React.ReactNode }> = ({ label, mono, children }) => (
+  <div className="flex items-baseline justify-between gap-4 py-2">
+    <dt className="shrink-0 text-slate-500">{label}</dt>
+    <dd className={`text-right font-medium text-slate-900 ${mono ? 'font-mono' : ''}`}>{children || '—'}</dd>
+  </div>
+);
+
 /** The assets issued to the signed-in employee. Read-only, and about nobody else. */
 export const MyAssetsPage: React.FC = () => {
   const [assets, setAssets] = useState<MyAsset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<MyAsset | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -109,7 +119,16 @@ export const MyAssetsPage: React.FC = () => {
                 {assets!.map((asset) => {
                   const status = statusOf(asset);
                   return (
-                    <tr key={asset.id} className={table.row}>
+                    <tr
+                      key={asset.id}
+                      tabIndex={0}
+                      aria-label={`Open ${asset.itemCode}`}
+                      onClick={() => setSelected(asset)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && e.target === e.currentTarget) setSelected(asset);
+                      }}
+                      className={`${table.row} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500`}
+                    >
                       <td className="px-3 py-2.5">
                         <span className="block font-medium text-slate-900">{asset.name}</span>
                         <span className={`block ${table.code}`}>{asset.itemCode}</span>
@@ -143,7 +162,16 @@ export const MyAssetsPage: React.FC = () => {
             {assets!.map((asset) => {
               const status = statusOf(asset);
               return (
-                <li key={asset.id} className="rounded-2xl border border-slate-200 bg-white p-4 text-xs">
+                <li
+                  key={asset.id}
+                  tabIndex={0}
+                  aria-label={`Open ${asset.itemCode}`}
+                  onClick={() => setSelected(asset)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.target === e.currentTarget) setSelected(asset);
+                  }}
+                  className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-semibold text-slate-900">{asset.name}</p>
@@ -163,6 +191,42 @@ export const MyAssetsPage: React.FC = () => {
             })}
           </ul>
         </>
+      )}
+
+      {selected && (
+        <Modal isOpen onClose={() => setSelected(null)} title={selected.name} subtitle={selected.itemCode} size="md">
+          {(() => {
+            const status = statusOf(selected);
+            return (
+              <div className="space-y-3 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`${pill} ${status.tone}`}>{status.label}</span>
+                  {status.detail && (
+                    <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                      <Clock className="h-3 w-3" />
+                      {status.detail}
+                    </span>
+                  )}
+                </div>
+                <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
+                  <Detail label="Item code" mono>{selected.itemCode}</Detail>
+                  <Detail label="Serial no." mono>{selected.serialNumber}</Detail>
+                  <Detail label="Category">{CATEGORY_LABELS[selected.category] ?? selected.category}</Detail>
+                  <Detail label="Condition">{CONDITION_LABELS[selected.condition] ?? selected.condition}</Detail>
+                  <Detail label="Quantity" mono>{units(selected)}</Detail>
+                  <Detail label="Directorate">{selected.department}</Detail>
+                  <Detail label="Issued from">{selected.issuedFrom}</Detail>
+                  <Detail label="Assigned on">{selected.assignedOnGc}</Detail>
+                  <Detail label="Issue slip no." mono>{selected.voucherNo}</Detail>
+                  <Detail label="Purpose">{selected.purpose}</Detail>
+                </dl>
+                <p className="text-[11px] text-slate-500">
+                  You are responsible for this asset while it is assigned to you. If something is wrong with these details, contact the store.
+                </p>
+              </div>
+            );
+          })()}
+        </Modal>
       )}
     </div>
   );
