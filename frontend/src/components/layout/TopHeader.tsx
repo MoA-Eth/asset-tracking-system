@@ -8,6 +8,7 @@ import {
   UserCheck2,
   LogOut,
   Boxes,
+  PackageCheck,
   PackagePlus,
   PackageMinus,
   LayoutDashboard,
@@ -49,6 +50,7 @@ interface TopHeaderProps {
 
 const ROLE_TITLES: Partial<Record<UserRole, string>> = {
   [UserRole.MANAGER]: 'Manager',
+  [UserRole.EMPLOYEE]: 'Employee',
   [UserRole.DEPARTMENT_HEAD]: 'Directorate Head',
   [UserRole.TEAM_LEADER]: 'Team Leader',
   [UserRole.DATA_ENCODER]: 'Data Encoder',
@@ -102,6 +104,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   }, [user?.id]);
 
   useEffect(() => {
+    if (!user?.permissions?.includes('references.read')) return;
     api.getLocations()
       .then((locs) => {
         if (locs && locs.length > 0) {
@@ -220,6 +223,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         return { title: 'Dashboard', am: 'የንብረትና የመጋዘን ክምችት መከታተያ', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
       case 'assets':
         return { title: 'Assets', am: 'ንብረቶች', icon: Boxes, iconColor: 'text-emerald-700' };
+      case 'my-assets':
+        return { title: 'My assets', am: 'የእኔ ንብረቶች', icon: PackageCheck, iconColor: 'text-emerald-700' };
       case 'approvals':
         return { title: 'Approvals', am: 'የማረጋገጫና ፈቃድ መስጫ', icon: FileCheck2, iconColor: 'text-emerald-700' };
       case 'audit':

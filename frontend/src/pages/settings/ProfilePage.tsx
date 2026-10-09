@@ -14,6 +14,7 @@ import { APP_COMMIT, APP_VERSION } from '../../version';
 
 const ROLE_TITLES: Partial<Record<UserRole, string>> = {
   [UserRole.MANAGER]: 'Manager',
+  [UserRole.EMPLOYEE]: 'Employee',
   [UserRole.DEPARTMENT_HEAD]: 'Directorate Head',
   [UserRole.TEAM_LEADER]: 'Team Leader',
   [UserRole.DATA_ENCODER]: 'Data Encoder',

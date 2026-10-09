@@ -1,6 +1,6 @@
 # Roles and permissions
 
-Settings → Roles is available to System Administrators. It lists the five built-in
+Settings → Roles is available to System Administrators. It lists the six built-in
 roles, live member counts, action permissions, approval responsibilities, and
 assigned users. “Manage assignments” opens Users with that role selected.
 Role definitions are fixed; creating custom roles or editing permissions is not
@@ -15,6 +15,7 @@ The backend independently enforces action permissions on every protected route.
 - Team Leader endorses or rejects Stage 1.
 - Department Head authorizes or rejects Stage 2.
 - Manager reads dashboard and reports.
+- Employee signs in to see only the assets assigned to them (permission "View the assets assigned to me", `assets.own`). Its one page, **My assets**, lists what is issued to the signed-in person: item, serial number, quantity, condition, when and on which slip it was assigned, and whether a transfer or return of it is waiting. It shows no costs, notes or other people's names. The server takes the person from the session (`GET /api/items/mine`), and the role has none of the staff-wide permissions, so the asset register, requests, approvals, reports, audit log and employee directory all refuse it. Giving everyone an account is a separate step; for now an administrator assigns the role to a person in Settings → Users.
 - System Administrator reads the role directory and assigns user roles, without
   store-operation or approval authority.
 

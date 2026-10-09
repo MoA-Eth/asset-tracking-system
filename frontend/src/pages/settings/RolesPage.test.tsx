@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 
 describe('Roles directory', () => {
-  it('renders five roles, real counts, grouped allowed/denied permissions and assigned members', async () => {
+  it('renders six roles, real counts, grouped allowed/denied permissions and assigned members', async () => {
     const user = userEvent.setup();
     const navigate = vi.fn();
     render(<RolesPage onViewUsers={navigate} />);
@@ -40,14 +40,14 @@ describe('Roles directory', () => {
     expect(within(details).getByText('Example Directorate')).toBeInTheDocument();
     expect(within(details).getByText(/View executive dashboard/)).toHaveTextContent('Allowed');
     expect(within(details).getByText(/Authorize or reject Stage 2/)).toHaveTextContent('Not allowed');
-    expect(screen.getAllByRole('button', { name: /View .* details/ })).toHaveLength(5);
+    expect(screen.getAllByRole('button', { name: /View .* details/ })).toHaveLength(6);
     await user.click(within(details).getByRole('button', { name: 'Manage assignments' }));
     expect(navigate).toHaveBeenCalledWith('MANAGER');
   });
-  it('shows all five roles as columns, and the details of a role nobody has', async () => {
+  it('shows all six roles as columns, and the details of a role nobody has', async () => {
     const user = userEvent.setup();
     render(<RolesPage onViewUsers={vi.fn()} />);
-    expect(await screen.findAllByRole('button', { name: /View .* details/ })).toHaveLength(5);
+    expect(await screen.findAllByRole('button', { name: /View .* details/ })).toHaveLength(6);
     await user.click(screen.getByRole('button', { name: 'View Team Leader details' }));
     expect(screen.getByText('No users are assigned to this role.')).toBeInTheDocument();
     // Opening another role replaces the panel; clicking the open one closes it

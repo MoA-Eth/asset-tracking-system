@@ -35,6 +35,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.TEAM_LEADER]: 'Team Leader',
   [UserRole.DEPARTMENT_HEAD]: 'Department Head',
   [UserRole.MANAGER]: 'Manager',
+  [UserRole.EMPLOYEE]: 'Employee',
 };
 
 type StatusFilter = 'ACTIVE' | 'INACTIVE' | 'ALL';

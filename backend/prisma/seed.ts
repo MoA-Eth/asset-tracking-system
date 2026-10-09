@@ -154,6 +154,12 @@ async function main() {
       update: { password: seedPassword },
       create: { id: 'EMP-STAFF-02', payrollId: 'MOA/ICT-023', fullNameEn: 'Hiwot Tesfaye (Systems Analyst)', fullNameAm: 'ህይወት ተስፋዬ (የስርዓት ተንታኝ)', departmentId: 'DEP-04', email: 'hiwot.t@moa.gov.et', phone: '+251988990011', role: UserRole.DATA_ENCODER, password: seedPassword },
     }),
+    // An ordinary employee: signs in only to see the assets assigned to them
+    prisma.employee.upsert({
+      where: { id: 'EMP-STAFF-03' },
+      update: { role: UserRole.EMPLOYEE, password: seedPassword },
+      create: { id: 'EMP-STAFF-03', payrollId: 'MOA/EXT-102', fullNameEn: 'Almaz Ayana (Agronomist)', fullNameAm: 'አልማዝ አያና (አግሮኖሚስት)', departmentId: 'DEP-01', email: 'almaz.a@moa.gov.et', phone: '+251966778899', role: UserRole.EMPLOYEE, password: seedPassword },
+    }),
   ]);
   console.log(`  ✅ ${employees.length} employees seeded`);
 
@@ -210,6 +216,33 @@ async function main() {
     },
   });
 
+  // A laptop issued to the ordinary employee, so "My assets" has something to show
+  await prisma.item.upsert({
+    where: { itemCode: 'MOA-IT-2024-0002' },
+    update: {},
+    create: {
+      id: 'ITEM-SEED-004',
+      itemCode: 'MOA-IT-2024-0002',
+      name: 'HP ProBook 450 Laptop',
+      category: AssetCategory.IT_EQUIPMENT,
+      serialNumber: 'SN-HP-PB450-2024004',
+      unitCostETB: 72000,
+      status: ItemStatus.ISSUED,
+      storeLocationId: 'LOC-01',
+      currentCustodianId: 'EMP-STAFF-03',
+      assignedDepartmentId: 'DEP-01',
+      ifmisSlipNumber: 'IFMIS-GRN-2024-0412',
+      ifmisSlipDateGc: '2024-02-12',
+      ifmisSlipDateEc: '2016-06-04',
+      isHistoricalData: false,
+      registeredById: 'EMP-ENC-01',
+      approvedById: 'EMP-HEAD-01',
+      createdAtGc: today,
+      createdAtEc: '2017-01-17',
+      notes: 'Field laptop for crop surveys',
+    },
+  });
+
   const item3 = await prisma.item.upsert({
     where: { itemCode: 'MOA-AGR-2024-0001' },
     update: {},
@@ -239,6 +272,7 @@ async function main() {
     data: [
       { id: 'HIST-SEED-001', itemId: 'ITEM-SEED-001', dateGc: today, dateEc: '2017-01-17', action: 'STOCK_IN_APPROVED', fromEntity: 'Pending Approval', toEntity: 'Central Store (AVAILABLE)', performedBy: 'Kassahun Tolosa (Property Director)', performedByRole: UserRole.DEPARTMENT_HEAD, ifmisSlipNumber: 'IFMIS-GRN-2024-0881', notes: 'Approved and available in central store' },
       { id: 'HIST-SEED-002', itemId: 'ITEM-SEED-002', dateGc: today, dateEc: '2017-01-17', action: 'STOCK_OUT_APPROVED', fromEntity: 'Central Store', toEntity: 'Kebede Alemu (Field Officer)', performedBy: 'Tigist Haile (Extension Director)', performedByRole: UserRole.DEPARTMENT_HEAD, ifmisSlipNumber: 'IFMIS-SIV-2024-0112', notes: 'Issued for field operations' },
+      { id: 'HIST-SEED-004', itemId: 'ITEM-SEED-004', dateGc: today, dateEc: '2017-01-17', action: 'STOCK_OUT_APPROVED', fromEntity: 'Central Store', toEntity: 'Almaz Ayana (Agronomist)', performedBy: 'Tigist Haile (Extension Director)', performedByRole: UserRole.DEPARTMENT_HEAD, ifmisSlipNumber: 'IFMIS-SIV-2024-0131', notes: 'Issued for crop surveys' },
       { id: 'HIST-SEED-003', itemId: 'ITEM-SEED-003', dateGc: today, dateEc: '2017-01-17', action: 'STOCK_IN_REGISTERED', fromEntity: 'IFMIS Slip IFMIS-GRN-2024-0994', toEntity: 'Store (Pending Approval)', performedBy: 'Meron Alemu (Store Officer)', performedByRole: UserRole.DATA_ENCODER, ifmisSlipNumber: 'IFMIS-GRN-2024-0994', notes: 'Awaiting Department Head sign-off' },
     ],
   });

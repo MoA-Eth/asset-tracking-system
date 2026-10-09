@@ -29,6 +29,7 @@ describe('RBAC Permission Matrix Enforcement', () => {
     UserRole.TEAM_LEADER,
     UserRole.DEPARTMENT_HEAD,
     UserRole.MANAGER,
+    UserRole.EMPLOYEE,
   ];
 
   describe('Statutory baseline verification across all roles and permissions', () => {
@@ -88,6 +89,30 @@ describe('RBAC Permission Matrix Enforcement', () => {
       expect(segregationViolations(UserRole.SYSTEM_ADMIN, ['disposals.write'])).toHaveLength(1);
       // Requesting disposals alone is enough to work in the asset register
       expect(computeAllowedTabs(UserRole.DATA_ENCODER, ['disposals.write'] as Permission[]).allowedTabs).toContain('assets');
+    });
+  });
+
+  describe('Employees see only their own assets', () => {
+    it('gives the Employee role one permission, one page, and nothing about anyone else', () => {
+      expect(getEffectiveRolePermissions(UserRole.EMPLOYEE)).toEqual(['assets.own']);
+      const access = getRoleAccess(UserRole.EMPLOYEE);
+      expect(access.allowedTabs).toEqual(['my-assets']);
+      expect(access.landingTab).toBe('my-assets');
+      // None of the staff-wide permissions: the asset register, requests, approvals, reports, people
+      for (const p of allPermissions.filter((p) => p !== 'assets.own')) {
+        expect(hasPermission(UserRole.EMPLOYEE, p as Permission)).toBe(false);
+      }
+    });
+
+    it('keeps "My assets" with the Employee role: no other role gets the page by default', () => {
+      for (const role of allRoles.filter((r) => r !== UserRole.EMPLOYEE)) {
+        expect(hasPermission(role, 'assets.own')).toBe(false);
+        expect(getRoleAccess(role).allowedTabs).not.toContain('my-assets');
+      }
+    });
+
+    it('opens the page for whoever is granted the permission', () => {
+      expect(computeAllowedTabs(UserRole.EMPLOYEE, ['assets.own'] as Permission[]).allowedTabs).toEqual(['my-assets']);
     });
   });
 

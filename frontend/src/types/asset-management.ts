@@ -4,6 +4,7 @@ export enum UserRole {
   TEAM_LEADER = 'TEAM_LEADER',
   DEPARTMENT_HEAD = 'DEPARTMENT_HEAD',
   MANAGER = 'MANAGER', // General Manager
+  EMPLOYEE = 'EMPLOYEE', // Sees only the assets assigned to them
 }
 
 export enum ItemStatus {
@@ -272,6 +273,24 @@ export interface Model22LineItem {
   unitPrice: number;
   totalAmount: number;
   remark?: string;
+}
+
+/** One asset as its holder sees it on "My assets": no costs, notes or other people's names */
+export interface MyAsset {
+  id: string;
+  itemCode: string;
+  name: string;
+  category: AssetCategory;
+  serialNumber: string;
+  condition: ItemCondition;
+  quantity: number;
+  uom: string;
+  status: ItemStatus;
+  /** When it was issued or transferred to this person (G.C.), and the slip it was done on */
+  assignedOnGc?: string;
+  voucherNo?: string;
+  /** A transfer or return of it is waiting for approval */
+  pendingRequest?: { type: 'TRANSFER' | 'RETURN'; stage: number };
 }
 
 export interface Model22Voucher {

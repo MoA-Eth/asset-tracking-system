@@ -73,7 +73,7 @@ describe('Role assignments', () => {
   it('includes unassigned system roles and database member counts', async () => {
     db.employee.groupBy.mockResolvedValue([{ role: 'SYSTEM_ADMIN', _count: { _all: 2 } }]);
     const directory = await getRoleDirectory();
-    expect(directory.roles).toHaveLength(5);
+    expect(directory.roles).toHaveLength(6);
     expect(directory.roles.find(role => role.code === 'SYSTEM_ADMIN')?.memberCount).toBe(2);
     expect(directory.roles.find(role => role.code === 'MANAGER')?.memberCount).toBe(0);
   });
