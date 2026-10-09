@@ -628,7 +628,7 @@ export const ReturnToStoreModal: React.FC<ReturnToStoreModalProps> = ({ item, as
               groups={[
                 {
                   label: 'Issued assets',
-                  options: assets.map((asset) => {
+                  options: assets.filter((asset) => !asset.heldByOrganization).map((asset) => {
                     const open = pendingByItem?.get(asset.id);
                     return {
                       value: asset.id,

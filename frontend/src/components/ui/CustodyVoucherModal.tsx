@@ -246,7 +246,7 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
                 <p className="text-[10px] font-bold uppercase text-slate-500">Received By (Recipient Staff):</p>
                 <div className="h-10 border-b border-dashed border-slate-400 mt-1 flex items-end pb-1">
                   <span className="font-semibold text-slate-800">
-                    {approval?.recipientEmployee?.fullNameEn || item?.currentCustodian?.fullNameEn || '—'}
+                    {approval?.recipientEmployee?.fullNameEn || item?.currentCustodian?.fullNameEn || item?.heldByOrganization || '—'}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">Signature & Date</p>

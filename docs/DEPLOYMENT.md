@@ -203,7 +203,7 @@ On start-up the backend brings the database tables up to date by itself, but **r
 
 ```bash
 for m in 202610010001_roles_audit 202610020001_employee_registry 202610030001_reference_data \
-         202610040001_password_change 202610050001_system_settings 202610080001_disposal; do
+         202610040001_password_change 202610050001_system_settings 202610080001_disposal 202610090001_external_issue; do
   docker compose run --rm --no-deps --entrypoint "" backend \
     npx prisma db execute --file prisma/migrations/$m/migration.sql --schema prisma/schema.prisma
 done

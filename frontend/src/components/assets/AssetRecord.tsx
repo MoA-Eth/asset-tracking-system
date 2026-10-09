@@ -546,6 +546,12 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               <div>
                 <Row label={row.state === 'ISSUED' || item.currentCustodian ? 'Held by' : 'Kept in'}>{row.where}</Row>
                 {item.currentCustodian?.payrollId && <Row label="Payroll ID" mono>{item.currentCustodian.payrollId}</Row>}
+                {item.heldByContact && <Row label="Contact person">{item.heldByContact}</Row>}
+                {item.heldByOrganization && (
+                  <p className="pt-1 text-[11px] text-slate-500">
+                    Issued to an outside organization. Return and transfer aren't available for it yet.
+                  </p>
+                )}
                 {item.assignedDepartment && <Row label="Directorate">{departmentLabel(item.assignedDepartment)}</Row>}
                 {batch && (
                   <Row label="Part of">
@@ -614,7 +620,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                   const kind = REQUEST_LABELS[r.transactionType];
                   const to =
                     r.transactionType === 'STOCK_OUT' || r.transactionType === 'TRANSFER'
-                      ? r.recipientEmployee?.fullNameEn
+                      ? r.recipientEmployee?.fullNameEn || r.requestDetails?.organizationName
                       : r.transactionType === 'RETURN'
                         ? 'Store'
                         : r.transactionType === 'DISPOSAL'

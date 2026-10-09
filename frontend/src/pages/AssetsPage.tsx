@@ -265,7 +265,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       .map((item) => {
         const request = pendingByItem.get(item.id);
         const store = item.storeLocation ? storeLocationLabel(item.storeLocation) : 'Store';
-        const holder = item.currentCustodian?.fullNameEn || employeeName(item.currentCustodianId) || (item.assignedDepartment ? departmentLabel(item.assignedDepartment) : undefined);
+        const holder = item.currentCustodian?.fullNameEn || employeeName(item.currentCustodianId) || item.heldByOrganization || (item.assignedDepartment ? departmentLabel(item.assignedDepartment) : undefined);
         let state: AssetState;
         if (item.status === ItemStatus.REJECTED) state = 'REJECTED';
         else if (item.status === ItemStatus.DISPOSED) state = 'DISPOSED';
@@ -276,7 +276,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
         let goingTo: string | undefined;
         if (request?.transactionType === 'STOCK_OUT' || request?.transactionType === 'TRANSFER') {
-          goingTo = request.recipientEmployee?.fullNameEn || employeeName(request.recipientEmployeeId);
+          goingTo = request.recipientEmployee?.fullNameEn || employeeName(request.recipientEmployeeId) || request.requestDetails?.organizationName;
         } else if (request?.transactionType === 'RETURN') {
           const target = locations.find((l) => l.id === request.targetLocationId);
           goingTo = target ? storeLocationLabel(target) : store;
@@ -720,7 +720,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               setIssue(null);
               setReturning(null);
             },
-            hidden: !canTransfer,
+            hidden: !canTransfer || !!item.heldByOrganization,
           },
           {
             label: 'Return to store (Model 21)',
@@ -731,7 +731,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               setTransfer(null);
               setIssue(null);
             },
-            hidden: !canTransfer,
+            hidden: !canTransfer || !!item.heldByOrganization,
           },
           view,
           printIssue,

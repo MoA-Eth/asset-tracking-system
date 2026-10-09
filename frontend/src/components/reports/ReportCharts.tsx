@@ -98,8 +98,8 @@ export const ReportCharts: React.FC<ReportChartsProps> = ({ items, splitsByRoot,
     for (const item of items) {
       const splits = splitsByRoot.get(item.id) ?? [];
       // Units issued in part live on split records; units issued whole live on the item itself
-      for (const split of splits) if (split.currentCustodianId) add(split.assignedDepartmentId, Number(split.quantity) || 1);
-      if (item.currentCustodianId) add(item.assignedDepartmentId, Number(item.quantity) || 1);
+      for (const split of splits) if (split.currentCustodianId || split.heldByOrganization) add(split.assignedDepartmentId, Number(split.quantity) || 1);
+      if (item.currentCustodianId || item.heldByOrganization) add(item.assignedDepartmentId, Number(item.quantity) || 1);
     }
     const rows = [...sums.entries()].map(([id, value]) => {
       const dept = departments.find((d) => d.id === id);

@@ -59,6 +59,8 @@ function mapItem(raw: any): ItemWithRelations {
     storeLocationId: raw.storeLocationId,
     currentCustodianId: raw.currentCustodianId ?? null,
     assignedDepartmentId: raw.assignedDepartmentId ?? null,
+    heldByOrganization: raw.heldByOrganization ?? undefined,
+    heldByContact: raw.heldByContact ?? undefined,
     ifmisSlipNumber: raw.ifmisSlipNumber,
     ifmisSlipDateGc: raw.ifmisSlipDateGc,
     ifmisSlipDateEc: raw.ifmisSlipDateEc,
@@ -1002,16 +1004,23 @@ export class StoreService {
     const purpose = (payload.purpose || '').trim();
     if (!slipNo) throw new BadRequestError('The Model 22 slip number is required to issue an item.');
     if (!purpose) throw new BadRequestError('Purpose of issue is required.');
-    if (!payload.recipientEmployeeId) throw new BadRequestError('Recipient staff member is required.');
-    if (!payload.targetDepartmentId) throw new BadRequestError('Destination directorate is required.');
+    const external = this.externalRecipientOf(payload);
+    if (!external) {
+      if (!payload.recipientEmployeeId) throw new BadRequestError('Recipient staff member is required.');
+      if (!payload.targetDepartmentId) throw new BadRequestError('Destination directorate is required.');
+    }
 
-    const [recipient, department] = await Promise.all([
-      prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }),
-      prisma.department.findUnique({ where: { id: payload.targetDepartmentId } }),
-    ]);
-    if (!recipient) throw new BadRequestError('The selected recipient no longer exists.');
-    assertActiveEmployee(recipient, 'the recipient');
-    if (!department) throw new BadRequestError('The selected directorate no longer exists.');
+    const [recipient, department] = external
+      ? [null, null]
+      : await Promise.all([
+          prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId! } }),
+          prisma.department.findUnique({ where: { id: payload.targetDepartmentId! } }),
+        ]);
+    if (!external) {
+      if (!recipient) throw new BadRequestError('The selected recipient no longer exists.');
+      assertActiveEmployee(recipient, 'the recipient');
+      if (!department) throw new BadRequestError('The selected directorate no longer exists.');
+    }
 
     const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
@@ -1028,6 +1037,8 @@ export class StoreService {
       quantity: previousQuantity,
       recipientEmployeeId: approval.recipientEmployeeId,
       targetDepartmentId: approval.targetDepartmentId,
+      organizationName: (previousDetails.organizationName as string | undefined) ?? null,
+      contactPerson: (previousDetails.contactPerson as string | undefined) ?? null,
       ifmisSlipNumber: approval.ifmisSlipNumber,
       ifmisSlipDateGc: approval.ifmisSlipDateGc,
       ifmisSlipAttachmentUrl: approval.ifmisSlipAttachmentUrl,
@@ -1035,8 +1046,10 @@ export class StoreService {
     };
     const after = {
       quantity,
-      recipientEmployeeId: recipient.id,
-      targetDepartmentId: department.id,
+      recipientEmployeeId: recipient?.id ?? null,
+      targetDepartmentId: department?.id ?? null,
+      organizationName: external?.organizationName ?? null,
+      contactPerson: external?.contactPerson ?? null,
       ifmisSlipNumber: slipNo,
       ifmisSlipDateGc: payload.ifmisSlipDateGc || approval.ifmisSlipDateGc,
       ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl,
@@ -1050,15 +1063,17 @@ export class StoreService {
     }
 
     // Show names rather than ids in the history and audit summary
-    const previousRecipient = before.recipientEmployeeId && before.recipientEmployeeId !== recipient.id
+    const previousRecipient = before.recipientEmployeeId && before.recipientEmployeeId !== recipient?.id
       ? await prisma.employee.findUnique({ where: { id: before.recipientEmployeeId } })
       : recipient;
-    const previousDepartment = before.targetDepartmentId && before.targetDepartmentId !== department.id
+    const previousDepartment = before.targetDepartmentId && before.targetDepartmentId !== department?.id
       ? await prisma.department.findUnique({ where: { id: before.targetDepartmentId } })
       : department;
     const describe = (k: keyof typeof after): string => {
-      if (k === 'recipientEmployeeId') return `recipient ${previousRecipient?.fullNameEn ?? '—'} → ${recipient.fullNameEn}`;
-      if (k === 'targetDepartmentId') return `directorate ${previousDepartment?.nameEn ?? '—'} → ${department.nameEn}`;
+      if (k === 'recipientEmployeeId') return `recipient ${previousRecipient?.fullNameEn ?? '—'} → ${recipient?.fullNameEn ?? '—'}`;
+      if (k === 'targetDepartmentId') return `directorate ${previousDepartment?.nameEn ?? '—'} → ${department?.nameEn ?? '—'}`;
+      if (k === 'organizationName') return `organization ${before.organizationName ?? '—'} → ${after.organizationName ?? '—'}`;
+      if (k === 'contactPerson') return `contact person ${before.contactPerson ?? '—'} → ${after.contactPerson ?? '—'}`;
       if (k === 'ifmisSlipAttachmentUrl') return 'slip attachment replaced';
       return `${k} ${before[k] ?? '—'} → ${after[k] ?? '—'}`;
     };
@@ -1079,7 +1094,13 @@ export class StoreService {
           ifmisSlipDateEc: formatGcToEc(after.ifmisSlipDateGc),
           ifmisSlipAttachmentUrl: after.ifmisSlipAttachmentUrl,
           purposeOrRemarks: after.purposeOrRemarks,
-          requestDetails: { ...previousDetails, quantity, uom } as any,
+          // Switching between an employee and an organization replaces the other side's details
+          requestDetails: {
+            ...Object.fromEntries(Object.entries(previousDetails).filter(([k]) => !['recipientType', 'organizationName', 'contactPerson'].includes(k))),
+            quantity,
+            uom,
+            ...(external ? { recipientType: 'EXTERNAL', ...external } : {}),
+          } as any,
         },
         include: APPROVAL_INCLUDES,
       });
@@ -1093,7 +1114,7 @@ export class StoreService {
               dateEc: today.ec,
               action: 'STOCK_OUT_EDITED',
               fromEntity: `${await storeLabel(item.storeLocationId)} (Available)`,
-              toEntity: `${recipient.fullNameEn} (Pending Approval)`,
+              toEntity: `${external ? external.organizationName : recipient?.fullNameEn} (Pending Approval)`,
               performedBy: actor ? actor.fullNameEn : actorId,
               performedByRole: (actor?.role ?? 'DATA_ENCODER') as any,
               ifmisSlipNumber: after.ifmisSlipNumber,
@@ -1128,6 +1149,20 @@ export class StoreService {
 
   // ── Stock-Out Registration ──────────────────────────────────────────────
 
+  /**
+   * Who receives an issue: an employee, or an outside organization typed as text.
+   * An organization needs a name; the person signing for it is optional.
+   */
+  private externalRecipientOf(payload: { recipientType?: string; organizationName?: string; contactPerson?: string }) {
+    if (payload.recipientType !== 'EXTERNAL') return null;
+    const organizationName = (payload.organizationName || '').trim();
+    const contactPerson = (payload.contactPerson || '').trim();
+    if (!organizationName) throw new BadRequestError('The organization that receives the item is required.');
+    assertMaxLength(organizationName, 150, 'Organization');
+    assertMaxLength(contactPerson, 100, 'Contact person');
+    return { organizationName, contactPerson: contactPerson || undefined };
+  }
+
   public async registerStockOut(payload: CreateStockOutRequest): Promise<TransactionApproval> {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
     if (!item) throw new NotFoundError(`Item ${payload.itemId} not found.`);
@@ -1137,7 +1172,8 @@ export class StoreService {
     await assertNoPendingApproval(item);
     if (isBlank(payload.ifmisSlipNumber)) throw new BadRequestError('The Model 22 slip number is required to issue an item.');
     if (isBlank(payload.purpose)) throw new BadRequestError('Purpose of issue is required.');
-    if (isBlank(payload.recipientEmployeeId)) throw new BadRequestError('Recipient staff member is required.');
+    const external = this.externalRecipientOf(payload);
+    if (!external && isBlank(payload.recipientEmployeeId)) throw new BadRequestError('Recipient staff member is required.');
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     assertMaxLength(payload.purpose, 500, 'Purpose of issue');
     assertSlipDate(payload.ifmisSlipDateGc);
@@ -1152,10 +1188,10 @@ export class StoreService {
 
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
-    const recipient = payload.recipientEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }) : null;
-    if (payload.recipientEmployeeId && !recipient) throw new BadRequestError('The selected recipient no longer exists.');
+    const recipient = !external && payload.recipientEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }) : null;
+    if (!external && payload.recipientEmployeeId && !recipient) throw new BadRequestError('The selected recipient no longer exists.');
     assertActiveEmployee(recipient, 'the recipient');
-    if (payload.targetDepartmentId) {
+    if (!external && payload.targetDepartmentId) {
       const targetDepartment = await prisma.department.findUnique({ where: { id: payload.targetDepartmentId } });
       if (!targetDepartment) throw new BadRequestError('The selected directorate no longer exists.');
     }
@@ -1173,7 +1209,9 @@ export class StoreService {
             dateEc: today.ec,
             action: 'STOCK_OUT_REQUESTED',
             fromEntity: `${await storeLabel(item.storeLocationId)} (Available)`,
-            toEntity: recipient ? `${recipient.fullNameEn} (Pending Approval)` : 'Recipient not set (Pending Approval)',
+            toEntity: external
+              ? `${external.organizationName} (Pending Approval)`
+              : recipient ? `${recipient.fullNameEn} (Pending Approval)` : 'Recipient not set (Pending Approval)',
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
             ifmisSlipNumber: payload.ifmisSlipNumber,
@@ -1194,10 +1232,10 @@ export class StoreService {
         ifmisSlipDateEc: slipDateEc,
         ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
         requestedById: payload.registeredById,
-        recipientEmployeeId: payload.recipientEmployeeId,
-        targetDepartmentId: payload.targetDepartmentId,
+        recipientEmployeeId: external ? undefined : payload.recipientEmployeeId,
+        targetDepartmentId: external ? undefined : payload.targetDepartmentId,
         purposeOrRemarks: notesText,
-        requestDetails: { quantity, uom } as any,
+        requestDetails: { quantity, uom, ...(external ? { recipientType: 'EXTERNAL', ...external } : {}) } as any,
         status: 'PENDING' as any,
         createdAtGc: today.gc,
         createdAtEc: today.ec,
@@ -1209,7 +1247,7 @@ export class StoreService {
       'REGISTER_STOCK_OUT',
       'STOCK_OUT',
       item.id,
-      `Issue requested for ${item.itemCode} to ${recipient?.fullNameEn || 'a recipient not yet set'}. IFMIS: ${payload.ifmisSlipNumber}`,
+      `Issue requested for ${item.itemCode} to ${external ? external.organizationName : recipient?.fullNameEn || 'a recipient not yet set'}. IFMIS: ${payload.ifmisSlipNumber}`,
       payload.ifmisSlipNumber,
     );
 
@@ -1403,6 +1441,9 @@ export class StoreService {
     }
     if (item.status !== 'ISSUED') {
       throw new ConflictError(`Item ${item.itemCode} cannot be returned to store. Current status: ${item.status}`);
+    }
+    if (item.heldByOrganization) {
+      throw new ConflictError(`${item.itemCode} was issued to ${item.heldByOrganization}. Returning an item issued to an outside organization isn't supported yet.`);
     }
     await assertNoPendingApproval(item);
     const effectiveSlipNo = String(payload.model21No || payload.ifmisSlipNumber || '').trim();
@@ -1899,6 +1940,9 @@ export class StoreService {
     let histNote: string;
     let custodianId: string | null = item.currentCustodianId;
     let departmentId: string | null = item.assignedDepartmentId;
+    // Set while the record is issued to an outside organization instead of an employee
+    let heldByOrganization: string | null = item.heldByOrganization ?? null;
+    let heldByContact: string | null = item.heldByContact ?? null;
     let locationId: string = item.storeLocationId;
     // The item's own store, for its history
     const storeName = await storeLabel(item.storeLocationId);
@@ -1913,6 +1957,9 @@ export class StoreService {
       status: 'ISSUED' | 'DISPOSED';
       custodianId: string | null;
       departmentId: string | null;
+      /** Issued to an outside organization instead of an employee */
+      heldByOrganization?: string | null;
+      heldByContact?: string | null;
       condition?: string;
       historyAction: string;
       toEntity: string;
@@ -2004,10 +2051,15 @@ export class StoreService {
         const recipient = approval.recipientEmployeeId
           ? await db.employee.findUnique({ where: { id: approval.recipientEmployeeId } })
           : null;
-        toEntity = recipient ? recipient.fullNameEn : 'Assigned Custodian';
+        const details = (approval.requestDetails ?? {}) as Record<string, any>;
+        const outsideOrganization: string | null = details.recipientType === 'EXTERNAL' ? String(details.organizationName || '') || null : null;
+        const outsideContact: string | null = outsideOrganization ? String(details.contactPerson || '') || null : null;
+        toEntity = outsideOrganization ?? (recipient ? recipient.fullNameEn : 'Assigned Custodian');
         histNote = `Issue approved for: ${approval.purposeOrRemarks}`;
         custodianId = approval.recipientEmployeeId ?? null;
         departmentId = approval.targetDepartmentId ?? null;
+        heldByOrganization = outsideOrganization;
+        heldByContact = outsideContact;
         approvedById = payload.reviewedById;
 
         const requested = Number((approval.requestDetails as Record<string, any> | null)?.quantity);
@@ -2025,6 +2077,8 @@ export class StoreService {
             status: 'ISSUED',
             custodianId: approval.recipientEmployeeId ?? null,
             departmentId: approval.targetDepartmentId ?? null,
+            heldByOrganization: outsideOrganization,
+            heldByContact: outsideContact,
             historyAction: 'STOCK_OUT_APPROVED',
             toEntity: recipientName,
             notes: `${requested} ${uom} issued from ${item.itemCode} (Model 22 ${approval.ifmisSlipNumber}). Purpose: ${approval.purposeOrRemarks}`,
@@ -2033,6 +2087,8 @@ export class StoreService {
           newItemStatus = 'AVAILABLE';
           custodianId = item.currentCustodianId;
           departmentId = item.assignedDepartmentId;
+          heldByOrganization = item.heldByOrganization ?? null;
+          heldByContact = item.heldByContact ?? null;
           approvedById = item.approvedById;
           fromEntity = 'Issue pending';
           toEntity = `${storeName} (AVAILABLE)`;
@@ -2086,6 +2142,8 @@ export class StoreService {
         status: newItemStatus as any,
         currentCustodianId: custodianId,
         assignedDepartmentId: departmentId,
+        heldByOrganization,
+        heldByContact,
         storeLocationId: locationId,
         approvedById,
         ...(approvedCondition ? { condition: approvedCondition as any } : {}),
@@ -2120,6 +2178,8 @@ export class StoreService {
           storeLocationId: item.storeLocationId,
           currentCustodianId: split.custodianId,
           assignedDepartmentId: split.departmentId,
+          heldByOrganization: split.heldByOrganization ?? null,
+          heldByContact: split.heldByContact ?? null,
           ifmisSlipNumber: item.ifmisSlipNumber,
           ifmisSlipDateGc: item.ifmisSlipDateGc,
           ifmisSlipDateEc: item.ifmisSlipDateEc,
@@ -2183,6 +2243,9 @@ export class StoreService {
     }
     if (item.status !== 'ISSUED') {
       throw new ConflictError(`Item ${item.itemCode} cannot be transferred. Current status: ${item.status}`);
+    }
+    if (item.heldByOrganization) {
+      throw new ConflictError(`${item.itemCode} was issued to ${item.heldByOrganization}. Transferring an item issued to an outside organization isn't supported yet.`);
     }
     await assertNoPendingApproval(item);
     const slipNo = String(payload.model21No || '').trim();

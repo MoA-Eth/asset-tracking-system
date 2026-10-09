@@ -219,7 +219,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onNavigate }) => {
                           <span className="font-mono">{hit.item.itemCode}</span>
                           {' · '}
                           {STATUS_LABELS[hit.item.status] ?? hit.item.status}
-                          {hit.item.currentCustodian ? ` · ${hit.item.currentCustodian.fullNameEn}` : ''}
+                          {hit.item.currentCustodian ? ` · ${hit.item.currentCustodian.fullNameEn}` : hit.item.heldByOrganization ? ` · ${hit.item.heldByOrganization}` : ''}
                         </span>
                       </span>
                     </>,

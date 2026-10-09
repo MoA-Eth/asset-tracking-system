@@ -178,6 +178,9 @@ export interface Item {
   // Storage & Assignment
   storeLocationId: string;
   currentCustodianId?: string | null;
+  /** Set while the record is issued to an outside organization instead of an employee */
+  heldByOrganization?: string;
+  heldByContact?: string;
   assignedDepartmentId?: string | null;
   
   // IFMIS Reference
@@ -538,8 +541,14 @@ export interface UpdateStockInRequest {
 
 export interface CreateStockOutRequest {
   itemId: string;
-  recipientEmployeeId: string;
-  targetDepartmentId: string;
+  /** INTERNAL (default): an employee receives it. EXTERNAL: an outside organization, typed as text. */
+  recipientType?: 'INTERNAL' | 'EXTERNAL';
+  recipientEmployeeId?: string;
+  targetDepartmentId?: string;
+  /** EXTERNAL: the organization that receives it (required) */
+  organizationName?: string;
+  /** EXTERNAL: the person who signs for the organization (optional) */
+  contactPerson?: string;
   ifmisSlipNumber: string;
   ifmisSlipDateGc: string;
   ifmisSlipAttachmentUrl?: string;
@@ -562,8 +571,11 @@ export interface CreateStockOutRequest {
 
 /** Corrections to a Stock-Out request while it still waits for Stage 1 endorsement. The item itself can't change. */
 export interface UpdateStockOutRequest {
-  recipientEmployeeId: string;
-  targetDepartmentId: string;
+  recipientType?: 'INTERNAL' | 'EXTERNAL';
+  recipientEmployeeId?: string;
+  targetDepartmentId?: string;
+  organizationName?: string;
+  contactPerson?: string;
   ifmisSlipNumber: string;
   ifmisSlipDateGc: string;
   /** New slip upload; omit to keep the current attachment */
@@ -647,6 +659,11 @@ export type UpdateDisposalRequest = Omit<CreateDisposalRequest, 'itemId'>;
 
 /** Model 21 particulars of a transfer or return request, the quantity of a Stock-Out, or a disposal's details */
 export interface Model21RequestDetails {
+  /** Stock-Out: INTERNAL (an employee) or EXTERNAL (an outside organization) */
+  recipientType?: 'INTERNAL' | 'EXTERNAL';
+  /** Stock-Out to an outside organization: its name, and the person who signs for it */
+  organizationName?: string;
+  contactPerson?: string;
   /** Stock-Out: units requested */
   quantity?: number;
   /** Stock-Out: unit of measure of the requested units */

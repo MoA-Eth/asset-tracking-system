@@ -194,8 +194,9 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                   {approval.transactionType !== 'STOCK_IN' && approval.transactionType !== 'DISPOSAL' && (
                     <>
                       <Row label={approval.transactionType === 'RETURN' ? 'Returned by' : 'Recipient'}>
-                        {approval.recipientEmployee?.fullNameEn}
+                        {approval.recipientEmployee?.fullNameEn || approval.requestDetails?.organizationName}
                       </Row>
+                      {approval.requestDetails?.contactPerson && <Row label="Contact person">{approval.requestDetails.contactPerson}</Row>}
                       {approval.targetDepartmentId && <Row label="Directorate">{deptName(approval.targetDepartmentId)}</Row>}
                       {approval.targetLocationId && <Row label="Location">{locationName(approval.targetLocationId)}</Row>}
                     </>
@@ -235,7 +236,8 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                 <Row label="Serial number" mono>{item.serialNumber}</Row>
                 <Row label="Condition">{item.condition?.replace(/_/g, ' ')}</Row>
                 <Row label="Store">{item.storeLocation?.siteName}</Row>
-                <Row label="Custodian">{item.currentCustodian?.fullNameEn}</Row>
+                <Row label="Custodian">{item.currentCustodian?.fullNameEn || item.heldByOrganization}</Row>
+                {item.heldByContact && <Row label="Contact person">{item.heldByContact}</Row>}
                 <Row label="Directorate">{item.assignedDepartment?.nameEn}</Row>
                 <Row label="Model 19 slip" mono>
                   <span className="inline-flex items-center gap-1.5">

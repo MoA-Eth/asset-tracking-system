@@ -123,8 +123,13 @@ export class ItemController {
     if (req.user) {
       payload.registeredById = req.user.id;
     }
-    if (!payload.itemId || !payload.recipientEmployeeId || !payload.ifmisSlipNumber) {
-      throw new BadRequestError('Asset Item, Recipient Staff, and IFMIS Issue Voucher are required.');
+    const external = payload.recipientType === 'EXTERNAL';
+    if (!payload.itemId || !payload.ifmisSlipNumber || (external ? !payload.organizationName?.trim() : !payload.recipientEmployeeId)) {
+      throw new BadRequestError(
+        external
+          ? 'Asset Item, Organization, and IFMIS Issue Voucher are required.'
+          : 'Asset Item, Recipient Staff, and IFMIS Issue Voucher are required.',
+      );
     }
     if (!payload.registeredById) {
       throw new BadRequestError('User identity is required to register stock-out.');

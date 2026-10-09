@@ -19,7 +19,8 @@
     "db:upgrade:reference": "prisma db execute --file prisma/migrations/202610030001_reference_data/migration.sql --schema prisma/schema.prisma && prisma generate",
     "db:upgrade:passwords": "prisma db execute --file prisma/migrations/202610040001_password_change/migration.sql --schema prisma/schema.prisma && prisma generate",
     "db:upgrade:settings": "prisma db execute --file prisma/migrations/202610050001_system_settings/migration.sql --schema prisma/schema.prisma && prisma generate",
-    "db:upgrade:disposal": "prisma db execute --file prisma/migrations/202610080001_disposal/migration.sql --schema prisma/schema.prisma && prisma generate"
+    "db:upgrade:disposal": "prisma db execute --file prisma/migrations/202610080001_disposal/migration.sql --schema prisma/schema.prisma && prisma generate",
+    "db:upgrade:external-issue": "prisma db execute --file prisma/migrations/202610090001_external_issue/migration.sql --schema prisma/schema.prisma && prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.4.0",
