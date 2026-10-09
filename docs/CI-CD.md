@@ -146,6 +146,50 @@ Tag only commits that staging has run: production then gets exactly what was tes
 
 ---
 
+## From a change to production: the checklist
+
+What each environment takes, and the steps in order:
+
+| | Takes | Starts |
+|---|---|---|
+| **Staging** | the latest `main` | by itself, within 5 minutes of a merge |
+| **Production** | a release tag (`v2.1.0`): a fixed snapshot of `main`, built fresh. Never staging's images | by hand in Jenkins, with VERSION |
+
+Merging more to `main` after a release changes staging only: production stays on its tag until the next release.
+
+1. **Branch and pull request.** Work on a branch (`feat/…`, `fix/…`, `docs/…`), open a pull request into `main`. `main` is protected: the 3 CI checks must pass and one other person must approve (repository admins can bypass). Use a clear commit message and PR description: what changed, how it was tested, and anything to do on deploy.
+2. **Merge.** Staging deploys itself. Check the run is green in Jenkins.
+3. **Check staging** ([After a deploy](#after-a-deploy)), and try the change on screen. Do not release a commit that staging hasn't run.
+4. **Release.** On GitHub, create the tag `vMAJOR.MINOR.PATCH` on `main` and publish it with release notes ([Releasing](#releasing), template below).
+5. **Deploy to production.** Jenkins → **Build with Parameters** → TARGET `production`, VERSION the new tag → **Build**. It backs up the database first.
+6. **Check production** ([After a deploy](#after-a-deploy)). If something is wrong, roll back ([DEPLOYMENT.md → Rolling back](DEPLOYMENT.md#rolling-back)): fast with `:previous`, or deploy the previous tag.
+
+### After a deploy
+
+| Check | How |
+|---|---|
+| The run is green | Jenkins run page. Stage *Health Check* passes. If it fails, Jenkins prints the server logs and the old version stays (or is restored from `:previous`) |
+| Right version | `curl -sk https://<server>/api/health` → `version` and `commit` match the tag (production) or the latest `main` commit (staging). `environment` says `stage` or `prod` |
+| Containers healthy | On the server: `cd /opt/moa-ams && docker compose ps`: `db` and `backend` healthy, `nginx` running |
+| Start-up upgrade ran cleanly | `docker compose logs backend \| grep -E "Upgrade\|did not run"`: `Upgrade:` lines for each data change, and no *"did not run"* warning. No lines at all is normal when there was nothing to change |
+| The change works | Open the app, check the version in the sidebar, and use the feature. Production has no demo accounts: sign in as a real user |
+
+### Release notes template
+
+```
+## What's new
+- <feature or change, in plain words for the people who use it>
+
+## Fixes
+- <what was wrong, now fixed>
+
+## Upgrade notes
+- <anything that changes on deploy: new permissions, data moved at start-up, settings to set.
+  Write "Nothing manual." if there is none>
+```
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause and fix |
