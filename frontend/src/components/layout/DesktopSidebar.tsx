@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronsUpDown, User, LogOut, Shield, Users } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronsUpDown, User, LogOut, Shield, Users } from 'lucide-react';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
 import { SETTINGS_NAV, getSettingsGroups, getNavSections, NavItem } from './navigation';
@@ -323,6 +323,19 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 >
                   <User className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>Profile</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    setActiveTab('docs');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-emerald-50 hover:text-white hover:bg-white/[0.08] rounded-xl transition cursor-pointer"
+                >
+                  <BookOpen className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Documentation</span>
                 </button>
 
                 {Boolean(canAccessTab ? canAccessTab('settings-users') : user?.allowedTabs?.includes('settings-users')) && (

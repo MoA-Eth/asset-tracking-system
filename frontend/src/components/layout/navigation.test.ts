@@ -7,7 +7,8 @@ const settings = (role: string) => getSettingsGroups(allowed(role)).flatMap(grou
 
 describe('Navigation consumes the server policy', () => {
   it.each(['SYSTEM_ADMIN', 'DATA_ENCODER', 'TEAM_LEADER', 'DEPARTMENT_HEAD', 'MANAGER', 'EMPLOYEE'])('%s only sees permitted tabs on desktop and mobile', role => {
-    const tabs = [...getNavSections(allowed(role)).flatMap(section => section.items), ...getMobileNavItems(allowed(role))];
+    // The user manual is open to everyone, so it is the one page that is not on the role's list
+    const tabs = [...getNavSections(allowed(role)).flatMap(section => section.items).filter(item => !item.always), ...getMobileNavItems(allowed(role))];
     for (const tab of tabs) expect(allowed(role)).toContain(tab.id);
   });
   it('restricts Users and Roles to administrators while preserving other Settings access', () => {
@@ -38,7 +39,7 @@ describe('Navigation consumes the server policy', () => {
   });
   it('gives an Employee one page, My assets, and nothing from the staff menus', () => {
     const access = getRoleAccess('EMPLOYEE');
-    expect(getNavSections(access.allowedTabs).flatMap(section => section.items.map(item => item.id))).toEqual(['my-assets']);
+    expect(getNavSections(access.allowedTabs).flatMap(section => section.items.map(item => item.id))).toEqual(['my-assets', 'docs']);
     expect(getMobileNavItems(access.allowedTabs).map(item => item.id)).toEqual(['my-assets']);
     expect(settings('EMPLOYEE')).toEqual([]);
     // Any other tab an old link or a typed address asks for lands on My assets
@@ -51,6 +52,16 @@ describe('Navigation consumes the server policy', () => {
     for (const role of ['SYSTEM_ADMIN', 'DATA_ENCODER', 'TEAM_LEADER', 'DEPARTMENT_HEAD', 'MANAGER']) {
       expect(getValidTab(getRoleAccess(role), 'my-assets')).not.toBe('my-assets');
     }
+  });
+  it('gives every role the user manual, in the side menu but not in the bottom bar on a phone', () => {
+    for (const role of ['SYSTEM_ADMIN', 'DATA_ENCODER', 'TEAM_LEADER', 'DEPARTMENT_HEAD', 'MANAGER', 'EMPLOYEE']) {
+      const access = getRoleAccess(role);
+      expect(getNavSections(access.allowedTabs).flatMap(section => section.items.map(item => item.id))).toContain('docs');
+      expect(getMobileNavItems(access.allowedTabs).map(item => item.id)).not.toContain('docs');
+      expect(getValidTab(access, 'docs')).toBe('docs');
+    }
+    // Someone with no access at all still has no menu
+    expect(getValidTab(null, 'docs')).toBe('docs');
   });
   it('marks Settings active on its child pages', () => {
     expect(getMobileNavItems(allowed('SYSTEM_ADMIN')).find(item => item.label === 'Settings')?.matches('settings-roles')).toBe(true);
