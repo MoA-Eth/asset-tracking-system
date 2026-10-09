@@ -440,6 +440,21 @@ describe('Asset record', () => {
     expect(record.querySelector(`form#${formId}`)).toBeNull();
   });
 
+  it('shows an asset issued to an outside organization with the organization as holder, and offers no return or transfer', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getItems).mockResolvedValue([
+      ...items,
+      item('H1', 'Projector', 'ISSUED', { currentCustodianId: null, currentCustodian: null, heldByOrganization: 'Oromia Bureau of Agriculture', heldByContact: 'Mantegbosh Mirku' }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-H1');
+    expect(within(record).getByText('Held by').nextSibling).toHaveTextContent('Oromia Bureau of Agriculture');
+    expect(within(record).getByText('Mantegbosh Mirku')).toBeInTheDocument();
+    expect(within(record).getByText(/Return and transfer aren.t available for it yet/)).toBeInTheDocument();
+    expect(within(record).queryByRole('button', { name: /Transfer|Return/ })).toBeNull();
+  });
+
   it('opens the receipt form in the record from ⋮ → Edit receipt as well', async () => {
     const user = userEvent.setup();
     vi.mocked(api.getApprovals).mockResolvedValue(approvals.map((a) => (a.id === 'A-R1' ? { ...a, currentStage: 1 } : a)) as any);

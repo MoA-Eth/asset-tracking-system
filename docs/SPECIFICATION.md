@@ -50,6 +50,8 @@ All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 
 ### 3.2 Issue – Model 22
 - Data Encoder issues available stock to a recipient employee and directorate, with purpose and the IFMIS issue voucher.
+- The recipient is **internal** (an employee, with their directorate) or **external** (an outside organization, typed as text, with an optional contact person who signs for it). For an external recipient there is no employee and no directorate: after approval the record is "Issued", held by the organization, and the Assets list, the record, reports and the Model 22 voucher show the organization (and contact person) as the holder.
+- Returning or transferring an item held by an outside organization is not supported yet; the system refuses it, and the Return and Transfer actions are not offered.
 - **Partial issues** are supported: issuing part of a batch creates a separate record for the issued units, linked to the original receipt; the rest stays in store.
 - Once approved, the issued units are `ISSUED` and the custodian is recorded.
 

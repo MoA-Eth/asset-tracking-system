@@ -179,6 +179,9 @@ model Item {
   storeLocationId      String
   currentCustodianId   String?
   assignedDepartmentId String?
+  // An issued record held by an outside organization instead of an employee (typed text; no employee custodian)
+  heldByOrganization String?
+  heldByContact      String?
 
   // IFMIS Reference
   ifmisSlipNumber        String

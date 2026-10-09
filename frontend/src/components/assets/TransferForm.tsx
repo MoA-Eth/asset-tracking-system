@@ -273,7 +273,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                   {
                     label: 'Issued assets',
                     options: items
-                      .filter((i) => i.status === ItemStatus.ISSUED)
+                      .filter((i) => i.status === ItemStatus.ISSUED && !i.heldByOrganization)
                       .map((item) => {
                         const pending = pendingByItem.get(item.id);
                         return {

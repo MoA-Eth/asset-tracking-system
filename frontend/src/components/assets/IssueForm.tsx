@@ -36,6 +36,10 @@ const splitPurposeAndRemark = (text: string): { purpose: string; remark: string 
 /** Most stock-outs are move orders, so that is the starting choice */
 const DEFAULT_TRANSACTION_TYPE = 'Move Order Issue';
 
+/** "Mantegbosh Mirku, Oromia Bureau of Agriculture": the person who signs for an organization, or just the organization */
+export const externalReceiverName = (organization: string, contact?: string): string =>
+  [contact?.trim(), organization.trim()].filter(Boolean).join(', ');
+
 export const StockOutForm: React.FC<StockOutFormProps> = ({
   availableItems,
   departments,
@@ -68,6 +72,13 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const [recipientEmployeeId, setRecipientEmployeeId] = useState<string>(
     editApproval?.recipientEmployeeId ?? ''
   );
+  // An employee receives it (internal), or an outside organization typed as text (external)
+  const [recipientType, setRecipientType] = useState<'INTERNAL' | 'EXTERNAL'>(
+    editApproval?.requestDetails?.recipientType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL'
+  );
+  const [organizationName, setOrganizationName] = useState<string>(editApproval?.requestDetails?.organizationName ?? '');
+  const [contactPerson, setContactPerson] = useState<string>(editApproval?.requestDetails?.contactPerson ?? '');
+  const isExternal = recipientType === 'EXTERNAL';
 
   // Line item particulars matching photo columns
   const [itemCode, setItemCode] = useState<string>('');
@@ -151,6 +162,9 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     setTransactionType(DEFAULT_TRANSACTION_TYPE);
     setDestinationDepartmentId('');
     setRecipientEmployeeId('');
+    setRecipientType('INTERNAL');
+    setOrganizationName('');
+    setContactPerson('');
     setItemCode('');
     setItemDescription('');
     setSubInventory('');
@@ -186,10 +200,16 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     !isEdit && !transactionType && 'transaction type',
     !(Number.isInteger(quantity) && quantity >= 1 && quantity <= inStore) && 'quantity',
     !purpose.trim() && 'purpose of issue',
-    !destinationDepartmentId && 'destination directorate',
-    !recipientEmployeeId && 'recipient',
+    !isExternal && !destinationDepartmentId && 'destination directorate',
+    !isExternal && !recipientEmployeeId && 'recipient',
+    isExternal && !organizationName.trim() && 'organization',
     isAttachmentReq && !attachmentFileName && 'scanned slip',
   ].filter(Boolean) as string[];
+
+  // Who receives it: an employee and directorate, or an organization and its contact person
+  const recipientFields = isExternal
+    ? { recipientType: 'EXTERNAL' as const, organizationName: organizationName.trim(), contactPerson: contactPerson.trim() || undefined }
+    : { recipientType: 'INTERNAL' as const, recipientEmployeeId, targetDepartmentId: destinationDepartmentId };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,13 +245,19 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       toast.warning('Purpose Required', msg);
       return;
     }
-    if (!destinationDepartmentId) {
+    if (isExternal && !organizationName.trim()) {
+      const msg = 'Please enter the organization that receives the item.';
+      setFormError(msg);
+      toast.warning('Organization Required', msg);
+      return;
+    }
+    if (!isExternal && !destinationDepartmentId) {
       const msg = 'Please select the destination directorate.';
       setFormError(msg);
       toast.warning('Selection Required', msg);
       return;
     }
-    if (!recipientEmployeeId) {
+    if (!isExternal && !recipientEmployeeId) {
       const msg = 'Please select the recipient staff member.';
       setFormError(msg);
       toast.warning('Recipient Required', msg);
@@ -261,8 +287,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
         const res = await api.updateStockOut(editApproval.id, {
           quantity,
-          recipientEmployeeId,
-          targetDepartmentId: destinationDepartmentId,
+          ...recipientFields,
           ifmisSlipNumber: model22No.trim(),
           ifmisSlipDateGc: issuedDateGc,
           ifmisSlipAttachmentUrl: slipUrl,
@@ -290,15 +315,14 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
       const result = await api.registerStockOut({
         itemId: selectedItemId,
-        recipientEmployeeId,
-        targetDepartmentId: destinationDepartmentId,
+        ...recipientFields,
         ifmisSlipNumber: model22No.trim(),
         ifmisSlipDateGc: issuedDateGc,
         ifmisSlipAttachmentUrl: slipUrl,
         purpose: purpose.trim(),
         registeredById,
         transactionType,
-        destination: dept ? departmentLabel(dept) : destinationDepartmentId,
+        destination: isExternal ? organizationName.trim() : dept ? departmentLabel(dept) : destinationDepartmentId,
         subInventory,
         lotBatchNo,
         printedPadFrom,
@@ -316,12 +340,12 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         issuedDateGc,
         issuedDateEc: ethDate,
         transactionType,
-        destination: dept ? departmentLabel(dept) : destinationDepartmentId,
-        destinationDepartmentId,
+        destination: isExternal ? organizationName.trim() : dept ? departmentLabel(dept) : destinationDepartmentId,
+        destinationDepartmentId: isExternal ? undefined : destinationDepartmentId,
         subInventory,
         issuedByName: user?.fullNameEn || '—',
-        receivedByName: recipient?.fullNameEn || '—',
-        receivedByEmployeeId: recipientEmployeeId,
+        receivedByName: isExternal ? externalReceiverName(organizationName, contactPerson) : recipient?.fullNameEn || '—',
+        receivedByEmployeeId: isExternal ? undefined : recipientEmployeeId,
         items: [
           {
             sNo: 1,
@@ -348,7 +372,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
       toast.success(
         'Model 22 Issue Voucher Submitted',
-        `Receipt for Articles Or Property Issued (${model22No.trim()}) to ${recipient?.fullNameEn || 'staff'} registered for approval.`
+        `Receipt for Articles Or Property Issued (${model22No.trim()}) to ${isExternal ? organizationName.trim() : recipient?.fullNameEn || 'staff'} registered for approval.`
       );
       onSuccess(result, voucher);
     } catch (err: any) {
@@ -592,6 +616,52 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       >
         <div className="space-y-3.5">
           <FieldGrid cols={2}>
+            <Field label="Recipient type" required span="sm:col-span-2" hint="Internal: a staff member of the Ministry. External: an outside organization.">
+              <div role="radiogroup" aria-label="Recipient type" className="inline-flex rounded-lg border border-slate-300 bg-slate-50 p-0.5 text-xs font-semibold">
+                {(['INTERNAL', 'EXTERNAL'] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    role="radio"
+                    aria-checked={recipientType === type}
+                    onClick={() => setRecipientType(type)}
+                    className={`rounded-md px-3 py-1.5 transition cursor-pointer ${
+                      recipientType === type ? 'bg-emerald-700 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-200/70'
+                    }`}
+                  >
+                    {type === 'INTERNAL' ? 'Internal (employee)' : 'External (organization)'}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            {isExternal ? (
+              <>
+                <Field label="Organization" required htmlFor="stock-out-organization" hint="The organization that receives the item.">
+                  <input
+                    id="stock-out-organization"
+                    type="text"
+                    value={organizationName}
+                    onChange={(e) => setOrganizationName(e.target.value)}
+                    maxLength={150}
+                    placeholder="e.g. Oromia Bureau of Agriculture"
+                    className={input()}
+                  />
+                </Field>
+                <Field label="Contact person" optional htmlFor="stock-out-contact" hint="The person who signs for the organization.">
+                  <input
+                    id="stock-out-contact"
+                    type="text"
+                    value={contactPerson}
+                    onChange={(e) => setContactPerson(e.target.value)}
+                    maxLength={100}
+                    placeholder="e.g. Mantegbosh Mirku"
+                    className={input()}
+                  />
+                </Field>
+              </>
+            ) : (
+              <>
             <Field label="Received by (recipient)" required htmlFor="stock-out-recipient" hint="Type a name or employee ID. Selecting a recipient fills in their directorate.">
               <SearchableSelect
                 id="stock-out-recipient"
@@ -618,6 +688,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                 ))}
               </select>
             </Field>
+              </>
+            )}
 
             <Field label="Purpose of issue" required>
               <input
@@ -676,6 +748,8 @@ export const buildModel22Voucher = (
   const { item: itemDetails, departments, employees } = context;
   const targetDept = departments.find((d) => d.id === approval.targetDepartmentId);
   const recipient = employees.find((e) => e.id === approval.recipientEmployeeId) || approval.recipientEmployee;
+  // Issued to an outside organization: it, and the person who signs for it, take the place of the directorate and employee
+  const outside = approval.requestDetails?.recipientType === 'EXTERNAL' ? approval.requestDetails.organizationName : undefined;
   const requester = employees.find((e) => e.id === approval.requestedById) || approval.requestedBy;
   const issuedDateGc = approval.createdAtGc ? approval.createdAtGc.split('T')[0] : new Date().toISOString().split('T')[0];
   const unitPrice = itemDetails?.unitCostETB || 0;
@@ -689,11 +763,11 @@ export const buildModel22Voucher = (
     issuedDateGc,
     issuedDateEc: approval.createdAtEc || formatGcToEc(issuedDateGc),
     transactionType: 'Move Order Issue',
-    destination: targetDept ? departmentLabel(targetDept) : '—',
+    destination: outside || (targetDept ? departmentLabel(targetDept) : '—'),
     destinationDepartmentId: approval.targetDepartmentId,
     subInventory,
     issuedByName: requester?.fullNameEn || '—',
-    receivedByName: recipient?.fullNameEn || '—',
+    receivedByName: outside ? externalReceiverName(outside, approval.requestDetails?.contactPerson) : recipient?.fullNameEn || '—',
     receivedByEmployeeId: approval.recipientEmployeeId,
     items: [
       {

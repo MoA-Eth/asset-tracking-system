@@ -239,6 +239,7 @@ export const ReportsPage: React.FC = () => {
           item.ifmisSlipNumber.toLowerCase().includes(q) ||
           (item.serialNumber && item.serialNumber.toLowerCase().includes(q)) ||
           (item.currentCustodian?.fullNameEn && item.currentCustodian.fullNameEn.toLowerCase().includes(q)) ||
+          (item.heldByOrganization && item.heldByOrganization.toLowerCase().includes(q)) ||
           (item.assignedDepartment?.nameEn && item.assignedDepartment.nameEn.toLowerCase().includes(q));
         if (!match) return false;
       }
@@ -372,7 +373,7 @@ export const ReportsPage: React.FC = () => {
         item.ifmisSlipNumber,
         item.ifmisSlipDateEc || item.createdAtEc,
         item.ifmisSlipDateGc || item.createdAtGc,
-        item.currentCustodian?.fullNameEn || 'In Store',
+        item.currentCustodian?.fullNameEn || item.heldByOrganization || 'In Store',
         item.assignedDepartment?.nameEn || '',
         item.storeLocation?.siteName || '',
         item.serialNumber || 'N/A',
@@ -464,7 +465,7 @@ export const ReportsPage: React.FC = () => {
         balanceOf(item).available,
         item.ifmisSlipNumber,
         item.ifmisSlipDateEc || item.createdAtEc,
-        item.currentCustodian?.fullNameEn || item.assignedDepartment?.nameEn || storeLocationLabel(item.storeLocation),
+        item.currentCustodian?.fullNameEn || item.heldByOrganization || item.assignedDepartment?.nameEn || storeLocationLabel(item.storeLocation),
         formatETB(item.unitCostETB),
       ]);
 
@@ -549,8 +550,8 @@ export const ReportsPage: React.FC = () => {
         const timeB = new Date(b.createdAtGc || 0).getTime();
         diff = timeA - timeB;
       } else if (sortColumn === 'custodian') {
-        const custA = a.currentCustodian?.fullNameEn || a.assignedDepartment?.nameEn || storeLocationLabel(a.storeLocation);
-        const custB = b.currentCustodian?.fullNameEn || b.assignedDepartment?.nameEn || storeLocationLabel(b.storeLocation);
+        const custA = a.currentCustodian?.fullNameEn || a.heldByOrganization || a.assignedDepartment?.nameEn || storeLocationLabel(a.storeLocation);
+        const custB = b.currentCustodian?.fullNameEn || b.heldByOrganization || b.assignedDepartment?.nameEn || storeLocationLabel(b.storeLocation);
         diff = custA.localeCompare(custB);
       } else if (sortColumn === 'cost') {
         diff = a.unitCostETB - b.unitCostETB;
@@ -1014,6 +1015,10 @@ export const ReportsPage: React.FC = () => {
                             title={item.currentCustodian.fullNameEn}
                           >
                             {item.currentCustodian.fullNameEn}
+                          </div>
+                        ) : item.heldByOrganization ? (
+                          <div className="font-semibold text-slate-900 truncate" title={item.heldByOrganization}>
+                            {item.heldByOrganization}
                           </div>
                         ) : (splitsByRoot.get(item.id) ?? []).some((s) => s.currentCustodian) ? (
                           <div
