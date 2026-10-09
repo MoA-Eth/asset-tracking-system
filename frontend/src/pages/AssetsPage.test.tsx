@@ -282,13 +282,15 @@ describe('Asset record', () => {
   };
   const toolbarOf = (record: HTMLElement) => within(within(record).getByRole('toolbar')).getAllByRole('button').map((b) => b.getAttribute('aria-label') || b.textContent?.trim());
 
-  it('opens a row as a record beside the list, with the next steps in the toolbar', async () => {
+  it('opens a row as a full-width record, with the next steps in the toolbar', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-S2');
     expect(toolbarOf(record)).toEqual(['Issue (Model 22)', 'Dispose', 'Print Model 19']);
-    expect(screen.getByRole('complementary', { name: 'Asset list' })).toBeInTheDocument();
+    // The record has the whole page: no list squeezed in beside it
+    expect(screen.queryByRole('complementary', { name: 'Asset list' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
     // The last rejection shows in Custody
     expect(within(record).getByText('Budget line closed')).toBeInTheDocument();
     // The record has continuous Custody and Requests sections with no tabs
@@ -298,6 +300,60 @@ describe('Asset record', () => {
     await user.click(screen.getByRole('button', { name: 'Close record' }));
     expect(screen.queryByRole('region', { name: /Asset record/ })).not.toBeInTheDocument();
     expect(rowOf('MOA-S2')).toBeInTheDocument();
+  });
+
+  it('goes back to the list as it was left, and steps to the previous and next asset', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    // Narrow the list, then open an asset from it
+    await user.type(screen.getByRole('textbox', { name: 'Search assets' }), 'Generator');
+    expect(rowOf('MOA-S2')).toBeInTheDocument();
+    const first = await open(user, 'MOA-S2');
+
+    // Only one asset matches, so there is nowhere to step to
+    expect(within(first).getByText('1 of 1')).toBeInTheDocument();
+    expect(within(first).getByRole('button', { name: 'Previous asset' })).toBeDisabled();
+    expect(within(first).getByRole('button', { name: 'Next asset' })).toBeDisabled();
+
+    // Back to assets: the same search and the same single result
+    await user.click(within(first).getByRole('button', { name: 'Back to assets' }));
+    expect(screen.queryByRole('region', { name: /Asset record/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Search assets' })).toHaveValue('Generator');
+    expect(rowOf('MOA-S2')).toBeInTheDocument();
+    expect(screen.queryByText('MOA-S1')).not.toBeInTheDocument();
+  });
+
+  it('opens the next and the previous asset from the record, and with the arrow keys', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const second = await open(user, 'MOA-S2');
+    const codeOf = (record: HTMLElement) => /Asset record (.+)/.exec(record.getAttribute('aria-label') || '')![1];
+    const start = codeOf(second);
+    const position = /(\d+) of (\d+)/.exec(second.textContent || '')!;
+    expect(Number(position[2])).toBeGreaterThan(1);
+
+    // Step whichever way there is a neighbour, then back; the position moves with it
+    const nextButton = within(second).getByRole('button', { name: 'Next asset' }) as HTMLButtonElement;
+    const previousButton = within(second).getByRole('button', { name: 'Previous asset' }) as HTMLButtonElement;
+    expect(nextButton.disabled && previousButton.disabled).toBe(false);
+    const [forward, backward, key, backKey] = nextButton.disabled
+      ? ['Previous asset', 'Next asset', '{ArrowUp}', '{ArrowDown}']
+      : ['Next asset', 'Previous asset', '{ArrowDown}', '{ArrowUp}'];
+    await user.click(within(second).getByRole('button', { name: forward }));
+    const moved = screen.getByRole('region', { name: /Asset record/ });
+    expect(codeOf(moved)).not.toBe(start);
+    await user.click(within(moved).getByRole('button', { name: backward }));
+    expect(codeOf(screen.getByRole('region', { name: /Asset record/ }))).toBe(start);
+
+    // The arrow keys do the same
+    await user.keyboard(key);
+    expect(codeOf(screen.getByRole('region', { name: /Asset record/ }))).not.toBe(start);
+    await user.keyboard(backKey);
+    expect(codeOf(screen.getByRole('region', { name: /Asset record/ }))).toBe(start);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('region', { name: /Asset record/ })).not.toBeInTheDocument();
   });
 
   it('shows a batch with its totals and opens an issued unit from Custody', async () => {
@@ -638,14 +694,9 @@ describe('Asset record', () => {
     expect(panel.querySelector('form#stock-in-form')).toContainElement(submit);
     expect(within(panel).getByLabelText(/Received by/i).compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // In split view, the left sidebar renders an icon-only plus button with no inner text
-    const sidebar = screen.getByRole('complementary', { name: 'Asset list' });
-    const sidebarPlusBtn = within(sidebar).getByRole('button', { name: 'Receive items (Model 19)' });
-    expect(sidebarPlusBtn).toBeInTheDocument();
-    expect(sidebarPlusBtn.textContent).toBe('');
-    // The list's two columns are named, as in the full table
-    expect(within(sidebar).getByText('Asset')).toBeInTheDocument();
-    expect(within(sidebar).getByText('Status / Qty')).toBeInTheDocument();
+    // The registration has the whole page: no list beside it, and a way back
+    expect(screen.queryByRole('complementary', { name: 'Asset list' })).not.toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Back to assets' })).toBeInTheDocument();
 
     // 1. Cancel button closes it
     await user.click(within(panel).getByRole('button', { name: 'Cancel' }));
