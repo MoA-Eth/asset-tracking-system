@@ -231,7 +231,7 @@ npm run build
 
 All test accounts use uniform password **`moaams2024`**.
 
-> **5 statutory roles** implement strict Segregation of Duties (SOD) — operational entry, technical endorsement, statutory authorization, and platform governance are strictly decoupled.
+> **5 statutory roles** (plus the **Employee** role, which only sees the assets assigned to the person) implement strict Segregation of Duties (SOD) — operational entry, technical endorsement, statutory authorization, and platform governance are strictly decoupled.
 
 | # | Role | Email Login | Title | Default View | Accessible Tabs | Access Scope & Responsibilities |
 | :- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -240,12 +240,13 @@ All test accounts use uniform password **`moaams2024`**.
 | 3 | **`DEPARTMENT_HEAD`** | `depthead@moa.gov.et` | Directorate Head | Approvals | `Approvals`, `Reports`, `Audit Log`, other `Settings` (excluding Users/Roles) | **Stage 2 Final Authorization**: Final statutory sign-off that commits stock transitions (`AVAILABLE`, `ISSUED`). Full access to reports, audit trail, and department settings. |
 | 4 | **`MANAGER`** | `manager@moa.gov.et` | Manager | Dashboard | `Dashboard`, `Reports` | **Executive Oversight**: Read-only executive view over total ministry portfolio valuation, directorate allocations, custodian ratios, and store capacities, plus read-only operational reports. Isolated from operations. |
 | 5 | **`SYSTEM_ADMIN`** | `sysadmin@moa.gov.et` | System Administrator | Dashboard | `Dashboard`, `Reports`, `Audit Log`, `Settings` | **IT & Security Governance**: Manages user accounts, assigns the five fixed roles and configures system settings. *(Strict SOD: Blocked from store operations & approvals).* |
+| 6 | **`EMPLOYEE`** | `almaz.a@moa.gov.et` | Employee | My assets | `My assets` | **Self-service, read-only**: sees only the assets issued to them (serial number, when and on which slip, pending transfer or return). Nothing about anyone else; none of the staff-wide pages. |
 
 ---
 
 ## Roles administration
 
-The implemented **Settings → Roles** directory shows the five system roles, permissions, live member counts, and links to filtered user assignments. Users and Roles are restricted to System Administrators. See [Roles setup and behavior](docs/ROLES.md) for the database upgrade and session changes.
+The implemented **Settings → Roles** directory shows the six system roles, permissions, live member counts, and links to filtered user assignments. Users and Roles are restricted to System Administrators. See [Roles setup and behavior](docs/ROLES.md) for the database upgrade and session changes.
 
 ## 🛡️ Core Business Invariants
 1. **Asset Prefixing**: Asset Tag Codes follow statutory formatting (`MOA-VEH-001`, `MOA-IT-042`).

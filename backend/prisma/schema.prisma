@@ -18,6 +18,7 @@ enum UserRole {
   TEAM_LEADER
   DEPARTMENT_HEAD
   MANAGER
+  EMPLOYEE
 }
 
 enum ItemStatus {

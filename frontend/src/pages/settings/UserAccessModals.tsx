@@ -14,6 +14,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.TEAM_LEADER]: 'Team Leader',
   [UserRole.DEPARTMENT_HEAD]: 'Department Head',
   [UserRole.MANAGER]: 'Manager',
+  [UserRole.EMPLOYEE]: 'Employee',
 };
 
 /** A random temporary password: 10 letters and digits, without look-alikes such as 0/O and 1/l */

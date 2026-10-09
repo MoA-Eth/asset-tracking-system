@@ -19,6 +19,9 @@ export const PERMISSION_GROUPS = [
     { key: 'reports.read', label: 'View operational reports' },
     { key: 'audit.read', label: 'View audit log' },
   ] },
+  { name: 'My Assets', permissions: [
+    { key: 'assets.own', label: 'View the assets assigned to me' },
+  ] },
   { name: 'Administration', permissions: [
     { key: 'references.read', label: 'View employees, departments, and locations' },
     { key: 'employees.manage', label: 'Add, edit and deactivate employees' },
@@ -67,6 +70,12 @@ export const ROLE_POLICY: Record<UserRole, {
     approvalResponsibility: 'No approval authority',
     permissions: [...readPermissions, 'dashboard.read', 'reports.read'],
     allowedTabs: ['dashboard', 'reports'], landingTab: 'dashboard',
+  },
+  EMPLOYEE: {
+    name: 'Employee', description: 'Signs in to see the assets assigned to them. Sees nothing about anyone else.',
+    approvalResponsibility: 'No approval authority',
+    permissions: ['assets.own'],
+    allowedTabs: ['my-assets'], landingTab: 'my-assets',
   },
 };
 
@@ -163,6 +172,7 @@ export function computeAllowedTabs(role: UserRole, permissions: Permission[]): {
 
   const tabs = new Set<string>();
 
+  if (permissions.includes('assets.own')) tabs.add('my-assets');
   if (permissions.includes('dashboard.read')) tabs.add('dashboard');
   // One register for every asset: those who record store work act on it, approvers follow it read-only
   if (REQUEST_PERMISSIONS.some((p) => permissions.includes(p)) || permissions.includes('approvals.read')) tabs.add('assets');

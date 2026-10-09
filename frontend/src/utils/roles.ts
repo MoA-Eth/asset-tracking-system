@@ -5,6 +5,7 @@ export const ROLE_NAMES: Record<string, string> = {
   TEAM_LEADER: 'Team Leader',
   DEPARTMENT_HEAD: 'Department Head',
   MANAGER: 'Manager',
+  EMPLOYEE: 'Employee',
 };
 
 export const roleName = (code?: string | null): string => (code ? ROLE_NAMES[code] ?? code.replace(/_/g, ' ') : '');

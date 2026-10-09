@@ -11,6 +11,8 @@ router.get('/dashboard/executive', requirePermission('dashboard.read'), controll
 router.get('/approvals/pending', requirePermission('approvals.read'), controller.getApprovals);
 router.get('/audit/logs', requirePermission('audit.read'), controller.getAuditLogs);
 router.get('/', requirePermission('inventory.read'), controller.getItems);
+// Before '/:id', so "mine" isn't read as an item id
+router.get('/mine', requirePermission('assets.own'), controller.getMyAssets);
 router.get('/:id', requirePermission('inventory.read'), controller.getItemById);
 
 router.post('/stock-in', requirePermission('stock-in.write'), controller.registerStockIn);

@@ -6,7 +6,7 @@ const allowed = (role: string) => getRoleAccess(role).allowedTabs;
 const settings = (role: string) => getSettingsGroups(allowed(role)).flatMap(group => group.items.map(item => item.id));
 
 describe('Navigation consumes the server policy', () => {
-  it.each(['SYSTEM_ADMIN', 'DATA_ENCODER', 'TEAM_LEADER', 'DEPARTMENT_HEAD', 'MANAGER'])('%s only sees permitted tabs on desktop and mobile', role => {
+  it.each(['SYSTEM_ADMIN', 'DATA_ENCODER', 'TEAM_LEADER', 'DEPARTMENT_HEAD', 'MANAGER', 'EMPLOYEE'])('%s only sees permitted tabs on desktop and mobile', role => {
     const tabs = [...getNavSections(allowed(role)).flatMap(section => section.items), ...getMobileNavItems(allowed(role))];
     for (const tab of tabs) expect(allowed(role)).toContain(tab.id);
   });
@@ -35,6 +35,22 @@ describe('Navigation consumes the server policy', () => {
     }
     // A Manager has no Assets page, so an old link lands on the dashboard
     expect(getValidTab(getRoleAccess('MANAGER'), 'stock-in')).toBe('dashboard');
+  });
+  it('gives an Employee one page, My assets, and nothing from the staff menus', () => {
+    const access = getRoleAccess('EMPLOYEE');
+    expect(getNavSections(access.allowedTabs).flatMap(section => section.items.map(item => item.id))).toEqual(['my-assets']);
+    expect(getMobileNavItems(access.allowedTabs).map(item => item.id)).toEqual(['my-assets']);
+    expect(settings('EMPLOYEE')).toEqual([]);
+    // Any other tab an old link or a typed address asks for lands on My assets
+    for (const tab of ['assets', 'dashboard', 'approvals', 'reports', 'audit', 'settings-users', 'settings-employees']) {
+      expect(getValidTab(access, tab)).toBe('my-assets');
+    }
+    expect(getValidTab(access, 'my-assets')).toBe('my-assets');
+  });
+  it('keeps My assets away from every other role', () => {
+    for (const role of ['SYSTEM_ADMIN', 'DATA_ENCODER', 'TEAM_LEADER', 'DEPARTMENT_HEAD', 'MANAGER']) {
+      expect(getValidTab(getRoleAccess(role), 'my-assets')).not.toBe('my-assets');
+    }
   });
   it('marks Settings active on its child pages', () => {
     expect(getMobileNavItems(allowed('SYSTEM_ADMIN')).find(item => item.label === 'Settings')?.matches('settings-roles')).toBe(true);

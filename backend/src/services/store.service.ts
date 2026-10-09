@@ -1,6 +1,7 @@
 import {
   ItemStatus,
   ItemWithRelations,
+  MyAsset,
   Department,
   Location,
   Employee,
@@ -609,6 +610,64 @@ export class StoreService {
   }
 
   // ── Item Queries ────────────────────────────────────────────────────────
+
+  /**
+   * The assets issued to one employee, for their own "My assets" page. Only what they hold: no costs, notes,
+   * history or other people's names. Always scoped to the signed-in person.
+   */
+  public async getMyAssets(employeeId: string): Promise<MyAsset[]> {
+    const items = await prisma.item.findMany({
+      where: { currentCustodianId: employeeId, status: { in: ['ISSUED', 'UNDER_TRANSFER'] as any } },
+      include: {
+        history: { where: { action: { in: ['STOCK_OUT_APPROVED', 'TRANSFER_APPROVED'] } }, orderBy: { createdAt: 'desc' }, take: 1 },
+        assignedDepartment: true,
+        storeLocation: { include: { store: true } },
+      },
+      orderBy: { itemCode: 'asc' },
+    });
+    if (items.length === 0) return [];
+
+    // What each was issued for: the approved issue or transfer made to this person. A part of a batch is filed
+    // under the batch's record, with the code of the record split off for it.
+    const given = await prisma.transactionApproval.findMany({
+      where: { recipientEmployeeId: employeeId, status: 'APPROVED' as any, transactionType: { in: ['STOCK_OUT', 'TRANSFER'] as any } },
+      select: { itemId: true, purposeOrRemarks: true, requestDetails: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const purposeOf = (item: { id: string; itemCode: string }): string | undefined => {
+      const approval = given.find((a) => a.itemId === item.id || (a.requestDetails as Record<string, any> | null)?.issuedItemCode === item.itemCode);
+      // "Purpose (Remark: ...)": the remark is the store's own note, so only the purpose goes out
+      return approval?.purposeOrRemarks?.split(' (Remark:')[0].trim() || undefined;
+    };
+
+    const waiting = await prisma.transactionApproval.findMany({
+      where: { itemId: { in: items.map((i) => i.id) }, status: 'PENDING' as any, transactionType: { in: ['TRANSFER', 'RETURN'] as any } },
+      select: { itemId: true, transactionType: true, currentStage: true },
+    });
+    const pendingOf = new Map(waiting.map((a) => [a.itemId, a]));
+
+    return items.map((item) => {
+      const last = item.history?.[0];
+      const pending = pendingOf.get(item.id);
+      return {
+        id: item.id,
+        itemCode: item.itemCode,
+        name: item.name,
+        category: item.category as AssetCategory,
+        serialNumber: item.serialNumber,
+        condition: (item.condition ?? ItemCondition.NEW) as ItemCondition,
+        quantity: quantityOf(item),
+        uom: uomOf(item),
+        status: item.status as ItemStatus,
+        assignedOnGc: last?.dateGc,
+        voucherNo: last?.ifmisSlipNumber ?? undefined,
+        issuedFrom: locationLabel(item.storeLocation) ?? undefined,
+        department: item.assignedDepartment?.nameEn ?? undefined,
+        purpose: purposeOf(item),
+        pendingRequest: pending ? { type: pending.transactionType as 'TRANSFER' | 'RETURN', stage: pending.currentStage ?? 1 } : undefined,
+      };
+    });
+  }
 
   public async getItems(filter?: {
     status?: ItemStatus;

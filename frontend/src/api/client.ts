@@ -4,6 +4,7 @@ import {
   ItemStatus,
   ItemWithRelations,
   TransactionApproval,
+  MyAsset,
   ApprovalStatus,
   AuditLogEntry,
   Department,
@@ -246,6 +247,9 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+
+  // The signed-in employee's own assets (only what is issued to them)
+  getMyAssets: () => request<MyAsset[]>('/items/mine'),
 
   // Approvals Workflow
   getApprovals: (status?: ApprovalStatus) => {

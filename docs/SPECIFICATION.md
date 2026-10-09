@@ -55,6 +55,10 @@ All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 - **Partial issues** are supported: issuing part of a batch creates a separate record for the issued units, linked to the original receipt; the rest stays in store.
 - Once approved, the issued units are `ISSUED` and the custodian is recorded.
 
+### My assets (employees)
+- Any employee can be given the **Employee** role. They sign in to one page, **My assets**, that lists the assets issued to them: item, serial number, quantity, condition, the date and slip it was assigned on, and whether a transfer or return is waiting for approval.
+- It is read-only and personal: the server returns only what the signed-in person holds, with no costs, notes or other people's names, and the role is refused by every staff-wide endpoint.
+
 ### 3.3 Transfer and Return – Model 21
 - **Transfer:** reassigns an issued asset to another employee, directorate or location. Custody changes only after approval.
 - **Return to store:** brings an issued asset back to a store location, with its condition and any defects noted.

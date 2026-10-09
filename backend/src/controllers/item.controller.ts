@@ -57,6 +57,16 @@ export class ItemController {
   });
 
   /**
+   * GET /api/items/mine
+   * The signed-in employee's own assets. The person is always taken from the session, never from the request.
+   */
+  public getMyAssets = asyncHandler(async (req: Request, res: Response) => {
+    assertPermission(req, 'assets.own');
+    const assets = await this.store.getMyAssets(req.user!.id);
+    return sendSuccess(res, assets, 'Your assets retrieved');
+  });
+
+  /**
    * GET /api/items/:id
    * Retrieves detailed single item record with relations and movement timeline.
    */
