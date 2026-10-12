@@ -34,7 +34,22 @@ const AuthenticatedPortal: React.FC = () => {
   const [requestedTab, setRequestedTab] = useState<string>(() => localStorage.getItem('moa_active_tab') || '');
   const activeTab = getValidTab(user, requestedTab);
   const [usersRoleFilter, setUsersRoleFilter] = useState<UserRole | 'ALL'>('ALL');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  // Remembered between visits; storage can be unavailable, and then the rail simply starts open
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('moa_sidebar_collapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const setSidebarCollapsed = (collapsed: boolean) => {
+    setSidebarCollapsedState(collapsed);
+    try {
+      localStorage.setItem('moa_sidebar_collapsed', collapsed ? '1' : '0');
+    } catch {
+      // The choice just isn't remembered
+    }
+  };
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number>(0);
   const [selectedCenter, setSelectedCenter] = useState<string>('ALL');
 
@@ -222,6 +237,7 @@ const AuthenticatedPortal: React.FC = () => {
         <MobileBottomNav
           activeTab={activeTab}
           setActiveTab={handleTabChange}
+          pendingApprovalsCount={pendingApprovalsCount}
         />
       </div>
     </div>

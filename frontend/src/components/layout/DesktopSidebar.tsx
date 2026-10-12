@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { CircleHelp, ChevronDown, ChevronsUpDown, User, LogOut, Shield, Users } from 'lucide-react';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
@@ -45,7 +46,34 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 }) => {
   const { user, role, logout, canAccessTab } = useAuth();
   const isSettingsActive = activeTab.startsWith('settings');
-  const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
+  // The Settings group stays as it was left between visits; storage can be unavailable
+  const [settingsOpen, setSettingsOpenState] = useState<boolean>(() => {
+    if (isSettingsActive) return true;
+    try {
+      return localStorage.getItem('moa_settings_open') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const setSettingsOpen = (next: boolean | ((open: boolean) => boolean)) => {
+    setSettingsOpenState((open) => {
+      const value = typeof next === 'function' ? next(open) : next;
+      try {
+        localStorage.setItem('moa_settings_open', value ? '1' : '0');
+      } catch {
+        // The choice just isn't remembered
+      }
+      return value;
+    });
+  };
+  // A fast label beside the rail when it is collapsed (the browser's own tooltip is slow)
+  const [tip, setTip] = useState<{ label: string; hint?: string; top: number; left: number } | null>(null);
+  const showTip = (el: HTMLElement, label: string, hint?: string) => {
+    if (!collapsed) return;
+    const r = el.getBoundingClientRect();
+    setTip({ label, hint, top: r.top + r.height / 2, left: r.right + 10 });
+  };
+  const hideTip = () => setTip(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -78,14 +106,14 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   const settingsGroups = getSettingsGroups(user?.allowedTabs);
 
   const itemClass = (isActive: boolean) =>
-    `group relative w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-2.5 px-2.5'} py-1.5 rounded-lg text-xs transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
+    `group relative w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2 rounded-lg text-[13px] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
       isActive
         ? 'bg-white/[0.09] text-white font-semibold'
         : 'text-emerald-50/70 hover:bg-white/[0.05] hover:text-white font-medium'
     }`;
 
   const iconClass = (isActive: boolean) =>
-    `w-[18px] h-[18px] shrink-0 transition-colors ${
+    `w-5 h-5 shrink-0 transition-colors ${
       isActive ? 'text-[#FCDD09]' : 'text-emerald-200/55 group-hover:text-emerald-100'
     }`;
 
@@ -99,7 +127,12 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         key={item.id}
         onClick={() => setActiveTab(item.id)}
         className={itemClass(isActive)}
-        title={collapsed ? item.label : item.hint}
+        title={collapsed ? undefined : item.hint}
+        aria-label={collapsed ? item.label : undefined}
+        onMouseEnter={(e) => showTip(e.currentTarget, item.label, item.hint)}
+        onMouseLeave={hideTip}
+        onFocus={(e) => showTip(e.currentTarget, item.label, item.hint)}
+        onBlur={hideTip}
         aria-current={isActive ? 'page' : undefined}
       >
         {isActive && <ActiveBar />}
@@ -162,7 +195,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               idx > 0 && <div aria-hidden="true" className="mx-3 mb-3 border-t border-white/[0.07]" />
             ) : (
               section.items.length > 1 && (
-                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200/40">
+                <p className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-200/50">
                   {section.label}
                 </p>
               )
@@ -178,7 +211,11 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             <button
               onClick={() => (collapsed ? setActiveTab(settingsGroups[0].items[0].id) : setSettingsOpen((o) => !o))}
               className={itemClass(isSettingsActive && (collapsed || !settingsOpen))}
-              title={collapsed ? SETTINGS_NAV.label : undefined}
+              aria-label={collapsed ? SETTINGS_NAV.label : undefined}
+              onMouseEnter={(e) => showTip(e.currentTarget, SETTINGS_NAV.label)}
+              onMouseLeave={hideTip}
+              onFocus={(e) => showTip(e.currentTarget, SETTINGS_NAV.label)}
+              onBlur={hideTip}
               aria-expanded={collapsed ? undefined : settingsOpen}
             >
               {isSettingsActive && (collapsed || !settingsOpen) && <ActiveBar />}
@@ -197,7 +234,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               <div className="mt-1 ml-[21px] pl-3 border-l border-white/[0.08] space-y-2.5 pb-1">
                 {settingsGroups.map((group) => (
                   <div key={group.label}>
-                    <p className="px-2 pt-1 pb-1 text-[10px] font-medium text-emerald-200/35">{group.label}</p>
+                    <p className="px-2 pt-1 pb-1 text-[11px] font-medium text-emerald-200/45">{group.label}</p>
                     <div className="space-y-0.5">
                       {group.items.map((sub) => {
                         const isActive = activeTab === sub.id;
@@ -207,7 +244,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                             key={sub.id}
                             onClick={() => setActiveTab(sub.id)}
                             aria-current={isActive ? 'page' : undefined}
-                            className={`group w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
+                            className={`group w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[13px] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
                               isActive
                                 ? 'bg-white/[0.09] text-white font-semibold'
                                 : 'text-emerald-50/65 hover:bg-white/[0.05] hover:text-white font-medium'
@@ -382,6 +419,19 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           )}
         </div>
       )}
+
+      {tip &&
+        createPortal(
+          <div
+            role="tooltip"
+            style={{ top: tip.top, left: tip.left }}
+            className="pointer-events-none fixed z-[70] -translate-y-1/2 rounded-lg bg-slate-900 px-2.5 py-1.5 text-white shadow-lg animate-fadeIn"
+          >
+            <span className="block text-xs font-semibold">{tip.label}</span>
+            {tip.hint && <span className="block text-[10px] text-slate-300">{tip.hint}</span>}
+          </div>,
+          document.body,
+        )}
     </aside>
   );
 };
