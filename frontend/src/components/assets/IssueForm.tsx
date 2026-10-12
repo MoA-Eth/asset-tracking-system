@@ -5,7 +5,7 @@ import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
 import { recallForm, rememberForm, nextNumberAfter } from '../../utils/form-memory';
 import { useSlipRegister, usedMessage } from '../../hooks/useSlipRegister';
-import { FormSection, FieldGrid, Field, ReadOnlyValue, TotalValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, ReadOnlyValue, TotalValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass, MoneyInput, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { ItemWithRelations, TransactionApproval, Department, Employee, Model22Voucher } from '../../types/asset-management';
@@ -234,6 +234,12 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   ].filter(Boolean) as string[];
 
   // Who receives it: an employee and directorate, or an organization and its contact person
+  // A field shows what is wrong with it once the user has been in it
+  const fieldErrors = useFieldErrors({
+    model22No: !model22No.trim() && 'Enter the number printed on the Model 22 slip.',
+    purpose: !purpose.trim() && (isDisposal ? 'Say why the units are being written off.' : 'Say what the items are issued for.'),
+  });
+
   const recipientFields = isDisposal
     ? { disposal: true as const }
     : isExternal
@@ -420,10 +426,10 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     }
   };
 
-  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
+  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center'; invalid?: boolean }) => inputClass('emerald', opts);
 
   return (
-    <form id="stock-out-form" onSubmit={handleSubmit} className="space-y-4">
+    <form id="stock-out-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
       <FormError message={formError} />
 
       {/* ── Section 1: Voucher details ── */}
@@ -432,6 +438,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           <Field
             label="Model 22 No."
             required
+            error={fieldErrors.error('model22No')}
             warning={usedNo ? usedMessage(model22No, usedNo) : undefined}
             hint={
               !model22No.trim() && nextNo ? (
@@ -447,7 +454,9 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
               placeholder="e.g. 0004653/A Inventory"
               value={model22No}
               onChange={(e) => setModel22No(e.target.value)}
-              className={`${input({ mono: true })} font-semibold`}
+              onBlur={fieldErrors.touch('model22No')}
+              autoFocus={!isEdit}
+              className={`${input({ mono: true, invalid: !!fieldErrors.error('model22No') })} font-semibold`}
             />
           </Field>
 
@@ -589,27 +598,12 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
               <ReadOnlyValue mono>{selectedItemId ? inStoreUom : '—'}</ReadOnlyValue>
             </Field>
 
-            <Field label="Unit price (ETB)" required>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                required
-                value={unitPrice}
-                onChange={(e) => setUnitPrice(Math.max(0, parseFloat(e.target.value) || 0))}
-                className={input({ mono: true, align: 'right' })}
-              />
+            <Field label="Unit price (ETB)" required htmlFor="stock-out-unit-price">
+              <MoneyInput id="stock-out-unit-price" value={unitPrice} onChange={setUnitPrice} />
             </Field>
 
-            <Field label="Transport cost (ETB)" optional>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={transportationCost}
-                onChange={(e) => setTransportationCost(Math.max(0, parseFloat(e.target.value) || 0))}
-                className={input({ mono: true, align: 'right' })}
-              />
+            <Field label="Transport cost (ETB)" optional htmlFor="stock-out-transport">
+              <MoneyInput id="stock-out-transport" value={transportationCost} onChange={setTransportationCost} />
             </Field>
           </FieldGrid>
 
@@ -742,14 +736,15 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
               </>
             )}
 
-            <Field label={isDisposal ? "Reason for disposal" : "Purpose of issue"} required>
+            <Field label={isDisposal ? "Reason for disposal" : "Purpose of issue"} required error={fieldErrors.error('purpose')}>
               <input
                 type="text"
                 required
                 placeholder={isDisposal ? "e.g. Expired, damaged beyond repair, used up" : "e.g. Move Order Issue for Agricultural Operations"}
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
-                className={input()}
+                onBlur={fieldErrors.touch('purpose')}
+                className={input({ invalid: !!fieldErrors.error('purpose') })}
               />
             </Field>
 

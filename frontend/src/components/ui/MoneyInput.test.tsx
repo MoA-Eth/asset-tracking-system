@@ -41,14 +41,14 @@ describe('MoneyInput', () => {
 });
 
 describe('Field error', () => {
-  it('shows what is wrong in place of the hint', () => {
+  it('shows what is wrong above the hint', () => {
     render(
       <Field label="Book" required hint="Book the form comes from" error="Enter the book this form comes from.">
         <input aria-label="book" />
       </Field>,
     );
     expect(screen.getByRole('alert')).toHaveTextContent('Enter the book this form comes from.');
-    expect(screen.queryByText('Book the form comes from')).toBeNull();
+    expect(screen.getByText('Book the form comes from')).toBeInTheDocument();
   });
 
   it('keeps showing the hint when there is no error', () => {

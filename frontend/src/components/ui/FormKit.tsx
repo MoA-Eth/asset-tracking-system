@@ -105,6 +105,7 @@ export const QuantityInput: React.FC<QuantityInputProps> = ({
 interface MoneyInputProps {
   value: number;
   onChange: (value: number) => void;
+  onBlur?: () => void;
   id?: string;
   accent?: FormAccent;
   invalid?: boolean;
@@ -120,7 +121,7 @@ const MONEY_FORMAT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, 
  * An amount that is easy to read: 1,250,000.50 when you are not typing, the plain number while you are.
  * Anything that is not a digit or one decimal point is dropped as it is typed.
  */
-export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, id, accent = 'emerald', invalid, suffix = 'ETB', placeholder = '0.00', disabled }) => {
+export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, onBlur, id, accent = 'emerald', invalid, suffix = 'ETB', placeholder = '0.00', disabled }) => {
   const [focused, setFocused] = useState(false);
   const [text, setText] = useState('');
   const shown = focused ? text : value ? MONEY_FORMAT.format(value) : '';
@@ -139,7 +140,10 @@ export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, id, acc
           setText(value ? String(value) : '');
           setFocused(true);
         }}
-        onBlur={() => setFocused(false)}
+        onBlur={() => {
+          setFocused(false);
+          onBlur?.();
+        }}
         onChange={(e) => {
           const cleaned = e.target.value.replace(/[^0-9.]/g, '').replace(/^(\d*\.\d*).*$/, '$1');
           setText(cleaned);
@@ -151,6 +155,28 @@ export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, id, acc
       {suffix && <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-semibold text-slate-400">{suffix}</span>}
     </div>
   );
+};
+
+// ─── Inline errors and keyboard ─────────────────────────────────────────────
+
+/**
+ * Shows what is wrong with a field once the user has been in it.
+ * `problems` maps a field name to its message (or false when it is fine); call `touch(name)` on blur.
+ */
+export function useFieldErrors(problems: Record<string, string | false | undefined>) {
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  return {
+    touch: (key: string) => () => setTouched((t) => (t[key] ? t : { ...t, [key]: true })),
+    error: (key: string): string | undefined => (touched[key] && problems[key] ? (problems[key] as string) : undefined),
+  };
+}
+
+/** Ctrl+Enter (or ⌘+Enter) submits a form that is complete, from any field in it */
+export const submitOnCtrlEnter = (canSubmit: boolean) => (e: React.KeyboardEvent<HTMLFormElement>) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && canSubmit) {
+    e.preventDefault();
+    e.currentTarget.requestSubmit();
+  }
 };
 
 // ─── Layout ─────────────────────────────────────────────────────────────────
@@ -236,7 +262,7 @@ interface FieldProps {
   /** Tailwind col-span classes, e.g. "sm:col-span-2" */
   span?: string;
   htmlFor?: string;
-  /** What is wrong with this field, shown under it in place of the hint */
+  /** What is wrong with this field, shown under it above the hint */
   error?: string;
   /** Worth a second look but not wrong, e.g. a number that is already used */
   warning?: string;
@@ -251,14 +277,13 @@ export const Field: React.FC<FieldProps> = ({ label, required, optional, hint, s
       {optional && <span className="ml-1 font-normal text-slate-400">(optional)</span>}
     </label>
     {children}
-    {error ? (
+    {error && (
       <p role="alert" className="mt-1.5 flex items-start gap-1 text-[11px] font-medium text-rose-700">
         <AlertCircle className="mt-px h-3 w-3 shrink-0" />
         {error}
       </p>
-    ) : (
-      hint && <p className="mt-1.5 text-[11px] text-slate-500">{hint}</p>
     )}
+    {hint && <p className="mt-1.5 text-[11px] text-slate-500">{hint}</p>}
     {!error && warning && (
       <p role="status" className="mt-1.5 flex items-start gap-1 text-[11px] font-medium text-amber-800">
         <AlertCircle className="mt-px h-3 w-3 shrink-0 text-amber-600" />
@@ -425,6 +450,9 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
       <span />
     )}
     <div className="flex flex-wrap items-center justify-end gap-2">
+      {!note && !submitDisabled && !submitting && (
+        <span className="hidden text-[11px] text-slate-400 sm:inline">Ctrl + Enter to submit</span>
+      )}
       {note && (
         <p id="form-footer-note" className="text-[11px] text-slate-500">
           {note}

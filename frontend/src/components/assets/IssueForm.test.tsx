@@ -221,3 +221,38 @@ describe('Issue items (Model 22): the store man', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
+
+describe('Issue items (Model 22): inline errors and keyboard', () => {
+  const department = { id: 'DEP-1', nameEn: 'Plant Protection', nameAm: '' } as any;
+  const employee = { id: 'EMP-A', fullNameEn: 'Abebe Kebede', payrollId: '00000001', departmentId: 'DEP-1' } as any;
+  const renderIssue = () =>
+    render(<StockOutForm availableItems={[item()]} departments={[department]} employees={[employee]} initialItemId="item-1" onCancel={vi.fn()} onSuccess={vi.fn()} />);
+
+  it('starts on the voucher number and says what is wrong once the field has been left empty', async () => {
+    const user = userEvent.setup();
+    renderIssue();
+    const number = screen.getByPlaceholderText('e.g. 0004653/A Inventory');
+    expect(number).toHaveFocus();
+    expect(screen.queryByText('Enter the number printed on the Model 22 slip.')).toBeNull();
+    await user.tab();
+    expect(screen.getByText('Enter the number printed on the Model 22 slip.')).toBeInTheDocument();
+    await user.type(number, 'M22-001');
+    expect(screen.queryByText('Enter the number printed on the Model 22 slip.')).toBeNull();
+  });
+
+  it('submits a complete form with Ctrl+Enter, and not an incomplete one', async () => {
+    vi.mocked(api.registerStockOut).mockResolvedValue({ id: 'appr-1' } as any);
+    const user = userEvent.setup();
+    renderIssue();
+    await user.selectOptions(screen.getByLabelText(/Transaction type/), 'Disposal');
+    const number = screen.getByPlaceholderText('e.g. 0004653/A Inventory');
+    await user.type(number, 'M22-020');
+    // The reason is still missing
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    expect(api.registerStockOut).not.toHaveBeenCalled();
+
+    await user.type(screen.getByPlaceholderText(/Expired, damaged beyond repair/), 'Expired');
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    expect(api.registerStockOut).toHaveBeenCalledTimes(1);
+  });
+});

@@ -3,7 +3,7 @@ import { PackagePlus, FileText, Upload } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
-import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass, MoneyInput, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { AssetCategory, ItemType, ItemStatus, ItemCondition, ItemWithRelations, Location, Employee, Model19Voucher, Model19LineItem } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
@@ -125,6 +125,19 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !(unitCostETB > 0) && 'unit price',
     isAttachmentRequired && !attachmentFileName && 'scanned slip',
   ].filter(Boolean) as string[];
+
+  // A field shows what is wrong with it once the user has been in it
+  const fieldErrors = useFieldErrors({
+    model19No: !ifmisSlipNumber.trim() && 'Enter the number printed on the Model 19 slip.',
+    transactionType: !transactionType && 'Choose the transaction type.',
+    source: !source.trim() && 'Enter the supplier or vendor.',
+    itemName: !name.trim() && 'Describe the item received.',
+    category: !category && 'Choose the category.',
+    itemType: !itemType && 'Choose fixed asset or consumable.',
+    condition: !condition && 'Choose the physical condition.',
+    uom: !uom.trim() && 'Enter the unit of measure, e.g. EA or KG.',
+    unitCost: !(unitCostETB > 0) && 'Enter the unit price.',
+  });
 
   const handleReset = () => {
     setIfmisSlipNumber('');
@@ -384,10 +397,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     }
   };
 
-  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
+  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center'; invalid?: boolean }) => inputClass('emerald', opts);
 
   return (
-    <form id="stock-in-form" onSubmit={handleSubmit} className="space-y-4">
+    <form id="stock-in-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
       <FormError message={formError} />
 
       {/* ── Section 1: Voucher & procurement ── */}
@@ -403,6 +416,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             label="Model 19 No."
             required
             htmlFor="stock-in-model19"
+            error={fieldErrors.error('model19No')}
             hint={
               !ifmisSlipNumber.trim() && nextNo ? (
                 <button type="button" onClick={() => setIfmisSlipNumber(nextNo)} className="font-medium text-emerald-700 hover:underline cursor-pointer">
@@ -418,7 +432,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               placeholder="e.g. 0000044"
               value={ifmisSlipNumber}
               onChange={(e) => setIfmisSlipNumber(e.target.value)}
-              className={`${input({ mono: true })} font-semibold`}
+              onBlur={fieldErrors.touch('model19No')}
+              className={`${input({ mono: true, invalid: !!fieldErrors.error('model19No') })} font-semibold`}
             />
           </Field>
 
@@ -444,8 +459,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             />
           </Field>
 
-          <Field label="Transaction type" required htmlFor="stock-in-transaction-type">
-            <select id="stock-in-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
+          <Field label="Transaction type" required htmlFor="stock-in-transaction-type" error={fieldErrors.error('transactionType')}>
+            <select id="stock-in-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} onBlur={fieldErrors.touch('transactionType')} className={input({ invalid: !!fieldErrors.error('transactionType') })}>
               <option value="" disabled>Select…</option>
               <option value="PO Receipt">PO Receipt</option>
               <option value="Direct Delivery">Direct Delivery</option>
@@ -455,7 +470,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             </select>
           </Field>
 
-          <Field label="Source (supplier / vendor)" required htmlFor="stock-in-source">
+          <Field label="Source (supplier / vendor)" required htmlFor="stock-in-source" error={fieldErrors.error('source')}>
             <input
               id="stock-in-source"
               type="text"
@@ -463,7 +478,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               placeholder="Supplier or vendor name"
               value={source}
               onChange={(e) => setSource(e.target.value)}
-              className={input()}
+              onBlur={fieldErrors.touch('source')}
+              className={input({ invalid: !!fieldErrors.error('source') })}
             />
           </Field>
 
@@ -522,7 +538,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       <FormSection step={2} title="Item received" subtitle="የተረከቡት ዕቃ ዝርዝር መረጃ" icon={PackagePlus} accent="emerald">
         <div className="space-y-3.5">
           <FieldGrid>
-            <Field label="Item description" required span="sm:col-span-2" htmlFor="stock-in-item-name">
+            <Field label="Item description" required span="sm:col-span-2" htmlFor="stock-in-item-name" error={fieldErrors.error('itemName')}>
               <input
                 id="stock-in-item-name"
                 type="text"
@@ -530,12 +546,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                 placeholder="e.g. Dell Latitude 5440 Laptop"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className={input()}
+                onBlur={fieldErrors.touch('itemName')}
+                className={input({ invalid: !!fieldErrors.error('itemName') })}
               />
             </Field>
 
-            <Field label="Category" required htmlFor="stock-in-category">
-              <select id="stock-in-category" required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} className={input()}>
+            <Field label="Category" required htmlFor="stock-in-category" error={fieldErrors.error('category')}>
+              <select id="stock-in-category" required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} onBlur={fieldErrors.touch('category')} className={input({ invalid: !!fieldErrors.error('category') })}>
                 <option value="" disabled>Select…</option>
                 {COMMON_CATEGORIES.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -545,8 +562,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               </select>
             </Field>
 
-            <Field label="Item type" required htmlFor="stock-in-item-type" hint="ቋሚ ዕቃ (fixed) or አላቂ ዕቃ (consumable). It can't be changed once approved.">
-              <select id="stock-in-item-type" required value={itemType} onChange={(e) => setItemType(e.target.value as ItemType)} className={input()}>
+            <Field label="Item type" required htmlFor="stock-in-item-type" error={fieldErrors.error('itemType')} hint="ቋሚ ዕቃ (fixed) or አላቂ ዕቃ (consumable). It can't be changed once approved.">
+              <select id="stock-in-item-type" required value={itemType} onChange={(e) => setItemType(e.target.value as ItemType)} onBlur={fieldErrors.touch('itemType')} className={input({ invalid: !!fieldErrors.error('itemType') })}>
                 <option value="" disabled>Select…</option>
                 {ITEM_TYPE_OPTIONS.map((t) => (
                   <option key={t.value} value={t.value}>
@@ -584,8 +601,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               />
             </Field>
 
-            <Field label="Physical condition" required htmlFor="stock-in-condition">
-              <select id="stock-in-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} className={input()}>
+            <Field label="Physical condition" required htmlFor="stock-in-condition" error={fieldErrors.error('condition')}>
+              <select id="stock-in-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} onBlur={fieldErrors.touch('condition')} className={input({ invalid: !!fieldErrors.error('condition') })}>
                 <option value="" disabled>Select…</option>
                 <option value={ItemCondition.NEW}>New (አዲስ)</option>
                 <option value={ItemCondition.GOOD}>Good (ጥሩ)</option>
@@ -602,7 +619,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               <QuantityInput id="receipt-quantity" min={1} required value={quantity} onChange={setQuantity} />
             </Field>
 
-            <Field label="Unit of measure" required htmlFor="stock-in-uom">
+            <Field label="Unit of measure" required htmlFor="stock-in-uom" error={fieldErrors.error('uom')}>
               <input
                 id="stock-in-uom"
                 type="text"
@@ -610,22 +627,19 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                 required
                 value={uom}
                 onChange={(e) => setUom(e.target.value.toUpperCase())}
-                className={`${input({ mono: true })} uppercase`}
+                onBlur={fieldErrors.touch('uom')}
+                className={`${input({ mono: true, invalid: !!fieldErrors.error('uom') })} uppercase`}
                 placeholder="EA, KG, BOX…"
               />
             </Field>
 
-            <Field label="Unit price (ETB)" required htmlFor="stock-in-unit-cost">
-              <input
+            <Field label="Unit price (ETB)" required htmlFor="stock-in-unit-cost" error={fieldErrors.error('unitCost')}>
+              <MoneyInput
                 id="stock-in-unit-cost"
-                type="number"
-                min="0"
-                step="any"
-                required
-                placeholder="0.00"
-                value={unitCostETB || ''}
-                onChange={(e) => setUnitCostETB(parseFloat(e.target.value) || 0)}
-                className={input({ mono: true, align: 'right' })}
+                value={unitCostETB}
+                onChange={setUnitCostETB}
+                onBlur={fieldErrors.touch('unitCost')}
+                invalid={!!fieldErrors.error('unitCost')}
               />
             </Field>
 

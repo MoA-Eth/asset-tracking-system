@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, UserCheck, FileText, Car, Tag } from 'lucide-react';
 import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
-import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, QuantityInput, MoneyInput, inputClass, textareaClass } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, QuantityInput, MoneyInput, inputClass, textareaClass, submitOnCtrlEnter } from '../ui/FormKit';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -394,7 +394,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   };
 
   return (
-    <form id="transfer-form" onSubmit={handleSubmit} className="space-y-4">
+    <form id="transfer-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
       {/* ── Section 1: Transfer voucher ── */}
       <FormSection step={1} title="Transfer voucher" subtitle="የዝውውር ሰነድ · Model 21 register" icon={FileText} accent="emerald">
         <FieldGrid>
@@ -417,6 +417,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               value={model21No}
               onChange={(e) => setModel21No(e.target.value)}
               onBlur={touch('model21No')}
+              autoFocus={!editTransfer && !!initialItemId}
               placeholder="Number on the Model 21 form"
               className={`${input({ mono: true, invalid: !!errorOf('model21No') })} font-semibold`}
             />
