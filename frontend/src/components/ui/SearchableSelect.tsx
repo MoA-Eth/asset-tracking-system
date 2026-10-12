@@ -157,7 +157,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                         onMouseEnter={() => !option.disabled && setActive(pickable.findIndex((o) => o.value === option.value))}
                         onClick={() => choose(option)}
                         className={`flex items-center justify-between gap-3 px-3 py-1.5 ${
-                          option.disabled ? 'cursor-not-allowed text-slate-400' : `cursor-pointer text-slate-900 ${isActive ? 'bg-emerald-50' : ''}`
+                          option.disabled ? 'cursor-not-allowed text-slate-400' : `cursor-pointer ${isActive ? 'bg-emerald-50 text-emerald-900' : 'text-slate-900'}`
                         }`}
                       >
                         <span className="min-w-0 truncate">

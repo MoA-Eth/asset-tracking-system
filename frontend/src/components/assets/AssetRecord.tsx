@@ -83,7 +83,7 @@ const PrintButton: React.FC<{ prints: RowAction[] }> = ({ prints }) => {
                 setOpen(false);
                 a.onClick?.();
               }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-emerald-50 cursor-pointer"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900 focus:outline-none cursor-pointer"
             >
               <Printer className="h-3.5 w-3.5 text-emerald-700" />
               {a.label}
@@ -617,7 +617,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                         <button
                           type="button"
                           onClick={() => onSelect(u.item.id)}
-                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-emerald-50/60 cursor-pointer"
+                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-emerald-50 cursor-pointer"
                         >
                           <span className="min-w-0">
                             <span className="block font-mono font-bold text-slate-800">{u.item.itemCode}</span>

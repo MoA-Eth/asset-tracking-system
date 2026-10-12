@@ -428,8 +428,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                           }}
                           className={`px-4 py-3 transition cursor-pointer flex items-start gap-3 select-none ${
                             isRead
-                              ? 'bg-white opacity-75 hover:bg-slate-50'
-                              : 'bg-emerald-50/25 hover:bg-slate-50'
+                              ? 'bg-white opacity-75 hover:bg-emerald-50'
+                              : 'bg-emerald-50/25 hover:bg-emerald-50'
                           }`}
                         >
                           <div
@@ -545,7 +545,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       setShowUserMenu(false);
                       onNavigate('settings-profile');
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:text-emerald-900 hover:bg-slate-50 rounded-lg transition cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900 focus:outline-none rounded-lg transition cursor-pointer"
                   >
                     <User className="w-4 h-4 text-emerald-700 shrink-0" />
                     <span>Profile</span>
@@ -558,7 +558,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       setShowUserMenu(false);
                       onNavigate('docs');
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:text-emerald-900 hover:bg-slate-50 rounded-lg transition cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900 focus:outline-none rounded-lg transition cursor-pointer"
                   >
                     <CircleHelp className="w-4 h-4 text-emerald-700 shrink-0" />
                     <span>Help</span>
@@ -572,7 +572,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                         setShowUserMenu(false);
                         onNavigate('settings-users');
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:text-emerald-900 hover:bg-slate-50 rounded-lg transition cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900 focus:outline-none rounded-lg transition cursor-pointer"
                     >
                       <Users className="w-4 h-4 text-emerald-700 shrink-0" />
                       <span>Users</span>
