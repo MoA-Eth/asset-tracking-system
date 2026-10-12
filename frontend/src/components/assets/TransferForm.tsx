@@ -122,7 +122,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     !selectedItemId && 'asset',
     !model21No.trim() && 'Model 21 No.',
     !transferDateGc && 'transfer date',
-    !book.trim() && 'register book',
+    !book.trim() && 'book',
     !targetEmployeeId && 'recipient',
     !editTransfer && storeMen.length > 1 && !transferrerId && 'store man',
     !editTransfer && storeManRequired && !!selectedItemId && keepers.ready && storeMen.length === 0 && 'a store man for this store',
@@ -252,7 +252,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             />
           </Field>
 
-          <Field label="Register book" required>
+          <Field label="Book" required>
             <input
               type="text"
               required
