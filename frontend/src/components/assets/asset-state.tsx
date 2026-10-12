@@ -1,7 +1,33 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
 import { statusTone, pill } from '../ui/theme';
-import { ItemWithRelations, TransactionApproval, AssetCategory } from '../../types/asset-management';
+import { ItemWithRelations, TransactionApproval, AssetCategory, ItemType } from '../../types/asset-management';
+
+export const ITEM_TYPE_OPTIONS: { value: ItemType; label: string; amharic: string }[] = [
+  { value: ItemType.FIXED, label: 'Fixed asset', amharic: 'ቋሚ ዕቃ' },
+  { value: ItemType.CONSUMABLE, label: 'Consumable item', amharic: 'አላቂ ዕቃ' },
+];
+
+/** "Fixed asset (ቋሚ ዕቃ)" for a type; items from before types existed are fixed assets */
+export const itemTypeLabel = (type?: ItemType | string | null): string => {
+  const option = ITEM_TYPE_OPTIONS.find((o) => o.value === type) ?? ITEM_TYPE_OPTIONS[0];
+  return `${option.label} (${option.amharic})`;
+};
+
+/** Small tag beside an asset's name saying whether it is a fixed asset or a consumable item */
+export const ItemTypeBadge: React.FC<{ type?: ItemType | string | null }> = ({ type }) => {
+  const consumable = type === ItemType.CONSUMABLE;
+  return (
+    <span
+      title={itemTypeLabel(type)}
+      className={`inline-block rounded px-1.5 py-px text-[10px] font-semibold leading-4 border ${
+        consumable ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-700 border-slate-200'
+      }`}
+    >
+      {consumable ? 'Consumable' : 'Fixed'}
+    </span>
+  );
+};
 
 export const CATEGORY_OPTIONS: { value: AssetCategory; label: string }[] = [
   { value: AssetCategory.IT_EQUIPMENT, label: 'IT Equipment & Accessories' },

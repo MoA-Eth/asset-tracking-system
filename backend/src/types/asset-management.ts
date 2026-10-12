@@ -115,11 +115,16 @@ export interface ItemMovementHistory {
   notes?: string;
 }
 
+/** Fixed asset (ቋሚ ዕቃ) or consumable item (አላቂ ዕቃ) */
+export type ItemType = 'FIXED' | 'CONSUMABLE';
+
 export interface Item {
   id: string;
   itemCode: string;          // e.g. MOA-IT-2024-0001
   name: string;
   category: AssetCategory;
+  /** Chosen when the item is received; items from before this existed are FIXED */
+  itemType: ItemType;
   serialNumber: string;
   unitCostETB: number;
   status: ItemStatus;
@@ -397,6 +402,8 @@ export interface CreateStockInRequest {
   receivedByEmployeeId?: string;
   name: string;
   category: AssetCategory;
+  /** FIXED when left out */
+  itemType?: ItemType;
   serialNumber: string;
   unitCostETB: number;
   storeLocationId: string;
@@ -432,6 +439,7 @@ export interface CreateStockInRequest {
     itemCode?: string;
     name: string;
     category?: AssetCategory;
+    itemType?: ItemType;
     serialNumber?: string;
     unitCostETB: number;
     condition?: ItemCondition;
@@ -452,6 +460,8 @@ export interface UpdateStockInRequest {
   receivedByEmployeeId?: string;
   name: string;
   category: AssetCategory;
+  /** Kept as it is when left out */
+  itemType?: ItemType;
   serialNumber?: string;
   unitCostETB: number;
   condition?: ItemCondition;

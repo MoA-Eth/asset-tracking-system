@@ -12,6 +12,7 @@ import {
   UserRole,
   TransactionType,
   ApprovalStatus,
+  ItemType,
   CreateStockInRequest,
   UpdateStockInRequest,
   UpdateStockOutRequest,
@@ -53,6 +54,7 @@ function mapItem(raw: any): ItemWithRelations {
     itemCode: raw.itemCode,
     name: raw.name,
     category: raw.category as AssetCategory,
+    itemType: (raw.itemType ?? 'FIXED') as ItemType,
     serialNumber: raw.serialNumber,
     unitCostETB: raw.unitCostETB,
     status: raw.status as ItemStatus,
@@ -260,6 +262,7 @@ async function generateItemCode(category: AssetCategory, year: number): Promise<
 
 const RETURN_CONDITIONS = ['NEW', 'GOOD', 'FAIR', 'NEEDS_REPAIR', 'DAMAGED'];
 const ASSET_CATEGORIES = Object.values(AssetCategory) as string[];
+const ITEM_TYPES: ItemType[] = ['FIXED', 'CONSUMABLE'];
 
 // ─── Request checks ───────────────────────────────────────────────────────────
 // The forms check these too; the server repeats them so nothing wrong is saved by another route
@@ -306,6 +309,7 @@ function assertStockInLine(line: any): void {
   assertMaxLength(line.name, 200, 'Item description');
   assertMaxLength(line.serialNumber, 100, 'Serial number');
   if (!isBlank(line.category) && !ASSET_CATEGORIES.includes(line.category)) throw new BadRequestError('Choose a valid asset category.');
+  if (!isBlank(line.itemType) && !ITEM_TYPES.includes(line.itemType)) throw new BadRequestError('Choose whether this is a fixed asset or a consumable item.');
   const unitCost = isBlank(line.unitCostETB) ? 0 : Number(line.unitCostETB);
   if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price must be a number, zero or more.');
   const quantity = isBlank(line.quantity) ? 1 : Number(line.quantity);
@@ -672,6 +676,7 @@ export class StoreService {
   public async getItems(filter?: {
     status?: ItemStatus;
     category?: AssetCategory;
+    itemType?: ItemType;
     departmentId?: string;
     locationId?: string;
     search?: string;
@@ -680,6 +685,7 @@ export class StoreService {
 
     if (filter?.status) where.status = filter.status;
     if (filter?.category) where.category = filter.category;
+    if (filter?.itemType && ITEM_TYPES.includes(filter.itemType)) where.itemType = filter.itemType;
     if (filter?.departmentId) where.assignedDepartmentId = filter.departmentId;
     if (filter?.locationId) where.storeLocationId = filter.locationId;
     if (filter?.search) {
@@ -752,6 +758,7 @@ export class StoreService {
       : [{
           name: payload.name,
           category: payload.category,
+          itemType: payload.itemType,
           serialNumber: payload.serialNumber,
           unitCostETB: payload.unitCostETB,
           condition: payload.condition,
@@ -767,7 +774,7 @@ export class StoreService {
           remark: payload.remark,
         }];
     // Check every line before saving any, so a bad line can't leave half a slip registered
-    for (const line of rawItems) assertStockInLine({ ...line, name: line.name || payload.name, category: line.category || payload.category, uom: line.uom ?? payload.uom });
+    for (const line of rawItems) assertStockInLine({ ...line, name: line.name || payload.name, category: line.category || payload.category, itemType: line.itemType || payload.itemType, uom: line.uom ?? payload.uom });
     const typedSerials = rawItems.map((line) => String(line.serialNumber ?? '').trim().toLowerCase()).filter(Boolean);
     if (new Set(typedSerials).size !== typedSerials.length) throw new BadRequestError('Two lines on this slip have the same serial number.');
     for (const line of rawItems) await assertSerialNumberFree(line.serialNumber);
@@ -778,6 +785,7 @@ export class StoreService {
     for (let i = 0; i < rawItems.length; i++) {
       const lineItem = rawItems[i];
       const category = (lineItem.category || payload.category || AssetCategory.IT_EQUIPMENT) as AssetCategory;
+      const itemType = (lineItem.itemType || payload.itemType || 'FIXED') as ItemType;
       const itemCode = lineItem.itemCode?.trim() || await generateItemCode(category, currentYear);
       const serialNumber = String(lineItem.serialNumber ?? '').trim() || (rawItems.length > 1 ? `SN-${Date.now()}-${i + 1}` : `SN-${Date.now()}`);
       const unitCost = Number(lineItem.unitCostETB) || 0;
@@ -809,6 +817,7 @@ export class StoreService {
           itemCode,
           name: String(lineItem.name || payload.name).trim(),
           category: category as any,
+          itemType: itemType as any,
           serialNumber,
           unitCostETB: unitCost,
           status: initialStatus as any,
@@ -949,6 +958,7 @@ export class StoreService {
     const before = {
       name: item.name,
       category: item.category,
+      itemType: item.itemType ?? 'FIXED',
       serialNumber: item.serialNumber,
       unitCostETB: item.unitCostETB,
       condition: item.condition,
@@ -961,6 +971,7 @@ export class StoreService {
     const after = {
       name,
       category: payload.category || item.category,
+      itemType: payload.itemType || item.itemType || 'FIXED',
       serialNumber: payload.serialNumber?.trim() || item.serialNumber,
       unitCostETB: unitCost,
       condition: payload.condition || item.condition,
@@ -990,6 +1001,7 @@ export class StoreService {
         data: {
           name: after.name,
           category: after.category as any,
+          itemType: after.itemType as any,
           serialNumber: after.serialNumber,
           unitCostETB: after.unitCostETB,
           condition: after.condition as any,
@@ -2327,6 +2339,7 @@ export class StoreService {
           unitCostETB: item.unitCostETB,
           status: split.status as any,
           condition: (split.condition ?? item.condition) as any,
+          itemType: (item.itemType ?? 'FIXED') as any,
           storeLocationId: item.storeLocationId,
           currentCustodianId: split.custodianId,
           assignedDepartmentId: split.departmentId,

@@ -45,6 +45,7 @@ All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 
 ### 3.1 Receiving – Model 19
 - Data Encoder enters the items (name, category, serial, unit of measure, quantity, unit cost, store location) and the IFMIS receiving slip number and date.
+- Every item is identified as a **Fixed asset (ቋሚ ዕቃ)** or a **Consumable item (አላቂ ዕቃ)** (`itemType`, required on the receipt form, kept with the item and shown on the Assets list, its filter and the Model 19 voucher). It can be corrected while the receipt is pending and is locked once approved. Items from before this existed are fixed assets. Rules that differ by type are not defined yet.
 - The receipt waits for approval (`PENDING_STOCK_IN`); once approved, the items are `AVAILABLE` in store.
 - "Historical" receipts (goods received before the system) may be recorded without a scanned slip; they still go through approval.
 

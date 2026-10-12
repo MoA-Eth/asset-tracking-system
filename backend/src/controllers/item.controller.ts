@@ -3,6 +3,7 @@ import { StoreService } from '../services/store.service';
 import { discardUnusedSlip } from '../lib/slip-cleanup';
 import {
   AssetCategory,
+  ItemType,
   ItemStatus,
   ApprovalStatus,
   CreateStockInRequest,
@@ -45,10 +46,11 @@ export class ItemController {
    * Retrieves items with optional status, category, location, and search filters.
    */
   public getItems = asyncHandler(async (req: Request, res: Response) => {
-    const { status, category, departmentId, locationId, search } = req.query;
+    const { status, category, itemType, departmentId, locationId, search } = req.query;
     const items = await this.store.getItems({
       status: status as ItemStatus,
       category: category as AssetCategory,
+      itemType: itemType as ItemType,
       departmentId: departmentId as string,
       locationId: locationId as string,
       search: search as string,

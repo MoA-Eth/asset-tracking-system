@@ -61,6 +61,8 @@ import {
   AssetState,
   AssetStatus,
   CATEGORY_OPTIONS,
+  ITEM_TYPE_OPTIONS,
+  ItemTypeBadge,
   ENDORSED_REASON,
   requestLabel,
   STALE_IN_STORE_DAYS,
@@ -139,6 +141,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [filter, setFilter] = useState<AssetFilter>(savedView.filter);
   const [locationFilter, setLocationFilter] = useState<string>(savedView.location);
   const [categoryFilter, setCategoryFilter] = useState<string>(savedView.category);
+  // Fixed asset or consumable item (not remembered between visits)
+  const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [staleOnly, setStaleOnly] = useState<boolean>(savedView.staleOnly);
   const [search, setSearch] = useState('');
   const [sortColumn, setSortColumn] = useState<SortColumn>(savedView.sortColumn);
@@ -327,6 +331,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       return false;
     }
 
+    if (typeFilter !== 'ALL' && (row.item.itemType ?? 'FIXED') !== typeFilter) {
+      return false;
+    }
+
     if (staleOnly && !(row.state === 'IN_STORE' && isStale(row))) {
       return false;
     }
@@ -371,7 +379,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const shown = useMemo(
     () => groups.map((g) => visibleGroup(g, filter, locationFilter, categoryFilter)).filter((g): g is ShownGroup => !!g),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [groups, filter, locationFilter, categoryFilter, staleOnly, search],
+    [groups, filter, locationFilter, categoryFilter, typeFilter, staleOnly, search],
   );
 
   const sortedShown = useMemo(() => {
@@ -430,7 +438,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     });
   }, [shown, sortColumn, sortDirection]);
 
-  const pager = usePagination(sortedShown, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}` });
+  const pager = usePagination(sortedShown, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}` });
   const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
   const toggleBatch = (id: string) =>
     setOpenBatches((prev) => {
@@ -813,6 +821,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         'Asset Code',
         'Asset Name',
         'Category',
+        'Item Type',
         'Status',
         'UoM',
         'Total Quantity',
@@ -843,6 +852,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           item.itemCode,
           item.name,
           item.category || '',
+          (item.itemType ?? 'FIXED') === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset',
           group.row.state,
           uom,
           isBatch ? totalUnits : group.row.units,
@@ -897,6 +907,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             {item.name}
           </span>
           <span className={`block ${table.code}`}>{item.itemCode}</span>
+          <ItemTypeBadge type={item.itemType} />
           {orphanParent && <span className="block text-[10px] text-slate-500">Part of {orphanParent.itemCode}</span>}
           {isBatch && (
             <button
@@ -1029,6 +1040,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     (filter !== 'ALL' ? 1 : 0) +
     (locationFilter !== 'ALL' ? 1 : 0) +
     (categoryFilter !== 'ALL' ? 1 : 0) +
+    (typeFilter !== 'ALL' ? 1 : 0) +
     (staleOnly ? 1 : 0);
   // Anything that narrows or reorders the list: filters, search or a non-default sort
   const viewChanged = activeFilterCount > 0 || !!search || sortColumn !== 'activity' || sortDirection !== 'desc';
@@ -1036,6 +1048,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setFilter('ALL');
     setLocationFilter('ALL');
     setCategoryFilter('ALL');
+    setTypeFilter('ALL');
     setStaleOnly(false);
   };
   const resetView = () => {
@@ -1124,6 +1137,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 value={categoryFilter}
                 onChange={setCategoryFilter}
                 options={CATEGORY_OPTIONS}
+              />
+            </FilterSection>
+
+            {/* Fixed asset or consumable item */}
+            <FilterSection label="Item Type" htmlFor="filter-item-type">
+              <FilterSelect
+                id="filter-item-type"
+                ariaLabel="Filter by item type"
+                placeholder="All Types"
+                value={typeFilter}
+                onChange={setTypeFilter}
+                options={ITEM_TYPE_OPTIONS.map((t) => ({ value: t.value, label: `${t.label} (${t.amharic})` }))}
               />
             </FilterSection>
 
@@ -1315,6 +1340,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   </button>
                 </span>
               )}
+              {typeFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                  <span>Type: {ITEM_TYPE_OPTIONS.find((t) => t.value === typeFilter)?.label || typeFilter}</span>
+                  <button
+                    type="button"
+                    onClick={() => setTypeFilter('ALL')}
+                    title="Remove item type filter"
+                    aria-label="Remove item type filter"
+                    className="hover:text-emerald-950 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
               {filter !== 'ALL' && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
                   <span>Status: {FILTERS.find((f) => f.value === filter)?.label || filter}</span>
@@ -1387,6 +1426,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   setFilter('ALL');
                   setLocationFilter('ALL');
                   setCategoryFilter('ALL');
+                  setTypeFilter('ALL');
                   setSearch('');
                   setSortColumn('activity');
                   setSortDirection('desc');
