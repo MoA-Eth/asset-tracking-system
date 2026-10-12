@@ -157,9 +157,9 @@ export const api = {
 
   // Workflows
   // System-wide rules; anyone signed in reads them, the System Administrator changes them
-  getSystemSettings: () => request<{ slipAttachmentPolicy: 'REQUIRED' | 'OPTIONAL' }>('/settings'),
-  updateSystemSettings: (settings: { slipAttachmentPolicy?: 'REQUIRED' | 'OPTIONAL' }) =>
-    request<{ slipAttachmentPolicy: 'REQUIRED' | 'OPTIONAL' }>('/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+  getSystemSettings: () => request<{ slipAttachmentPolicy: 'REQUIRED' | 'OPTIONAL'; storeManPolicy: 'REQUIRED' | 'OPTIONAL' }>('/settings'),
+  updateSystemSettings: (settings: { slipAttachmentPolicy?: 'REQUIRED' | 'OPTIONAL'; storeManPolicy?: 'REQUIRED' | 'OPTIONAL' }) =>
+    request<{ slipAttachmentPolicy: 'REQUIRED' | 'OPTIONAL'; storeManPolicy: 'REQUIRED' | 'OPTIONAL' }>('/settings', { method: 'PUT', body: JSON.stringify(settings) }),
 
   // Uploads a scanned IFMIS slip; the returned url is saved as ifmisSlipAttachmentUrl
   uploadSlip: (file: File) => {
@@ -291,6 +291,11 @@ export const api = {
 
   setStoreActive: (id: string, active: boolean) => {
     return request<Store>(`/reference/stores/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ active }) });
+  },
+
+  /** Who keeps the store: replaces the whole list of store men (System Administrator) */
+  setStoreKeepers: (id: string, employeeIds: string[]) => {
+    return request<Store>(`/reference/stores/${encodeURIComponent(id)}/store-men`, { method: 'PUT', body: JSON.stringify({ employeeIds }) });
   },
 
   deleteStore: (id: string) => {

@@ -10,6 +10,7 @@ router.get('/departments', requirePermission('references.read'), controller.getD
 router.get('/stores', requirePermission('references.read'), controller.getStores);
 router.post('/stores', requirePermission('references.manage'), controller.createStore);
 router.put('/stores/:id', requirePermission('references.manage'), controller.updateStore);
+router.put('/stores/:id/store-men', requirePermission('references.manage'), controller.setStoreKeepers);
 router.patch('/stores/:id/status', requirePermission('references.manage'), controller.setStoreStatus);
 router.delete('/stores/:id', requirePermission('references.manage'), controller.deleteStore);
 router.post('/stores/:id/locations', requirePermission('references.manage'), controller.createLocation);

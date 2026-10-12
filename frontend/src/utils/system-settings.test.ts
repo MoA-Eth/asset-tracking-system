@@ -11,22 +11,22 @@ describe('system settings', () => {
   });
 
   it('starts with the slip optional until the server answers', () => {
-    expect(getSystemSettings()).toEqual({ slipAttachmentPolicy: 'OPTIONAL' });
+    expect(getSystemSettings()).toEqual({ slipAttachmentPolicy: 'OPTIONAL', storeManPolicy: 'OPTIONAL' });
   });
 
   it('loads the settings from the server and tells the forms', async () => {
-    vi.mocked(api.getSystemSettings).mockResolvedValue({ slipAttachmentPolicy: 'REQUIRED' });
+    vi.mocked(api.getSystemSettings).mockResolvedValue({ slipAttachmentPolicy: 'REQUIRED', storeManPolicy: 'OPTIONAL' });
     const listener = vi.fn();
     window.addEventListener('system-settings-changed', listener);
 
-    await expect(loadSystemSettings()).resolves.toEqual({ slipAttachmentPolicy: 'REQUIRED' });
+    await expect(loadSystemSettings()).resolves.toEqual({ slipAttachmentPolicy: 'REQUIRED', storeManPolicy: 'OPTIONAL' });
     expect(getSystemSettings().slipAttachmentPolicy).toBe('REQUIRED');
     expect(listener).toHaveBeenCalledTimes(1);
     window.removeEventListener('system-settings-changed', listener);
   });
 
   it('saves a change on the server, never in the browser', async () => {
-    vi.mocked(api.updateSystemSettings).mockResolvedValue({ slipAttachmentPolicy: 'OPTIONAL' });
+    vi.mocked(api.updateSystemSettings).mockResolvedValue({ slipAttachmentPolicy: 'OPTIONAL', storeManPolicy: 'OPTIONAL' });
     await saveSystemSettings({ slipAttachmentPolicy: 'OPTIONAL' });
 
     expect(api.updateSystemSettings).toHaveBeenCalledWith({ slipAttachmentPolicy: 'OPTIONAL' });
@@ -35,7 +35,7 @@ describe('system settings', () => {
   });
 
   it('keeps the current setting when the server refuses the change', async () => {
-    vi.mocked(api.getSystemSettings).mockResolvedValue({ slipAttachmentPolicy: 'REQUIRED' });
+    vi.mocked(api.getSystemSettings).mockResolvedValue({ slipAttachmentPolicy: 'REQUIRED', storeManPolicy: 'OPTIONAL' });
     await loadSystemSettings();
     vi.mocked(api.updateSystemSettings).mockRejectedValue(new Error('Only System Administrators can change system settings.'));
 

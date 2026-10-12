@@ -11,7 +11,7 @@ vi.mock('../../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../../context/ToastContext', () => ({ useToast: () => toast }));
 vi.mock('../../api/client', () => ({
   api: {
-    getStores: vi.fn(), createStore: vi.fn(), updateStore: vi.fn(), setStoreActive: vi.fn(), deleteStore: vi.fn(),
+    getStores: vi.fn(), getEmployees: vi.fn(), setStoreKeepers: vi.fn(), createStore: vi.fn(), updateStore: vi.fn(), setStoreActive: vi.fn(), deleteStore: vi.fn(),
     createLocation: vi.fn(), updateLocation: vi.fn(), setLocationActive: vi.fn(), deleteLocation: vi.fn(),
   },
 }));
@@ -30,6 +30,58 @@ beforeEach(() => {
   vi.resetAllMocks();
   auth.user.permissions = ['references.manage'];
   vi.mocked(api.getStores).mockResolvedValue([kality, saris, closed] as any);
+  vi.mocked(api.getEmployees).mockResolvedValue([
+    { id: 'E1', fullNameEn: 'Abebe Kebede', payrollId: '00000001', isActive: true },
+    { id: 'E2', fullNameEn: 'Sara Tesfaye', payrollId: '00000002', isActive: true },
+    { id: 'E3', fullNameEn: 'Old Staff', payrollId: '00000003', isActive: false },
+  ] as any);
+});
+
+describe('Store men', () => {
+  const keeper = (id: string, name: string) => ({ employeeId: id, fullNameEn: name, fullNameAm: '', payrollId: `0000000${id.slice(1)}`, isActive: true });
+
+  it('shows who keeps each store, and says plainly when nobody does', async () => {
+    vi.mocked(api.getStores).mockResolvedValue([{ ...kality, storeKeepers: [keeper('E1', 'Abebe Kebede')] }, { ...saris, storeKeepers: [] }] as any);
+    render(<StoresPage />);
+    const kalityCard = await screen.findByRole('region', { name: 'Kality' });
+    expect(within(kalityCard).getByText('Abebe Kebede')).toBeInTheDocument();
+    const sarisCard = screen.getByRole('region', { name: 'Saris' });
+    expect(within(sarisCard).getByText(/None assigned: this store can't receive, issue, dispose or take returns/)).toBeInTheDocument();
+  });
+
+  it('adds a store man from the staff register, offering only active employees not already on the list', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getStores).mockResolvedValue([{ ...kality, storeKeepers: [keeper('E1', 'Abebe Kebede')] }] as any);
+    vi.mocked(api.setStoreKeepers).mockResolvedValue({ ...kality, storeKeepers: [keeper('E1', 'Abebe Kebede'), keeper('E2', 'Sara Tesfaye')] } as any);
+    render(<StoresPage />);
+    const card = await screen.findByRole('region', { name: 'Kality' });
+    await user.click(within(card).getByRole('combobox'));
+    expect(screen.queryByRole('option', { name: /Old Staff/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Abebe Kebede/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: /Sara Tesfaye/ }));
+
+    expect(api.setStoreKeepers).toHaveBeenCalledWith('STR-1', ['E1', 'E2']);
+    expect(await within(card).findByText('Sara Tesfaye')).toBeInTheDocument();
+  });
+
+  it('removes a store man', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getStores).mockResolvedValue([{ ...kality, storeKeepers: [keeper('E1', 'Abebe Kebede'), keeper('E2', 'Sara Tesfaye')] }] as any);
+    vi.mocked(api.setStoreKeepers).mockResolvedValue({ ...kality, storeKeepers: [keeper('E2', 'Sara Tesfaye')] } as any);
+    render(<StoresPage />);
+    await user.click(await screen.findByRole('button', { name: 'Remove Abebe Kebede as a store man of Kality' }));
+    expect(api.setStoreKeepers).toHaveBeenCalledWith('STR-1', ['E2']);
+  });
+
+  it('cannot be changed by someone who may only look', async () => {
+    auth.user.permissions = ['references.read'];
+    vi.mocked(api.getStores).mockResolvedValue([{ ...kality, storeKeepers: [keeper('E1', 'Abebe Kebede')] }] as any);
+    render(<StoresPage />);
+    const card = await screen.findByRole('region', { name: 'Kality' });
+    expect(within(card).getByText('Abebe Kebede')).toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: /Remove Abebe Kebede/ })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('combobox')).not.toBeInTheDocument();
+  });
 });
 
 describe('Stores page', () => {

@@ -33,7 +33,7 @@ import { BadRequestError, ConflictError, NotFoundError, ForbiddenError } from '.
 
 import { assignEmployeeRole } from './roles.service';
 import { hasPermission, ROLE_POLICY } from '../security/role-policy';
-import { assertUsableLocation, locationView } from './reference.service';
+import { assertUsableLocation, locationView, requireStoreKeeper } from './reference.service';
 import { isSlipRequired, SLIP_REQUIRED_MESSAGE } from './settings.service';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -741,6 +741,9 @@ export class StoreService {
       : null;
     if (!receivingStore) throw new BadRequestError('The selected receiving store no longer exists.');
     assertUsableLocation(receivingStore, 'the receiving store');
+    // A store with no store man can't receive: his name goes on the voucher
+    const receiver = await requireStoreKeeper(prisma, { storeId: receivingStore.storeId }, payload.receivedByEmployeeId, 'receiving the goods');
+    if (receiver) payload.receivedBy = receiver.fullNameEn;
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
@@ -905,6 +908,12 @@ export class StoreService {
       assertUsableLocation(receivingStore, 'the receiving store');
     }
 
+    // A new choice of who receives the goods has to be a store man of the (new) receiving store
+    if (payload.receivedByEmployeeId) {
+      const receiver = await requireStoreKeeper(prisma, { locationId: payload.storeLocationId }, payload.receivedByEmployeeId, 'receiving the goods');
+      if (receiver) payload.receivedBy = receiver.fullNameEn;
+    }
+
     const attachmentUrl = payload.ifmisSlipAttachmentUrl || item.ifmisSlipAttachmentUrl;
     if (isSlipRequired() && !attachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
 
@@ -931,7 +940,7 @@ export class StoreService {
       quantity,
       totalAmount: unitCost * quantity,
       deliveredBy: payload.deliveredBy?.trim() || undefined,
-      receivedBy: payload.receivedBy?.trim() || undefined,
+      receivedBy: payload.receivedBy?.trim() || previousMeta.receivedBy || undefined,
       remark,
       userNotes: remark,
     };
@@ -1068,6 +1077,7 @@ export class StoreService {
       if (!payload.recipientEmployeeId) throw new BadRequestError('Recipient staff member is required.');
       if (!payload.targetDepartmentId) throw new BadRequestError('Destination directorate is required.');
     }
+    const previousIssuer = (approval.requestDetails ?? {}) as Record<string, any>;
 
     const [recipient, department] = external
       ? [null, null]
@@ -1083,6 +1093,10 @@ export class StoreService {
 
     const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
+    // Who issues it: a new choice must be a store man of the item's store; otherwise the request keeps its own
+    const issuer = payload.issuedByEmployeeId
+      ? await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.issuedByEmployeeId, 'issuing the items')
+      : null;
     const inStore = quantityOf(item);
     const uom = uomOf(item);
     const previousDetails = (approval.requestDetails ?? {}) as Record<string, any>;
@@ -1155,9 +1169,12 @@ export class StoreService {
           purposeOrRemarks: after.purposeOrRemarks,
           // Switching between an employee and an organization replaces the other side's details
           requestDetails: {
-            ...Object.fromEntries(Object.entries(previousDetails).filter(([k]) => !['recipientType', 'organizationName', 'contactPerson'].includes(k))),
+            ...Object.fromEntries(Object.entries(previousDetails).filter(([k]) => !['recipientType', 'organizationName', 'contactPerson', 'issuedByEmployeeId', 'issuedByName'].includes(k))),
             quantity,
             uom,
+            ...(issuer
+              ? { issuedByEmployeeId: issuer.employeeId, issuedByName: issuer.fullNameEn }
+              : previousIssuer.issuedByEmployeeId ? { issuedByEmployeeId: previousIssuer.issuedByEmployeeId, issuedByName: previousIssuer.issuedByName } : {}),
             ...(external ? { recipientType: 'EXTERNAL', ...external } : {}),
           } as any,
         },
@@ -1244,6 +1261,8 @@ export class StoreService {
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
       throw new BadRequestError(`Quantity must be a whole number from 1 to ${inStore} (${uom} in store).`);
     }
+    // A store with no store man can't issue: his name goes on the voucher
+    const issuer = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.issuedByEmployeeId, 'issuing the items');
 
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
@@ -1294,7 +1313,12 @@ export class StoreService {
         recipientEmployeeId: external ? undefined : payload.recipientEmployeeId,
         targetDepartmentId: external ? undefined : payload.targetDepartmentId,
         purposeOrRemarks: notesText,
-        requestDetails: { quantity, uom, ...(external ? { recipientType: 'EXTERNAL', ...external } : {}) } as any,
+        requestDetails: {
+          quantity,
+          uom,
+          ...(issuer ? { issuedByEmployeeId: issuer.employeeId, issuedByName: issuer.fullNameEn } : {}),
+          ...(external ? { recipientType: 'EXTERNAL', ...external } : {}),
+        } as any,
         status: 'PENDING' as any,
         createdAtGc: today.gc,
         createdAtEc: today.ec,
@@ -1328,6 +1352,12 @@ export class StoreService {
     await assertNoPendingApproval(item);
     const { disposalNo, details } = disposalDetailsOf(payload, item);
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
+    // A store with no store man can't dispose: his name goes on the disposal form
+    const keeper = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.storekeeperEmployeeId, 'the disposal');
+    if (keeper) {
+      details.storekeeperEmployeeId = keeper.employeeId;
+      details.storekeeperName = keeper.fullNameEn;
+    }
 
     const today = getTodayGcAndEc();
     const dateGc = payload.disposalDateGc || today.gc;
@@ -1405,6 +1435,16 @@ export class StoreService {
     if (isSlipRequired() && !attachment) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     const dateGc = payload.disposalDateGc || approval.ifmisSlipDateGc;
     const previous = (approval.requestDetails ?? {}) as Model21RequestDetails;
+    if (payload.storekeeperEmployeeId) {
+      const keeper = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.storekeeperEmployeeId, 'the disposal');
+      if (keeper) {
+        details.storekeeperEmployeeId = keeper.employeeId;
+        details.storekeeperName = keeper.fullNameEn;
+      }
+    } else if (previous.storekeeperEmployeeId) {
+      details.storekeeperEmployeeId = previous.storekeeperEmployeeId;
+      details.storekeeperName = previous.storekeeperName;
+    }
 
     const snapshot = (no: string, date: string, file: string | null | undefined, d: Model21RequestDetails) => ({
       'reference no.': no,
@@ -1418,6 +1458,7 @@ export class StoreService {
       recipient: d.recipientName,
       proceeds: d.proceedsETB,
       'committee ref': d.committeeRef,
+      storekeeper: d.storekeeperName,
     });
     const before = snapshot(approval.ifmisSlipNumber, approval.ifmisSlipDateGc, approval.ifmisSlipAttachmentUrl, previous);
     const after = snapshot(disposalNo, dateGc, attachment, details);
@@ -1524,10 +1565,19 @@ export class StoreService {
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
-    if (payload.storeRecipientId) {
-      const storeRecipient = await prisma.employee.findUnique({ where: { id: payload.storeRecipientId } });
-      if (!storeRecipient) throw new BadRequestError('The selected store receiver no longer exists.');
-      assertActiveEmployee(storeRecipient, 'the store receiver');
+    // The store it goes back to (the one chosen, else the item's own) must have a store man to take it
+    const receiver = await requireStoreKeeper(
+      prisma,
+      { locationId: payload.targetStoreLocationId || item.storeLocationId },
+      payload.storeRecipientId,
+      'receiving the returned item',
+    );
+    if (receiver) {
+      payload.storeRecipientId = receiver.employeeId;
+    } else if (payload.storeRecipientId) {
+      const named = await prisma.employee.findUnique({ where: { id: payload.storeRecipientId } });
+      if (!named) throw new BadRequestError('The selected store receiver no longer exists.');
+      assertActiveEmployee(named, 'the store receiver');
     }
 
     const returnDetails: Model21RequestDetails = {
@@ -1544,6 +1594,7 @@ export class StoreService {
       depreciation: payload.depreciation,
       bookValue: payload.bookValue,
       storeRecipientId: payload.storeRecipientId,
+      storeRecipientName: receiver?.fullNameEn,
     };
     const model21Details = formatReturnNotes(payload.model21No ? effectiveSlipNo : '', returnDetails);
 
@@ -1557,7 +1608,7 @@ export class StoreService {
             dateEc: today.ec,
             action: 'RETURN_REQUESTED',
             fromEntity: await holderName(item),
-            toEntity: `${await storeLabel(item.storeLocationId)} (Pending Return Approval)`,
+            toEntity: `${await storeLabel(payload.targetStoreLocationId || item.storeLocationId)} (Pending Return Approval)`,
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
             ifmisSlipNumber: effectiveSlipNo,
@@ -1579,6 +1630,8 @@ export class StoreService {
         ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
         requestedById: payload.registeredById,
         recipientEmployeeId: payload.returningEmployeeId || item.currentCustodianId || undefined,
+        // Only a store other than the one it came from is recorded
+        targetLocationId: payload.targetStoreLocationId && payload.targetStoreLocationId !== item.storeLocationId ? payload.targetStoreLocationId : undefined,
         purposeOrRemarks: model21Details,
         requestDetails: returnDetails as any,
         status: 'PENDING' as any,
@@ -1693,8 +1746,10 @@ export class StoreService {
     const slipNo = (payload.model21No || '').trim();
     const reason = (payload.reason || '').trim();
     if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
-    if (!reason) throw new BadRequestError('Reason for transfer is required.');
+    assertMaxLength(reason, 500, 'Reason for transfer');
     if (!payload.toEmployeeId) throw new BadRequestError('The new custodian is required.');
+    assertSlipDate(payload.ifmisSlipDateGc, 'The transfer date');
+    const dateGc = payload.ifmisSlipDateGc || approval.ifmisSlipDateGc;
 
     const [item, recipient, department, location] = await Promise.all([
       prisma.item.findUnique({ where: { id: approval.itemId } }),
@@ -1710,9 +1765,15 @@ export class StoreService {
     if (location && location.id !== approval.targetLocationId) assertUsableLocation(location, 'the destination location');
 
     const previous = requestDetailsOf(approval) ?? {};
+    // A new choice must be a store man of the item's store; otherwise the one already named stays
+    const transferrer =
+      payload.transferredByEmployeeId && item.storeLocationId
+        ? await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.transferredByEmployeeId, 'the transfer')
+        : null;
     const details: Model21RequestDetails = {
       ...previous,
-      reason,
+      ...(transferrer ? { transferredByEmployeeId: transferrer.employeeId, transferredByName: transferrer.fullNameEn } : {}),
+      reason: reason || undefined,
       remark: payload.remark?.trim() || undefined,
       book: payload.book?.trim() || undefined,
       chassisNumber: payload.chassisNumber?.trim() || undefined,
@@ -1731,11 +1792,13 @@ export class StoreService {
       approval.targetLocationId ? prisma.location.findUnique({ where: { id: approval.targetLocationId }, include: { store: true } }) : null,
       item.currentCustodianId ? prisma.employee.findUnique({ where: { id: item.currentCustodianId } }) : null,
     ]);
-    const view = (slip: string, to: string | undefined, dept: string | undefined, loc: string | undefined, d: Model21RequestDetails) => ({
+    const view = (slip: string, to: string | undefined, dept: string | undefined, loc: string | undefined, d: Model21RequestDetails, date: string) => ({
       'Model 21 no.': slip,
+      date,
       'new custodian': to,
       directorate: dept ?? 'current',
       location: loc ?? 'current',
+      'store man': d.transferredByName,
       reason: d.reason,
       remark: d.remark,
       book: d.book,
@@ -1747,8 +1810,8 @@ export class StoreService {
       depreciation: d.depreciation,
       'book value': d.bookValue,
     });
-    const before = view(approval.ifmisSlipNumber, previousRecipient?.fullNameEn, previousDepartment?.nameEn, locationLabel(previousLocation), previous);
-    const after = view(slipNo, recipient.fullNameEn, department?.nameEn, locationLabel(location), details);
+    const before = view(approval.ifmisSlipNumber, previousRecipient?.fullNameEn, previousDepartment?.nameEn, locationLabel(previousLocation), previous, approval.ifmisSlipDateGc);
+    const after = view(slipNo, recipient.fullNameEn, department?.nameEn, locationLabel(location), details, dateGc);
     const changes = describeChanges(before, after);
     if (changes.length === 0) {
       return mapApproval(await prisma.transactionApproval.findUnique({ where: { id: approvalId }, include: APPROVAL_INCLUDES }));
@@ -1759,6 +1822,8 @@ export class StoreService {
       approval,
       data: {
         ifmisSlipNumber: slipNo,
+        ifmisSlipDateGc: dateGc,
+        ifmisSlipDateEc: formatGcToEc(dateGc),
         recipientEmployeeId: recipient.id,
         targetDepartmentId: department?.id ?? null,
         targetLocationId: location?.id ?? null,
@@ -1796,6 +1861,25 @@ export class StoreService {
       : null;
     if (payload.storeRecipientId && !storeRecipient) throw new BadRequestError('The selected store receiver no longer exists.');
     assertActiveEmployee(storeRecipient, 'the store receiver');
+    // The store it goes back to: the one chosen now, else the one the request already has, else the item's own
+    const returning = await prisma.item.findUnique({ where: { id: approval.itemId }, select: { storeLocationId: true } });
+    const targetId: string | null =
+      payload.targetStoreLocationId === undefined
+        ? approval.targetLocationId
+        : payload.targetStoreLocationId && payload.targetStoreLocationId !== returning?.storeLocationId
+          ? payload.targetStoreLocationId
+          : null;
+    const targetChanged = targetId !== approval.targetLocationId;
+    if (targetId && targetChanged) {
+      const returnStore = await prisma.location.findUnique({ where: { id: targetId }, include: { store: true } });
+      if (!returnStore) throw new BadRequestError('The selected store no longer exists.');
+      assertUsableLocation(returnStore, 'the receiving store');
+    }
+    // Its store man takes it back; a different store means choosing again
+    const keeper =
+      payload.storeRecipientId || targetChanged
+        ? await requireStoreKeeper(prisma, { locationId: targetId ?? returning?.storeLocationId }, payload.storeRecipientId, 'receiving the returned item')
+        : null;
 
     const previous = requestDetailsOf(approval) ?? {};
     const details: Model21RequestDetails = {
@@ -1811,7 +1895,9 @@ export class StoreService {
       tireNos: payload.tireNos ?? previous.tireNos,
       depreciation: payload.depreciation ?? previous.depreciation,
       bookValue: payload.bookValue ?? previous.bookValue,
-      storeRecipientId: storeRecipient?.id,
+      // A new store drops the old store man unless one of the new store is chosen
+      storeRecipientId: storeRecipient?.id ?? keeper?.employeeId ?? (targetChanged ? undefined : previous.storeRecipientId),
+      storeRecipientName: storeRecipient?.fullNameEn ?? keeper?.fullNameEn ?? (targetChanged ? undefined : previous.storeRecipientName),
     };
     const slipDateGc = payload.ifmisSlipDateGc || approval.ifmisSlipDateGc;
     const attachmentUrl = payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl;
@@ -1821,8 +1907,9 @@ export class StoreService {
       ? await prisma.employee.findUnique({ where: { id: previous.storeRecipientId } })
       : null;
     const fileName = (url?: string | null) => (url ? url.split('/').pop() : undefined);
-    const view = (slip: string, date: string, url: string | null | undefined, receiver: string | undefined, d: Model21RequestDetails) => ({
+    const view = (slip: string, date: string, url: string | null | undefined, receiver: string | undefined, d: Model21RequestDetails, store: string) => ({
       'Model 21 no.': slip,
+      'returns to': store,
       'return date': date,
       'slip file': fileName(url),
       condition: d.condition,
@@ -1838,8 +1925,10 @@ export class StoreService {
       'book value': d.bookValue,
       'store receiver': receiver ?? 'central store custodian',
     });
-    const before = view(approval.ifmisSlipNumber, approval.ifmisSlipDateGc, approval.ifmisSlipAttachmentUrl, previousReceiver?.fullNameEn, previous);
-    const after = view(slipNo, slipDateGc, attachmentUrl, storeRecipient?.fullNameEn, details);
+    const storeBefore = await storeLabel(approval.targetLocationId ?? returning?.storeLocationId);
+    const storeAfter = targetChanged ? await storeLabel(targetId ?? returning?.storeLocationId) : storeBefore;
+    const before = view(approval.ifmisSlipNumber, approval.ifmisSlipDateGc, approval.ifmisSlipAttachmentUrl, previousReceiver?.fullNameEn, previous, storeBefore);
+    const after = view(slipNo, slipDateGc, attachmentUrl, details.storeRecipientName, details, storeAfter);
     const changes = describeChanges(before, after);
     if (changes.length === 0) {
       return mapApproval(await prisma.transactionApproval.findUnique({ where: { id: approvalId }, include: APPROVAL_INCLUDES }));
@@ -1852,6 +1941,7 @@ export class StoreService {
         ifmisSlipDateGc: slipDateGc,
         ifmisSlipDateEc: formatGcToEc(slipDateGc),
         ifmisSlipAttachmentUrl: attachmentUrl,
+        targetLocationId: targetId,
         purposeOrRemarks: formatReturnNotes(slipNo, details),
         requestDetails: details,
       },
@@ -1859,7 +1949,7 @@ export class StoreService {
       auditAction: 'EDIT_RETURN',
       entityType: 'RETURN',
       fromEntity: await holderNameOfItem(approval.itemId),
-      toEntity: `${await storeLabelOfItem(approval.itemId)} (Pending Return Approval)`,
+      toEntity: `${storeAfter} (Pending Return Approval)`,
       slipNo,
       changes,
       before,
@@ -2039,8 +2129,11 @@ export class StoreService {
         newItemStatus = 'AVAILABLE';
         historyAction = 'RETURN_APPROVED';
         fromEntity = await holderName(item);
-        toEntity = `${storeName} (AVAILABLE)`;
-        histNote = payload.reviewRemarks || `Model 22 Return approved. Item returned to ${storeName} (AVAILABLE).`;
+        // It goes back to the store chosen on the request, else the one it came from
+        locationId = approval.targetLocationId ?? item.storeLocationId;
+        const returnStoreName = approval.targetLocationId ? await storeLabel(approval.targetLocationId) : storeName;
+        toEntity = `${returnStoreName} (AVAILABLE)`;
+        histNote = payload.reviewRemarks || `Model 22 Return approved. Item returned to ${returnStoreName} (AVAILABLE).`;
         // Older returns set the condition when submitted and have no requestDetails
         approvedCondition = (approval.requestDetails as Model21RequestDetails | null)?.condition;
         custodianId = null;
@@ -2309,8 +2402,10 @@ export class StoreService {
     await assertNoPendingApproval(item);
     const slipNo = String(payload.model21No || '').trim();
     if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
-    if (isBlank(payload.reason)) throw new BadRequestError('Reason for transfer is required.');
-    assertMaxLength(payload.reason, 500, 'Reason for transfer');
+    // The reason is optional on a transfer
+    const reason = String(payload.reason ?? '').trim() || undefined;
+    assertMaxLength(reason, 500, 'Reason for transfer');
+    assertSlipDate(payload.ifmisSlipDateGc, 'The transfer date');
     // An empty choice means "not chosen"
     payload.toEmployeeId = payload.toEmployeeId || undefined;
     payload.toDepartmentId = payload.toDepartmentId || undefined;
@@ -2320,6 +2415,11 @@ export class StoreService {
     const sameLocation = !payload.toLocationId || payload.toLocationId === item.storeLocationId;
     if (sameCustodian && sameLocation) throw new BadRequestError('This person already holds the item. Choose a different custodian.');
     if (!payload.toEmployeeId && sameLocation) throw new BadRequestError('The item is already in this location. Choose a new custodian or a different location.');
+
+    // The store man of the store the item came from is named on the voucher
+    const transferrer = item.storeLocationId
+      ? await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.transferredByEmployeeId, 'the transfer')
+      : null;
 
     const today = getTodayGcAndEc();
     // The current custodian, or the store the item is in
@@ -2343,7 +2443,8 @@ export class StoreService {
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
 
     const transferDetails: Model21RequestDetails = {
-      reason: payload.reason,
+      ...(transferrer ? { transferredByEmployeeId: transferrer.employeeId, transferredByName: transferrer.fullNameEn } : {}),
+      reason,
       remark: payload.remark,
       book: payload.book,
       chassisNumber: payload.chassisNumber,
@@ -2385,8 +2486,8 @@ export class StoreService {
         itemCode: item.itemCode,
         itemName: item.name,
         ifmisSlipNumber: slipNo,
-        ifmisSlipDateGc: today.gc,
-        ifmisSlipDateEc: today.ec,
+        ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
+        ifmisSlipDateEc: payload.ifmisSlipDateGc ? formatGcToEc(payload.ifmisSlipDateGc) : today.ec,
         requestedById: payload.performedById,
         recipientEmployeeId: payload.toEmployeeId,
         targetDepartmentId: payload.toDepartmentId,

@@ -17,6 +17,16 @@ const db = vi.hoisted(() => {
 
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
+// Stores have a store man in these tests; the rules about stores without one are in store-keepers.test.ts
+vi.mock('./reference.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./reference.service')>()),
+  requireStoreKeeper: vi.fn(async (_db: unknown, _where: unknown, chosen?: string | null) => ({
+    employeeId: chosen || 'EMP-STOREMAN',
+    fullNameEn: 'Store Man',
+    storeName: 'Kality',
+  })),
+}));
+
 import { StoreService } from './store.service';
 import { applySystemSettings } from './settings.service';
 
@@ -81,13 +91,13 @@ describe('Stock-In correction before Stage 1 endorsement', () => {
     expect(db.auditLog.create.mock.calls[0][0].data).toMatchObject({ action: 'EDIT_STOCK_IN', entityId: 'item-1' });
   });
 
-  it('lets the correction clear Received by, or change it', async () => {
+  it('keeps who received the goods unless another store man of the store is chosen', async () => {
     db.item.findUnique.mockResolvedValue({ ...pendingItem, notes: JSON.stringify({ quantity: 1, receivedBy: 'Store Encoder' }) });
     await store().updateStockIn('item-1', { ...edit, receivedBy: '' } as any, 'EMP-ENC');
-    expect(JSON.parse(db.item.update.mock.calls[0][0].data.notes).receivedBy).toBeUndefined();
+    expect(JSON.parse(db.item.update.mock.calls[0][0].data.notes).receivedBy).toBe('Store Encoder');
 
-    await store().updateStockIn('item-1', { ...edit, receivedBy: ' Almaz Ayana ' } as any, 'EMP-ENC');
-    expect(JSON.parse(db.item.update.mock.calls[1][0].data.notes).receivedBy).toBe('Almaz Ayana');
+    await store().updateStockIn('item-1', { ...edit, receivedByEmployeeId: 'EMP-SM2' } as any, 'EMP-ENC');
+    expect(JSON.parse(db.item.update.mock.calls[1][0].data.notes).receivedBy).toBe('Store Man');
   });
 
   it('refuses clearing the unit of measure, and keeps the saved one when none is sent', async () => {

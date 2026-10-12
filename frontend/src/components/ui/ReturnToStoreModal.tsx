@@ -25,6 +25,8 @@ import {
   textareaClass,
 } from './FormKit';
 import { useSystemSettings } from '../../utils/system-settings';
+import { StoreManField } from '../assets/StoreManField';
+import { useStoreKeepers } from '../../hooks/useStoreKeepers';
 import { SearchableSelect } from './SearchableSelect';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
@@ -75,6 +77,15 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
   const [condition, setCondition] = useState<ItemCondition | ''>('');
   const [returnReason, setReturnReason] = useState('');
   const [storeReceiverId, setStoreReceiverId] = useState('');
+  // Who takes the item back: a store man of the store it returns to
+  const keepers = useStoreKeepers();
+  const { storeManPolicy } = useSystemSettings();
+  const storeManRequired = storeManPolicy === 'REQUIRED';
+  // The store it goes back to: the one it came from unless another is chosen
+  const [returnToId, setReturnToId] = useState(editApproval?.targetLocationId ?? item.storeLocationId);
+  const returnLocation = keepers.locations.find((l) => l.id === returnToId);
+  const storeMen = keepers.ofLocation(returnToId);
+  const receiverId = storeReceiverId || (storeMen.length === 1 ? storeMen[0].employeeId : '');
   
   // Technical / Vehicle Details
   const [chassisNumber, setChassisNumber] = useState('');
@@ -86,6 +97,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
   const [jackQty, setJackQty] = useState(0);
   const [tireWrenchQty, setTireWrenchQty] = useState(0);
   const [keyQty, setKeyQty] = useState(0);
+  const [reserveTyreQty, setReserveTyreQty] = useState(0);
   const [tireSerials, setTireSerials] = useState('');
   const [defectRemark, setDefectRemark] = useState('');
 
@@ -108,6 +120,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
       setJackQty(0);
       setTireWrenchQty(0);
       setKeyQty(0);
+      setReserveTyreQty(0);
     }
     if (item && editApproval) {
       const d = editApproval.requestDetails ?? {};
@@ -118,6 +131,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
       setReturnReason(d.reason ?? '');
       setDefectRemark(d.remark ?? '');
       setStoreReceiverId(d.storeRecipientId ?? '');
+      setReturnToId(editApproval.targetLocationId ?? item.storeLocationId);
       if (d.chassisNumber !== undefined) setChassisNumber(d.chassisNumber);
       setPlateNo(d.plateNo ?? '');
       setEngineNo(d.engineNo ?? '');
@@ -128,6 +142,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
         setJackQty(qty('jack with handle'));
         setTireWrenchQty(qty('tire wrench'));
         setKeyQty(qty('key'));
+        setReserveTyreQty(qty('reserve tyre'));
       }
       setTireSerials(d.tireNos?.join(', ') ?? '');
       setAttachmentFile(null);
@@ -167,8 +182,10 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
 
   // Required fields still empty; the return can only be submitted once this is empty
   const missingFields = [
+    !editApproval && storeManRequired && keepers.ready && storeMen.length === 0 && 'a store man for this store',
+    !editApproval && storeMen.length > 1 && !receiverId && 'received by (store man)',
     !model21No.trim() && 'Model 21 No.',
-    !book.trim() && 'register book',
+    !book.trim() && 'book',
     !ifmisSlipDateGc && 'return date',
     !condition && 'condition on return',
     !returnReason.trim() && 'reason',
@@ -199,7 +216,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
     setSubmitting(true);
     const registeredById = user?.id || '';
     const fromCustodian = item.currentCustodian;
-    const receiver = employees.find((e) => e.id === storeReceiverId);
+    const receiver = storeMen.find((k) => k.employeeId === receiverId) ?? employees.find((e) => e.id === storeReceiverId);
     const loc = storeLocationLabel(item.storeLocation);
     const todayGc = ifmisSlipDateGc || new Date().toISOString().split('T')[0];
     const todayEc = formatGcToEc(todayGc);
@@ -208,6 +225,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
       { name: 'jack with handle', quantity: jackQty },
       { name: 'tire wrench', quantity: tireWrenchQty },
       { name: 'key', quantity: keyQty },
+      { name: 'reserve tyre', quantity: reserveTyreQty },
     ].filter((a) => a.quantity > 0);
 
     const tireList = tireSerials
@@ -233,7 +251,8 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
           depreciation,
           bookValue,
           defectRemark: defectRemark.trim() || undefined,
-          storeRecipientId: storeReceiverId || undefined,
+          storeRecipientId: receiverId || undefined,
+          targetStoreLocationId: returnToId,
         });
         toast.success('Return Updated', `The return of ${item.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
         onSuccess();
@@ -271,6 +290,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
         bookValue,
         defectRemark: defectRemark.trim() || undefined,
         storeRecipientId: storeReceiverId || undefined,
+        targetStoreLocationId: returnToId && returnToId !== item.storeLocationId ? returnToId : undefined,
       });
 
       const voucher: Model21Voucher = {
@@ -296,7 +316,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
             dateGc: todayGc,
             dateEc: todayEc,
             fromLocation: loc,
-            toLocation: loc,
+            toLocation: returnLocation ? returnLocation.label : loc,
             plateNo: plateNo.trim() || undefined,
             engineNo: engineNo.trim() || undefined,
             accessories: accessories.length > 0 ? accessories : undefined,
@@ -342,7 +362,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
               />
             </Field>
 
-            <Field label="Register book" required>
+            <Field label="Book" required>
               <input
                 type="text"
                 required
@@ -397,15 +417,6 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
                 </select>
               </Field>
 
-              <Field label="Chassis / serial number" optional>
-                <input
-                  type="text"
-                  placeholder="e.g. JTEBB71JX07008920"
-                  value={chassisNumber}
-                  onChange={(e) => setChassisNumber(e.target.value)}
-                  className={input({ mono: true })}
-                />
-              </Field>
 
               <Field
                 label="Accumulated depreciation (ETB)"
@@ -477,23 +488,35 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
                 </ReadOnlyValue>
               </Field>
 
-              <Field label="Returns to store">
-                <ReadOnlyValue>{storeLocationLabel(item.storeLocation)}</ReadOnlyValue>
+              <Field label="Returns to store" required htmlFor="return-to-store">
+                {keepers.locations.length > 0 ? (
+                  <select id="return-to-store" value={returnToId} onChange={(e) => setReturnToId(e.target.value)} className={input()}>
+                    {!keepers.locations.some((l) => l.id === item.storeLocationId) && (
+                      <option value={item.storeLocationId}>{storeLocationLabel(item.storeLocation)}</option>
+                    )}
+                    {keepers.locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <ReadOnlyValue>{storeLocationLabel(item.storeLocation)}</ReadOnlyValue>
+                )}
               </Field>
 
-              <Field label="Received by (store custodian)" optional htmlFor="return-receiver" hint="The store staff member taking the item back, if known. Type a name or employee ID.">
-                <SearchableSelect
-                  id="return-receiver"
-                  value={storeReceiverId}
-                  onChange={setStoreReceiverId}
-                  placeholder="Select an employee…"
-                  searchPlaceholder="Search by name or employee ID…"
-                  groups={[
-                    { label: 'No one', options: [{ value: '', label: 'Not recorded' }] },
-                    { label: 'Employees', options: employees.map((emp) => ({ value: emp.id, label: `${emp.fullNameEn} (${emp.payrollId})` })) },
-                  ]}
-                />
-              </Field>
+              <StoreManField
+                id="return-receiver"
+                label="Received by (store man)"
+                keepers={storeMen}
+                ready={keepers.ready}
+                storeName={keepers.storeName(returnLocation?.storeId ?? item.storeLocation?.storeId)}
+                value={storeReceiverId}
+                onChange={setStoreReceiverId}
+                current={editApproval ? editApproval.requestDetails?.storeRecipientName : undefined}
+                required={!editApproval}
+                refuse={storeManRequired}
+              />
             </FieldGrid>
 
             <FileDropField
@@ -511,14 +534,24 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
         <FormSection
           step={4}
           title="Vehicle & machinery details"
-          subtitle="Plate, engine, accessories and tires · only for vehicles and machinery"
+          subtitle="Chassis, plate, engine, accessories, reserve tyre and tires · only for vehicles and machinery"
           icon={Car}
           accent="emerald"
           collapsible
           defaultOpen={isVehicleLike}
         >
           <div className="space-y-3.5">
-            <FieldGrid cols={2}>
+            <FieldGrid>
+              <Field label="Chassis number" optional>
+                <input
+                  type="text"
+                  placeholder="e.g. JTEBB71JX07008920"
+                  value={chassisNumber}
+                  onChange={(e) => setChassisNumber(e.target.value)}
+                  className={input({ mono: true })}
+                />
+              </Field>
+
               <Field label="Plate number" optional>
                 <input
                   type="text"
@@ -540,7 +573,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
               </Field>
             </FieldGrid>
 
-            <FieldGrid>
+            <FieldGrid cols={4}>
               <Field label="Jack with handle (qty)">
                 <QuantityInput value={jackQty} onChange={setJackQty} />
               </Field>
@@ -551,6 +584,10 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
 
               <Field label="Keys (qty)">
                 <QuantityInput value={keyQty} onChange={setKeyQty} />
+              </Field>
+
+              <Field label="Reserve tyre (qty)">
+                <QuantityInput value={reserveTyreQty} onChange={setReserveTyreQty} />
               </Field>
             </FieldGrid>
 

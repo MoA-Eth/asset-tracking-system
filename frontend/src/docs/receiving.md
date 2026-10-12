@@ -13,7 +13,7 @@ Use this when new items arrive. Registering a receipt creates the asset record. 
 1. On **Assets**, press **Receive items (Model 19)**.
 2. **Voucher and procurement:** enter the **Model 19 No.**, **Received date**, **Transaction type** (PO Receipt, Direct Delivery, Donation / Grant Receipt, Transfer Receipt or Internal Production), **Source** (supplier or vendor), the **Receiving store** and the **Location in store**. PO number, buyer and program are optional.
 3. **Item received:** enter the **Item description**, **Category**, **Physical condition**, **Quantity**, **Unit of measure** (EA, KG, BOX…) and **Unit price (ETB)**. The total is worked out for you. Leave **Item code** empty to have one made; it cannot change later. Serial number, lot or batch number and a remark are optional.
-4. **Delivery and attachment:** enter who delivered and who received, and attach the scan.
+4. **Delivery and attachment:** enter who delivered, and attach the scan. **Received by (store man)** is the store man of the receiving store: if the store has one, he is filled in; if it has several, choose one. If your administrator has made a store man compulsory and the store has none, it cannot receive: ask your System Administrator to assign one.
 5. Press **Submit for approval**. The button stays off until every required field (*) is filled, and it says so beside it.
 6. The Model 19 voucher opens so you can print it.
 

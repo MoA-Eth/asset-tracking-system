@@ -14,6 +14,14 @@ const db = vi.hoisted(() => ({
 }));
 
 vi.mock('../lib/prisma', () => ({ prisma: db }));
+vi.mock('./reference.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./reference.service')>()),
+  requireStoreKeeper: vi.fn(async (_db: unknown, _where: unknown, chosen?: string | null) => ({
+    employeeId: chosen || 'EMP-STOREMAN',
+    fullNameEn: 'Store Man',
+    storeName: 'Kality',
+  })),
+}));
 
 import { StoreService } from './store.service';
 
@@ -85,6 +93,8 @@ describe('Asset Transfer approval workflow', () => {
         targetLocationId: 'LOC-02',
         ifmisSlipNumber: 'M21-0001',
       });
+      // The store man of the item's store is named for the voucher
+      expect(db.transactionApproval.create.mock.calls[0][0].data.requestDetails).toMatchObject({ transferredByName: 'Store Man' });
 
       const data = itemUpdateData();
       expect(data.status).toBe('UNDER_TRANSFER');
@@ -107,8 +117,9 @@ describe('Asset Transfer approval workflow', () => {
       expect(db.item.update).not.toHaveBeenCalled();
     });
 
-    it('refuses a transfer without a reason', async () => {
-      await expect(store().transferItem({ ...transferPayload, reason: '   ' } as any)).rejects.toMatchObject({ statusCode: 400, message: 'Reason for transfer is required.' });
+    it('accepts a transfer without a reason', async () => {
+      await expect(store().transferItem({ ...transferPayload, reason: '   ' } as any)).resolves.toMatchObject({ transactionType: 'TRANSFER' });
+      expect(db.transactionApproval.create.mock.calls[0][0].data.requestDetails.reason).toBeUndefined();
     });
 
     it('rejects a transfer while another request is pending for the item', async () => {

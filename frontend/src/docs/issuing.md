@@ -16,7 +16,7 @@ Use this to hand items from the store to a staff member, or to an outside organi
 4. **Recipient and custody:** choose the **Recipient type**:
    - **Internal (employee):** pick the person in **Received by** (type a name or employee ID). Their directorate fills in; change it if needed.
    - **External (organization):** type the **Organization**, and optionally the **Contact person** who signs for it. There is no employee or directorate.
-5. Enter the **Purpose of issue** and, if you like, a remark. Attach the scan.
+5. **Issued by (store man)** shows the store man of the store the item is in. With several, choose one. Enter the **Purpose of issue** and, if you like, a remark. Attach the scan.
 6. Press **Submit for approval**. It stays off until the required fields (*) are filled. The Model 22 voucher opens for printing.
 
 ## After submitting

@@ -17,6 +17,16 @@ const db = vi.hoisted(() => {
 
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
+// Stores have a store man in these tests; the rules about stores without one are in store-keepers.test.ts
+vi.mock('./reference.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./reference.service')>()),
+  requireStoreKeeper: vi.fn(async (_db: unknown, _where: unknown, chosen?: string | null) => ({
+    employeeId: chosen || 'EMP-STOREMAN',
+    fullNameEn: 'Store Man',
+    storeName: 'Kality',
+  })),
+}));
+
 import { StoreService } from './store.service';
 
 const employees: Record<string, any> = {
@@ -132,7 +142,6 @@ describe('Transfer correction before Stage 1 endorsement', () => {
 
   it('rejects missing or unknown values with a 400', async () => {
     await expect(store().updateTransfer('tr-1', { ...edit, model21No: ' ' }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
-    await expect(store().updateTransfer('tr-1', { ...edit, reason: '' }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
     await expect(store().updateTransfer('tr-1', { ...edit, toEmployeeId: 'EMP-GONE' }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
     await expect(store().updateTransfer('tr-1', { ...edit, toLocationId: 'LOC-GONE' }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
   });

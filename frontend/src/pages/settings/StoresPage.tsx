@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Warehouse, MapPin, Plus, Search, RefreshCw, AlertCircle, Pencil, Ban, RotateCcw, Trash2, Package } from 'lucide-react';
+import { Warehouse, MapPin, Plus, Search, RefreshCw, AlertCircle, Pencil, Ban, RotateCcw, Trash2, Package, UserCheck, X } from 'lucide-react';
 import { api } from '../../api/client';
 import { btn, table } from '../../components/ui/theme';
 import { Modal } from '../../components/ui/Modal';
@@ -7,7 +7,8 @@ import { RowActionsMenu } from '../../components/ui/RowActionsMenu';
 import { Field, FieldGrid, FormError, FormFooter, inputClass } from '../../components/ui/FormKit';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { Location, Store } from '../../types/asset-management';
+import { Employee, Location, Store } from '../../types/asset-management';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { ActivePill, ConfirmDialog, StatusFilter, matchesStatus } from './reference-ui';
 import { RefreshButton } from '../../components/ui/RefreshButton';
 import { FilterPopover, FilterSection, FilterPill } from '../../components/ui/FilterPopover';
@@ -113,6 +114,86 @@ const LocationForm: React.FC<{ store: Store; editing: Location | null; onCancel:
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 /** Stores and the locations inside them */
+/**
+ * The store men of one store: employees named on its vouchers and offered in its forms. They need no sign-in.
+ * A store with nobody can't receive, issue, dispose or take returns, so that is said plainly.
+ */
+const StoreMen: React.FC<{ store: Store; canManage: boolean; employees: Employee[]; onChanged: (store: Store) => void }> = ({
+  store,
+  canManage,
+  employees,
+  onChanged,
+}) => {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+  const [picked, setPicked] = useState('');
+  const men = (store.storeKeepers ?? []).filter((k) => k.isActive !== false);
+
+  const save = async (ids: string[], done: string) => {
+    setSaving(true);
+    try {
+      const updated = await api.setStoreKeepers(store.id, ids);
+      onChanged(updated);
+      toast.success('Store men updated', done);
+    } catch (err: any) {
+      toast.error('Not saved', err?.message || 'The store men could not be saved.');
+    } finally {
+      setSaving(false);
+      setPicked('');
+    }
+  };
+
+  const options = employees
+    .filter((e) => e.isActive !== false && !men.some((k) => k.employeeId === e.id))
+    .map((e) => ({ value: e.id, label: `${e.fullNameEn} (${e.payrollId})` }));
+
+  return (
+    <div className="border-b border-slate-200 px-4 py-3 text-xs">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 font-semibold text-slate-700">
+          <UserCheck className="h-3.5 w-3.5 text-emerald-700" />
+          Store men
+        </span>
+        {men.map((k) => (
+          <span key={k.employeeId} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 py-1 pl-3 pr-2 font-medium text-emerald-900">
+            {k.fullNameEn}
+            <span className="font-mono text-[10px] text-emerald-700/70">{k.payrollId}</span>
+            {canManage && (
+              <button
+                type="button"
+                disabled={saving}
+                aria-label={`Remove ${k.fullNameEn} as a store man of ${store.name}`}
+                onClick={() => save(men.filter((m) => m.employeeId !== k.employeeId).map((m) => m.employeeId), `${k.fullNameEn} is no longer a store man of ${store.name}.`)}
+                className="flex h-4 w-4 items-center justify-center rounded-full text-emerald-700 hover:bg-emerald-200 cursor-pointer disabled:opacity-50"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </span>
+        ))}
+        {men.length === 0 && (
+          <span className="text-amber-800">
+            None assigned: this store can't receive, issue, dispose or take returns until a store man is added.
+          </span>
+        )}
+      </div>
+
+      {canManage && store.isActive && (
+        <div className="mt-2 max-w-sm">
+          <SearchableSelect
+            id={`store-man-${store.id}`}
+            value={picked}
+            onChange={(id) => id && save([...men.map((m) => m.employeeId), id], `Added as a store man of ${store.name}.`)}
+            placeholder="Add a store man…"
+            searchPlaceholder="Search by name or employee ID…"
+            groups={[{ label: 'Employees', options }]}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const StoresPage: React.FC = () => {
   const toast = useToast();
   const { user } = useAuth();
@@ -126,6 +207,11 @@ export const StoresPage: React.FC = () => {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [busy, setBusy] = useState(false);
+  // The staff register: who can be made a store man
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  useEffect(() => {
+    if (canManage) api.getEmployees().then(setEmployees).catch(() => setEmployees([]));
+  }, [canManage]);
 
   const load = async () => {
     setLoading(true);
@@ -379,6 +465,14 @@ export const StoresPage: React.FC = () => {
                     </>
                   )}
                 </div>
+
+                {/* Who keeps it */}
+                <StoreMen
+                  store={store}
+                  canManage={canManage}
+                  employees={employees}
+                  onChanged={(updated) => setStores((all) => all.map((x) => (x.id === updated.id ? { ...x, ...updated } : x)))}
+                />
 
                 {/* Its locations */}
                 <table className="w-full text-left text-xs">

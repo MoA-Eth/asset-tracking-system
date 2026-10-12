@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PackagePlus, FileText, Upload } from 'lucide-react';
 import { api } from '../../api/client';
+import { StoreManField } from './StoreManField';
+import { useStoreKeepers } from '../../hooks/useStoreKeepers';
 import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass } from '../ui/FormKit';
 import { AssetCategory, ItemStatus, ItemCondition, ItemWithRelations, Location, Employee, Model19Voucher, Model19LineItem } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
@@ -66,7 +68,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [serialNumber, setSerialNumber] = useState(editItem?.serialNumber ?? '');
   const [printedPadFrom, setPrintedPadFrom] = useState(editItem?.printedPadFrom ?? '');
   const [printedPadTo, setPrintedPadTo] = useState(editItem?.printedPadTo ?? '');
-  const [quantity, setQuantity] = useState<number>(Number(editItem?.quantity) || 1);
+  // A new receipt starts empty (the field shows 0), so the number is always typed on purpose
+  const [quantity, setQuantity] = useState<number>(editItem ? Number(editItem.quantity) || 1 : 0);
   const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? 0);
   const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? '');
   const [remark, setRemark] = useState(editItem?.remark ?? '');
@@ -75,6 +78,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? '');
   // Left empty: the person who signs for the delivery isn't necessarily the one entering it
   const [receivedBy, setReceivedBy] = useState(editItem?.receivedBy ?? '');
+  // Who received the goods: a store man of the receiving store (a correction keeps the name it has until another is chosen)
+  const [receivedById, setReceivedById] = useState('');
+  const keepers = useStoreKeepers();
+  const { storeManPolicy } = useSystemSettings();
+  const storeManRequired = storeManPolicy === 'REQUIRED';
+  const storeMen = keepers.ofStore(storeId);
+  const receiverId = receivedById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
+  const receiverName = storeMen.find((k) => k.employeeId === receiverId)?.fullNameEn ?? receivedBy;
   // In edit mode the current slip is kept unless a new file is chosen
   const [attachmentFileName, setAttachmentFileName] = useState(
     editItem?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editItem.ifmisSlipAttachmentUrl) : ''
@@ -94,6 +105,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !transactionType && 'transaction type',
     !source.trim() && 'source',
     !storeId && 'receiving store',
+    !isEdit && storeManRequired && !!storeId && keepers.ready && storeMen.length === 0 && 'a store man for this store',
+    !isEdit && storeMen.length > 1 && !receiverId && 'received by (store man)',
     storeId && !storeLocationId && 'location in store',
     !name.trim() && 'item description',
     !category && 'category',
@@ -122,12 +135,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setSerialNumber('');
     setPrintedPadFrom('');
     setPrintedPadTo('');
-    setQuantity(1);
+    setQuantity(0);
     setUnitCostETB(0);
     setCondition('');
     setRemark('');
     setDeliveredBy('');
     setReceivedBy('');
+    setReceivedById('');
     setAttachmentFileName('');
     setAttachmentFile(null);
     setFormError(null);
@@ -238,7 +252,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           printedPadTo: printedPadTo.trim() || undefined,
           quantity: Number(quantity) || 1,
           deliveredBy: deliveredBy.trim() || undefined,
-          receivedBy: receivedBy.trim() || undefined,
+          receivedByEmployeeId: receivedById || undefined,
           remark: remark.trim() || undefined,
         });
         toast.success('Receipt updated', `${editItem.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
@@ -294,7 +308,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         buyer: buyer.trim() || undefined,
         programName: programName.trim() || undefined,
         deliveredBy: deliveredBy.trim() || undefined,
-        receivedBy: receivedBy.trim() || undefined,
+        receivedByEmployeeId: receiverId || undefined,
         items: itemsPayload,
       });
 
@@ -330,7 +344,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         storeLocationId,
         storeLocationName: targetStore?.siteName,
         deliveredByName: deliveredBy.trim(),
-        receivedByName: receivedBy.trim(),
+        receivedByName: receiverName,
         printedBy: user?.fullNameEn,
         items: voucherItems,
         grandTotal: totalAmount,
@@ -542,8 +556,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
           {/* Quantity & valuation */}
           <FieldGrid cols={4}>
-            <Field label="Quantity" required>
-              <QuantityInput min={1} required value={quantity} onChange={setQuantity} />
+            <Field label="Quantity" required htmlFor="receipt-quantity">
+              <QuantityInput id="receipt-quantity" min={1} required value={quantity} onChange={setQuantity} />
             </Field>
 
             <Field label="Unit of measure" required htmlFor="stock-in-uom">
@@ -664,16 +678,19 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               />
             </Field>
 
-            <Field label="Received by" optional htmlFor="stock-in-received-by">
-              <input
-                id="stock-in-received-by"
-                type="text"
-                placeholder="Store custodian name"
-                value={receivedBy}
-                onChange={(e) => setReceivedBy(e.target.value)}
-                className={input()}
-              />
-            </Field>
+            <StoreManField
+              id="stock-in-received-by"
+              label="Received by (store man)"
+              keepers={storeMen}
+              ready={keepers.ready}
+              storeName={keepers.storeName(storeId)}
+              hasStore={!!storeId}
+              value={receivedById}
+              onChange={setReceivedById}
+              current={isEdit ? receivedBy || undefined : undefined}
+              required={!isEdit}
+              refuse={storeManRequired}
+            />
           </FieldGrid>
 
           <FileDropField

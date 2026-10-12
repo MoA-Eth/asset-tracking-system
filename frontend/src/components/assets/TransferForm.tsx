@@ -5,6 +5,9 @@ import { ItemWithRelations, ItemStatus, Department, Employee, Location, Model21V
 import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, QuantityInput, inputClass, textareaClass } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import { useSystemSettings } from '../../utils/system-settings';
+import { useStoreKeepers } from '../../hooks/useStoreKeepers';
+import { StoreManField } from './StoreManField';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { departmentLabel } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -18,11 +21,12 @@ const REQUEST_TYPE_LABELS: Record<string, string> = {
   RETURN: 'Return',
 };
 
-const accessoriesOf = (jack: number, wrench: number, keys: number) =>
+const accessoriesOf = (jack: number, wrench: number, keys: number, reserveTyre: number) =>
   [
     { name: 'jack with handle', quantity: jack },
     { name: 'tire wrench', quantity: wrench },
     { name: 'key', quantity: keys },
+    { name: 'reserve tyre', quantity: reserveTyre },
   ].filter((a) => a.quantity > 0);
 
 // ─── Transfer form (inside the pop-up) ──────────────────────────────────────
@@ -55,7 +59,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [targetEmployeeId, setTargetEmployeeId] = useState(editTransfer?.recipientEmployeeId ?? '');
   const [targetDepartmentId, setTargetDepartmentId] = useState(editTransfer?.targetDepartmentId ?? '');
   const [targetLocationId, setTargetLocationId] = useState(editTransfer?.targetLocationId ?? '');
-  const [transferReason, setTransferReason] = useState(details.reason ?? '');
   const [chassisNumber, setChassisNumber] = useState(details.chassisNumber ?? editItem?.serialNumber ?? '');
   const [plateNo, setPlateNo] = useState(details.plateNo ?? '');
   const [engineNo, setEngineNo] = useState(details.engineNo ?? '');
@@ -65,13 +68,24 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [jackQty, setJackQty] = useState(qtyOf('jack with handle'));
   const [tireWrenchQty, setTireWrenchQty] = useState(qtyOf('tire wrench'));
   const [keyQty, setKeyQty] = useState(qtyOf('key'));
+  const [reserveTyreQty, setReserveTyreQty] = useState(qtyOf('reserve tyre'));
   const [tireSerials, setTireSerials] = useState(details.tireNos?.join(', ') ?? '');
   const [defectRemark, setDefectRemark] = useState(details.remark ?? '');
   const [submitting, setSubmitting] = useState(false);
+  const todayGc = new Date().toISOString().split('T')[0];
+  // Today unless changed; a correction keeps the date it was requested with
+  const [transferDateGc, setTransferDateGc] = useState(editTransfer?.ifmisSlipDateGc || todayGc);
 
   const selectedItemObj = items.find((i) => i.id === selectedItemId);
+  // The store man named on the voucher: one of the store men of the store the asset came from
+  const keepers = useStoreKeepers();
+  const { storeManPolicy } = useSystemSettings();
+  const storeManRequired = storeManPolicy === 'REQUIRED';
+  const storeMen = keepers.ofLocation(selectedItemObj?.storeLocationId);
+  const [transferredById, setTransferredById] = useState('');
+  const transferrerId = transferredById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
+  const transferrerName = storeMen.find((k) => k.employeeId === transferrerId)?.fullNameEn;
   const selectedIsVehicleLike = selectedItemObj?.category === 'VEHICLE' || selectedItemObj?.category === 'AGRI_MACHINERY';
-  const todayGc = new Date().toISOString().split('T')[0];
   const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
 
   // A newly chosen asset brings its own details
@@ -89,6 +103,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       setJackQty(0);
       setTireWrenchQty(0);
       setKeyQty(0);
+      setReserveTyreQty(0);
     }
   };
 
@@ -98,13 +113,22 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Choosing the new custodian fills in their directorate, which can still be changed
+  const handleRecipientChange = (employeeId: string) => {
+    setTargetEmployeeId(employeeId);
+    const emp = employees.find((e) => e.id === employeeId);
+    if (emp?.departmentId) setTargetDepartmentId(emp.departmentId);
+  };
+
   // Required fields still empty; the request can only be submitted once this is empty
   const missingFields = [
     !selectedItemId && 'asset',
     !model21No.trim() && 'Model 21 No.',
-    !book.trim() && 'register book',
+    !transferDateGc && 'transfer date',
+    !book.trim() && 'book',
     !targetEmployeeId && 'recipient',
-    !transferReason.trim() && 'reason',
+    !editTransfer && storeMen.length > 1 && !transferrerId && 'store man',
+    !editTransfer && storeManRequired && !!selectedItemId && keepers.ready && storeMen.length === 0 && 'a store man for this store',
   ].filter(Boolean) as string[];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -112,9 +136,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     if (!selectedItemId) return void toast.warning('Asset required', 'Choose the asset to transfer.');
     if (!targetEmployeeId) return void toast.warning('Recipient required', 'Choose the employee who receives the asset.');
     if (!model21No.trim()) return void toast.warning('Model 21 number required', 'Enter the number on the Model 21 form.');
-    if (!transferReason.trim()) return void toast.warning('Reason required', 'Enter the reason for the transfer.');
 
-    const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty);
+    const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty, reserveTyreQty);
     const tireList = tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
     setSubmitting(true);
     try {
@@ -124,7 +147,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           toEmployeeId: targetEmployeeId,
           toDepartmentId: targetDepartmentId || undefined,
           toLocationId: targetLocationId || undefined,
-          reason: transferReason.trim(),
+          reason: details.reason,
           book: book.trim() || undefined,
           chassisNumber: chassisNumber.trim() || undefined,
           plateNo: plateNo.trim() || undefined,
@@ -134,6 +157,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           depreciation,
           bookValue,
           remark: defectRemark.trim() || undefined,
+          transferredByEmployeeId: transferredById || undefined,
+          ifmisSlipDateGc: transferDateGc,
         });
         toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
         onSaved();
@@ -147,8 +172,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         toEmployeeId: targetEmployeeId,
         toDepartmentId: targetDepartmentId || undefined,
         toLocationId: targetLocationId || undefined,
-        reason: transferReason.trim(),
         performedById: user?.id || '',
+        transferredByEmployeeId: transferrerId || undefined,
+        ifmisSlipDateGc: transferDateGc,
         model21No: model21No.trim(),
         book: book.trim(),
         chassisNumber: chassisNumber.trim() || undefined,
@@ -174,6 +200,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         book: book.trim() || '—',
         toEmployeeName: targetEmp?.fullNameEn || '—',
         toEmployeeId: targetEmp?.payrollId || '—',
+        storeManName: transferrerName,
         items: [
           {
             sNo: 1,
@@ -186,8 +213,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             origCost,
             depreciation,
             bookValue,
-            dateGc: todayGc,
-            dateEc: formatGcToEc(todayGc),
+            dateGc: transferDateGc,
+            dateEc: formatGcToEc(transferDateGc),
             fromLocation: fromLoc,
             // No new location chosen: the item stays in the same store
             toLocation: toLocObj ? storeLocationLabel(toLocObj) : fromLoc,
@@ -228,7 +255,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             />
           </Field>
 
-          <Field label="Register book" required>
+          <Field label="Book" required>
             <input
               type="text"
               required
@@ -241,13 +268,19 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
           <Field
             label="Transfer date (G.C.)"
-            hint={
-              editTransfer
-                ? `${formatGcToEc(editTransfer.ifmisSlipDateGc)} E.C. · date the transfer was requested`
-                : `${formatGcToEc(todayGc)} E.C. · recorded as today`
-            }
+            required
+            htmlFor="transfer-date"
+            hint={transferDateGc ? `${formatGcToEc(transferDateGc)} E.C. · today unless you change it` : undefined}
           >
-            <ReadOnlyValue mono>{editTransfer ? editTransfer.ifmisSlipDateGc : todayGc}</ReadOnlyValue>
+            <input
+              id="transfer-date"
+              type="date"
+              required
+              max={todayGc}
+              value={transferDateGc}
+              onChange={(e) => setTransferDateGc(e.target.value)}
+              className={input({ mono: true })}
+            />
           </Field>
         </FieldGrid>
       </FormSection>
@@ -305,16 +338,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           )}
 
           <FieldGrid cols={2}>
-            <Field label="Chassis / serial number" optional>
-              <input
-                type="text"
-                placeholder="e.g. JTEBB71JX07008920"
-                value={chassisNumber}
-                onChange={(e) => setChassisNumber(e.target.value)}
-                className={input({ mono: true })}
-              />
-            </Field>
-
             <Field label="Accumulated depreciation (ETB)" optional hint={`Net book value: ${formatETB(bookValue)}`}>
               <input
                 type="number"
@@ -349,7 +372,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               <SearchableSelect
                 id="transfer-recipient"
                 value={targetEmployeeId}
-                onChange={setTargetEmployeeId}
+                onChange={handleRecipientChange}
                 placeholder="Select an employee…"
                 searchPlaceholder="Search by name or employee ID…"
                 groups={[
@@ -367,7 +390,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               />
             </Field>
 
-            <Field label="To directorate" optional hint="Leave on Select… to keep the current directorate.">
+            <Field label="To directorate" optional hint="Filled in from the new custodian; change it if needed.">
               <select value={targetDepartmentId} onChange={(e) => setTargetDepartmentId(e.target.value)} className={input()}>
                 <option value="">Select…</option>
                 {departments.map((dep) => (
@@ -377,35 +400,21 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                 ))}
               </select>
             </Field>
-
-            <Field label="To location" optional hint="Leave on Select… to keep the current location.">
-              <select value={targetLocationId} onChange={(e) => setTargetLocationId(e.target.value)} className={input()}>
-                <option value="">Select…</option>
-                {[...new Map(locations.map((loc) => [loc.storeId, loc.storeName])).entries()].map(([storeId, storeName]) => (
-                  <optgroup key={storeId} label={storeName}>
-                    {locations
-                      .filter((loc) => loc.storeId === storeId)
-                      .map((loc) => (
-                        <option key={loc.id} value={loc.id}>
-                          {storeName} · {loc.name}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
-            </Field>
           </FieldGrid>
 
-          <Field label="Reason for transfer" required>
-            <input
-              type="text"
-              required
-              value={transferReason}
-              onChange={(e) => setTransferReason(e.target.value)}
-              placeholder="e.g. Reassigned for field survey work"
-              className={input()}
-            />
-          </Field>
+          <StoreManField
+            id="transfer-store-man"
+            label="Recorded by (store man)"
+            keepers={storeMen}
+            ready={keepers.ready}
+            storeName={keepers.storeName(selectedItemObj?.storeLocation?.storeId)}
+            hasStore={!!selectedItemObj}
+            value={transferredById}
+            onChange={setTransferredById}
+            current={editTransfer ? editTransfer.requestDetails?.transferredByName : undefined}
+            required={!editTransfer}
+            refuse={storeManRequired}
+          />
 
           <Field label="Defects / remarks" optional>
             <textarea
@@ -424,14 +433,17 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         key={selectedIsVehicleLike ? 'vehicle' : 'other'}
         step={4}
         title="Vehicle & machinery details"
-        subtitle="Plate, engine, accessories and tires · only for vehicles and machinery"
+        subtitle="Chassis, plate, engine, accessories, reserve tyre and tires · only for vehicles and machinery"
         icon={Car}
         accent="emerald"
         collapsible
         defaultOpen={selectedIsVehicleLike}
       >
         <div className="space-y-3.5">
-          <FieldGrid cols={2}>
+          <FieldGrid>
+            <Field label="Chassis number" optional>
+              <input type="text" placeholder="e.g. JTEBB71JX07008920" value={chassisNumber} onChange={(e) => setChassisNumber(e.target.value)} className={input({ mono: true })} />
+            </Field>
             <Field label="Plate number" optional>
               <input type="text" placeholder="e.g. 4-23794" value={plateNo} onChange={(e) => setPlateNo(e.target.value)} className={input({ mono: true })} />
             </Field>
@@ -440,7 +452,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             </Field>
           </FieldGrid>
 
-          <FieldGrid>
+          <FieldGrid cols={4}>
             <Field label="Jack with handle (qty)">
               <QuantityInput value={jackQty} onChange={setJackQty} />
             </Field>
@@ -449,6 +461,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             </Field>
             <Field label="Keys (qty)">
               <QuantityInput value={keyQty} onChange={setKeyQty} />
+            </Field>
+            <Field label="Reserve tyre (qty)">
+              <QuantityInput value={reserveTyreQty} onChange={setReserveTyreQty} />
             </Field>
           </FieldGrid>
 
@@ -510,8 +525,9 @@ export const buildModel21Voucher = async (
     fromEmployeeName: fromName,
     fromEmployeeId: fromEmp?.payrollId || '—',
     book: d.book || '—',
-    toEmployeeName: toEmp?.fullNameEn || (r.transactionType === 'RETURN' ? storeName : '—'),
+    toEmployeeName: toEmp?.fullNameEn || (r.transactionType === 'RETURN' ? d.storeRecipientName || storeName : '—'),
     toEmployeeId: toEmp?.payrollId || '—',
+    storeManName: r.transactionType === 'TRANSFER' ? d.transferredByName : undefined,
     items: [
       {
         sNo: 1,

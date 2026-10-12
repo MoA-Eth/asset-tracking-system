@@ -13,6 +13,16 @@ const db = vi.hoisted(() => ({
 
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
+// Stores have a store man in these tests; the rules about stores without one are in store-keepers.test.ts
+vi.mock('./reference.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./reference.service')>()),
+  requireStoreKeeper: vi.fn(async (_db: unknown, _where: unknown, chosen?: string | null) => ({
+    employeeId: chosen || 'EMP-STOREMAN',
+    fullNameEn: 'Store Man',
+    storeName: 'Kality',
+  })),
+}));
+
 import { StoreService } from './store.service';
 import { applySystemSettings } from './settings.service';
 
@@ -95,7 +105,7 @@ describe('requesting an issue to an outside organization', () => {
     expect(created.recipientEmployeeId).toBeUndefined();
     expect(created.targetDepartmentId).toBeUndefined();
     expect(created.requestDetails).toEqual({
-      quantity: 4, uom: 'EA', recipientType: 'EXTERNAL', organizationName: 'Oromia Bureau of Agriculture', contactPerson: 'Mantegbosh Mirku',
+      quantity: 4, uom: 'EA', issuedByEmployeeId: 'EMP-STOREMAN', issuedByName: 'Store Man', recipientType: 'EXTERNAL', organizationName: 'Oromia Bureau of Agriculture', contactPerson: 'Mantegbosh Mirku',
     });
     expect(db.employee.findUnique).not.toHaveBeenCalledWith({ where: { id: undefined } });
     const history = db.item.update.mock.calls[0][0].data.history.create;
@@ -106,7 +116,7 @@ describe('requesting an issue to an outside organization', () => {
   it('needs only an organization name: the contact person is optional', async () => {
     await store().registerStockOut({ ...external, contactPerson: undefined } as any);
     expect(db.transactionApproval.create.mock.calls[0][0].data.requestDetails).toEqual({
-      quantity: 10, uom: 'EA', recipientType: 'EXTERNAL', organizationName: 'Oromia Bureau of Agriculture',
+      quantity: 10, uom: 'EA', issuedByEmployeeId: 'EMP-STOREMAN', issuedByName: 'Store Man', recipientType: 'EXTERNAL', organizationName: 'Oromia Bureau of Agriculture',
     });
   });
 

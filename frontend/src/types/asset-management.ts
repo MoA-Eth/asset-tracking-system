@@ -58,9 +58,20 @@ export interface Department {
 }
 
 /** A store receives and issues stock; it contains one or more locations */
+/** An employee who keeps a store: named on its vouchers and offered in its forms */
+export interface StoreKeeper {
+  employeeId: string;
+  fullNameEn: string;
+  fullNameAm: string;
+  payrollId: string;
+  isActive: boolean;
+}
+
 export interface Store {
   id: string;
   name: string;
+  /** The store men: who receives, issues and takes back here */
+  storeKeepers?: StoreKeeper[];
   /** Building or address */
   address: string;
   isActive: boolean;
@@ -342,6 +353,8 @@ export interface DisposalVoucher {
     bookValue: number;
   }[];
   requestedByName?: string;
+  /** The store man named as storekeeper on the form */
+  storekeeperName?: string;
   endorsedByName?: string;
   approvedByName?: string;
   /** Name of the person printing; shown in the footer */
@@ -385,6 +398,8 @@ export interface Model21Voucher {
   book: string;
   toEmployeeName: string;
   toEmployeeId: string;
+  /** Transfer: the store man who recorded it, named as the second signatory */
+  storeManName?: string;
   items: Model21LineItem[];
   famuAccountantName?: string;
   /** Name of the person printing; shown in the footer */
@@ -480,6 +495,8 @@ export interface AuditLogEntry {
 }
 
 export interface CreateStockInRequest {
+  /** The store man of the receiving store who receives the goods */
+  receivedByEmployeeId?: string;
   name: string;
   category: AssetCategory;
   serialNumber: string;
@@ -534,6 +551,7 @@ export interface CreateStockInRequest {
 
 /** Corrections to a Stock-In registration while it still waits for Stage 1 endorsement. */
 export interface UpdateStockInRequest {
+  receivedByEmployeeId?: string;
   name: string;
   category: AssetCategory;
   serialNumber?: string;
@@ -564,6 +582,8 @@ export interface UpdateStockInRequest {
 
 export interface CreateStockOutRequest {
   itemId: string;
+  /** The store man of the item's store who issues it */
+  issuedByEmployeeId?: string;
   /** INTERNAL (default): an employee receives it. EXTERNAL: an outside organization, typed as text. */
   recipientType?: 'INTERNAL' | 'EXTERNAL';
   recipientEmployeeId?: string;
@@ -594,6 +614,7 @@ export interface CreateStockOutRequest {
 
 /** Corrections to a Stock-Out request while it still waits for Stage 1 endorsement. The item itself can't change. */
 export interface UpdateStockOutRequest {
+  issuedByEmployeeId?: string;
   recipientType?: 'INTERNAL' | 'EXTERNAL';
   recipientEmployeeId?: string;
   targetDepartmentId?: string;
@@ -637,10 +658,14 @@ export interface CreateReturnRequest {
 
 export interface CreateTransferRequest {
   itemId: string;
+  /** The store man named on the voucher; needed only when the item's store has several */
+  transferredByEmployeeId?: string;
+  /** Transfer date (YYYY-MM-DD); today when left out */
+  ifmisSlipDateGc?: string;
   toEmployeeId?: string;
   toDepartmentId?: string;
   toLocationId?: string;
-  reason: string;
+  reason?: string;
   performedById: string;
 
   // Extended Model 21 fields
@@ -682,6 +707,17 @@ export type UpdateDisposalRequest = Omit<CreateDisposalRequest, 'itemId'>;
 
 /** Model 21 particulars of a transfer or return request, the quantity of a Stock-Out, or a disposal's details */
 export interface Model21RequestDetails {
+  /** Stock-Out: the store man who issued the items, as named on the voucher */
+  issuedByEmployeeId?: string;
+  issuedByName?: string;
+  /** Disposal: the store man named as storekeeper on the form */
+  storekeeperEmployeeId?: string;
+  storekeeperName?: string;
+  /** Transfer: the store man named on the voucher */
+  transferredByEmployeeId?: string;
+  transferredByName?: string;
+  /** Return: the name of the store man who takes the item back */
+  storeRecipientName?: string;
   /** Stock-Out: INTERNAL (an employee) or EXTERNAL (an outside organization) */
   recipientType?: 'INTERNAL' | 'EXTERNAL';
   /** Stock-Out to an outside organization: its name, and the person who signs for it */
@@ -724,10 +760,12 @@ export interface Model21RequestDetails {
 /** Corrections to a transfer request while it still waits for Stage 1 endorsement. The item can't change. */
 export interface UpdateTransferRequest {
   model21No: string;
+  transferredByEmployeeId?: string;
+  ifmisSlipDateGc?: string;
   toEmployeeId: string;
   toDepartmentId?: string;
   toLocationId?: string;
-  reason: string;
+  reason?: string;
   book?: string;
   chassisNumber?: string;
   plateNo?: string;
@@ -747,6 +785,8 @@ export interface UpdateReturnRequest {
   ifmisSlipAttachmentUrl?: string;
   returnReason: string;
   condition: ItemCondition;
+  /** The store (location) it goes back to; omit to keep what the request has */
+  targetStoreLocationId?: string;
   book?: string;
   chassisNumber?: string;
   plateNo?: string;
