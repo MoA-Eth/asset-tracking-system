@@ -1,21 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { nextNumberAfter, recallForm, rememberForm } from './form-memory';
-
-describe('nextNumberAfter', () => {
-  it('counts up the last number, keeping its zero padding, prefix and suffix', () => {
-    expect(nextNumberAfter('0004653')).toBe('0004654');
-    expect(nextNumberAfter('M22-009')).toBe('M22-010');
-    expect(nextNumberAfter('0004653/A Inventory')).toBe('0004654/A Inventory');
-    expect(nextNumberAfter('0000999')).toBe('0001000');
-    expect(nextNumberAfter('99')).toBe('100');
-  });
-
-  it('gives nothing when there is no number to count from', () => {
-    expect(nextNumberAfter('')).toBeUndefined();
-    expect(nextNumberAfter(undefined)).toBeUndefined();
-    expect(nextNumberAfter('Book one')).toBeUndefined();
-  });
-});
+import { recallForm, rememberForm } from './form-memory';
 
 describe('form memory', () => {
   beforeEach(() => window.localStorage.clear());

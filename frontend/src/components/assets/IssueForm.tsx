@@ -3,7 +3,7 @@ import { PackageMinus, FileText, Search, User } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
-import { recallForm, rememberForm, nextNumberAfter } from '../../utils/form-memory';
+import { recallForm, rememberForm } from '../../utils/form-memory';
 import { useSlipRegister, usedMessage } from '../../hooks/useSlipRegister';
 import { FormSection, FieldGrid, Field, ReadOnlyValue, TotalValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass, MoneyInput, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
@@ -214,7 +214,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const ethDate = formatGcToEc(issuedDateGc);
   const isAttachmentReq = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
 
-  const nextNo = nextNumberAfter(memory.model22No);
   const usedNo = slips.findUsed(model22No, ['STOCK_OUT'], editApproval?.id);
 
   // Required fields still empty; the request can only be submitted once this is empty
@@ -413,10 +412,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           ? `Disposal (${model22No.trim()}) registered for approval. The units leave the register once it is approved.`
           : `Receipt for Articles Or Property Issued (${model22No.trim()}) to ${isExternal ? organizationName.trim() : recipient?.fullNameEn || 'staff'} registered for approval.`
       );
-      rememberForm(user?.id, 'issue', {
-        model22No: model22No.trim(),
-        ...(transactionType !== DISPOSAL_TRANSACTION_TYPE ? { transactionType } : {}),
-      });
+      // A disposal is never carried over to the next issue
+      rememberForm(user?.id, 'issue', transactionType !== DISPOSAL_TRANSACTION_TYPE ? { transactionType } : {});
       onSuccess(result, voucher);
     } catch (err: any) {
       const errMsg = err.message || 'Server error';
@@ -440,13 +437,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             required
             error={fieldErrors.error('model22No')}
             warning={usedNo ? usedMessage(model22No, usedNo) : undefined}
-            hint={
-              !model22No.trim() && nextNo ? (
-                <button type="button" onClick={() => setModel22No(nextNo)} className="font-medium text-emerald-700 hover:underline cursor-pointer">
-                  Use {nextNo} (next after {memory.model22No})
-                </button>
-              ) : undefined
-            }
           >
             <input
               type="text"
