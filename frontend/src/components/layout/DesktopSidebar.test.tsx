@@ -48,3 +48,36 @@ describe('Side menu', () => {
     expect(screen.getByRole('menuitem', { name: 'Help' })).toBeInTheDocument();
   });
 });
+
+describe('Side menu: collapsed rail', () => {
+  it('names each page in a quick tooltip beside the rail', async () => {
+    auth.user = { id: 'u1', fullNameEn: 'Store Encoder', role: 'DATA_ENCODER', allowedTabs: ['assets', 'reports', 'settings-employees', 'settings-stores'] };
+    const user = userEvent.setup();
+    render(<DesktopSidebar activeTab="assets" setActiveTab={vi.fn()} currentRole={UserRole.DATA_ENCODER} collapsed onToggleCollapse={vi.fn()} />);
+    const assets = screen.getByRole('button', { name: 'Assets' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    await user.hover(assets);
+    const tip = await screen.findByRole('tooltip');
+    expect(tip).toHaveTextContent('Assets');
+    expect(tip).toHaveTextContent('Assets');
+    await user.unhover(assets);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+});
+
+describe('Side menu: remembered Settings group', () => {
+  it('opens the way it was left', async () => {
+    auth.user = { id: 'u1', fullNameEn: 'Store Encoder', role: 'DATA_ENCODER', allowedTabs: ['assets', 'reports', 'settings-employees', 'settings-stores'] };
+    window.localStorage.clear();
+    const user = userEvent.setup();
+    const first = render(<DesktopSidebar activeTab="assets" setActiveTab={vi.fn()} currentRole={UserRole.DATA_ENCODER} collapsed={false} onToggleCollapse={vi.fn()} />);
+    expect(screen.queryByText('Employees')).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Settings/ }));
+    expect(screen.getByText('Employees')).toBeInTheDocument();
+    first.unmount();
+
+    render(<DesktopSidebar activeTab="assets" setActiveTab={vi.fn()} currentRole={UserRole.DATA_ENCODER} collapsed={false} onToggleCollapse={vi.fn()} />);
+    expect(screen.getByText('Employees')).toBeInTheDocument();
+    window.localStorage.clear();
+  });
+});

@@ -3,7 +3,7 @@ import { Trash2, FileText, ClipboardList } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
-import { FormSection, FieldGrid, Field, ReadOnlyValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass, textareaClass } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, ReadOnlyValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass, textareaClass, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { DisposalVoucher, Employee, ItemCondition, ItemWithRelations, TransactionApproval } from '../../types/asset-management';
@@ -84,6 +84,13 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     isAttachmentReq && !attachmentFileName && 'supporting document',
   ].filter(Boolean) as string[];
 
+  // A field shows what is wrong with it once the user has been in it
+  const fieldErrors = useFieldErrors({
+    disposalNo: !disposalNo.trim() && 'Enter the disposal reference number.',
+    date: !dateGc && 'Enter the date of the disposal.',
+    reason: !reason.trim() && 'Say why the item is being disposed of.',
+  });
+
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -149,10 +156,10 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     }
   };
 
-  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
+  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center'; invalid?: boolean }) => inputClass('emerald', opts);
 
   return (
-    <form id="disposal-form" onSubmit={handleSubmit} className="space-y-4">
+    <form id="disposal-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
       <FormError message={formError} />
 
       <FormSection step={1} title="Item to dispose of" subtitle="የሚወገደው ንብረት" icon={Trash2} accent="emerald">
@@ -188,18 +195,20 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       <FormSection step={2} title="Disposal details" subtitle="የማስወገጃ ምክንያት እና ዝርዝር" icon={FileText} accent="emerald">
         <div className="space-y-3.5">
           <FieldGrid>
-            <Field label="Disposal reference no." required>
+            <Field label="Disposal reference no." required error={fieldErrors.error('disposalNo')}>
               <input
                 type="text"
                 required
                 placeholder="e.g. DSP-2026-001"
                 value={disposalNo}
                 onChange={(e) => setDisposalNo(e.target.value)}
-                className={`${input({ mono: true })} font-semibold`}
+                onBlur={fieldErrors.touch('disposalNo')}
+                autoFocus={!isEdit}
+                className={`${input({ mono: true, invalid: !!fieldErrors.error('disposalNo') })} font-semibold`}
               />
             </Field>
-            <Field label="Disposal date (G.C.)" required hint={`${ethDate} E.C.`}>
-              <input type="date" required value={dateGc} onChange={(e) => setDateGc(e.target.value)} className={input()} />
+            <Field label="Disposal date (G.C.)" required hint={`${ethDate} E.C.`} error={fieldErrors.error('date')}>
+              <input type="date" required value={dateGc} onChange={(e) => setDateGc(e.target.value)} onBlur={fieldErrors.touch('date')} className={input({ invalid: !!fieldErrors.error('date') })} />
             </Field>
             <Field label="Condition" optional>
               <select value={condition} onChange={(e) => setCondition(e.target.value)} className={input()}>
@@ -214,7 +223,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
           </FieldGrid>
 
           <FieldGrid cols={2}>
-            <Field label="Reason for disposal" required htmlFor="disposal-reason" hint="Pick a suggestion or write your own">
+            <Field label="Reason for disposal" required htmlFor="disposal-reason" error={fieldErrors.error('reason')} hint="Pick a suggestion or write your own">
               <input
                 id="disposal-reason"
                 type="text"
@@ -223,7 +232,8 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
                 placeholder="e.g. Damaged beyond repair"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className={input()}
+                onBlur={fieldErrors.touch('reason')}
+                className={input({ invalid: !!fieldErrors.error('reason') })}
               />
               <datalist id="disposal-reasons">
                 {DISPOSAL_REASON_SUGGESTIONS.map((s) => (

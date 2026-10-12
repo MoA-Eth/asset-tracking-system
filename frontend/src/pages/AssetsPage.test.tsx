@@ -70,6 +70,7 @@ const menuFor = async (user: ReturnType<typeof userEvent.setup>, code: string) =
 };
 
 beforeEach(() => {
+  window.localStorage.clear();
   vi.resetAllMocks();
   if (!window.URL.createObjectURL) {
     window.URL.createObjectURL = vi.fn(() => 'blob:mock');
@@ -179,14 +180,14 @@ describe('Assets page', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
 
-    expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Dispose', 'View details', 'Print Model 19']);
+    expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'View details', 'Print Model 19', 'Dispose']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'View details', 'Print Model 21 (transfer)']);
     await user.keyboard('{Escape}');
     await user.click(within(rowOf('MOA-S1')).getByRole('button', { name: 'Show 1 issued record' }));
     expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'View details', 'Print Model 22 (issue)']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Dispose', 'View details', 'Print Model 19', 'Print Model 21 (transfer to store)']);
+    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'View details', 'Print Model 19', 'Print Model 21 (transfer to store)', 'Dispose']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-P1')).toEqual(['Edit transfer', 'View details', 'Print Model 21']);
     await user.keyboard('{Escape}');

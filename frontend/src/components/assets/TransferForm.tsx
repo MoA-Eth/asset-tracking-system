@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, UserCheck, FileText, Car, Tag } from 'lucide-react';
 import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
-import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, QuantityInput, inputClass, textareaClass } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, QuantityInput, MoneyInput, inputClass, textareaClass, submitOnCtrlEnter } from '../ui/FormKit';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -13,6 +13,8 @@ import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { departmentLabel } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { storeLocationLabel } from '../../utils/location';
+import { recallForm, rememberForm, nextNumberAfter } from '../../utils/form-memory';
+import { useSlipRegister, usedMessage } from '../../hooks/useSlipRegister';
 
 /** What an open request on an asset is called in the picker */
 const REQUEST_TYPE_LABELS: Record<string, string> = {
@@ -51,12 +53,15 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const { user } = useAuth();
   const toast = useToast();
   const details = editTransfer?.requestDetails ?? {};
+  // A new transfer starts from the last one this person made: the same book, and the number to continue from
+  const memory = editTransfer ? {} : recallForm(user?.id, 'transfer');
+  const slips = useSlipRegister();
   const editItem = editTransfer ? items.find((i) => i.id === editTransfer.itemId) : undefined;
   const qtyOf = (name: string) => details.accessories?.find((a) => a.name === name)?.quantity ?? 0;
 
   const [selectedItemId, setSelectedItemId] = useState(editTransfer?.itemId ?? '');
   const [model21No, setModel21No] = useState(editTransfer?.ifmisSlipNumber ?? '');
-  const [book, setBook] = useState(details.book ?? '');
+  const [book, setBook] = useState(details.book ?? memory.book ?? '');
   const [targetEmployeeId, setTargetEmployeeId] = useState(editTransfer?.recipientEmployeeId ?? '');
   const [targetDepartmentId, setTargetDepartmentId] = useState(editTransfer?.targetDepartmentId ?? '');
   const [targetLocationId, setTargetLocationId] = useState(editTransfer?.targetLocationId ?? '');
@@ -104,7 +109,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const transferrerId = transferredById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
   const transferrerName = storeMen.find((k) => k.employeeId === transferrerId)?.fullNameEn;
   const selectedIsVehicleLike = selectedItemObj?.category === 'VEHICLE' || selectedItemObj?.category === 'AGRI_MACHINERY';
-  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
+  const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center'; invalid?: boolean }) => inputClass('emerald', opts);
 
   // A newly chosen asset brings its own details
   const handleItemSelect = (itemId: string) => {
@@ -148,6 +153,21 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     const emp = employees.find((e) => e.id === employeeId);
     if (emp?.departmentId) setTargetDepartmentId(emp.departmentId);
   };
+
+  const nextNo = nextNumberAfter(memory.model21No);
+  const usedNo = slips.findUsed(model21No, ['TRANSFER', 'RETURN'], editTransfer?.id);
+
+  // A field shows what is wrong with it once the user has been in it
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const touch = (key: string) => () => setTouched((t) => (t[key] ? t : { ...t, [key]: true }));
+  const problems: Record<string, string | false> = {
+    model21No: !model21No.trim() && 'Enter the number printed on the Model 21 form.',
+    book: !book.trim() && 'Enter the book this form comes from.',
+    date: !transferDateGc && 'Enter the date of the transfer.',
+    condition: isReturn && !condition && 'Select the condition the asset is returned in.',
+    reason: isReturn && !returnReason.trim() && 'Say why the asset is coming back to store.',
+  };
+  const errorOf = (key: string) => (touched[key] && problems[key] ? (problems[key] as string) : undefined);
 
   // Required fields still empty; the request can only be submitted once this is empty
   const missingFields = [
@@ -268,6 +288,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           'Transfer to store submitted for approval',
           `${item?.itemCode || 'The asset'} (${model21No.trim()}) is registered for Department Head approval and stays with its custodian until then.`,
         );
+        rememberForm(user?.id, 'transfer', { book: book.trim(), model21No: model21No.trim() });
         onSaved(returnVoucher);
         return;
       }
@@ -362,6 +383,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         'Transfer submitted for approval',
         `${selectedItem?.itemCode || 'The asset'} to ${targetEmp?.fullNameEn || 'the new custodian'}. Custody changes after the Department Head approves it.`,
       );
+      rememberForm(user?.id, 'transfer', { book: book.trim(), model21No: model21No.trim() });
       onSaved(voucher);
     } catch (err: any) {
       toast.error(editTransfer ? "The transfer couldn't be updated" : 'Transfer failed', err.message || 'Try again.');
@@ -372,29 +394,44 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   };
 
   return (
-    <form id="transfer-form" onSubmit={handleSubmit} className="space-y-4">
+    <form id="transfer-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
       {/* ── Section 1: Transfer voucher ── */}
       <FormSection step={1} title="Transfer voucher" subtitle="የዝውውር ሰነድ · Model 21 register" icon={FileText} accent="emerald">
         <FieldGrid>
-          <Field label="Model 21 No." required>
+          <Field
+            label="Model 21 No."
+            required
+            error={errorOf('model21No')}
+            warning={usedNo ? usedMessage(model21No, usedNo) : undefined}
+            hint={
+              !model21No.trim() && nextNo ? (
+                <button type="button" onClick={() => setModel21No(nextNo)} className="font-medium text-emerald-700 hover:underline cursor-pointer">
+                  Use {nextNo} (next after {memory.model21No})
+                </button>
+              ) : undefined
+            }
+          >
             <input
               type="text"
               required
               value={model21No}
               onChange={(e) => setModel21No(e.target.value)}
+              onBlur={touch('model21No')}
+              autoFocus={!editTransfer && !!initialItemId}
               placeholder="Number on the Model 21 form"
-              className={`${input({ mono: true })} font-semibold`}
+              className={`${input({ mono: true, invalid: !!errorOf('model21No') })} font-semibold`}
             />
           </Field>
 
-          <Field label="Book" required>
+          <Field label="Book" required error={errorOf('book')}>
             <input
               type="text"
               required
               value={book}
               onChange={(e) => setBook(e.target.value)}
+              onBlur={touch('book')}
               placeholder="Book the form comes from"
-              className={input()}
+              className={input({ invalid: !!errorOf('book') })}
             />
           </Field>
 
@@ -402,6 +439,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             label="Transfer date (G.C.)"
             required
             htmlFor="transfer-date"
+            error={errorOf('date')}
             hint={transferDateGc ? `${formatGcToEc(transferDateGc)} E.C. · today unless you change it` : undefined}
           >
             <input
@@ -411,7 +449,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               max={todayGc}
               value={transferDateGc}
               onChange={(e) => setTransferDateGc(e.target.value)}
-              className={input({ mono: true })}
+              onBlur={touch('date')}
+              className={input({ mono: true, invalid: !!errorOf('date') })}
             />
           </Field>
         </FieldGrid>
@@ -485,17 +524,12 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
           <FieldGrid cols={2}>
             <Field label="Accumulated depreciation (ETB)" optional hint={`Net book value: ${formatETB(bookValue)}`}>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
+              <MoneyInput
                 value={depreciation}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value) || 0;
+                onChange={(val) => {
                   setDepreciation(val);
                   setBookValue(Math.max(0, (selectedItemObj?.unitCostETB || 0) * (Number(selectedItemObj?.quantity) || 1) - val));
                 }}
-                className={input({ mono: true, align: 'right' })}
               />
             </Field>
           </FieldGrid>
@@ -596,8 +630,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                   refuse={storeManRequired}
                 />
 
-                <Field label="Condition on return" required htmlFor="transfer-condition">
-                  <select id="transfer-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} className={input()}>
+                <Field label="Condition on return" required htmlFor="transfer-condition" error={errorOf('condition')}>
+                  <select id="transfer-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} onBlur={touch('condition')} className={input({ invalid: !!errorOf('condition') })}>
                     <option value="" disabled>Select…</option>
                     <option value={ItemCondition.GOOD}>Good · fully functional</option>
                     <option value={ItemCondition.FAIR}>Fair · minor wear</option>
@@ -607,7 +641,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                 </Field>
               </FieldGrid>
 
-              <Field label="Reason for return" required htmlFor="transfer-return-reason">
+              <Field label="Reason for return" required htmlFor="transfer-return-reason" error={errorOf('reason')}>
                 <input
                   id="transfer-return-reason"
                   type="text"
@@ -615,7 +649,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                   placeholder="e.g. Project field work completed, returning asset to store"
                   value={returnReason}
                   onChange={(e) => setReturnReason(e.target.value)}
-                  className={input()}
+                  onBlur={touch('reason')}
+                  className={input({ invalid: !!errorOf('reason') })}
                 />
               </Field>
 

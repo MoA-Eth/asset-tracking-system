@@ -5,11 +5,13 @@ import { getMobileNavItems } from './navigation';
 interface MobileBottomNavProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  pendingApprovalsCount?: number;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   activeTab,
   setActiveTab,
+  pendingApprovalsCount = 0,
 }) => {
   const { user } = useAuth();
   const visibleTabs = getMobileNavItems(user?.allowedTabs).slice(0, 5);
@@ -36,7 +38,17 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               {isActive && (
                 <span aria-hidden="true" className="absolute top-0 h-[3px] w-8 rounded-b-full bg-emerald-700" />
               )}
-              <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.25]' : 'stroke-[1.75]'}`} />
+              <span className="relative">
+                <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.25]' : 'stroke-[1.75]'}`} />
+                {tab.showsPendingCount && pendingApprovalsCount > 0 && (
+                  <span
+                    aria-label={`${pendingApprovalsCount} waiting`}
+                    className="absolute -right-2.5 -top-1.5 min-w-[16px] rounded-full bg-[#FCDD09] px-1 text-center text-[9px] font-bold leading-4 text-emerald-950"
+                  >
+                    {pendingApprovalsCount}
+                  </span>
+                )}
+              </span>
               <span className="text-[10px] tracking-tight">{tab.label}</span>
             </button>
           );

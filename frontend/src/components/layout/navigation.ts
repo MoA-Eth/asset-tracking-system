@@ -141,9 +141,9 @@ export function getSettingsGroups(allowedTabs: readonly string[] = []): Settings
   })).filter((group) => group.items.length > 0);
 }
 
-export function getMobileNavItems(allowedTabs: readonly string[] = []): { id: string; label: string; icon: LucideIcon; matches: (tab: string) => boolean }[] {
+export function getMobileNavItems(allowedTabs: readonly string[] = []): { id: string; label: string; icon: LucideIcon; showsPendingCount?: boolean; matches: (tab: string) => boolean }[] {
   const main = getNavSections(allowedTabs).flatMap((section) => section.items.map((item) => ({
-    id: item.id, label: item.label, icon: item.icon,
+    id: item.id, label: item.label, icon: item.icon, showsPendingCount: item.showsPendingCount,
     matches: (tab: string) => tab === item.id,
   })));
   const firstSettings = getSettingsGroups(allowedTabs)[0]?.items[0];
