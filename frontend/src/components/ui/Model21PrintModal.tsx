@@ -9,11 +9,9 @@ interface Model21PrintModalProps {
   isOpen: boolean;
   onClose: () => void;
   voucher: Model21Voucher | null;
-  /** An extra action beside Print, e.g. "Full record & history" */
-  toolbarAction?: { label: string; onClick: () => void };
 }
 
-export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, onClose, voucher, toolbarAction }) => {
+export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, onClose, voucher }) => {
   if (!isOpen || !voucher) return null;
 
   // Vehicle particulars are recorded once per request, on its first line
@@ -24,7 +22,6 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
     <VoucherShell
       isOpen={isOpen}
       onClose={onClose}
-      toolbarAction={toolbarAction}
       model="Model 21"
       toolbarTitle="Model 21 Fixed Asset Internal Transfer Form (የንብረት ዝውውር ፎርም)"
       title="Fixed Asset Internal Transfer Form"

@@ -49,13 +49,11 @@ interface VoucherShellProps {
   approvalState?: VoucherApprovalState;
   /** Who is printing; shown in the footer */
   printedBy?: string;
-  /** An extra action beside Print, e.g. "Full record & history" */
-  toolbarAction?: { label: string; onClick: () => void };
   children: React.ReactNode;
 }
 
 export const VoucherShell: React.FC<VoucherShellProps> = ({
-  isOpen, onClose, model, toolbarTitle, title, number, subheading, approvalState, printedBy, toolbarAction, children,
+  isOpen, onClose, model, toolbarTitle, title, number, subheading, approvalState, printedBy, children,
 }) => {
   if (!isOpen) return null;
   return (
@@ -71,15 +69,6 @@ export const VoucherShell: React.FC<VoucherShellProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {toolbarAction && (
-              <button
-                type="button"
-                onClick={toolbarAction.onClick}
-                className="h-8 rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-semibold text-white transition hover:bg-white/20 cursor-pointer"
-              >
-                {toolbarAction.label}
-              </button>
-            )}
             <button
               onClick={() => window.print()}
               aria-label={`Print ${model} / PDF`}

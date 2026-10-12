@@ -1,7 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { ApprovalVoucherModal } from './ApprovalVoucherModal';
 import { api } from '../../api/client';
 
@@ -35,13 +34,6 @@ describe('A request seen from Approvals', () => {
     expect(screen.getByText('Received By')).toBeInTheDocument();
     expect(screen.getByText('Abebe Store Man')).toBeInTheDocument();
     expect(screen.getByText(/M22-050/)).toBeInTheDocument();
-  });
-
-  it('leads on to the full record and history when asked', async () => {
-    const user = userEvent.setup();
-    render(<ApprovalVoucherModal approval={issue} onClose={vi.fn()} />);
-    await user.click(await screen.findByRole('button', { name: 'Full record & history' }));
-    expect(screen.getByText('Full record and history')).toBeInTheDocument();
   });
 
   it('falls back to the record when no voucher can be built', async () => {

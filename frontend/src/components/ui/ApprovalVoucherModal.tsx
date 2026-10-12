@@ -37,13 +37,12 @@ interface Props {
 
 /**
  * A request shown as the voucher it belongs to (Model 19, 22, 21 or the disposal form), the same paper the other
- * pages print, so an approver reads it the way it will be signed. The item's full record and history stay one click away.
+ * pages print, so an approver reads it the way it will be signed. When no voucher can be built, the item's record is shown.
  */
 export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose }) => {
   const { user } = useAuth();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState(false);
-  const [showRecord, setShowRecord] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,8 +81,8 @@ export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose }) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approval.id]);
 
-  // The record and its history, when asked for, or when there is no voucher for this request
-  if (showRecord || failed) {
+  // No voucher could be built for this request: show the item's record instead
+  if (failed) {
     return <RecordDetailModal itemId={approval.itemId} approval={approval} onClose={onClose} />;
   }
 
@@ -98,16 +97,15 @@ export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose }) => 
     );
   }
 
-  const toolbarAction = { label: 'Full record & history', onClick: () => setShowRecord(true) };
   switch (loaded.kind) {
     case 'model19':
-      return <Model19PrintModal isOpen onClose={onClose} voucher={loaded.voucher} toolbarAction={toolbarAction} />;
+      return <Model19PrintModal isOpen onClose={onClose} voucher={loaded.voucher} />;
     case 'model22':
-      return <Model22PrintModal isOpen onClose={onClose} voucher={loaded.voucher} toolbarAction={toolbarAction} />;
+      return <Model22PrintModal isOpen onClose={onClose} voucher={loaded.voucher} />;
     case 'model21':
-      return <Model21PrintModal isOpen onClose={onClose} voucher={loaded.voucher} toolbarAction={toolbarAction} />;
+      return <Model21PrintModal isOpen onClose={onClose} voucher={loaded.voucher} />;
     default:
-      return <DisposalPrintModal isOpen onClose={onClose} voucher={loaded.voucher} toolbarAction={toolbarAction} />;
+      return <DisposalPrintModal isOpen onClose={onClose} voucher={loaded.voucher} />;
   }
 };
 

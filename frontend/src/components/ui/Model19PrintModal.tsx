@@ -9,11 +9,9 @@ interface Model19PrintModalProps {
   isOpen: boolean;
   onClose: () => void;
   voucher: Model19Voucher | null;
-  /** An extra action beside Print, e.g. "Full record & history" */
-  toolbarAction?: { label: string; onClick: () => void };
 }
 
-export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, onClose, voucher, toolbarAction }) => {
+export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, onClose, voucher }) => {
   if (!isOpen || !voucher) return null;
 
   const grandTotal = voucher.grandTotal || voucher.items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0);
@@ -22,7 +20,6 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
     <VoucherShell
       isOpen={isOpen}
       onClose={onClose}
-      toolbarAction={toolbarAction}
       model="Model 19"
       toolbarTitle="Model 19 Receiving Report (የዕቃ መረከቢያ ሰነድ)"
       title="Goods Receiving Report"
