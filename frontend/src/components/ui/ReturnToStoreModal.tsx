@@ -94,6 +94,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
   const [jackQty, setJackQty] = useState(0);
   const [tireWrenchQty, setTireWrenchQty] = useState(0);
   const [keyQty, setKeyQty] = useState(0);
+  const [reserveTyreQty, setReserveTyreQty] = useState(0);
   const [tireSerials, setTireSerials] = useState('');
   const [defectRemark, setDefectRemark] = useState('');
 
@@ -116,6 +117,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
       setJackQty(0);
       setTireWrenchQty(0);
       setKeyQty(0);
+      setReserveTyreQty(0);
     }
     if (item && editApproval) {
       const d = editApproval.requestDetails ?? {};
@@ -136,6 +138,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
         setJackQty(qty('jack with handle'));
         setTireWrenchQty(qty('tire wrench'));
         setKeyQty(qty('key'));
+        setReserveTyreQty(qty('reserve tyre'));
       }
       setTireSerials(d.tireNos?.join(', ') ?? '');
       setAttachmentFile(null);
@@ -218,6 +221,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
       { name: 'jack with handle', quantity: jackQty },
       { name: 'tire wrench', quantity: tireWrenchQty },
       { name: 'key', quantity: keyQty },
+      { name: 'reserve tyre', quantity: reserveTyreQty },
     ].filter((a) => a.quantity > 0);
 
     const tireList = tireSerials
@@ -511,7 +515,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
         <FormSection
           step={4}
           title="Vehicle & machinery details"
-          subtitle="Chassis, plate, engine, accessories and tires · only for vehicles and machinery"
+          subtitle="Chassis, plate, engine, accessories, reserve tyre and tires · only for vehicles and machinery"
           icon={Car}
           accent="emerald"
           collapsible
@@ -550,7 +554,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
               </Field>
             </FieldGrid>
 
-            <FieldGrid>
+            <FieldGrid cols={4}>
               <Field label="Jack with handle (qty)">
                 <QuantityInput value={jackQty} onChange={setJackQty} />
               </Field>
@@ -561,6 +565,10 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
 
               <Field label="Keys (qty)">
                 <QuantityInput value={keyQty} onChange={setKeyQty} />
+              </Field>
+
+              <Field label="Reserve tyre (qty)">
+                <QuantityInput value={reserveTyreQty} onChange={setReserveTyreQty} />
               </Field>
             </FieldGrid>
 

@@ -8,7 +8,7 @@ Both are for assets that are **Issued**. A **transfer** moves an asset from one 
 2. Enter the **Model 21 No.** and the **Book**. The **Transfer date** is today; change it if the transfer happened on another day (it can't be in the future).
 3. Check the asset. Optionally enter the **accumulated depreciation** (the **chassis number** is under Vehicle & machinery details).
 4. Choose **To employee** (required). The **directorate** fills in from the employee; change it if needed.
-5. Vehicles and machinery have optional details: plate, engine, accessories, tires and defects.
+5. Vehicles and machinery have optional details: chassis, plate, engine, accessories (jack, wrench, keys), reserve tyre, tires and defects.
 6. **Recorded by (store man)** is a store man of the store the asset came from, chosen for you when there is only one. His name is printed on the voucher as **Recorded By**.
 7. Press **Submit transfer for approval**. The Model 21 voucher opens for printing.
 

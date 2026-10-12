@@ -21,11 +21,12 @@ const REQUEST_TYPE_LABELS: Record<string, string> = {
   RETURN: 'Return',
 };
 
-const accessoriesOf = (jack: number, wrench: number, keys: number) =>
+const accessoriesOf = (jack: number, wrench: number, keys: number, reserveTyre: number) =>
   [
     { name: 'jack with handle', quantity: jack },
     { name: 'tire wrench', quantity: wrench },
     { name: 'key', quantity: keys },
+    { name: 'reserve tyre', quantity: reserveTyre },
   ].filter((a) => a.quantity > 0);
 
 // ─── Transfer form (inside the pop-up) ──────────────────────────────────────
@@ -67,6 +68,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [jackQty, setJackQty] = useState(qtyOf('jack with handle'));
   const [tireWrenchQty, setTireWrenchQty] = useState(qtyOf('tire wrench'));
   const [keyQty, setKeyQty] = useState(qtyOf('key'));
+  const [reserveTyreQty, setReserveTyreQty] = useState(qtyOf('reserve tyre'));
   const [tireSerials, setTireSerials] = useState(details.tireNos?.join(', ') ?? '');
   const [defectRemark, setDefectRemark] = useState(details.remark ?? '');
   const [submitting, setSubmitting] = useState(false);
@@ -101,6 +103,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       setJackQty(0);
       setTireWrenchQty(0);
       setKeyQty(0);
+      setReserveTyreQty(0);
     }
   };
 
@@ -134,7 +137,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     if (!targetEmployeeId) return void toast.warning('Recipient required', 'Choose the employee who receives the asset.');
     if (!model21No.trim()) return void toast.warning('Model 21 number required', 'Enter the number on the Model 21 form.');
 
-    const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty);
+    const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty, reserveTyreQty);
     const tireList = tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
     setSubmitting(true);
     try {
@@ -430,7 +433,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         key={selectedIsVehicleLike ? 'vehicle' : 'other'}
         step={4}
         title="Vehicle & machinery details"
-        subtitle="Chassis, plate, engine, accessories and tires · only for vehicles and machinery"
+        subtitle="Chassis, plate, engine, accessories, reserve tyre and tires · only for vehicles and machinery"
         icon={Car}
         accent="emerald"
         collapsible
@@ -449,7 +452,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             </Field>
           </FieldGrid>
 
-          <FieldGrid>
+          <FieldGrid cols={4}>
             <Field label="Jack with handle (qty)">
               <QuantityInput value={jackQty} onChange={setJackQty} />
             </Field>
@@ -458,6 +461,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             </Field>
             <Field label="Keys (qty)">
               <QuantityInput value={keyQty} onChange={setKeyQty} />
+            </Field>
+            <Field label="Reserve tyre (qty)">
+              <QuantityInput value={reserveTyreQty} onChange={setReserveTyreQty} />
             </Field>
           </FieldGrid>
 
