@@ -108,7 +108,7 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
                 <div className="flex justify-center mb-1.5">
                   <MoaLogo className="w-14 h-14" alt="Ministry of Agriculture logo" />
                 </div>
-                <h1 className="text-sm sm:text-base font-black uppercase text-emerald-950 tracking-tight">
+                <h1 className="text-sm sm:text-base font-extrabold uppercase text-emerald-950 tracking-tight">
                   የኢትዮጵያ ፌደራላዊ ዲሞክራሲያዊ ሪፐብሊክ
                 </h1>
                 <h2 className="text-xs sm:text-sm font-bold text-slate-800 uppercase mt-0.5">

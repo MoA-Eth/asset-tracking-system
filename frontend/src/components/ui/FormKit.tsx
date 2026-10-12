@@ -220,7 +220,7 @@ export const FormSection: React.FC<FormSectionProps> = ({
           <Icon className={`h-4 w-4 shrink-0 ${ACCENT[accent].icon}`} />
           {title}
         </h3>
-        {subtitle && <p className="mt-0.5 text-[11px] text-slate-500">{subtitle}</p>}
+        {subtitle && <p className="mt-0.5 text-xs leading-snug text-slate-500">{subtitle}</p>}
       </div>
       {aside}
       {collapsible && (
@@ -326,7 +326,7 @@ export const SummaryGrid: React.FC<{ items: { label: string; value: React.ReactN
   <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-slate-50/70 p-3 sm:grid-cols-4">
     {items.map((it) => (
       <div key={it.label} className="min-w-0">
-        <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-500">{it.label}</dt>
+        <dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{it.label}</dt>
         <dd className={`truncate text-[13px] font-medium text-slate-900 ${it.mono ? 'font-mono' : ''}`}>{it.value || '—'}</dd>
       </div>
     ))}

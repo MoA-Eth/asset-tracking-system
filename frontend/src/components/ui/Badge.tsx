@@ -19,7 +19,7 @@ export const Badge: React.FC<BadgeProps> = ({
   const baseStyles = 'inline-flex items-center font-bold uppercase tracking-wider rounded border';
 
   const sizeStyles = {
-    sm: 'px-1.5 py-0.2 text-[9px]',
+    sm: 'px-1.5 py-0.2 text-[10px]',
     md: 'px-2 py-0.5 text-[10px]',
   };
 

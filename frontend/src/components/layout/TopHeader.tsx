@@ -340,7 +340,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             >
               <Bell className="w-4 h-4" />
               {displayBadgeCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] flex items-center justify-center animate-bounce shadow-xs">
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-amber-400 text-slate-950 font-extrabold text-[10px] flex items-center justify-center animate-bounce shadow-xs">
                   {displayBadgeCount}
                 </span>
               )}

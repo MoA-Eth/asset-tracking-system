@@ -420,7 +420,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
                                         </span>
                                       </button>
                                       {isDirty && (
-                                        <span className="text-[9px] font-bold text-amber-700 uppercase tracking-tighter">
+                                        <span className="text-[10px] font-bold text-amber-700 uppercase tracking-tighter">
                                           {allowed ? '+ Added' : '- Removed'}
                                         </span>
                                       )}

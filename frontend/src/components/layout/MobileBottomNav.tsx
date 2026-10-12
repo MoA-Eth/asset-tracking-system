@@ -43,7 +43,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 {tab.showsPendingCount && pendingApprovalsCount > 0 && (
                   <span
                     aria-label={`${pendingApprovalsCount} waiting`}
-                    className="absolute -right-2.5 -top-1.5 min-w-[16px] rounded-full bg-[#FCDD09] px-1 text-center text-[9px] font-bold leading-4 text-emerald-950"
+                    className="absolute -right-2.5 -top-1.5 min-w-[16px] rounded-full bg-[#FCDD09] px-1 text-center text-[10px] font-bold leading-4 text-emerald-950"
                   >
                     {pendingApprovalsCount}
                   </span>

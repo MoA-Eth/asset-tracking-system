@@ -1259,7 +1259,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             <div className="space-y-3 text-xs">
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700">
                 You are about to batch {batchActionType.toLowerCase()}{' '}
-                <strong className="font-black text-slate-900">{selectedIds.length}</strong> selected transaction requests in a single action.
+                <strong className="font-extrabold text-slate-900">{selectedIds.length}</strong> selected transaction requests in a single action.
               </div>
 
               <div>

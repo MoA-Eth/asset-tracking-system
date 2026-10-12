@@ -571,7 +571,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                     ['In store', totals.inStore],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-lg bg-slate-50 px-2 py-2">
-                      <p className="font-mono text-lg font-black text-slate-900">{value}</p>
+                      <p className="font-mono text-lg font-extrabold text-slate-900">{value}</p>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
                     </div>
                   ))}
