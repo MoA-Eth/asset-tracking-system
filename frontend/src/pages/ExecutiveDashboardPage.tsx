@@ -818,7 +818,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
                       <div className="flex items-center gap-1.5">
                         <span className="truncate text-sm font-semibold text-slate-900">{loc.siteName}</span>
                         {loc.isCentralStore && (
-                          <span className="shrink-0 rounded border border-slate-200 bg-slate-50 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-slate-600">
+                          <span className="shrink-0 rounded border border-slate-200 bg-slate-50 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-slate-600">
                             Central
                           </span>
                         )}

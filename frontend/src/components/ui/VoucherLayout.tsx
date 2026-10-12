@@ -84,7 +84,7 @@ export const VoucherShell: React.FC<VoucherShellProps> = ({
         {/* The paper */}
         <div className="p-6 sm:p-10 overflow-y-auto font-sans text-slate-950 bg-white relative print:p-0 print:overflow-visible print:text-black">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden z-0" aria-hidden="true">
-            <span className="text-[120px] sm:text-[160px] font-black text-slate-300/15 transform -rotate-25 tracking-[0.2em]">MOA-ATS</span>
+            <span className="text-[120px] sm:text-[160px] font-extrabold text-slate-300/15 transform -rotate-25 tracking-[0.2em]">MOA-ATS</span>
           </div>
 
           <div className="relative z-10 space-y-5 text-xs">
@@ -104,7 +104,7 @@ export const VoucherShell: React.FC<VoucherShellProps> = ({
               <div className="text-right shrink-0 min-w-[130px]">
                 <div className="font-bold text-xs sm:text-sm text-slate-900">{model}</div>
                 <div className="font-bold text-xs text-slate-900 mt-1">
-                  No. <span className="font-mono font-black text-slate-950">{orDash(number)}</span>
+                  No. <span className="font-mono font-extrabold text-slate-950">{orDash(number)}</span>
                 </div>
               </div>
             </div>
@@ -112,7 +112,7 @@ export const VoucherShell: React.FC<VoucherShellProps> = ({
             {children}
 
             {/* Footer */}
-            <div className="pt-6 border-t border-slate-300 print:border-slate-500 flex items-center justify-between gap-4 text-[9px] text-slate-600 font-mono">
+            <div className="pt-6 border-t border-slate-300 print:border-slate-500 flex items-center justify-between gap-4 text-[10px] text-slate-600 font-mono">
               <p>
                 Printed by <span className="font-bold text-slate-800">{orDash(printedBy)}</span> from the MoA Asset Tracking System on {printTimestamp()}
               </p>
@@ -158,7 +158,7 @@ export const VoucherTotals: React.FC<{ rows: { label: string; value: number | un
         return (
           <div key={r.label} className={`flex justify-between px-3 py-1.5 ${last ? 'bg-slate-100 print:bg-transparent' : ''}`}>
             <span className={last ? 'font-extrabold text-slate-900' : 'font-bold text-slate-700'}>{r.label}:</span>
-            <span className={`font-mono ${last ? 'font-black text-slate-950' : 'font-bold text-slate-900'}`}>
+            <span className={`font-mono ${last ? 'font-extrabold text-slate-950' : 'font-bold text-slate-900'}`}>
               {r.value === undefined ? '—' : formatVoucherAmount(r.value)}
             </span>
           </div>

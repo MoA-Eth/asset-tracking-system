@@ -82,7 +82,7 @@ export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, 
                 <td className={`${VOUCHER_TD} font-medium`}>
                   {item.description}
                   {item.quantity > 1 && (
-                    <span className="block text-[9px] font-normal text-slate-600">
+                    <span className="block text-[10px] font-normal text-slate-600">
                       {item.quantity} {item.uom || 'EA'} @ {formatVoucherAmount(item.unitPrice)}
                     </span>
                   )}

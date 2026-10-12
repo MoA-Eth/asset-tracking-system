@@ -334,12 +334,12 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                     </span>
                   )}
                   <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/20 text-[#FCDD09] border border-[#FCDD09]/30">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-[#FCDD09] border border-[#FCDD09]/30">
                       <Shield className="w-2.5 h-2.5" />
                       {ROLE_TITLES[role] || role}
                     </span>
                     {user.payrollId && (
-                      <span className="text-[9px] text-emerald-200/50 font-mono">
+                      <span className="text-[10px] text-emerald-200/50 font-mono">
                         ID: {user.payrollId}
                       </span>
                     )}

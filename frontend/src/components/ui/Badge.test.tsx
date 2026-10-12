@@ -20,7 +20,7 @@ describe('<Badge /> & Status Badges', () => {
     it('renders small size when size="sm" is passed', () => {
       const { container } = render(<Badge size="sm">Compact</Badge>);
       const badge = container.querySelector('span');
-      expect(badge?.className).toContain('text-[9px]');
+      expect(badge?.className).toContain('text-[10px]');
     });
   });
 
