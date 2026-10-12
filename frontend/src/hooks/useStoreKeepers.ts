@@ -9,6 +9,8 @@ export interface StoreKeepersView {
   ofStore: (storeId?: string | null) => StoreKeeper[];
   /** The active store men of the store a location is in */
   ofLocation: (locationId?: string | null) => StoreKeeper[];
+  /** Every usable location, labelled "Store · Location", to pick where something goes */
+  locations: { id: string; storeId: string; label: string }[];
   /** The store's name, for messages */
   storeName: (storeId?: string | null) => string;
 }
@@ -38,8 +40,13 @@ export function useStoreKeepers(): StoreKeepersView {
   const ofStore = (storeId?: string | null): StoreKeeper[] =>
     (stores?.find((s) => s.id === storeId)?.storeKeepers ?? []).filter((k) => k.isActive !== false);
 
+  const locations = (stores ?? [])
+    .filter((s) => s.isActive !== false)
+    .flatMap((s) => s.locations.filter((l) => l.isActive !== false).map((l) => ({ id: l.id, storeId: s.id, label: `${s.name} · ${l.name}` })));
+
   return {
     ready: stores !== null,
+    locations,
     ofStore,
     ofLocation: (locationId) => {
       if (!locationId) return [];

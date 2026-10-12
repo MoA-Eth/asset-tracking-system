@@ -785,6 +785,8 @@ export interface UpdateReturnRequest {
   ifmisSlipAttachmentUrl?: string;
   returnReason: string;
   condition: ItemCondition;
+  /** The store (location) it goes back to; omit to keep what the request has */
+  targetStoreLocationId?: string;
   book?: string;
   chassisNumber?: string;
   plateNo?: string;

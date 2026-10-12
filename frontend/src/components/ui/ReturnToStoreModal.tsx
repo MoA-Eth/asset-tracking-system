@@ -81,7 +81,10 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
   const keepers = useStoreKeepers();
   const { storeManPolicy } = useSystemSettings();
   const storeManRequired = storeManPolicy === 'REQUIRED';
-  const storeMen = keepers.ofLocation(item.storeLocationId);
+  // The store it goes back to: the one it came from unless another is chosen
+  const [returnToId, setReturnToId] = useState(editApproval?.targetLocationId ?? item.storeLocationId);
+  const returnLocation = keepers.locations.find((l) => l.id === returnToId);
+  const storeMen = keepers.ofLocation(returnToId);
   const receiverId = storeReceiverId || (storeMen.length === 1 ? storeMen[0].employeeId : '');
   
   // Technical / Vehicle Details
@@ -128,6 +131,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
       setReturnReason(d.reason ?? '');
       setDefectRemark(d.remark ?? '');
       setStoreReceiverId(d.storeRecipientId ?? '');
+      setReturnToId(editApproval.targetLocationId ?? item.storeLocationId);
       if (d.chassisNumber !== undefined) setChassisNumber(d.chassisNumber);
       setPlateNo(d.plateNo ?? '');
       setEngineNo(d.engineNo ?? '');
@@ -248,6 +252,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
           bookValue,
           defectRemark: defectRemark.trim() || undefined,
           storeRecipientId: receiverId || undefined,
+          targetStoreLocationId: returnToId,
         });
         toast.success('Return Updated', `The return of ${item.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
         onSuccess();
@@ -285,6 +290,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
         bookValue,
         defectRemark: defectRemark.trim() || undefined,
         storeRecipientId: storeReceiverId || undefined,
+        targetStoreLocationId: returnToId && returnToId !== item.storeLocationId ? returnToId : undefined,
       });
 
       const voucher: Model21Voucher = {
@@ -310,7 +316,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
             dateGc: todayGc,
             dateEc: todayEc,
             fromLocation: loc,
-            toLocation: loc,
+            toLocation: returnLocation ? returnLocation.label : loc,
             plateNo: plateNo.trim() || undefined,
             engineNo: engineNo.trim() || undefined,
             accessories: accessories.length > 0 ? accessories : undefined,
@@ -482,8 +488,21 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
                 </ReadOnlyValue>
               </Field>
 
-              <Field label="Returns to store">
-                <ReadOnlyValue>{storeLocationLabel(item.storeLocation)}</ReadOnlyValue>
+              <Field label="Returns to store" required htmlFor="return-to-store">
+                {keepers.locations.length > 0 ? (
+                  <select id="return-to-store" value={returnToId} onChange={(e) => setReturnToId(e.target.value)} className={input()}>
+                    {!keepers.locations.some((l) => l.id === item.storeLocationId) && (
+                      <option value={item.storeLocationId}>{storeLocationLabel(item.storeLocation)}</option>
+                    )}
+                    {keepers.locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <ReadOnlyValue>{storeLocationLabel(item.storeLocation)}</ReadOnlyValue>
+                )}
               </Field>
 
               <StoreManField
@@ -491,7 +510,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
                 label="Received by (store man)"
                 keepers={storeMen}
                 ready={keepers.ready}
-                storeName={keepers.storeName(item.storeLocation?.storeId)}
+                storeName={keepers.storeName(returnLocation?.storeId ?? item.storeLocation?.storeId)}
                 value={storeReceiverId}
                 onChange={setStoreReceiverId}
                 current={editApproval ? editApproval.requestDetails?.storeRecipientName : undefined}

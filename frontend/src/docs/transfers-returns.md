@@ -16,7 +16,7 @@ Both are for assets that are **Issued**. A **transfer** moves an asset from one 
 
 1. Open the **⋮** menu of an **Issued** asset and choose **Return to store (Model 21)**.
 2. Enter the **Model 21 No.**, the **Book** and the **Return date**.
-3. Choose the **Condition on return** (Good, Fair, Needs repair or Damaged) and enter the **Reason for return**. Note any defects or missing parts.
+4. **Returns to store** starts as the store the asset came from; choose another store if it goes back elsewhere. **Received by (store man)** is a store man of that store, chosen for you when there is only one. Attach the **scanned return slip**. If a store man is compulsory and the store has none, it cannot take items back.
 4. The asset returns to the store it came from. **Received by (store man)** is a store man of that store, chosen for you when there is only one. Attach the **scanned return slip**. If a store man is compulsory and the store has none, it cannot take items back.
 5. Press **Submit return for approval**.
 
