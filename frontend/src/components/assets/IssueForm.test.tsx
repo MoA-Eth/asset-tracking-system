@@ -15,6 +15,7 @@ const store = (storeKeepers: any[]) => ({
 });
 const keeper = (id: string, name: string) => ({ employeeId: id, fullNameEn: name, fullNameAm: '', payrollId: `000${id}`, isActive: true });
 beforeEach(async () => {
+  window.localStorage.clear();
   vi.mocked(api.getSystemSettings).mockResolvedValue({ slipAttachmentPolicy: 'OPTIONAL', storeManPolicy: 'OPTIONAL' });
   await loadSystemSettings();
   vi.mocked(api.getStores).mockResolvedValue([store([keeper('1', 'Abebe Store Man')])] as any);
@@ -93,6 +94,45 @@ describe('Issue items (Model 22): internal or external recipient', () => {
     expect(onSuccess.mock.calls[0][1]).toMatchObject({
       destination: 'Oromia Bureau of Agriculture', receivedByName: 'Mantegbosh Mirku, Oromia Bureau of Agriculture', issuedByName: 'Abebe Store Man',
     });
+  });
+});
+
+describe('Issue items (Model 22): remembered values and used numbers', () => {
+  const department = { id: 'DEP-1', nameEn: 'Plant Protection', nameAm: '' } as any;
+  const employee = { id: 'EMP-A', fullNameEn: 'Abebe Kebede', payrollId: '00000001', departmentId: 'DEP-1' } as any;
+  const renderIssue = () =>
+    render(<StockOutForm availableItems={[item()]} departments={[department]} employees={[employee]} initialItemId="item-1" onCancel={vi.fn()} onSuccess={vi.fn()} />);
+
+  it('offers the number after the last one this person used, and fills it in on request', async () => {
+    window.localStorage.setItem('moa_form_encoder_issue', JSON.stringify({ model22No: 'M22-009', transactionType: 'Direct Store Issue' }));
+    const user = userEvent.setup();
+    renderIssue();
+    // The transaction type is the one used last time
+    expect(screen.getByLabelText(/Transaction type/)).toHaveValue('Direct Store Issue');
+    await user.click(screen.getByRole('button', { name: /Use M22-010/ }));
+    expect(screen.getByPlaceholderText('e.g. 0004653/A Inventory')).toHaveValue('M22-010');
+  });
+
+  it('never starts a new issue as a disposal, even if the last one was', () => {
+    window.localStorage.setItem('moa_form_encoder_issue', JSON.stringify({ transactionType: 'Disposal' }));
+    renderIssue();
+    expect(screen.getByLabelText(/Transaction type/)).toHaveValue('Move Order Issue');
+  });
+
+  it('warns, without blocking, when the number is already used by another request', async () => {
+    (api as any).getApprovals = vi.fn().mockResolvedValue([
+      { id: 'a1', transactionType: 'STOCK_OUT', itemCode: 'MOA-IT-2026-0007', ifmisSlipNumber: 'M22-050', status: 'PENDING' },
+      { id: 'a2', transactionType: 'STOCK_OUT', itemCode: 'MOA-IT-2026-0008', ifmisSlipNumber: 'M22-060', status: 'REJECTED' },
+    ]);
+    const user = userEvent.setup();
+    renderIssue();
+    const number = screen.getByPlaceholderText('e.g. 0004653/A Inventory');
+    await user.type(number, 'm22-050');
+    expect(await screen.findByText(/already used for MOA-IT-2026-0007 \(issue, pending\)/)).toBeInTheDocument();
+    // A rejected request frees its number
+    await user.clear(number);
+    await user.type(number, 'M22-060');
+    expect(screen.queryByText(/already used for/)).toBeNull();
   });
 });
 

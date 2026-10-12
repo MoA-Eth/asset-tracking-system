@@ -70,6 +70,7 @@ const menuFor = async (user: ReturnType<typeof userEvent.setup>, code: string) =
 };
 
 beforeEach(() => {
+  window.localStorage.clear();
   vi.resetAllMocks();
   if (!window.URL.createObjectURL) {
     window.URL.createObjectURL = vi.fn(() => 'blob:mock');

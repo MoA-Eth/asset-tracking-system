@@ -13,6 +13,8 @@ import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { departmentLabel } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { storeLocationLabel } from '../../utils/location';
+import { recallForm, rememberForm, nextNumberAfter } from '../../utils/form-memory';
+import { useSlipRegister, usedMessage } from '../../hooks/useSlipRegister';
 
 /** What an open request on an asset is called in the picker */
 const REQUEST_TYPE_LABELS: Record<string, string> = {
@@ -51,12 +53,15 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const { user } = useAuth();
   const toast = useToast();
   const details = editTransfer?.requestDetails ?? {};
+  // A new transfer starts from the last one this person made: the same book, and the number to continue from
+  const memory = editTransfer ? {} : recallForm(user?.id, 'transfer');
+  const slips = useSlipRegister();
   const editItem = editTransfer ? items.find((i) => i.id === editTransfer.itemId) : undefined;
   const qtyOf = (name: string) => details.accessories?.find((a) => a.name === name)?.quantity ?? 0;
 
   const [selectedItemId, setSelectedItemId] = useState(editTransfer?.itemId ?? '');
   const [model21No, setModel21No] = useState(editTransfer?.ifmisSlipNumber ?? '');
-  const [book, setBook] = useState(details.book ?? '');
+  const [book, setBook] = useState(details.book ?? memory.book ?? '');
   const [targetEmployeeId, setTargetEmployeeId] = useState(editTransfer?.recipientEmployeeId ?? '');
   const [targetDepartmentId, setTargetDepartmentId] = useState(editTransfer?.targetDepartmentId ?? '');
   const [targetLocationId, setTargetLocationId] = useState(editTransfer?.targetLocationId ?? '');
@@ -148,6 +153,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     const emp = employees.find((e) => e.id === employeeId);
     if (emp?.departmentId) setTargetDepartmentId(emp.departmentId);
   };
+
+  const nextNo = nextNumberAfter(memory.model21No);
+  const usedNo = slips.findUsed(model21No, ['TRANSFER', 'RETURN'], editTransfer?.id);
 
   // A field shows what is wrong with it once the user has been in it
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -280,6 +288,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           'Transfer to store submitted for approval',
           `${item?.itemCode || 'The asset'} (${model21No.trim()}) is registered for Department Head approval and stays with its custodian until then.`,
         );
+        rememberForm(user?.id, 'transfer', { book: book.trim(), model21No: model21No.trim() });
         onSaved(returnVoucher);
         return;
       }
@@ -374,6 +383,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         'Transfer submitted for approval',
         `${selectedItem?.itemCode || 'The asset'} to ${targetEmp?.fullNameEn || 'the new custodian'}. Custody changes after the Department Head approves it.`,
       );
+      rememberForm(user?.id, 'transfer', { book: book.trim(), model21No: model21No.trim() });
       onSaved(voucher);
     } catch (err: any) {
       toast.error(editTransfer ? "The transfer couldn't be updated" : 'Transfer failed', err.message || 'Try again.');
@@ -388,7 +398,19 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       {/* ── Section 1: Transfer voucher ── */}
       <FormSection step={1} title="Transfer voucher" subtitle="የዝውውር ሰነድ · Model 21 register" icon={FileText} accent="emerald">
         <FieldGrid>
-          <Field label="Model 21 No." required error={errorOf('model21No')}>
+          <Field
+            label="Model 21 No."
+            required
+            error={errorOf('model21No')}
+            warning={usedNo ? usedMessage(model21No, usedNo) : undefined}
+            hint={
+              !model21No.trim() && nextNo ? (
+                <button type="button" onClick={() => setModel21No(nextNo)} className="font-medium text-emerald-700 hover:underline cursor-pointer">
+                  Use {nextNo} (next after {memory.model21No})
+                </button>
+              ) : undefined
+            }
+          >
             <input
               type="text"
               required

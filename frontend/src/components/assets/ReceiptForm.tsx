@@ -8,6 +8,7 @@ import { AssetCategory, ItemType, ItemStatus, ItemCondition, ItemWithRelations, 
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
 import { ITEM_TYPE_OPTIONS } from './asset-state';
+import { recallForm, rememberForm, nextNumberAfter } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -38,18 +39,22 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
   const isEdit = !!editItem;
+  // A new receipt starts from the last one this person made: the same store, transaction type and the number to continue from
+  const memory = isEdit ? {} : recallForm(user?.id, 'receipt');
+  const rememberedLocation = locations.find((l) => l.id === memory.storeLocationId);
+  const nextNo = nextNumberAfter(memory.model19No);
 
   // Section 1: Document Voucher Header Metadata
   const [ifmisSlipNumber, setIfmisSlipNumber] = useState(editItem?.ifmisSlipNumber ?? '');
   const [poNumber, setPoNumber] = useState(editItem?.poNumber ?? '');
   const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(editItem?.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
-  const [transactionType, setTransactionType] = useState(editItem?.transactionType || '');
+  const [transactionType, setTransactionType] = useState(editItem?.transactionType || memory.transactionType || '');
   const [source, setSource] = useState(editItem?.source ?? '');
   const [buyer, setBuyer] = useState(editItem?.buyer ?? '');
   const [programName, setProgramName] = useState(editItem?.programName ?? '');
-  const [storeLocationId, setStoreLocationId] = useState(editItem?.storeLocationId ?? '');
+  const [storeLocationId, setStoreLocationId] = useState(editItem?.storeLocationId ?? rememberedLocation?.id ?? '');
   // The store is picked first; its locations then fill the second list
-  const [storeId, setStoreId] = useState(() => locations.find((l) => l.id === editItem?.storeLocationId)?.storeId ?? '');
+  const [storeId, setStoreId] = useState(() => locations.find((l) => l.id === editItem?.storeLocationId)?.storeId ?? rememberedLocation?.storeId ?? '');
   const stores = [...new Map(locations.map((l) => [l.storeId, l.storeName])).entries()];
   const storeLocations = locations.filter((l) => l.storeId === storeId);
   const chooseStore = (id: string) => {
@@ -365,6 +370,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         `Item "${name.trim()}" (Model 19 #${slipNo}, Total ${formatETB(totalAmount)}) registered and submitted for Team Leader verification.`
       );
 
+      rememberForm(user?.id, 'receipt', {
+        model19No: ifmisSlipNumber.trim(),
+        transactionType,
+        storeLocationId,
+      });
       onSuccess(res, generatedVoucher);
     } catch (err: any) {
       const errMsg = err.message || 'Server error';
@@ -389,7 +399,18 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         accent="emerald"
       >
         <FieldGrid>
-          <Field label="Model 19 No." required htmlFor="stock-in-model19">
+          <Field
+            label="Model 19 No."
+            required
+            htmlFor="stock-in-model19"
+            hint={
+              !ifmisSlipNumber.trim() && nextNo ? (
+                <button type="button" onClick={() => setIfmisSlipNumber(nextNo)} className="font-medium text-emerald-700 hover:underline cursor-pointer">
+                  Use {nextNo} (next after {memory.model19No})
+                </button>
+              ) : undefined
+            }
+          >
             <input
               id="stock-in-model19"
               type="text"

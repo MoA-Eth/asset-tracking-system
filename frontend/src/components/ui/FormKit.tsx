@@ -238,10 +238,12 @@ interface FieldProps {
   htmlFor?: string;
   /** What is wrong with this field, shown under it in place of the hint */
   error?: string;
+  /** Worth a second look but not wrong, e.g. a number that is already used */
+  warning?: string;
   children: React.ReactNode;
 }
 
-export const Field: React.FC<FieldProps> = ({ label, required, optional, hint, span = '', htmlFor, error, children }) => (
+export const Field: React.FC<FieldProps> = ({ label, required, optional, hint, span = '', htmlFor, error, warning, children }) => (
   <div className={span}>
     <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-semibold text-slate-700">
       {label}
@@ -256,6 +258,12 @@ export const Field: React.FC<FieldProps> = ({ label, required, optional, hint, s
       </p>
     ) : (
       hint && <p className="mt-1.5 text-[11px] text-slate-500">{hint}</p>
+    )}
+    {!error && warning && (
+      <p role="status" className="mt-1.5 flex items-start gap-1 text-[11px] font-medium text-amber-800">
+        <AlertCircle className="mt-px h-3 w-3 shrink-0 text-amber-600" />
+        {warning}
+      </p>
     )}
   </div>
 );

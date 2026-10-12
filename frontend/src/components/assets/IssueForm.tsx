@@ -3,6 +3,8 @@ import { PackageMinus, FileText, Search, User } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
+import { recallForm, rememberForm, nextNumberAfter } from '../../utils/form-memory';
+import { useSlipRegister, usedMessage } from '../../hooks/useSlipRegister';
 import { FormSection, FieldGrid, Field, ReadOnlyValue, TotalValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -69,7 +71,12 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const [issuedDateGc, setIssuedDateGc] = useState<string>(
     editApproval?.ifmisSlipDateGc || editApproval?.createdAtGc?.split('T')[0] || new Date().toISOString().split('T')[0]
   );
-  const [transactionType, setTransactionType] = useState<string>(DEFAULT_TRANSACTION_TYPE);
+  // A new issue starts from the last one this person made; a disposal is never carried over
+  const memory = editApproval ? {} : recallForm(user?.id, 'issue');
+  const slips = useSlipRegister();
+  const [transactionType, setTransactionType] = useState<string>(
+    memory.transactionType && memory.transactionType !== DISPOSAL_TRANSACTION_TYPE ? memory.transactionType : DEFAULT_TRANSACTION_TYPE,
+  );
   const [destinationDepartmentId, setDestinationDepartmentId] = useState<string>(
     editApproval?.targetDepartmentId ?? ''
   );
@@ -206,6 +213,9 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const grandTotal = totalAmount + transportationCost;
   const ethDate = formatGcToEc(issuedDateGc);
   const isAttachmentReq = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
+
+  const nextNo = nextNumberAfter(memory.model22No);
+  const usedNo = slips.findUsed(model22No, ['STOCK_OUT'], editApproval?.id);
 
   // Required fields still empty; the request can only be submitted once this is empty
   const missingFields = [
@@ -397,6 +407,10 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           ? `Disposal (${model22No.trim()}) registered for approval. The units leave the register once it is approved.`
           : `Receipt for Articles Or Property Issued (${model22No.trim()}) to ${isExternal ? organizationName.trim() : recipient?.fullNameEn || 'staff'} registered for approval.`
       );
+      rememberForm(user?.id, 'issue', {
+        model22No: model22No.trim(),
+        ...(transactionType !== DISPOSAL_TRANSACTION_TYPE ? { transactionType } : {}),
+      });
       onSuccess(result, voucher);
     } catch (err: any) {
       const errMsg = err.message || 'Server error';
@@ -415,7 +429,18 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       {/* ── Section 1: Voucher details ── */}
       <FormSection step={1} title="Voucher details" subtitle="የወጪ ማዘዣ መረጃ · Model 22 header" icon={FileText} accent="emerald">
         <FieldGrid>
-          <Field label="Model 22 No." required>
+          <Field
+            label="Model 22 No."
+            required
+            warning={usedNo ? usedMessage(model22No, usedNo) : undefined}
+            hint={
+              !model22No.trim() && nextNo ? (
+                <button type="button" onClick={() => setModel22No(nextNo)} className="font-medium text-emerald-700 hover:underline cursor-pointer">
+                  Use {nextNo} (next after {memory.model22No})
+                </button>
+              ) : undefined
+            }
+          >
             <input
               type="text"
               required
