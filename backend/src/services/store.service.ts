@@ -2402,11 +2402,12 @@ export class StoreService {
   public async transferItem(payload: CreateTransferRequest): Promise<TransactionApproval> {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
     if (!item) throw new NotFoundError(`Item ${payload.itemId} not found.`);
-    // A transfer passes an issued item from one holder to another. Leaving the store goes through Issuing (Model 22).
-    if (item.status === 'AVAILABLE') {
-      throw new ConflictError(`${item.itemCode} is in store. Issue it first (Model 22); a transfer moves an issued item from one holder to another.`);
+    // A consumable is issued (Model 22) and used up; it is never transferred
+    if (item.itemType === 'CONSUMABLE') {
+      throw new ConflictError(`${item.itemCode} is a consumable item. Consumables are issued (Model 22) and can't be transferred.`);
     }
-    if (item.status !== 'ISSUED') {
+    // A fixed asset can be transferred from the store to an employee, or from one holder to another
+    if (item.status !== 'AVAILABLE' && item.status !== 'ISSUED') {
       throw new ConflictError(`Item ${item.itemCode} cannot be transferred. Current status: ${item.status}`);
     }
     if (item.heldByOrganization) {
@@ -2456,6 +2457,7 @@ export class StoreService {
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
 
     const transferDetails: Model21RequestDetails = {
+      ...(item.status === 'AVAILABLE' ? { fromStore: true } : {}),
       ...(transferrer ? { transferredByEmployeeId: transferrer.employeeId, transferredByName: transferrer.fullNameEn } : {}),
       reason,
       remark: payload.remark,

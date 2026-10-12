@@ -276,14 +276,35 @@ describe('Asset Transfer approval workflow', () => {
   });
 
   describe('the order of an asset: received, issued, then transferred or returned', () => {
-    it('refuses to transfer an item that is still in store: it must be issued first', async () => {
-      db.item.findUnique.mockResolvedValue({ ...issuedItem, status: 'AVAILABLE', currentCustodianId: null });
-      await expect(store().transferItem(transferPayload as any)).rejects.toMatchObject({
-        statusCode: 409,
-        message: 'MOA-IT-2026-0001 is in store. Issue it first (Model 22); a transfer moves an issued item from one holder to another.',
+    it('transfers a fixed asset that is still in store, handed over by its store man', async () => {
+      db.item.findUnique.mockResolvedValue({ ...issuedItem, itemType: 'FIXED', status: 'AVAILABLE', currentCustodianId: null });
+      const approval = await store().transferItem({ ...transferPayload, toLocationId: undefined } as any);
+
+      expect(approval.transactionType).toBe('TRANSFER');
+      expect(db.transactionApproval.create.mock.calls[0][0].data.requestDetails).toMatchObject({
+        fromStore: true,
+        transferredByName: 'Store Man',
       });
+      // Held while it waits for approval, like any transfer
+      expect(itemUpdateData().status).toBe('UNDER_TRANSFER');
+    });
+
+    it('never transfers a consumable item, in store or issued', async () => {
+      for (const status of ['AVAILABLE', 'ISSUED']) {
+        db.item.findUnique.mockResolvedValue({ ...issuedItem, itemType: 'CONSUMABLE', status, currentCustodianId: status === 'ISSUED' ? 'EMP-A' : null });
+        await expect(store().transferItem(transferPayload as any)).rejects.toMatchObject({
+          statusCode: 409,
+          message: "MOA-IT-2026-0001 is a consumable item. Consumables are issued (Model 22) and can't be transferred.",
+        });
+      }
       expect(db.transactionApproval.create).not.toHaveBeenCalled();
       expect(db.item.update).not.toHaveBeenCalled();
+    });
+
+    it('still refuses an item that is neither in store nor issued', async () => {
+      db.item.findUnique.mockResolvedValue({ ...issuedItem, status: 'DISPOSED', currentCustodianId: null });
+      await expect(store().transferItem(transferPayload as any)).rejects.toMatchObject({ statusCode: 409 });
+      expect(db.transactionApproval.create).not.toHaveBeenCalled();
     });
 
     it('refuses to return an item that is already in store', async () => {

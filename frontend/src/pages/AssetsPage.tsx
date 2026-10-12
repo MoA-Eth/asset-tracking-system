@@ -702,6 +702,19 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             hidden: !canIssue,
           },
           {
+            // A fixed asset can be handed straight from the store to an employee; consumables are issued only
+            label: 'Transfer (Model 21)',
+            icon: ArrowRightLeft,
+            onClick: () => {
+              setSelectedId(item.id);
+              setTransfer({ itemId: item.id });
+              setIssue(null);
+              setReturning(null);
+              setDisposing(null);
+            },
+            hidden: !canTransfer || item.itemType === 'CONSUMABLE',
+          },
+          {
             label: 'Dispose',
             icon: Trash2,
             onClick: () => {
