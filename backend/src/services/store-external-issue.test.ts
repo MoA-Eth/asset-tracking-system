@@ -242,3 +242,52 @@ describe('an item issued to an outside organization', () => {
     expect(db.transactionApproval.create).not.toHaveBeenCalled();
   });
 });
+
+describe('disposing of stock through Model 22', () => {
+  const disposalRequest = { ...base, disposal: true, purpose: 'Expired, destroyed under supervision' };
+
+  it('needs no recipient and no directorate, and says it is a disposal', async () => {
+    await store().registerStockOut(disposalRequest as any);
+
+    const created = db.transactionApproval.create.mock.calls[0][0].data;
+    expect(created).toMatchObject({ transactionType: 'STOCK_OUT', recipientEmployeeId: undefined, targetDepartmentId: undefined });
+    expect(created.requestDetails).toMatchObject({ disposal: true, quantity: 10 });
+    expect(db.item.update.mock.calls[0][0].data.history.create.toEntity).toBe('Disposal (Pending Approval)');
+  });
+
+  it('still needs the reason', async () => {
+    await expect(store().registerStockOut({ ...disposalRequest, purpose: '  ' } as any))
+      .rejects.toMatchObject({ statusCode: 400, message: 'Reason for disposal is required.' });
+    expect(db.transactionApproval.create).not.toHaveBeenCalled();
+  });
+
+  it('writes the units off when approved, with no holder', async () => {
+    db.transactionApproval.findUnique.mockResolvedValue(pendingIssue({ currentStage: 2 }, { disposal: true, recipientType: undefined, organizationName: undefined, contactPerson: undefined }));
+    db.item.findUnique.mockResolvedValue({ ...chairs, status: 'PENDING_STOCK_OUT' });
+
+    await store().handleApproval({ approvalId: 'appr-1', action: 'APPROVE', reviewedById: 'EMP-HEAD' } as any);
+
+    const data = db.item.update.mock.calls[0][0].data;
+    expect(data).toMatchObject({ status: 'DISPOSED', currentCustodianId: null, assignedDepartmentId: null });
+    expect(data.history.create).toMatchObject({ action: 'DISPOSAL_APPROVED' });
+  });
+
+  it('puts only the disposed units on their own record when fewer than all are written off', async () => {
+    db.transactionApproval.findUnique.mockResolvedValue(pendingIssue({ currentStage: 2 }, { disposal: true, quantity: 4, recipientType: undefined, organizationName: undefined, contactPerson: undefined }));
+    db.item.findUnique.mockImplementation(async ({ where }: any) => (where.id === 'item-1' ? { ...chairs, status: 'PENDING_STOCK_OUT' } : null));
+
+    await store().handleApproval({ approvalId: 'appr-1', action: 'APPROVE', reviewedById: 'EMP-HEAD' } as any);
+
+    expect(db.item.update.mock.calls[0][0].data).toMatchObject({ status: 'AVAILABLE' });
+    expect(db.item.create.mock.calls[0][0].data).toMatchObject({ status: 'DISPOSED', parentItemId: 'item-1' });
+  });
+
+  it('puts the stock back in store when the disposal is rejected', async () => {
+    db.transactionApproval.findUnique.mockResolvedValue(pendingIssue({ currentStage: 2 }, { disposal: true }));
+    db.item.findUnique.mockResolvedValue({ ...chairs, status: 'PENDING_STOCK_OUT' });
+
+    await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Keep it' } as any);
+
+    expect(db.item.update.mock.calls[0][0].data).toMatchObject({ status: 'AVAILABLE' });
+  });
+});

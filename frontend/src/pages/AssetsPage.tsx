@@ -759,7 +759,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           printMove,
         ];
       case 'REQUEST_PENDING': {
-        const kind = requestLabel(request!.transactionType);
+        const kind = requestLabel(request!.transactionType, request!.requestDetails);
         const editPermission: Record<string, boolean> = { STOCK_OUT: canIssue, DISPOSAL: canDispose, TRANSFER: canTransfer, RETURN: canTransfer };
         const mayEdit = editPermission[request!.transactionType] ?? false;
         return [

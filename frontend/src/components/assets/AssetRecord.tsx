@@ -10,7 +10,7 @@ import { ApprovalStatus, TransactionApproval } from '../../types/asset-managemen
 import { formatETB } from '../../utils/eth-date';
 import { storeLocationLabel } from '../../utils/location';
 import { departmentLabel } from '../../utils/department';
-import { AssetRow, AssetStatus, REQUEST_LABELS, RejectionNote, STAGE_LABELS, shortDate } from './asset-state';
+import { AssetRow, AssetStatus, requestLabel, RejectionNote, STAGE_LABELS, shortDate } from './asset-state';
 
 export interface AssetRecordProps {
   row: AssetRow;
@@ -283,7 +283,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
           {/* Status-based field locking notice */}
           {(() => {
             if (row.state === 'REQUEST_PENDING' && row.request) {
-              const reqNoun = REQUEST_LABELS[row.request.transactionType]?.noun || 'request';
+              const reqNoun = requestLabel(row.request.transactionType, row.request.requestDetails).noun;
               const isStage1 = (row.request.currentStage ?? 1) === 1;
               return (
                 <FormNotice icon={isStage1 ? Clock : Lock} tone={isStage1 ? 'warn' : 'info'}>
@@ -598,7 +598,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               {pending && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 text-xs">
                   <p className="font-semibold">
-                    {REQUEST_LABELS[pending.transactionType]?.pending ?? 'Request pending'} · {STAGE_LABELS[pending.currentStage] ?? 'waiting'}
+                    {requestLabel(pending.transactionType, pending.requestDetails).pending} · {STAGE_LABELS[pending.currentStage] ?? 'waiting'}
                   </p>
                   {row.goingTo && <p>→ {row.goingTo}</p>}
                 </div>
@@ -651,7 +651,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
             ) : (
               <ol className="divide-y divide-slate-100 text-xs">
                 {requests.map((r) => {
-                  const kind = REQUEST_LABELS[r.transactionType];
+                  const kind = requestLabel(r.transactionType, r.requestDetails);
                   const to =
                     r.transactionType === 'STOCK_OUT' || r.transactionType === 'TRANSFER'
                       ? r.recipientEmployee?.fullNameEn || r.requestDetails?.organizationName

@@ -96,6 +96,44 @@ describe('Issue items (Model 22): internal or external recipient', () => {
   });
 });
 
+describe('Issue items (Model 22): disposal', () => {
+  const department = { id: 'DEP-1', nameEn: 'Plant Protection', nameAm: '' } as any;
+  const employee = { id: 'EMP-A', fullNameEn: 'Abebe Kebede', payrollId: '00000001', departmentId: 'DEP-1' } as any;
+
+  it('has a Disposal transaction type that replaces the recipient with a reason, and sends no recipient', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.registerStockOut).mockResolvedValue({ id: 'appr-1' } as any);
+    const onSuccess = vi.fn();
+    render(<StockOutForm availableItems={[item()]} departments={[department]} employees={[employee]} initialItemId="item-1" onCancel={vi.fn()} onSuccess={onSuccess} />);
+
+    await user.selectOptions(screen.getByLabelText(/Transaction type/), 'Disposal');
+    expect(screen.queryByText('Received by (recipient)')).toBeNull();
+    expect(screen.queryByText('Destination directorate')).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'External (organization)' })).toBeNull();
+
+    const submit = screen.getByRole('button', { name: /Submit for approval/ });
+    await user.type(screen.getByPlaceholderText('e.g. 0004653/A Inventory'), 'M22-009');
+    expect(submit).toBeDisabled();
+    await user.type(screen.getByPlaceholderText(/Expired, damaged beyond repair/), 'Expired');
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+
+    const payload = vi.mocked(api.registerStockOut).mock.calls[0][0];
+    expect(payload).toMatchObject({ itemId: 'item-1', disposal: true, transactionType: 'Disposal', purpose: 'Expired' });
+    expect(payload).not.toHaveProperty('recipientEmployeeId');
+    expect(payload).not.toHaveProperty('targetDepartmentId');
+    expect(onSuccess.mock.calls[0][1]).toMatchObject({ transactionType: 'Disposal', destination: 'Disposal (write-off)', receivedByName: '—' });
+  });
+
+  it('prints a recorded disposal as a Disposal, with no recipient', () => {
+    const voucher = buildModel22Voucher(
+      { id: 'a1', transactionType: 'STOCK_OUT', itemId: 'item-1', itemCode: 'MOA-1', itemName: 'Paper', ifmisSlipNumber: 'M22-009', status: 'PENDING', currentStage: 1, purposeOrRemarks: 'Expired', requestDetails: { quantity: 3, disposal: true } } as any,
+      { employees: [], departments: [], item: undefined } as any,
+    );
+    expect(voucher).toMatchObject({ transactionType: 'Disposal', destination: 'Disposal (write-off)', receivedByName: '—' });
+  });
+});
+
 describe('Model 22 voucher for an issue to an organization', () => {
   it('prints the organization as the destination and the contact person as who received it', () => {
     const approval = {
