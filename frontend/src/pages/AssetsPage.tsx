@@ -858,7 +858,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           item.id === lastTouchedId ? table.rowHighlight : nested ? 'bg-slate-50/70 hover:bg-slate-100/70 transition' : table.row
         }`}
       >
-        <td className={`py-2 pr-3 ${nested ? 'pl-8' : 'pl-3'}`}>
+        <td className={`py-2 pr-3 ${nested ? 'pl-10' : 'pl-5'}`}>
           <span className="block font-medium text-slate-900">
             {nested && <span className="mr-1 text-slate-400" aria-hidden="true">↳</span>}
             {item.name}
@@ -1419,7 +1419,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-3 py-2 min-w-[200px]"
+                      thClassName="pl-5 pr-3 py-2 min-w-[200px]"
                     />
                     <SortableHeader
                       label="Status"
