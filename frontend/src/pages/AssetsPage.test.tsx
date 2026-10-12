@@ -507,6 +507,21 @@ describe('Asset record', () => {
     expect(within(record).getByText('Transfer to store request pending endorsement · Editable in correction mode')).toBeInTheDocument();
   });
 
+  it('keeps the header to the name, code and status while a correction form is open', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getApprovals).mockResolvedValue([...approvals, request('RET', 'RETURN', 'I1')] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-I1');
+    // Viewing: where it is shown in the header
+    expect(within(record).getByTitle(/^Location .* Custody:/)).toBeInTheDocument();
+    await user.click(within(record).getByRole('button', { name: 'Edit transfer to store' }));
+    expect(record.querySelector('form#transfer-form')).not.toBeNull();
+    expect(within(record).queryByTitle(/^Location .* Custody:/)).toBeNull();
+    // The name and code stay
+    expect(within(record).getAllByText('MOA-I1').length).toBeGreaterThan(0);
+  });
+
   it('opens an endorsed stage-2 record in view mode with locked actions and accurate banner', async () => {
     const user = userEvent.setup();
     // MOA-R1 has currentStage: 2 (endorsed by Team Leader, awaiting Dept. Head)
