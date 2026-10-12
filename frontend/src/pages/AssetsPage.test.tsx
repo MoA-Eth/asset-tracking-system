@@ -755,6 +755,9 @@ describe('Asset record', () => {
     await user.type(within(panel).getByLabelText(/Item description/i), 'Precision Workstation');
     await user.selectOptions(within(panel).getByLabelText(/Category/i), 'IT_EQUIPMENT');
     await user.selectOptions(within(panel).getByLabelText(/Physical condition/i), 'NEW');
+    // Fixed asset or consumable has to be chosen too
+    expect(submitBtn).toBeDisabled();
+    await user.selectOptions(within(panel).getByLabelText(/Item type/i), 'CONSUMABLE');
     expect(submitBtn).toBeDisabled();
 
     // Unit price
@@ -785,6 +788,7 @@ describe('Asset record', () => {
     expect(api.registerStockIn).toHaveBeenCalledWith(expect.objectContaining({
       name: 'Precision Workstation',
       category: 'IT_EQUIPMENT',
+      itemType: 'CONSUMABLE',
       ifmisSlipNumber: '0000999',
       unitCostETB: 75000,
       storeLocationId: 'LOC-1',

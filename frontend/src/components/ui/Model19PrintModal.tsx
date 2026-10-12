@@ -71,7 +71,10 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
                 <td className={`${VOUCHER_TD} font-medium`}>{item.itemDescription}</td>
                 <td className={`${VOUCHER_TD} text-center font-mono uppercase`}>{item.uom || 'EA'}</td>
                 <td className={VOUCHER_TD}>{orDash(item.subInventory)}</td>
-                <td className={VOUCHER_TD}>{orDash(item.itemCategory)}</td>
+                <td className={VOUCHER_TD}>
+                  {orDash(item.itemCategory)}
+                  {item.itemType && <span className="block text-[9px] text-slate-500">{item.itemType === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset'}</span>}
+                </td>
                 <td className={`${VOUCHER_TD} text-center font-mono`}>{orDash(item.lotBatchNo)}</td>
                 <td className={`${VOUCHER_TD} text-center font-mono`}>{orDash(item.serialNo)}</td>
                 <td className={`${VOUCHER_TD} !p-0 text-center font-mono`}>

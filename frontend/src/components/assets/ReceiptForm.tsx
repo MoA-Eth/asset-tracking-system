@@ -4,9 +4,10 @@ import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
 import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass } from '../ui/FormKit';
-import { AssetCategory, ItemStatus, ItemCondition, ItemWithRelations, Location, Employee, Model19Voucher, Model19LineItem } from '../../types/asset-management';
+import { AssetCategory, ItemType, ItemStatus, ItemCondition, ItemWithRelations, Location, Employee, Model19Voucher, Model19LineItem } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
+import { ITEM_TYPE_OPTIONS } from './asset-state';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -61,6 +62,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   // Section 2: Single-Item Particulars
   const [name, setName] = useState(editItem?.name ?? '');
   const [category, setCategory] = useState<AssetCategory | ''>(editItem?.category ?? '');
+  // Fixed asset or consumable: chosen on every receipt and kept with the item
+  const [itemType, setItemType] = useState<ItemType | ''>(editItem?.itemType ?? (editItem ? ItemType.FIXED : ''));
   const [itemCode, setItemCode] = useState(editItem?.itemCode ?? '');
   const [uom, setUom] = useState(editItem?.uom || 'EA');
   const [subInventory, setSubInventory] = useState(editItem?.subInventory ?? '');
@@ -110,6 +113,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     storeId && !storeLocationId && 'location in store',
     !name.trim() && 'item description',
     !category && 'category',
+    !itemType && 'item type',
     !condition && 'physical condition',
     !(quantity >= 1) && 'quantity',
     !uom.trim() && 'unit of measure',
@@ -128,6 +132,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setStoreId('');
     setName('');
     setCategory('');
+    setItemType('');
     setItemCode('');
     setUom('EA');
     setSubInventory('');
@@ -170,6 +175,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       !transactionType && 'transaction type',
       !storeLocationId && (storeId ? 'location in the store' : 'receiving store'),
       !category && 'category',
+      !itemType && 'item type',
       !condition && 'physical condition',
     ].filter(Boolean);
     if (unchosen.length > 0) {
@@ -232,6 +238,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         const res = await api.updateStockIn(editItem.id, {
           name: name.trim(),
           category: category as AssetCategory,
+          itemType: itemType as ItemType,
           serialNumber: serialNumber.trim() || undefined,
           unitCostETB: Number(unitCostETB) || 0,
           condition: condition as ItemCondition,
@@ -273,6 +280,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         itemCode: itemCode.trim() || undefined,
         name: name.trim(),
         category: category as AssetCategory,
+        itemType: itemType as ItemType,
         serialNumber: serialNumber.trim() || undefined,
         unitCostETB: Number(unitCostETB) || 0,
         condition: condition as ItemCondition,
@@ -292,6 +300,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       const res = await api.registerStockIn({
         name: name.trim(),
         category: category as AssetCategory,
+        itemType: itemType as ItemType,
         serialNumber: serialNumber.trim() || '',
         unitCostETB: Number(unitCostETB) || 0,
         condition: condition as ItemCondition,
@@ -321,6 +330,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         uom: uom.trim(),
         subInventory: subInventory.trim() || targetStore?.name || '',
         itemCategory: selectedCat?.label || category.replace(/_/g, ' '),
+        itemType: itemType as ItemType,
         lotBatchNo: lotBatchNo.trim() || '',
         serialNo: serialNumber.trim() || '',
         printedPadFrom: printedPadFrom.trim() || '',
@@ -509,6 +519,17 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                 {COMMON_CATEGORIES.map((c) => (
                   <option key={c.value} value={c.value}>
                     {c.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Item type" required htmlFor="stock-in-item-type" hint="ቋሚ ዕቃ (fixed) or አላቂ ዕቃ (consumable). It can't be changed once approved.">
+              <select id="stock-in-item-type" required value={itemType} onChange={(e) => setItemType(e.target.value as ItemType)} className={input()}>
+                <option value="" disabled>Select…</option>
+                {ITEM_TYPE_OPTIONS.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label} · {t.amharic}
                   </option>
                 ))}
               </select>
@@ -741,6 +762,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
     uom: it.uom || 'EA',
     subInventory: it.subInventory || item.storeLocation?.roomNumber || '—',
     itemCategory: it.itemCategoryDisplay || it.category.replace(/_/g, ' '),
+    itemType: it.itemType,
     lotBatchNo: it.lotBatchNo || '',
     serialNo: it.serialNumber || '',
     printedPadFrom: it.printedPadFrom || '',

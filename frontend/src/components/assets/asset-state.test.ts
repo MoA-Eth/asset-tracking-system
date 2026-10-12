@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { daysInStore } from './asset-state';
+import { daysInStore, itemTypeLabel } from './asset-state';
 
 const today = new Date(2026, 9, 7); // 7 Oct 2026
 
@@ -23,5 +23,13 @@ describe('daysInStore', () => {
   it('falls back to the registration date, and gives up on an unreadable date', () => {
     expect(daysInStore({ createdAtGc: '2026-10-01T08:00:00Z', history: [] } as any, today)).toBe(6);
     expect(daysInStore({ ifmisSlipDateGc: 'not a date', history: [] } as any, today)).toBeUndefined();
+  });
+});
+
+describe('itemTypeLabel', () => {
+  it('names both types in English and Amharic, and treats an item with no type as a fixed asset', () => {
+    expect(itemTypeLabel('FIXED')).toBe('Fixed asset (ቋሚ ዕቃ)');
+    expect(itemTypeLabel('CONSUMABLE')).toBe('Consumable item (አላቂ ዕቃ)');
+    expect(itemTypeLabel(undefined)).toBe('Fixed asset (ቋሚ ዕቃ)');
   });
 });

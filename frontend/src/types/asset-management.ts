@@ -49,6 +49,12 @@ export enum AssetCategory {
   FIELD_GEAR = 'FIELD_GEAR',
 }
 
+/** Fixed asset (ቋሚ ዕቃ) or consumable item (አላቂ ዕቃ), chosen when the item is received */
+export enum ItemType {
+  FIXED = 'FIXED',
+  CONSUMABLE = 'CONSUMABLE',
+}
+
 export interface Department {
   id: string;
   code: string;
@@ -182,6 +188,8 @@ export interface Item {
   itemCode: string;          // e.g. MOA-IT-2024-0001
   name: string;
   category: AssetCategory;
+  /** Fixed asset or consumable; items from before this existed are fixed assets */
+  itemType?: ItemType;
   serialNumber: string;
   unitCostETB: number;
   status: ItemStatus;
@@ -237,6 +245,7 @@ export interface Model19LineItem {
   uom: string;
   subInventory?: string;
   itemCategory: string;
+  itemType?: ItemType;
   lotBatchNo?: string;
   serialNo?: string;
   printedPadFrom?: string;
@@ -499,6 +508,7 @@ export interface CreateStockInRequest {
   receivedByEmployeeId?: string;
   name: string;
   category: AssetCategory;
+  itemType?: ItemType;
   serialNumber: string;
   unitCostETB: number;
   storeLocationId: string;
@@ -534,6 +544,7 @@ export interface CreateStockInRequest {
     itemCode?: string;
     name: string;
     category?: AssetCategory;
+    itemType?: ItemType;
     serialNumber?: string;
     unitCostETB: number;
     condition?: ItemCondition;
@@ -554,6 +565,7 @@ export interface UpdateStockInRequest {
   receivedByEmployeeId?: string;
   name: string;
   category: AssetCategory;
+  itemType?: ItemType;
   serialNumber?: string;
   unitCostETB: number;
   condition?: ItemCondition;

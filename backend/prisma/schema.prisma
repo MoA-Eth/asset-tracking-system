@@ -35,6 +35,12 @@ enum ItemStatus {
   REJECTED
 }
 
+// Fixed asset (ቋሚ ዕቃ) or consumable item (አላቂ ዕቃ), chosen when the item is received
+enum ItemType {
+  FIXED
+  CONSUMABLE
+}
+
 enum AssetCategory {
   VEHICLE
   AGRI_MACHINERY
@@ -187,6 +193,7 @@ model Item {
   itemCode     String        @unique
   name         String
   category     AssetCategory
+  itemType     ItemType      @default(FIXED)
   serialNumber String        @default("")
   unitCostETB  Float         @default(0)
   status       ItemStatus    @default(PENDING_STOCK_IN)
