@@ -136,7 +136,7 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
         columns={voucher.storeManName ? 4 : undefined}
         signatories={[
           { label: 'Transferor', name: voucher.fromEmployeeName },
-          ...(voucher.storeManName ? [{ label: 'Store Man', name: voucher.storeManName }] : []),
+          ...(voucher.storeManName ? [{ label: 'Recorded By', name: voucher.storeManName }] : []),
           { label: 'FAMU Accountant', name: voucher.famuAccountantName },
           { label: 'Recipient', name: voucher.toEmployeeName },
         ]}

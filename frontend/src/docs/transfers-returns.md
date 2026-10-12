@@ -9,7 +9,7 @@ Both are for assets that are **Issued**. A **transfer** moves an asset from one 
 3. Check the asset. Optionally enter the **accumulated depreciation** and the serial or chassis number.
 4. Choose **To employee** (required). Optionally choose a new **directorate** or **location**; leave them empty to keep the current ones.
 5. Enter the **Reason for transfer**. Vehicles and machinery have optional details: plate, engine, accessories, tires and defects.
-6. **Transferred by (store man)** is a store man of the store the asset came from, chosen for you when there is only one. His name is printed on the voucher as **Store Man**.
+6. **Recorded by (store man)** is a store man of the store the asset came from, chosen for you when there is only one. His name is printed on the voucher as **Recorded By**.
 7. Press **Submit transfer for approval**. The Model 21 voucher opens for printing.
 
 ## Return an asset to store

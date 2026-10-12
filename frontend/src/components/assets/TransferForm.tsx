@@ -425,7 +425,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
           <StoreManField
             id="transfer-store-man"
-            label="Transferred by (store man)"
+            label="Recorded by (store man)"
             keepers={storeMen}
             ready={keepers.ready}
             storeName={keepers.storeName(selectedItemObj?.storeLocation?.storeId)}
