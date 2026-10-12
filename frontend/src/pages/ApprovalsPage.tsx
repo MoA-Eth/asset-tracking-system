@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { table, btn } from '../components/ui/theme';
-import { RecordDetailModal } from '../components/ui/RecordDetailModal';
+import { ApprovalVoucherModal } from '../components/ui/ApprovalVoucherModal';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
 import {
@@ -838,7 +838,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                             type="button"
                             onClick={() => setViewingApproval(appr)}
                             className={btn.row}
-                            title="View the full record"
+                            title="View the voucher"
                           >
                             <FileSearch className={btn.rowIcon} />
                             View
@@ -954,7 +954,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     type="button"
                     onClick={() => setViewingApproval(appr)}
                     className={btn.row}
-                    title="View the full record"
+                    title="View the voucher"
                   >
                     <FileSearch className={btn.rowIcon} />
                     View
@@ -1038,8 +1038,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
       {/* ── 6. Single Item Review & Inspection Modal ── */}
       {viewingApproval && (
-        <RecordDetailModal
-          itemId={viewingApproval.itemId}
+        <ApprovalVoucherModal
+          key={viewingApproval.id}
           approval={viewingApproval}
           onClose={() => setViewingApproval(null)}
         />

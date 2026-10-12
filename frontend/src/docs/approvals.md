@@ -8,7 +8,7 @@ You cannot act on a request you made yourself, and you act only on the stage you
 
 1. Open **Approvals**. The tab **Pending My Action** shows what is waiting for you. The bell in the top bar shows the same, and clicking it opens this page.
 2. Search, or filter by type (Receiving, Issuing, Return, Transfer, Disposal). Switch between **Table View** and **Cards View**.
-3. Press **View** to see the full record. Open the scanned slip with the paperclip link when there is one.
+3. Press **View** to see the request as the voucher it belongs to (Model 19, 22 or 21, or the disposal form), the same paper that is printed and signed. Open the scanned slip with the paperclip link when there is one.
 4. Press **Endorse** (Team Leader) or **Authorize** (Department Head).
 5. Add remarks if you wish, then confirm with **Endorse (Stage 1)** or **Authorize & Sign-Off**.
 
