@@ -142,7 +142,6 @@ describe('Transfer correction before Stage 1 endorsement', () => {
 
   it('rejects missing or unknown values with a 400', async () => {
     await expect(store().updateTransfer('tr-1', { ...edit, model21No: ' ' }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
-    await expect(store().updateTransfer('tr-1', { ...edit, reason: '' }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
     await expect(store().updateTransfer('tr-1', { ...edit, toEmployeeId: 'EMP-GONE' }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
     await expect(store().updateTransfer('tr-1', { ...edit, toLocationId: 'LOC-GONE' }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
   });

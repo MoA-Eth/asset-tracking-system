@@ -117,8 +117,9 @@ describe('Asset Transfer approval workflow', () => {
       expect(db.item.update).not.toHaveBeenCalled();
     });
 
-    it('refuses a transfer without a reason', async () => {
-      await expect(store().transferItem({ ...transferPayload, reason: '   ' } as any)).rejects.toMatchObject({ statusCode: 400, message: 'Reason for transfer is required.' });
+    it('accepts a transfer without a reason', async () => {
+      await expect(store().transferItem({ ...transferPayload, reason: '   ' } as any)).resolves.toMatchObject({ transactionType: 'TRANSFER' });
+      expect(db.transactionApproval.create.mock.calls[0][0].data.requestDetails.reason).toBeUndefined();
     });
 
     it('rejects a transfer while another request is pending for the item', async () => {

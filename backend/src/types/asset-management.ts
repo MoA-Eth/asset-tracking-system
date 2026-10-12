@@ -592,7 +592,7 @@ export interface CreateTransferRequest {
   toEmployeeId?: string;
   toDepartmentId?: string;
   toLocationId?: string;
-  reason: string;
+  reason?: string;
   performedById: string;
 
   // Extended Model 21 fields
@@ -669,7 +669,7 @@ export interface UpdateTransferRequest {
   toEmployeeId: string;
   toDepartmentId?: string;
   toLocationId?: string;
-  reason: string;
+  reason?: string;
   book?: string;
   chassisNumber?: string;
   plateNo?: string;

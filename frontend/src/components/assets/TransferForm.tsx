@@ -58,7 +58,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [targetEmployeeId, setTargetEmployeeId] = useState(editTransfer?.recipientEmployeeId ?? '');
   const [targetDepartmentId, setTargetDepartmentId] = useState(editTransfer?.targetDepartmentId ?? '');
   const [targetLocationId, setTargetLocationId] = useState(editTransfer?.targetLocationId ?? '');
-  const [transferReason, setTransferReason] = useState(details.reason ?? '');
   const [chassisNumber, setChassisNumber] = useState(details.chassisNumber ?? editItem?.serialNumber ?? '');
   const [plateNo, setPlateNo] = useState(details.plateNo ?? '');
   const [engineNo, setEngineNo] = useState(details.engineNo ?? '');
@@ -125,7 +124,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     !transferDateGc && 'transfer date',
     !book.trim() && 'register book',
     !targetEmployeeId && 'recipient',
-    !transferReason.trim() && 'reason',
     !editTransfer && storeMen.length > 1 && !transferrerId && 'store man',
     !editTransfer && storeManRequired && !!selectedItemId && keepers.ready && storeMen.length === 0 && 'a store man for this store',
   ].filter(Boolean) as string[];
@@ -135,7 +133,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     if (!selectedItemId) return void toast.warning('Asset required', 'Choose the asset to transfer.');
     if (!targetEmployeeId) return void toast.warning('Recipient required', 'Choose the employee who receives the asset.');
     if (!model21No.trim()) return void toast.warning('Model 21 number required', 'Enter the number on the Model 21 form.');
-    if (!transferReason.trim()) return void toast.warning('Reason required', 'Enter the reason for the transfer.');
 
     const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty);
     const tireList = tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
@@ -147,7 +144,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           toEmployeeId: targetEmployeeId,
           toDepartmentId: targetDepartmentId || undefined,
           toLocationId: targetLocationId || undefined,
-          reason: transferReason.trim(),
+          reason: details.reason,
           book: book.trim() || undefined,
           chassisNumber: chassisNumber.trim() || undefined,
           plateNo: plateNo.trim() || undefined,
@@ -172,7 +169,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         toEmployeeId: targetEmployeeId,
         toDepartmentId: targetDepartmentId || undefined,
         toLocationId: targetLocationId || undefined,
-        reason: transferReason.trim(),
         performedById: user?.id || '',
         transferredByEmployeeId: transferrerId || undefined,
         ifmisSlipDateGc: transferDateGc,
@@ -412,17 +408,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               </select>
             </Field>
           </FieldGrid>
-
-          <Field label="Reason for transfer" required>
-            <input
-              type="text"
-              required
-              value={transferReason}
-              onChange={(e) => setTransferReason(e.target.value)}
-              placeholder="e.g. Reassigned for field survey work"
-              className={input()}
-            />
-          </Field>
 
           <StoreManField
             id="transfer-store-man"

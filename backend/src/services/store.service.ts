@@ -1744,7 +1744,7 @@ export class StoreService {
     const slipNo = (payload.model21No || '').trim();
     const reason = (payload.reason || '').trim();
     if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
-    if (!reason) throw new BadRequestError('Reason for transfer is required.');
+    assertMaxLength(reason, 500, 'Reason for transfer');
     if (!payload.toEmployeeId) throw new BadRequestError('The new custodian is required.');
     assertSlipDate(payload.ifmisSlipDateGc, 'The transfer date');
     const dateGc = payload.ifmisSlipDateGc || approval.ifmisSlipDateGc;
@@ -1771,7 +1771,7 @@ export class StoreService {
     const details: Model21RequestDetails = {
       ...previous,
       ...(transferrer ? { transferredByEmployeeId: transferrer.employeeId, transferredByName: transferrer.fullNameEn } : {}),
-      reason,
+      reason: reason || undefined,
       remark: payload.remark?.trim() || undefined,
       book: payload.book?.trim() || undefined,
       chassisNumber: payload.chassisNumber?.trim() || undefined,
@@ -2377,8 +2377,9 @@ export class StoreService {
     await assertNoPendingApproval(item);
     const slipNo = String(payload.model21No || '').trim();
     if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
-    if (isBlank(payload.reason)) throw new BadRequestError('Reason for transfer is required.');
-    assertMaxLength(payload.reason, 500, 'Reason for transfer');
+    // The reason is optional on a transfer
+    const reason = String(payload.reason ?? '').trim() || undefined;
+    assertMaxLength(reason, 500, 'Reason for transfer');
     assertSlipDate(payload.ifmisSlipDateGc, 'The transfer date');
     // An empty choice means "not chosen"
     payload.toEmployeeId = payload.toEmployeeId || undefined;
@@ -2418,7 +2419,7 @@ export class StoreService {
 
     const transferDetails: Model21RequestDetails = {
       ...(transferrer ? { transferredByEmployeeId: transferrer.employeeId, transferredByName: transferrer.fullNameEn } : {}),
-      reason: payload.reason,
+      reason,
       remark: payload.remark,
       book: payload.book,
       chassisNumber: payload.chassisNumber,
