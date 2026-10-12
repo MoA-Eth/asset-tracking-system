@@ -84,7 +84,7 @@ describe('Documentation page', () => {
     render(<DocsPage />);
     const list = screen.getByRole('navigation', { name: 'Guides' });
     await user.type(screen.getByRole('searchbox', { name: 'Search the guides' }), 'Model 21');
-    expect(within(list).getByRole('button', { name: /Transfers and returns/ })).toBeInTheDocument();
+    expect(within(list).getByRole('button', { name: /^Transfers \(Model 21\)/ })).toBeInTheDocument();
     expect(within(list).queryByRole('button', { name: /My assets/ })).not.toBeInTheDocument();
 
     await user.clear(screen.getByRole('searchbox', { name: 'Search the guides' }));

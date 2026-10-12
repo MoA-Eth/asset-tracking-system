@@ -54,7 +54,7 @@ export const REQUEST_LABELS: Record<string, { noun: string; pending: string; mod
   STOCK_IN: { noun: 'receipt', pending: 'Receipt pending', model: 'Model 19' },
   STOCK_OUT: { noun: 'issue', pending: 'Issue pending', model: 'Model 22' },
   TRANSFER: { noun: 'transfer', pending: 'Transfer pending', model: 'Model 21' },
-  RETURN: { noun: 'return', pending: 'Return pending', model: 'Model 21' },
+  RETURN: { noun: 'transfer to store', pending: 'Transfer to store pending', model: 'Model 21' },
   DISPOSAL: { noun: 'disposal', pending: 'Disposal pending', model: 'disposal voucher' },
 };
 

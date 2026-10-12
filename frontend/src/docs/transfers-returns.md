@@ -1,6 +1,6 @@
-# Transfers and returns (Model 21)
+# Transfers (Model 21)
 
-A **transfer** moves a **fixed asset** from one holder to another, or hands it from the store to an employee. A **return** brings an **Issued** asset back to a store. **Consumable items** are issued (Model 22) and can't be transferred. Nothing changes on the asset until the Department Head approves.
+A **transfer** moves a **fixed asset** from one holder to another, hands it from the store to an employee, or **takes it back to a store**. It is one form, **Transfer (Model 21)**: leave **Return to store** empty to transfer to an employee, or choose a store to return the asset there. **Consumable items** are issued (Model 22) and can't be transferred. Nothing changes on the asset until the Department Head approves.
 
 ## Transfer an asset
 
@@ -12,18 +12,21 @@ A **transfer** moves a **fixed asset** from one holder to another, or hands it f
 6. **Recorded by (store man)** is a store man of the store the asset came from, chosen for you when there is only one. His name is printed on the voucher as **Recorded By**. When the asset is still **In store**, the field reads **Transferred by (store man)** and he is the **Transferor** on the voucher.
 7. Press **Submit transfer for approval**. The Model 21 voucher opens for printing.
 
-## Return an asset to store
+## Take an asset back to store
 
-1. Open the **⋮** menu of an **Issued** asset and choose **Return to store (Model 21)**.
-2. Enter the **Model 21 No.**, the **Book** and the **Return date**.
-4. **Returns to store** starts as the store the asset came from; choose another store if it goes back elsewhere. **Received by (store man)** is a store man of that store, chosen for you when there is only one. Attach the **scanned return slip**. If a store man is compulsory and the store has none, it cannot take items back.
-4. The asset returns to the store it came from. **Received by (store man)** is a store man of that store, chosen for you when there is only one. Attach the **scanned return slip**. If a store man is compulsory and the store has none, it cannot take items back.
-5. Press **Submit return for approval**.
+Use the same form for an **Issued** asset that is coming back.
+
+1. Open **Transfer (Model 21)** on the asset and fill in the **Model 21 No.**, the **Book** and the date.
+2. In **Return to store**, choose the store it goes back to. **To employee** and **To directorate** disappear.
+3. **Received by (store man)** is a store man of that store, chosen for you when there is only one. If a store man is compulsory and the store has none, it cannot take items back.
+4. Choose the **Condition on return** (Good, Fair, Needs repair or Damaged) and enter the **Reason for return**. Note any defects or missing parts.
+5. Attach the **scanned return slip** (required only if your administrator says so).
+6. Press **Submit transfer to store for approval**.
 
 ## Good to know
 
-- You can **edit** a pending transfer or return until the Team Leader endorses it.
+- You can **edit** a pending transfer until the Team Leader endorses it. A transfer to store keeps its **Return to store** choice.
 - A request on an asset blocks a second one: only one open request per record.
-- **Approved transfer:** the new holder and directorate apply. **Approved return:** the asset is **In store** and no one holds it. **Rejected:** nothing changes.
-- A **transfer** has no scan upload.
+- **Approved transfer to an employee:** the new holder and directorate apply. **Approved transfer to store:** the asset is **In store** and no one holds it. **Rejected:** nothing changes.
+- An asset that is already **In store** can only be transferred to an employee; **Return to store** is offered for issued assets.
 - Assets issued to an outside organization cannot be transferred or returned yet.

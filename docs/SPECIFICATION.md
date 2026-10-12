@@ -69,7 +69,7 @@ All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 
 ### 3.3 Transfer and Return – Model 21
 - **Transfer:** reassigns a fixed asset to another employee or directorate. It can be issued to someone, or still in store: then its store man is the transferor and the asset becomes issued to the employee on approval. A consumable item is never transferred. Custody changes only after approval.
-- **Return to store:** brings an issued asset back to a store location, with its condition and any defects noted.
+- **Return to store:** the same Transfer (Model 21) form, with **Return to store** set to a store. It brings an issued asset back to that store location, with its condition and any defects noted. There is one **Transfer (Model 21)** action and form; the request is still recorded as a return, so it keeps its own approval effect (the asset becomes In store).
 - Vehicle particulars (plate, engine, tires, accessories) can be recorded on the Model 21.
 
 ### 3.4 Disposal

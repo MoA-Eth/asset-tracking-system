@@ -7,7 +7,6 @@ import {
   AlertCircle,
   PackageMinus,
   ArrowRightLeft,
-  RotateCcw,
   Eye,
   Pencil,
   Printer,
@@ -26,7 +25,6 @@ import { SortableHeader } from '../components/ui/SortableHeader';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
 import { AssetRecord } from '../components/assets/AssetRecord';
-import { ReturnForm } from '../components/ui/ReturnToStoreModal';
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { Model21PrintModal } from '../components/ui/Model21PrintModal';
@@ -171,7 +169,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations } | null>(null);
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
-  const [returning, setReturning] = useState<{ item: ItemWithRelations; edit?: TransactionApproval } | null>(null);
   const [disposing, setDisposing] = useState<{ itemId: string } | null>(null);
   // The asset record open beside the list, and whether what it has pending is being corrected in place
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -179,7 +176,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const closeRecord = () => {
     setSelectedId(null);
     setReceipt(null);
-    setReturning(null);
     setTransfer(null);
     setIssue(null);
     setDisposing(null);
@@ -187,7 +183,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
   const openReceipt = (edit?: ItemWithRelations) => {
     setSelectedId(null);
-    setReturning(null);
     setTransfer(null);
     setIssue(null);
     setDisposing(null);
@@ -471,7 +466,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   /** Open a record in view mode with its actions in the toolbar */
   const openRecord = (itemId: string) => {
     setReceipt(null);
-    setReturning(null);
     setTransfer(null);
     setIssue(null);
     setDisposing(null);
@@ -482,7 +476,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   /** Whether a form is open on this record: a correction, or a new issue, transfer, return or disposal */
   const formOpenFor = (itemId: string) =>
     editing ||
-    returning?.item.id === itemId ||
     (!!transfer && (transfer.itemId === itemId || transfer.edit?.itemId === itemId)) ||
     (!!issue && (issue.itemId === itemId || issue.edit?.itemId === itemId)) ||
     disposing?.itemId === itemId;
@@ -501,7 +494,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const { item, request } = row;
     const done = (voucher?: unknown, print?: (v: any) => void) => {
       setEditing(false);
-      setReturning(null);
       setTransfer(null);
       setIssue(null);
       setDisposing(null);
@@ -519,23 +511,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             editItem={item}
             onCancel={() => setEditing(false)}
             onSuccess={(_result, voucher) => done(voucher, setVoucher19)}
-          />
-        ),
-      };
-    }
-    if (returning && returning.item.id === item.id) {
-      return {
-        id: 'return-form',
-        form: (
-          <ReturnForm
-            key={`return-${item.id}`}
-            isOpen
-            inline
-            item={item}
-            employees={employees}
-            editApproval={returning.edit}
-            onClose={() => setReturning(null)}
-            onSuccess={(voucher) => done(voucher, setVoucher21)}
           />
         ),
       };
@@ -622,7 +597,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         ),
       };
     }
-    if (request.transactionType === 'TRANSFER') {
+    if (request.transactionType === 'TRANSFER' || request.transactionType === 'RETURN') {
       return {
         id: 'transfer-form',
         form: (
@@ -640,23 +615,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         ),
       };
     }
-    if (request.transactionType === 'RETURN') {
-      return {
-        id: 'return-form',
-        form: (
-          <ReturnForm
-            key={request.id}
-            isOpen
-            inline
-            item={item}
-            employees={employees}
-            editApproval={request}
-            onClose={() => setEditing(false)}
-            onSuccess={(voucher) => done(voucher, setVoucher21)}
-          />
-        ),
-      };
-    }
     return undefined;
   };
 
@@ -667,7 +625,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     // Vouchers of requests already approved, so signed copies can be printed again
     const printIssue: RowAction = { label: 'Print Model 22 (issue)', icon: Printer, onClick: () => printRequest(row.lastIssue!, item), hidden: !row.lastIssue };
     const printMove: RowAction = {
-      label: `Print Model 21 (${row.lastMove?.transactionType === 'RETURN' ? 'return' : 'transfer'})`,
+      label: `Print Model 21 (${row.lastMove?.transactionType === 'RETURN' ? 'transfer to store' : 'transfer'})`,
       icon: Printer,
       onClick: () => printRequest(row.lastMove!, item),
       hidden: !row.lastMove,
@@ -696,7 +654,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               setSelectedId(item.id);
               setIssue({ itemId: item.id });
               setTransfer(null);
-              setReturning(null);
               setDisposing(null);
             },
             hidden: !canIssue,
@@ -709,7 +666,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               setSelectedId(item.id);
               setTransfer({ itemId: item.id });
               setIssue(null);
-              setReturning(null);
               setDisposing(null);
             },
             hidden: !canTransfer || item.itemType === 'CONSUMABLE',
@@ -722,7 +678,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               setDisposing({ itemId: item.id });
               setIssue(null);
               setTransfer(null);
-              setReturning(null);
             },
             hidden: !canDispose,
           },
@@ -738,18 +693,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             onClick: () => {
               setSelectedId(item.id);
               setTransfer({ itemId: item.id });
-              setIssue(null);
-              setReturning(null);
-            },
-            hidden: !canTransfer || !!item.heldByOrganization,
-          },
-          {
-            label: 'Return to store (Model 21)',
-            icon: RotateCcw,
-            onClick: () => {
-              setSelectedId(item.id);
-              setReturning({ item });
-              setTransfer(null);
               setIssue(null);
             },
             hidden: !canTransfer || !!item.heldByOrganization,
@@ -1012,14 +955,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable) {
         return;
       }
-      if (voucher19 || voucher21 || voucher22 || voucherDisposal || issue || transfer || returning || disposing) {
+      if (voucher19 || voucher21 || voucher22 || voucherDisposal || issue || transfer || disposing) {
         return;
       }
 
       if (e.key === 'Escape') {
         e.preventDefault();
         if (receipt) setReceipt(null);
-        else if (returning) setReturning(null);
         else if (transfer) setTransfer(null);
         else if (issue) setIssue(null);
         else if (disposing) setDisposing(null);
@@ -1046,7 +988,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, flatSelectableIds, voucher19, voucher21, voucher22, voucherDisposal, receipt, issue, transfer, returning, disposing]);
+  }, [selectedId, flatSelectableIds, voucher19, voucher21, voucher22, voucherDisposal, receipt, issue, transfer, disposing]);
 
 
   const activeFilterCount =
