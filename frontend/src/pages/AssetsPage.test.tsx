@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AssetsPage } from './AssetsPage';
-import { ReturnToStoreModal } from '../components/ui/ReturnToStoreModal';
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
 
@@ -182,12 +181,12 @@ describe('Assets page', () => {
 
     expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Dispose', 'View details', 'Print Model 19']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'View details', 'Print Model 21 (transfer)']);
+    expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'View details', 'Print Model 21 (transfer)']);
     await user.keyboard('{Escape}');
     await user.click(within(rowOf('MOA-S1')).getByRole('button', { name: 'Show 1 issued record' }));
-    expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'View details', 'Print Model 22 (issue)']);
+    expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'View details', 'Print Model 22 (issue)']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Dispose', 'View details', 'Print Model 19', 'Print Model 21 (return)']);
+    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Dispose', 'View details', 'Print Model 19', 'Print Model 21 (transfer to store)']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-P1')).toEqual(['Edit transfer', 'View details', 'Print Model 21']);
     await user.keyboard('{Escape}');
@@ -230,18 +229,39 @@ describe('Assets page', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('opens the return form for the chosen asset', async () => {
+  it('returns an issued asset to store from the transfer form, by choosing a store', async () => {
     const user = userEvent.setup();
+    vi.mocked(api.registerReturn).mockResolvedValue({ id: 'ret-1' } as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await menuFor(user, 'MOA-I1');
-    await user.click(screen.getByRole('menuitem', { name: 'Return to store (Model 21)' }));
+    // There is one action for both: no separate "Return to store" action
+    expect(screen.queryByRole('menuitem', { name: 'Return to store (Model 21)' })).toBeNull();
+    await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
     const record = screen.getByRole('region', { name: 'Asset record MOA-I1' });
-    expect(record.querySelector('form#return-form')).not.toBeNull();
-    // Submit is the form's own button and stays off until the required fields are filled
-    expect(submitOf(record, 'return-form')).toBeDisabled();
-    // No pop-up dialog: the form is in the record
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(record.querySelector('form#transfer-form')).not.toBeNull();
+    expect(submitOf(record, 'transfer-form')).toBeDisabled();
+    // A transfer to an employee: the return-only fields are not there
+    expect(within(record).getByLabelText(/To employee/)).toBeInTheDocument();
+    expect(within(record).queryByLabelText(/Condition on return/)).toBeNull();
+
+    // Choosing a store turns it into a transfer to that store
+    await user.selectOptions(within(record).getByLabelText(/Return to store/), 'LOC-1');
+    expect(within(record).queryByText('To employee')).toBeNull();
+    expect(within(record).getByLabelText(/Condition on return/)).toBeInTheDocument();
+    expect(within(record).getByLabelText(/Reason for return/)).toBeInTheDocument();
+    expect(submitOf(record, 'transfer-form')).toHaveTextContent('Submit transfer to store for approval');
+
+    await user.type(within(record).getByPlaceholderText('Number on the Model 21 form'), 'RET-77');
+    await user.type(within(record).getByPlaceholderText('Book the form comes from'), 'Book 3');
+    await user.selectOptions(within(record).getByLabelText(/Condition on return/), 'GOOD');
+    await user.type(within(record).getByLabelText(/Reason for return/), 'Work finished');
+    await user.click(submitOf(record, 'transfer-form'));
+
+    expect(api.registerReturn).toHaveBeenCalledWith(expect.objectContaining({
+      itemId: 'I1', ifmisSlipNumber: 'RET-77', returnReason: 'Work finished', condition: 'GOOD',
+    }));
+    expect(api.transferItem).not.toHaveBeenCalled();
   });
 
   it('opens the disposal form in the record and submits the request', async () => {
@@ -372,7 +392,7 @@ describe('Asset record', () => {
     await user.click(within(batch).getByRole('button', { name: /MOA-S1-1/ }));
 
     const unit = screen.getByRole('region', { name: 'Asset record MOA-S1-1' });
-    expect(toolbarOf(unit)).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'Print Model 22 (issue)']);
+    expect(toolbarOf(unit)).toEqual(['Transfer (Model 21)', 'Print Model 22 (issue)']);
     expect(within(unit).getByRole('button', { name: 'MOA-S1' })).toBeInTheDocument();
     expect(within(unit).getByText('Approved')).toBeInTheDocument();
   });
@@ -450,21 +470,21 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-I1');
-    // Opens in view mode first with prominent Edit return button
-    expect(toolbarOf(record)).toEqual(['Edit return', 'Print Model 21']);
-    expect(within(record).getByText('Return request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+    // Opens in view mode first with prominent Edit button
+    expect(toolbarOf(record)).toEqual(['Edit transfer to store', 'Print Model 21']);
+    expect(within(record).getByText('Transfer to store request pending endorsement · Editable in correction mode')).toBeInTheDocument();
 
-    // Clicking Edit return enters edit mode with Save and Cancel
-    await user.click(within(record).getByRole('button', { name: 'Edit return' }));
+    // Clicking Edit enters edit mode with Save and Cancel
+    await user.click(within(record).getByRole('button', { name: 'Edit transfer to store' }));
     // The form's own Submit and Cancel replace the toolbar while it is open
     expect(within(record).queryByRole('toolbar')).toBeNull();
-    expect(record.querySelector('form#return-form')).not.toBeNull();
-    expect(submitOf(record, 'return-form')).toHaveTextContent('Save changes');
+    expect(record.querySelector('form#transfer-form')).not.toBeNull();
+    expect(submitOf(record, 'transfer-form')).toHaveTextContent('Save changes');
 
     // Cancel exits edit mode back to view mode
-    await user.click(cancelOf(record, 'return-form'));
-    expect(toolbarOf(record)).toEqual(['Edit return', 'Print Model 21']);
-    expect(within(record).getByText('Return request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+    await user.click(cancelOf(record, 'transfer-form'));
+    expect(toolbarOf(record)).toEqual(['Edit transfer to store', 'Print Model 21']);
+    expect(within(record).getByText('Transfer to store request pending endorsement · Editable in correction mode')).toBeInTheDocument();
   });
 
   it('opens an endorsed stage-2 record in view mode with locked actions and accurate banner', async () => {
@@ -483,7 +503,7 @@ describe('Asset record', () => {
   it.each([
     ['MOA-O1', 'Edit issue', 'stock-out-form'],
     ['MOA-P1', 'Edit transfer', 'transfer-form'],
-    ['MOA-I1', 'Edit return', 'return-form'],
+    ['MOA-I1', 'Edit transfer to store', 'transfer-form'],
   ])('⋮ → Edit on %s opens its record with the request form in place', async (code, label, formId) => {
     const user = userEvent.setup();
     // A pending return on MOA-I1, with the Team Leader
@@ -804,16 +824,6 @@ describe('Asset record', () => {
 
     // Panel is closed
     expect(screen.queryByRole('region', { name: 'Receive items' })).not.toBeInTheDocument();
-  });
-});
-
-describe('ReturnToStoreModal', () => {
-  it('opens for an asset given after first rendering without one', () => {
-    const props = { isOpen: false, onClose: vi.fn(), employees: [], onSuccess: vi.fn() };
-    const { rerender } = render(<ReturnToStoreModal {...props} item={null} />);
-    expect(() => rerender(<ReturnToStoreModal {...props} isOpen item={item('I3', 'Desk', 'ISSUED') as any} />)).not.toThrow();
-    expect(screen.getByRole('dialog', { name: /Return to store · Model 21 · MOA-I3/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Choose a different asset/ })).not.toBeInTheDocument();
   });
 });
 

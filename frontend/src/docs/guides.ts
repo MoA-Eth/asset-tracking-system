@@ -22,7 +22,7 @@ export const DOC_GUIDES: ReadonlyArray<DocGuide> = [
   { id: 'assets', title: 'The Assets register', category: 'Daily work', audience: 'Store staff and approvers', body: text('assets.md') },
   { id: 'receiving', title: 'Receiving items (Model 19)', category: 'Daily work', audience: 'Data Encoder', body: text('receiving.md') },
   { id: 'issuing', title: 'Issuing items (Model 22)', category: 'Daily work', audience: 'Data Encoder', body: text('issuing.md') },
-  { id: 'transfers-returns', title: 'Transfers and returns (Model 21)', category: 'Daily work', audience: 'Data Encoder', body: text('transfers-returns.md') },
+  { id: 'transfers-returns', title: 'Transfers (Model 21)', category: 'Daily work', audience: 'Data Encoder', body: text('transfers-returns.md') },
   { id: 'disposal', title: 'Disposing of assets', category: 'Daily work', audience: 'Data Encoder', body: text('disposal.md') },
   { id: 'approvals', title: 'Approvals', category: 'Review', audience: 'Team Leader and Department Head', body: text('approvals.md') },
   { id: 'reports', title: 'Dashboard, reports and audit log', category: 'Review', audience: 'Managers, approvers and administrators', body: text('reports.md') },

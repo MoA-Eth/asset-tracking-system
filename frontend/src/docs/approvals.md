@@ -27,7 +27,7 @@ Tick the boxes of the requests, then use the bar that appears: **Batch Endorse**
 | **Receipt (Model 19)** | The asset is **In store**. | The receipt stays as **Rejected**. |
 | **Issue (Model 22)** | The asset is **Issued** to the recipient. Part of a batch is split off. | It stays in store. |
 | **Transfer (Model 21)** | The new holder, directorate and location apply. | Nothing changes. |
-| **Return (Model 21)** | The asset is back in store. | It stays with its holder. |
+| **Transfer to store (Model 21)** | The asset is back in store. | It stays with its holder. |
 | **Disposal** | The asset is **Disposed**. Part of a batch is split off. | It stays in store. |
 
 ## The tabs

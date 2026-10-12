@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Search, UserCheck, FileText, Car, Tag } from 'lucide-react';
 import { api } from '../../api/client';
-import { ItemWithRelations, ItemStatus, ItemType, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
-import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, QuantityInput, inputClass, textareaClass } from '../ui/FormKit';
+import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
+import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, QuantityInput, inputClass, textareaClass } from '../ui/FormKit';
+import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSystemSettings } from '../../utils/system-settings';
@@ -72,6 +73,17 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [tireSerials, setTireSerials] = useState(details.tireNos?.join(', ') ?? '');
   const [defectRemark, setDefectRemark] = useState(details.remark ?? '');
   const [submitting, setSubmitting] = useState(false);
+
+  // "Return to store": the store the asset goes back to. Empty means an ordinary transfer to an employee.
+  const isReturnEdit = editTransfer?.transactionType === 'RETURN';
+  const [returnToId, setReturnToId] = useState(isReturnEdit ? editTransfer?.targetLocationId ?? editItem?.storeLocationId ?? '' : '');
+  const isReturn = isReturnEdit || (!editTransfer && !!returnToId);
+  const [condition, setCondition] = useState<ItemCondition | ''>(isReturnEdit ? ((details.condition as ItemCondition) ?? '') : '');
+  const [returnReason, setReturnReason] = useState(isReturnEdit ? details.reason ?? '' : '');
+  const [storeReceiverId, setStoreReceiverId] = useState(isReturnEdit ? details.storeRecipientId ?? '' : '');
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentFileName, setAttachmentFileName] = useState(isReturnEdit && editTransfer?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editTransfer.ifmisSlipAttachmentUrl) : '');
+  const isAttachmentReq = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
   const todayGc = new Date().toISOString().split('T')[0];
   // Today unless changed; a correction keeps the date it was requested with
   const [transferDateGc, setTransferDateGc] = useState(editTransfer?.ifmisSlipDateGc || todayGc);
@@ -84,6 +96,10 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   // An asset still in store is handed over by its store man, who is then the transferor
   const fromStore = selectedItemObj?.status === ItemStatus.AVAILABLE || !!details.fromStore;
   const storeMen = keepers.ofLocation(selectedItemObj?.storeLocationId);
+  // Who takes it back: a store man of the store it returns to
+  const returnLocation = keepers.locations.find((l) => l.id === returnToId);
+  const returnStoreMen = keepers.ofLocation(returnToId);
+  const receiverId = storeReceiverId || (returnStoreMen.length === 1 ? returnStoreMen[0].employeeId : '');
   const [transferredById, setTransferredById] = useState('');
   const transferrerId = transferredById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
   const transferrerName = storeMen.find((k) => k.employeeId === transferrerId)?.fullNameEn;
@@ -94,6 +110,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const handleItemSelect = (itemId: string) => {
     setSelectedItemId(itemId);
     const item = items.find((i) => i.id === itemId);
+    if (item && item.status === ItemStatus.AVAILABLE) setReturnToId('');
     if (item) {
       setDepreciation(0);
       setBookValue((item.unitCostETB || 0) * (Number(item.quantity) || 1));
@@ -115,6 +132,16 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleSlipSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const error = validateSlipFile(file);
+    if (error) return void toast.warning('Invalid slip file', error);
+    setAttachmentFile(file);
+    setAttachmentFileName(file.name);
+  };
+
   // Choosing the new custodian fills in their directorate, which can still be changed
   const handleRecipientChange = (employeeId: string) => {
     setTargetEmployeeId(employeeId);
@@ -128,21 +155,123 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     !model21No.trim() && 'Model 21 No.',
     !transferDateGc && 'transfer date',
     !book.trim() && 'book',
-    !targetEmployeeId && 'recipient',
-    !editTransfer && storeMen.length > 1 && !transferrerId && 'store man',
-    !editTransfer && storeManRequired && !!selectedItemId && keepers.ready && storeMen.length === 0 && 'a store man for this store',
+    !isReturn && !targetEmployeeId && 'recipient',
+    !isReturn && !editTransfer && storeMen.length > 1 && !transferrerId && 'store man',
+    !isReturn && !editTransfer && storeManRequired && !!selectedItemId && keepers.ready && storeMen.length === 0 && 'a store man for this store',
+    isReturn && !condition && 'condition on return',
+    isReturn && !returnReason.trim() && 'reason for return',
+    isReturn && !editTransfer && returnStoreMen.length > 1 && !receiverId && 'received by (store man)',
+    isReturn && !editTransfer && storeManRequired && keepers.ready && returnStoreMen.length === 0 && 'a store man for this store',
+    isReturn && isAttachmentReq && !attachmentFileName && 'scanned slip',
   ].filter(Boolean) as string[];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItemId) return void toast.warning('Asset required', 'Choose the asset to transfer.');
-    if (!targetEmployeeId) return void toast.warning('Recipient required', 'Choose the employee who receives the asset.');
+    if (!isReturn && !targetEmployeeId) return void toast.warning('Recipient required', 'Choose the employee who receives the asset.');
     if (!model21No.trim()) return void toast.warning('Model 21 number required', 'Enter the number on the Model 21 form.');
+    if (isReturn && !condition) return void toast.warning('Condition required', 'Select the condition on return.');
+    if (isReturn && !returnReason.trim()) return void toast.warning('Reason required', 'Enter the reason for returning the asset to store.');
+    if (isReturn && isAttachmentReq && !attachmentFileName) return void toast.warning('Slip required', 'A scanned slip is required by the system setting.');
 
     const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty, reserveTyreQty);
     const tireList = tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
     setSubmitting(true);
     try {
+      // ── Return to store: the asset goes back to a store instead of to an employee
+      if (isReturn) {
+        const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
+        const item = selectedItemObj;
+        if (editTransfer) {
+          await api.updateReturn(editTransfer.id, {
+            model21No: model21No.trim(),
+            ifmisSlipDateGc: transferDateGc,
+            ifmisSlipAttachmentUrl: slipUrl,
+            returnReason: returnReason.trim(),
+            condition: condition as ItemCondition,
+            book: book.trim() || undefined,
+            chassisNumber: chassisNumber.trim() || undefined,
+            plateNo: plateNo.trim() || undefined,
+            engineNo: engineNo.trim() || undefined,
+            accessories,
+            tireNos: tireList,
+            depreciation,
+            bookValue,
+            defectRemark: defectRemark.trim() || undefined,
+            storeRecipientId: receiverId || undefined,
+            targetStoreLocationId: returnToId,
+          });
+          toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} to store was corrected. It is still waiting for Team Leader endorsement.`);
+          onSaved();
+          return;
+        }
+        const origCost = (item?.unitCostETB || 0) * (Number(item?.quantity) || 1);
+        await api.registerReturn({
+          itemId: selectedItemId,
+          ifmisSlipNumber: model21No.trim(),
+          ifmisSlipDateGc: transferDateGc,
+          ifmisSlipAttachmentUrl: slipUrl,
+          returnReason: returnReason.trim(),
+          condition: condition as ItemCondition,
+          returningEmployeeId: item?.currentCustodianId || undefined,
+          registeredById: user?.id || '',
+          model21No: model21No.trim(),
+          book: book.trim(),
+          chassisNumber: chassisNumber.trim() || undefined,
+          plateNo: plateNo.trim() || undefined,
+          engineNo: engineNo.trim() || undefined,
+          accessories,
+          tireNos: tireList,
+          origCost,
+          depreciation,
+          bookValue,
+          defectRemark: defectRemark.trim() || undefined,
+          storeRecipientId: storeReceiverId || undefined,
+          targetStoreLocationId: returnToId && returnToId !== item?.storeLocationId ? returnToId : undefined,
+        });
+        const receiver = returnStoreMen.find((k) => k.employeeId === receiverId);
+        const loc = storeLocationLabel(item?.storeLocation);
+        const returnVoucher: Model21Voucher = {
+          approvalState: 'PENDING',
+          model21No: model21No.trim(),
+          fromEmployeeName: item?.currentCustodian?.fullNameEn || '—',
+          fromEmployeeId: item?.currentCustodian?.payrollId || '—',
+          book: book.trim() || '—',
+          toEmployeeName: receiver?.fullNameEn || '—',
+          toEmployeeId: receiver?.payrollId || '—',
+          items: [
+            {
+              sNo: 1,
+              description: item?.name || '—',
+              tagNumber: item?.itemCode || '—',
+              serialNumber: item?.serialNumber || '',
+              chassisNumber: chassisNumber.trim() || undefined,
+              uom: item?.uom || 'EA',
+              unit: Number(item?.quantity) || 1,
+              origCost,
+              depreciation,
+              bookValue,
+              dateGc: transferDateGc,
+              dateEc: formatGcToEc(transferDateGc),
+              fromLocation: loc,
+              toLocation: returnLocation ? returnLocation.label : loc,
+              plateNo: plateNo.trim() || undefined,
+              engineNo: engineNo.trim() || undefined,
+              accessories: accessories.length > 0 ? accessories : undefined,
+              tireNos: tireList.length > 0 ? tireList : undefined,
+              remark: defectRemark.trim() || returnReason.trim(),
+            },
+          ],
+          printedBy: user?.fullNameEn,
+        };
+        toast.success(
+          'Transfer to store submitted for approval',
+          `${item?.itemCode || 'The asset'} (${model21No.trim()}) is registered for Department Head approval and stays with its custodian until then.`,
+        );
+        onSaved(returnVoucher);
+        return;
+      }
+
       if (editTransfer) {
         await api.updateTransfer(editTransfer.id, {
           model21No: model21No.trim(),
@@ -236,6 +365,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       onSaved(voucher);
     } catch (err: any) {
       toast.error(editTransfer ? "The transfer couldn't be updated" : 'Transfer failed', err.message || 'Try again.');
+      // a failed return leaves the form as it is, so the slip and the other fields are kept
     } finally {
       setSubmitting(false);
     }
@@ -373,7 +503,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       </FormSection>
 
       {/* ── Section 3: Transfer to ── */}
-      <FormSection step={3} title="Transfer to" subtitle="ተረካቢ" icon={UserCheck} accent="emerald">
+      <FormSection step={3} title={isReturn ? 'Transfer to store' : 'Transfer to'} subtitle="ተረካቢ" icon={UserCheck} accent="emerald">
         <div className="space-y-3.5">
           <FieldGrid cols={2}>
             <Field label={fromStore ? 'From (store)' : 'From (current custodian)'}>
@@ -386,6 +516,32 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               </ReadOnlyValue>
             </Field>
 
+            {/* Offered for an asset that is issued: choosing a store makes this a transfer back to that store */}
+            {!fromStore && (!editTransfer || isReturnEdit) && (
+              <Field
+                label="Return to store"
+                optional={!isReturnEdit}
+                required={isReturnEdit}
+                htmlFor="transfer-return-to-store"
+                hint={isReturn ? undefined : 'Leave empty to transfer to an employee. Choose a store to take the asset back to it.'}
+              >
+                <select
+                  id="transfer-return-to-store"
+                  value={returnToId}
+                  onChange={(e) => setReturnToId(e.target.value)}
+                  className={input()}
+                >
+                  {!isReturnEdit && <option value="">— Transfer to an employee —</option>}
+                  {keepers.locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+
+            {!isReturn && (
             <Field label="To employee" required htmlFor="transfer-recipient" hint="Type a name or employee ID.">
               <SearchableSelect
                 id="transfer-recipient"
@@ -408,6 +564,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               />
             </Field>
 
+            )}
+
+            {!isReturn && (
             <Field label="To directorate" optional hint="Filled in from the new custodian; change it if needed.">
               <select value={targetDepartmentId} onChange={(e) => setTargetDepartmentId(e.target.value)} className={input()}>
                 <option value="">Select…</option>
@@ -418,8 +577,58 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                 ))}
               </select>
             </Field>
+            )}
           </FieldGrid>
 
+          {isReturn ? (
+            <>
+              <FieldGrid cols={2}>
+                <StoreManField
+                  id="transfer-receiver"
+                  label="Received by (store man)"
+                  keepers={returnStoreMen}
+                  ready={keepers.ready}
+                  storeName={keepers.storeName(returnLocation?.storeId ?? selectedItemObj?.storeLocation?.storeId)}
+                  value={storeReceiverId}
+                  onChange={setStoreReceiverId}
+                  current={editTransfer ? editTransfer.requestDetails?.storeRecipientName : undefined}
+                  required={!editTransfer}
+                  refuse={storeManRequired}
+                />
+
+                <Field label="Condition on return" required htmlFor="transfer-condition">
+                  <select id="transfer-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} className={input()}>
+                    <option value="" disabled>Select…</option>
+                    <option value={ItemCondition.GOOD}>Good · fully functional</option>
+                    <option value={ItemCondition.FAIR}>Fair · minor wear</option>
+                    <option value={ItemCondition.NEEDS_REPAIR}>Needs repair</option>
+                    <option value={ItemCondition.DAMAGED}>Damaged / defective</option>
+                  </select>
+                </Field>
+              </FieldGrid>
+
+              <Field label="Reason for return" required htmlFor="transfer-return-reason">
+                <input
+                  id="transfer-return-reason"
+                  type="text"
+                  required
+                  placeholder="e.g. Project field work completed, returning asset to store"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  className={input()}
+                />
+              </Field>
+
+              <FileDropField
+                label="Scanned return slip"
+                accent="emerald"
+                required={isAttachmentReq}
+                fileName={attachmentFileName}
+                accept={SLIP_ACCEPT_ATTR}
+                onChange={handleSlipSelected}
+              />
+            </>
+          ) : (
           <StoreManField
             id="transfer-store-man"
             label={fromStore ? 'Transferred by (store man)' : 'Recorded by (store man)'}
@@ -433,6 +642,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             required={!editTransfer}
             refuse={storeManRequired}
           />
+          )}
 
           <Field label="Defects / remarks" optional>
             <textarea
@@ -500,7 +710,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       <FormFooter
         accent="emerald"
         submitting={submitting}
-        submitLabel={editTransfer ? 'Save changes' : 'Submit transfer for approval'}
+        submitLabel={editTransfer ? 'Save changes' : isReturn ? 'Submit transfer to store for approval' : 'Submit transfer for approval'}
         missingFields={missingFields}
         onCancel={onCancel}
       />
