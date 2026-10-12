@@ -593,6 +593,8 @@ export interface UpdateStockInRequest {
 }
 
 export interface CreateStockOutRequest {
+  /** Dispose of the units through Model 22: no recipient, the purpose is the reason */
+  disposal?: boolean;
   itemId: string;
   /** The store man of the item's store who issues it */
   issuedByEmployeeId?: string;
@@ -725,6 +727,8 @@ export interface Model21RequestDetails {
   /** Disposal: the store man named as storekeeper on the form */
   storekeeperEmployeeId?: string;
   storekeeperName?: string;
+  /** Stock-Out: the units are written off (disposal through Model 22) instead of going to a recipient */
+  disposal?: boolean;
   /** Transfer of an item that was still in store: the store man is the transferor on the voucher */
   fromStore?: boolean;
   /** Transfer: the store man named on the voucher */

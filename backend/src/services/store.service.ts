@@ -1084,20 +1084,21 @@ export class StoreService {
     const purpose = (payload.purpose || '').trim();
     if (!slipNo) throw new BadRequestError('The Model 22 slip number is required to issue an item.');
     if (!purpose) throw new BadRequestError('Purpose of issue is required.');
-    const external = this.externalRecipientOf(payload);
-    if (!external) {
+    const disposal = ((approval.requestDetails ?? {}) as Record<string, any>).disposal === true;
+    const external = disposal ? null : this.externalRecipientOf(payload);
+    if (!external && !disposal) {
       if (!payload.recipientEmployeeId) throw new BadRequestError('Recipient staff member is required.');
       if (!payload.targetDepartmentId) throw new BadRequestError('Destination directorate is required.');
     }
     const previousIssuer = (approval.requestDetails ?? {}) as Record<string, any>;
 
-    const [recipient, department] = external
+    const [recipient, department] = external || disposal
       ? [null, null]
       : await Promise.all([
           prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId! } }),
           prisma.department.findUnique({ where: { id: payload.targetDepartmentId! } }),
         ]);
-    if (!external) {
+    if (!external && !disposal) {
       if (!recipient) throw new BadRequestError('The selected recipient no longer exists.');
       assertActiveEmployee(recipient, 'the recipient');
       if (!department) throw new BadRequestError('The selected directorate no longer exists.');
@@ -1202,7 +1203,7 @@ export class StoreService {
               dateEc: today.ec,
               action: 'STOCK_OUT_EDITED',
               fromEntity: `${await storeLabel(item.storeLocationId)} (Available)`,
-              toEntity: `${external ? external.organizationName : recipient?.fullNameEn} (Pending Approval)`,
+              toEntity: `${disposal ? 'Disposal' : external ? external.organizationName : recipient?.fullNameEn} (Pending Approval)`,
               performedBy: actor ? actor.fullNameEn : actorId,
               performedByRole: (actor?.role ?? 'DATA_ENCODER') as any,
               ifmisSlipNumber: after.ifmisSlipNumber,
@@ -1259,11 +1260,13 @@ export class StoreService {
     }
     await assertNoPendingApproval(item);
     if (isBlank(payload.ifmisSlipNumber)) throw new BadRequestError('The Model 22 slip number is required to issue an item.');
-    if (isBlank(payload.purpose)) throw new BadRequestError('Purpose of issue is required.');
-    const external = this.externalRecipientOf(payload);
-    if (!external && isBlank(payload.recipientEmployeeId)) throw new BadRequestError('Recipient staff member is required.');
+    // A disposal through Model 22 has no recipient: the purpose is the reason for writing the units off
+    const disposal = payload.disposal === true;
+    if (isBlank(payload.purpose)) throw new BadRequestError(disposal ? 'Reason for disposal is required.' : 'Purpose of issue is required.');
+    const external = disposal ? null : this.externalRecipientOf(payload);
+    if (!disposal && !external && isBlank(payload.recipientEmployeeId)) throw new BadRequestError('Recipient staff member is required.');
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
-    assertMaxLength(payload.purpose, 500, 'Purpose of issue');
+    assertMaxLength(payload.purpose, 500, disposal ? 'Reason for disposal' : 'Purpose of issue');
     assertSlipDate(payload.ifmisSlipDateGc);
 
     // Issue the whole record unless fewer units are requested
@@ -1278,10 +1281,10 @@ export class StoreService {
 
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
-    const recipient = !external && payload.recipientEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }) : null;
-    if (!external && payload.recipientEmployeeId && !recipient) throw new BadRequestError('The selected recipient no longer exists.');
+    const recipient = !disposal && !external && payload.recipientEmployeeId ? await prisma.employee.findUnique({ where: { id: payload.recipientEmployeeId } }) : null;
+    if (!disposal && !external && payload.recipientEmployeeId && !recipient) throw new BadRequestError('The selected recipient no longer exists.');
     assertActiveEmployee(recipient, 'the recipient');
-    if (!external && payload.targetDepartmentId) {
+    if (!disposal && !external && payload.targetDepartmentId) {
       const targetDepartment = await prisma.department.findUnique({ where: { id: payload.targetDepartmentId } });
       if (!targetDepartment) throw new BadRequestError('The selected directorate no longer exists.');
     }
@@ -1299,9 +1302,11 @@ export class StoreService {
             dateEc: today.ec,
             action: 'STOCK_OUT_REQUESTED',
             fromEntity: `${await storeLabel(item.storeLocationId)} (Available)`,
-            toEntity: external
-              ? `${external.organizationName} (Pending Approval)`
-              : recipient ? `${recipient.fullNameEn} (Pending Approval)` : 'Recipient not set (Pending Approval)',
+            toEntity: disposal
+              ? 'Disposal (Pending Approval)'
+              : external
+                ? `${external.organizationName} (Pending Approval)`
+                : recipient ? `${recipient.fullNameEn} (Pending Approval)` : 'Recipient not set (Pending Approval)',
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
             ifmisSlipNumber: payload.ifmisSlipNumber,
@@ -1322,12 +1327,13 @@ export class StoreService {
         ifmisSlipDateEc: slipDateEc,
         ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
         requestedById: payload.registeredById,
-        recipientEmployeeId: external ? undefined : payload.recipientEmployeeId,
-        targetDepartmentId: external ? undefined : payload.targetDepartmentId,
+        recipientEmployeeId: disposal || external ? undefined : payload.recipientEmployeeId,
+        targetDepartmentId: disposal || external ? undefined : payload.targetDepartmentId,
         purposeOrRemarks: notesText,
         requestDetails: {
           quantity,
           uom,
+          ...(disposal ? { disposal: true } : {}),
           ...(issuer ? { issuedByEmployeeId: issuer.employeeId, issuedByName: issuer.fullNameEn } : {}),
           ...(external ? { recipientType: 'EXTERNAL', ...external } : {}),
         } as any,
@@ -1342,7 +1348,9 @@ export class StoreService {
       'REGISTER_STOCK_OUT',
       'STOCK_OUT',
       item.id,
-      `Issue requested for ${item.itemCode} to ${external ? external.organizationName : recipient?.fullNameEn || 'a recipient not yet set'}. IFMIS: ${payload.ifmisSlipNumber}`,
+      disposal
+        ? `Disposal through Model 22 requested for ${item.itemCode}. IFMIS: ${payload.ifmisSlipNumber}`
+        : `Issue requested for ${item.itemCode} to ${external ? external.organizationName : recipient?.fullNameEn || 'a recipient not yet set'}. IFMIS: ${payload.ifmisSlipNumber}`,
       payload.ifmisSlipNumber,
     );
 
@@ -2201,6 +2209,44 @@ export class StoreService {
           };
           newItemStatus = 'AVAILABLE';
           approvedCondition = undefined;
+          custodianId = item.currentCustodianId;
+          departmentId = item.assignedDepartmentId;
+          approvedById = item.approvedById;
+          fromEntity = 'Disposal pending';
+          toEntity = `${storeName} (AVAILABLE)`;
+          histNote = `Disposed of ${requested} of ${inStore} ${uom} as ${code}; ${inStore - requested} ${uom} remain in store. ${approval.purposeOrRemarks}`;
+        }
+      } else if (approval.transactionType === 'STOCK_OUT' && (approval.requestDetails as Record<string, any> | null)?.disposal === true) {
+        // Disposal through Model 22: the units leave the register as disposed, like a disposal-form disposal
+        newItemStatus = 'DISPOSED';
+        historyAction = 'DISPOSAL_APPROVED';
+        fromEntity = storeName;
+        toEntity = 'Disposed (Model 22)';
+        histNote = `Disposal approved. ${approval.purposeOrRemarks}`;
+        custodianId = null;
+        departmentId = null;
+        approvedById = payload.reviewedById;
+
+        const requested = Number((approval.requestDetails as Record<string, any> | null)?.quantity);
+        const inStore = quantityOf(item);
+        if (Number.isInteger(requested) && requested > 0 && requested < inStore) {
+          // The rest stays in store on this record; the disposed units get their own record
+          const uom = uomOf(item);
+          const code = await nextSplitCode(db, item);
+          split = {
+            quantity: requested,
+            remaining: inStore - requested,
+            uom,
+            code,
+            status: 'DISPOSED',
+            custodianId: null,
+            departmentId: null,
+            historyAction: 'DISPOSAL_APPROVED',
+            toEntity: 'Disposed (Model 22)',
+            notes: `${requested} ${uom} disposed of from ${item.itemCode} (Model 22 ${approval.ifmisSlipNumber}). ${approval.purposeOrRemarks}`,
+            detailsKey: 'disposedItemCode',
+          };
+          newItemStatus = 'AVAILABLE';
           custodianId = item.currentCustodianId;
           departmentId = item.assignedDepartmentId;
           approvedById = item.approvedById;

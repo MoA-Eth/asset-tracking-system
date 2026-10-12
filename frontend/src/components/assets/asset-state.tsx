@@ -59,7 +59,9 @@ export const REQUEST_LABELS: Record<string, { noun: string; pending: string; mod
 };
 
 /** Labels for a request type, with a plain fallback for a type this screen doesn't know yet */
-export const requestLabel = (type?: string) => REQUEST_LABELS[type ?? ''] ?? { noun: 'request', pending: 'Pending', model: 'voucher' };
+export const requestLabel = (type?: string, details?: { disposal?: boolean } | null) =>
+  (type === 'STOCK_OUT' && details?.disposal ? { noun: 'disposal', pending: 'Disposal pending', model: 'Model 22' } : REQUEST_LABELS[type ?? '']) ??
+  { noun: 'request', pending: 'Pending', model: 'voucher' };
 
 export const ENDORSED_REASON = 'The Team Leader has endorsed it. To correct it, ask an approver to reject it.';
 
@@ -131,7 +133,7 @@ export const shortDate = (gc?: string) =>
 
 /** "Issue rejected · 30 Sep 2026", with the reviewer's reason underneath */
 export const RejectionNote: React.FC<{ request: TransactionApproval }> = ({ request }) => {
-  const kind = requestLabel(request.transactionType).noun;
+  const kind = requestLabel(request.transactionType, request.requestDetails).noun;
   const reason = request.reviewRemarks?.trim();
   return (
     <span className="block max-w-[220px] whitespace-normal text-[10px] leading-snug text-red-700" title={reason}>
@@ -168,7 +170,7 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
       </span>
     );
   }
-  const label = requestLabel(row.request?.transactionType ?? 'STOCK_IN').pending;
+  const label = requestLabel(row.request?.transactionType ?? 'STOCK_IN', row.request?.requestDetails).pending;
   return (
     <span className="inline-flex flex-col items-start gap-0.5">
       <span className={`${pill} ${statusTone.pending}`}>

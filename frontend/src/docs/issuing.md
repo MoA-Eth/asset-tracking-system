@@ -11,13 +11,17 @@ Use this to hand items from the store to a staff member, or to an outside organi
 ## Issue an item
 
 1. On **Assets**, open the **⋮** menu of an **In store** asset and choose **Issue (Model 22)**.
-2. **Voucher details:** enter the **Model 22 No.**, the **Issued date** and the **Transaction type** (Move Order Issue, Direct Store Issue, Department Assignment or Project Allocation).
+2. **Voucher details:** enter the **Model 22 No.**, the **Issued date** and the **Transaction type** (Move Order Issue, Direct Store Issue, Department Assignment, Project Allocation or Disposal).
 3. **Item issued:** check the item. Enter the **Quantity to issue**, a whole number up to what is in store. You can issue **part** of a batch: those units get their own record and the rest stays in store.
 4. **Recipient and custody:** choose the **Recipient type**:
    - **Internal (employee):** pick the person in **Received by** (type a name or employee ID). Their directorate fills in; change it if needed.
    - **External (organization):** type the **Organization**, and optionally the **Contact person** who signs for it. There is no employee or directorate.
 5. **Issued by (store man)** shows the store man of the store the item is in. With several, choose one. Enter the **Purpose of issue** and, if you like, a remark. Attach the scan.
 6. Press **Submit for approval**. It stays off until the required fields (*) are filled. The Model 22 voucher opens for printing.
+
+## Dispose of stock through Model 22
+
+To write units off on a Model 22 instead of the disposal form, choose **Disposal (write-off)** as the **Transaction type**. The recipient fields go away and **Purpose of issue** becomes the **Reason for disposal** (for example expired, damaged or used up). The rest is the same: quantity, **Issued by (store man)**, slip and scan. It goes through the same two approvals. When approved, the units leave the register as **Disposed**, and a partial quantity splits off its own record. The Model 22 voucher prints with the transaction type **Disposal**. Use the **Dispose** action instead when you need the Fixed Asset Disposal Form, for example to record who the items were sold or given to.
 
 ## After submitting
 

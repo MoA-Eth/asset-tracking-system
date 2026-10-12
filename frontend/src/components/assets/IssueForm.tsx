@@ -37,6 +37,8 @@ const splitPurposeAndRemark = (text: string): { purpose: string; remark: string 
 
 /** Most stock-outs are move orders, so that is the starting choice */
 const DEFAULT_TRANSACTION_TYPE = 'Move Order Issue';
+/** Writing the units off through Model 22 instead of handing them to a recipient */
+const DISPOSAL_TRANSACTION_TYPE = 'Disposal';
 
 /** "Mantegbosh Mirku, Oromia Bureau of Agriculture": the person who signs for an organization, or just the organization */
 export const externalReceiverName = (organization: string, contact?: string): string =>
@@ -80,7 +82,9 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   );
   const [organizationName, setOrganizationName] = useState<string>(editApproval?.requestDetails?.organizationName ?? '');
   const [contactPerson, setContactPerson] = useState<string>(editApproval?.requestDetails?.contactPerson ?? '');
-  const isExternal = recipientType === 'EXTERNAL';
+  // A disposal has no recipient: the purpose is the reason; a request being corrected keeps what it was
+  const isDisposal = isEdit ? editApproval?.requestDetails?.disposal === true : transactionType === DISPOSAL_TRANSACTION_TYPE;
+  const isExternal = !isDisposal && recipientType === 'EXTERNAL';
 
   // Line item particulars matching photo columns
   const [itemCode, setItemCode] = useState<string>('');
@@ -212,15 +216,17 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     !issuedDateGc && 'issued date',
     !isEdit && !transactionType && 'transaction type',
     !(Number.isInteger(quantity) && quantity >= 1 && quantity <= inStore) && 'quantity',
-    !purpose.trim() && 'purpose of issue',
-    !isExternal && !destinationDepartmentId && 'destination directorate',
-    !isExternal && !recipientEmployeeId && 'recipient',
+    !purpose.trim() && (isDisposal ? 'reason for disposal' : 'purpose of issue'),
+    !isDisposal && !isExternal && !destinationDepartmentId && 'destination directorate',
+    !isDisposal && !isExternal && !recipientEmployeeId && 'recipient',
     isExternal && !organizationName.trim() && 'organization',
     isAttachmentReq && !attachmentFileName && 'scanned slip',
   ].filter(Boolean) as string[];
 
   // Who receives it: an employee and directorate, or an organization and its contact person
-  const recipientFields = isExternal
+  const recipientFields = isDisposal
+    ? { disposal: true as const }
+    : isExternal
     ? { recipientType: 'EXTERNAL' as const, organizationName: organizationName.trim(), contactPerson: contactPerson.trim() || undefined }
     : { recipientType: 'INTERNAL' as const, recipientEmployeeId, targetDepartmentId: destinationDepartmentId };
 
@@ -264,13 +270,13 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       toast.warning('Organization Required', msg);
       return;
     }
-    if (!isExternal && !destinationDepartmentId) {
+    if (!isDisposal && !isExternal && !destinationDepartmentId) {
       const msg = 'Please select the destination directorate.';
       setFormError(msg);
       toast.warning('Selection Required', msg);
       return;
     }
-    if (!isExternal && !recipientEmployeeId) {
+    if (!isDisposal && !isExternal && !recipientEmployeeId) {
       const msg = 'Please select the recipient staff member.';
       setFormError(msg);
       toast.warning('Recipient Required', msg);
@@ -337,7 +343,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         purpose: purpose.trim(),
         registeredById,
         transactionType,
-        destination: isExternal ? organizationName.trim() : dept ? departmentLabel(dept) : destinationDepartmentId,
+        destination: isDisposal ? "Disposal (write-off)" : isExternal ? organizationName.trim() : dept ? departmentLabel(dept) : destinationDepartmentId,
         subInventory,
         lotBatchNo,
         printedPadFrom,
@@ -355,12 +361,12 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         issuedDateGc,
         issuedDateEc: ethDate,
         transactionType,
-        destination: isExternal ? organizationName.trim() : dept ? departmentLabel(dept) : destinationDepartmentId,
-        destinationDepartmentId: isExternal ? undefined : destinationDepartmentId,
+        destination: isDisposal ? "Disposal (write-off)" : isExternal ? organizationName.trim() : dept ? departmentLabel(dept) : destinationDepartmentId,
+        destinationDepartmentId: isDisposal || isExternal ? undefined : destinationDepartmentId,
         subInventory,
         issuedByName: issuerName || user?.fullNameEn || '—',
-        receivedByName: isExternal ? externalReceiverName(organizationName, contactPerson) : recipient?.fullNameEn || '—',
-        receivedByEmployeeId: isExternal ? undefined : recipientEmployeeId,
+        receivedByName: isDisposal ? '—' : isExternal ? externalReceiverName(organizationName, contactPerson) : recipient?.fullNameEn || '—',
+        receivedByEmployeeId: isDisposal || isExternal ? undefined : recipientEmployeeId,
         items: [
           {
             sNo: 1,
@@ -386,8 +392,10 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       };
 
       toast.success(
-        'Model 22 Issue Voucher Submitted',
-        `Receipt for Articles Or Property Issued (${model22No.trim()}) to ${isExternal ? organizationName.trim() : recipient?.fullNameEn || 'staff'} registered for approval.`
+        isDisposal ? 'Model 22 Disposal Submitted' : 'Model 22 Issue Voucher Submitted',
+        isDisposal
+          ? `Disposal (${model22No.trim()}) registered for approval. The units leave the register once it is approved.`
+          : `Receipt for Articles Or Property Issued (${model22No.trim()}) to ${isExternal ? organizationName.trim() : recipient?.fullNameEn || 'staff'} registered for approval.`
       );
       onSuccess(result, voucher);
     } catch (err: any) {
@@ -429,13 +437,14 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           </Field>
 
           {!isEdit && (
-            <Field label="Transaction type" required>
-              <select required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
+            <Field label="Transaction type" required htmlFor="stock-out-transaction-type">
+              <select id="stock-out-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
                 <option value="" disabled>Select…</option>
                 <option value="Move Order Issue">Move Order Issue</option>
                 <option value="Direct Store Issue">Direct Store Issue</option>
                 <option value="Department Assignment">Department Assignment</option>
                 <option value="Project Allocation">Project Allocation</option>
+                <option value={DISPOSAL_TRANSACTION_TYPE}>Disposal (write-off)</option>
               </select>
             </Field>
           )}
@@ -631,6 +640,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       >
         <div className="space-y-3.5">
           <FieldGrid cols={2}>
+            {!isDisposal && (
             <Field label="Recipient type" required span="sm:col-span-2" hint="Internal: a staff member of the Ministry. External: an outside organization.">
               <div role="radiogroup" aria-label="Recipient type" className="inline-flex rounded-lg border border-slate-300 bg-slate-50 p-0.5 text-xs font-semibold">
                 {(['INTERNAL', 'EXTERNAL'] as const).map((type) => (
@@ -649,8 +659,9 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                 ))}
               </div>
             </Field>
+            )}
 
-            {isExternal ? (
+            {isDisposal ? null : isExternal ? (
               <>
                 <Field label="Organization" required htmlFor="stock-out-organization" hint="The organization that receives the item.">
                   <input
@@ -706,11 +717,11 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
               </>
             )}
 
-            <Field label="Purpose of issue" required>
+            <Field label={isDisposal ? "Reason for disposal" : "Purpose of issue"} required>
               <input
                 type="text"
                 required
-                placeholder="e.g. Move Order Issue for Agricultural Operations"
+                placeholder={isDisposal ? "e.g. Expired, damaged beyond repair, used up" : "e.g. Move Order Issue for Agricultural Operations"}
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
                 className={input()}
@@ -787,8 +798,8 @@ export const buildModel22Voucher = (
     model22No: approval.ifmisSlipNumber || '',
     issuedDateGc,
     issuedDateEc: approval.createdAtEc || formatGcToEc(issuedDateGc),
-    transactionType: 'Move Order Issue',
-    destination: outside || (targetDept ? departmentLabel(targetDept) : '—'),
+    transactionType: approval.requestDetails?.disposal ? 'Disposal' : 'Move Order Issue',
+    destination: approval.requestDetails?.disposal ? 'Disposal (write-off)' : outside || (targetDept ? departmentLabel(targetDept) : '—'),
     destinationDepartmentId: approval.targetDepartmentId,
     subInventory,
     issuedByName: approval.requestDetails?.issuedByName || requester?.fullNameEn || '—',
