@@ -178,7 +178,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
     !editApproval && storeManRequired && keepers.ready && storeMen.length === 0 && 'a store man for this store',
     !editApproval && storeMen.length > 1 && !receiverId && 'received by (store man)',
     !model21No.trim() && 'Model 21 No.',
-    !book.trim() && 'register book',
+    !book.trim() && 'book',
     !ifmisSlipDateGc && 'return date',
     !condition && 'condition on return',
     !returnReason.trim() && 'reason',
@@ -352,7 +352,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
               />
             </Field>
 
-            <Field label="Register book" required>
+            <Field label="Book" required>
               <input
                 type="text"
                 required
