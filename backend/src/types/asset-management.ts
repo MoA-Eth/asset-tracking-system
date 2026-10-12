@@ -587,6 +587,8 @@ export interface CreateTransferRequest {
   itemId: string;
   /** The store man named on the voucher; needed only when the item's store has several */
   transferredByEmployeeId?: string;
+  /** Transfer date (YYYY-MM-DD); today when left out */
+  ifmisSlipDateGc?: string;
   toEmployeeId?: string;
   toDepartmentId?: string;
   toLocationId?: string;
@@ -663,6 +665,7 @@ export interface Model21RequestDetails {
 export interface UpdateTransferRequest {
   model21No: string;
   transferredByEmployeeId?: string;
+  ifmisSlipDateGc?: string;
   toEmployeeId: string;
   toDepartmentId?: string;
   toLocationId?: string;

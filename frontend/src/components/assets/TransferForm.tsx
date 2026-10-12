@@ -71,6 +71,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [tireSerials, setTireSerials] = useState(details.tireNos?.join(', ') ?? '');
   const [defectRemark, setDefectRemark] = useState(details.remark ?? '');
   const [submitting, setSubmitting] = useState(false);
+  const todayGc = new Date().toISOString().split('T')[0];
+  // Today unless changed; a correction keeps the date it was requested with
+  const [transferDateGc, setTransferDateGc] = useState(editTransfer?.ifmisSlipDateGc || todayGc);
 
   const selectedItemObj = items.find((i) => i.id === selectedItemId);
   // The store man named on the voucher: one of the store men of the store the asset came from
@@ -82,7 +85,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const transferrerId = transferredById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
   const transferrerName = storeMen.find((k) => k.employeeId === transferrerId)?.fullNameEn;
   const selectedIsVehicleLike = selectedItemObj?.category === 'VEHICLE' || selectedItemObj?.category === 'AGRI_MACHINERY';
-  const todayGc = new Date().toISOString().split('T')[0];
   const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
 
   // A newly chosen asset brings its own details
@@ -113,6 +115,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const missingFields = [
     !selectedItemId && 'asset',
     !model21No.trim() && 'Model 21 No.',
+    !transferDateGc && 'transfer date',
     !book.trim() && 'register book',
     !targetEmployeeId && 'recipient',
     !transferReason.trim() && 'reason',
@@ -148,6 +151,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           bookValue,
           remark: defectRemark.trim() || undefined,
           transferredByEmployeeId: transferredById || undefined,
+          ifmisSlipDateGc: transferDateGc,
         });
         toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
         onSaved();
@@ -164,6 +168,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         reason: transferReason.trim(),
         performedById: user?.id || '',
         transferredByEmployeeId: transferrerId || undefined,
+        ifmisSlipDateGc: transferDateGc,
         model21No: model21No.trim(),
         book: book.trim(),
         chassisNumber: chassisNumber.trim() || undefined,
@@ -202,8 +207,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             origCost,
             depreciation,
             bookValue,
-            dateGc: todayGc,
-            dateEc: formatGcToEc(todayGc),
+            dateGc: transferDateGc,
+            dateEc: formatGcToEc(transferDateGc),
             fromLocation: fromLoc,
             // No new location chosen: the item stays in the same store
             toLocation: toLocObj ? storeLocationLabel(toLocObj) : fromLoc,
@@ -257,13 +262,19 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
           <Field
             label="Transfer date (G.C.)"
-            hint={
-              editTransfer
-                ? `${formatGcToEc(editTransfer.ifmisSlipDateGc)} E.C. · date the transfer was requested`
-                : `${formatGcToEc(todayGc)} E.C. · recorded as today`
-            }
+            required
+            htmlFor="transfer-date"
+            hint={transferDateGc ? `${formatGcToEc(transferDateGc)} E.C. · today unless you change it` : undefined}
           >
-            <ReadOnlyValue mono>{editTransfer ? editTransfer.ifmisSlipDateGc : todayGc}</ReadOnlyValue>
+            <input
+              id="transfer-date"
+              type="date"
+              required
+              max={todayGc}
+              value={transferDateGc}
+              onChange={(e) => setTransferDateGc(e.target.value)}
+              className={input({ mono: true })}
+            />
           </Field>
         </FieldGrid>
       </FormSection>

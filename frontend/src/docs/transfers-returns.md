@@ -5,7 +5,7 @@ Both are for assets that are **Issued**. A **transfer** moves an asset from one 
 ## Transfer an asset
 
 1. On **Assets**, open the **⋮** menu of an **Issued** asset and choose **Transfer (Model 21)**.
-2. Enter the **Model 21 No.** and the **Register book**. The transfer date is today.
+2. Enter the **Model 21 No.** and the **Register book**. The **Transfer date** is today; change it if the transfer happened on another day (it can't be in the future).
 3. Check the asset. Optionally enter the **accumulated depreciation** and the serial or chassis number.
 4. Choose **To employee** (required). Optionally choose a new **directorate** or **location**; leave them empty to keep the current ones.
 5. Enter the **Reason for transfer**. Vehicles and machinery have optional details: plate, engine, accessories, tires and defects.

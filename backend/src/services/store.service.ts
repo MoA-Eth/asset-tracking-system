@@ -1746,6 +1746,8 @@ export class StoreService {
     if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
     if (!reason) throw new BadRequestError('Reason for transfer is required.');
     if (!payload.toEmployeeId) throw new BadRequestError('The new custodian is required.');
+    assertSlipDate(payload.ifmisSlipDateGc, 'The transfer date');
+    const dateGc = payload.ifmisSlipDateGc || approval.ifmisSlipDateGc;
 
     const [item, recipient, department, location] = await Promise.all([
       prisma.item.findUnique({ where: { id: approval.itemId } }),
@@ -1788,8 +1790,9 @@ export class StoreService {
       approval.targetLocationId ? prisma.location.findUnique({ where: { id: approval.targetLocationId }, include: { store: true } }) : null,
       item.currentCustodianId ? prisma.employee.findUnique({ where: { id: item.currentCustodianId } }) : null,
     ]);
-    const view = (slip: string, to: string | undefined, dept: string | undefined, loc: string | undefined, d: Model21RequestDetails) => ({
+    const view = (slip: string, to: string | undefined, dept: string | undefined, loc: string | undefined, d: Model21RequestDetails, date: string) => ({
       'Model 21 no.': slip,
+      date,
       'new custodian': to,
       directorate: dept ?? 'current',
       location: loc ?? 'current',
@@ -1805,8 +1808,8 @@ export class StoreService {
       depreciation: d.depreciation,
       'book value': d.bookValue,
     });
-    const before = view(approval.ifmisSlipNumber, previousRecipient?.fullNameEn, previousDepartment?.nameEn, locationLabel(previousLocation), previous);
-    const after = view(slipNo, recipient.fullNameEn, department?.nameEn, locationLabel(location), details);
+    const before = view(approval.ifmisSlipNumber, previousRecipient?.fullNameEn, previousDepartment?.nameEn, locationLabel(previousLocation), previous, approval.ifmisSlipDateGc);
+    const after = view(slipNo, recipient.fullNameEn, department?.nameEn, locationLabel(location), details, dateGc);
     const changes = describeChanges(before, after);
     if (changes.length === 0) {
       return mapApproval(await prisma.transactionApproval.findUnique({ where: { id: approvalId }, include: APPROVAL_INCLUDES }));
@@ -1817,6 +1820,8 @@ export class StoreService {
       approval,
       data: {
         ifmisSlipNumber: slipNo,
+        ifmisSlipDateGc: dateGc,
+        ifmisSlipDateEc: formatGcToEc(dateGc),
         recipientEmployeeId: recipient.id,
         targetDepartmentId: department?.id ?? null,
         targetLocationId: location?.id ?? null,
@@ -2374,6 +2379,7 @@ export class StoreService {
     if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
     if (isBlank(payload.reason)) throw new BadRequestError('Reason for transfer is required.');
     assertMaxLength(payload.reason, 500, 'Reason for transfer');
+    assertSlipDate(payload.ifmisSlipDateGc, 'The transfer date');
     // An empty choice means "not chosen"
     payload.toEmployeeId = payload.toEmployeeId || undefined;
     payload.toDepartmentId = payload.toDepartmentId || undefined;
@@ -2454,8 +2460,8 @@ export class StoreService {
         itemCode: item.itemCode,
         itemName: item.name,
         ifmisSlipNumber: slipNo,
-        ifmisSlipDateGc: today.gc,
-        ifmisSlipDateEc: today.ec,
+        ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
+        ifmisSlipDateEc: payload.ifmisSlipDateGc ? formatGcToEc(payload.ifmisSlipDateGc) : today.ec,
         requestedById: payload.performedById,
         recipientEmployeeId: payload.toEmployeeId,
         targetDepartmentId: payload.toDepartmentId,
