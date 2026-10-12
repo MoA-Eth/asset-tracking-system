@@ -1,16 +1,24 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StockOutForm, buildModel22Voucher } from './IssueForm';
 import { api } from '../../api/client';
 
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'encoder', fullNameEn: 'Store Encoder' } }) }));
 vi.mock('../../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn() }) }));
-vi.mock('../../api/client', () => ({ api: { registerStockOut: vi.fn(), uploadSlip: vi.fn() } }));
+vi.mock('../../api/client', () => ({ api: { registerStockOut: vi.fn(), uploadSlip: vi.fn(), getStores: vi.fn() } }));
+
+const store = (storeKeepers: any[]) => ({
+  id: 'S1', name: 'Kality store', address: '', isActive: true, locations: [{ id: 'LOC-1', storeId: 'S1', name: 'Shelf A', isActive: true }], storeKeepers,
+});
+const keeper = (id: string, name: string) => ({ employeeId: id, fullNameEn: name, fullNameAm: '', payrollId: `000${id}`, isActive: true });
+beforeEach(() => {
+  vi.mocked(api.getStores).mockResolvedValue([store([keeper('1', 'Abebe Store Man')])] as any);
+});
 
 const item = (extra: Record<string, unknown> = {}) =>
-  ({ id: 'item-1', itemCode: 'MOA-AG-0001', name: 'Fertilizer', quantity: 40, uom: 'BAG', unitCostETB: 3200, status: 'AVAILABLE', ...extra }) as any;
+  ({ id: 'item-1', itemCode: 'MOA-AG-0001', name: 'Fertilizer', quantity: 40, uom: 'BAG', unitCostETB: 3200, status: 'AVAILABLE', storeLocationId: 'LOC-1', storeLocation: { storeId: 'S1' }, ...extra }) as any;
 
 const renderWith = (stock: any) =>
   render(<StockOutForm availableItems={[stock]} departments={[]} employees={[]} initialItemId={stock.id} onCancel={vi.fn()} onSuccess={vi.fn()} />);
@@ -73,11 +81,15 @@ describe('Issue items (Model 22): internal or external recipient', () => {
     await user.click(submit());
 
     const payload = vi.mocked(api.registerStockOut).mock.calls[0][0];
+    // The store's only store man issues it, and is named on the request
+    expect(payload).toMatchObject({ issuedByEmployeeId: '1' });
     expect(payload).toMatchObject({ itemId: 'item-1', recipientType: 'EXTERNAL', organizationName: 'Oromia Bureau of Agriculture', contactPerson: 'Mantegbosh Mirku', destination: 'Oromia Bureau of Agriculture' });
     expect(payload).not.toHaveProperty('recipientEmployeeId');
     expect(payload).not.toHaveProperty('targetDepartmentId');
     // The printed voucher names the person who signs and their organization
-    expect(onSuccess.mock.calls[0][1]).toMatchObject({ destination: 'Oromia Bureau of Agriculture', receivedByName: 'Mantegbosh Mirku, Oromia Bureau of Agriculture' });
+    expect(onSuccess.mock.calls[0][1]).toMatchObject({
+      destination: 'Oromia Bureau of Agriculture', receivedByName: 'Mantegbosh Mirku, Oromia Bureau of Agriculture', issuedByName: 'Abebe Store Man',
+    });
   });
 });
 
@@ -90,5 +102,32 @@ describe('Model 22 voucher for an issue to an organization', () => {
     } as any;
     const voucher = buildModel22Voucher(approval, { item: item(), departments: [], employees: [] });
     expect(voucher).toMatchObject({ destination: 'Oromia Bureau of Agriculture', receivedByName: 'Mantegbosh Mirku, Oromia Bureau of Agriculture' });
+  });
+});
+
+describe('Issue items (Model 22): the store man', () => {
+  const renderIssue = () =>
+    render(<StockOutForm availableItems={[item()]} departments={[]} employees={[]} initialItemId="item-1" onCancel={vi.fn()} onSuccess={vi.fn()} />);
+
+  it('names the only store man of the store as who issues it', async () => {
+    renderIssue();
+    expect(await screen.findByText('Abebe Store Man')).toBeInTheDocument();
+    expect(screen.getByText('Issued by (store man)')).toBeInTheDocument();
+  });
+
+  it('asks which store man when the store has several', async () => {
+    vi.mocked(api.getStores).mockResolvedValue([store([keeper('1', 'Abebe Store Man'), keeper('2', 'Sara Tesfaye')])] as any);
+    renderIssue();
+    const choice = await screen.findByLabelText(/Issued by \(store man\)/);
+    expect(within(choice).getByRole('option', { name: /Sara Tesfaye/ })).toBeInTheDocument();
+    expect(within(choice).getByRole('option', { name: /Abebe Store Man/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
+  });
+
+  it('says so, and cannot be submitted, when the store has no store man', async () => {
+    vi.mocked(api.getStores).mockResolvedValue([store([])] as any);
+    renderIssue();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Kality store has no store man assigned.*Settings → Stores/);
+    expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
   });
 });

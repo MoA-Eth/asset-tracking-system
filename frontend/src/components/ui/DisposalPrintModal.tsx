@@ -118,7 +118,7 @@ export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, 
       <VoucherSignatures
         columns={5}
         signatories={[
-          { label: 'Storekeeper', name: voucher.requestedByName },
+          { label: 'Storekeeper', name: voucher.storekeeperName || voucher.requestedByName },
           { label: 'Endorsed By (Team Leader)', name: voucher.endorsedByName },
           { label: 'Approved By (Department Head)', name: voucher.approvedByName },
           { label: 'FAMU Accountant' },

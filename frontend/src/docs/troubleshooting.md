@@ -20,6 +20,7 @@
 | **Edit** is greyed out | The Team Leader has already endorsed the request. Ask an approver to reject it, then submit it again. |
 | An asset says **pending** | A request is open on it. Only one request can be open on an asset at a time. |
 | The file will not upload | Use a PDF, PNG, JPEG or WEBP file of up to 10 MB. |
+| **… has no store man assigned** | The store this request is about has nobody assigned as store man. Ask your System Administrator to assign one in Settings → Stores. |
 | **A scanned copy is required** | Your administrator has made the scan compulsory. Attach it. |
 | I can't approve my own request | By design. Someone else must approve what you submitted. |
 | I rejected a request by mistake | A rejection cannot be undone. The requester submits a new one. |

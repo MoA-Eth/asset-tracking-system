@@ -1857,8 +1857,8 @@ export class StoreService {
       tireNos: payload.tireNos ?? previous.tireNos,
       depreciation: payload.depreciation ?? previous.depreciation,
       bookValue: payload.bookValue ?? previous.bookValue,
-      storeRecipientId: storeRecipient?.id,
-      storeRecipientName: storeRecipient?.fullNameEn,
+      storeRecipientId: storeRecipient?.id ?? previous.storeRecipientId,
+      storeRecipientName: storeRecipient?.fullNameEn ?? previous.storeRecipientName,
     };
     const slipDateGc = payload.ifmisSlipDateGc || approval.ifmisSlipDateGc;
     const attachmentUrl = payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl;

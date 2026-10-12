@@ -14,7 +14,7 @@ vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../context/ToastContext', () => ({ useToast: () => toast }));
 vi.mock('../api/client', () => ({
   api: {
-    getItems: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn(), getApprovals: vi.fn(),
+    getItems: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn(), getStores: vi.fn(), getApprovals: vi.fn(),
     getItemById: vi.fn(), transferItem: vi.fn(), updateTransfer: vi.fn(), registerReturn: vi.fn(), registerStockOut: vi.fn(),
     registerStockIn: vi.fn(), updateStockIn: vi.fn(), registerDisposal: vi.fn(), updateDisposal: vi.fn(),
   },
@@ -84,6 +84,12 @@ beforeEach(() => {
   vi.mocked(api.getDepartments).mockResolvedValue([]);
   vi.mocked(api.getEmployees).mockResolvedValue([holder, receiver] as any);
   vi.mocked(api.getLocations).mockResolvedValue([store] as any);
+  vi.mocked(api.getStores).mockResolvedValue([
+    {
+      id: 'S1', name: 'Head office', address: '', isActive: true, locations: [store],
+      storeKeepers: [{ employeeId: 'SM1', fullNameEn: 'Abebe Store Man', fullNameAm: '', payrollId: '0001', isActive: true }],
+    },
+  ] as any);
   vi.mocked(api.getApprovals).mockResolvedValue(approvals as any);
 });
 
@@ -257,7 +263,7 @@ describe('Assets page', () => {
     await user.click(submitOf(record, 'disposal-form'));
 
     expect(api.registerDisposal).toHaveBeenCalledWith(expect.objectContaining({
-      itemId: 'S2', quantity: 1, disposalNo: 'DSP-0007', reason: 'Gift / donation', recipientName: 'Kality School', bookValue: 1000,
+      itemId: 'S2', quantity: 1, storekeeperEmployeeId: 'SM1', disposalNo: 'DSP-0007', reason: 'Gift / donation', recipientName: 'Kality School', bookValue: 1000,
     }));
   });
 
@@ -692,7 +698,7 @@ describe('Asset record', () => {
     // Submit sits in the form's footer, after the last section
     const submit = within(panel).getByRole('button', { name: /Submit for approval/i });
     expect(panel.querySelector('form#stock-in-form')).toContainElement(submit);
-    expect(within(panel).getByLabelText(/Received by/i).compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(panel).getByText('Received by (store man)').compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     // The registration has the whole page: no list beside it, and a way back
     expect(screen.queryByRole('complementary', { name: 'Asset list' })).not.toBeInTheDocument();
@@ -732,8 +738,8 @@ describe('Asset record', () => {
     // Submit stays off until every required field is filled
     expect(submitBtn).toBeDisabled();
     expect(within(panel).getByText('Fill in all required fields (*) to submit')).toBeInTheDocument();
-    // The encoder isn't assumed to be the person who received the goods
-    expect(within(panel).getByLabelText(/Received by/i)).toHaveValue('');
+    // Who received the goods is a store man of the receiving store: nobody can be named before the store is chosen
+    expect(within(panel).getByText('Pick the store first.')).toBeInTheDocument();
 
     // Fill form
     await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000999');
@@ -742,6 +748,8 @@ describe('Asset record', () => {
 
     // Receiving store
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
+    // The store's only store man receives the goods
+    expect(await within(panel).findByText('Abebe Store Man')).toBeInTheDocument();
 
     // Item details
     await user.type(within(panel).getByLabelText(/Item description/i), 'Precision Workstation');
@@ -780,6 +788,7 @@ describe('Asset record', () => {
       ifmisSlipNumber: '0000999',
       unitCostETB: 75000,
       storeLocationId: 'LOC-1',
+      receivedByEmployeeId: 'SM1',
       items: [expect.objectContaining({ uom: 'KG' })],
     }));
 

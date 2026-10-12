@@ -35,6 +35,16 @@ Safeguards: you cannot change your own role, remove your own sign-in or deactiva
 2. In a store, **Add location**, **Rename**, **Deactivate** or **Delete** (delete only if never used).
 3. You cannot deactivate a store or location that still holds assets or is the destination of a pending request, or the only store that can receive stock.
 
+## Store men
+
+Each store has **store men**: the employees who keep it. They need no sign-in. Their names appear in that store's dropdowns and on its vouchers: **Received by** on a receipt, **Issued by** on an issue, the **storekeeper** on a disposal form, and the person who takes an item back on a return.
+
+1. On **Settings → Stores**, find the store. The **Store men** line sits under its name.
+2. Pick an employee in **Add a store man** to add one, or press the **x** beside a name to remove one. It saves at once and is recorded in the audit log.
+3. A store can have several. With one, the system uses him automatically; with several, the person making the request chooses.
+
+> **A store with no store man cannot receive, issue, dispose or take returns.** The form says so and cannot be submitted. Assign a store man to every store before staff start using the system.
+
 Receiving needs at least one active store.
 
 ## System Settings

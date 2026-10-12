@@ -510,7 +510,7 @@ export const buildModel21Voucher = async (
     fromEmployeeName: fromName,
     fromEmployeeId: fromEmp?.payrollId || '—',
     book: d.book || '—',
-    toEmployeeName: toEmp?.fullNameEn || (r.transactionType === 'RETURN' ? storeName : '—'),
+    toEmployeeName: toEmp?.fullNameEn || (r.transactionType === 'RETURN' ? d.storeRecipientName || storeName : '—'),
     toEmployeeId: toEmp?.payrollId || '—',
     items: [
       {

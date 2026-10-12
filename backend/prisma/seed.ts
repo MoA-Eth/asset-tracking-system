@@ -166,6 +166,17 @@ async function main() {
   // ── Sample Items ──────────────────────────────────────────────────────────
   const today = new Date().toISOString().split('T')[0];
 
+  // Store men: who receives, issues and takes back in each store (Kality has two, so the choice shows)
+  await prisma.storeKeeper.createMany({
+    skipDuplicates: true,
+    data: [
+      { id: 'SK-SEED-01', storeId: 'STR-01', employeeId: 'EMP-ENC-01' },
+      { id: 'SK-SEED-02', storeId: 'STR-01', employeeId: 'EMP-ENC-02' },
+      { id: 'SK-SEED-03', storeId: 'STR-02', employeeId: 'EMP-ENC-02' },
+      { id: 'SK-SEED-04', storeId: 'STR-03', employeeId: 'EMP-ENC-01' },
+    ],
+  });
+
   const item1 = await prisma.item.upsert({
     where: { itemCode: 'MOA-IT-2024-0001' },
     update: {},

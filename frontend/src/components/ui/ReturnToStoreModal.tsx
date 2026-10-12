@@ -25,6 +25,8 @@ import {
   textareaClass,
 } from './FormKit';
 import { useSystemSettings } from '../../utils/system-settings';
+import { StoreManField } from '../assets/StoreManField';
+import { useStoreKeepers } from '../../hooks/useStoreKeepers';
 import { SearchableSelect } from './SearchableSelect';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
@@ -75,6 +77,10 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
   const [condition, setCondition] = useState<ItemCondition | ''>('');
   const [returnReason, setReturnReason] = useState('');
   const [storeReceiverId, setStoreReceiverId] = useState('');
+  // Who takes the item back: a store man of the store it returns to
+  const keepers = useStoreKeepers();
+  const storeMen = keepers.ofLocation(item.storeLocationId);
+  const receiverId = storeReceiverId || (storeMen.length === 1 ? storeMen[0].employeeId : '');
   
   // Technical / Vehicle Details
   const [chassisNumber, setChassisNumber] = useState('');
@@ -167,6 +173,8 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
 
   // Required fields still empty; the return can only be submitted once this is empty
   const missingFields = [
+    !editApproval && keepers.ready && storeMen.length === 0 && 'a store man for this store',
+    !editApproval && storeMen.length > 1 && !receiverId && 'received by (store man)',
     !model21No.trim() && 'Model 21 No.',
     !book.trim() && 'register book',
     !ifmisSlipDateGc && 'return date',
@@ -199,7 +207,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
     setSubmitting(true);
     const registeredById = user?.id || '';
     const fromCustodian = item.currentCustodian;
-    const receiver = employees.find((e) => e.id === storeReceiverId);
+    const receiver = storeMen.find((k) => k.employeeId === receiverId) ?? employees.find((e) => e.id === storeReceiverId);
     const loc = storeLocationLabel(item.storeLocation);
     const todayGc = ifmisSlipDateGc || new Date().toISOString().split('T')[0];
     const todayEc = formatGcToEc(todayGc);
@@ -233,7 +241,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
           depreciation,
           bookValue,
           defectRemark: defectRemark.trim() || undefined,
-          storeRecipientId: storeReceiverId || undefined,
+          storeRecipientId: receiverId || undefined,
         });
         toast.success('Return Updated', `The return of ${item.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
         onSuccess();
@@ -481,19 +489,17 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
                 <ReadOnlyValue>{storeLocationLabel(item.storeLocation)}</ReadOnlyValue>
               </Field>
 
-              <Field label="Received by (store custodian)" optional htmlFor="return-receiver" hint="The store staff member taking the item back, if known. Type a name or employee ID.">
-                <SearchableSelect
-                  id="return-receiver"
-                  value={storeReceiverId}
-                  onChange={setStoreReceiverId}
-                  placeholder="Select an employee…"
-                  searchPlaceholder="Search by name or employee ID…"
-                  groups={[
-                    { label: 'No one', options: [{ value: '', label: 'Not recorded' }] },
-                    { label: 'Employees', options: employees.map((emp) => ({ value: emp.id, label: `${emp.fullNameEn} (${emp.payrollId})` })) },
-                  ]}
-                />
-              </Field>
+              <StoreManField
+                id="return-receiver"
+                label="Received by (store man)"
+                keepers={storeMen}
+                ready={keepers.ready}
+                storeName={keepers.storeName(item.storeLocation?.storeId)}
+                value={storeReceiverId}
+                onChange={setStoreReceiverId}
+                current={editApproval ? editApproval.requestDetails?.storeRecipientName : undefined}
+                required={!editApproval}
+              />
             </FieldGrid>
 
             <FileDropField

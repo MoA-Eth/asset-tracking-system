@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PackageMinus, FileText, Search, User } from 'lucide-react';
 import { api } from '../../api/client';
+import { StoreManField } from './StoreManField';
+import { useStoreKeepers } from '../../hooks/useStoreKeepers';
 import { FormSection, FieldGrid, Field, ReadOnlyValue, TotalValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -162,6 +164,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     setTransactionType(DEFAULT_TRANSACTION_TYPE);
     setDestinationDepartmentId('');
     setRecipientEmployeeId('');
+    setIssuedById('');
     setRecipientType('INTERNAL');
     setOrganizationName('');
     setContactPerson('');
@@ -184,6 +187,12 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   };
 
   const quantityItem = editItem ?? availableItems.find((i) => i.id === selectedItemId);
+  // Who issues it: a store man of the store the item is in
+  const keepers = useStoreKeepers();
+  const [issuedById, setIssuedById] = useState('');
+  const storeMen = keepers.ofLocation(quantityItem?.storeLocationId);
+  const issuerId = issuedById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
+  const issuerName = storeMen.find((k) => k.employeeId === issuerId)?.fullNameEn;
   const inStore = Number(quantityItem?.quantity) || 1;
   // Items registered before units were recorded count in EA, as on the server
   const inStoreUom = quantityItem?.uom || 'EA';
@@ -195,6 +204,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   // Required fields still empty; the request can only be submitted once this is empty
   const missingFields = [
     !isEdit && !selectedItemId && 'store item',
+    !isEdit && !!selectedItemId && keepers.ready && storeMen.length === 0 && 'a store man for this store',
+    !isEdit && storeMen.length > 1 && !issuerId && 'issued by (store man)',
     !model22No.trim() && 'Model 22 No.',
     !issuedDateGc && 'issued date',
     !isEdit && !transactionType && 'transaction type',
@@ -287,6 +298,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
         const res = await api.updateStockOut(editApproval.id, {
           quantity,
+          issuedByEmployeeId: issuedById || undefined,
           ...recipientFields,
           ifmisSlipNumber: model22No.trim(),
           ifmisSlipDateGc: issuedDateGc,
@@ -315,6 +327,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
       const result = await api.registerStockOut({
         itemId: selectedItemId,
+        issuedByEmployeeId: issuerId || undefined,
         ...recipientFields,
         ifmisSlipNumber: model22No.trim(),
         ifmisSlipDateGc: issuedDateGc,
@@ -343,7 +356,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         destination: isExternal ? organizationName.trim() : dept ? departmentLabel(dept) : destinationDepartmentId,
         destinationDepartmentId: isExternal ? undefined : destinationDepartmentId,
         subInventory,
-        issuedByName: user?.fullNameEn || '—',
+        issuedByName: issuerName || user?.fullNameEn || '—',
         receivedByName: isExternal ? externalReceiverName(organizationName, contactPerson) : recipient?.fullNameEn || '—',
         receivedByEmployeeId: isExternal ? undefined : recipientEmployeeId,
         items: [
@@ -712,9 +725,18 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
               />
             </Field>
 
-            <Field label="Issued by (store custodian)">
-              <ReadOnlyValue>{editApproval?.requestedBy?.fullNameEn || user?.fullNameEn || '—'}</ReadOnlyValue>
-            </Field>
+            <StoreManField
+              id="stock-out-issued-by"
+              label="Issued by (store man)"
+              keepers={storeMen}
+              ready={keepers.ready}
+              storeName={keepers.storeName(quantityItem?.storeLocation?.storeId)}
+              hasStore={!!quantityItem}
+              value={issuedById}
+              onChange={setIssuedById}
+              current={isEdit ? editApproval?.requestDetails?.issuedByName : undefined}
+              required={!isEdit}
+            />
           </FieldGrid>
 
           <FileDropField
@@ -766,7 +788,7 @@ export const buildModel22Voucher = (
     destination: outside || (targetDept ? departmentLabel(targetDept) : '—'),
     destinationDepartmentId: approval.targetDepartmentId,
     subInventory,
-    issuedByName: requester?.fullNameEn || '—',
+    issuedByName: approval.requestDetails?.issuedByName || requester?.fullNameEn || '—',
     receivedByName: outside ? externalReceiverName(outside, approval.requestDetails?.contactPerson) : recipient?.fullNameEn || '—',
     receivedByEmployeeId: approval.recipientEmployeeId,
     items: [

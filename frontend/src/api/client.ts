@@ -293,6 +293,11 @@ export const api = {
     return request<Store>(`/reference/stores/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ active }) });
   },
 
+  /** Who keeps the store: replaces the whole list of store men (System Administrator) */
+  setStoreKeepers: (id: string, employeeIds: string[]) => {
+    return request<Store>(`/reference/stores/${encodeURIComponent(id)}/store-men`, { method: 'PUT', body: JSON.stringify({ employeeIds }) });
+  },
+
   deleteStore: (id: string) => {
     return request<null>(`/reference/stores/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },

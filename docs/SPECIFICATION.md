@@ -55,6 +55,12 @@ All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 - **Partial issues** are supported: issuing part of a batch creates a separate record for the issued units, linked to the original receipt; the rest stays in store.
 - Once approved, the issued units are `ISSUED` and the custodian is recorded.
 
+### Store men
+- A **store man** is an employee assigned to a store (Settings → Stores). He needs no sign-in. A store can have several.
+- His name goes in that store's dropdowns and on its vouchers: **Received by** (Model 19), **Issued by** (Model 22), the **Storekeeper** line of the disposal form, and who takes an item back on a return (Model 21).
+- **A store with no store man refuses** receiving, issuing, disposing and returns, in the form and on the server. With one store man he is the default; with several the request names which.
+- The name is saved with the request, so old vouchers keep it when the assignment changes. Requests made before this feature keep the name they had.
+
 ### My assets (employees)
 - Any employee can be given the **Employee** role. They sign in to one page, **My assets**, that lists the assets issued to them: item, serial number, quantity, condition, the date and slip it was assigned on, and whether a transfer or return is waiting for approval.
 - It is read-only and personal: the server returns only what the signed-in person holds, with no costs, notes or other people's names, and the role is refused by every staff-wide endpoint.

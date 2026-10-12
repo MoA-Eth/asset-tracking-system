@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Trash2, FileText, ClipboardList } from 'lucide-react';
 import { api } from '../../api/client';
+import { StoreManField } from './StoreManField';
+import { useStoreKeepers } from '../../hooks/useStoreKeepers';
 import { FormSection, FieldGrid, Field, ReadOnlyValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass, textareaClass } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -60,6 +62,10 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   );
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  // The storekeeper named on the form: a store man of the store the item is in
+  const keepers = useStoreKeepers();
+  const [keeperId, setKeeperId] = useState('');
+  const storeMen = keepers.ofLocation(item.storeLocationId);
 
   const bookValue = bookValueEdited ? amountOrUndefined(bookValueText) ?? 0 : unitPrice * quantity;
   const ethDate = formatGcToEc(dateGc);
@@ -68,6 +74,8 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   // Required fields still empty; the request can only be submitted once this is empty
   const missingFields = [
     !(Number.isInteger(quantity) && quantity >= 1 && quantity <= inStore) && 'quantity',
+    !isEdit && keepers.ready && storeMen.length === 0 && 'a store man for this store',
+    !isEdit && storeMen.length > 1 && !keeperId && 'storekeeper (store man)',
     !disposalNo.trim() && 'disposal reference no.',
     !dateGc && 'disposal date',
     !reason.trim() && 'reason',
@@ -117,6 +125,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       recipientName: recipientName.trim() || undefined,
       proceedsETB: amountOrUndefined(proceedsText),
       committeeRef: committeeRef.trim() || undefined,
+      storekeeperEmployeeId: keeperId || (storeMen.length === 1 ? storeMen[0].employeeId : undefined),
     };
 
     setSubmitting(true);
@@ -267,6 +276,17 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
           <Field label="Requested by (store)">
             <ReadOnlyValue>{editApproval?.requestedBy?.fullNameEn || user?.fullNameEn || '—'}</ReadOnlyValue>
           </Field>
+          <StoreManField
+            id="disposal-storekeeper"
+            label="Storekeeper (store man)"
+            keepers={storeMen}
+            ready={keepers.ready}
+            storeName={keepers.storeName(item.storeLocation?.storeId)}
+            value={keeperId}
+            onChange={setKeeperId}
+            current={isEdit ? editApproval?.requestDetails?.storekeeperName : undefined}
+            required={!isEdit}
+          />
           <FileDropField
             label="Committee decision or other document"
             accent="emerald"
@@ -325,6 +345,7 @@ export const buildDisposalVoucher = (
       },
     ],
     requestedByName: context.requestedByName || nameOf(approval.requestedById, approval.requestedBy),
+    storekeeperName: d.storekeeperName,
     endorsedByName: nameOf(approval.endorsedById, approval.endorsedBy),
     approvedByName: approval.status === 'APPROVED' ? nameOf(approval.reviewedById, approval.reviewedBy) : undefined,
     printedBy: context.printedBy,
