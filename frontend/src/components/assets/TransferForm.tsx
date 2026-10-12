@@ -111,6 +111,13 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Choosing the new custodian fills in their directorate, which can still be changed
+  const handleRecipientChange = (employeeId: string) => {
+    setTargetEmployeeId(employeeId);
+    const emp = employees.find((e) => e.id === employeeId);
+    if (emp?.departmentId) setTargetDepartmentId(emp.departmentId);
+  };
+
   // Required fields still empty; the request can only be submitted once this is empty
   const missingFields = [
     !selectedItemId && 'asset',
@@ -376,7 +383,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               <SearchableSelect
                 id="transfer-recipient"
                 value={targetEmployeeId}
-                onChange={setTargetEmployeeId}
+                onChange={handleRecipientChange}
                 placeholder="Select an employee…"
                 searchPlaceholder="Search by name or employee ID…"
                 groups={[
@@ -394,7 +401,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               />
             </Field>
 
-            <Field label="To directorate" optional hint="Leave on Select… to keep the current directorate.">
+            <Field label="To directorate" optional hint="Filled in from the new custodian; change it if needed.">
               <select value={targetDepartmentId} onChange={(e) => setTargetDepartmentId(e.target.value)} className={input()}>
                 <option value="">Select…</option>
                 {departments.map((dep) => (
