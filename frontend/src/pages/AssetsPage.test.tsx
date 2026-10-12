@@ -760,6 +760,14 @@ describe('Asset record', () => {
     expect(submitBtn).toBeDisabled();
     await user.type(uom, 'kg');
 
+    // The quantity starts empty, showing 0: it has to be typed, and any number is accepted as typed
+    const quantity = within(panel).getByLabelText(/^Quantity/i);
+    expect(quantity).toHaveValue('');
+    expect(quantity).toHaveAttribute('placeholder', '0');
+    expect(submitBtn).toBeDisabled();
+    await user.type(quantity, '12');
+    expect(quantity).toHaveValue('12');
+
     // Submit from the footer
     expect(submitBtn).toBeEnabled();
     expect(within(panel).queryByText('Fill in all required fields (*) to submit')).not.toBeInTheDocument();

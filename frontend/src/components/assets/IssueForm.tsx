@@ -437,8 +437,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             <Field label="Item description" span="sm:col-span-2">
               <ReadOnlyValue>{editApproval.itemName}</ReadOnlyValue>
             </Field>
-            <Field label="Quantity to issue" required hint={`${inStore} ${inStoreUom} in store`}>
-              <QuantityInput min={1} max={inStore} required value={quantity} onChange={setQuantity} />
+            <Field label="Quantity to issue" required htmlFor="issue-quantity" hint={quantity > inStore ? `Only ${inStore} ${inStoreUom} in store` : `${inStore} ${inStoreUom} in store`}>
+              <QuantityInput id="issue-quantity" min={1} max={inStore} required value={quantity} onChange={setQuantity} />
             </Field>
           </FieldGrid>
         ) : (
@@ -531,8 +531,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
           {/* Quantity & cost */}
           <FieldGrid cols={4}>
-            <Field label="Quantity to issue" required hint={`${inStore} ${inStoreUom} in store`}>
-              <QuantityInput min={1} max={inStore} required value={quantity} onChange={setQuantity} />
+            <Field label="Quantity to issue" required htmlFor="issue-quantity" hint={quantity > inStore ? `Only ${inStore} ${inStoreUom} in store` : `${inStore} ${inStoreUom} in store`}>
+              <QuantityInput id="issue-quantity" min={1} max={inStore} required value={quantity} onChange={setQuantity} />
             </Field>
 
             {/* Stock is counted in the unit it was received in, so the issue uses the item's unit */}

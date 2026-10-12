@@ -42,49 +42,48 @@ interface QuantityInputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange' | 'min' | 'max'> {
   value: number;
   onChange: (value: number) => void;
-  /** Smallest accepted whole number (default 0) */
+  /** Smallest sensible number (default 0). A smaller one is flagged in red, not changed. */
   min?: number;
-  /** Largest accepted whole number; larger entries are capped while typing */
+  /** Largest sensible number. A bigger one is flagged in red, not changed. */
   max?: number;
 }
 
 /**
- * Whole-number input for counts. Keeps its own text so users can clear the
- * field and type a new number; only valid values reach `onChange`. If left
- * empty or below `min`, it falls back to the last valid value on blur.
+ * Whole-number input for counts. The user types any number: nothing is capped, rewritten or put back
+ * while typing or on leaving the field. An empty field shows the placeholder "0" and counts as 0.
+ * A number outside min..max is marked in red, and the form decides what to do about it.
  */
 export const QuantityInput: React.FC<QuantityInputProps> = ({
   value,
   onChange,
   min = 0,
   max,
-  onBlur,
-  className = inputClass('emerald', { mono: true, align: 'right' }),
+  placeholder = '0',
+  className,
   ...props
 }) => {
-  const [draft, setDraft] = useState(String(value));
+  const asText = (n: number) => (n === 0 ? '' : String(n));
+  const [draft, setDraft] = useState(asText(value));
 
   // Follow outside changes (form reset, record loaded) without overwriting what the user is typing
   useEffect(() => {
-    setDraft((d) => (d !== '' && Number(d) === value ? d : String(value)));
+    setDraft((d) => (d === '' || Number(d) !== value ? asText(value) : d));
   }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const digits = e.target.value.replace(/\D/g, '');
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
     if (digits === '') {
       setDraft('');
+      onChange(0);
       return;
     }
-    let n = parseInt(digits, 10);
-    if (max !== undefined && n > max) n = max;
+    const n = parseInt(digits, 10);
     setDraft(String(n));
-    if (n >= min) onChange(n);
+    onChange(n);
   };
 
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    if (draft === '' || Number(draft) < min) setDraft(String(value));
-    onBlur?.(e);
-  };
+  const entered = draft === '' ? undefined : Number(draft);
+  const outOfRange = entered !== undefined && ((min > 0 && entered < min) || (max !== undefined && entered > max));
 
   return (
     <input
@@ -92,10 +91,11 @@ export const QuantityInput: React.FC<QuantityInputProps> = ({
       type="text"
       inputMode="numeric"
       autoComplete="off"
+      placeholder={placeholder}
       value={draft}
       onChange={handleChange}
-      onBlur={handleBlur}
-      className={className}
+      aria-invalid={outOfRange || undefined}
+      className={className ?? inputClass('emerald', { mono: true, align: 'right', invalid: outOfRange })}
     />
   );
 };

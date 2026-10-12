@@ -152,8 +152,8 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
           <Field label="Item description" span="sm:col-span-2">
             <ReadOnlyValue>{item.name}</ReadOnlyValue>
           </Field>
-          <Field label="Quantity to dispose of" required hint={`${inStore} ${uom} in store`}>
-            <QuantityInput min={1} max={inStore} required value={quantity} onChange={setQuantity} />
+          <Field label="Quantity to dispose of" required htmlFor="disposal-quantity" hint={quantity > inStore ? `Only ${inStore} ${uom} in store` : `${inStore} ${uom} in store`}>
+            <QuantityInput id="disposal-quantity" min={1} max={inStore} required value={quantity} onChange={setQuantity} />
           </Field>
           <Field label="Unit price (ETB)">
             <ReadOnlyValue mono align="right">{formatETB(unitPrice)}</ReadOnlyValue>

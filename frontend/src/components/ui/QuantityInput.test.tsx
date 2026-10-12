@@ -20,7 +20,7 @@ const Demo: React.FC<{ initial?: number; min?: number; max?: number }> = ({ init
 };
 
 describe('QuantityInput', () => {
-  it('lets the user clear the field and type a larger number', async () => {
+  it('lets the user clear the field and type any number', async () => {
     render(<Demo initial={1} min={1} />);
     const field = screen.getByLabelText('Quantity');
 
@@ -32,39 +32,67 @@ describe('QuantityInput', () => {
     expect(screen.getByTestId('saved')).toHaveTextContent('250');
   });
 
+  it('shows 0 as the placeholder when empty, and counts an empty field as 0', async () => {
+    render(<Demo initial={5} min={1} />);
+    const field = screen.getByLabelText('Quantity');
+    await userEvent.clear(field);
+    expect(field).toHaveAttribute('placeholder', '0');
+    expect(field).toHaveValue('');
+    expect(screen.getByTestId('saved')).toHaveTextContent('0');
+  });
+
+  it('starts empty, with the 0 placeholder, when the value is 0', () => {
+    render(<Demo initial={0} />);
+    const field = screen.getByLabelText('Quantity');
+    expect(field).toHaveValue('');
+    expect(field).toHaveAttribute('placeholder', '0');
+  });
+
   it('ignores anything that is not a digit', async () => {
     render(<Demo initial={0} />);
     const field = screen.getByLabelText('Quantity');
 
-    await userEvent.clear(field);
     await userEvent.type(field, '1a-2.e3');
     expect(field).toHaveValue('123');
     expect(screen.getByTestId('saved')).toHaveTextContent('123');
   });
 
-  it('caps the value at max while typing', async () => {
+  it('does not cap or rewrite a number above max: it is marked as wrong instead', async () => {
     render(<Demo initial={1} min={1} max={40} />);
     const field = screen.getByLabelText('Quantity');
 
     await userEvent.clear(field);
     await userEvent.type(field, '99');
-    expect(field).toHaveValue('40');
-    expect(screen.getByTestId('saved')).toHaveTextContent('40');
+    expect(field).toHaveValue('99');
+    expect(screen.getByTestId('saved')).toHaveTextContent('99');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+
+    // Back within range: no longer marked
+    await userEvent.clear(field);
+    await userEvent.type(field, '12');
+    expect(field).not.toHaveAttribute('aria-invalid');
   });
 
-  it('restores the last valid value when left empty or below min', async () => {
+  it('marks 0 as wrong when the smallest allowed is 1, and leaves it as typed', async () => {
     render(<Demo initial={7} min={1} />);
     const field = screen.getByLabelText('Quantity');
 
     await userEvent.clear(field);
-    await userEvent.tab();
-    expect(field).toHaveValue('7');
-
-    await userEvent.clear(field);
     await userEvent.type(field, '0');
-    expect(screen.getByTestId('saved')).toHaveTextContent('7');
+    expect(field).toHaveValue('0');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
     await userEvent.tab();
-    expect(field).toHaveValue('7');
+    expect(field).toHaveValue('0');
+    expect(screen.getByTestId('saved')).toHaveTextContent('0');
+  });
+
+  it('keeps an empty field empty when it is left', async () => {
+    render(<Demo initial={7} min={1} />);
+    const field = screen.getByLabelText('Quantity');
+    await userEvent.clear(field);
+    await userEvent.tab();
+    expect(field).toHaveValue('');
+    expect(field).not.toHaveAttribute('aria-invalid');
   });
 
   it('follows value changes made by the parent', async () => {

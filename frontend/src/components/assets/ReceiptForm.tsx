@@ -66,7 +66,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [serialNumber, setSerialNumber] = useState(editItem?.serialNumber ?? '');
   const [printedPadFrom, setPrintedPadFrom] = useState(editItem?.printedPadFrom ?? '');
   const [printedPadTo, setPrintedPadTo] = useState(editItem?.printedPadTo ?? '');
-  const [quantity, setQuantity] = useState<number>(Number(editItem?.quantity) || 1);
+  // A new receipt starts empty (the field shows 0), so the number is always typed on purpose
+  const [quantity, setQuantity] = useState<number>(editItem ? Number(editItem.quantity) || 1 : 0);
   const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? 0);
   const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? '');
   const [remark, setRemark] = useState(editItem?.remark ?? '');
@@ -122,7 +123,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setSerialNumber('');
     setPrintedPadFrom('');
     setPrintedPadTo('');
-    setQuantity(1);
+    setQuantity(0);
     setUnitCostETB(0);
     setCondition('');
     setRemark('');
@@ -542,8 +543,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
           {/* Quantity & valuation */}
           <FieldGrid cols={4}>
-            <Field label="Quantity" required>
-              <QuantityInput min={1} required value={quantity} onChange={setQuantity} />
+            <Field label="Quantity" required htmlFor="receipt-quantity">
+              <QuantityInput id="receipt-quantity" min={1} required value={quantity} onChange={setQuantity} />
             </Field>
 
             <Field label="Unit of measure" required htmlFor="stock-in-uom">
