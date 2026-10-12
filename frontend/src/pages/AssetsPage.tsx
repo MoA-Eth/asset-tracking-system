@@ -915,7 +915,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 label: 'Duplicate as new receipt',
                 icon: Copy,
                 onClick: () => openReceipt(undefined, templateFromItem(item), `copy-${item.id}-${Date.now()}`),
-                hidden: !canReceive,
+                // A piece split off a batch is not a receipt: duplicate the registration it came from
+                hidden: !canReceive || !!item.parentItemId,
               },
             ]}
           />

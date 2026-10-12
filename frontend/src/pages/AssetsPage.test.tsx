@@ -185,7 +185,8 @@ describe('Assets page', () => {
     expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'Duplicate as new receipt', 'View details', 'Print Model 21 (transfer)']);
     await user.keyboard('{Escape}');
     await user.click(within(rowOf('MOA-S1')).getByRole('button', { name: 'Show 1 issued record' }));
-    expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'Duplicate as new receipt', 'View details', 'Print Model 22 (issue)']);
+    // A piece split off a batch has no Duplicate: the registration it came from has
+    expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'View details', 'Print Model 22 (issue)']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Duplicate as new receipt', 'View details', 'Print Model 19', 'Print Model 21 (transfer to store)', 'Dispose']);
     await user.keyboard('{Escape}');
