@@ -8,7 +8,7 @@ import { AssetCategory, ItemType, ItemStatus, ItemCondition, ItemWithRelations, 
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
 import { ITEM_TYPE_OPTIONS } from './asset-state';
-import { recallForm, rememberForm, nextNumberAfter } from '../../utils/form-memory';
+import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -95,7 +95,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const memory = isEdit ? {} : recallForm(user?.id, 'receipt');
   const start = isEdit ? undefined : template;
   const rememberedLocation = locations.find((l) => l.id === (start?.storeLocationId ?? memory.storeLocationId));
-  const nextNo = start?.ifmisSlipNumber ? undefined : nextNumberAfter(memory.model19No);
 
   // Section 1: Document Voucher Header Metadata
   const [ifmisSlipNumber, setIfmisSlipNumber] = useState(editItem?.ifmisSlipNumber ?? start?.ifmisSlipNumber ?? '');
@@ -436,11 +435,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         `Item "${name.trim()}" (Model 19 #${slipNo}, Total ${formatETB(totalAmount)}) registered and submitted for Team Leader verification.`
       );
 
-      rememberForm(user?.id, 'receipt', {
-        model19No: ifmisSlipNumber.trim(),
-        transactionType,
-        storeLocationId,
-      });
+      rememberForm(user?.id, 'receipt', { transactionType, storeLocationId });
       onSuccess(res, generatedVoucher);
     } catch (err: any) {
       const errMsg = err.message || 'Server error';
@@ -470,13 +465,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             required
             htmlFor="stock-in-model19"
             error={fieldErrors.error('model19No')}
-            hint={
-              !ifmisSlipNumber.trim() && nextNo ? (
-                <button type="button" onClick={() => setIfmisSlipNumber(nextNo)} className="font-medium text-emerald-700 hover:underline cursor-pointer">
-                  Use {nextNo} (next after {memory.model19No})
-                </button>
-              ) : undefined
-            }
           >
             <input
               id="stock-in-model19"

@@ -13,7 +13,7 @@ import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { departmentLabel } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { storeLocationLabel } from '../../utils/location';
-import { recallForm, rememberForm, nextNumberAfter } from '../../utils/form-memory';
+import { recallForm, rememberForm } from '../../utils/form-memory';
 import { useSlipRegister, usedMessage } from '../../hooks/useSlipRegister';
 
 /** What an open request on an asset is called in the picker */
@@ -154,7 +154,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     if (emp?.departmentId) setTargetDepartmentId(emp.departmentId);
   };
 
-  const nextNo = nextNumberAfter(memory.model21No);
   const usedNo = slips.findUsed(model21No, ['TRANSFER', 'RETURN'], editTransfer?.id);
 
   // A field shows what is wrong with it once the user has been in it
@@ -288,7 +287,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           'Transfer to store submitted for approval',
           `${item?.itemCode || 'The asset'} (${model21No.trim()}) is registered for Department Head approval and stays with its custodian until then.`,
         );
-        rememberForm(user?.id, 'transfer', { book: book.trim(), model21No: model21No.trim() });
+        rememberForm(user?.id, 'transfer', { book: book.trim() });
         onSaved(returnVoucher);
         return;
       }
@@ -383,7 +382,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         'Transfer submitted for approval',
         `${selectedItem?.itemCode || 'The asset'} to ${targetEmp?.fullNameEn || 'the new custodian'}. Custody changes after the Department Head approves it.`,
       );
-      rememberForm(user?.id, 'transfer', { book: book.trim(), model21No: model21No.trim() });
+      rememberForm(user?.id, 'transfer', { book: book.trim() });
       onSaved(voucher);
     } catch (err: any) {
       toast.error(editTransfer ? "The transfer couldn't be updated" : 'Transfer failed', err.message || 'Try again.');
@@ -403,13 +402,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             required
             error={errorOf('model21No')}
             warning={usedNo ? usedMessage(model21No, usedNo) : undefined}
-            hint={
-              !model21No.trim() && nextNo ? (
-                <button type="button" onClick={() => setModel21No(nextNo)} className="font-medium text-emerald-700 hover:underline cursor-pointer">
-                  Use {nextNo} (next after {memory.model21No})
-                </button>
-              ) : undefined
-            }
           >
             <input
               type="text"

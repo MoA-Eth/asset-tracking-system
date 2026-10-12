@@ -103,14 +103,12 @@ describe('Issue items (Model 22): remembered values and used numbers', () => {
   const renderIssue = () =>
     render(<StockOutForm availableItems={[item()]} departments={[department]} employees={[employee]} initialItemId="item-1" onCancel={vi.fn()} onSuccess={vi.fn()} />);
 
-  it('offers the number after the last one this person used, and fills it in on request', async () => {
+  it('starts from the transaction type used last time, and leaves the voucher number to be typed from the slip', () => {
     window.localStorage.setItem('moa_form_encoder_issue', JSON.stringify({ model22No: 'M22-009', transactionType: 'Direct Store Issue' }));
-    const user = userEvent.setup();
     renderIssue();
-    // The transaction type is the one used last time
     expect(screen.getByLabelText(/Transaction type/)).toHaveValue('Direct Store Issue');
-    await user.click(screen.getByRole('button', { name: /Use M22-010/ }));
-    expect(screen.getByPlaceholderText('e.g. 0004653/A Inventory')).toHaveValue('M22-010');
+    expect(screen.getByPlaceholderText('e.g. 0004653/A Inventory')).toHaveValue('');
+    expect(screen.queryByRole('button', { name: /Use M22/ })).toBeNull();
   });
 
   it('never starts a new issue as a disposal, even if the last one was', () => {
