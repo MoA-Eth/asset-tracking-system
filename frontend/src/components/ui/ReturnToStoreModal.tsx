@@ -407,15 +407,6 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
                 </select>
               </Field>
 
-              <Field label="Chassis / serial number" optional>
-                <input
-                  type="text"
-                  placeholder="e.g. JTEBB71JX07008920"
-                  value={chassisNumber}
-                  onChange={(e) => setChassisNumber(e.target.value)}
-                  className={input({ mono: true })}
-                />
-              </Field>
 
               <Field
                 label="Accumulated depreciation (ETB)"
@@ -520,14 +511,24 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
         <FormSection
           step={4}
           title="Vehicle & machinery details"
-          subtitle="Plate, engine, accessories and tires · only for vehicles and machinery"
+          subtitle="Chassis, plate, engine, accessories and tires · only for vehicles and machinery"
           icon={Car}
           accent="emerald"
           collapsible
           defaultOpen={isVehicleLike}
         >
           <div className="space-y-3.5">
-            <FieldGrid cols={2}>
+            <FieldGrid>
+              <Field label="Chassis number" optional>
+                <input
+                  type="text"
+                  placeholder="e.g. JTEBB71JX07008920"
+                  value={chassisNumber}
+                  onChange={(e) => setChassisNumber(e.target.value)}
+                  className={input({ mono: true })}
+                />
+              </Field>
+
               <Field label="Plate number" optional>
                 <input
                   type="text"
