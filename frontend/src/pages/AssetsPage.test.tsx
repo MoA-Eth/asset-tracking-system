@@ -180,24 +180,24 @@ describe('Assets page', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
 
-    expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'View details', 'Print Model 19', 'Dispose']);
+    expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Duplicate as new receipt', 'View details', 'Print Model 19', 'Dispose']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'View details', 'Print Model 21 (transfer)']);
+    expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'Duplicate as new receipt', 'View details', 'Print Model 21 (transfer)']);
     await user.keyboard('{Escape}');
     await user.click(within(rowOf('MOA-S1')).getByRole('button', { name: 'Show 1 issued record' }));
-    expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'View details', 'Print Model 22 (issue)']);
+    expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'Duplicate as new receipt', 'View details', 'Print Model 22 (issue)']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'View details', 'Print Model 19', 'Print Model 21 (transfer to store)', 'Dispose']);
+    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Duplicate as new receipt', 'View details', 'Print Model 19', 'Print Model 21 (transfer to store)', 'Dispose']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-P1')).toEqual(['Edit transfer', 'View details', 'Print Model 21']);
+    expect(await menuFor(user, 'MOA-P1')).toEqual(['Edit transfer', 'Duplicate as new receipt', 'View details', 'Print Model 21']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-O1')).toEqual(['Edit issue', 'View details', 'Print Model 22']);
+    expect(await menuFor(user, 'MOA-O1')).toEqual(['Edit issue', 'Duplicate as new receipt', 'View details', 'Print Model 22']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-X1')).toEqual(['View details']);
+    expect(await menuFor(user, 'MOA-X1')).toEqual(['Duplicate as new receipt', 'View details']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-Q1')).toEqual(['Edit disposal', 'View details', 'Print disposal voucher']);
+    expect(await menuFor(user, 'MOA-Q1')).toEqual(['Edit disposal', 'Duplicate as new receipt', 'View details', 'Print disposal voucher']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-D1')).toEqual(['View details', 'Print disposal voucher']);
+    expect(await menuFor(user, 'MOA-D1')).toEqual(['Duplicate as new receipt', 'View details', 'Print disposal voucher']);
     await user.keyboard('{Escape}');
     // Endorsed by the Team Leader: the receipt can no longer be edited here
     await menuFor(user, 'MOA-R1');
@@ -263,6 +263,24 @@ describe('Assets page', () => {
       itemId: 'I1', ifmisSlipNumber: 'RET-77', returnReason: 'Work finished', condition: 'GOOD',
     }));
     expect(api.transferItem).not.toHaveBeenCalled();
+  });
+
+  it('starts a new receipt from an existing item, without its number, quantity or serial', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await menuFor(user, 'MOA-S1');
+    await user.click(screen.getByRole('menuitem', { name: 'Duplicate as new receipt' }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    // What the item is comes across
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Desk');
+    expect(within(panel).getByLabelText(/Category/i)).not.toHaveValue('');
+    expect(within(panel).getByLabelText(/Item type/i)).toHaveValue('FIXED');
+    // What differs every time starts empty
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('');
+    expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('');
+    expect(within(panel).getByLabelText(/Serial number/i)).toHaveValue('');
+    expect(within(panel).getByLabelText(/Item code/i)).toHaveValue('');
   });
 
   it('opens the disposal form in the record and submits the request', async () => {

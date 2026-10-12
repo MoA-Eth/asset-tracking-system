@@ -32,26 +32,79 @@ export interface StockInFormProps {
   onSuccess: (result: any, voucher?: Model19Voucher) => void;
   /** When set, the form corrects this registration instead of creating a new one */
   editItem?: ItemWithRelations;
+  /** A new receipt that starts from an earlier item or slip rather than empty */
+  template?: ReceiptTemplate;
 }
 
-export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem }) => {
+/**
+ * What a new receipt can start from instead of empty: an earlier item ("Duplicate as new receipt"),
+ * or the header of the slip just registered ("Add another item on this slip").
+ */
+export interface ReceiptTemplate {
+  ifmisSlipNumber?: string;
+  ifmisSlipDateGc?: string;
+  transactionType?: string;
+  source?: string;
+  buyer?: string;
+  programName?: string;
+  poNumber?: string;
+  deliveredBy?: string;
+  storeLocationId?: string;
+  name?: string;
+  category?: AssetCategory;
+  itemType?: ItemType;
+  uom?: string;
+  condition?: ItemCondition;
+  unitCostETB?: number;
+}
+
+/** What a duplicate keeps from an item: what it is and where it comes from, never its number, serial, quantity or slip */
+export const templateFromItem = (item: ItemWithRelations): ReceiptTemplate => ({
+  transactionType: item.transactionType,
+  source: item.source,
+  buyer: item.buyer,
+  programName: item.programName,
+  storeLocationId: item.storeLocationId,
+  name: item.name,
+  category: item.category,
+  itemType: item.itemType ?? ItemType.FIXED,
+  uom: item.uom,
+  condition: item.condition,
+  unitCostETB: item.unitCostETB,
+});
+
+/** What "another item on this slip" keeps: the slip's header, none of the item */
+export const templateFromVoucher = (voucher: Model19Voucher): ReceiptTemplate => ({
+  ifmisSlipNumber: voucher.invModel19No,
+  ifmisSlipDateGc: voucher.receivedDateGc,
+  transactionType: voucher.transactionType === '—' ? undefined : voucher.transactionType,
+  source: voucher.source === '—' ? undefined : voucher.source,
+  buyer: voucher.buyer === '—' ? undefined : voucher.buyer,
+  programName: voucher.programName || undefined,
+  poNumber: voucher.poNumber === '—' ? undefined : voucher.poNumber,
+  deliveredBy: voucher.deliveredByName || undefined,
+  storeLocationId: voucher.storeLocationId,
+});
+
+export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
   const isEdit = !!editItem;
   // A new receipt starts from the last one this person made: the same store, transaction type and the number to continue from
   const memory = isEdit ? {} : recallForm(user?.id, 'receipt');
-  const rememberedLocation = locations.find((l) => l.id === memory.storeLocationId);
-  const nextNo = nextNumberAfter(memory.model19No);
+  const start = isEdit ? undefined : template;
+  const rememberedLocation = locations.find((l) => l.id === (start?.storeLocationId ?? memory.storeLocationId));
+  const nextNo = start?.ifmisSlipNumber ? undefined : nextNumberAfter(memory.model19No);
 
   // Section 1: Document Voucher Header Metadata
-  const [ifmisSlipNumber, setIfmisSlipNumber] = useState(editItem?.ifmisSlipNumber ?? '');
-  const [poNumber, setPoNumber] = useState(editItem?.poNumber ?? '');
-  const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(editItem?.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
-  const [transactionType, setTransactionType] = useState(editItem?.transactionType || memory.transactionType || '');
-  const [source, setSource] = useState(editItem?.source ?? '');
-  const [buyer, setBuyer] = useState(editItem?.buyer ?? '');
-  const [programName, setProgramName] = useState(editItem?.programName ?? '');
+  const [ifmisSlipNumber, setIfmisSlipNumber] = useState(editItem?.ifmisSlipNumber ?? start?.ifmisSlipNumber ?? '');
+  const [poNumber, setPoNumber] = useState(editItem?.poNumber ?? start?.poNumber ?? '');
+  const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(editItem?.ifmisSlipDateGc || start?.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
+  const [transactionType, setTransactionType] = useState(editItem?.transactionType || start?.transactionType || memory.transactionType || '');
+  const [source, setSource] = useState(editItem?.source ?? start?.source ?? '');
+  const [buyer, setBuyer] = useState(editItem?.buyer ?? start?.buyer ?? '');
+  const [programName, setProgramName] = useState(editItem?.programName ?? start?.programName ?? '');
   const [storeLocationId, setStoreLocationId] = useState(editItem?.storeLocationId ?? rememberedLocation?.id ?? '');
   // The store is picked first; its locations then fill the second list
   const [storeId, setStoreId] = useState(() => locations.find((l) => l.id === editItem?.storeLocationId)?.storeId ?? rememberedLocation?.storeId ?? '');
@@ -65,12 +118,12 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   };
 
   // Section 2: Single-Item Particulars
-  const [name, setName] = useState(editItem?.name ?? '');
-  const [category, setCategory] = useState<AssetCategory | ''>(editItem?.category ?? '');
+  const [name, setName] = useState(editItem?.name ?? start?.name ?? '');
+  const [category, setCategory] = useState<AssetCategory | ''>(editItem?.category ?? start?.category ?? '');
   // Fixed asset or consumable: chosen on every receipt and kept with the item
-  const [itemType, setItemType] = useState<ItemType | ''>(editItem?.itemType ?? (editItem ? ItemType.FIXED : ''));
+  const [itemType, setItemType] = useState<ItemType | ''>(editItem?.itemType ?? (editItem ? ItemType.FIXED : start?.itemType ?? ''));
   const [itemCode, setItemCode] = useState(editItem?.itemCode ?? '');
-  const [uom, setUom] = useState(editItem?.uom || 'EA');
+  const [uom, setUom] = useState(editItem?.uom || start?.uom || 'EA');
   const [subInventory, setSubInventory] = useState(editItem?.subInventory ?? '');
   const [lotBatchNo, setLotBatchNo] = useState(editItem?.lotBatchNo ?? '');
   const [serialNumber, setSerialNumber] = useState(editItem?.serialNumber ?? '');
@@ -78,12 +131,12 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [printedPadTo, setPrintedPadTo] = useState(editItem?.printedPadTo ?? '');
   // A new receipt starts empty (the field shows 0), so the number is always typed on purpose
   const [quantity, setQuantity] = useState<number>(editItem ? Number(editItem.quantity) || 1 : 0);
-  const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? 0);
-  const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? '');
+  const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? start?.unitCostETB ?? 0);
+  const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? start?.condition ?? '');
   const [remark, setRemark] = useState(editItem?.remark ?? '');
 
   // Section 3: Signatures & Document Scan
-  const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? '');
+  const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? start?.deliveredBy ?? '');
   // Left empty: the person who signs for the delivery isn't necessarily the one entering it
   const [receivedBy, setReceivedBy] = useState(editItem?.receivedBy ?? '');
   // Who received the goods: a store man of the receiving store (a correction keeps the name it has until another is chosen)
