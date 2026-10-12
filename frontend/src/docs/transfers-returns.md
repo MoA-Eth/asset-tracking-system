@@ -7,7 +7,7 @@ Both are for assets that are **Issued**. A **transfer** moves an asset from one 
 1. On **Assets**, open the **⋮** menu of an **Issued** asset and choose **Transfer (Model 21)**.
 2. Enter the **Model 21 No.** and the **Register book**. The **Transfer date** is today; change it if the transfer happened on another day (it can't be in the future).
 3. Check the asset. Optionally enter the **accumulated depreciation** and the serial or chassis number.
-4. Choose **To employee** (required). Optionally choose a new **directorate** or **location**; leave them empty to keep the current ones.
+4. Choose **To employee** (required). Optionally choose a new **directorate**; leave it empty to keep the current one.
 5. Enter the **Reason for transfer**. Vehicles and machinery have optional details: plate, engine, accessories, tires and defects.
 6. **Recorded by (store man)** is a store man of the store the asset came from, chosen for you when there is only one. His name is printed on the voucher as **Recorded By**.
 7. Press **Submit transfer for approval**. The Model 21 voucher opens for printing.
@@ -24,6 +24,6 @@ Both are for assets that are **Issued**. A **transfer** moves an asset from one 
 
 - You can **edit** a pending transfer or return until the Team Leader endorses it.
 - A request on an asset blocks a second one: only one open request per record.
-- **Approved transfer:** the new holder, directorate and location apply. **Approved return:** the asset is **In store** and no one holds it. **Rejected:** nothing changes.
+- **Approved transfer:** the new holder and directorate apply. **Approved return:** the asset is **In store** and no one holds it. **Rejected:** nothing changes.
 - A **transfer** has no scan upload.
 - Assets issued to an outside organization cannot be transferred or returned yet.

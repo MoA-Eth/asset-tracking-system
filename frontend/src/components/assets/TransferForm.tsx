@@ -404,23 +404,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                 ))}
               </select>
             </Field>
-
-            <Field label="To location" optional hint="Leave on Select… to keep the current location.">
-              <select value={targetLocationId} onChange={(e) => setTargetLocationId(e.target.value)} className={input()}>
-                <option value="">Select…</option>
-                {[...new Map(locations.map((loc) => [loc.storeId, loc.storeName])).entries()].map(([storeId, storeName]) => (
-                  <optgroup key={storeId} label={storeName}>
-                    {locations
-                      .filter((loc) => loc.storeId === storeId)
-                      .map((loc) => (
-                        <option key={loc.id} value={loc.id}>
-                          {storeName} · {loc.name}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
-            </Field>
           </FieldGrid>
 
           <Field label="Reason for transfer" required>
