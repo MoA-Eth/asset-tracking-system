@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical, Lock, LucideIcon } from 'lucide-react';
+import { MoreHorizontal, Lock, LucideIcon } from 'lucide-react';
 
 export interface RowAction {
   label: string;
@@ -19,7 +19,17 @@ interface RowActionsMenuProps {
   label: string;
 }
 
-const MENU_WIDTH = 224;
+const MENU_WIDTH = 248;
+
+/**
+ * What an action is, from its label, so the menu can order and mark them without every caller saying so:
+ * the steps of the work first, then looking and printing, with a destructive one set apart.
+ */
+const kindOf = (label: string): 'work' | 'look' | 'danger' => {
+  if (/^(View|Print)\b/i.test(label)) return 'look';
+  if (/^(Dispose|Delete|Remove)\b/i.test(label)) return 'danger';
+  return 'work';
+};
 
 /**
  * "⋮" button that opens a row's actions (View, Edit, Print…), so tables don't need a wide Actions column.
@@ -27,6 +37,9 @@ const MENU_WIDTH = 224;
  */
 export const RowActionsMenu: React.FC<RowActionsMenuProps> = ({ actions, label }) => {
   const visible = actions.filter((a) => !a.hidden);
+  const rank = { work: 0, look: 1, danger: 2 } as const;
+  // Stable: actions of the same kind keep the order the page gave them
+  const ordered = [...visible].sort((a, b) => rank[kindOf(a.label)] - rank[kindOf(b.label)]);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; up: boolean }>({ top: 0, left: 0, up: false });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -101,13 +114,13 @@ export const RowActionsMenu: React.FC<RowActionsMenuProps> = ({ actions, label }
         aria-expanded={open}
         aria-label={`Actions for ${label}`}
         title="Actions"
-        className={`inline-flex h-7 w-7 items-center justify-center rounded-lg border transition cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+        className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 ${
           open
-            ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-            : 'border-transparent text-slate-500 hover:border-slate-300 hover:bg-white hover:text-slate-800'
+            ? 'border-emerald-300 bg-emerald-50 text-emerald-800 shadow-inner'
+            : 'border-slate-200 bg-white text-slate-500 shadow-[0_1px_1px_rgba(15,23,42,0.05)] hover:border-emerald-300 hover:bg-emerald-50/70 hover:text-emerald-800'
         }`}
       >
-        <MoreVertical className="h-4 w-4" />
+        <MoreHorizontal className="h-[18px] w-[18px]" strokeWidth={2.25} />
       </button>
       {open &&
         createPortal(
@@ -117,33 +130,56 @@ export const RowActionsMenu: React.FC<RowActionsMenuProps> = ({ actions, label }
             aria-label={`Actions for ${label}`}
             onKeyDown={onMenuKey}
             style={{ top: pos.top, left: pos.left, width: MENU_WIDTH }}
-            className="fixed z-[60] rounded-xl border border-slate-200 bg-white p-1 text-left shadow-[0_10px_30px_-8px_rgba(15,23,42,0.25)]"
+            className="fixed z-[60] overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-[0_16px_40px_-12px_rgba(15,23,42,0.35)] animate-fadeIn"
           >
-            {visible.map((a) => {
-              const Icon = a.disabled ? Lock : a.icon;
-              return (
-                <button
-                  key={a.label}
-                  type="button"
-                  role="menuitem"
-                  disabled={a.disabled}
-                  title={a.reason}
-                  onClick={() => {
-                    close(false);
-                    a.onClick?.();
-                  }}
-                  className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900 focus:outline-none disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent cursor-pointer"
-                >
-                  <Icon className={`mt-px h-3.5 w-3.5 shrink-0 ${a.disabled ? 'text-slate-400' : 'text-emerald-700'}`} />
-                  <span className="min-w-0">
-                    <span className="block whitespace-nowrap">{a.label}</span>
-                    {a.disabled && a.reason && (
-                      <span className="mt-0.5 block whitespace-normal text-[10px] font-normal leading-snug text-slate-500">{a.reason}</span>
-                    )}
-                  </span>
-                </button>
-              );
-            })}
+            <div role="presentation" className="border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              Actions · <span className="font-mono normal-case tracking-normal text-slate-700">{label}</span>
+            </div>
+            <div className="p-1">
+              {ordered.map((a, i) => {
+                const Icon = a.disabled ? Lock : a.icon;
+                const kind = kindOf(a.label);
+                const groupStarts = i > 0 && kindOf(ordered[i - 1].label) !== kind;
+                return (
+                  <React.Fragment key={a.label}>
+                    {groupStarts && <div role="separator" className="my-1 border-t border-slate-100" />}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={a.disabled}
+                      title={a.reason}
+                      onClick={() => {
+                        close(false);
+                        a.onClick?.();
+                      }}
+                      className={`group flex w-full items-start gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13px] font-medium transition focus:outline-none disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent cursor-pointer ${
+                        kind === 'danger'
+                          ? 'text-rose-700 hover:bg-rose-50 focus:bg-rose-50'
+                          : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition ${
+                          a.disabled
+                            ? 'bg-slate-100 text-slate-400'
+                            : kind === 'danger'
+                              ? 'bg-rose-50 text-rose-600 group-hover:bg-rose-100'
+                              : 'bg-slate-100 text-slate-600 group-hover:bg-emerald-100 group-hover:text-emerald-800 group-focus:bg-emerald-100'
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="min-w-0 self-center">
+                        <span className="block whitespace-nowrap leading-snug">{a.label}</span>
+                        {a.disabled && a.reason && (
+                          <span className="mt-0.5 block whitespace-normal text-[10px] font-normal leading-snug text-slate-500">{a.reason}</span>
+                        )}
+                      </span>
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+            </div>
           </div>,
           document.body,
         )}
