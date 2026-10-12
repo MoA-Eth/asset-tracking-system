@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, UserCheck, FileText, Car, Tag } from 'lucide-react';
 import { api } from '../../api/client';
-import { ItemWithRelations, ItemStatus, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
+import { ItemWithRelations, ItemStatus, ItemType, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
 import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, QuantityInput, inputClass, textareaClass } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -81,6 +81,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const keepers = useStoreKeepers();
   const { storeManPolicy } = useSystemSettings();
   const storeManRequired = storeManPolicy === 'REQUIRED';
+  // An asset still in store is handed over by its store man, who is then the transferor
+  const fromStore = selectedItemObj?.status === ItemStatus.AVAILABLE || !!details.fromStore;
   const storeMen = keepers.ofLocation(selectedItemObj?.storeLocationId);
   const [transferredById, setTransferredById] = useState('');
   const transferrerId = transferredById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
@@ -195,12 +197,12 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       const voucher: Model21Voucher = {
         approvalState: 'PENDING',
         model21No: model21No.trim(),
-        fromEmployeeName: fromCustodian?.fullNameEn || '—',
-        fromEmployeeId: fromCustodian?.payrollId || '—',
+        fromEmployeeName: fromStore ? transferrerName || '—' : fromCustodian?.fullNameEn || '—',
+        fromEmployeeId: fromStore ? storeMen.find((k) => k.employeeId === transferrerId)?.payrollId || '—' : fromCustodian?.payrollId || '—',
         book: book.trim() || '—',
         toEmployeeName: targetEmp?.fullNameEn || '—',
         toEmployeeId: targetEmp?.payrollId || '—',
-        storeManName: transferrerName,
+        storeManName: fromStore ? undefined : transferrerName,
         items: [
           {
             sNo: 1,
@@ -295,7 +297,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               </ReadOnlyValue>
             </Field>
           ) : (
-            <Field label="Issued asset" required htmlFor="transfer-item" hint="Only assets currently issued to a custodian are listed. Type a name, code or custodian to find one.">
+            <Field label="Asset" required htmlFor="transfer-item" hint="Fixed assets in store and assets issued to a custodian are listed. Consumables are issued, not transferred. Type a name, code or custodian to find one.">
               <SearchableSelect
                 id="transfer-item"
                 value={selectedItemId}
@@ -306,13 +308,27 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                   {
                     label: 'Issued assets',
                     options: items
-                      .filter((i) => i.status === ItemStatus.ISSUED && !i.heldByOrganization)
+                      .filter((i) => i.status === ItemStatus.ISSUED && !i.heldByOrganization && i.itemType !== ItemType.CONSUMABLE)
                       .map((item) => {
                         const pending = pendingByItem.get(item.id);
                         return {
                           value: item.id,
                           label: `${item.itemCode} — ${item.name}`,
                           note: `${item.quantity || 1} ${item.uom || 'EA'} · ${item.currentCustodian?.fullNameEn || 'assigned'}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
+                          disabled: !!pending,
+                        };
+                      }),
+                  },
+                  {
+                    label: 'In store (fixed assets)',
+                    options: items
+                      .filter((i) => i.status === ItemStatus.AVAILABLE && i.itemType !== ItemType.CONSUMABLE)
+                      .map((item) => {
+                        const pending = pendingByItem.get(item.id);
+                        return {
+                          value: item.id,
+                          label: `${item.itemCode} — ${item.name}`,
+                          note: `${item.quantity || 1} ${item.uom || 'EA'} · in ${storeLocationLabel(item.storeLocation)}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
                           disabled: !!pending,
                         };
                       }),
@@ -360,11 +376,13 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       <FormSection step={3} title="Transfer to" subtitle="ተረካቢ" icon={UserCheck} accent="emerald">
         <div className="space-y-3.5">
           <FieldGrid cols={2}>
-            <Field label="From (current custodian)">
+            <Field label={fromStore ? 'From (store)' : 'From (current custodian)'}>
               <ReadOnlyValue>
-                {selectedItemObj?.currentCustodian
-                  ? `${selectedItemObj.currentCustodian.fullNameEn} (${selectedItemObj.currentCustodian.payrollId})`
-                  : 'Select an asset first'}
+                {fromStore
+                  ? `${storeLocationLabel(selectedItemObj?.storeLocation)} (in store)`
+                  : selectedItemObj?.currentCustodian
+                    ? `${selectedItemObj.currentCustodian.fullNameEn} (${selectedItemObj.currentCustodian.payrollId})`
+                    : 'Select an asset first'}
               </ReadOnlyValue>
             </Field>
 
@@ -404,7 +422,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
           <StoreManField
             id="transfer-store-man"
-            label="Recorded by (store man)"
+            label={fromStore ? 'Transferred by (store man)' : 'Recorded by (store man)'}
             keepers={storeMen}
             ready={keepers.ready}
             storeName={keepers.storeName(selectedItemObj?.storeLocation?.storeId)}
@@ -507,6 +525,8 @@ export const buildModel21Voucher = async (
   } catch {
     fromName = item?.currentCustodian?.fullNameEn || '—';
   }
+  // Handed over from the store: its store man is the transferor
+  if (d.fromStore && d.transferredByName) fromName = d.transferredByName;
   const fromEmp = employees.find((e) => e.fullNameEn === fromName);
   const toEmp =
     r.transactionType === 'TRANSFER'
@@ -527,7 +547,7 @@ export const buildModel21Voucher = async (
     book: d.book || '—',
     toEmployeeName: toEmp?.fullNameEn || (r.transactionType === 'RETURN' ? d.storeRecipientName || storeName : '—'),
     toEmployeeId: toEmp?.payrollId || '—',
-    storeManName: r.transactionType === 'TRANSFER' ? d.transferredByName : undefined,
+    storeManName: r.transactionType === 'TRANSFER' && !d.fromStore ? d.transferredByName : undefined,
     items: [
       {
         sNo: 1,

@@ -725,6 +725,8 @@ export interface Model21RequestDetails {
   /** Disposal: the store man named as storekeeper on the form */
   storekeeperEmployeeId?: string;
   storekeeperName?: string;
+  /** Transfer of an item that was still in store: the store man is the transferor on the voucher */
+  fromStore?: boolean;
   /** Transfer: the store man named on the voucher */
   transferredByEmployeeId?: string;
   transferredByName?: string;

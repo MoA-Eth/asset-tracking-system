@@ -67,7 +67,7 @@ All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 - It is read-only and personal: the server returns only what the signed-in person holds, with no costs, notes or other people's names, and the role is refused by every staff-wide endpoint.
 
 ### 3.3 Transfer and Return – Model 21
-- **Transfer:** reassigns an issued asset to another employee, directorate or location. Custody changes only after approval.
+- **Transfer:** reassigns a fixed asset to another employee or directorate. It can be issued to someone, or still in store: then its store man is the transferor and the asset becomes issued to the employee on approval. A consumable item is never transferred. Custody changes only after approval.
 - **Return to store:** brings an issued asset back to a store location, with its condition and any defects noted.
 - Vehicle particulars (plate, engine, tires, accessories) can be recorded on the Model 21.
 

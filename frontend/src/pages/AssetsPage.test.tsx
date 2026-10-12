@@ -180,14 +180,14 @@ describe('Assets page', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
 
-    expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'Dispose', 'View details', 'Print Model 19']);
+    expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Dispose', 'View details', 'Print Model 19']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'View details', 'Print Model 21 (transfer)']);
     await user.keyboard('{Escape}');
     await user.click(within(rowOf('MOA-S1')).getByRole('button', { name: 'Show 1 issued record' }));
     expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'View details', 'Print Model 22 (issue)']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Dispose', 'View details', 'Print Model 19', 'Print Model 21 (return)']);
+    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Dispose', 'View details', 'Print Model 19', 'Print Model 21 (return)']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-P1')).toEqual(['Edit transfer', 'View details', 'Print Model 21']);
     await user.keyboard('{Escape}');
@@ -293,7 +293,7 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-S2');
-    expect(toolbarOf(record)).toEqual(['Issue (Model 22)', 'Dispose', 'Print Model 19']);
+    expect(toolbarOf(record)).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Dispose', 'Print Model 19']);
     // The record has the whole page: no list squeezed in beside it
     expect(screen.queryByRole('complementary', { name: 'Asset list' })).not.toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
