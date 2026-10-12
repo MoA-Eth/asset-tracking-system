@@ -393,6 +393,8 @@ export interface AuditLogEntry {
 }
 
 export interface CreateStockInRequest {
+  /** The store man of the receiving store who receives the goods (the store's only one, when there is one) */
+  receivedByEmployeeId?: string;
   name: string;
   category: AssetCategory;
   serialNumber: string;
@@ -447,6 +449,7 @@ export interface CreateStockInRequest {
 
 /** Corrections to a Stock-In registration while it still waits for Stage 1 endorsement. */
 export interface UpdateStockInRequest {
+  receivedByEmployeeId?: string;
   name: string;
   category: AssetCategory;
   serialNumber?: string;
@@ -477,6 +480,8 @@ export interface UpdateStockInRequest {
 
 export interface CreateStockOutRequest {
   itemId: string;
+  /** The store man of the item's store who issues it (the store's only one, when there is one) */
+  issuedByEmployeeId?: string;
   /** INTERNAL (default): an employee receives it. EXTERNAL: an outside organization, typed as text. */
   recipientType?: 'INTERNAL' | 'EXTERNAL';
   recipientEmployeeId?: string;
@@ -507,6 +512,7 @@ export interface CreateStockOutRequest {
 
 /** Corrections to a Stock-Out request while it still waits for Stage 1 endorsement. The item itself can't change. */
 export interface UpdateStockOutRequest {
+  issuedByEmployeeId?: string;
   recipientType?: 'INTERNAL' | 'EXTERNAL';
   recipientEmployeeId?: string;
   targetDepartmentId?: string;
@@ -524,6 +530,8 @@ export interface UpdateStockOutRequest {
 
 /** A request to dispose of units in store (damaged, gifted, obsolete, sold…) */
 export interface CreateDisposalRequest {
+  /** The store man of the item's store named as storekeeper on the disposal form */
+  storekeeperEmployeeId?: string;
   itemId: string;
   /** Units to dispose of; omit for all units in store */
   quantity?: number;
@@ -599,6 +607,14 @@ export interface CreateTransferRequest {
 
 /** Model 21 particulars of a transfer or return request, or the quantity of a Stock-Out */
 export interface Model21RequestDetails {
+  /** Stock-Out: the store man who issued the items, as named on the voucher */
+  issuedByEmployeeId?: string;
+  issuedByName?: string;
+  /** Disposal: the store man named as storekeeper on the disposal form */
+  storekeeperEmployeeId?: string;
+  storekeeperName?: string;
+  /** Return: the name of the store man who takes the item back */
+  storeRecipientName?: string;
   /** Stock-Out: INTERNAL (an employee) or EXTERNAL (an outside organization) */
   recipientType?: 'INTERNAL' | 'EXTERNAL';
   /** Stock-Out to an outside organization: its name, and the person who signs for it */

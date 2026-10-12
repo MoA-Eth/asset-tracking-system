@@ -15,6 +15,16 @@ const db = vi.hoisted(() => ({
 
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
+// Stores have a store man in these tests; the rules about stores without one are in store-keepers.test.ts
+vi.mock('./reference.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./reference.service')>()),
+  requireStoreKeeper: vi.fn(async (_db: unknown, _where: unknown, chosen?: string | null) => ({
+    employeeId: chosen || 'EMP-STOREMAN',
+    fullNameEn: 'Store Man',
+    storeName: 'Kality',
+  })),
+}));
+
 import { StoreService } from './store.service';
 
 const meta = (quantity: number) => JSON.stringify({ quantity, uom: 'PKT' });
@@ -123,7 +133,7 @@ describe('partial Stock-Out', () => {
     db.transactionApproval.create.mockImplementation(async ({ data }: any) => ({ id: 'so-1', ...data }));
 
     await store().registerStockOut({ ...request, quantity: 4 });
-    expect(db.transactionApproval.create.mock.calls[0][0].data.requestDetails).toEqual({ quantity: 4, uom: 'PKT' });
+    expect(db.transactionApproval.create.mock.calls[0][0].data.requestDetails).toEqual({ quantity: 4, uom: 'PKT', issuedByEmployeeId: 'EMP-STOREMAN', issuedByName: 'Store Man' });
 
     await expect(store().registerStockOut({ ...request, quantity: 11 })).rejects.toMatchObject({ statusCode: 400 });
   });
@@ -133,7 +143,7 @@ describe('partial Stock-Out', () => {
     db.transactionApproval.findFirst.mockResolvedValue(null);
     db.transactionApproval.create.mockImplementation(async ({ data }: any) => ({ id: 'so-1', ...data }));
     await store().registerStockOut(request);
-    expect(db.transactionApproval.create.mock.calls[0][0].data.requestDetails).toEqual({ quantity: 10, uom: 'PKT' });
+    expect(db.transactionApproval.create.mock.calls[0][0].data.requestDetails).toEqual({ quantity: 10, uom: 'PKT', issuedByEmployeeId: 'EMP-STOREMAN', issuedByName: 'Store Man' });
   });
 
   const approvalAt = (quantity: number) => ({

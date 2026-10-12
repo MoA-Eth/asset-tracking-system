@@ -14,6 +14,16 @@ const db = vi.hoisted(() => ({
 
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
+// Stores have a store man in these tests; the rules about stores without one are in store-keepers.test.ts
+vi.mock('./reference.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./reference.service')>()),
+  requireStoreKeeper: vi.fn(async (_db: unknown, _where: unknown, chosen?: string | null) => ({
+    employeeId: chosen || 'EMP-STOREMAN',
+    fullNameEn: 'Store Man',
+    storeName: 'Kality',
+  })),
+}));
+
 import { StoreService } from './store.service';
 import { applySystemSettings } from './settings.service';
 
@@ -56,12 +66,13 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(result.approval).toBeDefined();
   });
 
-  it('leaves Received by empty rather than naming the encoder who entered the receipt', async () => {
+  it('names a store man of the receiving store as who received the goods, not whoever typed the receipt, and not a typed name', async () => {
     await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any);
-    expect(JSON.parse(db.item.create.mock.calls[0][0].data.notes).receivedBy).toBeUndefined();
+    expect(JSON.parse(db.item.create.mock.calls[0][0].data.notes).receivedBy).toBe('Store Man');
 
+    // A name typed into the request is replaced by the store man's
     await StoreService.getInstance().registerStockIn({ ...basePayload, serialNumber: 'LAP-002', isHistoricalData: true, receivedBy: ' Almaz Ayana ' } as any);
-    expect(JSON.parse(db.item.create.mock.calls[1][0].data.notes).receivedBy).toBe('Almaz Ayana');
+    expect(JSON.parse(db.item.create.mock.calls[1][0].data.notes).receivedBy).toBe('Store Man');
   });
 
   it('refuses a unit of measure sent blank, and keeps EA only when none is sent', async () => {

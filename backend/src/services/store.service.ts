@@ -33,7 +33,7 @@ import { BadRequestError, ConflictError, NotFoundError, ForbiddenError } from '.
 
 import { assignEmployeeRole } from './roles.service';
 import { hasPermission, ROLE_POLICY } from '../security/role-policy';
-import { assertUsableLocation, locationView } from './reference.service';
+import { assertUsableLocation, locationView, requireStoreKeeper } from './reference.service';
 import { isSlipRequired, SLIP_REQUIRED_MESSAGE } from './settings.service';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -741,6 +741,9 @@ export class StoreService {
       : null;
     if (!receivingStore) throw new BadRequestError('The selected receiving store no longer exists.');
     assertUsableLocation(receivingStore, 'the receiving store');
+    // A store with no store man can't receive: his name goes on the voucher
+    const receiver = await requireStoreKeeper(prisma, { storeId: receivingStore.storeId }, payload.receivedByEmployeeId, 'receiving the goods');
+    payload.receivedBy = receiver.fullNameEn;
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
@@ -905,6 +908,12 @@ export class StoreService {
       assertUsableLocation(receivingStore, 'the receiving store');
     }
 
+    // A new choice of who receives the goods has to be a store man of the (new) receiving store
+    if (payload.receivedByEmployeeId) {
+      const receiver = await requireStoreKeeper(prisma, { locationId: payload.storeLocationId }, payload.receivedByEmployeeId, 'receiving the goods');
+      payload.receivedBy = receiver.fullNameEn;
+    }
+
     const attachmentUrl = payload.ifmisSlipAttachmentUrl || item.ifmisSlipAttachmentUrl;
     if (isSlipRequired() && !attachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
 
@@ -931,7 +940,7 @@ export class StoreService {
       quantity,
       totalAmount: unitCost * quantity,
       deliveredBy: payload.deliveredBy?.trim() || undefined,
-      receivedBy: payload.receivedBy?.trim() || undefined,
+      receivedBy: payload.receivedBy?.trim() || previousMeta.receivedBy || undefined,
       remark,
       userNotes: remark,
     };
@@ -1068,6 +1077,7 @@ export class StoreService {
       if (!payload.recipientEmployeeId) throw new BadRequestError('Recipient staff member is required.');
       if (!payload.targetDepartmentId) throw new BadRequestError('Destination directorate is required.');
     }
+    const previousIssuer = (approval.requestDetails ?? {}) as Record<string, any>;
 
     const [recipient, department] = external
       ? [null, null]
@@ -1083,6 +1093,10 @@ export class StoreService {
 
     const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
+    // Who issues it: a new choice must be a store man of the item's store; otherwise the request keeps its own
+    const issuer = payload.issuedByEmployeeId
+      ? await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.issuedByEmployeeId, 'issuing the items')
+      : null;
     const inStore = quantityOf(item);
     const uom = uomOf(item);
     const previousDetails = (approval.requestDetails ?? {}) as Record<string, any>;
@@ -1155,9 +1169,12 @@ export class StoreService {
           purposeOrRemarks: after.purposeOrRemarks,
           // Switching between an employee and an organization replaces the other side's details
           requestDetails: {
-            ...Object.fromEntries(Object.entries(previousDetails).filter(([k]) => !['recipientType', 'organizationName', 'contactPerson'].includes(k))),
+            ...Object.fromEntries(Object.entries(previousDetails).filter(([k]) => !['recipientType', 'organizationName', 'contactPerson', 'issuedByEmployeeId', 'issuedByName'].includes(k))),
             quantity,
             uom,
+            ...(issuer
+              ? { issuedByEmployeeId: issuer.employeeId, issuedByName: issuer.fullNameEn }
+              : previousIssuer.issuedByEmployeeId ? { issuedByEmployeeId: previousIssuer.issuedByEmployeeId, issuedByName: previousIssuer.issuedByName } : {}),
             ...(external ? { recipientType: 'EXTERNAL', ...external } : {}),
           } as any,
         },
@@ -1244,6 +1261,8 @@ export class StoreService {
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
       throw new BadRequestError(`Quantity must be a whole number from 1 to ${inStore} (${uom} in store).`);
     }
+    // A store with no store man can't issue: his name goes on the voucher
+    const issuer = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.issuedByEmployeeId, 'issuing the items');
 
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
@@ -1294,7 +1313,13 @@ export class StoreService {
         recipientEmployeeId: external ? undefined : payload.recipientEmployeeId,
         targetDepartmentId: external ? undefined : payload.targetDepartmentId,
         purposeOrRemarks: notesText,
-        requestDetails: { quantity, uom, ...(external ? { recipientType: 'EXTERNAL', ...external } : {}) } as any,
+        requestDetails: {
+          quantity,
+          uom,
+          issuedByEmployeeId: issuer.employeeId,
+          issuedByName: issuer.fullNameEn,
+          ...(external ? { recipientType: 'EXTERNAL', ...external } : {}),
+        } as any,
         status: 'PENDING' as any,
         createdAtGc: today.gc,
         createdAtEc: today.ec,
@@ -1328,6 +1353,10 @@ export class StoreService {
     await assertNoPendingApproval(item);
     const { disposalNo, details } = disposalDetailsOf(payload, item);
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
+    // A store with no store man can't dispose: his name goes on the disposal form
+    const keeper = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.storekeeperEmployeeId, 'the disposal');
+    details.storekeeperEmployeeId = keeper.employeeId;
+    details.storekeeperName = keeper.fullNameEn;
 
     const today = getTodayGcAndEc();
     const dateGc = payload.disposalDateGc || today.gc;
@@ -1405,6 +1434,14 @@ export class StoreService {
     if (isSlipRequired() && !attachment) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     const dateGc = payload.disposalDateGc || approval.ifmisSlipDateGc;
     const previous = (approval.requestDetails ?? {}) as Model21RequestDetails;
+    if (payload.storekeeperEmployeeId) {
+      const keeper = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.storekeeperEmployeeId, 'the disposal');
+      details.storekeeperEmployeeId = keeper.employeeId;
+      details.storekeeperName = keeper.fullNameEn;
+    } else if (previous.storekeeperEmployeeId) {
+      details.storekeeperEmployeeId = previous.storekeeperEmployeeId;
+      details.storekeeperName = previous.storekeeperName;
+    }
 
     const snapshot = (no: string, date: string, file: string | null | undefined, d: Model21RequestDetails) => ({
       'reference no.': no,
@@ -1418,6 +1455,7 @@ export class StoreService {
       recipient: d.recipientName,
       proceeds: d.proceedsETB,
       'committee ref': d.committeeRef,
+      storekeeper: d.storekeeperName,
     });
     const before = snapshot(approval.ifmisSlipNumber, approval.ifmisSlipDateGc, approval.ifmisSlipAttachmentUrl, previous);
     const after = snapshot(disposalNo, dateGc, attachment, details);
@@ -1524,11 +1562,14 @@ export class StoreService {
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
-    if (payload.storeRecipientId) {
-      const storeRecipient = await prisma.employee.findUnique({ where: { id: payload.storeRecipientId } });
-      if (!storeRecipient) throw new BadRequestError('The selected store receiver no longer exists.');
-      assertActiveEmployee(storeRecipient, 'the store receiver');
-    }
+    // The store it goes back to (the one chosen, else the item's own) must have a store man to take it
+    const receiver = await requireStoreKeeper(
+      prisma,
+      { locationId: payload.targetStoreLocationId || item.storeLocationId },
+      payload.storeRecipientId,
+      'receiving the returned item',
+    );
+    payload.storeRecipientId = receiver.employeeId;
 
     const returnDetails: Model21RequestDetails = {
       reason: payload.returnReason,
@@ -1544,6 +1585,7 @@ export class StoreService {
       depreciation: payload.depreciation,
       bookValue: payload.bookValue,
       storeRecipientId: payload.storeRecipientId,
+      storeRecipientName: receiver.fullNameEn,
     };
     const model21Details = formatReturnNotes(payload.model21No ? effectiveSlipNo : '', returnDetails);
 
@@ -1796,6 +1838,10 @@ export class StoreService {
       : null;
     if (payload.storeRecipientId && !storeRecipient) throw new BadRequestError('The selected store receiver no longer exists.');
     assertActiveEmployee(storeRecipient, 'the store receiver');
+    if (payload.storeRecipientId) {
+      const returning = await prisma.item.findUnique({ where: { id: approval.itemId }, select: { storeLocationId: true } });
+      await requireStoreKeeper(prisma, { locationId: returning?.storeLocationId }, payload.storeRecipientId, 'receiving the returned item');
+    }
 
     const previous = requestDetailsOf(approval) ?? {};
     const details: Model21RequestDetails = {
@@ -1812,6 +1858,7 @@ export class StoreService {
       depreciation: payload.depreciation ?? previous.depreciation,
       bookValue: payload.bookValue ?? previous.bookValue,
       storeRecipientId: storeRecipient?.id,
+      storeRecipientName: storeRecipient?.fullNameEn,
     };
     const slipDateGc = payload.ifmisSlipDateGc || approval.ifmisSlipDateGc;
     const attachmentUrl = payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl;

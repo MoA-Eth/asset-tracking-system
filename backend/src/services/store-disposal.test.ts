@@ -12,6 +12,16 @@ const db = vi.hoisted(() => ({
 
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
+// Stores have a store man in these tests; the rules about stores without one are in store-keepers.test.ts
+vi.mock('./reference.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./reference.service')>()),
+  requireStoreKeeper: vi.fn(async (_db: unknown, _where: unknown, chosen?: string | null) => ({
+    employeeId: chosen || 'EMP-STOREMAN',
+    fullNameEn: 'Store Man',
+    storeName: 'Kality',
+  })),
+}));
+
 import { StoreService } from './store.service';
 import { applySystemSettings, SLIP_REQUIRED_MESSAGE } from './settings.service';
 
@@ -89,6 +99,7 @@ describe('requesting a disposal', () => {
     // Book value defaults to unit price × units; details left blank aren't stored
     expect(created.requestDetails).toEqual({
       quantity: 3, uom: 'EA', reason: 'Damaged beyond repair', description: 'Broken frames after the office flood', condition: 'DAMAGED', bookValue: 4500,
+      storekeeperEmployeeId: 'EMP-STOREMAN', storekeeperName: 'Store Man',
     });
     const update = db.item.update.mock.calls[0][0].data;
     expect(update.status).toBe('PENDING_DISPOSAL');

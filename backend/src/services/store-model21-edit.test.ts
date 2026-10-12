@@ -17,6 +17,16 @@ const db = vi.hoisted(() => {
 
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
+// Stores have a store man in these tests; the rules about stores without one are in store-keepers.test.ts
+vi.mock('./reference.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./reference.service')>()),
+  requireStoreKeeper: vi.fn(async (_db: unknown, _where: unknown, chosen?: string | null) => ({
+    employeeId: chosen || 'EMP-STOREMAN',
+    fullNameEn: 'Store Man',
+    storeName: 'Kality',
+  })),
+}));
+
 import { StoreService } from './store.service';
 
 const employees: Record<string, any> = {

@@ -73,8 +73,19 @@ export async function listDepartments(): Promise<Department[]> {
 // ─── Stores and their locations ──────────────────────────────────────────────
 
 /** A store with its locations; `itemCount`s are only sent to people who manage reference data */
+/** An employee who keeps a store */
+export interface StoreKeeperRecord {
+  employeeId: string;
+  fullNameEn: string;
+  fullNameAm: string;
+  payrollId: string;
+  isActive: boolean;
+}
+
 export interface StoreRecord extends Store {
   locations: LocationRecord[];
+  /** The store men: named on this store's vouchers and offered in its forms */
+  storeKeepers: StoreKeeperRecord[];
   /** Item records in store across all of its locations */
   itemCount?: number;
 }
@@ -96,7 +107,8 @@ export interface LocationInput {
 }
 
 const LOCATION_COUNTS = { _count: { select: { items: { where: { status: { in: IN_STORE as any } } } } } };
-const STORE_INCLUDE = { locations: { include: LOCATION_COUNTS, orderBy: { name: 'asc' as const } } };
+const KEEPERS = { include: { employee: true }, orderBy: { createdAt: 'asc' as const } };
+const STORE_INCLUDE = { locations: { include: LOCATION_COUNTS, orderBy: { name: 'asc' as const } }, storeKeepers: KEEPERS };
 
 /**
  * A location as the rest of the system sees it. `siteName`, `building` and `roomNumber` are kept so the
@@ -133,7 +145,14 @@ function toStore(s: any, withCounts: boolean): StoreRecord {
     if (withCounts && l._count) record.itemCount = l._count.items;
     return record;
   });
-  const record: StoreRecord = { id: s.id, name: s.name, address: s.address ?? '', isActive: s.isActive !== false, locations };
+  const storeKeepers: StoreKeeperRecord[] = (s.storeKeepers ?? []).map((k: any) => ({
+    employeeId: k.employeeId,
+    fullNameEn: k.employee?.fullNameEn ?? '',
+    fullNameAm: k.employee?.fullNameAm ?? '',
+    payrollId: k.employee?.payrollId ?? '',
+    isActive: k.employee?.isActive !== false,
+  }));
+  const record: StoreRecord = { id: s.id, name: s.name, address: s.address ?? '', isActive: s.isActive !== false, locations, storeKeepers };
   if (withCounts) record.itemCount = locations.reduce((sum, l) => sum + (l.itemCount ?? 0), 0);
   return record;
 }
@@ -153,6 +172,7 @@ export async function listStores(viewerRole: unknown, opts: { includeInactive?: 
         ...(canManage ? { include: LOCATION_COUNTS } : {}),
         orderBy: { name: 'asc' },
       },
+      storeKeepers: KEEPERS,
     },
     orderBy: { name: 'asc' },
   });
@@ -216,6 +236,90 @@ export async function createStore(input: StoreInput, actorId: string): Promise<S
     await audit(tx, actor, 'CREATE_STORE', created.id, `Added store ${created.name} with location ${locationName}.`, undefined, storeAudit(created));
     return toStore(created, true);
   });
+}
+
+/**
+ * Who keeps a store. Replaces the whole list. The names are offered in the store's forms and printed on its vouchers,
+ * so only active employees can be named, and the list can be empty (the forms then refuse until someone is assigned).
+ */
+export async function setStoreKeepers(id: string, employeeIds: unknown, actorId: string): Promise<StoreRecord> {
+  if (!Array.isArray(employeeIds) || employeeIds.some((e) => typeof e !== 'string')) {
+    throw new BadRequestError('Send the list of employees who keep this store.');
+  }
+  const wanted = [...new Set(employeeIds as string[])];
+  if (wanted.length > 20) throw new BadRequestError('A store can have at most 20 store men.');
+  return change('', async (tx) => {
+    const actor = await loadActor(tx, actorId);
+    const store = await tx.store.findUnique({ where: { id }, include: { storeKeepers: KEEPERS } });
+    if (!store) throw new NotFoundError('Store not found.');
+
+    const employees = wanted.length > 0 ? await tx.employee.findMany({ where: { id: { in: wanted } } }) : [];
+    const byId = new Map(employees.map((e: any) => [e.id, e]));
+    const before = new Set<string>(store.storeKeepers.map((k: any) => k.employeeId));
+    for (const employeeId of wanted) {
+      const employee: any = byId.get(employeeId);
+      if (!employee) throw new BadRequestError('One of the selected employees no longer exists.');
+      // Someone already on the list may stay; only new additions must be active
+      if (employee.isActive === false && !before.has(employeeId)) {
+        throw new BadRequestError(`${employee.fullNameEn} is deactivated and can't be made a store man.`);
+      }
+    }
+
+    const removed = [...before].filter((e) => !wanted.includes(e));
+    const added = wanted.filter((e) => !before.has(e));
+    if (removed.length > 0) await tx.storeKeeper.deleteMany({ where: { storeId: id, employeeId: { in: removed } } });
+    for (const employeeId of added) await tx.storeKeeper.create({ data: { storeId: id, employeeId } });
+
+    const updated = await tx.store.findUnique({ where: { id }, include: STORE_INCLUDE });
+    if (added.length > 0 || removed.length > 0) {
+      const name = (employeeId: string) => (byId.get(employeeId) as any)?.fullNameEn
+        ?? store.storeKeepers.find((k: any) => k.employeeId === employeeId)?.employee?.fullNameEn
+        ?? employeeId;
+      const parts = [
+        added.length > 0 ? `added ${added.map(name).join(', ')}` : '',
+        removed.length > 0 ? `removed ${removed.map(name).join(', ')}` : '',
+      ].filter(Boolean);
+      await audit(tx, actor, 'UPDATE_STORE_KEEPERS', id, `Store men of ${store.name}: ${parts.join('; ')}.`, { storeKeepers: [...before] }, { storeKeepers: wanted });
+    }
+    return toStore(updated, true);
+  });
+}
+
+/**
+ * The store man a request names. A store with nobody assigned refuses the request, so every voucher can name him.
+ * With one store man he is the default; with several, the request has to say which one.
+ * `locationId` is where the stock is, or goes; its store decides who the store men are.
+ */
+export async function requireStoreKeeper(
+  db: any,
+  where: { locationId?: string | null; storeId?: string | null },
+  chosenEmployeeId: string | null | undefined,
+  role: string,
+): Promise<{ employeeId: string; fullNameEn: string; storeName: string }> {
+  let storeId = where.storeId ?? null;
+  if (!storeId && where.locationId) {
+    const location = await db.location.findUnique({ where: { id: where.locationId }, select: { storeId: true } });
+    storeId = location?.storeId ?? null;
+  }
+  const store = storeId ? await db.store.findUnique({ where: { id: storeId } }) : null;
+  if (!store) throw new BadRequestError('The store for this request could not be found.');
+
+  const rows = await db.storeKeeper.findMany({ where: { storeId: store.id }, include: { employee: true }, orderBy: { createdAt: 'asc' } });
+  const active = rows.filter((k: any) => k.employee?.isActive !== false);
+  if (active.length === 0) {
+    throw new BadRequestError(`${store.name} has no store man assigned. Ask the System Administrator to assign one in Settings → Stores.`);
+  }
+  const chosen = chosenEmployeeId
+    ? active.find((k: any) => k.employeeId === chosenEmployeeId)
+    : active.length === 1 ? active[0] : undefined;
+  if (!chosen) {
+    throw new BadRequestError(
+      chosenEmployeeId
+        ? `The person chosen as ${role} is not a store man of ${store.name}.`
+        : `Choose the store man for ${role} at ${store.name}.`,
+    );
+  }
+  return { employeeId: chosen.employeeId, fullNameEn: chosen.employee.fullNameEn, storeName: store.name };
 }
 
 export async function updateStore(id: string, input: StoreInput, actorId: string): Promise<StoreRecord> {

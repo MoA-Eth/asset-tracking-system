@@ -5,7 +5,7 @@ import { sendSuccess } from '../utils/api-response';
 import { listEmployees, createEmployee, updateEmployee, setEmployeeActive, importEmployees } from '../services/employees.service';
 import {
   listDepartments,
-  listStores, createStore, updateStore, setStoreActive, deleteStore,
+  listStores, createStore, updateStore, setStoreActive, setStoreKeepers, deleteStore,
   listLocations, createLocation, updateLocation, setLocationActive, deleteLocation,
 } from '../services/reference.service';
 import { grantAccess, removeAccess, resetPassword } from '../services/access.service';
@@ -43,6 +43,12 @@ export class ReferenceController {
   public updateStore = asyncHandler(async (req: Request, res: Response) => {
     const updated = await updateStore(idParam(req), req.body ?? {}, req.user!.id);
     return sendSuccess(res, updated, `${updated.name} updated`);
+  });
+
+  /** PUT /api/reference/stores/:id/store-men  { employeeIds: string[] } — who keeps the store */
+  public setStoreKeepers = asyncHandler(async (req: Request, res: Response) => {
+    const updated = await setStoreKeepers(idParam(req), req.body?.employeeIds, req.user!.id);
+    return sendSuccess(res, updated, `Store men of ${updated.name} updated`);
   });
 
   /** PATCH /api/reference/stores/:id/status  { active: boolean } */
