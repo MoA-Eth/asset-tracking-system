@@ -743,7 +743,7 @@ export class StoreService {
     assertUsableLocation(receivingStore, 'the receiving store');
     // A store with no store man can't receive: his name goes on the voucher
     const receiver = await requireStoreKeeper(prisma, { storeId: receivingStore.storeId }, payload.receivedByEmployeeId, 'receiving the goods');
-    payload.receivedBy = receiver.fullNameEn;
+    if (receiver) payload.receivedBy = receiver.fullNameEn;
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
@@ -911,7 +911,7 @@ export class StoreService {
     // A new choice of who receives the goods has to be a store man of the (new) receiving store
     if (payload.receivedByEmployeeId) {
       const receiver = await requireStoreKeeper(prisma, { locationId: payload.storeLocationId }, payload.receivedByEmployeeId, 'receiving the goods');
-      payload.receivedBy = receiver.fullNameEn;
+      if (receiver) payload.receivedBy = receiver.fullNameEn;
     }
 
     const attachmentUrl = payload.ifmisSlipAttachmentUrl || item.ifmisSlipAttachmentUrl;
@@ -1316,8 +1316,7 @@ export class StoreService {
         requestDetails: {
           quantity,
           uom,
-          issuedByEmployeeId: issuer.employeeId,
-          issuedByName: issuer.fullNameEn,
+          ...(issuer ? { issuedByEmployeeId: issuer.employeeId, issuedByName: issuer.fullNameEn } : {}),
           ...(external ? { recipientType: 'EXTERNAL', ...external } : {}),
         } as any,
         status: 'PENDING' as any,
@@ -1355,8 +1354,10 @@ export class StoreService {
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     // A store with no store man can't dispose: his name goes on the disposal form
     const keeper = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.storekeeperEmployeeId, 'the disposal');
-    details.storekeeperEmployeeId = keeper.employeeId;
-    details.storekeeperName = keeper.fullNameEn;
+    if (keeper) {
+      details.storekeeperEmployeeId = keeper.employeeId;
+      details.storekeeperName = keeper.fullNameEn;
+    }
 
     const today = getTodayGcAndEc();
     const dateGc = payload.disposalDateGc || today.gc;
@@ -1436,8 +1437,10 @@ export class StoreService {
     const previous = (approval.requestDetails ?? {}) as Model21RequestDetails;
     if (payload.storekeeperEmployeeId) {
       const keeper = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.storekeeperEmployeeId, 'the disposal');
-      details.storekeeperEmployeeId = keeper.employeeId;
-      details.storekeeperName = keeper.fullNameEn;
+      if (keeper) {
+        details.storekeeperEmployeeId = keeper.employeeId;
+        details.storekeeperName = keeper.fullNameEn;
+      }
     } else if (previous.storekeeperEmployeeId) {
       details.storekeeperEmployeeId = previous.storekeeperEmployeeId;
       details.storekeeperName = previous.storekeeperName;
@@ -1569,7 +1572,13 @@ export class StoreService {
       payload.storeRecipientId,
       'receiving the returned item',
     );
-    payload.storeRecipientId = receiver.employeeId;
+    if (receiver) {
+      payload.storeRecipientId = receiver.employeeId;
+    } else if (payload.storeRecipientId) {
+      const named = await prisma.employee.findUnique({ where: { id: payload.storeRecipientId } });
+      if (!named) throw new BadRequestError('The selected store receiver no longer exists.');
+      assertActiveEmployee(named, 'the store receiver');
+    }
 
     const returnDetails: Model21RequestDetails = {
       reason: payload.returnReason,
@@ -1585,7 +1594,7 @@ export class StoreService {
       depreciation: payload.depreciation,
       bookValue: payload.bookValue,
       storeRecipientId: payload.storeRecipientId,
-      storeRecipientName: receiver.fullNameEn,
+      storeRecipientName: receiver?.fullNameEn,
     };
     const model21Details = formatReturnNotes(payload.model21No ? effectiveSlipNo : '', returnDetails);
 

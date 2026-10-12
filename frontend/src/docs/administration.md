@@ -43,13 +43,15 @@ Each store has **store men**: the employees who keep it. They need no sign-in. T
 2. Pick an employee in **Add a store man** to add one, or press the **x** beside a name to remove one. It saves at once and is recorded in the audit log.
 3. A store can have several. With one, the system uses him automatically; with several, the person making the request chooses.
 
-> **A store with no store man cannot receive, issue, dispose or take returns.** The form says so and cannot be submitted. Assign a store man to every store before staff start using the system.
+> **A store that has store men always names one** on its vouchers. What a store with **none** does is a setting (**Settings → System Settings → Store man**). **Optional** (the default) lets it carry on without naming anyone. **Required** refuses receipts, issues, disposals and returns for that store until a store man is assigned. Assign a store man to every store first, then switch it to Required.
 
 Receiving needs at least one active store.
 
 ## System Settings
 
 **Scanned slip:** choose **Optional** or **Required**. When it is **Required**, a receipt, issue, return or disposal cannot be submitted without a scan of its slip. It saves at once.
+
+**Store man:** choose **Optional** or **Required**. **Required** refuses receipts, issues, disposals and returns for a store that has no store man assigned (see Store men above). Leave it Optional until every store has one.
 
 ## Password help
 

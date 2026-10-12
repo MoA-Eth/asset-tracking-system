@@ -79,6 +79,8 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
   const [storeReceiverId, setStoreReceiverId] = useState('');
   // Who takes the item back: a store man of the store it returns to
   const keepers = useStoreKeepers();
+  const { storeManPolicy } = useSystemSettings();
+  const storeManRequired = storeManPolicy === 'REQUIRED';
   const storeMen = keepers.ofLocation(item.storeLocationId);
   const receiverId = storeReceiverId || (storeMen.length === 1 ? storeMen[0].employeeId : '');
   
@@ -173,7 +175,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
 
   // Required fields still empty; the return can only be submitted once this is empty
   const missingFields = [
-    !editApproval && keepers.ready && storeMen.length === 0 && 'a store man for this store',
+    !editApproval && storeManRequired && keepers.ready && storeMen.length === 0 && 'a store man for this store',
     !editApproval && storeMen.length > 1 && !receiverId && 'received by (store man)',
     !model21No.trim() && 'Model 21 No.',
     !book.trim() && 'register book',
@@ -499,6 +501,7 @@ export const ReturnForm: React.FC<ReturnFormProps> = ({
                 onChange={setStoreReceiverId}
                 current={editApproval ? editApproval.requestDetails?.storeRecipientName : undefined}
                 required={!editApproval}
+                refuse={storeManRequired}
               />
             </FieldGrid>
 

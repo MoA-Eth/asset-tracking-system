@@ -18,6 +18,7 @@ const db = vi.hoisted(() => {
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
 import { requireStoreKeeper, setStoreKeepers } from './reference.service';
+import { applySystemSettings } from './settings.service';
 import { StoreService } from './store.service';
 
 const person = (id: string, name: string, isActive = true) => ({ id, fullNameEn: name, fullNameAm: '', payrollId: `0000${id}`, isActive });
@@ -29,6 +30,8 @@ beforeEach(() => {
   db.store.findUnique.mockResolvedValue({ id: 'STR-1', name: 'Kality store', isActive: true, address: '' });
   db.location.findUnique.mockResolvedValue({ id: 'LOC-1', storeId: 'STR-1', name: 'Shelf A', isActive: true, store: { id: 'STR-1', name: 'Kality store', isActive: true } });
   db.storeKeeper.findMany.mockResolvedValue([]);
+  // The rule is switched on here; the cases with it off are at the end
+  applySystemSettings({ storeManPolicy: 'REQUIRED' });
 });
 
 describe('which store man a request names', () => {
@@ -182,5 +185,51 @@ describe('assigning the store men of a store', () => {
   it('refuses a list that is not a list of ids, or too long', async () => {
     await expect(setStoreKeepers('STR-1', 'E2', 'EMP-ADMIN')).rejects.toMatchObject({ statusCode: 400 });
     await expect(setStoreKeepers('STR-1', Array.from({ length: 21 }, (_, i) => `E${i}`), 'EMP-ADMIN')).rejects.toThrow(/at most 20/);
+  });
+});
+
+describe('while the store man rule is off (the default)', () => {
+  const store = () => StoreService.getInstance();
+  const stockItem = { id: 'item-1', itemCode: 'MOA-1', name: 'Chair', category: 'OFFICE_FURNITURE', status: 'AVAILABLE', condition: 'GOOD', unitCostETB: 1500, storeLocationId: 'LOC-1', notes: JSON.stringify({ quantity: 10, uom: 'EA' }), currentCustodianId: null };
+
+  beforeEach(() => {
+    applySystemSettings({});
+    db.item.findUnique.mockResolvedValue({ ...stockItem });
+    db.item.update.mockResolvedValue({});
+    db.transactionApproval.findFirst.mockResolvedValue(null);
+    db.transactionApproval.create.mockImplementation(async ({ data }: any) => ({ id: 'a1', currentStage: 1, ...data }));
+    db.employee.findUnique.mockResolvedValue({ id: 'EMP-ENC', fullNameEn: 'Encoder', role: 'DATA_ENCODER', isActive: true });
+  });
+
+  it('lets a store with no store man carry on, naming nobody', async () => {
+    await expect(requireStoreKeeper(db, { storeId: 'STR-1' }, undefined, 'issuing the items')).resolves.toBeNull();
+  });
+
+  it('still refuses a name that is not a store man of the store', async () => {
+    await expect(requireStoreKeeper(db, { storeId: 'STR-1' }, 'E-OTHER', 'issuing the items')).rejects.toThrow(/has no store man assigned/);
+  });
+
+  it('still uses the store men when the store has them', async () => {
+    db.storeKeeper.findMany.mockResolvedValue([keeper('E1', 'Abebe Kebede')]);
+    await expect(requireStoreKeeper(db, { storeId: 'STR-1' }, undefined, 'issuing the items')).resolves.toMatchObject({ employeeId: 'E1' });
+  });
+
+  it('issues and disposes without a store man, as before, and records none', async () => {
+    await store().registerStockOut({
+      itemId: 'item-1', recipientType: 'EXTERNAL', organizationName: 'Oromia Bureau', ifmisSlipNumber: 'M22-1', ifmisSlipDateGc: '2026-10-01',
+      purpose: 'Survey', registeredById: 'EMP-ENC',
+    } as any);
+    expect(db.transactionApproval.create.mock.calls[0][0].data.requestDetails).not.toHaveProperty('issuedByEmployeeId');
+
+    await store().registerDisposal({ itemId: 'item-1', disposalNo: 'DSP-1', reason: 'Damaged', registeredById: 'EMP-ENC' } as any);
+    expect(db.transactionApproval.create.mock.calls[1][0].data.requestDetails).not.toHaveProperty('storekeeperEmployeeId');
+  });
+
+  it('takes a return back with no store man named, as before', async () => {
+    db.item.findUnique.mockResolvedValue({ ...stockItem, status: 'ISSUED', currentCustodianId: 'EMP-A' });
+    await store().registerReturn({
+      itemId: 'item-1', model21No: 'R-1', returnReason: 'Done', condition: 'GOOD', ifmisSlipDateGc: '2026-10-01', registeredById: 'EMP-ENC',
+    } as any);
+    expect(db.transactionApproval.create).toHaveBeenCalled();
   });
 });

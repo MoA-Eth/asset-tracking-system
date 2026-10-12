@@ -7,7 +7,7 @@ const db = vi.hoisted(() => ({
 }));
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
-import { applySystemSettings, getSystemSettings, initSystemSettings, isSlipRequired, updateSystemSettings } from './settings.service';
+import { applySystemSettings, getSystemSettings, initSystemSettings, isSlipRequired, isStoreManRequired, updateSystemSettings } from './settings.service';
 
 const admin = { id: 'admin', fullNameEn: 'Admin Person', role: 'SYSTEM_ADMIN' };
 
@@ -21,7 +21,7 @@ beforeEach(() => {
 
 describe('system settings', () => {
   it('treats the scanned slip as optional until an administrator says otherwise', () => {
-    expect(getSystemSettings()).toEqual({ slipAttachmentPolicy: 'OPTIONAL' });
+    expect(getSystemSettings()).toEqual({ slipAttachmentPolicy: 'OPTIONAL', storeManPolicy: 'OPTIONAL' });
     expect(isSlipRequired()).toBe(false);
   });
 
@@ -39,19 +39,40 @@ describe('system settings', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     db.systemSetting.findMany.mockRejectedValue(new Error('relation "system_settings" does not exist'));
     await initSystemSettings();
-    expect(getSystemSettings()).toEqual({ slipAttachmentPolicy: 'OPTIONAL' });
+    expect(getSystemSettings()).toEqual({ slipAttachmentPolicy: 'OPTIONAL', storeManPolicy: 'OPTIONAL' });
   });
 
   it('saves a change, applies it at once and records it in the audit log', async () => {
-    await expect(updateSystemSettings({ slipAttachmentPolicy: 'REQUIRED' }, 'admin')).resolves.toEqual({ slipAttachmentPolicy: 'REQUIRED' });
+    await expect(updateSystemSettings({ slipAttachmentPolicy: 'REQUIRED' }, 'admin')).resolves.toEqual({ slipAttachmentPolicy: 'REQUIRED', storeManPolicy: 'OPTIONAL' });
     expect(db.systemSetting.upsert.mock.calls[0][0]).toMatchObject({ where: { key: 'slipAttachmentPolicy' }, update: { value: 'REQUIRED', updatedById: 'admin' } });
     expect(isSlipRequired()).toBe(true);
     expect(db.auditLog.create.mock.calls[0][0].data).toMatchObject({
       action: 'UPDATE_SYSTEM_SETTINGS',
       userId: 'admin',
-      previousState: { slipAttachmentPolicy: 'OPTIONAL' },
-      newState: { slipAttachmentPolicy: 'REQUIRED' },
+      previousState: { slipAttachmentPolicy: 'OPTIONAL', storeManPolicy: 'OPTIONAL' },
+      newState: { slipAttachmentPolicy: 'REQUIRED', storeManPolicy: 'OPTIONAL' },
     });
+  });
+
+  it('leaves the store man optional until an administrator switches it on, and saves it apart from the slip rule', async () => {
+    expect(isStoreManRequired()).toBe(false);
+    await expect(updateSystemSettings({ storeManPolicy: 'REQUIRED' }, 'admin')).resolves.toEqual({ slipAttachmentPolicy: 'OPTIONAL', storeManPolicy: 'REQUIRED' });
+    expect(db.systemSetting.upsert).toHaveBeenCalledTimes(1);
+    expect(db.systemSetting.upsert.mock.calls[0][0]).toMatchObject({ where: { key: 'storeManPolicy' }, update: { value: 'REQUIRED' } });
+    expect(isStoreManRequired()).toBe(true);
+    expect(db.auditLog.create.mock.calls[0][0].data.details).toMatch(/store man is now required/);
+  });
+
+  it('loads the saved store man rule at startup', async () => {
+    db.systemSetting.findMany.mockResolvedValue([{ key: 'storeManPolicy', value: 'REQUIRED' }]);
+    await initSystemSettings();
+    expect(isStoreManRequired()).toBe(true);
+    expect(isSlipRequired()).toBe(false);
+  });
+
+  it('refuses a store man rule it does not know', async () => {
+    await expect(updateSystemSettings({ storeManPolicy: 'MAYBE' }, 'admin')).rejects.toMatchObject({ statusCode: 400 });
+    expect(db.systemSetting.upsert).not.toHaveBeenCalled();
   });
 
   it.each(['DATA_ENCODER', 'TEAM_LEADER', 'DEPARTMENT_HEAD', 'MANAGER'])('refuses a change by %s', async (role) => {

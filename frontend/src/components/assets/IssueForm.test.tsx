@@ -4,16 +4,19 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StockOutForm, buildModel22Voucher } from './IssueForm';
 import { api } from '../../api/client';
+import { loadSystemSettings } from '../../utils/system-settings';
 
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'encoder', fullNameEn: 'Store Encoder' } }) }));
 vi.mock('../../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn() }) }));
-vi.mock('../../api/client', () => ({ api: { registerStockOut: vi.fn(), uploadSlip: vi.fn(), getStores: vi.fn() } }));
+vi.mock('../../api/client', () => ({ api: { registerStockOut: vi.fn(), uploadSlip: vi.fn(), getStores: vi.fn(), getSystemSettings: vi.fn() } }));
 
 const store = (storeKeepers: any[]) => ({
   id: 'S1', name: 'Kality store', address: '', isActive: true, locations: [{ id: 'LOC-1', storeId: 'S1', name: 'Shelf A', isActive: true }], storeKeepers,
 });
 const keeper = (id: string, name: string) => ({ employeeId: id, fullNameEn: name, fullNameAm: '', payrollId: `000${id}`, isActive: true });
-beforeEach(() => {
+beforeEach(async () => {
+  vi.mocked(api.getSystemSettings).mockResolvedValue({ slipAttachmentPolicy: 'OPTIONAL', storeManPolicy: 'OPTIONAL' });
+  await loadSystemSettings();
   vi.mocked(api.getStores).mockResolvedValue([store([keeper('1', 'Abebe Store Man')])] as any);
 });
 
@@ -124,10 +127,19 @@ describe('Issue items (Model 22): the store man', () => {
     expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
   });
 
-  it('says so, and cannot be submitted, when the store has no store man', async () => {
+  it('says so, and cannot be submitted, when the store has no store man and the rule is on', async () => {
+    vi.mocked(api.getSystemSettings).mockResolvedValue({ slipAttachmentPolicy: 'OPTIONAL', storeManPolicy: 'REQUIRED' });
+    await loadSystemSettings();
     vi.mocked(api.getStores).mockResolvedValue([store([])] as any);
     renderIssue();
     expect(await screen.findByRole('alert')).toHaveTextContent(/Kality store has no store man assigned.*Settings → Stores/);
     expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
+  });
+
+  it('only notes that the store has none, and carries on, while the rule is off', async () => {
+    vi.mocked(api.getStores).mockResolvedValue([store([])] as any);
+    renderIssue();
+    expect(await screen.findByText(/Kality store has no store man assigned yet, so none is named on the voucher/)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

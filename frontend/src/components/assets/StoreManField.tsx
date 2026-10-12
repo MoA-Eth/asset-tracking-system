@@ -21,6 +21,8 @@ interface StoreManFieldProps {
   current?: string;
   /** Whether it has to be filled in (new requests); corrections may keep what they had */
   required?: boolean;
+  /** The store man rule is on: a store with none is refused. Off: it carries on, naming nobody. */
+  refuse?: boolean;
   hint?: string;
 }
 
@@ -40,6 +42,7 @@ export const StoreManField: React.FC<StoreManFieldProps> = ({
   hasStore = true,
   current,
   required = true,
+  refuse = true,
   hint,
 }) => {
   // The only store man is chosen for you; a choice that no longer belongs to this store is dropped
@@ -53,6 +56,14 @@ export const StoreManField: React.FC<StoreManFieldProps> = ({
   if (!hasStore) {
     return (
       <Field label={label} required={required} optional={!required} htmlFor={id} hint="Pick the store first.">
+        <ReadOnlyValue>—</ReadOnlyValue>
+      </Field>
+    );
+  }
+
+  if (ready && keepers.length === 0 && !refuse) {
+    return (
+      <Field label={label} optional htmlFor={id} hint={`${storeName} has no store man assigned yet, so none is named on the voucher.`}>
         <ReadOnlyValue>—</ReadOnlyValue>
       </Field>
     );
