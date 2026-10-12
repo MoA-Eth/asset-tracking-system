@@ -229,18 +229,19 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               </span>
               {/* Quick Action Badges */}
               <AssetStatus row={{ ...row, rejected: undefined }} partly={partly} />
-              {item.category && (
+              {/* While a form is open it shows these itself, so the header keeps only the name, code and status */}
+              {!editing && item.category && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
                   <Tag className="w-2.5 h-2.5 text-emerald-600" />
                   {item.itemCategoryDisplay || item.category.replace(/_/g, ' ')}
                 </span>
               )}
-              {item.condition && (
+              {!editing && item.condition && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
                   {item.condition.replace(/_/g, ' ')}
                 </span>
               )}
-              {row.where && (
+              {!editing && row.where && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-800 border border-blue-200" title={`Location / Custody: ${row.where}`}>
                   <MapPin className="w-2.5 h-2.5 text-blue-600" />
                   <span className="max-w-[160px] truncate">{row.where}</span>
