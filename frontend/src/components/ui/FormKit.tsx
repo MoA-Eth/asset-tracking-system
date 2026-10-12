@@ -24,11 +24,11 @@ const ACCENT = {
 /** Text input / select styling. Pass `mono` for codes and numbers, `invalid` for error states. */
 export const inputClass = (accent: FormAccent, opts: { mono?: boolean; align?: 'left' | 'right' | 'center'; invalid?: boolean } = {}) =>
   [
-    'w-full h-9 px-3 bg-white rounded-lg text-[13px] text-slate-900 placeholder:text-slate-400',
+    'w-full h-10 px-3 bg-white rounded-lg text-[13px] text-slate-900 placeholder:text-slate-400 shadow-[0_1px_1px_rgba(15,23,42,0.03)]',
     'focus:outline-none focus:ring-2 transition disabled:bg-slate-50 disabled:text-slate-500',
     opts.invalid
-      ? 'border border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20 text-slate-900'
-      : `border border-slate-300 ${ACCENT[accent].focus}`,
+      ? 'border border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/30 text-slate-900'
+      : `border border-slate-300 hover:border-slate-400 ${ACCENT[accent].focus}`,
     opts.mono ? 'font-mono' : '',
     opts.align === 'right' ? 'text-right' : opts.align === 'center' ? 'text-center' : '',
   ].filter(Boolean).join(' ');
@@ -100,6 +100,59 @@ export const QuantityInput: React.FC<QuantityInputProps> = ({
   );
 };
 
+// ─── Money input ────────────────────────────────────────────────────────────
+
+interface MoneyInputProps {
+  value: number;
+  onChange: (value: number) => void;
+  id?: string;
+  accent?: FormAccent;
+  invalid?: boolean;
+  /** Shown at the right end, e.g. "ETB" */
+  suffix?: string;
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+const MONEY_FORMAT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+/**
+ * An amount that is easy to read: 1,250,000.50 when you are not typing, the plain number while you are.
+ * Anything that is not a digit or one decimal point is dropped as it is typed.
+ */
+export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, id, accent = 'emerald', invalid, suffix = 'ETB', placeholder = '0.00', disabled }) => {
+  const [focused, setFocused] = useState(false);
+  const [text, setText] = useState('');
+  const shown = focused ? text : value ? MONEY_FORMAT.format(value) : '';
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type="text"
+        inputMode="decimal"
+        autoComplete="off"
+        disabled={disabled}
+        placeholder={placeholder}
+        aria-invalid={invalid || undefined}
+        value={shown}
+        onFocus={() => {
+          setText(value ? String(value) : '');
+          setFocused(true);
+        }}
+        onBlur={() => setFocused(false)}
+        onChange={(e) => {
+          const cleaned = e.target.value.replace(/[^0-9.]/g, '').replace(/^(\d*\.\d*).*$/, '$1');
+          setText(cleaned);
+          const n = parseFloat(cleaned);
+          onChange(Number.isFinite(n) ? n : 0);
+        }}
+        className={`${inputClass(accent, { mono: true, align: 'right', invalid })} ${suffix ? 'pr-12' : ''}`}
+      />
+      {suffix && <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-semibold text-slate-400">{suffix}</span>}
+    </div>
+  );
+};
+
 // ─── Layout ─────────────────────────────────────────────────────────────────
 
 interface FormSectionProps {
@@ -151,20 +204,20 @@ export const FormSection: React.FC<FormSectionProps> = ({
   );
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)]">
       {collapsible ? (
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="w-full px-4 py-3 rounded-xl cursor-pointer hover:bg-slate-50/70 transition"
+          className="w-full bg-slate-50/80 px-4 py-3 cursor-pointer hover:bg-slate-100/70 transition"
         >
           {header}
         </button>
       ) : (
-        <div className="px-4 py-3">{header}</div>
+        <div className="bg-slate-50/80 px-4 py-3">{header}</div>
       )}
-      {isOpen && <div className="border-t border-slate-100 px-4 py-4">{children}</div>}
+      {isOpen && <div className="border-t border-slate-200 px-4 py-5">{children}</div>}
     </section>
   );
 };
@@ -183,18 +236,27 @@ interface FieldProps {
   /** Tailwind col-span classes, e.g. "sm:col-span-2" */
   span?: string;
   htmlFor?: string;
+  /** What is wrong with this field, shown under it in place of the hint */
+  error?: string;
   children: React.ReactNode;
 }
 
-export const Field: React.FC<FieldProps> = ({ label, required, optional, hint, span = '', htmlFor, children }) => (
+export const Field: React.FC<FieldProps> = ({ label, required, optional, hint, span = '', htmlFor, error, children }) => (
   <div className={span}>
-    <label htmlFor={htmlFor} className="mb-1 block text-xs font-medium text-slate-700">
+    <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-semibold text-slate-700">
       {label}
       {required && <span className="ml-0.5 text-rose-600">*</span>}
       {optional && <span className="ml-1 font-normal text-slate-400">(optional)</span>}
     </label>
     {children}
-    {hint && <p className="mt-1 text-[11px] text-slate-500">{hint}</p>}
+    {error ? (
+      <p role="alert" className="mt-1.5 flex items-start gap-1 text-[11px] font-medium text-rose-700">
+        <AlertCircle className="mt-px h-3 w-3 shrink-0" />
+        {error}
+      </p>
+    ) : (
+      hint && <p className="mt-1.5 text-[11px] text-slate-500">{hint}</p>
+    )}
   </div>
 );
 
@@ -211,7 +273,7 @@ export const ReadOnlyValue: React.FC<{
   className = '',
 }) => (
   <div
-    className={`flex h-9 w-full items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13px] text-slate-700 ${
+    className={`flex h-10 w-full items-center rounded-lg border border-transparent bg-slate-100/80 px-3 text-[13px] font-medium text-slate-800 ${
       mono ? 'font-mono' : ''
     } ${align === 'right' ? 'justify-end' : ''} ${className}`}
   >
@@ -221,7 +283,7 @@ export const ReadOnlyValue: React.FC<{
 
 /** Highlighted computed total, e.g. quantity × unit price. */
 export const TotalValue: React.FC<{ accent: FormAccent; children: React.ReactNode }> = ({ accent, children }) => (
-  <div className={`flex h-9 w-full items-center justify-end rounded-lg border px-3 font-mono text-[13px] font-semibold ${ACCENT[accent].total}`}>
+  <div className={`flex h-10 w-full items-center justify-end rounded-lg border px-3 font-mono text-[13px] font-semibold ${ACCENT[accent].total}`}>
     {children}
   </div>
 );
@@ -333,10 +395,13 @@ interface FormFooterProps {
 export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, missingFields = [], note: customNote }) => {
   const incomplete = missingFields.length > 0;
   const note = customNote ?? (incomplete ? 'Fill in all required fields (*) to submit' : undefined);
+  const stillNeeded = incomplete && !customNote
+    ? `Still needed: ${missingFields.slice(0, 4).join(', ')}${missingFields.length > 4 ? ` and ${missingFields.length - 4} more` : ''}`
+    : undefined;
   return (
   <div
-    className={`flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white py-3 ${
-      sticky ? 'sticky -bottom-5 z-10 -mx-6 -mb-5 px-6' : 'pt-4'
+    className={`flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white/95 py-3 backdrop-blur ${
+      sticky ? 'sticky -bottom-5 z-10 -mx-6 -mb-5 px-6 shadow-[0_-6px_12px_-8px_rgba(15,23,42,0.18)]' : 'pt-4'
     }`}
   >
     {onReset ? (
@@ -352,7 +417,12 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
       <span />
     )}
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {note && <p id="form-footer-note" className="text-[11px] text-slate-500">{note}</p>}
+      {note && (
+        <p id="form-footer-note" className="text-[11px] text-slate-500">
+          {note}
+          {stillNeeded && <span className="block font-medium text-slate-600">{stillNeeded}</span>}
+        </p>
+      )}
       <button
         type="button"
         onClick={onCancel}
