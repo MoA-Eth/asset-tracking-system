@@ -29,7 +29,7 @@ import { AssetRecord } from '../components/assets/AssetRecord';
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { Model21PrintModal } from '../components/ui/Model21PrintModal';
-import { StockInForm, buildModel19Voucher, templateFromItem, templateFromVoucher, ReceiptTemplate } from '../components/assets/ReceiptForm';
+import { StockInForm, buildModel19Voucher, templateFromItem, ReceiptTemplate } from '../components/assets/ReceiptForm';
 import { StockOutForm, buildModel22Voucher } from '../components/assets/IssueForm';
 import { TransferForm, buildModel21Voucher } from '../components/assets/TransferForm';
 import { DisposalForm, buildDisposalVoucher } from '../components/assets/DisposalForm';
@@ -168,8 +168,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   // Pop-ups: one per form, each either new (from a row or the header) or correcting a pending request
   const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string } | null>(null);
-  // The voucher of the receipt just registered: it can lead straight into another item on the same slip
-  const [justRegistered, setJustRegistered] = useState<Model19Voucher | null>(null);
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [disposing, setDisposing] = useState<{ itemId: string } | null>(null);
@@ -1202,11 +1200,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     onSuccess={(result, voucher) => {
                       setReceipt(null);
                       saved(result?.item?.id ?? result?.items?.[0]?.id);
-                      if (voucher) {
-                        setVoucher19(voucher);
-                        // Only a new receipt leads on to another item; a correction does not
-                        setJustRegistered(receipt.edit ? null : voucher);
-                      }
+                      if (voucher) setVoucher19(voucher);
                     }}
                   />
                 ) : (
@@ -1506,23 +1500,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       </div>
       )}
 
-      <Model19PrintModal
-        isOpen={!!voucher19}
-        voucher={voucher19}
-        onClose={() => {
-          setVoucher19(null);
-          setJustRegistered(null);
-        }}
-        onAddAnother={
-          voucher19 && justRegistered === voucher19 && canReceive
-            ? () => {
-                setVoucher19(null);
-                setJustRegistered(null);
-                openReceipt(undefined, templateFromVoucher(voucher19), `slip-${Date.now()}`);
-              }
-            : undefined
-        }
-      />
+      <Model19PrintModal isOpen={!!voucher19} voucher={voucher19} onClose={() => setVoucher19(null)} />
       <Model22PrintModal isOpen={!!voucher22} voucher={voucher22} onClose={() => setVoucher22(null)} />
       <Model21PrintModal isOpen={!!voucher21} voucher={voucher21} onClose={() => setVoucher21(null)} />
       <DisposalPrintModal isOpen={!!voucherDisposal} voucher={voucherDisposal} onClose={() => setVoucherDisposal(null)} />

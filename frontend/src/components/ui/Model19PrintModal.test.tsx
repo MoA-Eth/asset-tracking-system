@@ -129,17 +129,3 @@ describe('Model19PrintModal Component', () => {
     expect(screen.queryByText('PO Receipt')).toBeNull();
   });
 });
-
-describe('Model 19 voucher: add another item', () => {
-  const voucher: any = {
-    invModel19No: '0000044', poNumber: '—', receivedDateGc: '2026-10-01', receivedDateEc: '2019-02-20', transactionType: 'PO Receipt', source: 'S', buyer: 'B',
-    programName: '', storeLocationName: 'Kality', deliveredByName: '', receivedByName: '', items: [], grandTotal: 0, printedBy: 'Encoder',
-  };
-
-  it('offers it only straight after a receipt is registered', () => {
-    const { rerender } = render(<Model19PrintModal isOpen voucher={voucher} onClose={() => {}} />);
-    expect(screen.queryByRole('button', { name: 'Add another item on this slip' })).toBeNull();
-    rerender(<Model19PrintModal isOpen voucher={voucher} onClose={() => {}} onAddAnother={() => {}} />);
-    expect(screen.getByRole('button', { name: 'Add another item on this slip' })).toBeInTheDocument();
-  });
-});

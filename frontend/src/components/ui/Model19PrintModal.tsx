@@ -9,11 +9,9 @@ interface Model19PrintModalProps {
   isOpen: boolean;
   onClose: () => void;
   voucher: Model19Voucher | null;
-  /** Shown right after a receipt is registered: start another item on the same slip */
-  onAddAnother?: () => void;
 }
 
-export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, onClose, voucher, onAddAnother }) => {
+export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, onClose, voucher }) => {
   if (!isOpen || !voucher) return null;
 
   const grandTotal = voucher.grandTotal || voucher.items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0);
@@ -29,7 +27,6 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
       subheading={voucher.programName || undefined}
       approvalState={voucher.approvalState}
       printedBy={voucher.printedBy}
-      toolbarAction={onAddAnother ? { label: 'Add another item on this slip', onClick: onAddAnother } : undefined}
     >
       <VoucherDetails
         fields={[

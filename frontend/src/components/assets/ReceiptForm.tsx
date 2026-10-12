@@ -36,19 +36,12 @@ export interface StockInFormProps {
   template?: ReceiptTemplate;
 }
 
-/**
- * What a new receipt can start from instead of empty: an earlier item ("Duplicate as new receipt"),
- * or the header of the slip just registered ("Add another item on this slip").
- */
+/** What a new receipt can start from instead of empty: an earlier item ("Duplicate as new receipt") */
 export interface ReceiptTemplate {
-  ifmisSlipNumber?: string;
-  ifmisSlipDateGc?: string;
   transactionType?: string;
   source?: string;
   buyer?: string;
   programName?: string;
-  poNumber?: string;
-  deliveredBy?: string;
   storeLocationId?: string;
   name?: string;
   category?: AssetCategory;
@@ -73,19 +66,6 @@ export const templateFromItem = (item: ItemWithRelations): ReceiptTemplate => ({
   unitCostETB: item.unitCostETB,
 });
 
-/** What "another item on this slip" keeps: the slip's header, none of the item */
-export const templateFromVoucher = (voucher: Model19Voucher): ReceiptTemplate => ({
-  ifmisSlipNumber: voucher.invModel19No,
-  ifmisSlipDateGc: voucher.receivedDateGc,
-  transactionType: voucher.transactionType === '—' ? undefined : voucher.transactionType,
-  source: voucher.source === '—' ? undefined : voucher.source,
-  buyer: voucher.buyer === '—' ? undefined : voucher.buyer,
-  programName: voucher.programName || undefined,
-  poNumber: voucher.poNumber === '—' ? undefined : voucher.poNumber,
-  deliveredBy: voucher.deliveredByName || undefined,
-  storeLocationId: voucher.storeLocationId,
-});
-
 export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template }) => {
   const { user } = useAuth();
   const toast = useToast();
@@ -97,9 +77,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const rememberedLocation = locations.find((l) => l.id === (start?.storeLocationId ?? memory.storeLocationId));
 
   // Section 1: Document Voucher Header Metadata
-  const [ifmisSlipNumber, setIfmisSlipNumber] = useState(editItem?.ifmisSlipNumber ?? start?.ifmisSlipNumber ?? '');
-  const [poNumber, setPoNumber] = useState(editItem?.poNumber ?? start?.poNumber ?? '');
-  const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(editItem?.ifmisSlipDateGc || start?.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
+  const [ifmisSlipNumber, setIfmisSlipNumber] = useState(editItem?.ifmisSlipNumber ?? '');
+  const [poNumber, setPoNumber] = useState(editItem?.poNumber ?? '');
+  const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(editItem?.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
   const [transactionType, setTransactionType] = useState(editItem?.transactionType || start?.transactionType || memory.transactionType || '');
   const [source, setSource] = useState(editItem?.source ?? start?.source ?? '');
   const [buyer, setBuyer] = useState(editItem?.buyer ?? start?.buyer ?? '');
@@ -135,7 +115,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [remark, setRemark] = useState(editItem?.remark ?? '');
 
   // Section 3: Signatures & Document Scan
-  const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? start?.deliveredBy ?? '');
+  const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? '');
   // Left empty: the person who signs for the delivery isn't necessarily the one entering it
   const [receivedBy, setReceivedBy] = useState(editItem?.receivedBy ?? '');
   // Who received the goods: a store man of the receiving store (a correction keeps the name it has until another is chosen)
