@@ -5,6 +5,9 @@ import { ItemWithRelations, ItemStatus, Department, Employee, Location, Model21V
 import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, QuantityInput, inputClass, textareaClass } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import { useSystemSettings } from '../../utils/system-settings';
+import { useStoreKeepers } from '../../hooks/useStoreKeepers';
+import { StoreManField } from './StoreManField';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { departmentLabel } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -70,6 +73,14 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [submitting, setSubmitting] = useState(false);
 
   const selectedItemObj = items.find((i) => i.id === selectedItemId);
+  // The store man named on the voucher: one of the store men of the store the asset came from
+  const keepers = useStoreKeepers();
+  const { storeManPolicy } = useSystemSettings();
+  const storeManRequired = storeManPolicy === 'REQUIRED';
+  const storeMen = keepers.ofLocation(selectedItemObj?.storeLocationId);
+  const [transferredById, setTransferredById] = useState('');
+  const transferrerId = transferredById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
+  const transferrerName = storeMen.find((k) => k.employeeId === transferrerId)?.fullNameEn;
   const selectedIsVehicleLike = selectedItemObj?.category === 'VEHICLE' || selectedItemObj?.category === 'AGRI_MACHINERY';
   const todayGc = new Date().toISOString().split('T')[0];
   const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center' }) => inputClass('emerald', opts);
@@ -105,6 +116,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     !book.trim() && 'register book',
     !targetEmployeeId && 'recipient',
     !transferReason.trim() && 'reason',
+    !editTransfer && storeMen.length > 1 && !transferrerId && 'store man',
+    !editTransfer && storeManRequired && !!selectedItemId && keepers.ready && storeMen.length === 0 && 'a store man for this store',
   ].filter(Boolean) as string[];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -134,6 +147,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           depreciation,
           bookValue,
           remark: defectRemark.trim() || undefined,
+          transferredByEmployeeId: transferredById || undefined,
         });
         toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
         onSaved();
@@ -149,6 +163,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         toLocationId: targetLocationId || undefined,
         reason: transferReason.trim(),
         performedById: user?.id || '',
+        transferredByEmployeeId: transferrerId || undefined,
         model21No: model21No.trim(),
         book: book.trim(),
         chassisNumber: chassisNumber.trim() || undefined,
@@ -174,6 +189,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         book: book.trim() || '—',
         toEmployeeName: targetEmp?.fullNameEn || '—',
         toEmployeeId: targetEmp?.payrollId || '—',
+        storeManName: transferrerName,
         items: [
           {
             sNo: 1,
@@ -407,6 +423,20 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             />
           </Field>
 
+          <StoreManField
+            id="transfer-store-man"
+            label="Transferred by (store man)"
+            keepers={storeMen}
+            ready={keepers.ready}
+            storeName={keepers.storeName(selectedItemObj?.storeLocation?.storeId)}
+            hasStore={!!selectedItemObj}
+            value={transferredById}
+            onChange={setTransferredById}
+            current={editTransfer ? editTransfer.requestDetails?.transferredByName : undefined}
+            required={!editTransfer}
+            refuse={storeManRequired}
+          />
+
           <Field label="Defects / remarks" optional>
             <textarea
               rows={2}
@@ -512,6 +542,7 @@ export const buildModel21Voucher = async (
     book: d.book || '—',
     toEmployeeName: toEmp?.fullNameEn || (r.transactionType === 'RETURN' ? d.storeRecipientName || storeName : '—'),
     toEmployeeId: toEmp?.payrollId || '—',
+    storeManName: r.transactionType === 'TRANSFER' ? d.transferredByName : undefined,
     items: [
       {
         sNo: 1,

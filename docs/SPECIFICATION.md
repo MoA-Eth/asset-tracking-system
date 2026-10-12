@@ -57,7 +57,7 @@ All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 
 ### Store men
 - A **store man** is an employee assigned to a store (Settings → Stores). He needs no sign-in. A store can have several.
-- His name goes in that store's dropdowns and on its vouchers: **Received by** (Model 19), **Issued by** (Model 22), the **Storekeeper** line of the disposal form, and who takes an item back on a return (Model 21).
+- His name goes in that store's dropdowns and on its vouchers: **Received by** (Model 19), **Issued by** (Model 22), the **Storekeeper** line of the disposal form, **Transferred by** on a transfer, and who takes an item back on a return (Model 21).
 - **What a store with none does is a system setting** (System Settings → Store man). **Optional** (the default): such a store carries on without naming anyone. **Required**: it refuses receiving, issuing, disposing and returns, in the form and on the server. A store that has store men always names one: with one he is the default, with several the request names which. Switch it to Required once every store has a store man.
 - The name is saved with the request, so old vouchers keep it when the assignment changes. Requests made before this feature keep the name they had.
 

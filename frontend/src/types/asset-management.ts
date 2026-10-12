@@ -398,6 +398,8 @@ export interface Model21Voucher {
   book: string;
   toEmployeeName: string;
   toEmployeeId: string;
+  /** Transfer: the store man who recorded it, named as the second signatory */
+  storeManName?: string;
   items: Model21LineItem[];
   famuAccountantName?: string;
   /** Name of the person printing; shown in the footer */
@@ -656,6 +658,8 @@ export interface CreateReturnRequest {
 
 export interface CreateTransferRequest {
   itemId: string;
+  /** The store man named on the voucher; needed only when the item's store has several */
+  transferredByEmployeeId?: string;
   toEmployeeId?: string;
   toDepartmentId?: string;
   toLocationId?: string;
@@ -707,6 +711,9 @@ export interface Model21RequestDetails {
   /** Disposal: the store man named as storekeeper on the form */
   storekeeperEmployeeId?: string;
   storekeeperName?: string;
+  /** Transfer: the store man named on the voucher */
+  transferredByEmployeeId?: string;
+  transferredByName?: string;
   /** Return: the name of the store man who takes the item back */
   storeRecipientName?: string;
   /** Stock-Out: INTERNAL (an employee) or EXTERNAL (an outside organization) */
@@ -751,6 +758,7 @@ export interface Model21RequestDetails {
 /** Corrections to a transfer request while it still waits for Stage 1 endorsement. The item can't change. */
 export interface UpdateTransferRequest {
   model21No: string;
+  transferredByEmployeeId?: string;
   toEmployeeId: string;
   toDepartmentId?: string;
   toLocationId?: string;

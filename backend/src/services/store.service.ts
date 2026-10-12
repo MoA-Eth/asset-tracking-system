@@ -1761,8 +1761,14 @@ export class StoreService {
     if (location && location.id !== approval.targetLocationId) assertUsableLocation(location, 'the destination location');
 
     const previous = requestDetailsOf(approval) ?? {};
+    // A new choice must be a store man of the item's store; otherwise the one already named stays
+    const transferrer =
+      payload.transferredByEmployeeId && item.storeLocationId
+        ? await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.transferredByEmployeeId, 'the transfer')
+        : null;
     const details: Model21RequestDetails = {
       ...previous,
+      ...(transferrer ? { transferredByEmployeeId: transferrer.employeeId, transferredByName: transferrer.fullNameEn } : {}),
       reason,
       remark: payload.remark?.trim() || undefined,
       book: payload.book?.trim() || undefined,
@@ -1787,6 +1793,7 @@ export class StoreService {
       'new custodian': to,
       directorate: dept ?? 'current',
       location: loc ?? 'current',
+      'store man': d.transferredByName,
       reason: d.reason,
       remark: d.remark,
       book: d.book,
@@ -2377,6 +2384,11 @@ export class StoreService {
     if (sameCustodian && sameLocation) throw new BadRequestError('This person already holds the item. Choose a different custodian.');
     if (!payload.toEmployeeId && sameLocation) throw new BadRequestError('The item is already in this location. Choose a new custodian or a different location.');
 
+    // The store man of the store the item came from is named on the voucher
+    const transferrer = item.storeLocationId
+      ? await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.transferredByEmployeeId, 'the transfer')
+      : null;
+
     const today = getTodayGcAndEc();
     // The current custodian, or the store the item is in
     const prevCustodian = await holderName(item);
@@ -2399,6 +2411,7 @@ export class StoreService {
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
 
     const transferDetails: Model21RequestDetails = {
+      ...(transferrer ? { transferredByEmployeeId: transferrer.employeeId, transferredByName: transferrer.fullNameEn } : {}),
       reason: payload.reason,
       remark: payload.remark,
       book: payload.book,
