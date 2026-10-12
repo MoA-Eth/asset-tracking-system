@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { BookOpen, ChevronDown, ChevronsUpDown, User, LogOut, Shield, Users } from 'lucide-react';
+import { CircleHelp, ChevronDown, ChevronsUpDown, User, LogOut, Shield, Users } from 'lucide-react';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
 import { SETTINGS_NAV, getSettingsGroups, getNavSections, NavItem } from './navigation';
@@ -74,10 +74,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
     };
   }, [showUserMenu]);
 
-  const allSections = getNavSections(user?.allowedTabs);
-  // Documentation is the last entry of the menu, below Settings, at the foot of the list
-  const sections = allSections.filter((section) => section.id !== 'help');
-  const helpSection = allSections.find((section) => section.id === 'help');
+  const sections = getNavSections(user?.allowedTabs);
   const settingsGroups = getSettingsGroups(user?.allowedTabs);
 
   const itemClass = (isActive: boolean) =>
@@ -158,7 +155,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-1 flex-col overflow-y-auto px-2 py-2.5" aria-label="Main navigation">
+      <nav className="flex-1 overflow-y-auto px-2 py-2.5" aria-label="Main navigation">
         {sections.map((section, idx) => (
           <div key={section.id} className={idx > 0 ? 'mt-4' : ''}>
             {collapsed ? (
@@ -230,13 +227,6 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 ))}
               </div>
             )}
-          </div>
-        )}
-
-        {helpSection && (
-          <div className="mt-auto pt-4">
-            <div aria-hidden="true" className={`mb-2 border-t border-white/[0.07] ${collapsed ? 'mx-3' : 'mx-1'}`} />
-            <div className="space-y-0.5">{helpSection.items.map(renderItem)}</div>
           </div>
         )}
       </nav>
@@ -344,8 +334,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-emerald-50 hover:text-white hover:bg-white/[0.08] rounded-xl transition cursor-pointer"
                 >
-                  <BookOpen className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Documentation</span>
+                  <CircleHelp className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Help</span>
                 </button>
 
                 {Boolean(canAccessTab ? canAccessTab('settings-users') : user?.allowedTabs?.includes('settings-users')) && (

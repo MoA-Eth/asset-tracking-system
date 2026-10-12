@@ -15,7 +15,7 @@ The Asset Tracking System (MoA-ATS) follows every Ministry asset from the day it
 
 1. The **left menu** lists the pages your role can open. Collapse it with the arrow at the top. On a phone, the main pages are along the bottom and everything else is in the account menu.
 2. The **top bar** shows the page name and a search box. On a larger screen it also shows today's date (click it to switch between the Ethiopian, E.C., and Gregorian, G.C., calendar) and, for approvers, a bell with requests waiting for you.
-3. Your **account card** (bottom of the left menu, or your avatar on a phone) opens Profile, Documentation and Sign out.
+3. Your **account card** (bottom of the left menu, or your avatar on a phone) opens Profile, **Help** (this manual) and Sign out.
 
 ## Who can do what
 
