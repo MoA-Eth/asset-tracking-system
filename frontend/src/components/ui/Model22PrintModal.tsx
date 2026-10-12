@@ -9,9 +9,11 @@ interface Model22PrintModalProps {
   isOpen: boolean;
   onClose: () => void;
   voucher: Model22Voucher | null;
+  /** An extra action beside Print, e.g. "Full record & history" */
+  toolbarAction?: { label: string; onClick: () => void };
 }
 
-export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, onClose, voucher }) => {
+export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, onClose, voucher, toolbarAction }) => {
   if (!isOpen || !voucher) return null;
 
   const total = voucher.total || voucher.items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0);
@@ -22,6 +24,7 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, on
     <VoucherShell
       isOpen={isOpen}
       onClose={onClose}
+      toolbarAction={toolbarAction}
       model="Model 22"
       toolbarTitle="Model 22 Issue Voucher (የዕቃ ወጪ ማዘዣ እና መረከቢያ)"
       title="Receipt For Articles Or Property Issued"

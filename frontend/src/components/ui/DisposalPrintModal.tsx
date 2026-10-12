@@ -9,6 +9,8 @@ interface DisposalPrintModalProps {
   isOpen: boolean;
   onClose: () => void;
   voucher: DisposalVoucher | null;
+  /** An extra action beside Print, e.g. "Full record & history" */
+  toolbarAction?: { label: string; onClick: () => void };
 }
 
 const CONDITION_LABELS: Record<string, string> = {
@@ -21,7 +23,7 @@ const CONDITION_LABELS: Record<string, string> = {
  * statement, then the signatures. Chassis, engine and declaration numbers are for vehicles and machinery: the
  * system doesn't record them, so those cells are left to write in.
  */
-export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, onClose, voucher }) => {
+export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, onClose, voucher, toolbarAction }) => {
   if (!isOpen || !voucher) return null;
 
   // Original cost less book value is what has been depreciated
@@ -36,6 +38,7 @@ export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, 
     <VoucherShell
       isOpen={isOpen}
       onClose={onClose}
+      toolbarAction={toolbarAction}
       model="Disposal"
       toolbarTitle="Fixed Asset Disposal Form"
       title="Fixed Asset Disposal Form"
