@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreHorizontal, Lock, LucideIcon } from 'lucide-react';
+import { MoreVertical, Lock, LucideIcon } from 'lucide-react';
 
 export interface RowAction {
   label: string;
@@ -17,6 +17,8 @@ interface RowActionsMenuProps {
   actions: RowAction[];
   /** Names the row for screen readers, e.g. the item code */
   label: string;
+  /** For a page's menu rather than a row's: the button and the menu are named by this, e.g. "More actions" */
+  heading?: string;
 }
 
 const MENU_WIDTH = 248;
@@ -35,7 +37,7 @@ const kindOf = (label: string): 'work' | 'look' | 'danger' => {
  * "⋮" button that opens a row's actions (View, Edit, Print…), so tables don't need a wide Actions column.
  * The menu is drawn on top of the page, so a scrolling table can't clip it.
  */
-export const RowActionsMenu: React.FC<RowActionsMenuProps> = ({ actions, label }) => {
+export const RowActionsMenu: React.FC<RowActionsMenuProps> = ({ actions, label, heading }) => {
   const visible = actions.filter((a) => !a.hidden);
   const rank = { work: 0, look: 1, danger: 2 } as const;
   // Stable: actions of the same kind keep the order the page gave them
@@ -112,28 +114,32 @@ export const RowActionsMenu: React.FC<RowActionsMenuProps> = ({ actions, label }
         onClick={() => (open ? close() : setOpen(true))}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Actions for ${label}`}
-        title="Actions"
-        className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 ${
+        aria-label={heading ?? `Actions for ${label}`}
+        title={heading ?? 'Actions'}
+        className={`inline-flex ${heading ? 'self-stretch min-h-9 w-10' : 'h-8 w-8'} rounded-[3px] items-center justify-center border transition cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 ${
           open
             ? 'border-emerald-300 bg-emerald-50 text-emerald-800 shadow-inner'
             : 'border-slate-200 bg-white text-slate-500 shadow-[0_1px_1px_rgba(15,23,42,0.05)] hover:border-emerald-300 hover:bg-emerald-50/70 hover:text-emerald-800'
         }`}
       >
-        <MoreHorizontal className="h-[18px] w-[18px]" strokeWidth={2.25} />
+        <MoreVertical className="h-[18px] w-[18px]" strokeWidth={2.25} />
       </button>
       {open &&
         createPortal(
           <div
             ref={menuRef}
             role="menu"
-            aria-label={`Actions for ${label}`}
+            aria-label={heading ?? `Actions for ${label}`}
             onKeyDown={onMenuKey}
             style={{ top: pos.top, left: pos.left, width: MENU_WIDTH }}
             className="fixed z-[60] overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-[0_16px_40px_-12px_rgba(15,23,42,0.35)] animate-fadeIn"
           >
             <div role="presentation" className="border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              Actions · <span className="font-mono normal-case tracking-normal text-slate-700">{label}</span>
+              {heading ?? (
+                <>
+                  Actions · <span className="font-mono normal-case tracking-normal text-slate-700">{label}</span>
+                </>
+              )}
             </div>
             <div className="p-1">
               {ordered.map((a, i) => {

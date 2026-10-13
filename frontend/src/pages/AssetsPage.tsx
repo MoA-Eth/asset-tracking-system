@@ -17,6 +17,8 @@ import {
   ArrowLeft,
   Trash2,
   Copy,
+  FileUp,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -54,6 +56,9 @@ import { formatETB } from '../utils/eth-date';
 import { storeLocationLabel } from '../utils/location';
 import { departmentLabel } from '../utils/department';
 import { downloadCsv } from '../utils/csv';
+import { SLIP_ACCEPT_ATTR } from '../utils/slip-upload';
+import { useSystemSettings } from '../utils/system-settings';
+import { ReceiptImportModal } from '../components/assets/ReceiptImportModal';
 import {
   AssetGroup,
   AssetRow,
@@ -167,7 +172,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
 
   // Pop-ups: one per form, each either new (from a row or the header) or correcting a pending request
-  const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string } | null>(null);
+  const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string; slip?: File } | null>(null);
+  // "Fill in from an IFMIS slip": the file is picked first, then the receive form opens and reads it
+  const slipPicker = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  // Imported receipts carry no scan, so the import is only offered while the scan is optional
+  const scanRequired = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [disposing, setDisposing] = useState<{ itemId: string } | null>(null);
@@ -1201,6 +1211,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     employees={employees}
                     editItem={receipt.edit}
                     template={receipt.template}
+                    initialSlip={receipt.slip}
                     onCancel={() => setReceipt(null)}
                     onSuccess={(result, voucher) => {
                       setReceipt(null);
@@ -1257,14 +1268,52 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               />
             </div>
             {canReceive && (
-              <button
-                type="button"
-                onClick={() => openReceipt()}
-                className={`${btn.primary} shrink-0`}
-              >
-                <Plus className="w-4 h-4" />
-                <span>Receive items (Model 19)</span>
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openReceipt()}
+                  className={`${btn.primary} shrink-0`}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Receive items (Model 19)</span>
+                </button>
+                <RowActionsMenu
+                  label="Assets"
+                  heading="More actions"
+                  actions={[
+                    { label: 'Fill in from an IFMIS slip', icon: FileUp, onClick: () => slipPicker.current?.click() },
+                    // One import per voucher, since each voucher's spreadsheet has its own columns
+                    {
+                      label: 'Import Model 19 (receipts)',
+                      icon: FileSpreadsheet,
+                      onClick: () => setImportOpen(true),
+                      disabled: scanRequired,
+                      reason: scanRequired ? 'Every receipt needs its scanned slip (Settings), so receive them one by one.' : undefined,
+                    },
+                    {
+                      label: 'Import Model 22 (issues)',
+                      icon: FileSpreadsheet,
+                      disabled: true,
+                      reason: 'Coming soon, once the Model 22 spreadsheet format is agreed.',
+                    },
+                  ]}
+                />
+                <input
+                  ref={slipPicker}
+                  type="file"
+                  accept={SLIP_ACCEPT_ATTR}
+                  aria-label="IFMIS slip to fill in from"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) {
+                      openReceipt();
+                      setReceipt({ slip: file, templateKey: `slip-${Date.now()}` });
+                    }
+                  }}
+                />
+              </div>
             )}
           </div>
 
@@ -1506,6 +1555,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       )}
 
       <Model19PrintModal isOpen={!!voucher19} voucher={voucher19} onClose={() => setVoucher19(null)} />
+      {importOpen && (
+        <ReceiptImportModal isOpen onClose={() => setImportOpen(false)} onImported={() => fetchData(true)} locations={locations} items={items} />
+      )}
       <Model22PrintModal isOpen={!!voucher22} voucher={voucher22} onClose={() => setVoucher22(null)} />
       <Model21PrintModal isOpen={!!voucher21} voucher={voucher21} onClose={() => setVoucher21(null)} />
       <DisposalPrintModal isOpen={!!voucherDisposal} voucher={voucherDisposal} onClose={() => setVoucherDisposal(null)} />
