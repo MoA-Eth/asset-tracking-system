@@ -102,6 +102,82 @@ table {
   background: #94a3b8;
 }
 
+/*
+ * Plain selects: a clean option list with the same emerald hover as the actions menu.
+ * Browsers that can style a select's list (Chrome and Edge 135+) get the full look; the rest keep their own list.
+ * Selects that draw their own arrow (appearance-none) and multi-selects are left alone.
+ */
+@supports (appearance: base-select) {
+  select:not(.appearance-none):not([multiple]):not([size]),
+  select:not(.appearance-none):not([multiple]):not([size])::picker(select) {
+    appearance: base-select;
+  }
+
+  /* The chosen text sits in the middle of the field, with the arrow at the end */
+  select:not(.appearance-none):not([multiple]):not([size]) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-block: 0;
+    line-height: 1.25rem;
+  }
+
+  select:not(.appearance-none):not([multiple]):not([size]) selectedcontent {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  select:not(.appearance-none):not([multiple]):not([size])::picker-icon {
+    flex-shrink: 0;
+    color: #64748b;
+    transition: rotate 0.15s ease;
+  }
+
+  select:not(.appearance-none):not([multiple]):not([size]):open::picker-icon {
+    rotate: 180deg;
+  }
+
+  select:not(.appearance-none):not([multiple]):not([size])::picker(select) {
+    margin-top: 0.25rem;
+    padding: 0.25rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #ffffff;
+    box-shadow: 0 16px 40px -12px rgba(15, 23, 42, 0.35);
+  }
+
+  select:not(.appearance-none):not([multiple]):not([size]) option {
+    padding: 0.5rem 0.625rem;
+    border-radius: 0.5rem;
+    font-size: 13px;
+    color: #334155;
+  }
+
+  select:not(.appearance-none):not([multiple]):not([size]) option:hover,
+  select:not(.appearance-none):not([multiple]):not([size]) option:focus-visible {
+    background: #ecfdf5;
+    color: #064e3b;
+  }
+
+  select:not(.appearance-none):not([multiple]):not([size]) option:checked {
+    background: #f0fdf4;
+    color: #065f46;
+    font-weight: 600;
+  }
+
+  select:not(.appearance-none):not([multiple]):not([size]) option:disabled {
+    color: #94a3b8;
+  }
+
+  select:not(.appearance-none):not([multiple]):not([size]) option::checkmark {
+    color: #047857;
+  }
+}
+
 /* Mobile Bottom Navigation Bar */
 .mobile-nav-bar {
   padding-bottom: calc(0.5rem + var(--safe-bottom));
