@@ -49,6 +49,8 @@ export interface StockInFormProps {
   editItem?: ItemWithRelations;
   /** A new receipt that starts from an earlier item or slip rather than empty */
   template?: ReceiptTemplate;
+  /** A slip chosen before the form opened: it is attached and read as if picked in the form */
+  initialSlip?: File;
 }
 
 /** What a new receipt can start from instead of empty: an earlier item ("Duplicate as new receipt") */
@@ -81,7 +83,7 @@ export const templateFromItem = (item: ItemWithRelations): ReceiptTemplate => ({
   unitCostETB: item.unitCostETB,
 });
 
-export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template }) => {
+export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template, initialSlip }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
@@ -383,10 +385,19 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     filledNote(filled, more);
   };
 
+  // A slip chosen from the Assets page menu, read once when the form opens
+  useEffect(() => {
+    if (initialSlip) takeSlip(initialSlip);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSlipSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file) return;
+    if (file) takeSlip(file);
+  };
+
+  const takeSlip = (file: File) => {
     const error = validateSlipFile(file);
     if (error) {
       setFormError(error);

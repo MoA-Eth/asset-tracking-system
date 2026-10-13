@@ -21,7 +21,7 @@ Use this when new items arrive. Registering a receipt creates the asset record. 
 
 ## Fill in from an IFMIS PDF or scan
 
-If you have the voucher as a **PDF downloaded from IFMIS**, a **scanned PDF** or a **photo** (PNG, JPEG or WEBP), attach it in **Delivery and attachment** first. The form reads it and fills in what is still empty. A note under the attachment lists what was filled. **Check every filled field against the paper** before submitting; nothing is submitted for you. Anything you had already typed is kept.
+If you have the voucher as a **PDF downloaded from IFMIS**, a **scanned PDF** or a **photo** (PNG, JPEG or WEBP), attach it in **Delivery and attachment** first. Or start from the slip: on **Assets**, open **⋯ More actions** next to **Receive items** and choose **Fill in from an IFMIS slip**, then pick the file; the receive form opens with the slip attached. The form reads it and fills in what is still empty. A note under the attachment lists what was filled. **Check every filled field against the paper** before submitting; nothing is submitted for you. Anything you had already typed is kept.
 
 - **Model 19 (Print Model19 Report):** Model 19 No., PO number, received date, transaction type, source, buyer and program, and the first item: description, category, unit of measure, quantity and unit price. The IFMIS item code goes into the **Remark**, because every delivery of that item shares it.
 - **Fixed Asset Internal Transfer Form (Model 21):** voucher number, date, **Transfer Receipt**, the source location, and the asset: description, item code (the IFMIS tag number), quantity, unit price and **Fixed asset**.

@@ -638,6 +638,28 @@ describe('Asset record', () => {
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
   });
 
+  it('"More actions" picks an IFMIS slip first, then opens the receive form filled in from it', async () => {
+    const user = userEvent.setup();
+    const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+    vi.mocked(readPdfRows).mockResolvedValue([
+      r(98, [640, 'Print Model19 Report']),
+      r(146, [680, 'INV Model 19 No. :'], [812, '0000051']),
+      r(193, [677, 'Transaction Type :'], [812, 'PO Receipt']),
+    ]);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    // Import waits for the agreed file format
+    expect(screen.getByRole('menuitem', { name: /Import items from Excel/i })).toBeDisabled();
+    await user.click(screen.getByRole('menuitem', { name: /Fill in from an IFMIS slip/i }));
+    await user.upload(screen.getByLabelText('IFMIS slip to fill in from'), new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+
+    const panel = await screen.findByRole('region', { name: 'Receive items' });
+    expect(await within(panel).findByText(/Filled in from the slip/)).toBeInTheDocument();
+    expect(within(panel).getByText('model19.pdf')).toBeInTheDocument();
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000051');
+  });
+
   it('says so when the attached PDF is a scan with no text', async () => {
     const user = userEvent.setup();
     vi.mocked(readPdfRows).mockResolvedValue([]);
