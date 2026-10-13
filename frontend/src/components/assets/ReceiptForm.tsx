@@ -10,7 +10,20 @@ import { useSystemSettings } from '../../utils/system-settings';
 import { ITEM_TYPE_OPTIONS } from './asset-state';
 import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
-import { readPdfText, isModel21, parseModel21 } from '../../utils/slip-reader';
+import { readPdfRows, rowsToText, isModel21, parseModel21, isModel19, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
+
+/** The transaction types the receipt offers */
+const TRANSACTION_TYPES = ['PO Receipt', 'Direct Delivery', 'Donation / Grant Receipt', 'Transfer Receipt', 'Internal Production'];
+
+/** IFMIS item categories, matched to the categories of this register */
+const CATEGORY_FROM_IFMIS: [RegExp, AssetCategory][] = [
+  [/medical|laborator|\blab\b|veterinar|drug/i, AssetCategory.LAB_EQUIPMENT],
+  [/agricultur|farm|seed|fertili/i, AssetCategory.AGRI_MACHINERY],
+  [/vehicle|transport|motor/i, AssetCategory.VEHICLE],
+  [/furniture|fixture/i, AssetCategory.OFFICE_FURNITURE],
+  [/computer|\bit\b|ict|electronic/i, AssetCategory.IT_EQUIPMENT],
+  [/uniform|field|gear|cloth/i, AssetCategory.FIELD_GEAR],
+];
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -207,9 +220,88 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
    * An IFMIS PDF fills in what is still empty: the voucher number, date, transaction type, source and the item.
    * Only what the person has not typed is filled, and they check it against the paper before submitting.
    */
-  const fillFromSlip = (text: string) => {
+  /** A Model 19 from IFMIS: the header and the first item line, into the fields still empty */
+  const fillFromModel19 = (slip: Model19SlipFields) => {
+    const filled: string[] = [];
+    const line = slip.lines[0];
+    const today = new Date().toISOString().split('T')[0];
+    if (slip.model19No && !ifmisSlipNumber.trim()) {
+      setIfmisSlipNumber(slip.model19No);
+      filled.push('Model 19 No.');
+    }
+    if (slip.poNumber && !poNumber.trim()) {
+      setPoNumber(slip.poNumber);
+      filled.push('PO number');
+    }
+    if (slip.receivedDate && (!ifmisSlipDateGc || ifmisSlipDateGc === today)) {
+      setIfmisSlipDateGc(slip.receivedDate);
+      filled.push('received date');
+    }
+    const type = TRANSACTION_TYPES.find((t) => t.toLowerCase() === slip.transactionType?.toLowerCase());
+    if (type && !transactionType) {
+      setTransactionType(type);
+      filled.push('transaction type');
+    }
+    if (slip.source && !source.trim()) {
+      setSource(slip.source);
+      filled.push('source');
+    }
+    if (slip.buyer && !buyer.trim()) {
+      setBuyer(slip.buyer);
+      filled.push('buyer');
+    }
+    if (slip.programName && !programName.trim()) {
+      setProgramName(slip.programName);
+      filled.push('program');
+    }
+    if (line) {
+      if (line.description && !name.trim()) {
+        setName(line.description);
+        filled.push('item description');
+      }
+      const mapped = CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(line.category ?? ''))?.[1];
+      if (mapped && !category) {
+        setCategory(mapped);
+        filled.push('category');
+      }
+      if (line.uom && (!uom.trim() || uom === 'EA') && line.uom.toUpperCase() !== uom) {
+        setUom(line.uom.toUpperCase());
+        filled.push('unit of measure');
+      }
+      if (line.subInventory && !subInventory.trim()) {
+        setSubInventory(line.subInventory);
+        filled.push('sub inventory');
+      }
+      if (line.quantity && !quantity) {
+        setQuantity(line.quantity);
+        filled.push('quantity');
+      }
+      if (line.unitPrice && !unitCostETB) {
+        setUnitCostETB(line.unitPrice);
+        filled.push('unit price');
+      }
+      // The IFMIS item code is the inventory code, shared by every delivery of that item, so it can't be the item code here
+      if (line.itemCode && !remark.trim()) {
+        setRemark(`IFMIS item code ${line.itemCode}`);
+        filled.push('remark (IFMIS item code)');
+      }
+    }
+    if (filled.length === 0) {
+      setSlipNote({ tone: 'info', text: 'The slip was read, but every field it covers is already filled in.' });
+      return;
+    }
+    const more = slip.lines.length > 1 ? ` This slip lists ${slip.lines.length} items; the first one was filled in. Register each of the others as its own receipt with the same Model 19 No.` : '';
+    setSlipNote({ tone: 'info', text: `Filled in from the slip: ${filled.join(', ')}. Check them against the paper before submitting.${more}` });
+  };
+
+  const fillFromSlip = (rows: PdfRow[]) => {
+    const text = rowsToText(rows);
     if (!text.trim()) {
       setSlipNote({ tone: 'warn', text: 'This PDF is a scanned image, so nothing could be read from it. Fill in the fields as usual.' });
+      return;
+    }
+    if (isModel19(text)) {
+      fillFromModel19(parseModel19(rows));
       return;
     }
     if (!isModel21(text)) {
@@ -284,7 +376,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setSlipNote(null);
     if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
       setSlipNote({ tone: 'info', text: 'Reading the slip…' });
-      readPdfText(file)
+      readPdfRows(file)
         .then(fillFromSlip)
         .catch(() => setSlipNote({ tone: 'warn', text: "The slip couldn't be read. It is attached; fill in the fields as usual." }));
     }

@@ -5,7 +5,11 @@ import userEvent from '@testing-library/user-event';
 import { AssetsPage } from './AssetsPage';
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
-import { readPdfText } from '../utils/slip-reader';
+import { readPdfRows, PdfRow } from '../utils/slip-reader';
+
+/** Lines of PDF text as the reader returns them: cells two spaces apart, laid out left to right */
+const asRows = (lines: string[]): PdfRow[] =>
+  lines.map((line, i) => ({ top: i * 14, cells: line.split(/\s{2,}/).map((text, j) => ({ x: j * 100, text })) }));
 
 const ENCODER = ['stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write', 'inventory.read'];
 const auth = vi.hoisted(() => ({ user: { id: 'enc', payrollId: 'ENC-1', permissions: [] as string[] } }));
@@ -14,7 +18,7 @@ vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../context/ToastContext', () => ({ useToast: () => toast }));
 vi.mock('../utils/slip-reader', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../utils/slip-reader')>()),
-  readPdfText: vi.fn(),
+  readPdfRows: vi.fn(),
 }));
 vi.mock('../api/client', () => ({
   api: {
@@ -529,7 +533,7 @@ describe('Asset record', () => {
 
   it('fills the receipt from an attached IFMIS PDF, leaving what was typed and asking for a check', async () => {
     const user = userEvent.setup();
-    vi.mocked(readPdfText).mockResolvedValue([
+    vi.mocked(readPdfRows).mockResolvedValue(asRows([
       'Fixed Asset Internal Transfer Form',
       'Model/21',
       'Model # 0004399',
@@ -538,7 +542,7 @@ describe('Asset record', () => {
       'Book :  MOA MC BOOK',
       'MoA SarisDefaultDefaultDefault  MoA Gurd ShollaDefaultDefaultDefault',
       '1  Handheld GPS  MOA-072351  2  624,285.50  322,547.54  301,738.01  05-OCT-26',
-    ].join('\n'));
+    ]));
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
@@ -559,9 +563,47 @@ describe('Asset record', () => {
     expect(within(panel).getByLabelText(/Source/i)).toHaveValue('Central store');
   });
 
+  it('fills the receipt from an IFMIS Model 19, keeping the IFMIS item code in the remark', async () => {
+    const user = userEvent.setup();
+    const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+    vi.mocked(readPdfRows).mockResolvedValue([
+      r(85, [470, 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa']),
+      r(98, [640, 'Print Model19 Report']),
+      r(146, [680, 'INV Model 19 No. :'], [812, '0000044']),
+      r(162, [714, 'PO Number :'], [812, '186']),
+      r(178, [697, 'Received Date :'], [812, '25-Sep-2026']),
+      r(193, [677, 'Transaction Type :'], [812, 'PO Receipt']),
+      r(208, [742, 'Source :'], [812, 'TEST TRADING ONE MEMBER']),
+      r(223, [812, 'P.L.C']),
+      r(240, [748, 'Buyer :'], [812, 'Tesfaye, Abel Girma']),
+      r(283, [95, 'S/No.'], [135, 'Item Code'], [278, 'Item Description'], [403, 'UOM'], [826, 'Qty']),
+      r(316, [88, '1'], [128, '107101102.4336'], [270, 'Sulfa Drug In Vial'], [403, 'PKT'], [435, 'AMedicine'], [510, 'Medical'], [826, '100'], [960, '825'], [1050, '82500']),
+      r(330, [510, 'Supplies &']),
+      r(366, [88, '2'], [124, '105101102.0415'], [268, 'Streptomycine'], [403, 'EA'], [435, 'AMedicine'], [510, 'Agricultural'], [826, '50'], [960, '341'], [1050, '17050']),
+      r(630, [910, 'Grand Total'], [1050, '99550']),
+    ]);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+
+    expect(await within(panel).findByText(/This slip lists 2 items; the first one was filled in/)).toBeInTheDocument();
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000044');
+    expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('PO Receipt');
+    expect(within(panel).getByLabelText(/Source/i)).toHaveValue('TEST TRADING ONE MEMBER P.L.C');
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Sulfa Drug In Vial');
+    expect(within(panel).getByLabelText(/Category/i)).toHaveValue('LAB_EQUIPMENT');
+    expect(within(panel).getByLabelText(/Unit of measure/i)).toHaveValue('PKT');
+    expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('100');
+    // The IFMIS code is shared by every delivery of the item, so it is kept as a note, not as the item code
+    expect(within(panel).getByLabelText(/Item code/i)).toHaveValue('');
+    expect(within(panel).getByDisplayValue('IFMIS item code 107101102.4336')).toBeInTheDocument();
+  });
+
   it('says so when the attached PDF is a scan with no text', async () => {
     const user = userEvent.setup();
-    vi.mocked(readPdfText).mockResolvedValue('');
+    vi.mocked(readPdfRows).mockResolvedValue([]);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
