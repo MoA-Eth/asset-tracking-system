@@ -905,6 +905,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             fileName={attachmentFileName}
             accept={SLIP_ACCEPT_ATTR}
             onChange={handleSlipSelected}
+            file={attachmentFile}
+            savedUrl={editItem?.ifmisSlipAttachmentUrl}
             hint="PDF, PNG, JPEG or WEBP · up to 10 MB. A Model 19 PDF saved from IFMIS fills in the form for you."
           />
           {slipNote && (

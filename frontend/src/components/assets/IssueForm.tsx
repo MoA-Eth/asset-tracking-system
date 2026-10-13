@@ -766,6 +766,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             fileName={attachmentFileName}
             accept={SLIP_ACCEPT_ATTR}
             onChange={handleSlipSelected}
+            file={attachmentFile}
+            savedUrl={editApproval?.ifmisSlipAttachmentUrl}
           />
         </div>
       </FormSection>

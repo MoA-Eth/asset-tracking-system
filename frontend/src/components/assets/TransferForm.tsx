@@ -876,6 +876,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                 fileName={attachmentFileName}
                 accept={SLIP_ACCEPT_ATTR}
                 onChange={handleSlipSelected}
+                file={attachmentFile}
+                savedUrl={isReturnEdit ? editTransfer?.ifmisSlipAttachmentUrl : undefined}
               />
             </>
           ) : (

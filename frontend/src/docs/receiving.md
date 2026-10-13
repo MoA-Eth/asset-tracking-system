@@ -23,6 +23,7 @@ Use this when new items arrive. Registering a receipt creates the asset record. 
 
 If you have the Model 19 as a **PDF saved from IFMIS**, press **Import receipt** at the top right of the receive form and choose it, or attach it in **Delivery and attachment**. It is attached and read, and the form fills in what is still empty; anything you already typed is kept. A note under the attachment lists what was filled. **Check every filled field against the paper** before submitting; nothing is submitted for you.
 
+- **Check against the copy:** press **View** beside the attachment to open it over the form, before anything is saved. Every form's attachment has **View**.
 - **What is filled:** Model 19 No., PO number, received date, transaction type, source, buyer and program, and the first item: description, category, unit of measure, quantity and unit price. The IFMIS item code goes into the **Remark**, because every delivery of that item shares it.
 - **Only a Model 19 is read here.** A Model 21 transfer form is not: the note says to read it from the transfer form of the asset. Any other PDF fills nothing.
 - **Only PDFs saved from IFMIS are read.** A scanned PDF or a photo has no text in it: it is attached as the scanned copy, and you fill in the fields as usual.
