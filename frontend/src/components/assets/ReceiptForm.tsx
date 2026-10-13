@@ -268,10 +268,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         setUom(line.uom.toUpperCase());
         filled.push('unit of measure');
       }
-      if (line.subInventory && !subInventory.trim()) {
-        setSubInventory(line.subInventory);
-        filled.push('sub inventory');
-      }
       if (line.quantity && !quantity) {
         setQuantity(line.quantity);
         filled.push('quantity');
@@ -833,49 +829,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               <TotalValue accent="emerald">
                 {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </TotalValue>
-            </Field>
-          </FieldGrid>
-
-          {/* Inventory references */}
-          <FieldGrid cols={4}>
-            <Field label="Sub inventory" optional>
-              <input
-                type="text"
-                placeholder={locations.find((l) => l.id === storeLocationId)?.name || 'Defaults to the location in store'}
-                value={subInventory}
-                onChange={(e) => setSubInventory(e.target.value)}
-                className={input()}
-              />
-            </Field>
-
-            <Field label="Lot / batch no." optional>
-              <input
-                type="text"
-                placeholder="e.g. BATCH-2026-09"
-                value={lotBatchNo}
-                onChange={(e) => setLotBatchNo(e.target.value)}
-                className={input({ mono: true })}
-              />
-            </Field>
-
-            <Field label="Printed pad from" optional>
-              <input
-                type="text"
-                placeholder="From #"
-                value={printedPadFrom}
-                onChange={(e) => setPrintedPadFrom(e.target.value)}
-                className={input({ mono: true })}
-              />
-            </Field>
-
-            <Field label="Printed pad to" optional>
-              <input
-                type="text"
-                placeholder="To #"
-                value={printedPadTo}
-                onChange={(e) => setPrintedPadTo(e.target.value)}
-                className={input({ mono: true })}
-              />
             </Field>
           </FieldGrid>
 
