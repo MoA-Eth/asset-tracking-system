@@ -683,11 +683,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           <Field label="Transaction type" required htmlFor="stock-in-transaction-type" error={fieldErrors.error('transactionType')}>
             <select id="stock-in-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} onBlur={fieldErrors.touch('transactionType')} className={input({ invalid: !!fieldErrors.error('transactionType') })}>
               <option value="" disabled>Select…</option>
-              <option value="PO Receipt">PO Receipt</option>
-              <option value="Direct Delivery">Direct Delivery</option>
-              <option value="Donation / Grant Receipt">Donation / Grant Receipt</option>
-              <option value="Transfer Receipt">Transfer Receipt</option>
-              <option value="Internal Production">Internal Production</option>
+              {TRANSACTION_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
             </select>
           </Field>
 

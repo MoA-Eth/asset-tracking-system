@@ -413,6 +413,50 @@ describe('Assets page', () => {
     }));
   });
 
+  it('reads a disposal form PDF: this item, then every other asset on it that is in store, each as its own request', async () => {
+    const user = userEvent.setup();
+    const tablets = [
+      item('T43', 'Tablet Computer', 'AVAILABLE', { itemCode: 'MOA-000343' }),
+      item('T44', 'Tablet Computer', 'AVAILABLE', { itemCode: 'MOA-000344' }),
+      // Issued: it has to come back to store before it can be disposed of
+      item('T45', 'Tablet Computer', 'ISSUED', { itemCode: 'MOA-000345' }),
+    ];
+    vi.mocked(api.getItems).mockResolvedValue(tablets as any);
+    vi.mocked(api.registerDisposal).mockResolvedValue(request('NEW', 'DISPOSAL', 'T43', { requestDetails: { quantity: 1, reason: 'Gift / donation' } }) as any);
+    const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+    vi.mocked(readPdfRows).mockResolvedValue([
+      r(49, [444, 'Fixed Asset Disposal Form']),
+      r(92, [60, 'Sold /Transferred / Donated to :'], [221, 'Test Region Office'], [821, 'No:'], [849, '0000015/2013']),
+      r(109, [813, 'Date:'], [849, '26-NOV-21']),
+      r(143, [53, 'S.No'], [173, 'Tag Number'], [576, 'Disposal Type'], [653, 'Original Cost'], [830, 'Book Value']),
+      r(159, [572, 'DONATION']),
+      r(168, [79, '1'], [94, 'Tablet Computer'], [168, 'MOA-000343'], [679, '15,640.00'], [783, '0.00'], [859, '15,640.00']),
+      r(186, [572, 'DONATION']),
+      r(195, [79, '2'], [94, 'Tablet Computer'], [168, 'MOA-000344'], [679, '15,640.00'], [783, '0.00'], [859, '15,640.00']),
+      r(213, [572, 'DONATION']),
+      r(222, [79, '3'], [94, 'Tablet Computer'], [168, 'MOA-000345'], [679, '15,640.00'], [783, '0.00'], [859, '15,640.00']),
+    ]);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-000343');
+    await menuFor(user, 'MOA-000343');
+    await user.click(screen.getByRole('menuitem', { name: 'Dispose' }));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-000343' });
+    await user.click(within(record).getByRole('button', { name: 'Import disposal' }));
+    await user.upload(screen.getByLabelText('Voucher PDF to import'), new File(['%PDF'], 'disposal.pdf', { type: 'application/pdf' }));
+
+    expect(await within(record).findByText(/Filled in from the disposal form/)).toBeInTheDocument();
+    expect(within(record).getByDisplayValue('0000015/2013')).toBeInTheDocument();
+    expect(within(record).getByDisplayValue('Test Region Office')).toBeInTheDocument();
+    const others = within(record).getByRole('region', { name: 'Other assets on this form' });
+    expect(within(others).getByText('Will be disposed of')).toBeInTheDocument();
+    expect(within(others).getByText(/MOA-000345 is issued to someone; take it back to store first/)).toBeInTheDocument();
+
+    await user.click(submitOf(record, 'disposal-form'));
+    await vi.waitFor(() => expect(api.registerDisposal).toHaveBeenCalledTimes(2));
+    expect(api.registerDisposal).toHaveBeenNthCalledWith(1, expect.objectContaining({ itemId: 'T43', disposalNo: '0000015/2013', reason: 'Gift / donation', recipientName: 'Test Region Office', bookValue: 15640 }));
+    expect(api.registerDisposal).toHaveBeenNthCalledWith(2, expect.objectContaining({ itemId: 'T44', disposalNo: '0000015/2013', disposalDateGc: '2021-11-26', bookValue: 15640 }));
+  });
+
   it('is read-only for approvers', async () => {
     const user = userEvent.setup();
     auth.user.permissions = ['inventory.read', 'approvals.read', 'approvals.endorse'];

@@ -72,4 +72,37 @@ describe('reading an IFMIS Model 19', () => {
     const last = parseModel19(MODEL19).lines[2];
     expect(last.totalAmount).toBe(55000);
   });
+
+  it('reads the figures by column when a total and its remark come as one piece, as in a real IFMIS PDF', () => {
+    // Laid out like a real petty-cash Model 19: empty PO, source and buyer; a watermark; total and remark printed together
+    const real: PdfRow[] = [
+      row(63, [482, 'Print Model19 Report']),
+      row(101, [515, 'INV Model 19 No. :'], [613, '0000005']),
+      row(113, [541, 'PO Number :']),
+      row(125, [528, 'Received Date :'], [613, '05-Sep-2020']),
+      row(137, [513, 'Transaction Type :'], [613, 'Petty Cash Purchase Receipt']),
+      row(149, [562, 'Source :']),
+      row(160, [568, 'Buyer :']),
+      row(188, [407, 'Item'], [465, 'Lot/'], [505, 'Serial'], [541, 'of Printed'], [815, 'Remark']),
+      row(197, [59, 'S/No.'], [91, 'Item Code'], [203, 'Item Description'], [302, 'UOM'], [349, 'Sub'], [399, 'Category'], [625, 'Qty']),
+      row(209, [535, 'FROM'], [572, 'TO'], [683, 'Unit Price'], [748, 'Total Amount']),
+      row(219, [55, '1'], [85, '108101101.0021'], [198, 'Fuel Visa Card'], [305, 'EA'], [328, 'Stationery'], [387, 'Fuel and'], [621, '12918'], [729, '1'], [783, '12918 968765']),
+      row(227, [317, 'IFMIS'], [387, 'Lubricant']),
+      row(239, [55, '2'], [85, '108101101.0010'], [198, 'Coupon For Fuel Of Birr'], [305, 'EA'], [328, 'Stationery'], [387, 'Fuel and'], [628, '50'], [716, '1000'], [783, '50000 968766']),
+      row(248, [198, '1000'], [387, 'Lubricant']),
+      row(278, [55, '3'], [85, '101101101.0052'], [198, 'Mobile Card 100 Birr'], [305, 'EA'], [328, 'Stationery'], [387, 'Office supplies'], [625, '336'], [720, '100'], [783, '33600 968768']),
+      row(287, [387, '& Other']),
+      row(296, [387, 'related Item']),
+      row(307, [688, 'Grand Total'], [778, '121518']),
+    ];
+    const slip = parseModel19(real);
+    expect(slip).toMatchObject({ model19No: '0000005', receivedDate: '2020-09-05', transactionType: 'Petty Cash Purchase Receipt' });
+    expect(slip.poNumber).toBeUndefined();
+    expect(slip.source).toBeUndefined();
+    expect(slip.lines.map((l) => [l.description, l.category, l.quantity, l.unitPrice, l.totalAmount])).toEqual([
+      ['Fuel Visa Card', 'Fuel and Lubricant', 12918, 1, 12918],
+      ['Coupon For Fuel Of Birr 1000', 'Fuel and Lubricant', 50, 1000, 50000],
+      ['Mobile Card 100 Birr', 'Office supplies & Other related Item', 336, 100, 33600],
+    ]);
+  });
 });

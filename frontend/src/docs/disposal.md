@@ -24,3 +24,11 @@ Public body, who it is sold, transferred or donated to, then for each asset: tag
 - Until the Team Leader endorses it, choose **Edit disposal** to correct it.
 - **Approved:** the asset (or the quantity you chose) becomes **Disposed** and is kept as a record. **Rejected:** it stays in store and the reason is shown.
 - Print the form again later from the asset: **Print disposal voucher**.
+
+## Fill in from a disposal form PDF
+
+On the disposal form, press **Import disposal** at the top right and choose the **Fixed Asset Disposal Form (Model 22/B)** as a PDF saved from IFMIS. It fills in the reference no., date, **Disposed to**, the reason (from the disposal type, e.g. DONATION becomes Gift / donation) and this item's book value. Check them against the paper before submitting.
+
+The other assets on the form are listed under it, each marked **Will be disposed of** or **Not disposed of** with the reason. In the order of operations an asset must already be **received and approved**, be **in store** (an issued asset has to come back to store first), and have no other request waiting. One **Submit** disposes of this item and every other asset that fits, each as its own request with the same reference, date, reason and recipient. Press **Leave out** to skip one.
+
+Only a disposal form is read here; a Model 19 or Model 21 is sent to its own form. A scanned PDF has no text and can't be read.

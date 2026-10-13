@@ -173,9 +173,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   // A form's import button takes the voucher as a PDF saved from IFMIS and reads it into that form. Each form
   // reads only its own voucher: the receive form a Model 19, the transfer form a Model 21.
   const pdfPicker = useRef<HTMLInputElement>(null);
-  const pdfFor = useRef<'receipt' | 'transfer'>('receipt');
-  const importAction = (kind: 'receipt' | 'transfer'): RowAction => ({
-    label: kind === 'receipt' ? 'Import receipt' : 'Import transfer',
+  const pdfFor = useRef<'receipt' | 'transfer' | 'disposal'>('receipt');
+  const importAction = (kind: 'receipt' | 'transfer' | 'disposal'): RowAction => ({
+    label: { receipt: 'Import receipt', transfer: 'Import transfer', disposal: 'Import disposal' }[kind],
     icon: FileUp,
     onClick: () => {
       pdfFor.current = kind;
@@ -188,11 +188,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     }
     // Read into the open form, keeping what is already typed
     if (pdfFor.current === 'receipt') setReceipt((r) => (r ? { ...r, slip: file } : r));
-    else setTransfer((t) => (t ? { ...t, slip: file } : t));
+    else if (pdfFor.current === 'transfer') setTransfer((t) => (t ? { ...t, slip: file } : t));
+    else setDisposing((d) => (d ? { ...d, slip: file } : d));
   };
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval; slip?: File } | null>(null);
-  const [disposing, setDisposing] = useState<{ itemId: string } | null>(null);
+  const [disposing, setDisposing] = useState<{ itemId: string; slip?: File } | null>(null);
   // The asset record open beside the list, and whether what it has pending is being corrected in place
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -581,10 +582,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     if (disposing && disposing.itemId === item.id) {
       return {
         id: 'disposal-form',
+        actions: [importAction('disposal')],
         form: (
           <DisposalForm
             key={`disposal-${item.id}`}
             item={item}
+            allItems={items}
+            pendingItemIds={new Set(pendingByItem.keys())}
+            slip={disposing.slip}
             onCancel={() => setDisposing(null)}
             onSuccess={(_result, voucher) => done(voucher, setVoucherDisposal)}
           />
