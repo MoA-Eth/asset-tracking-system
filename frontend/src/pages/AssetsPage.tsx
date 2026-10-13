@@ -501,7 +501,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
    * The form that corrects what a record has pending, shown in place of its details and saved from the record's
    * toolbar. Only a receipt or request still with the Team Leader can be corrected.
    */
-  const editFormFor = (row: AssetRow): { id: string; form: React.ReactNode } | undefined => {
+  const editFormFor = (row: AssetRow): { id: string; form: React.ReactNode; actions?: RowAction[] } | undefined => {
     const { item, request } = row;
     const done = (voucher?: unknown, print?: (v: any) => void) => {
       setEditing(false);
@@ -548,6 +548,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     if (issue && (issue.itemId === item.id || issue.edit?.itemId === item.id)) {
       return {
         id: 'stock-out-form',
+        actions: issue.edit
+          ? undefined
+          : [{ label: 'Import Model 22 (Excel)', icon: FileSpreadsheet, disabled: true, reason: 'Coming soon, once the Model 22 spreadsheet format is agreed.' }],
         form: (
           <StockOutForm
             key={issue.edit?.id ?? `issue-${item.id}`}
@@ -1147,6 +1150,16 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               </div>
             </FilterSection>
           </FilterPopover>
+
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            title="Export filtered assets to CSV"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs shrink-0"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>Export CSV</span>
+          </button>
         </div>
       </div>
 
@@ -1167,12 +1180,25 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 >
                   <ArrowLeft className="h-3 w-3" /> Back to assets
                 </button>
-                <CloseButton
-                  onClose={() => setReceipt(null)}
-                  label="Close registration"
-                  title="Close (Esc)"
-                  className="absolute right-3 top-3 hidden lg:inline-flex"
-                />
+                <div className="absolute right-3 top-3 flex items-center gap-1.5">
+                  {!receipt.edit && (
+                    <RowActionsMenu
+                      label="Receive items"
+                      heading="More actions"
+                      actions={[
+                        { label: 'Fill in from an IFMIS slip', icon: FileUp, onClick: () => slipPicker.current?.click() },
+                        {
+                          label: 'Import Model 19 (Excel)',
+                          icon: FileSpreadsheet,
+                          onClick: () => setImportOpen(true),
+                          disabled: scanRequired,
+                          reason: scanRequired ? 'Every receipt needs its scanned slip (Settings), so receive them one by one.' : undefined,
+                        },
+                      ]}
+                    />
+                  )}
+                  <CloseButton onClose={() => setReceipt(null)} label="Close registration" title="Close (Esc)" className="hidden lg:inline-flex" />
+                </div>
                 <div className="lg:pr-8">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2.5">
@@ -1231,6 +1257,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               requests={selectedRequests}
               actions={actionsFor(selectedRow).filter((a) => a.label !== 'View details')}
               editForm={formOpenFor(selectedRow.item.id) ? editFormFor(selectedRow)?.form : undefined}
+              formActions={formOpenFor(selectedRow.item.id) ? editFormFor(selectedRow)?.actions : undefined}
               onPrintRequest={(r) => printRequest(r, selectedRow.item)}
               onPrintReceipt={() => setVoucher19(buildModel19Voucher(selectedRow.item, items, user?.fullNameEn))}
               onSelect={openRecord}
@@ -1257,60 +1284,16 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 className={table.search.replace('pr-8', 'pr-3')}
               />
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {canReceive && (
-                <button
-                  type="button"
-                  onClick={() => openReceipt()}
-                  className={`${btn.primary} shrink-0`}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Receive items (Model 19)</span>
-                </button>
-              )}
-              <RowActionsMenu
-                label="Assets"
-                heading="More actions"
-                actions={[
-                  { label: 'Fill in from an IFMIS slip', icon: FileUp, onClick: () => slipPicker.current?.click(), hidden: !canReceive },
-                  // One import per voucher, since each voucher's spreadsheet has its own columns
-                  {
-                    label: 'Import Model 19 (receipts)',
-                    icon: FileSpreadsheet,
-                    onClick: () => setImportOpen(true),
-                    hidden: !canReceive,
-                    disabled: scanRequired,
-                    reason: scanRequired ? 'Every receipt needs its scanned slip (Settings), so receive them one by one.' : undefined,
-                  },
-                  {
-                    label: 'Import Model 22 (issues)',
-                    icon: FileSpreadsheet,
-                    hidden: !canReceive,
-                    disabled: true,
-                    reason: 'Coming soon, once the Model 22 spreadsheet format is agreed.',
-                  },
-                  // Everyone can export what the filters show
-                  { label: 'Export CSV', icon: Download, onClick: handleExportCSV },
-                ]}
-              />
-              {canReceive && (
-                <input
-                  ref={slipPicker}
-                  type="file"
-                  accept={SLIP_ACCEPT_ATTR}
-                  aria-label="IFMIS slip to fill in from"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = '';
-                    if (file) {
-                      openReceipt();
-                      setReceipt({ slip: file, templateKey: `slip-${Date.now()}` });
-                    }
-                  }}
-                />
-              )}
-            </div>
+            {canReceive && (
+              <button
+                type="button"
+                onClick={() => openReceipt()}
+                className={`${btn.primary} shrink-0`}
+              >
+                <Plus className="w-4 h-4" />
+                <span>Receive items (Model 19)</span>
+              </button>
+            )}
           </div>
 
           {/* Active Filter Chips (if any filter, search, or sort is active) */}
@@ -1551,6 +1534,21 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       )}
 
       <Model19PrintModal isOpen={!!voucher19} voucher={voucher19} onClose={() => setVoucher19(null)} />
+      {canReceive && (
+        <input
+          ref={slipPicker}
+          type="file"
+          accept={SLIP_ACCEPT_ATTR}
+          aria-label="IFMIS slip to fill in from"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            // Read into the open receive form, keeping what is already typed
+            if (file) setReceipt((r) => (r ? { ...r, slip: file } : r));
+          }}
+        />
+      )}
       {importOpen && (
         <ReceiptImportModal isOpen onClose={() => setImportOpen(false)} onImported={() => fetchData(true)} locations={locations} items={items} />
       )}
