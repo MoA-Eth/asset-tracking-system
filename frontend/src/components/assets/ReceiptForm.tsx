@@ -12,6 +12,7 @@ import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { readPdfRows, rowsToText, isModel21, parseModel21, isModel19, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES } from './receipt-options';
+import { SlipLines, SlipLine, lineMissing } from './SlipLines';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -129,6 +130,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const isAttachmentRequired = policy === 'REQUIRED';
 
   const totalAmount = (Number(quantity) || 0) * (Number(unitCostETB) || 0);
+  // The other item lines of a Model 19 read from its PDF: each is registered as its own record on submit
+  const [extraLines, setExtraLines] = useState<SlipLine[]>([]);
+  const extraTotal = extraLines.reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0);
 
   // Required fields still empty; the receipt can only be submitted once this is empty
   const missingFields = [
@@ -146,6 +150,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !uom.trim() && 'unit of measure',
     !(unitCostETB > 0) && 'unit price',
     isAttachmentRequired && !attachmentFileName && 'scanned slip',
+    ...extraLines.map((l, i) => lineMissing(l).length > 0 && `item ${i + 2} (${lineMissing(l).join(', ')})`),
   ].filter(Boolean) as string[];
 
   // A field shows what is wrong with it once the user has been in it
@@ -184,6 +189,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setUnitCostETB(0);
     setCondition('');
     setRemark('');
+    setExtraLines([]);
     setDeliveredBy('');
     setReceivedBy('');
     setReceivedById('');
@@ -263,14 +269,35 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       }
     }
     // A receipt comes first in an item's life: the same slip line received twice would count the goods twice
-    const already =
-      slip.model19No && line?.description
+    const receivedAs = (description?: string) =>
+      slip.model19No && description
         ? registered?.find(
             (r) =>
               r.slipNumber?.trim().toLowerCase() === slip.model19No!.trim().toLowerCase() &&
-              r.name.trim().toLowerCase() === line.description!.trim().toLowerCase(),
-          )
+              r.name.trim().toLowerCase() === description.trim().toLowerCase(),
+          )?.itemCode
         : undefined;
+    const alreadyCode = receivedAs(line?.description);
+    const already = alreadyCode ? { itemCode: alreadyCode } : undefined;
+    // Every other line of the slip is listed under the first, to be registered as its own record
+    const others = isEdit ? [] : slip.lines.slice(1);
+    if (others.length > 0) {
+      setExtraLines(
+        others.map((l, i) => ({
+          key: Date.now() + i,
+          name: l.description ?? '',
+          category: CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(l.category ?? ''))?.[1] ?? '',
+          itemType: '',
+          condition: '',
+          uom: (l.uom ?? 'EA').toUpperCase(),
+          quantity: l.quantity ?? 0,
+          unitPrice: l.unitPrice ?? 0,
+          ifmisCode: l.itemCode,
+          alreadyAs: receivedAs(l.description),
+        })),
+      );
+      filled.push(`${others.length} more ${others.length === 1 ? 'item' : 'items'} below`);
+    }
     if (already) {
       setSlipNote({
         tone: 'warn',
@@ -283,8 +310,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       return;
     }
     const more =
-      slip.lines.length > 1
-        ? ` This slip lists ${slip.lines.length} items; the first one was filled in. Register each of the others as its own receipt with the same Model 19 No.`
+      others.length > 0
+        ? ` This slip lists ${slip.lines.length} items: the first is in the form and the others are listed under it. Set their item type and condition; each is registered as its own record.`
         : '';
     filledNote(filled, more);
   };
@@ -463,7 +490,18 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         quantity: Number(quantity) || 1,
         totalAmount,
         remark: remark.trim() || undefined,
-      }];
+      }, ...extraLines.map((l) => ({
+        name: l.name.trim(),
+        category: l.category as AssetCategory,
+        itemType: l.itemType as ItemType,
+        unitCostETB: l.unitPrice,
+        condition: l.condition as ItemCondition,
+        uom: l.uom.trim(),
+        itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
+        quantity: l.quantity,
+        totalAmount: l.quantity * l.unitPrice,
+        remark: l.ifmisCode ? `IFMIS item code ${l.ifmisCode}` : undefined,
+      }))];
 
       const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
 
@@ -509,7 +547,23 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         unitPrice: Number(unitCostETB) || 0,
         totalAmount,
         remark: remark.trim() || '',
-      }];
+      }, ...extraLines.map((l, i): Model19LineItem => ({
+        sNo: i + 2,
+        itemCode: res.items?.[i + 1]?.itemCode || '—',
+        itemDescription: l.name.trim(),
+        uom: l.uom.trim(),
+        subInventory: targetStore?.name || '',
+        itemCategory: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label || String(l.category).replace(/_/g, ' '),
+        itemType: l.itemType as ItemType,
+        lotBatchNo: '',
+        serialNo: '',
+        printedPadFrom: '',
+        printedPadTo: '',
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        totalAmount: l.quantity * l.unitPrice,
+        remark: l.ifmisCode ? `IFMIS item code ${l.ifmisCode}` : '',
+      }))];
 
       const generatedVoucher: Model19Voucher = {
         approvalState: 'PENDING',
@@ -527,12 +581,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         receivedByName: receiverName,
         printedBy: user?.fullNameEn,
         items: voucherItems,
-        grandTotal: totalAmount,
+        grandTotal: totalAmount + extraTotal,
       };
 
       toast.success(
         'Receipt registered',
-        `Item "${name.trim()}" (Model 19 #${slipNo}, Total ${formatETB(totalAmount)}) registered and submitted for Team Leader verification.`
+        extraLines.length > 0
+          ? `${extraLines.length + 1} items (Model 19 #${slipNo}, Total ${formatETB(totalAmount + extraTotal)}) registered, each as its own record, and submitted for Team Leader verification.`
+          : `Item "${name.trim()}" (Model 19 #${slipNo}, Total ${formatETB(totalAmount)}) registered and submitted for Team Leader verification.`
       );
 
       rememberForm(user?.id, 'receipt', { transactionType, storeLocationId });
@@ -781,6 +837,21 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               className={input()}
             />
           </Field>
+
+          {extraLines.length > 0 && (
+            <SlipLines
+              lines={extraLines}
+              onChange={setExtraLines}
+              onCopyFirst={
+                itemType || condition
+                  ? () =>
+                      setExtraLines((ls) =>
+                        ls.map((l) => ({ ...l, itemType: l.itemType || (itemType as ItemType | ''), condition: l.condition || (condition as ItemCondition | '') })),
+                      )
+                  : undefined
+              }
+            />
+          )}
         </div>
       </FormSection>
 
@@ -853,7 +924,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       <FormFooter
         accent="emerald"
         submitting={submitting}
-        submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
+        submitLabel={isEdit ? 'Save changes' : extraLines.length > 0 ? `Submit ${extraLines.length + 1} items for approval` : 'Submit for approval'}
         // Submit stays off until every required field is filled
         missingFields={missingFields}
         onCancel={onCancel}
