@@ -6,6 +6,7 @@ import { AssetsPage } from './AssetsPage';
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
 import { readPdfRows, PdfRow } from '../utils/slip-reader';
+import { ocrRows } from '../utils/slip-ocr';
 
 /** Lines of PDF text as the reader returns them: cells two spaces apart, laid out left to right */
 const asRows = (lines: string[]): PdfRow[] =>
@@ -16,6 +17,10 @@ const auth = vi.hoisted(() => ({ user: { id: 'enc', payrollId: 'ENC-1', permissi
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn() }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../context/ToastContext', () => ({ useToast: () => toast }));
+vi.mock('../utils/slip-ocr', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../utils/slip-ocr')>()),
+  ocrRows: vi.fn(),
+}));
 vi.mock('../utils/slip-reader', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../utils/slip-reader')>()),
   readPdfRows: vi.fn(),
@@ -603,15 +608,48 @@ describe('Asset record', () => {
     expect(within(panel).getByDisplayValue('IFMIS item code 107101102.4336')).toBeInTheDocument();
   });
 
+  it('reads a photo of a Model 19: fills the header, and leaves item lines that do not add up', async () => {
+    const user = userEvent.setup();
+    const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+    vi.mocked(ocrRows).mockResolvedValue([
+      r(98, [640, 'Print Model 19 Report']),
+      r(146, [680, 'INV. Model 19 No. : 0000044']),
+      r(162, [714, 'PO Number: 186']),
+      r(178, [697, 'Received Date : 25-Sep-2026']),
+      r(193, [677, 'Transaction Type : PO Receipt']),
+      r(208, [742, 'Source: ERMEJA TRADING ONE MEMBER']),
+      r(240, [748, 'Buyer: Teka, Yebirgual Tamiru']),
+      // A misread line: no real unit, and its figures do not add up
+      r(316, [88, '1'], [124, '105101102.0415'], [268, 'Streptomycine le WJ'], [403, 'SR'], [960, '3080']),
+    ]);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'model19-photo.jpg', { type: 'image/jpeg' }));
+
+    expect(await within(panel).findByText(/Filled in from the scan/)).toBeInTheDocument();
+    expect(within(panel).getByText(/item lines on this scan could not be read reliably/)).toBeInTheDocument();
+    expect(readPdfRows).not.toHaveBeenCalled();
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000044');
+    expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('PO Receipt');
+    expect(within(panel).getByLabelText(/Source/i)).toHaveValue('ERMEJA TRADING ONE MEMBER');
+    // The misread item is not pasted in
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
+  });
+
   it('says so when the attached PDF is a scan with no text', async () => {
     const user = userEvent.setup();
     vi.mocked(readPdfRows).mockResolvedValue([]);
+    vi.mocked(ocrRows).mockResolvedValue([]);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'scan.pdf', { type: 'application/pdf' }));
-    expect(await within(panel).findByText(/scanned image, so nothing could be read/)).toBeInTheDocument();
+    expect(await within(panel).findByText(/Nothing could be read from this slip/)).toBeInTheDocument();
+    // No text inside the PDF: it was read as a scan
+    expect(ocrRows).toHaveBeenCalled();
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
   });
 

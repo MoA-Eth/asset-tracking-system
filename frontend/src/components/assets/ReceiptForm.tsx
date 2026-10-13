@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PackagePlus, FileText, Upload } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
@@ -11,6 +11,7 @@ import { ITEM_TYPE_OPTIONS } from './asset-state';
 import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { readPdfRows, rowsToText, isModel21, parseModel21, isModel19, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
+import { ocrRows, isImageFile } from '../../utils/slip-ocr';
 
 /** The transaction types the receipt offers */
 const TRANSACTION_TYPES = ['PO Receipt', 'Direct Delivery', 'Donation / Grant Receipt', 'Transfer Receipt', 'Internal Production'];
@@ -215,6 +216,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   // What reading the attached slip found, shown under it
   const [slipNote, setSlipNote] = useState<{ tone: 'info' | 'warn'; text: string } | null>(null);
+  // Whether the slip being read is a scan (read with OCR), which can be misread
+  const fromScan = useRef(false);
+  const filledNote = (filled: string[], more: string) =>
+    setSlipNote({
+      tone: 'info',
+      text: fromScan.current
+        ? `Filled in from the scan: ${filled.join(', ')}. A scan can be misread, so check each one against the paper before submitting.${more}`
+        : `Filled in from the slip: ${filled.join(', ')}. Check them against the paper before submitting.${more}`,
+    });
 
   /**
    * An IFMIS PDF fills in what is still empty: the voucher number, date, transaction type, source and the item.
@@ -223,7 +233,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   /** A Model 19 from IFMIS: the header and the first item line, into the fields still empty */
   const fillFromModel19 = (slip: Model19SlipFields) => {
     const filled: string[] = [];
-    const line = slip.lines[0];
+    // From a downloaded PDF the first line is exact. From a scan, only a line that holds together is used:
+    // a real unit of measure, a quantity and a price whose product is the line total. Otherwise it may be misread.
+    const holdsTogether = (l: Model19SlipFields['lines'][number]) =>
+      !!l.description &&
+      !!l.uom && COMMON_UOMS.includes(l.uom.toUpperCase()) &&
+      !!l.quantity && !!l.unitPrice && !!l.totalAmount &&
+      Math.abs(l.quantity * l.unitPrice - l.totalAmount) <= Math.max(1, l.totalAmount * 0.01);
+    const line = fromScan.current ? slip.lines.find(holdsTogether) : slip.lines[0];
+    const itemsUnreadable = fromScan.current && slip.lines.length > 0 && !line;
     const today = new Date().toISOString().split('T')[0];
     if (slip.model19No && !ifmisSlipNumber.trim()) {
       setIfmisSlipNumber(slip.model19No);
@@ -286,14 +304,18 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       setSlipNote({ tone: 'info', text: 'The slip was read, but every field it covers is already filled in.' });
       return;
     }
-    const more = slip.lines.length > 1 ? ` This slip lists ${slip.lines.length} items; the first one was filled in. Register each of the others as its own receipt with the same Model 19 No.` : '';
-    setSlipNote({ tone: 'info', text: `Filled in from the slip: ${filled.join(', ')}. Check them against the paper before submitting.${more}` });
+    const more = itemsUnreadable
+      ? ' The item lines on this scan could not be read reliably, so fill in the item yourself.'
+      : slip.lines.length > 1
+        ? ` This slip lists ${slip.lines.length} items; ${line === slip.lines[0] ? 'the first one' : 'one that could be read'} was filled in. Register each of the others as its own receipt with the same Model 19 No.`
+        : '';
+    filledNote(filled, more);
   };
 
   const fillFromSlip = (rows: PdfRow[]) => {
     const text = rowsToText(rows);
     if (!text.trim()) {
-      setSlipNote({ tone: 'warn', text: 'This PDF is a scanned image, so nothing could be read from it. Fill in the fields as usual.' });
+      setSlipNote({ tone: 'warn', text: 'Nothing could be read from this slip. It is attached; fill in the fields as usual.' });
       return;
     }
     if (isModel19(text)) {
@@ -301,7 +323,12 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       return;
     }
     if (!isModel21(text)) {
-      setSlipNote({ tone: 'warn', text: "This isn't an IFMIS form the app can read yet. Fill in the fields as usual." });
+      setSlipNote({
+        tone: 'warn',
+        text: fromScan.current
+          ? "The scan was read, but it doesn't look like an IFMIS Model 19 or transfer form. Fill in the fields as usual."
+          : "This isn't an IFMIS form the app can read yet. Fill in the fields as usual.",
+      });
       return;
     }
     const slip = parseModel21(text);
@@ -353,7 +380,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       return;
     }
     const more = slip.lines.length > 1 ? ` This slip lists ${slip.lines.length} assets; the first one was filled in. Register each of the others as its own receipt.` : '';
-    setSlipNote({ tone: 'info', text: `Filled in from the slip: ${filled.join(', ')}. Check them against the paper before submitting.${more}` });
+    filledNote(filled, more);
   };
 
   const handleSlipSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -370,11 +397,20 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setAttachmentFile(file);
     setAttachmentFileName(file.name);
     setSlipNote(null);
-    if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+    const pdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    if (pdf || isImageFile(file)) {
       setSlipNote({ tone: 'info', text: 'Reading the slip…' });
-      readPdfRows(file)
-        .then(fillFromSlip)
-        .catch(() => setSlipNote({ tone: 'warn', text: "The slip couldn't be read. It is attached; fill in the fields as usual." }));
+      (async () => {
+        fromScan.current = false;
+        let rows = pdf ? await readPdfRows(file) : [];
+        // No text inside: a scan or a photo, read with OCR
+        if (!rowsToText(rows).trim()) {
+          fromScan.current = true;
+          setSlipNote({ tone: 'info', text: 'Reading the scan… this takes a few seconds.' });
+          rows = await ocrRows(file);
+        }
+        fillFromSlip(rows);
+      })().catch(() => setSlipNote({ tone: 'warn', text: "The slip couldn't be read. It is attached; fill in the fields as usual." }));
     }
   };
 
