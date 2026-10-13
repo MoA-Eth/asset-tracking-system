@@ -12,31 +12,9 @@ import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { readPdfRows, rowsToText, isModel21, parseModel21, isModel19, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { ocrRows, isImageFile } from '../../utils/slip-ocr';
-
-/** The transaction types the receipt offers */
-const TRANSACTION_TYPES = ['PO Receipt', 'Direct Delivery', 'Donation / Grant Receipt', 'Transfer Receipt', 'Internal Production'];
-
-/** IFMIS item categories, matched to the categories of this register */
-const CATEGORY_FROM_IFMIS: [RegExp, AssetCategory][] = [
-  [/medical|laborator|\blab\b|veterinar|drug/i, AssetCategory.LAB_EQUIPMENT],
-  [/agricultur|farm|seed|fertili/i, AssetCategory.AGRI_MACHINERY],
-  [/vehicle|transport|motor/i, AssetCategory.VEHICLE],
-  [/furniture|fixture/i, AssetCategory.OFFICE_FURNITURE],
-  [/computer|\bit\b|ict|electronic/i, AssetCategory.IT_EQUIPMENT],
-  [/uniform|field|gear|cloth/i, AssetCategory.FIELD_GEAR],
-];
+import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES } from './receipt-options';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
-
-const COMMON_UOMS = ['EA', 'PKT', 'SET', 'ROLL', 'PCS', 'BOX', 'BAG', 'KG', 'LTR', 'CAN', 'BOTTLE'];
-const COMMON_CATEGORIES = [
-  { value: AssetCategory.IT_EQUIPMENT, label: 'IT Equipment & Accessories' },
-  { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery & Supplies' },
-  { value: AssetCategory.LAB_EQUIPMENT, label: 'Medical & Lab Supplies' },
-  { value: AssetCategory.VEHICLE, label: 'Vehicles & Transport' },
-  { value: AssetCategory.OFFICE_FURNITURE, label: 'Office Furniture & Fixtures' },
-  { value: AssetCategory.FIELD_GEAR, label: 'Field Gear & Uniforms' },
-];
 
 // ─── Stock-In Form (Flat Single-Item Format) ────────────────────────────────
 
@@ -49,6 +27,8 @@ export interface StockInFormProps {
   editItem?: ItemWithRelations;
   /** A new receipt that starts from an earlier item or slip rather than empty */
   template?: ReceiptTemplate;
+  /** A slip chosen before the form opened: it is attached and read as if picked in the form */
+  initialSlip?: File;
 }
 
 /** What a new receipt can start from instead of empty: an earlier item ("Duplicate as new receipt") */
@@ -81,7 +61,7 @@ export const templateFromItem = (item: ItemWithRelations): ReceiptTemplate => ({
   unitCostETB: item.unitCostETB,
 });
 
-export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template }) => {
+export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template, initialSlip }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
@@ -383,10 +363,19 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     filledNote(filled, more);
   };
 
+  // A slip chosen from the Assets page menu, read once when the form opens
+  useEffect(() => {
+    if (initialSlip) takeSlip(initialSlip);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSlipSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file) return;
+    if (file) takeSlip(file);
+  };
+
+  const takeSlip = (file: File) => {
     const error = validateSlipFile(file);
     if (error) {
       setFormError(error);

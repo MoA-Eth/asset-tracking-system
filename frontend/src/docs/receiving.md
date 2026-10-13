@@ -21,7 +21,7 @@ Use this when new items arrive. Registering a receipt creates the asset record. 
 
 ## Fill in from an IFMIS PDF or scan
 
-If you have the voucher as a **PDF downloaded from IFMIS**, a **scanned PDF** or a **photo** (PNG, JPEG or WEBP), attach it in **Delivery and attachment** first. The form reads it and fills in what is still empty. A note under the attachment lists what was filled. **Check every filled field against the paper** before submitting; nothing is submitted for you. Anything you had already typed is kept.
+If you have the voucher as a **PDF downloaded from IFMIS**, a **scanned PDF** or a **photo** (PNG, JPEG or WEBP), attach it in **Delivery and attachment** first. Or start from the slip: on **Assets**, open **⋮ More actions** next to **Receive items** and choose **Fill in from an IFMIS slip**, then pick the file; the receive form opens with the slip attached. The form reads it and fills in what is still empty. A note under the attachment lists what was filled. **Check every filled field against the paper** before submitting; nothing is submitted for you. Anything you had already typed is kept.
 
 - **Model 19 (Print Model19 Report):** Model 19 No., PO number, received date, transaction type, source, buyer and program, and the first item: description, category, unit of measure, quantity and unit price. The IFMIS item code goes into the **Remark**, because every delivery of that item shares it.
 - **Fixed Asset Internal Transfer Form (Model 21):** voucher number, date, **Transfer Receipt**, the source location, and the asset: description, item code (the IFMIS tag number), quantity, unit price and **Fixed asset**.
@@ -37,3 +37,13 @@ Until the Team Leader has endorsed it, open the receipt and choose **Edit receip
 ## After approval
 
 The asset becomes **In store** and can be issued. If it is **rejected**, it stays on record as **Rejected** with the reason, and you can register it again.
+
+## Import many receipts from Excel
+
+For opening stock, or many receipts at once, use **⋮ More actions → Import Model 19 (receipts)** on **Assets**. Each voucher has its own import, because each spreadsheet has its own columns.
+
+1. Press **Download template** and fill in one row per receipt line, the same as one **Receive items** form: Model 19 No., received date, store, item description, category, item type, unit of measure, quantity and unit price are required. An empty condition is recorded as Good. If the store has several locations or several store men, fill in **Location in store** or **Received by (store man)**.
+2. Choose the file (.xlsx or .csv). You see every row first: rows with a problem are listed with the reason and skipped; nothing is saved yet.
+3. Press **Import**. Each good row becomes its own receipt, marked historical, with no scanned slip. It waits for Team Leader endorsement and Department Head approval like any other receipt.
+
+A row with the same Model 19 No. and description as a receipt already registered is skipped, so importing the same file again does not create duplicates. The import is not offered while the System Administrator requires a scanned slip on every receipt.
