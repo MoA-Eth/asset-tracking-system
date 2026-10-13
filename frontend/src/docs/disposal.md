@@ -27,6 +27,6 @@ Public body, who it is sold, transferred or donated to, then for each asset: tag
 
 ## Import many disposals from Excel
 
-Open the disposal form of any item and use **⋮ More actions → Import disposals (Excel)** at the top right. Fill in one row per disposal: disposal reference no., date, item code and reason are required; an empty quantity disposes of everything in store for that item.
+Open the disposal form of any item and press **Import items** at the top right and choose the Excel or CSV file. Fill in one row per disposal: disposal reference no., date, item code and reason are required; an empty quantity disposes of everything in store for that item.
 
 Only items **in store** can be disposed of. Choose the file (.xlsx or .csv): every row is checked first and rows with a problem are listed with the reason; nothing is saved until you press **Import**. Each good row becomes its own request and waits for Team Leader endorsement and Department Head approval. An item that already has a request waiting is skipped, so importing the same file again does not duplicate anything. The import is not offered while every voucher must have its supporting document.

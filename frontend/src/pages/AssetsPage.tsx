@@ -27,6 +27,7 @@ import { FilterPopover, FilterSection, FilterPill, FilterSelect } from '../compo
 import { SortableHeader } from '../components/ui/SortableHeader';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
+import { HeaderActionButton } from '../components/ui/HeaderActionButton';
 import { AssetRecord } from '../components/assets/AssetRecord';
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
@@ -173,19 +174,23 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   // Pop-ups: one per form, each either new (from a row or the header) or correcting a pending request
   const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string; slip?: File } | null>(null);
-  // "Fill in from an IFMIS slip" in the receive form's menu: the picked file is read into the open form
-  const slipPicker = useRef<HTMLInputElement>(null);
-  // The spreadsheet import open, if any: each voucher's form offers its own
-  const [importKind, setImportKind] = useState<VoucherImportKind | null>(null);
-  // Imported rows carry no scan, so an import whose voucher needs one is only offered while the scan is optional
+  // "Import items" in a form's header opens that voucher's import window. The file's type decides what happens:
+  // a spreadsheet is checked and imported; on the receive form a PDF or picture is read into the form instead.
+  const [importing, setImporting] = useState<VoucherImportKind | null>(null);
+  // Imported rows carry no scan, so spreadsheets for a voucher that needs one are refused while the scan is required
   const scanRequired = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
-  const importAction = (kind: VoucherImportKind, label: string, needsScan: boolean): RowAction => ({
-    label,
-    icon: FileSpreadsheet,
-    onClick: () => setImportKind(kind),
-    disabled: needsScan && scanRequired,
-    reason: needsScan && scanRequired ? 'Every voucher needs its scanned slip (Settings), so enter them one by one.' : undefined,
-  });
+  const SCAN_REQUIRED_REASON = 'Every voucher needs its scanned slip (Settings), so enter them one by one.';
+  const importAction = (kind: VoucherImportKind): RowAction => {
+    // The receive form also reads slips, which the setting never blocks; transfers carry no slip
+    const blocked = kind !== 'receipt' && kind !== 'transfer' && scanRequired;
+    return {
+      label: 'Import items',
+      icon: FileUp,
+      onClick: () => setImporting(kind),
+      disabled: blocked,
+      reason: blocked ? SCAN_REQUIRED_REASON : undefined,
+    };
+  };
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [disposing, setDisposing] = useState<{ itemId: string } | null>(null);
@@ -538,7 +543,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       return {
         id: 'transfer-form',
         // Transfers carry no scanned slip, so their import is offered whatever the setting
-        actions: transfer.edit ? undefined : [importAction('transfer', 'Import Model 21 (Excel)', false)],
+        actions: transfer.edit ? undefined : [importAction('transfer')],
         form: (
           <TransferForm
             key={transfer.edit?.id ?? `transfer-${item.id}`}
@@ -558,7 +563,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     if (issue && (issue.itemId === item.id || issue.edit?.itemId === item.id)) {
       return {
         id: 'stock-out-form',
-        actions: issue.edit ? undefined : [importAction('issue', 'Import Model 22 (Excel)', true)],
+        actions: issue.edit ? undefined : [importAction('issue')],
         form: (
           <StockOutForm
             key={issue.edit?.id ?? `issue-${item.id}`}
@@ -577,7 +582,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     if (disposing && disposing.itemId === item.id) {
       return {
         id: 'disposal-form',
-        actions: [importAction('disposal', 'Import disposals (Excel)', true)],
+        actions: [importAction('disposal')],
         form: (
           <DisposalForm
             key={`disposal-${item.id}`}
@@ -1190,19 +1195,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   <ArrowLeft className="h-3 w-3" /> Back to assets
                 </button>
                 <div className="absolute right-3 top-3 flex items-center gap-1.5">
-                  {!receipt.edit && (
-                    <RowActionsMenu
-                      label="Receive items"
-                      heading="More actions"
-                      actions={[
-                        { label: 'Fill in from an IFMIS slip', icon: FileUp, onClick: () => slipPicker.current?.click() },
-                        importAction('receipt', 'Import Model 19 (Excel)', true),
-                      ]}
-                    />
-                  )}
+                  {!receipt.edit && <HeaderActionButton action={importAction('receipt')} />}
                   <CloseButton onClose={() => setReceipt(null)} label="Close registration" title="Close (Esc)" className="hidden lg:inline-flex" />
                 </div>
-                <div className="lg:pr-8">
+                <div className={receipt.edit ? 'lg:pr-8' : 'pr-32 lg:pr-40'}>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2.5">
                       <h3 className="text-base font-extrabold text-slate-900">
@@ -1537,25 +1533,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       )}
 
       <Model19PrintModal isOpen={!!voucher19} voucher={voucher19} onClose={() => setVoucher19(null)} />
-      {canReceive && (
-        <input
-          ref={slipPicker}
-          type="file"
-          accept={SLIP_ACCEPT_ATTR}
-          aria-label="IFMIS slip to fill in from"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = '';
-            // Read into the open receive form, keeping what is already typed
-            if (file) setReceipt((r) => (r ? { ...r, slip: file } : r));
-          }}
-        />
-      )}
-      {importKind && (
+      {importing && (
         <VoucherImport
-          kind={importKind}
-          onClose={() => setImportKind(null)}
+          kind={importing}
+          // On the receive form a slip is read into the open form, keeping what is already typed
+          onSlip={importing === 'receipt' ? (file) => setReceipt((r) => (r ? { ...r, slip: file } : r)) : undefined}
+          sheetsBlocked={importing === 'receipt' && scanRequired ? SCAN_REQUIRED_REASON : undefined}
+          onClose={() => setImporting(null)}
           onImported={() => fetchData(true)}
           items={items}
           employees={employees}

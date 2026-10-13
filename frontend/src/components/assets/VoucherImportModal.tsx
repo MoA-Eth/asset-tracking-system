@@ -7,6 +7,7 @@ import { useToast } from '../../context/ToastContext';
 import { buildTextWorkbook } from '../../utils/employee-import';
 import { Sheet, SheetField, SheetRow } from '../../utils/sheet-import';
 import { CheckedRow } from '../../utils/voucher-imports';
+import { SLIP_ACCEPT_ATTR } from '../../utils/slip-upload';
 
 type Outcome = 'ready' | 'error' | 'imported' | 'failed';
 const OUTCOME_STYLE: Record<Outcome, { label: string; tone: string }> = {
@@ -41,6 +42,10 @@ export interface VoucherImportProps<K extends string, P> {
   /** False while what the checks need is still loading */
   ready?: boolean;
   maxRows?: number;
+  /** When set, a PDF or picture is taken too: it is handed here (e.g. to fill the open form) and the window closes */
+  onSlip?: (file: File) => void;
+  /** Why spreadsheets can't be imported right now, if they can't */
+  sheetsBlocked?: string;
 }
 
 /**
@@ -65,6 +70,8 @@ export function VoucherImportModal<K extends string, P>({
   submit,
   ready: checksReady = true,
   maxRows = 1000,
+  onSlip,
+  sheetsBlocked,
 }: VoucherImportProps<K, P>) {
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,6 +107,18 @@ export function VoucherImportModal<K extends string, P>({
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
+    // The file's type decides: a spreadsheet is imported; a slip (PDF or picture) goes to the form, if it takes one
+    if (!/.(xlsx|xls|csv)$/i.test(file.name)) {
+      if (onSlip) {
+        onSlip(file);
+        reset();
+        onClose();
+      } else {
+        setError('Choose an Excel (.xlsx) or CSV file.');
+      }
+      return;
+    }
+    if (sheetsBlocked) return void setError(sheetsBlocked);
     reset();
     setFileName(file.name);
     setBusy('checking');
@@ -184,13 +203,17 @@ export function VoucherImportModal<K extends string, P>({
               className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/60 px-6 py-10 text-center transition hover:border-emerald-400 hover:bg-emerald-50/40"
             >
               {busy === 'checking' ? <RefreshCw className="h-7 w-7 animate-spin text-emerald-700" /> : <FileSpreadsheet className="h-7 w-7 text-emerald-700" />}
-              <span className="text-sm font-semibold text-slate-900">{busy === 'checking' ? `Checking ${fileName}…` : 'Choose an Excel (.xlsx) or CSV file'}</span>
-              <span className="text-[11px] text-slate-500">The first sheet is read. Up to {maxRows.toLocaleString()} rows per file.</span>
+              <span className="text-sm font-semibold text-slate-900">{busy === 'checking' ? `Checking ${fileName}…` : onSlip ? 'Choose a slip (PDF or photo) or a spreadsheet (Excel or CSV)' : 'Choose an Excel (.xlsx) or CSV file'}</span>
+              <span className="text-[11px] text-slate-500">
+                {onSlip ? 'A slip fills in the form; a spreadsheet imports many at once (first sheet, ' : 'The first sheet is read, '}
+                up to {maxRows.toLocaleString()} rows{onSlip ? ').' : '.'}
+              </span>
               <input
                 ref={inputRef}
                 id={inputId}
                 type="file"
-                accept=".xlsx,.csv"
+                accept={onSlip ? `${SLIP_ACCEPT_ATTR},.xlsx,.csv` : '.xlsx,.csv'}
+                aria-label="File to import items from"
                 className="sr-only"
                 disabled={busy !== null || !checksReady}
                 onChange={(e) => onFile(e.target.files?.[0])}

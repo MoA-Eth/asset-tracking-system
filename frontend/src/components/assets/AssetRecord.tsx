@@ -4,7 +4,8 @@ import { btn, statusTone, pill } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { Row } from '../ui/RecordDetailModal';
 import { SlipViewerModal } from '../ui/SlipViewerModal';
-import { RowAction, RowActionsMenu } from '../ui/RowActionsMenu';
+import { RowAction } from '../ui/RowActionsMenu';
+import { HeaderActionButton } from '../ui/HeaderActionButton';
 import { FormSection, FieldGrid, Field as FormKitField, ReadOnlyValue, TotalValue, FormNotice } from '../ui/FormKit';
 import { ApprovalStatus, TransactionApproval } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
@@ -27,7 +28,7 @@ export interface AssetRecordProps {
   actions: RowAction[];
   /** Form shown in place of the details while a request is being made or the pending receipt or request corrected; it has its own Submit and Cancel at the bottom */
   editForm?: React.ReactNode;
-  /** Actions of the open form, in a menu at the top right of the header */
+  /** Actions of the open form, as buttons at the top right of the header */
   formActions?: RowAction[];
   onPrintRequest: (request: TransactionApproval) => void;
   onPrintReceipt: () => void;
@@ -186,7 +187,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
     >
       {/* ── Title and toolbar ── */}
       <header className="shrink-0 relative space-y-2 border-b border-slate-200 px-5 py-4 bg-white z-10">
-        <div className="flex items-center justify-between gap-3 lg:pr-8">
+        <div className={`flex items-center justify-between gap-3 ${editing && formActions?.length ? 'pr-32 lg:pr-40' : 'lg:pr-8'}`}>
           <button type="button" onClick={onClose} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">
             <ArrowLeft className="h-3 w-3" /> Back to assets
           </button>
@@ -217,7 +218,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
           )}
         </div>
         <div className="absolute right-3 top-3 flex items-center gap-1.5">
-          {editing && formActions && <RowActionsMenu label={item.itemCode} heading="More actions" actions={formActions} />}
+          {editing && formActions?.map((a) => <HeaderActionButton key={a.label} action={a} />)}
           <CloseButton onClose={onClose} label="Close record" title="Close (Esc)" className="hidden lg:inline-flex" />
         </div>
         <div className="flex flex-col gap-3 lg:pr-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
