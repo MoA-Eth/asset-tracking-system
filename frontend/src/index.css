@@ -102,6 +102,12 @@ table {
   background: #94a3b8;
 }
 
+/* Header row of the data tables: a little more height than the body rows */
+.table-head th {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
 /*
  * Plain selects: a clean option list with the same emerald hover as the actions menu.
  * Browsers that can style a select's list (Chrome and Edge 135+) get the full look; the rest keep their own list.

@@ -25,7 +25,7 @@ export const btn = {
 /** Tables */
 export const table = {
   /** Header row: small uppercase labels on a light background */
-  headRow: 'bg-slate-50 border-b border-slate-200 text-left text-[11px] font-bold uppercase tracking-wider text-slate-600',
+  headRow: 'table-head bg-slate-50 border-b border-slate-200 text-left text-[11px] font-bold uppercase tracking-wider text-slate-600',
   /** Body row */
   row: 'hover:bg-slate-50 transition',
   /** Row just created or updated by the user */
