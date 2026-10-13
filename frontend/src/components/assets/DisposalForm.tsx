@@ -303,6 +303,8 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
             fileName={attachmentFileName}
             accept={SLIP_ACCEPT_ATTR}
             onChange={handleFile}
+            file={attachmentFile}
+            savedUrl={editApproval?.ifmisSlipAttachmentUrl}
           />
         </div>
       </FormSection>

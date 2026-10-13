@@ -770,6 +770,12 @@ describe('Asset record', () => {
     expect(await within(panel).findByText('model19-photo.jpg')).toBeInTheDocument();
     expect(readPdfRows).not.toHaveBeenCalled();
     expect(within(panel).queryByRole('status')).toBeNull();
+
+    // The attached copy can be viewed before the receipt is saved, to check the fields against it
+    await user.click(within(panel).getByRole('button', { name: 'View' }));
+    const viewer = screen.getByRole('dialog', { name: 'IFMIS slip model19-photo.jpg' });
+    expect(within(viewer).getByText('Attached, not saved yet')).toBeInTheDocument();
+    expect(within(viewer).getByRole('img', { name: 'IFMIS slip model19-photo.jpg' })).toBeInTheDocument();
   });
 
   it('the Import receipt button reads a Model 19 PDF into the open form, keeping what was typed', async () => {

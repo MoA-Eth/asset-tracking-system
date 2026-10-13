@@ -4,7 +4,10 @@ import { CloseButton } from './CloseButton';
 import { getSlipDisplayName, fetchSlip } from '../../utils/slip-upload';
 
 interface SlipViewerModalProps {
-  url: string;
+  /** A slip already saved with a record */
+  url?: string;
+  /** A file just attached in a form, not saved yet */
+  file?: File;
   onClose: () => void;
 }
 
@@ -14,21 +17,39 @@ type ViewerState =
   | { status: 'missing' };
 
 /**
- * Previews a scanned IFMIS slip (PDF or image). Sits above other modals (z-60).
+ * Previews a scanned IFMIS slip (PDF or image), saved or just attached in a form. Sits above other modals (z-60).
  * Records created before real uploads existed point at files that were never
  * stored, so anything that isn't a PDF/image response is shown as "not available".
  */
-export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, onClose }) => {
+export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, file, onClose }) => {
   const [state, setState] = useState<ViewerState>({ status: 'loading' });
-  const fileName = getSlipDisplayName(url);
+  const fileName = file?.name ?? getSlipDisplayName(url ?? '');
 
   useEffect(() => {
     let objectUrl: string | null = null;
     let cancelled = false;
 
+    // A file just attached is shown straight from the browser
+    if (file) {
+      const kind = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+        ? 'pdf'
+        : file.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(file.name)
+        ? 'image'
+        : null;
+      if (!kind) {
+        setState({ status: 'missing' });
+        return;
+      }
+      objectUrl = URL.createObjectURL(file);
+      setState({ status: 'ready', kind, objectUrl });
+      return () => {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      };
+    }
+
     (async () => {
       try {
-        const res = await fetchSlip(url);
+        const res = await fetchSlip(url ?? '');
         const contentType = res.headers.get('content-type') || '';
         const kind = contentType.startsWith('application/pdf')
           ? 'pdf'
@@ -50,7 +71,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, onClose }
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url]);
+  }, [url, file]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -76,7 +97,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, onClose }
             <FileText className="w-4 h-4 text-emerald-700 shrink-0" />
             <div className="min-w-0">
               <p className="text-sm font-bold text-slate-900 truncate">{fileName}</p>
-              <p className="text-[10px] text-slate-500">Scanned IFMIS Slip Attachment</p>
+              <p className="text-[10px] text-slate-500">{file ? 'Attached, not saved yet' : 'Scanned IFMIS Slip Attachment'}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">

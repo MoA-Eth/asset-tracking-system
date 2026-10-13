@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ChevronDown, CheckCircle2, LucideIcon, Paperclip, RefreshCw, RotateCcw, Upload, X } from 'lucide-react';
+import { AlertCircle, ChevronDown, CheckCircle2, Eye, LucideIcon, Paperclip, RefreshCw, RotateCcw, Upload, X } from 'lucide-react';
+import { SlipViewerModal } from './SlipViewerModal';
 
 /**
  * Shared building blocks for the Stock-In, Stock-Out, Transfer and Return forms,
@@ -374,12 +375,19 @@ interface FileDropFieldProps {
   accept: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   hint?: string;
+  /** The file just attached, so it can be viewed before it is saved */
+  file?: File | null;
+  /** The copy already saved with the record, viewed when no new file is attached */
+  savedUrl?: string;
 }
 
-export const FileDropField: React.FC<FileDropFieldProps> = ({ label, accent, required, fileName, accept, onChange, hint }) => {
+export const FileDropField: React.FC<FileDropFieldProps> = ({ label, accent, required, fileName, accept, onChange, hint, file, savedUrl }) => {
   const missing = required && !fileName;
+  const [viewing, setViewing] = useState(false);
+  // A new file is shown over the saved copy it replaces
+  const viewable = !!fileName && (!!file || !!savedUrl);
   return (
-    <div>
+    <div className="relative">
       <span className="mb-1 block text-xs font-medium text-slate-700">
         {label}
         {required ? <span className="ml-0.5 text-rose-600">*</span> : <span className="ml-1 font-normal text-slate-400">(optional)</span>}
@@ -401,8 +409,22 @@ export const FileDropField: React.FC<FileDropFieldProps> = ({ label, accent, req
         <span className="shrink-0 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
           {fileName ? 'Change' : 'Browse'}
         </span>
+        {/* Room for View, which sits beside Change but outside the label so it doesn't open the file picker */}
+        {viewable && <span className="w-14 shrink-0" aria-hidden="true" />}
         <input type="file" onChange={onChange} className="hidden" accept={accept} />
       </label>
+      {viewable && (
+        <button
+          type="button"
+          onClick={() => setViewing(true)}
+          title="Check the attached copy against the fields"
+          className="absolute bottom-[14px] right-3 inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-800 cursor-pointer"
+        >
+          <Eye className="h-3 w-3" />
+          View
+        </button>
+      )}
+      {viewing && <SlipViewerModal file={file ?? undefined} url={file ? undefined : savedUrl} onClose={() => setViewing(false)} />}
     </div>
   );
 };
