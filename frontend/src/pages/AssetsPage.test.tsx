@@ -876,14 +876,13 @@ describe('Asset record', () => {
     expect(screen.queryByRole('button', { name: /Clear filters/ })).not.toBeInTheDocument();
   });
 
-  it('exports filtered assets to CSV when Export CSV is clicked', async () => {
+  it('exports filtered assets to CSV from More actions', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
 
-    const exportBtn = screen.getByRole('button', { name: /Export CSV/i });
-    expect(exportBtn).toBeInTheDocument();
-    await user.click(exportBtn);
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    await user.click(screen.getByRole('menuitem', { name: /Export CSV/i }));
 
     expect(toast.success).toHaveBeenCalledWith(
       'CSV Exported',

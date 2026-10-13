@@ -1147,16 +1147,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               </div>
             </FilterSection>
           </FilterPopover>
-
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            title="Export filtered assets to CSV"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs shrink-0"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Export CSV</span>
-          </button>
         </div>
       </div>
 
@@ -1267,8 +1257,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 className={table.search.replace('pr-8', 'pr-3')}
               />
             </div>
-            {canReceive && (
-              <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
+              {canReceive && (
                 <button
                   type="button"
                   onClick={() => openReceipt()}
@@ -1277,27 +1267,33 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   <Plus className="w-4 h-4" />
                   <span>Receive items (Model 19)</span>
                 </button>
-                <RowActionsMenu
-                  label="Assets"
-                  heading="More actions"
-                  actions={[
-                    { label: 'Fill in from an IFMIS slip', icon: FileUp, onClick: () => slipPicker.current?.click() },
-                    // One import per voucher, since each voucher's spreadsheet has its own columns
-                    {
-                      label: 'Import Model 19 (receipts)',
-                      icon: FileSpreadsheet,
-                      onClick: () => setImportOpen(true),
-                      disabled: scanRequired,
-                      reason: scanRequired ? 'Every receipt needs its scanned slip (Settings), so receive them one by one.' : undefined,
-                    },
-                    {
-                      label: 'Import Model 22 (issues)',
-                      icon: FileSpreadsheet,
-                      disabled: true,
-                      reason: 'Coming soon, once the Model 22 spreadsheet format is agreed.',
-                    },
-                  ]}
-                />
+              )}
+              <RowActionsMenu
+                label="Assets"
+                heading="More actions"
+                actions={[
+                  { label: 'Fill in from an IFMIS slip', icon: FileUp, onClick: () => slipPicker.current?.click(), hidden: !canReceive },
+                  // One import per voucher, since each voucher's spreadsheet has its own columns
+                  {
+                    label: 'Import Model 19 (receipts)',
+                    icon: FileSpreadsheet,
+                    onClick: () => setImportOpen(true),
+                    hidden: !canReceive,
+                    disabled: scanRequired,
+                    reason: scanRequired ? 'Every receipt needs its scanned slip (Settings), so receive them one by one.' : undefined,
+                  },
+                  {
+                    label: 'Import Model 22 (issues)',
+                    icon: FileSpreadsheet,
+                    hidden: !canReceive,
+                    disabled: true,
+                    reason: 'Coming soon, once the Model 22 spreadsheet format is agreed.',
+                  },
+                  // Everyone can export what the filters show
+                  { label: 'Export CSV', icon: Download, onClick: handleExportCSV },
+                ]}
+              />
+              {canReceive && (
                 <input
                   ref={slipPicker}
                   type="file"
@@ -1313,8 +1309,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     }
                   }}
                 />
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Active Filter Chips (if any filter, search, or sort is active) */}
