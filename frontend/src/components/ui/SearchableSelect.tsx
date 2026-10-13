@@ -114,14 +114,14 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         aria-controls={`${id}-list`}
         autoFocus={autoFocus}
         onClick={() => (open ? close() : setOpen(true))}
-        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-left text-[13px] transition focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
+        className="flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-left text-[13px] shadow-[0_1px_1px_rgba(15,23,42,0.03)] transition hover:border-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
       >
         <span className={`truncate ${selected ? 'text-slate-900' : 'text-slate-400'}`}>{selected ? selected.label : placeholder}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="mt-1 overflow-hidden rounded-lg border border-slate-300 bg-white shadow-[0_10px_30px_-8px_rgba(15,23,42,0.25)]">
+        <div className="mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_16px_40px_-12px_rgba(15,23,42,0.35)]">
           <div className="relative border-b border-slate-200 p-2">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <input
@@ -137,11 +137,11 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               className="h-8 w-full rounded-md border border-slate-200 bg-slate-50 pl-7 pr-2 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none"
             />
           </div>
-          <ul id={`${id}-list`} ref={listRef} role="listbox" className="max-h-56 overflow-auto py-1 text-[13px]">
+          <ul id={`${id}-list`} ref={listRef} role="listbox" className="max-h-60 overflow-auto p-1 text-[13px]">
             {total === 0 && <li className="px-3 py-3 text-center text-xs text-slate-500">Nothing matches “{query}”.</li>}
             {shown.map((group) => (
               <li key={group.label} role="presentation">
-                <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <p className="px-2.5 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   {group.label} ({group.options.length})
                 </p>
                 <ul role="group" aria-label={group.label}>
@@ -156,8 +156,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                         data-active={isActive}
                         onMouseEnter={() => !option.disabled && setActive(pickable.findIndex((o) => o.value === option.value))}
                         onClick={() => choose(option)}
-                        className={`flex items-center justify-between gap-3 px-3 py-1.5 ${
-                          option.disabled ? 'cursor-not-allowed text-slate-400' : `cursor-pointer text-slate-900 ${isActive ? 'bg-emerald-50' : ''}`
+                        className={`flex items-center justify-between gap-3 rounded-lg px-2.5 py-2 transition-colors ${
+                          option.disabled ? 'cursor-not-allowed text-slate-400' : `cursor-pointer ${isActive ? 'bg-emerald-50 text-emerald-900' : 'text-slate-900'}`
                         }`}
                       >
                         <span className="min-w-0 truncate">
