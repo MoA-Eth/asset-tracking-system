@@ -96,8 +96,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const selectedItemObj = items.find((i) => i.id === selectedItemId);
   // The store man named on the voucher: one of the store men of the store the asset came from
   const keepers = useStoreKeepers();
-  const { storeManPolicy } = useSystemSettings();
-  const storeManRequired = storeManPolicy === 'REQUIRED';
   // An asset still in store is handed over by its store man, who is then the transferor
   const fromStore = selectedItemObj?.status === ItemStatus.AVAILABLE || !!details.fromStore;
   const storeMen = keepers.ofLocation(selectedItemObj?.storeLocationId);
@@ -176,11 +174,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     !book.trim() && 'book',
     !isReturn && !targetEmployeeId && 'recipient',
     !isReturn && !editTransfer && storeMen.length > 1 && !transferrerId && 'store man',
-    !isReturn && !editTransfer && storeManRequired && !!selectedItemId && keepers.ready && storeMen.length === 0 && 'a store man for this store',
     isReturn && !condition && 'condition on return',
     isReturn && !returnReason.trim() && 'reason for return',
     isReturn && !editTransfer && returnStoreMen.length > 1 && !receiverId && 'received by (store man)',
-    isReturn && !editTransfer && storeManRequired && keepers.ready && returnStoreMen.length === 0 && 'a store man for this store',
     isReturn && isAttachmentReq && !attachmentFileName && 'scanned slip',
   ].filter(Boolean) as string[];
 
@@ -619,7 +615,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                   onChange={setStoreReceiverId}
                   current={editTransfer ? editTransfer.requestDetails?.storeRecipientName : undefined}
                   required={!editTransfer}
-                  refuse={storeManRequired}
                 />
 
                 <Field label="Condition on return" required htmlFor="transfer-condition" error={errorOf('condition')}>
@@ -667,7 +662,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             onChange={setTransferredById}
             current={editTransfer ? editTransfer.requestDetails?.transferredByName : undefined}
             required={!editTransfer}
-            refuse={storeManRequired}
           />
           )}
 

@@ -200,8 +200,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const quantityItem = editItem ?? availableItems.find((i) => i.id === selectedItemId);
   // Who issues it: a store man of the store the item is in
   const keepers = useStoreKeepers();
-  const { storeManPolicy } = useSystemSettings();
-  const storeManRequired = storeManPolicy === 'REQUIRED';
   const [issuedById, setIssuedById] = useState('');
   const storeMen = keepers.ofLocation(quantityItem?.storeLocationId);
   const issuerId = issuedById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
@@ -219,7 +217,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   // Required fields still empty; the request can only be submitted once this is empty
   const missingFields = [
     !isEdit && !selectedItemId && 'store item',
-    !isEdit && storeManRequired && !!selectedItemId && keepers.ready && storeMen.length === 0 && 'a store man for this store',
     !isEdit && storeMen.length > 1 && !issuerId && 'issued by (store man)',
     !model22No.trim() && 'Model 22 No.',
     !issuedDateGc && 'issued date',
@@ -759,7 +756,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
               onChange={setIssuedById}
               current={isEdit ? editApproval?.requestDetails?.issuedByName : undefined}
               required={!isEdit}
-              refuse={storeManRequired}
             />
           </FieldGrid>
 

@@ -121,8 +121,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   // Who received the goods: a store man of the receiving store (a correction keeps the name it has until another is chosen)
   const [receivedById, setReceivedById] = useState('');
   const keepers = useStoreKeepers();
-  const { storeManPolicy } = useSystemSettings();
-  const storeManRequired = storeManPolicy === 'REQUIRED';
   const storeMen = keepers.ofStore(storeId);
   const receiverId = receivedById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
   const receiverName = storeMen.find((k) => k.employeeId === receiverId)?.fullNameEn ?? receivedBy;
@@ -145,7 +143,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !transactionType && 'transaction type',
     !source.trim() && 'source',
     !storeId && 'receiving store',
-    !isEdit && storeManRequired && !!storeId && keepers.ready && storeMen.length === 0 && 'a store man for this store',
     !isEdit && storeMen.length > 1 && !receiverId && 'received by (store man)',
     storeId && !storeLocationId && 'location in store',
     !name.trim() && 'item description',
@@ -766,7 +763,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               onChange={setReceivedById}
               current={isEdit ? receivedBy || undefined : undefined}
               required={!isEdit}
-              refuse={storeManRequired}
             />
           </FieldGrid>
 

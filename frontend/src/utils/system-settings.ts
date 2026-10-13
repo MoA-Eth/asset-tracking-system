@@ -6,16 +6,10 @@ export type AttachmentPolicy = 'REQUIRED' | 'OPTIONAL';
 export interface SystemSettings {
   /** Whether a scanned slip must be attached to Stock-In, Stock-Out and Return requests */
   slipAttachmentPolicy: AttachmentPolicy;
-  /**
-   * Whether a store with no store man refuses receipts, issues, disposals and returns.
-   * Optional until the administrator has assigned store men to every store.
-   */
-  storeManPolicy: AttachmentPolicy;
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
   slipAttachmentPolicy: 'OPTIONAL',
-  storeManPolicy: 'OPTIONAL',
 };
 
 const CHANGED_EVENT = 'system-settings-changed';

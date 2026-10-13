@@ -25,6 +25,7 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { StoreManReminder } from '../components/ui/StoreManReminder';
 import { ColumnChart, Donut } from '../components/ui/charts';
 import { actionText, withRoleNames } from '../utils/roles';
 import { formatETB } from '../utils/eth-date';
@@ -499,6 +500,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
 
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
+      <StoreManReminder onAssign={() => onNavigate('settings-stores')} />
 
       {/* ── Row 1: KPI tiles ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
