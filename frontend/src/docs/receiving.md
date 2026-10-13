@@ -19,6 +19,16 @@ Use this when new items arrive. Registering a receipt creates the asset record. 
 
 > One receipt registers one item line, with its quantity. For several different items on one slip, register each as its own receipt with the same Model 19 number.
 
+## Fill in from an IFMIS PDF
+
+If you have the voucher as a **PDF downloaded from IFMIS**, attach it in **Delivery and attachment** first. The form reads it and fills in what is still empty. A note under the attachment lists what was filled. **Check every filled field against the paper** before submitting; nothing is submitted for you. Anything you had already typed is kept.
+
+- **Model 19 (Print Model19 Report):** Model 19 No., PO number, received date, transaction type, source, buyer and program, and the first item: description, category, unit of measure, sub inventory, quantity and unit price. The IFMIS item code goes into the **Remark**, because every delivery of that item shares it.
+- **Fixed Asset Internal Transfer Form (Model 21):** voucher number, date, **Transfer Receipt**, the source location, and the asset: description, item code (the IFMIS tag number), quantity, unit price and **Fixed asset**.
+- A PDF printed from this app, or any other PDF, is not an IFMIS form: the note says so.
+- A **scanned** PDF, or a photo, is a picture: nothing can be read from it, and the note says so. Fill in the fields as usual.
+- A slip that lists several items fills in the first one; register each of the others as its own receipt with the same Model 19 No.
+
 ## Correct a mistake
 
 Until the Team Leader has endorsed it, open the receipt and choose **Edit receipt**, change what is wrong, and press **Save changes**. Every change is recorded. After the Team Leader endorses it, editing is locked: ask an approver to reject it, then register it again.
