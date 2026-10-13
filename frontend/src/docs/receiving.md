@@ -12,7 +12,7 @@ Use this when new items arrive. Registering a receipt creates the asset record. 
 
 1. On **Assets**, press **Receive items (Model 19)**.
 2. **Voucher and procurement:** enter the **Model 19 No.**, **Received date**, **Transaction type** (PO Receipt, Direct Delivery, Donation / Grant Receipt, Transfer Receipt or Internal Production), **Source** (supplier or vendor), the **Receiving store** and the **Location in store**. PO number, buyer and program are optional.
-3. **Item received:** enter the **Item description**, **Category**, **Item type** (a **Fixed asset**, ቋሚ ዕቃ, or a **Consumable item**, አላቂ ዕቃ), **Physical condition**, **Quantity**, **Unit of measure** (EA, KG, BOX…) and **Unit price (ETB)**. The total is worked out for you. Leave **Item code** empty to have one made; it cannot change later. Serial number, lot or batch number and a remark are optional.
+3. **Item received:** enter the **Item description**, **Category**, **Item type** (a **Fixed asset**, ቋሚ ዕቃ, or a **Consumable item**, አላቂ ዕቃ), **Physical condition**, **Quantity**, **Unit of measure** (EA, KG, BOX…) and **Unit price (ETB)**. The total is worked out for you. Leave **Item code** empty to have one made; it cannot change later. Serial number and a remark are optional.
 4. **Delivery and attachment:** enter who delivered, and attach the scan. **Received by (store man)** is the store man of the receiving store: if the store has one, he is filled in; if it has several, choose one. If the store has none, the receipt still goes ahead with no store man named; ask your System Administrator to assign one.
 5. Press **Submit for approval**. The button stays off until every required field (*) is filled, and it says so beside it.
 6. The Model 19 voucher opens so you can print it.
@@ -23,7 +23,7 @@ Use this when new items arrive. Registering a receipt creates the asset record. 
 
 If you have the voucher as a **PDF downloaded from IFMIS**, attach it in **Delivery and attachment** first. The form reads it and fills in what is still empty. A note under the attachment lists what was filled. **Check every filled field against the paper** before submitting; nothing is submitted for you. Anything you had already typed is kept.
 
-- **Model 19 (Print Model19 Report):** Model 19 No., PO number, received date, transaction type, source, buyer and program, and the first item: description, category, unit of measure, sub inventory, quantity and unit price. The IFMIS item code goes into the **Remark**, because every delivery of that item shares it.
+- **Model 19 (Print Model19 Report):** Model 19 No., PO number, received date, transaction type, source, buyer and program, and the first item: description, category, unit of measure, quantity and unit price. The IFMIS item code goes into the **Remark**, because every delivery of that item shares it.
 - **Fixed Asset Internal Transfer Form (Model 21):** voucher number, date, **Transfer Receipt**, the source location, and the asset: description, item code (the IFMIS tag number), quantity, unit price and **Fixed asset**.
 - A PDF printed from this app, or any other PDF, is not an IFMIS form: the note says so.
 - A **scanned** PDF, or a photo, is a picture: nothing can be read from it, and the note says so. Fill in the fields as usual.
