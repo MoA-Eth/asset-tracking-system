@@ -27,7 +27,7 @@ If you have the Model 19 as a **PDF saved from IFMIS**, press **Import receipt**
 - **Only a Model 19 is read here.** A Model 21 transfer form is not: the note says to read it from the transfer form of the asset. Any other PDF fills nothing.
 - **Only PDFs saved from IFMIS are read.** A scanned PDF or a photo has no text in it: it is attached as the scanned copy, and you fill in the fields as usual.
 - **Already received?** If the slip's item was already received on the same Model 19 No., the note says so with its item code, so the goods are not counted twice.
-- A slip that lists several items fills in the first one; register each of the others as its own receipt with the same Model 19 No.
+- **A slip with several items:** the first fills the form and the others are listed under it, in **Other items on this slip**. Set each one's **item type** and **condition** (the PDF doesn't say them), or press **Use the first item's type and condition**; remove any line you don't want to register. One **Submit** registers every line, each as its own record (its own row in Assets) with the same voucher details, and each waits for approval.
 
 ## Correct a mistake
 

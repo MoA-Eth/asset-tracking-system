@@ -24,7 +24,7 @@ vi.mock('../api/client', () => ({
   api: {
     getItems: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn(), getStores: vi.fn(), getApprovals: vi.fn(),
     getItemById: vi.fn(), transferItem: vi.fn(), updateTransfer: vi.fn(), registerReturn: vi.fn(), registerStockOut: vi.fn(),
-    registerStockIn: vi.fn(), updateStockIn: vi.fn(), registerDisposal: vi.fn(), updateDisposal: vi.fn(),
+    registerStockIn: vi.fn(), updateStockIn: vi.fn(), uploadSlip: vi.fn(), registerDisposal: vi.fn(), updateDisposal: vi.fn(),
   },
 }));
 
@@ -282,6 +282,45 @@ describe('Assets page', () => {
 
       expect(await within(record).findByText(/This is a Model 19 receipt, not a Model 21/)).toBeInTheDocument();
       expect(within(record).queryByDisplayValue('0000044')).toBeNull();
+    });
+
+    it('transfers every asset on a multi-line Model 21 that fits, each as its own request', async () => {
+      const user = userEvent.setup();
+      const second = item('T2', 'Laptop', 'ISSUED', { itemCode: 'MOA-072352' });
+      vi.mocked(readPdfRows).mockResolvedValue(
+        asRows([
+          'Fixed Asset Internal Transfer Form',
+          'Model/21',
+          'Model # 0004399',
+          'From Employee ID :  MOA/1  To : MOA/2',
+          'Book :  MOA MC BOOK',
+          '1  Handheld GPS  MOA-072351  1  624,285.50  322,547.54  301,738.01  05-OCT-26',
+          '2  Laptop  MOA-072352  1  60,000.00  20,000.00  40,000.00  05-OCT-26',
+          '3  Projector  MOA-072353  1  30,000.00  10,000.00  20,000.00  05-OCT-26',
+        ]),
+      );
+      vi.mocked(api.transferItem).mockResolvedValue({} as any);
+      vi.mocked(api.getItems).mockResolvedValue([...items, gps, second] as any);
+      render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+      await screen.findByText('MOA-S1');
+      await menuFor(user, 'MOA-072351');
+      await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
+      const record = screen.getByRole('region', { name: 'Asset record MOA-072351' });
+      await user.click(within(record).getByRole('button', { name: 'Import transfer' }));
+      await user.upload(screen.getByLabelText('Voucher PDF to import'), new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
+
+      const others = await within(record).findByRole('region', { name: 'Other assets on this form' });
+      expect(within(others).getByText('Will be transferred')).toBeInTheDocument();
+      // An asset that was never received can't be transferred
+      expect(within(others).getByText(/No asset with tag MOA-072353 is registered here/)).toBeInTheDocument();
+
+      await user.click(submitOf(record, 'transfer-form'));
+      expect(api.transferItem).toHaveBeenCalledTimes(2);
+      expect(api.transferItem).toHaveBeenNthCalledWith(1, expect.objectContaining({ itemId: 'T1', toEmployeeId: 'E2', model21No: '0004399' }));
+      expect(api.transferItem).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ itemId: 'T2', toEmployeeId: 'E2', model21No: '0004399', book: 'MOA MC BOOK', depreciation: 20000, bookValue: 40000 }),
+      );
     });
   });
 
@@ -609,6 +648,60 @@ describe('Asset record', () => {
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
   });
 
+  it('registers every line of a multi-line Model 19, each as its own record', async () => {
+    const user = userEvent.setup();
+    const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+    vi.mocked(readPdfRows).mockResolvedValue([
+      r(98, [640, 'Print Model19 Report']),
+      r(146, [680, 'INV Model 19 No. :'], [812, '0000044']),
+      r(193, [677, 'Transaction Type :'], [812, 'PO Receipt']),
+      r(208, [742, 'Source :'], [812, 'TEST TRADING']),
+      r(283, [95, 'S/No.'], [135, 'Item Code'], [278, 'Item Description'], [403, 'UOM'], [826, 'Qty']),
+      r(316, [88, '1'], [128, '107101102.4336'], [270, 'Sulfa Drug In Vial'], [403, 'PKT'], [435, 'AMedicine'], [510, 'Medical'], [826, '100'], [960, '825'], [1050, '82500']),
+      r(366, [88, '2'], [124, '105101102.0415'], [268, 'Streptomycine'], [403, 'EA'], [435, 'AMedicine'], [510, 'Agricultural'], [826, '50'], [960, '341'], [1050, '17050']),
+      r(630, [910, 'Grand Total'], [1050, '99550']),
+    ]);
+    vi.mocked(api.registerStockIn).mockResolvedValue({
+      item: { id: 'N1', itemCode: 'MOA-N1' },
+      items: [{ id: 'N1', itemCode: 'MOA-N1' }, { id: 'N2', itemCode: 'MOA-N2' }],
+    } as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+
+    // The first line fills the form; the second is listed under it
+    const others = await within(panel).findByRole('region', { name: 'Other items on this slip' });
+    expect(within(others).getByLabelText('Item 2 description')).toHaveValue('Streptomycine');
+    expect(within(others).getByLabelText('Item 2 category')).toHaveValue('AGRI_MACHINERY');
+    expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('50');
+    const submit = within(panel).getByRole('button', { name: 'Submit 2 items for approval' });
+
+    await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
+    await user.selectOptions(within(panel).getByLabelText(/Physical condition/i), 'NEW');
+    await user.selectOptions(within(panel).getAllByLabelText(/Item type/i)[0], 'FIXED');
+    // The second line still needs its own item type and condition
+    expect(submit).toBeDisabled();
+    await user.click(within(others).getByRole('button', { name: /Use the first item's type and condition/ }));
+    expect(within(others).getByLabelText('Item 2 item type')).toHaveValue('FIXED');
+    expect(submit).toBeEnabled();
+    vi.mocked(api.uploadSlip).mockResolvedValue({ url: '/api/uploads/slips/model19.pdf' } as any);
+    await user.click(submit);
+
+    // The attached PDF is uploaded first, then every line is registered in one go
+    await vi.waitFor(() => expect(api.registerStockIn).toHaveBeenCalled());
+    expect(api.registerStockIn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ifmisSlipNumber: '0000044',
+        items: [
+          expect.objectContaining({ name: 'Sulfa Drug In Vial', quantity: 100 }),
+          expect.objectContaining({ name: 'Streptomycine', category: 'AGRI_MACHINERY', itemType: 'FIXED', condition: 'NEW', uom: 'EA', quantity: 50, unitCostETB: 341, remark: 'IFMIS item code 105101102.0415' }),
+        ],
+      }),
+    );
+  });
+
   it('warns when the Model 19 line was already received', async () => {
     const user = userEvent.setup();
     const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
@@ -653,12 +746,12 @@ describe('Asset record', () => {
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
-    expect(await within(panel).findByText(/This slip lists 2 items; the first one was filled in/)).toBeInTheDocument();
+    expect(await within(panel).findByText(/This slip lists 2 items: the first is in the form and the others are listed under it/)).toBeInTheDocument();
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000044');
     expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('PO Receipt');
     expect(within(panel).getByLabelText(/Source/i)).toHaveValue('TEST TRADING ONE MEMBER P.L.C');
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Sulfa Drug In Vial');
-    expect(within(panel).getByLabelText(/Category/i)).toHaveValue('LAB_EQUIPMENT');
+    expect(within(panel).getByLabelText(/^Category/i)).toHaveValue('LAB_EQUIPMENT');
     expect(within(panel).getByLabelText(/Unit of measure/i)).toHaveValue('PKT');
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('100');
     // The IFMIS code is shared by every delivery of the item, so it is kept as a note, not as the item code

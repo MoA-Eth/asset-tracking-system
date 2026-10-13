@@ -3,7 +3,7 @@ import { Search, UserCheck, FileText, Car, Tag } from 'lucide-react';
 import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
 import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, FormNotice, QuantityInput, MoneyInput, inputClass, textareaClass, submitOnCtrlEnter } from '../ui/FormKit';
-import { readPdfRows, rowsToText, isModel19, isModel21, parseModel21, sameEmployeeId, Model21SlipFields } from '../../utils/slip-reader';
+import { readPdfRows, rowsToText, isModel19, isModel21, parseModel21, sameEmployeeId, Model21SlipFields, Model21SlipLine } from '../../utils/slip-reader';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -167,11 +167,38 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
 // ── Reading a Model 21 PDF from IFMIS ──
   const [slipNote, setSlipNote] = useState<{ tone: 'info' | 'warn'; text: string } | null>(null);
+  // The other assets a Model 21 lists: each that fits is transferred as its own request on submit
+  const [extraAssets, setExtraAssets] = useState<{ key: number; line: Model21SlipLine; asset?: ItemWithRelations; problem?: string }[]>([]);
+  const extraReady = extraAssets.filter((o) => o.asset && !o.problem) as { key: number; line: Model21SlipLine; asset: ItemWithRelations }[];
 
   /**
-   * A Model 21 fills in the voucher, the asset and who receives it. The asset has to have come before it in its
-   * life: received and approved, a fixed asset, issued to the employee the form names (or still in store), with no
-   * other request waiting. Anything that doesn't fit is said, and the asset or person is not filled in.
+   * Whether the asset a Model 21 line names can be transferred, in the order of its life: received and approved, a
+   * fixed asset, issued to the employee the form transfers it from (or still in store), with no other request waiting.
+   */
+  const checkLine = (line: Model21SlipLine | undefined, slip: Model21SlipFields): { asset?: ItemWithRelations; problem?: string } => {
+    const tag = line?.tagNumber?.trim().toLowerCase();
+    if (!tag) return { problem: 'The form names no asset tag number.' };
+    const asset = items.find((i) => i.itemCode.toLowerCase() === tag || i.serialNumber?.trim().toLowerCase() === tag);
+    if (!asset) return { problem: `No asset with tag ${line!.tagNumber} is registered here. It has to be received on a Model 19 and approved first.` };
+    const problem =
+      asset.itemType === ItemType.CONSUMABLE
+        ? `${asset.itemCode} is a consumable item; consumables are issued, not transferred.`
+        : asset.status !== ItemStatus.ISSUED && asset.status !== ItemStatus.AVAILABLE
+          ? `${asset.itemCode} is ${STATUS_WORDS[asset.status] ?? asset.status.toLowerCase()}; only an issued asset, or a fixed asset in store, can be transferred.`
+          : asset.status === ItemStatus.ISSUED && asset.heldByOrganization
+            ? `${asset.itemCode} is held by ${asset.heldByOrganization}, outside the Ministry.`
+            : pendingByItem.has(asset.id) && pendingByItem.get(asset.id)!.id !== editTransfer?.id
+              ? `${asset.itemCode} already has a request waiting for approval.`
+              : asset.status === ItemStatus.ISSUED && slip.fromEmployeeId && !sameEmployeeId(asset.currentCustodian?.payrollId, slip.fromEmployeeId)
+                ? `${asset.itemCode} is held by ${asset.currentCustodian?.fullNameEn ?? 'someone else'}, not by the employee the form transfers it from (${slip.fromName ?? slip.fromEmployeeId}).`
+                : undefined;
+    return { asset, problem };
+  };
+
+  /**
+   * A Model 21 fills in the voucher, the asset and who receives it. Anything that doesn't fit the order of operations
+   * is said, and that asset (or the recipient) is not filled in. The form's other assets are listed under it, each to
+   * be transferred as its own request.
    */
   const fillFromModel21 = (slip: Model21SlipFields) => {
     const filled: string[] = [];
@@ -190,22 +217,11 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       filled.push('transfer date');
     }
 
-    const tag = line?.tagNumber?.trim().toLowerCase();
-    const asset = tag ? items.find((i) => i.itemCode.toLowerCase() === tag || i.serialNumber?.trim().toLowerCase() === tag) : undefined;
-    let usable = false;
-    if (!tag) problems.push('The form names no asset tag number.');
-    else if (!asset) problems.push(`No asset with tag ${line!.tagNumber} is registered here. It has to be received on a Model 19 and approved first.`);
-    else if (asset.itemType === ItemType.CONSUMABLE) problems.push(`${asset.itemCode} is a consumable item; consumables are issued, not transferred.`);
-    else if (asset.status !== ItemStatus.ISSUED && asset.status !== ItemStatus.AVAILABLE) {
-      problems.push(`${asset.itemCode} is ${STATUS_WORDS[asset.status] ?? asset.status.toLowerCase()}; only an issued asset, or a fixed asset in store, can be transferred.`);
-    } else if (asset.status === ItemStatus.ISSUED && asset.heldByOrganization) {
-      problems.push(`${asset.itemCode} is held by ${asset.heldByOrganization}, outside the Ministry.`);
-    } else if (pendingByItem.has(asset.id) && pendingByItem.get(asset.id)!.id !== editTransfer?.id) {
-      problems.push(`${asset.itemCode} already has a request waiting for approval.`);
-    } else if (asset.status === ItemStatus.ISSUED && slip.fromEmployeeId && !sameEmployeeId(asset.currentCustodian?.payrollId, slip.fromEmployeeId)) {
-      problems.push(`${asset.itemCode} is held by ${asset.currentCustodian?.fullNameEn ?? 'someone else'}, not by the employee the form transfers it from (${slip.fromName ?? slip.fromEmployeeId}).`);
-    } else {
-      usable = true;
+    const first = checkLine(line, slip);
+    const usable = !!first.asset && !first.problem;
+    if (first.problem) problems.push(first.problem);
+    else if (first.asset) {
+      const asset = first.asset;
       if (!editTransfer && asset.id !== selectedItemId) {
         handleItemSelect(asset.id);
         filled.push(`asset (${asset.itemCode})`);
@@ -225,20 +241,34 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     if (usable && slip.toEmployeeId) {
       const to = employees.find((e) => e.isActive !== false && sameEmployeeId(e.payrollId, slip.toEmployeeId));
       if (!to) problems.push(`No active employee has ID ${slip.toEmployeeId}${slip.toName ? ` (${slip.toName})` : ''}.`);
-      else if (asset?.status === ItemStatus.ISSUED && to.id === asset.currentCustodianId) problems.push(`${asset.itemCode} is already with ${to.fullNameEn}.`);
+      else if (first.asset?.status === ItemStatus.ISSUED && to.id === first.asset.currentCustodianId) problems.push(`${first.asset.itemCode} is already with ${to.fullNameEn}.`);
       else if (!targetEmployeeId) {
         handleRecipientChange(to.id);
         filled.push(`recipient (${to.fullNameEn})`);
       }
     }
 
-    const more = slip.lines.length > 1 ? ` The form lists ${slip.lines.length} assets; the first one was read. Transfer each of the others from its own record.` : '';
+    // The other assets on the form, each checked the same way; a correction keeps to its one asset
+    const others = editTransfer
+      ? []
+      : slip.lines.slice(1).map((l, i) => {
+          const checked = checkLine(l, slip);
+          const sameAsFirst = checked.asset && first.asset && checked.asset.id === first.asset.id;
+          return { key: i, line: l, asset: checked.asset, problem: sameAsFirst ? `${checked.asset!.itemCode} is already the first asset on this form.` : checked.problem };
+        });
+    setExtraAssets(others);
+    const ready = others.filter((o) => o.asset && !o.problem).length;
+
+    const more =
+      others.length > 0
+        ? ` The form lists ${slip.lines.length} assets: the first is in the form and the others are listed under it${ready ? `; ${ready} of them will be transferred as their own requests when you submit` : ''}.`
+        : '';
     if (problems.length) {
       setSlipNote({ tone: 'warn', text: `${problems.join(' ')}${filled.length ? ` Filled in: ${filled.join(', ')}.` : ''}${more}` });
     } else if (filled.length) {
       setSlipNote({ tone: 'info', text: `Filled in from the Model 21: ${filled.join(', ')}. Check them against the paper before submitting.${more}` });
     } else {
-      setSlipNote({ tone: 'info', text: 'The form was read, but every field it covers is already filled in.' });
+      setSlipNote({ tone: 'info', text: `The form was read, but every field it covers is already filled in.${more}` });
     }
   };
 
@@ -452,6 +482,32 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         remark: defectRemark.trim() || undefined,
       });
 
+      // The other assets on the Model 21, each its own request with the same number, book, date and recipient
+      const sent: typeof extraReady = [];
+      const notSent: string[] = [];
+      for (const other of isReturn ? [] : extraReady) {
+        try {
+          const men = keepers.ofLocation(other.asset.storeLocationId);
+          await api.transferItem({
+            itemId: other.asset.id,
+            toEmployeeId: targetEmployeeId,
+            toDepartmentId: targetDepartmentId || undefined,
+            performedById: user?.id || '',
+            transferredByEmployeeId: men.some((k) => k.employeeId === transferrerId) ? transferrerId : undefined,
+            ifmisSlipDateGc: transferDateGc,
+            model21No: model21No.trim(),
+            book: book.trim(),
+            origCost: other.line.origCost ?? (other.asset.unitCostETB || 0) * (Number(other.asset.quantity) || 1),
+            depreciation: other.line.depreciation,
+            bookValue: other.line.bookValue,
+          });
+          sent.push(other);
+        } catch (err: any) {
+          notSent.push(`${other.asset.itemCode}: ${err.message || 'refused'}`);
+        }
+      }
+      if (notSent.length) toast.warning('Some assets on the form were not transferred', notSent.join(' · '));
+
       const fromCustodian = selectedItem?.currentCustodian;
       const targetEmp = employees.find((emp) => emp.id === targetEmployeeId);
       const fromLoc = storeLocationLabel(selectedItem?.storeLocation);
@@ -488,12 +544,27 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             tireNos: tireList.length > 0 ? tireList : undefined,
             remark: defectRemark.trim() || undefined,
           },
+          ...sent.map((o, i) => ({
+            sNo: i + 2,
+            description: o.asset.name,
+            tagNumber: o.asset.itemCode,
+            serialNumber: o.asset.serialNumber || '',
+            uom: o.asset.uom || 'EA',
+            unit: Number(o.asset.quantity) || 1,
+            origCost: o.line.origCost ?? (o.asset.unitCostETB || 0) * (Number(o.asset.quantity) || 1),
+            depreciation: o.line.depreciation ?? 0,
+            bookValue: o.line.bookValue ?? (o.asset.unitCostETB || 0) * (Number(o.asset.quantity) || 1),
+            dateGc: transferDateGc,
+            dateEc: formatGcToEc(transferDateGc),
+            fromLocation: storeLocationLabel(o.asset.storeLocation),
+            toLocation: storeLocationLabel(o.asset.storeLocation),
+          })),
         ],
         printedBy: user?.fullNameEn,
       };
       toast.success(
         'Transfer submitted for approval',
-        `${selectedItem?.itemCode || 'The asset'} to ${targetEmp?.fullNameEn || 'the new custodian'}. Custody changes after the Department Head approves it.`,
+        `${[selectedItem?.itemCode || 'The asset', ...sent.map((o) => o.asset.itemCode)].join(', ')} to ${targetEmp?.fullNameEn || 'the new custodian'}${sent.length ? ', each as its own request' : ''}. Custody changes after the Department Head approves it.`,
       );
       rememberForm(user?.id, 'transfer', { book: book.trim() });
       onSaved(voucher);
@@ -511,6 +582,40 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         <FormNotice icon={FileText} tone={slipNote.tone}>
           <span role="status">{slipNote.text}</span>
         </FormNotice>
+      )}
+      {extraAssets.length > 0 && !isReturn && (
+        <section aria-label="Other assets on this form" className="rounded-xl border border-slate-200 bg-slate-50/40">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
+            <p className="text-xs font-semibold text-slate-800">
+              Other assets on this form ({extraAssets.length})
+              <span className="ml-1.5 font-normal text-slate-500">each that fits is transferred as its own request, to the same recipient</span>
+            </p>
+          </div>
+          <ul className="divide-y divide-slate-100 text-xs">
+            {extraAssets.map((o) => (
+              <li key={o.key} className="flex items-start justify-between gap-3 px-3 py-2">
+                <span className="min-w-0">
+                  <span className="font-mono font-semibold text-slate-800">{o.asset?.itemCode ?? o.line.tagNumber ?? '—'}</span>
+                  <span className="ml-2 text-slate-700">{o.asset?.name ?? o.line.description ?? ''}</span>
+                  {o.problem && <span className="mt-0.5 block text-[11px] text-amber-800">{o.problem}</span>}
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${o.problem ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                    {o.problem ? 'Not transferred' : 'Will be transferred'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setExtraAssets((list) => list.filter((x) => x.key !== o.key))}
+                    aria-label={`Leave out ${o.asset?.itemCode ?? o.line.tagNumber ?? 'this asset'}`}
+                    className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 cursor-pointer"
+                  >
+                    Leave out
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {/* ── Section 1: Transfer voucher ── */}
