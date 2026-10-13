@@ -4,7 +4,7 @@ import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
 import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, MoneyInput, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
-import { AssetCategory, ItemType, ItemStatus, ItemCondition, ItemWithRelations, Location, Employee, Model19Voucher, Model19LineItem } from '../../types/asset-management';
+import { AssetCategory, ProvisionType, ItemType, ItemStatus, ItemCondition, ItemWithRelations, Location, Employee, Model19Voucher, Model19LineItem } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
 import { ITEM_TYPE_OPTIONS } from './asset-state';
@@ -35,6 +35,7 @@ export interface StockInFormProps {
 
 /** What a new receipt can start from instead of empty: an earlier item ("Duplicate as new receipt") */
 export interface ReceiptTemplate {
+  provisionType?: ProvisionType;
   transactionType?: string;
   source?: string;
   buyer?: string;
@@ -50,6 +51,7 @@ export interface ReceiptTemplate {
 
 /** What a duplicate keeps from an item: what it is and where it comes from, never its number, serial, quantity or slip */
 export const templateFromItem = (item: ItemWithRelations): ReceiptTemplate => ({
+  provisionType: item.provisionType,
   transactionType: item.transactionType,
   source: item.source,
   buyer: item.buyer,
@@ -74,6 +76,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const rememberedLocation = locations.find((l) => l.id === (start?.storeLocationId ?? memory.storeLocationId));
 
   // Section 1: Document Voucher Header Metadata
+  // Bought or donated: a donation has no PO number, supplier, buyer or price, so those fields are hidden
+  const [provisionType, setProvisionType] = useState<ProvisionType>(editItem?.provisionType ?? template?.provisionType ?? 'PURCHASE');
+  const donation = provisionType === 'DONATION';
+  const chooseProvision = (value: ProvisionType) => {
+    setProvisionType(value);
+    // A donation is received as a donation unless another type was chosen on purpose
+    if (value === 'DONATION' && (!transactionType || transactionType === 'PO Receipt')) setTransactionType('Donation / Grant Receipt');
+    if (value === 'PURCHASE' && transactionType === 'Donation / Grant Receipt') setTransactionType('');
+  };
   const [ifmisSlipNumber, setIfmisSlipNumber] = useState(editItem?.ifmisSlipNumber ?? '');
   const [poNumber, setPoNumber] = useState(editItem?.poNumber ?? '');
   const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(editItem?.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
@@ -129,17 +140,17 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const policy = useSystemSettings().slipAttachmentPolicy;
   const isAttachmentRequired = policy === 'REQUIRED';
 
-  const totalAmount = (Number(quantity) || 0) * (Number(unitCostETB) || 0);
+  const totalAmount = donation ? 0 : (Number(quantity) || 0) * (Number(unitCostETB) || 0);
   // The other item lines of a Model 19 read from its PDF: each is registered as its own record on submit
   const [extraLines, setExtraLines] = useState<SlipLine[]>([]);
-  const extraTotal = extraLines.reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0);
+  const extraTotal = donation ? 0 : extraLines.reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0);
 
   // Required fields still empty; the receipt can only be submitted once this is empty
   const missingFields = [
     !ifmisSlipNumber.trim() && 'Model 19 No.',
     !ifmisSlipDateGc && 'received date',
     !transactionType && 'transaction type',
-    !source.trim() && 'source',
+    !donation && !source.trim() && 'source',
     !storeId && 'receiving store',
     !isEdit && storeMen.length > 1 && !receiverId && 'received by (store man)',
     !name.trim() && 'item description',
@@ -148,22 +159,22 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !condition && 'physical condition',
     !(quantity >= 1) && 'quantity',
     !uom.trim() && 'unit of measure',
-    !(unitCostETB > 0) && 'unit price',
+    !donation && !(unitCostETB > 0) && 'unit price',
     isAttachmentRequired && !attachmentFileName && 'scanned slip',
-    ...extraLines.map((l, i) => lineMissing(l).length > 0 && `item ${i + 2} (${lineMissing(l).join(', ')})`),
+    ...extraLines.map((l, i) => lineMissing(l, donation).length > 0 && `item ${i + 2} (${lineMissing(l, donation).join(', ')})`),
   ].filter(Boolean) as string[];
 
   // A field shows what is wrong with it once the user has been in it
   const fieldErrors = useFieldErrors({
     model19No: !ifmisSlipNumber.trim() && 'Enter the number printed on the Model 19 slip.',
     transactionType: !transactionType && 'Choose the transaction type.',
-    source: !source.trim() && 'Enter the supplier or vendor.',
+    source: !donation && !source.trim() && 'Enter the supplier or vendor.',
     itemName: !name.trim() && 'Describe the item received.',
     category: !category && 'Choose the category.',
     itemType: !itemType && 'Choose fixed asset or consumable.',
     condition: !condition && 'Choose the physical condition.',
     uom: !uom.trim() && 'Enter the unit of measure, e.g. EA or KG.',
-    unitCost: !(unitCostETB > 0) && 'Enter the unit price.',
+    unitCost: !donation && !(unitCostETB > 0) && 'Enter the unit price.',
   });
 
   const handleReset = () => {
@@ -190,6 +201,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setCondition('');
     setRemark('');
     setExtraLines([]);
+    setProvisionType('PURCHASE');
     setDeliveredBy('');
     setReceivedBy('');
     setReceivedById('');
@@ -437,16 +449,17 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           category: category as AssetCategory,
           itemType: itemType as ItemType,
           serialNumber: serialNumber.trim() || undefined,
-          unitCostETB: Number(unitCostETB) || 0,
+          unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
           condition: condition as ItemCondition,
           storeLocationId,
           ifmisSlipNumber: slipNo,
           ifmisSlipDateGc,
           ifmisSlipAttachmentUrl: slipUrl,
-          poNumber: poNumber.trim() || undefined,
+          provisionType,
+          poNumber: donation ? undefined : poNumber.trim() || undefined,
           transactionType,
-          source: source.trim() || undefined,
-          buyer: buyer.trim() || undefined,
+          source: donation ? undefined : source.trim() || undefined,
+          buyer: donation ? undefined : buyer.trim() || undefined,
           programName: programName.trim() || undefined,
           uom: uom.trim(),
           subInventory: subInventory.trim() || undefined,
@@ -479,7 +492,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         category: category as AssetCategory,
         itemType: itemType as ItemType,
         serialNumber: serialNumber.trim() || undefined,
-        unitCostETB: Number(unitCostETB) || 0,
+        unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
         condition: condition as ItemCondition,
         uom: uom.trim(),
         subInventory: subInventory.trim() || undefined,
@@ -494,12 +507,12 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         name: l.name.trim(),
         category: l.category as AssetCategory,
         itemType: l.itemType as ItemType,
-        unitCostETB: l.unitPrice,
+        unitCostETB: donation ? 0 : l.unitPrice,
         condition: l.condition as ItemCondition,
         uom: l.uom.trim(),
         itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
         quantity: l.quantity,
-        totalAmount: l.quantity * l.unitPrice,
+        totalAmount: donation ? 0 : l.quantity * l.unitPrice,
         remark: l.ifmisCode ? `IFMIS item code ${l.ifmisCode}` : undefined,
       }))];
 
@@ -510,7 +523,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         category: category as AssetCategory,
         itemType: itemType as ItemType,
         serialNumber: serialNumber.trim() || '',
-        unitCostETB: Number(unitCostETB) || 0,
+        unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
         condition: condition as ItemCondition,
         storeLocationId,
         ifmisSlipNumber: slipNo,
@@ -519,10 +532,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         isHistoricalData: false,
         registeredById,
         notes: remark.trim() || undefined,
-        poNumber: poNumber.trim() || undefined,
+        provisionType,
+        poNumber: donation ? undefined : poNumber.trim() || undefined,
         transactionType,
-        source: source.trim() || undefined,
-        buyer: buyer.trim() || undefined,
+        source: donation ? undefined : source.trim() || undefined,
+        buyer: donation ? undefined : buyer.trim() || undefined,
         programName: programName.trim() || undefined,
         deliveredBy: deliveredBy.trim() || undefined,
         receivedByEmployeeId: receiverId || undefined,
@@ -544,7 +558,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         printedPadFrom: printedPadFrom.trim() || '',
         printedPadTo: printedPadTo.trim() || '',
         quantity: Number(quantity) || 1,
-        unitPrice: Number(unitCostETB) || 0,
+        unitPrice: donation ? 0 : Number(unitCostETB) || 0,
         totalAmount,
         remark: remark.trim() || '',
       }, ...extraLines.map((l, i): Model19LineItem => ({
@@ -560,20 +574,21 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         printedPadFrom: '',
         printedPadTo: '',
         quantity: l.quantity,
-        unitPrice: l.unitPrice,
-        totalAmount: l.quantity * l.unitPrice,
+        unitPrice: donation ? 0 : l.unitPrice,
+        totalAmount: donation ? 0 : l.quantity * l.unitPrice,
         remark: l.ifmisCode ? `IFMIS item code ${l.ifmisCode}` : '',
       }))];
 
       const generatedVoucher: Model19Voucher = {
         approvalState: 'PENDING',
         invModel19No: slipNo,
-        poNumber: poNumber.trim() || '—',
+        provisionType,
+        poNumber: donation ? '—' : poNumber.trim() || '—',
         receivedDateGc: ifmisSlipDateGc,
         receivedDateEc: formatGcToEc(ifmisSlipDateGc),
         transactionType: transactionType || '—',
-        source: source.trim() || '—',
-        buyer: buyer.trim() || '—',
+        source: donation ? '—' : source.trim() || '—',
+        buyer: donation ? '—' : buyer.trim() || '—',
         programName: programName.trim(),
         storeLocationId,
         storeLocationName: targetStore?.siteName,
@@ -616,6 +631,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         accent="emerald"
       >
         <FieldGrid>
+          <Field label="Type of provision" required htmlFor="stock-in-provision" hint={donation ? 'Donated items have no PO number, supplier, buyer or price.' : undefined}>
+            <select id="stock-in-provision" required value={provisionType} onChange={(e) => chooseProvision(e.target.value as ProvisionType)} className={input()}>
+              <option value="PURCHASE">Purchase</option>
+              <option value="DONATION">Donation</option>
+            </select>
+          </Field>
+
           <Field
             label="Model 19 No."
             required
@@ -634,16 +656,18 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             />
           </Field>
 
-          <Field label="PO number" optional htmlFor="stock-in-po">
-            <input
-              id="stock-in-po"
-              type="text"
-              placeholder="e.g. 186"
-              value={poNumber}
-              onChange={(e) => setPoNumber(e.target.value)}
-              className={input({ mono: true })}
-            />
-          </Field>
+          {!donation && (
+            <Field label="PO number" optional htmlFor="stock-in-po">
+              <input
+                id="stock-in-po"
+                type="text"
+                placeholder="e.g. 186"
+                value={poNumber}
+                onChange={(e) => setPoNumber(e.target.value)}
+                className={input({ mono: true })}
+              />
+            </Field>
+          )}
 
           <Field label="Received date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
             <input
@@ -667,28 +691,32 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             </select>
           </Field>
 
-          <Field label="Source (supplier / vendor)" required htmlFor="stock-in-source" error={fieldErrors.error('source')}>
-            <input
-              id="stock-in-source"
-              type="text"
-              required
-              placeholder="Supplier or vendor name"
-              value={source}
-              onChange={(e) => setSource(e.target.value)}
-              onBlur={fieldErrors.touch('source')}
-              className={input({ invalid: !!fieldErrors.error('source') })}
-            />
-          </Field>
+          {!donation && (
+            <>
+              <Field label="Source (supplier / vendor)" required htmlFor="stock-in-source" error={fieldErrors.error('source')}>
+                <input
+                  id="stock-in-source"
+                  type="text"
+                  required
+                  placeholder="Supplier or vendor name"
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                  onBlur={fieldErrors.touch('source')}
+                  className={input({ invalid: !!fieldErrors.error('source') })}
+                />
+              </Field>
 
-          <Field label="Buyer / procurement officer" optional>
-            <input
-              type="text"
-              placeholder="Name of the buyer or procurement officer"
-              value={buyer}
-              onChange={(e) => setBuyer(e.target.value)}
-              className={input()}
-            />
-          </Field>
+              <Field label="Buyer / procurement officer" optional>
+                <input
+                  type="text"
+                  placeholder="Name of the buyer or procurement officer"
+                  value={buyer}
+                  onChange={(e) => setBuyer(e.target.value)}
+                  className={input()}
+                />
+              </Field>
+            </>
+          )}
 
           <Field label="Program / project" optional span="sm:col-span-2">
             <input
@@ -811,21 +839,25 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               />
             </Field>
 
-            <Field label="Unit price (ETB)" required htmlFor="stock-in-unit-cost" error={fieldErrors.error('unitCost')}>
-              <MoneyInput
-                id="stock-in-unit-cost"
-                value={unitCostETB}
-                onChange={setUnitCostETB}
-                onBlur={fieldErrors.touch('unitCost')}
-                invalid={!!fieldErrors.error('unitCost')}
-              />
-            </Field>
+            {!donation && (
+              <>
+                <Field label="Unit price (ETB)" required htmlFor="stock-in-unit-cost" error={fieldErrors.error('unitCost')}>
+                  <MoneyInput
+                    id="stock-in-unit-cost"
+                    value={unitCostETB}
+                    onChange={setUnitCostETB}
+                    onBlur={fieldErrors.touch('unitCost')}
+                    invalid={!!fieldErrors.error('unitCost')}
+                  />
+                </Field>
 
-            <Field label="Total (ETB)">
-              <TotalValue accent="emerald">
-                {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-              </TotalValue>
-            </Field>
+                <Field label="Total (ETB)">
+                  <TotalValue accent="emerald">
+                    {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                  </TotalValue>
+                </Field>
+              </>
+            )}
           </FieldGrid>
 
           <Field label="Remark" optional>
@@ -840,6 +872,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
           {extraLines.length > 0 && (
             <SlipLines
+              donation={donation}
               lines={extraLines}
               onChange={setExtraLines}
               onCopyFirst={
@@ -969,6 +1002,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
   return {
     approvalState: item.status === ItemStatus.PENDING_STOCK_IN ? 'PENDING' : item.status === ItemStatus.REJECTED ? 'REJECTED' : undefined,
     invModel19No: item.ifmisSlipNumber,
+    provisionType: item.provisionType,
     poNumber: item.poNumber || '—',
     receivedDateGc: item.ifmisSlipDateGc,
     receivedDateEc: item.ifmisSlipDateEc || formatGcToEc(item.ifmisSlipDateGc),

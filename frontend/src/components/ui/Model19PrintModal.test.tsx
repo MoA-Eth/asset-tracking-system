@@ -128,4 +128,16 @@ describe('Model19PrintModal Component', () => {
     expect(screen.getByText(/from the MoA Asset Tracking System/)).toBeTruthy();
     expect(screen.queryByText('PO Receipt')).toBeNull();
   });
+
+  it('prints a donation without PO number, source, buyer, prices or grand total', () => {
+    render(<Model19PrintModal isOpen onClose={vi.fn()} voucher={{ ...mockVoucher, provisionType: 'DONATION', poNumber: '—', source: '—', buyer: '—' }} />);
+    expect(screen.getByText('Donation')).toBeTruthy();
+    expect(screen.queryByText('PO Number')).toBeNull();
+    expect(screen.queryByText('Source')).toBeNull();
+    expect(screen.queryByText('Buyer')).toBeNull();
+    expect(screen.queryByText('Unit Price')).toBeNull();
+    expect(screen.queryByText('Grand Total')).toBeNull();
+    // The items themselves are still listed with their quantities
+    expect(screen.getByText('Sulfa Drug In Vial')).toBeTruthy();
+  });
 });

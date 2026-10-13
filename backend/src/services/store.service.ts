@@ -27,6 +27,7 @@ import {
   Model21Accessory,
   ItemBalance,
   ApprovalActionRequest,
+  PROVISION_TYPES,
 } from '../types/asset-management';
 import { prisma } from '../lib/prisma';
 import { getTodayGcAndEc, formatGcToEc } from '../utils/eth-date';
@@ -83,6 +84,7 @@ function mapItem(raw: any): ItemWithRelations {
     approvedBy: raw.approvedBy ? mapEmployee(raw.approvedBy) : undefined,
 
     // Model 19 fields
+    provisionType: model19Meta.provisionType === 'DONATION' ? 'DONATION' : 'PURCHASE',
     poNumber: model19Meta.poNumber || raw.poNumber || undefined,
     transactionType: model19Meta.transactionType || raw.transactionType || undefined,
     source: model19Meta.source || raw.source || undefined,
@@ -773,6 +775,14 @@ export class StoreService {
           totalAmount: payload.totalAmount || (payload.unitCostETB * (payload.quantity || 1)),
           remark: payload.remark,
         }];
+    if (payload.provisionType && !PROVISION_TYPES.includes(payload.provisionType)) throw new BadRequestError('Choose Purchase or Donation as the type of provision.');
+    const donation = payload.provisionType === 'DONATION';
+    if (donation) {
+      for (const line of rawItems) {
+        line.unitCostETB = 0;
+        line.totalAmount = 0;
+      }
+    }
     // Check every line before saving any, so a bad line can't leave half a slip registered
     for (const line of rawItems) assertStockInLine({ ...line, name: line.name || payload.name, category: line.category || payload.category, itemType: line.itemType || payload.itemType, uom: line.uom ?? payload.uom });
     const typedSerials = rawItems.map((line) => String(line.serialNumber ?? '').trim().toLowerCase()).filter(Boolean);
@@ -793,10 +803,11 @@ export class StoreService {
       const totalAmount = Number(lineItem.totalAmount) || (unitCost * quantity);
 
       const model19Meta = {
-        poNumber: payload.poNumber,
+        provisionType: donation ? 'DONATION' : 'PURCHASE',
+        poNumber: donation ? undefined : payload.poNumber,
         transactionType: payload.transactionType || 'PO Receipt',
-        source: payload.source,
-        buyer: payload.buyer,
+        source: donation ? undefined : payload.source,
+        buyer: donation ? undefined : payload.buyer,
         programName: payload.programName || 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa',
         uom: lineItem.uom || payload.uom || 'EA',
         subInventory: lineItem.subInventory || payload.subInventory,
@@ -902,7 +913,10 @@ export class StoreService {
 
     const slipNo = (payload.ifmisSlipNumber || '').trim();
     const name = (payload.name || '').trim();
-    const unitCost = Number(payload.unitCostETB);
+    if (payload.provisionType && !PROVISION_TYPES.includes(payload.provisionType)) throw new BadRequestError('Choose Purchase or Donation as the type of provision.');
+    const donation = payload.provisionType === 'DONATION';
+    // A donation has no price
+    const unitCost = donation ? 0 : Number(payload.unitCostETB);
     const quantity = Number(payload.quantity ?? 1);
     if (!slipNo) throw new BadRequestError('IFMIS Slip Number is always mandatory.');
     if (!name) throw new BadRequestError('Item description is required.');
@@ -935,10 +949,11 @@ export class StoreService {
     const remark = payload.remark?.trim() || undefined;
     const meta = {
       ...previousMeta,
-      poNumber: payload.poNumber?.trim() || undefined,
+      provisionType: donation ? 'DONATION' : 'PURCHASE',
+      poNumber: donation ? undefined : payload.poNumber?.trim() || undefined,
       transactionType: payload.transactionType || previousMeta.transactionType || 'PO Receipt',
-      source: payload.source?.trim() || undefined,
-      buyer: payload.buyer?.trim() || undefined,
+      source: donation ? undefined : payload.source?.trim() || undefined,
+      buyer: donation ? undefined : payload.buyer?.trim() || undefined,
       programName: payload.programName?.trim() || previousMeta.programName,
       uom: payload.uom?.trim() || previousMeta.uom || 'EA',
       subInventory: payload.subInventory?.trim() || undefined,
