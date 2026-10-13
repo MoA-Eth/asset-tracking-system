@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AssetsPage } from './AssetsPage';
 import { api } from '../api/client';
@@ -638,6 +638,56 @@ describe('Asset record', () => {
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
   });
 
+  it('"More actions" picks an IFMIS slip first, then opens the receive form filled in from it', async () => {
+    const user = userEvent.setup();
+    const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+    vi.mocked(readPdfRows).mockResolvedValue([
+      r(98, [640, 'Print Model19 Report']),
+      r(146, [680, 'INV Model 19 No. :'], [812, '0000051']),
+      r(193, [677, 'Transaction Type :'], [812, 'PO Receipt']),
+    ]);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    await user.click(screen.getByRole('menuitem', { name: /Fill in from an IFMIS slip/i }));
+    await user.upload(screen.getByLabelText('IFMIS slip to fill in from'), new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+
+    const panel = await screen.findByRole('region', { name: 'Receive items' });
+    expect(await within(panel).findByText(/Filled in from the slip/)).toBeInTheDocument();
+    expect(within(panel).getByText('model19.pdf')).toBeInTheDocument();
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000051');
+  });
+
+  it('imports receipts from a spreadsheet: preview first, then each good row is registered as a historical receipt', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.registerStockIn).mockResolvedValue({ item: { itemCode: 'MOA-0100' }, items: [{ itemCode: 'MOA-0100' }] } as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    // One import per voucher; Model 22 waits for its format
+    expect(screen.getByRole('menuitem', { name: /Import Model 22/i })).toBeDisabled();
+    await user.click(screen.getByRole('menuitem', { name: /Import Model 19 \(receipts\)/i }));
+    const csv = [
+      'Model 19 No.,Received date,Store,Item description,Category,Item type,Unit of measure,Quantity,Unit price (ETB)',
+      '0000044,2026-09-25,Head office,Office desk,Office Furniture & Fixtures,Fixed asset,EA,4,"12,000"',
+      '0000044,2026-09-25,Head office,Printer paper,Office Furniture & Fixtures,Consumable,BOX,0,300',
+    ].join('\n');
+    await waitFor(() => expect(document.getElementById('receipt-import-file')).not.toBeDisabled());
+    await user.upload(document.getElementById('receipt-import-file') as HTMLInputElement, new File([csv], 'receipts.csv', { type: 'text/csv' }));
+
+    expect(await screen.findByText(/1 receipt will be registered\. 1 row has problems/)).toBeInTheDocument();
+    expect(screen.getByText('Quantity must be a whole number, at least 1.')).toBeInTheDocument();
+    expect(api.registerStockIn).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Import 1 receipt' }));
+    expect(await screen.findByText(/1 imported\. They wait for Team Leader endorsement/)).toBeInTheDocument();
+    expect(api.registerStockIn).toHaveBeenCalledTimes(1);
+    expect(api.registerStockIn).toHaveBeenCalledWith(
+      expect.objectContaining({ ifmisSlipNumber: '0000044', name: 'Office desk', storeLocationId: 'LOC-1', isHistoricalData: true }),
+    );
+    expect(screen.getByText('MOA-0100')).toBeInTheDocument();
+  });
+
   it('says so when the attached PDF is a scan with no text', async () => {
     const user = userEvent.setup();
     vi.mocked(readPdfRows).mockResolvedValue([]);
@@ -826,14 +876,13 @@ describe('Asset record', () => {
     expect(screen.queryByRole('button', { name: /Clear filters/ })).not.toBeInTheDocument();
   });
 
-  it('exports filtered assets to CSV when Export CSV is clicked', async () => {
+  it('exports filtered assets to CSV from More actions', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
 
-    const exportBtn = screen.getByRole('button', { name: /Export CSV/i });
-    expect(exportBtn).toBeInTheDocument();
-    await user.click(exportBtn);
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    await user.click(screen.getByRole('menuitem', { name: /Export CSV/i }));
 
     expect(toast.success).toHaveBeenCalledWith(
       'CSV Exported',
