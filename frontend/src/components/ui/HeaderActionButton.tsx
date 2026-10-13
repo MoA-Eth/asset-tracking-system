@@ -2,7 +2,7 @@ import React from 'react';
 import { Lock } from 'lucide-react';
 import { RowAction } from './RowActionsMenu';
 
-/** A form's own action in its header, beside the close button, e.g. "Import items" */
+/** A form's own action in its header, beside the close button, e.g. "Import receipts" */
 export const HeaderActionButton: React.FC<{ action: RowAction }> = ({ action }) => {
   if (action.hidden) return null;
   const Icon = action.disabled ? Lock : action.icon;

@@ -243,8 +243,8 @@ describe('Assets page', () => {
     await menuFor(user, 'MOA-S1');
     await user.click(screen.getByRole('menuitem', { name: 'Issue (Model 22)' }));
     const record = screen.getByRole('region', { name: 'Asset record MOA-S1' });
-    // The form's own Import items button is in its header
-    await user.click(within(record).getByRole('button', { name: 'Import items' }));
+    // The form's own Import issues button is in its header
+    await user.click(within(record).getByRole('button', { name: 'Import issues' }));
     const csv = [
       'Model 22 No.,Issued date,Item code,Quantity,Recipient (employee ID),Directorate,Purpose',
       '0001234,2026-10-01,MOA-S1,2,MOA/2,ICT,Field work',
@@ -678,11 +678,11 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     // The list itself has no menu; it belongs to the form
-    expect(screen.queryByRole('button', { name: 'Import items' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Import receipts' })).toBeNull();
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.type(within(panel).getByLabelText(/Item description/i), 'Typed by hand');
-    await user.click(within(panel).getByRole('button', { name: 'Import items' }));
+    await user.click(within(panel).getByRole('button', { name: 'Import receipts' }));
     // A PDF is a slip: the window closes and the slip is read into the open form
     await waitFor(() => expect(screen.getByLabelText('File to import items from')).not.toBeDisabled());
     await user.upload(screen.getByLabelText('File to import items from'), new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
@@ -699,7 +699,7 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
-    await user.click(within(screen.getByRole('region', { name: 'Receive items' })).getByRole('button', { name: 'Import items' }));
+    await user.click(within(screen.getByRole('region', { name: 'Receive items' })).getByRole('button', { name: 'Import receipts' }));
     const csv = [
       'Model 19 No.,Received date,Store,Item description,Category,Item type,Unit of measure,Quantity,Unit price (ETB)',
       '0000044,2026-09-25,Head office,Office desk,Office Furniture & Fixtures,Fixed asset,EA,4,"12,000"',

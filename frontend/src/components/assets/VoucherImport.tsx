@@ -36,7 +36,7 @@ interface Props {
   approvals: TransactionApproval[];
 }
 
-/** The import for one voucher, opened by "Import items" in the ⋮ menu of that voucher's form */
+/** The import for one voucher, opened by the import button in that voucher's form header (e.g. "Import issues") */
 export const VoucherImport: React.FC<Props> = ({ kind, onSlip, sheetsBlocked, onClose, onImported, items, employees, departments, locations, approvals }) => {
   const { user } = useAuth();
   const keepers = useStoreKeepers();

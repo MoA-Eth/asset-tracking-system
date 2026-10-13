@@ -174,17 +174,24 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   // Pop-ups: one per form, each either new (from a row or the header) or correcting a pending request
   const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string; slip?: File } | null>(null);
-  // "Import items" in a form's header opens that voucher's import window. The file's type decides what happens:
+  // The import button in a form's header ("Import receipts", "Import issues"…) opens that voucher's import window. The file's type decides what happens:
   // a spreadsheet is checked and imported; on the receive form a PDF or picture is read into the form instead.
   const [importing, setImporting] = useState<VoucherImportKind | null>(null);
   // Imported rows carry no scan, so spreadsheets for a voucher that needs one are refused while the scan is required
   const scanRequired = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
   const SCAN_REQUIRED_REASON = 'Every voucher needs its scanned slip (Settings), so enter them one by one.';
+  // Each form's button names what it brings in
+  const IMPORT_LABEL: Record<VoucherImportKind, string> = {
+    receipt: 'Import receipts',
+    issue: 'Import issues',
+    transfer: 'Import transfers',
+    disposal: 'Import disposals',
+  };
   const importAction = (kind: VoucherImportKind): RowAction => {
     // The receive form also reads slips, which the setting never blocks; transfers carry no slip
     const blocked = kind !== 'receipt' && kind !== 'transfer' && scanRequired;
     return {
-      label: 'Import items',
+      label: IMPORT_LABEL[kind],
       icon: FileUp,
       onClick: () => setImporting(kind),
       disabled: blocked,
