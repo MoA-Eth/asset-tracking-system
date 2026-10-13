@@ -7,7 +7,6 @@ export type ReceiptField =
   | 'slipNumber'
   | 'receivedDate'
   | 'store'
-  | 'location'
   | 'name'
   | 'category'
   | 'itemType'
@@ -34,7 +33,6 @@ export const RECEIPT_FIELDS: SheetField<ReceiptField>[] = [
   { key: 'slipNumber', heading: 'Model 19 No.', required: true, aliases: ['model 19', 'model 19 no', 'inv model 19 no', 'slip no', 'slip number', 'ifmis slip number', 'voucher no'] },
   { key: 'receivedDate', heading: 'Received date', required: true, aliases: ['date', 'slip date', 'receipt date', 'date received'] },
   { key: 'store', heading: 'Store', required: true, aliases: ['receiving store', 'store name'] },
-  { key: 'location', heading: 'Location in store', aliases: ['location', 'store location', 'room'] },
   { key: 'name', heading: 'Item description', required: true, aliases: ['description', 'item', 'item name', 'name', 'asset name'] },
   { key: 'category', heading: 'Category', required: true, aliases: ['item category', 'asset category'] },
   { key: 'itemType', heading: 'Item type', required: true, aliases: ['type', 'fixed or consumable', 'fixed consumable'] },
@@ -73,7 +71,6 @@ export function receiptTemplateRows(): string[][] {
     slipNumber: '0000044',
     receivedDate: '2026-09-25',
     store: 'Central Store',
-    location: '',
     name: 'Laptop computer, 14 inch',
     category: 'IT Equipment & Accessories',
     itemType: 'Fixed asset',
@@ -156,20 +153,11 @@ export function checkReceiptRows(rows: ReceiptSheetRow[], ctx: ReceiptImportCont
     if (!date) return fail(`Received date "${r.receivedDate}" is not a date. Use 2026-09-25 or 25/09/2026.`);
     if (date > ctx.today) return fail('Received date is in the future.');
 
-    // The store by its name, or a location written as "Store · Location"
-    const byLabel = usable.find((l) => normalize(`${l.storeName} · ${l.name}`) === normalize(r.store));
-    const inStore = usable.filter((l) => normalize(l.storeName) === normalize(r.store));
-    if (!byLabel && inStore.length === 0) return fail(`No store named "${r.store}". Use the store's name as in Settings → Stores.`);
+    // The store by its name (or written as "Store · Location"); like the form, goods go to its first location
     const location =
-      byLabel ??
-      (r.location.trim() ? inStore.find((l) => normalize(l.name) === normalize(r.location)) : inStore.length === 1 ? inStore[0] : undefined);
-    if (!location) {
-      return fail(
-        r.location.trim()
-          ? `${inStore[0].storeName} has no location "${r.location}".`
-          : `${inStore[0].storeName} has several locations; fill in Location in store.`,
-      );
-    }
+      usable.find((l) => normalize(`${l.storeName} · ${l.name}`) === normalize(r.store)) ??
+      usable.find((l) => normalize(l.storeName) === normalize(r.store));
+    if (!location) return fail(`No store named "${r.store}". Use the store's name as in Settings → Stores.`);
 
     const category = categoryFrom(r.category);
     if (!category) return fail(`Category "${r.category}" is not one of: ${COMMON_CATEGORIES.map((c) => c.label).join(', ')}.`);
