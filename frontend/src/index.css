@@ -102,6 +102,12 @@ table {
   background: #94a3b8;
 }
 
+/* Header row of the data tables: a little more height than the body rows */
+.table-head th {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
 /* Mobile Bottom Navigation Bar */
 .mobile-nav-bar {
   padding-bottom: calc(0.5rem + var(--safe-bottom));
