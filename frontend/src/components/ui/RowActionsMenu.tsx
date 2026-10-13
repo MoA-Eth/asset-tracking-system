@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreHorizontal, Lock, LucideIcon } from 'lucide-react';
+import { MoreVertical, Lock, LucideIcon } from 'lucide-react';
 
 export interface RowAction {
   label: string;
@@ -116,13 +116,13 @@ export const RowActionsMenu: React.FC<RowActionsMenuProps> = ({ actions, label, 
         aria-expanded={open}
         aria-label={heading ?? `Actions for ${label}`}
         title={heading ?? 'Actions'}
-        className={`inline-flex ${heading ? 'self-stretch min-h-9 w-14' : 'h-7 w-11'} rounded-[3px] items-center justify-center border transition cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 ${
+        className={`inline-flex ${heading ? 'self-stretch min-h-9 w-10' : 'h-8 w-8'} rounded-[3px] items-center justify-center border transition cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 ${
           open
             ? 'border-emerald-300 bg-emerald-50 text-emerald-800 shadow-inner'
             : 'border-slate-200 bg-white text-slate-500 shadow-[0_1px_1px_rgba(15,23,42,0.05)] hover:border-emerald-300 hover:bg-emerald-50/70 hover:text-emerald-800'
         }`}
       >
-        <MoreHorizontal className="h-[18px] w-[18px]" strokeWidth={2.25} />
+        <MoreVertical className="h-[18px] w-[18px]" strokeWidth={2.25} />
       </button>
       {open &&
         createPortal(
