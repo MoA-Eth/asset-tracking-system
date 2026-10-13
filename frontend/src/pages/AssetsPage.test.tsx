@@ -1067,6 +1067,42 @@ describe('Asset record', () => {
     expect(screen.queryByRole('region', { name: 'Receive items' })).not.toBeInTheDocument();
   });
 
+  it('records a donation without PO number, supplier, buyer or price', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.registerStockIn).mockResolvedValue({ item: { id: 'D-1', itemCode: 'MOA-D1' }, items: [{ id: 'D-1', itemCode: 'MOA-D1' }] } as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+
+    // Purchase is the default, with its procurement fields
+    expect(within(panel).getByLabelText(/Type of provision/i)).toHaveValue('PURCHASE');
+    expect(within(panel).getByLabelText(/PO number/i)).toBeInTheDocument();
+    await user.selectOptions(within(panel).getByLabelText(/Type of provision/i), 'DONATION');
+    // A donation has none of them, and is received as a donation
+    for (const label of [/PO number/i, /Source/i, /Buyer/i, /Unit price/i, /^Total/i]) expect(within(panel).queryByLabelText(label)).toBeNull();
+    expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('Donation / Grant Receipt');
+
+    await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000777');
+    await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
+    await user.type(within(panel).getByLabelText(/Item description/i), 'Donated tablet');
+    await user.selectOptions(within(panel).getByLabelText(/^Category/i), 'IT_EQUIPMENT');
+    await user.selectOptions(within(panel).getByLabelText(/Item type/i), 'FIXED');
+    await user.selectOptions(within(panel).getByLabelText(/Physical condition/i), 'NEW');
+    await user.type(within(panel).getByLabelText(/^Quantity/i), '5');
+    const submit = within(panel).getByRole('button', { name: /Submit for approval/i });
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+
+    await vi.waitFor(() => expect(api.registerStockIn).toHaveBeenCalled());
+    const sent = vi.mocked(api.registerStockIn).mock.calls[0][0];
+    expect(sent).toMatchObject({ provisionType: 'DONATION', unitCostETB: 0, transactionType: 'Donation / Grant Receipt' });
+    expect(sent.poNumber).toBeUndefined();
+    expect(sent.source).toBeUndefined();
+    expect(sent.buyer).toBeUndefined();
+    expect(sent.items?.[0]).toMatchObject({ quantity: 5, unitCostETB: 0, totalAmount: 0 });
+  });
+
   it('submits a new asset registration from the form footer and triggers Model 19 print modal', async () => {
     const user = userEvent.setup();
     vi.mocked(api.registerStockIn).mockResolvedValue({

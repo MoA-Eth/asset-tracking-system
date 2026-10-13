@@ -151,6 +151,8 @@ export interface Item {
   history: ItemMovementHistory[];
 
   // Extended Model 19 (IFMIS Receiving) Fields
+  /** Bought, or donated: a donation has no PO, supplier, buyer or price */
+  provisionType?: ProvisionType;
   poNumber?: string;
   transactionType?: string;
   source?: string;
@@ -186,6 +188,10 @@ export interface Model19LineItem {
   totalAmount: number;
   remark?: string;
 }
+
+/** How goods on a Model 19 were provided: bought on a PO, or donated (no PO, supplier, buyer or price) */
+export type ProvisionType = 'PURCHASE' | 'DONATION';
+export const PROVISION_TYPES: ProvisionType[] = ['PURCHASE', 'DONATION'];
 
 export interface Model19Voucher {
   invModel19No: string;
@@ -416,6 +422,7 @@ export interface CreateStockInRequest {
   notes?: string;
 
   // Extended Model 19 fields
+  provisionType?: ProvisionType;
   poNumber?: string;
   transactionType?: string;
   source?: string;
@@ -471,6 +478,7 @@ export interface UpdateStockInRequest {
   /** New slip upload; omit to keep the current attachment */
   ifmisSlipAttachmentUrl?: string;
 
+  provisionType?: ProvisionType;
   poNumber?: string;
   transactionType?: string;
   source?: string;

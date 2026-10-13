@@ -15,6 +15,8 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
   if (!isOpen || !voucher) return null;
 
   const grandTotal = voucher.grandTotal || voucher.items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0);
+  // A donation has no PO, supplier, buyer or price, so those are left off the voucher
+  const donation = voucher.provisionType === 'DONATION';
 
   return (
     <VoucherShell
@@ -30,11 +32,11 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
     >
       <VoucherDetails
         fields={[
-          { label: 'PO Number', value: voucher.poNumber, mono: true },
+          { label: 'Type of Provision', value: donation ? 'Donation' : 'Purchase' },
+          ...(donation ? [] : [{ label: 'PO Number', value: voucher.poNumber, mono: true }]),
           { label: 'Received Date', value: voucher.receivedDateGc && `${voucher.receivedDateGc}${voucher.receivedDateEc ? ` (${voucher.receivedDateEc} E.C.)` : ''}` },
           { label: 'Transaction Type', value: voucher.transactionType },
-          { label: 'Source', value: voucher.source },
-          { label: 'Buyer', value: voucher.buyer },
+          ...(donation ? [] : [{ label: 'Source', value: voucher.source }, { label: 'Buyer', value: voucher.buyer }]),
         ]}
       />
 
@@ -58,8 +60,8 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
                 </div>
               </th>
               <th className={`${VOUCHER_TH} text-right w-12`}>Qty</th>
-              <th className={`${VOUCHER_TH} text-right w-20`}>Unit Price</th>
-              <th className={`${VOUCHER_TH} text-right w-24`}>Total Amount</th>
+              {!donation && <th className={`${VOUCHER_TH} text-right w-20`}>Unit Price</th>}
+              {!donation && <th className={`${VOUCHER_TH} text-right w-24`}>Total Amount</th>}
               <th className={`${VOUCHER_TH} min-w-[70px]`}>Remark</th>
             </tr>
           </thead>
@@ -84,8 +86,8 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
                   </div>
                 </td>
                 <td className={`${VOUCHER_TD} text-right font-mono font-bold`}>{item.quantity}</td>
-                <td className={`${VOUCHER_TD} text-right font-mono`}>{formatVoucherAmount(item.unitPrice)}</td>
-                <td className={`${VOUCHER_TD} text-right font-mono font-bold`}>{formatVoucherAmount(item.totalAmount)}</td>
+                {!donation && <td className={`${VOUCHER_TD} text-right font-mono`}>{formatVoucherAmount(item.unitPrice)}</td>}
+                {!donation && <td className={`${VOUCHER_TD} text-right font-mono font-bold`}>{formatVoucherAmount(item.totalAmount)}</td>}
                 <td className={`${VOUCHER_TD} text-slate-700`}>{orDash(item.remark)}</td>
               </tr>
             ))}
@@ -93,7 +95,7 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
         </table>
       </div>
 
-      <VoucherTotals rows={[{ label: 'Grand Total', value: grandTotal }]} />
+      {!donation && <VoucherTotals rows={[{ label: 'Grand Total', value: grandTotal }]} />}
 
       <VoucherSignatures
         signatories={[

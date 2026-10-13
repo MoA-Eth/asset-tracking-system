@@ -22,7 +22,7 @@ export interface SlipLine {
 }
 
 /** What a line still needs before the receipt can be submitted */
-export const lineMissing = (l: SlipLine): string[] =>
+export const lineMissing = (l: SlipLine, donation = false): string[] =>
   [
     !l.name.trim() && 'description',
     !l.category && 'category',
@@ -30,7 +30,7 @@ export const lineMissing = (l: SlipLine): string[] =>
     !l.condition && 'condition',
     !l.uom.trim() && 'unit',
     !(Number.isInteger(l.quantity) && l.quantity >= 1) && 'quantity',
-    !(l.unitPrice > 0) && 'unit price',
+    !donation && !(l.unitPrice > 0) && 'unit price',
   ].filter(Boolean) as string[];
 
 const CONDITIONS: [ItemCondition, string][] = [
@@ -47,10 +47,12 @@ const CONDITIONS: [ItemCondition, string][] = [
  */
 export const SlipLines: React.FC<{
   lines: SlipLine[];
+  /** A donation has no price: the price column is left out */
+  donation?: boolean;
   onChange: (lines: SlipLine[]) => void;
   /** Copies the first item's type and condition into the lines that have none */
   onCopyFirst?: () => void;
-}> = ({ lines, onChange, onCopyFirst }) => {
+}> = ({ lines, donation, onChange, onCopyFirst }) => {
   const set = (key: number, patch: Partial<SlipLine>) => onChange(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const cell = (opts?: { align?: 'right'; invalid?: boolean; mono?: boolean }) => `${inputClass('emerald', opts)} !py-1 !text-xs`;
   const total = lines.reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0);
@@ -83,7 +85,7 @@ export const SlipLines: React.FC<{
               <th className="px-2 py-1.5 w-28">Condition</th>
               <th className="px-2 py-1.5 w-16">Unit</th>
               <th className="px-2 py-1.5 w-20 text-right">Qty</th>
-              <th className="px-2 py-1.5 w-28 text-right">Unit price</th>
+              {!donation && <th className="px-2 py-1.5 w-28 text-right">Unit price</th>}
               <th className="px-2 py-1.5 w-8" />
             </tr>
           </thead>
@@ -133,6 +135,7 @@ export const SlipLines: React.FC<{
                       className={cell({ align: 'right', invalid: !(l.quantity >= 1) })}
                     />
                   </td>
+                  {!donation && (
                   <td className="px-2 py-1.5">
                     <input
                       aria-label={`Item ${n} unit price`}
@@ -142,6 +145,7 @@ export const SlipLines: React.FC<{
                       className={cell({ align: 'right', invalid: !(l.unitPrice > 0) })}
                     />
                   </td>
+                  )}
                   <td className="px-1 py-1.5 pt-2">
                     <button
                       type="button"
@@ -159,9 +163,11 @@ export const SlipLines: React.FC<{
           </tbody>
         </table>
       </div>
+      {!donation && (
       <p className="border-t border-slate-200 px-3 py-1.5 text-right text-[11px] text-slate-600">
         These lines: <span className="font-semibold tabular-nums text-slate-900">{total.toLocaleString(undefined, { maximumFractionDigits: 2 })} ETB</span>
       </p>
+      )}
     </section>
   );
 };

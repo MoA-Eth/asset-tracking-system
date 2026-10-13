@@ -384,6 +384,11 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 </div>
               </FormKitField>
 
+              <FormKitField label="Type of provision" required>
+                <ReadOnlyValue>{item.provisionType === 'DONATION' ? 'Donation' : 'Purchase'}</ReadOnlyValue>
+              </FormKitField>
+
+              {item.provisionType !== 'DONATION' && (
               <FormKitField label="PO number" optional>
                 <div className="relative flex items-center w-full">
                   <ReadOnlyValue mono className={item.poNumber ? 'pr-9' : ''}>
@@ -396,6 +401,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                   )}
                 </div>
               </FormKitField>
+              )}
 
               <FormKitField
                 label="Received date (G.C.)"
@@ -409,13 +415,17 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <ReadOnlyValue>{item.transactionType || '—'}</ReadOnlyValue>
               </FormKitField>
 
-              <FormKitField label="Source (supplier / vendor)" required>
-                <ReadOnlyValue>{item.source || '—'}</ReadOnlyValue>
-              </FormKitField>
+              {item.provisionType !== 'DONATION' && (
+                <>
+                  <FormKitField label="Source (supplier / vendor)" required>
+                    <ReadOnlyValue>{item.source || '—'}</ReadOnlyValue>
+                  </FormKitField>
 
-              <FormKitField label="Buyer / procurement officer" optional>
-                <ReadOnlyValue>{item.buyer || '—'}</ReadOnlyValue>
-              </FormKitField>
+                  <FormKitField label="Buyer / procurement officer" optional>
+                    <ReadOnlyValue>{item.buyer || '—'}</ReadOnlyValue>
+                  </FormKitField>
+                </>
+              )}
 
               <FormKitField label="Program / project" optional>
                 <ReadOnlyValue>{item.programName || '—'}</ReadOnlyValue>
@@ -473,6 +483,8 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 </ReadOnlyValue>
               </FormKitField>
 
+              {item.provisionType !== 'DONATION' && (
+              <>
               <FormKitField label="Unit price" required>
                 <ReadOnlyValue mono>{formatETB(item.unitCostETB)}</ReadOnlyValue>
               </FormKitField>
@@ -489,6 +501,8 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                   {formatETB((item.unitCostETB || 0) * (totals?.total ?? row.units))}
                 </TotalValue>
               </FormKitField>
+              </>
+              )}
 
               {item.lotBatchNo && (
                 <FormKitField label="Lot / batch no." optional>

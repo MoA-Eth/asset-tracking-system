@@ -219,6 +219,7 @@ export interface Item {
   history: ItemMovementHistory[];
 
   // Extended Model 19 (IFMIS Receiving) Fields
+  provisionType?: ProvisionType;
   poNumber?: string;
   transactionType?: string;
   source?: string;
@@ -260,6 +261,7 @@ export interface Model19Voucher {
   /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
   approvalState?: 'PENDING' | 'REJECTED';
   invModel19No: string;
+  provisionType?: ProvisionType;
   poNumber: string;
   receivedDateGc: string;
   receivedDateEc?: string;
@@ -503,7 +505,11 @@ export interface AuditLogEntry {
   newState?: any;
 }
 
+/** How goods on a Model 19 were provided: bought on a PO, or donated (no PO, supplier, buyer or price) */
+export type ProvisionType = 'PURCHASE' | 'DONATION';
+
 export interface CreateStockInRequest {
+  provisionType?: ProvisionType;
   /** The store man of the receiving store who receives the goods */
   receivedByEmployeeId?: string;
   name: string;
@@ -562,6 +568,7 @@ export interface CreateStockInRequest {
 
 /** Corrections to a Stock-In registration while it still waits for Stage 1 endorsement. */
 export interface UpdateStockInRequest {
+  provisionType?: ProvisionType;
   receivedByEmployeeId?: string;
   name: string;
   category: AssetCategory;
