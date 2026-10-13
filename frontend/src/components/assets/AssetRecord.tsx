@@ -4,7 +4,7 @@ import { btn, statusTone, pill } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { Row } from '../ui/RecordDetailModal';
 import { SlipViewerModal } from '../ui/SlipViewerModal';
-import { RowAction } from '../ui/RowActionsMenu';
+import { RowAction, RowActionsMenu } from '../ui/RowActionsMenu';
 import { FormSection, FieldGrid, Field as FormKitField, ReadOnlyValue, TotalValue, FormNotice } from '../ui/FormKit';
 import { ApprovalStatus, TransactionApproval } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
@@ -27,6 +27,8 @@ export interface AssetRecordProps {
   actions: RowAction[];
   /** Form shown in place of the details while a request is being made or the pending receipt or request corrected; it has its own Submit and Cancel at the bottom */
   editForm?: React.ReactNode;
+  /** Actions of the open form, in a menu at the top right of the header */
+  formActions?: RowAction[];
   onPrintRequest: (request: TransactionApproval) => void;
   onPrintReceipt: () => void;
   onSelect: (itemId: string) => void;
@@ -158,6 +160,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   requests,
   actions,
   editForm,
+  formActions,
   onPrintRequest,
   onPrintReceipt,
   onSelect,
@@ -213,12 +216,10 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
             </div>
           )}
         </div>
-        <CloseButton
-          onClose={onClose}
-          label="Close record"
-          title="Close (Esc)"
-          className="absolute right-3 top-3 hidden lg:inline-flex"
-        />
+        <div className="absolute right-3 top-3 flex items-center gap-1.5">
+          {editing && formActions && <RowActionsMenu label={item.itemCode} heading="More actions" actions={formActions} />}
+          <CloseButton onClose={onClose} label="Close record" title="Close (Esc)" className="hidden lg:inline-flex" />
+        </div>
         <div className="flex flex-col gap-3 lg:pr-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
           <div className="min-w-0">
             <h3 className="truncate text-base font-extrabold text-slate-900" title={item.name}>{item.name}</h3>

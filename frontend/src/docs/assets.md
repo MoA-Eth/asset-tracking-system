@@ -7,7 +7,7 @@
 1. Type in **Search** to find by name, code, serial number, slip number or person.
 2. Press **Filter** to narrow the list: **Lifecycle status** (In store, Issued, Pending, Rejected, Disposed), **Store and custody location**, **Asset category**, **Item type** (fixed asset or consumable), and **Time in store** (over 30 days).
 3. Click a column heading to sort. Active filters show as chips you can remove. **Clear** resets everything.
-4. **⋮ More actions → Export CSV** saves every row that matches your filters, not only the page you see.
+4. **Export CSV** saves every row that matches your filters, not only the page you see.
 
 Your search, filters and sort are remembered on your computer.
 

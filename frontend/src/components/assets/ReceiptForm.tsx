@@ -27,7 +27,7 @@ export interface StockInFormProps {
   editItem?: ItemWithRelations;
   /** A new receipt that starts from an earlier item or slip rather than empty */
   template?: ReceiptTemplate;
-  /** A slip chosen before the form opened: it is attached and read as if picked in the form */
+  /** A slip chosen from the form's header menu: it is attached and read as if picked in the form */
   initialSlip?: File;
 }
 
@@ -363,11 +363,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     filledNote(filled, more);
   };
 
-  // A slip chosen from the Assets page menu, read once when the form opens
+  // A slip chosen from the header menu is read like one picked in the form; fields already filled are kept
   useEffect(() => {
     if (initialSlip) takeSlip(initialSlip);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialSlip]);
 
   const handleSlipSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

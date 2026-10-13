@@ -232,6 +232,9 @@ describe('Assets page', () => {
     // Submit is the form's own button and stays off until the required fields are filled
     expect(submitOf(record, 'stock-out-form')).toBeDisabled();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // The form's own actions are in its header; the Model 22 import waits for its format
+    await user.click(within(record).getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menuitem', { name: /Import Model 22/i })).toBeDisabled();
   });
 
   it('opens the transfer form with the asset already chosen', async () => {
@@ -638,7 +641,7 @@ describe('Asset record', () => {
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
   });
 
-  it('"More actions" picks an IFMIS slip first, then opens the receive form filled in from it', async () => {
+  it('the receive form header menu reads an IFMIS slip into the open form, keeping what was typed', async () => {
     const user = userEvent.setup();
     const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
     vi.mocked(readPdfRows).mockResolvedValue([
@@ -648,14 +651,19 @@ describe('Asset record', () => {
     ]);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    // The list itself has no menu; it belongs to the form
+    expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    await user.type(within(panel).getByLabelText(/Item description/i), 'Typed by hand');
+    await user.click(within(panel).getByRole('button', { name: 'More actions' }));
     await user.click(screen.getByRole('menuitem', { name: /Fill in from an IFMIS slip/i }));
     await user.upload(screen.getByLabelText('IFMIS slip to fill in from'), new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
-    const panel = await screen.findByRole('region', { name: 'Receive items' });
     expect(await within(panel).findByText(/Filled in from the slip/)).toBeInTheDocument();
     expect(within(panel).getByText('model19.pdf')).toBeInTheDocument();
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000051');
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Typed by hand');
   });
 
   it('imports receipts from a spreadsheet: preview first, then each good row is registered as a historical receipt', async () => {
@@ -663,10 +671,9 @@ describe('Asset record', () => {
     vi.mocked(api.registerStockIn).mockResolvedValue({ item: { itemCode: 'MOA-0100' }, items: [{ itemCode: 'MOA-0100' }] } as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: 'More actions' }));
-    // One import per voucher; Model 22 waits for its format
-    expect(screen.getByRole('menuitem', { name: /Import Model 22/i })).toBeDisabled();
-    await user.click(screen.getByRole('menuitem', { name: /Import Model 19 \(receipts\)/i }));
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(within(screen.getByRole('region', { name: 'Receive items' })).getByRole('button', { name: 'More actions' }));
+    await user.click(screen.getByRole('menuitem', { name: /Import Model 19 \(Excel\)/i }));
     const csv = [
       'Model 19 No.,Received date,Store,Item description,Category,Item type,Unit of measure,Quantity,Unit price (ETB)',
       '0000044,2026-09-25,Head office,Office desk,Office Furniture & Fixtures,Fixed asset,EA,4,"12,000"',
@@ -876,13 +883,12 @@ describe('Asset record', () => {
     expect(screen.queryByRole('button', { name: /Clear filters/ })).not.toBeInTheDocument();
   });
 
-  it('exports filtered assets to CSV from More actions', async () => {
+  it('exports filtered assets to CSV when Export CSV is clicked', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
 
-    await user.click(screen.getByRole('button', { name: 'More actions' }));
-    await user.click(screen.getByRole('menuitem', { name: /Export CSV/i }));
+    await user.click(screen.getByRole('button', { name: /Export CSV/i }));
 
     expect(toast.success).toHaveBeenCalledWith(
       'CSV Exported',
