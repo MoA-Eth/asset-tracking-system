@@ -11,7 +11,7 @@ Use this when new items arrive. Registering a receipt creates the asset record. 
 ## Register a receipt
 
 1. On **Assets**, press **Receive items (Model 19)**.
-2. **Voucher and procurement:** enter the **Model 19 No.**, **Received date**, **Transaction type** (PO Receipt, Direct Delivery, Donation / Grant Receipt, Transfer Receipt or Internal Production), **Source** (supplier or vendor), the **Receiving store** and the **Location in store**. PO number, buyer and program are optional.
+2. **Voucher and procurement:** enter the **Model 19 No.**, **Received date**, **Transaction type** (PO Receipt, Direct Delivery, Donation / Grant Receipt, Transfer Receipt or Internal Production), **Source** (supplier or vendor) and the **Receiving store** (the goods are recorded at the store; there is no location to choose). PO number, buyer and program are optional.
 3. **Item received:** enter the **Item description**, **Category**, **Item type** (a **Fixed asset**, ቋሚ ዕቃ, or a **Consumable item**, አላቂ ዕቃ), **Physical condition**, **Quantity**, **Unit of measure** (EA, KG, BOX…) and **Unit price (ETB)**. The total is worked out for you. Leave **Item code** empty to have one made; it cannot change later. Serial number and a remark are optional.
 4. **Delivery and attachment:** enter who delivered, and attach the scan. **Received by (store man)** is the store man of the receiving store: if the store has one, he is filled in; if it has several, choose one. If the store has none, the receipt still goes ahead with no store man named; ask your System Administrator to assign one.
 5. Press **Submit for approval**. The button stays off until every required field (*) is filled, and it says so beside it.
@@ -40,9 +40,9 @@ The asset becomes **In store** and can be issued. If it is **rejected**, it stay
 
 ## Import many receipts from Excel
 
-For opening stock, or many receipts at once, open **Receive items** and use **⋮ More actions → Import Model 19 (Excel)** at the top right of the form. Each voucher has its own import in its own form, because each spreadsheet has its own columns.
+For opening stock, or many receipts at once, open **Receive items** and use **⋮ More actions → Import Model 19 (Excel)** at the top right of the form. Each voucher has its own import in its own form (Model 22 in the issue form, Model 21 in the transfer form, disposals in the disposal form), because each spreadsheet has its own columns and rules.
 
-1. Press **Download template** and fill in one row per receipt line, the same as one **Receive items** form: Model 19 No., received date, store, item description, category, item type, unit of measure, quantity and unit price are required. An empty condition is recorded as Good. If the store has several locations or several store men, fill in **Location in store** or **Received by (store man)**.
+1. Press **Download template** and fill in one row per receipt line, the same as one **Receive items** form: Model 19 No., received date, store, item description, category, item type, unit of measure, quantity and unit price are required. An empty condition is recorded as Good. If the store has several store men, fill in **Received by (store man)**.
 2. Choose the file (.xlsx or .csv). You see every row first: rows with a problem are listed with the reason and skipped; nothing is saved yet.
 3. Press **Import**. Each good row becomes its own receipt, marked historical, with no scanned slip. It waits for Team Leader endorsement and Department Head approval like any other receipt.
 

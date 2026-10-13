@@ -80,15 +80,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [buyer, setBuyer] = useState(editItem?.buyer ?? start?.buyer ?? '');
   const [programName, setProgramName] = useState(editItem?.programName ?? start?.programName ?? '');
   const [storeLocationId, setStoreLocationId] = useState(editItem?.storeLocationId ?? rememberedLocation?.id ?? '');
-  // The store is picked first; its locations then fill the second list
+  // Only the store is chosen; the goods are recorded at its first location (a correction keeps the one it has)
   const [storeId, setStoreId] = useState(() => locations.find((l) => l.id === editItem?.storeLocationId)?.storeId ?? rememberedLocation?.storeId ?? '');
   const stores = [...new Map(locations.map((l) => [l.storeId, l.storeName])).entries()];
-  const storeLocations = locations.filter((l) => l.storeId === storeId);
   const chooseStore = (id: string) => {
     setStoreId(id);
-    const inStore = locations.filter((l) => l.storeId === id);
-    // A store with a single location needs no second choice
-    setStoreLocationId(inStore.length === 1 ? inStore[0].id : '');
+    const kept = locations.find((l) => l.id === editItem?.storeLocationId && l.storeId === id);
+    setStoreLocationId((kept ?? locations.find((l) => l.storeId === id))?.id ?? '');
   };
 
   // Section 2: Single-Item Particulars
@@ -139,7 +137,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !source.trim() && 'source',
     !storeId && 'receiving store',
     !isEdit && storeMen.length > 1 && !receiverId && 'received by (store man)',
-    storeId && !storeLocationId && 'location in store',
     !name.trim() && 'item description',
     !category && 'category',
     !itemType && 'item type',
@@ -719,26 +716,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                 </option>
               ))}
             </select>
-          </Field>
-
-          <Field label="Location in store" required htmlFor="stock-in-location" hint={storeId ? undefined : 'Choose the store first.'}>
-            <select
-              id="stock-in-location"
-              required
-              disabled={!storeId}
-              value={storeLocationId}
-              onChange={(e) => setStoreLocationId(e.target.value)}
-              className={input()}
-            >
-              <option value="" disabled>Select…</option>
-              {storeLocations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </FieldGrid>
+          </Field>        </FieldGrid>
       </FormSection>
 
       {/* ── Section 2: Item received ── */}

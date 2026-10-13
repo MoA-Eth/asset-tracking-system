@@ -425,12 +425,6 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                   {item.storeLocation?.siteName || (item.storeLocation ? storeLocationLabel(item.storeLocation).split(' · ')[0] : '—')}
                 </ReadOnlyValue>
               </FormKitField>
-
-              <FormKitField label="Location in store" required>
-                <ReadOnlyValue>
-                  {item.storeLocation?.roomNumber || (item.storeLocation ? storeLocationLabel(item.storeLocation).split(' · ')[1] || storeLocationLabel(item.storeLocation) : '—')}
-                </ReadOnlyValue>
-              </FormKitField>
             </FieldGrid>
           </FormSection>
 

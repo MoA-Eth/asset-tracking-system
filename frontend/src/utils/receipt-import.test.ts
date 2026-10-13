@@ -19,11 +19,14 @@ const ctx: ReceiptImportContext = {
   today: '2026-10-13',
 };
 
+/** Rows below the headings; the fourth cell of each row (a location) is dropped, as Model 19 has no location column */
 const sheet = (...rows: string[][]) =>
-  receiptRowsFromSheet([
-    ['Model 19 No.', 'Received date', 'Store', 'Location in store', 'Item description', 'Category', 'Item type', 'UOM', 'Qty', 'Unit price', 'Received by (store man)'],
-    ...rows,
-  ]).rows;
+  receiptRowsFromSheet(
+    [
+      ['Model 19 No.', 'Received date', 'Store', 'Item description', 'Category', 'Item type', 'UOM', 'Qty', 'Unit price', 'Received by (store man)'],
+      ...rows.map((row) => row.filter((_, i) => i !== 3)),
+    ],
+  ).rows;
 
 describe('receipt import', () => {
   it('reads the template back with every column', () => {
@@ -62,7 +65,7 @@ describe('receipt import', () => {
       ctx,
     );
     expect(row.error).toBeUndefined();
-    expect(row.payload).toMatchObject({ storeLocationId: 'L3', category: AssetCategory.AGRI_MACHINERY, itemType: ItemType.CONSUMABLE, receivedByEmployeeId: 'E2' });
+    expect(row.payload).toMatchObject({ storeLocationId: 'L2', category: AssetCategory.AGRI_MACHINERY, itemType: ItemType.CONSUMABLE, receivedByEmployeeId: 'E2' });
   });
 
   it('skips rows the receive form would refuse, saying why', () => {
@@ -88,7 +91,7 @@ describe('receipt import', () => {
       'Missing Model 19 No..',
       expect.stringContaining('is not a date'),
       expect.stringContaining('No store named "Nowhere"'),
-      'Field Store has several locations; fill in Location in store.',
+      'Field Store has several store men; fill in Received by (store man).',
       'Field Store has several store men; fill in Received by (store man).',
       expect.stringContaining('must be Fixed asset or Consumable item'),
       'Quantity must be a whole number, at least 1.',
