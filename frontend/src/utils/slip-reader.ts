@@ -17,13 +17,17 @@ export interface PdfRow {
   cells: PdfCell[];
 }
 
-/** The rows of a PDF, top to bottom. Empty for a scanned PDF. */
-export async function readPdfRows(file: File, maxPages = 5): Promise<PdfRow[]> {
+/** A PDF opened with the bundled reader (pdf.js, loaded only when a PDF is attached) */
+export async function openPdf(file: File) {
   const pdfjs = await import('pdfjs-dist');
   const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+  return pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+}
 
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+/** The rows of a PDF, top to bottom. Empty for a scanned PDF. */
+export async function readPdfRows(file: File, maxPages = 5): Promise<PdfRow[]> {
+  const doc = await openPdf(file);
   const all: PdfRow[] = [];
   try {
     for (let p = 1; p <= Math.min(doc.numPages, maxPages); p++) {
