@@ -5,12 +5,17 @@ import userEvent from '@testing-library/user-event';
 import { AssetsPage } from './AssetsPage';
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
+import { readPdfText } from '../utils/slip-reader';
 
 const ENCODER = ['stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write', 'inventory.read'];
 const auth = vi.hoisted(() => ({ user: { id: 'enc', payrollId: 'ENC-1', permissions: [] as string[] } }));
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn() }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../context/ToastContext', () => ({ useToast: () => toast }));
+vi.mock('../utils/slip-reader', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../utils/slip-reader')>()),
+  readPdfText: vi.fn(),
+}));
 vi.mock('../api/client', () => ({
   api: {
     getItems: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn(), getStores: vi.fn(), getApprovals: vi.fn(),
@@ -520,6 +525,50 @@ describe('Asset record', () => {
     expect(within(record).queryByTitle(/^Location .* Custody:/)).toBeNull();
     // The name and code stay
     expect(within(record).getAllByText('MOA-I1').length).toBeGreaterThan(0);
+  });
+
+  it('fills the receipt from an attached IFMIS PDF, leaving what was typed and asking for a check', async () => {
+    const user = userEvent.setup();
+    vi.mocked(readPdfText).mockResolvedValue([
+      'Fixed Asset Internal Transfer Form',
+      'Model/21',
+      'Model # 0004399',
+      'From Employee Name :  Kebede, Abebe  To : Tesfaye, Sara',
+      'From Employee ID :  109870  To : 110347',
+      'Book :  MOA MC BOOK',
+      'MoA SarisDefaultDefaultDefault  MoA Gurd ShollaDefaultDefaultDefault',
+      '1  Handheld GPS  MOA-072351  2  624,285.50  322,547.54  301,738.01  05-OCT-26',
+    ].join('\n'));
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    // Something typed before the slip is attached is kept
+    await user.type(within(panel).getByLabelText(/Source/i), 'Central store');
+
+    const slip = new File(['%PDF-1.4'], 'IFMIS_Fixed_Asset_Internal_Tra.pdf', { type: 'application/pdf' });
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, slip);
+
+    expect(await within(panel).findByText(/Filled in from the slip/)).toBeInTheDocument();
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0004399');
+    expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('Transfer Receipt');
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Handheld GPS');
+    expect(within(panel).getByLabelText(/Item code/i)).toHaveValue('MOA-072351');
+    expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('2');
+    expect(within(panel).getByLabelText(/Item type/i)).toHaveValue('FIXED');
+    expect(within(panel).getByLabelText(/Source/i)).toHaveValue('Central store');
+  });
+
+  it('says so when the attached PDF is a scan with no text', async () => {
+    const user = userEvent.setup();
+    vi.mocked(readPdfText).mockResolvedValue('');
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'scan.pdf', { type: 'application/pdf' }));
+    expect(await within(panel).findByText(/scanned image, so nothing could be read/)).toBeInTheDocument();
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
   });
 
   it('opens an endorsed stage-2 record in view mode with locked actions and accurate banner', async () => {

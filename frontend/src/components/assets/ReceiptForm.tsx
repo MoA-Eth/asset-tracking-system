@@ -3,13 +3,14 @@ import { PackagePlus, FileText, Upload } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
-import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass, MoneyInput, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, MoneyInput, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { AssetCategory, ItemType, ItemStatus, ItemCondition, ItemWithRelations, Location, Employee, Model19Voucher, Model19LineItem } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
 import { ITEM_TYPE_OPTIONS } from './asset-state';
 import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
+import { readPdfText, isModel21, parseModel21 } from '../../utils/slip-reader';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -199,6 +200,74 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setFormError(null);
   };
 
+  // What reading the attached slip found, shown under it
+  const [slipNote, setSlipNote] = useState<{ tone: 'info' | 'warn'; text: string } | null>(null);
+
+  /**
+   * An IFMIS PDF fills in what is still empty: the voucher number, date, transaction type, source and the item.
+   * Only what the person has not typed is filled, and they check it against the paper before submitting.
+   */
+  const fillFromSlip = (text: string) => {
+    if (!text.trim()) {
+      setSlipNote({ tone: 'warn', text: 'This PDF is a scanned image, so nothing could be read from it. Fill in the fields as usual.' });
+      return;
+    }
+    if (!isModel21(text)) {
+      setSlipNote({ tone: 'warn', text: "This isn't an IFMIS form the app can read yet. Fill in the fields as usual." });
+      return;
+    }
+    const slip = parseModel21(text);
+    const line = slip.lines[0];
+    const filled: string[] = [];
+    const today = new Date().toISOString().split('T')[0];
+    if (slip.model21No && !ifmisSlipNumber.trim()) {
+      setIfmisSlipNumber(slip.model21No);
+      filled.push('voucher number');
+    }
+    if (line?.date && (!ifmisSlipDateGc || ifmisSlipDateGc === today)) {
+      setIfmisSlipDateGc(line.date);
+      filled.push('date');
+    }
+    if (!transactionType) {
+      setTransactionType('Transfer Receipt');
+      filled.push('transaction type');
+    }
+    const from = slip.fromLocation || slip.fromName;
+    if (from && !source.trim()) {
+      setSource(from);
+      filled.push('source');
+    }
+    if (line) {
+      if (line.description && !name.trim()) {
+        setName(line.description);
+        filled.push('item description');
+      }
+      if (line.tagNumber && !isEdit && !itemCode.trim()) {
+        setItemCode(line.tagNumber);
+        filled.push('item code (tag number)');
+      }
+      if (line.unit && !quantity) {
+        setQuantity(line.unit);
+        filled.push('quantity');
+      }
+      if (line.origCost && !unitCostETB) {
+        setUnitCostETB(Math.round((line.origCost / (line.unit || 1)) * 100) / 100);
+        filled.push('unit price');
+      }
+    }
+    // It is the Fixed Asset form, so what it lists are fixed assets
+    if (!itemType) {
+      setItemType(ItemType.FIXED);
+      filled.push('item type');
+    }
+    if (filled.length === 0) {
+      setSlipNote({ tone: 'info', text: 'The slip was read, but every field it covers is already filled in.' });
+      return;
+    }
+    const more = slip.lines.length > 1 ? ` This slip lists ${slip.lines.length} assets; the first one was filled in. Register each of the others as its own receipt.` : '';
+    setSlipNote({ tone: 'info', text: `Filled in from the slip: ${filled.join(', ')}. Check them against the paper before submitting.${more}` });
+  };
+
   const handleSlipSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -212,6 +281,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setFormError(null);
     setAttachmentFile(file);
     setAttachmentFileName(file.name);
+    setSlipNote(null);
+    if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+      setSlipNote({ tone: 'info', text: 'Reading the slip…' });
+      readPdfText(file)
+        .then(fillFromSlip)
+        .catch(() => setSlipNote({ tone: 'warn', text: "The slip couldn't be read. It is attached; fill in the fields as usual." }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -773,7 +849,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             fileName={attachmentFileName}
             accept={SLIP_ACCEPT_ATTR}
             onChange={handleSlipSelected}
+            hint="PDF, PNG, JPEG or WEBP · up to 10 MB. An IFMIS PDF fills in the form for you."
           />
+          {slipNote && (
+            <FormNotice icon={FileText} tone={slipNote.tone}>
+              <span role="status">{slipNote.text}</span>
+            </FormNotice>
+          )}
         </div>
       </FormSection>
 
