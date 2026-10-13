@@ -3,10 +3,12 @@ import { Trash2, FileText, ClipboardList } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
-import { FormSection, FieldGrid, Field, ReadOnlyValue, FormError, FileDropField, FormFooter, QuantityInput, inputClass, textareaClass, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, ReadOnlyValue, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, textareaClass, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
+import { readPdfRows, rowsToText, isModel19, isModel21, isDisposalForm, parseDisposalForm, DisposalSlipFields, DisposalSlipLine } from '../../utils/slip-reader';
+import { OtherAssets } from './OtherAssets';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
-import { DisposalVoucher, Employee, ItemCondition, ItemWithRelations, TransactionApproval } from '../../types/asset-management';
+import { DisposalVoucher, Employee, ItemCondition, ItemStatus, ItemWithRelations, TransactionApproval } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { getSystemSettings, useSystemSettings } from '../../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
@@ -27,12 +29,38 @@ export interface DisposalFormProps {
   editApproval?: TransactionApproval;
   onCancel: () => void;
   onSuccess: (result: TransactionApproval, voucher?: DisposalVoucher) => void;
+  /** Every record, to find the other assets a disposal form lists */
+  allItems?: ItemWithRelations[];
+  /** Records that already have a request waiting for approval */
+  pendingItemIds?: Set<string>;
+  /** A disposal form PDF chosen with the form's header button: it is read into the form */
+  slip?: File;
 }
+
+/** How IFMIS names the disposal, as the reason offered here */
+const REASON_FROM_IFMIS: [RegExp, string][] = [
+  [/donat|gift|transfer/i, 'Gift / donation'],
+  [/sale|sold|auction/i, 'Sale / auction'],
+  [/scrap|damage|write/i, 'Damaged beyond repair'],
+  [/obsolete/i, 'Obsolete / no longer needed'],
+  [/lost|stolen|theft/i, 'Lost or stolen'],
+];
+
+/** An asset's status in words, for what a disposal form can't be used for */
+const STATUS_WORDS: Record<string, string> = {
+  PENDING_STOCK_IN: 'still waiting for receipt approval',
+  PENDING_STOCK_OUT: 'waiting for issue approval',
+  ISSUED: 'issued to someone; take it back to store first',
+  UNDER_TRANSFER: 'under transfer',
+  PENDING_DISPOSAL: 'waiting for disposal approval',
+  DISPOSED: 'already disposed',
+  REJECTED: 'rejected at receipt',
+};
 
 const today = () => new Date().toISOString().split('T')[0];
 const amountOrUndefined = (text: string) => (text.trim() === '' ? undefined : Math.max(0, Number(text) || 0));
 
-export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, onCancel, onSuccess }) => {
+export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, onCancel, onSuccess, allItems = [], pendingItemIds, slip }) => {
   const { user } = useAuth();
   const toast = useToast();
   const isEdit = !!editApproval;
@@ -103,6 +131,91 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     setAttachmentFileName(file.name);
   };
 
+  // ── Reading a disposal form PDF from IFMIS ──
+  const [slipNote, setSlipNote] = useState<{ tone: 'info' | 'warn'; text: string } | null>(null);
+  // The other assets the form lists: each that fits is disposed of as its own request on submit
+  const [extraAssets, setExtraAssets] = useState<{ key: number; line: DisposalSlipLine; asset?: ItemWithRelations; problem?: string }[]>([]);
+  const extraReady = extraAssets.filter((o) => o.asset && !o.problem) as { key: number; line: DisposalSlipLine; asset: ItemWithRelations }[];
+
+  /** Whether an asset the form lists can be disposed of, in the order of its life: received, approved and in store, with nothing pending */
+  const checkLine = (line: DisposalSlipLine): { asset?: ItemWithRelations; problem?: string } => {
+    const tag = line.tagNumber?.trim().toLowerCase();
+    if (!tag) return { problem: 'The line names no tag number.' };
+    const asset = allItems.find((i) => i.itemCode.toLowerCase() === tag || i.serialNumber?.trim().toLowerCase() === tag);
+    if (!asset) return { problem: `No asset with tag ${line.tagNumber} is registered here. It has to be received on a Model 19 and approved first.` };
+    if (asset.status !== ItemStatus.AVAILABLE) return { asset, problem: `${asset.itemCode} is ${STATUS_WORDS[asset.status] ?? asset.status.toLowerCase()}; only an item in store can be disposed of.` };
+    if (pendingItemIds?.has(asset.id)) return { asset, problem: `${asset.itemCode} already has a request waiting for approval.` };
+    return { asset };
+  };
+
+  const fillFromDisposalForm = (form: DisposalSlipFields) => {
+    const filled: string[] = [];
+    const problems: string[] = [];
+    if (form.disposalNo && !disposalNo.trim()) {
+      setDisposalNo(form.disposalNo);
+      filled.push('reference no.');
+    }
+    if (form.date && (!dateGc || dateGc === today())) {
+      setDateGc(form.date);
+      filled.push('date');
+    }
+    if (form.recipient && !recipientName.trim()) {
+      setRecipientName(form.recipient);
+      filled.push('disposed to');
+    }
+    const type = form.lines.find((l) => l.disposalType)?.disposalType;
+    if (type && !reason.trim()) {
+      setReason(REASON_FROM_IFMIS.find(([pattern]) => pattern.test(type))?.[1] ?? type.charAt(0) + type.slice(1).toLowerCase());
+      filled.push('reason');
+    }
+    // This record's own line
+    const tagOf = (l: DisposalSlipLine) => l.tagNumber?.trim().toLowerCase();
+    const own = form.lines.find((l) => tagOf(l) === item.itemCode.toLowerCase() || (!!item.serialNumber && tagOf(l) === item.serialNumber.trim().toLowerCase()));
+    if (!own) problems.push(`${item.itemCode} isn't on this disposal form.`);
+    else if (own.bookValue !== undefined && !bookValueEdited) {
+      setBookValueText(String(own.bookValue));
+      setBookValueEdited(true);
+      filled.push('book value');
+    }
+    // The others, each checked the same way; a correction keeps to its one record
+    const others = isEdit ? [] : form.lines.filter((l) => l !== own).map((l, i) => ({ key: i, line: l, ...checkLine(l) }));
+    setExtraAssets(others);
+    const ready = others.filter((o) => o.asset && !o.problem).length;
+    const more = others.length
+      ? ` The form lists ${form.lines.length} assets: the others are listed below${ready ? `; ${ready} of them will be disposed of as their own requests when you submit` : ''}.`
+      : '';
+    if (problems.length) setSlipNote({ tone: 'warn', text: `${problems.join(' ')}${filled.length ? ` Filled in: ${filled.join(', ')}.` : ''}${more}` });
+    else if (filled.length) setSlipNote({ tone: 'info', text: `Filled in from the disposal form: ${filled.join(', ')}. Check them against the paper before submitting.${more}` });
+    else setSlipNote({ tone: 'info', text: `The form was read, but every field it covers is already filled in.${more}` });
+  };
+
+  /** Only a disposal form is read here; another IFMIS form is named, so it can be taken to its own form */
+  const readSlip = (file: File) => {
+    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return void setSlipNote({ tone: 'warn', text: 'Choose the disposal form as a PDF saved from IFMIS.' });
+    setSlipNote({ tone: 'info', text: 'Reading the disposal form…' });
+    readPdfRows(file)
+      .then((rows) => {
+        const text = rowsToText(rows);
+        if (!text.trim()) return setSlipNote({ tone: 'warn', text: 'This PDF has no text (it is a scanned image), so it could not be read. Fill in the fields as usual.' });
+        if (isDisposalForm(text)) return fillFromDisposalForm(parseDisposalForm(rows));
+        setSlipNote({
+          tone: 'warn',
+          text: isModel19(text)
+            ? 'This is a Model 19 receipt, not a disposal form. Read it from Receive items (Import receipt).'
+            : isModel21(text)
+              ? 'This is a Model 21 transfer form, not a disposal form. Read it from the transfer form of the asset (Import transfer).'
+              : 'Only an IFMIS Fixed Asset Disposal Form (Model 22/B) PDF can be read here.',
+        });
+      })
+      .catch(() => setSlipNote({ tone: 'warn', text: "The PDF couldn't be read. Fill in the fields as usual." }));
+  };
+
+  // A PDF chosen with the form's header button
+  useEffect(() => {
+    if (slip) readSlip(slip);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slip]);
+
   const fail = (title: string, message: string) => {
     setFormError(message);
     toast.warning(title, message);
@@ -144,7 +257,36 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
         return;
       }
       const result = await api.registerDisposal({ ...payload, itemId: item.id, ifmisSlipAttachmentUrl: fileUrl });
-      toast.success('Disposal request submitted', `${quantity} ${uom} of ${item.itemCode} sent for approval (${payload.disposalNo}).`);
+      // The other assets on the form, each its own request with the same reference, date, reason and recipient
+      const sent: string[] = [];
+      const notSent: string[] = [];
+      for (const other of extraReady) {
+        try {
+          const men = keepers.ofLocation(other.asset.storeLocationId);
+          await api.registerDisposal({
+            itemId: other.asset.id,
+            quantity: Number(other.asset.quantity) || 1,
+            disposalNo: payload.disposalNo,
+            disposalDateGc: payload.disposalDateGc,
+            reason: payload.reason,
+            recipientName: payload.recipientName,
+            committeeRef: payload.committeeRef,
+            bookValue: other.line.bookValue,
+            ifmisSlipAttachmentUrl: fileUrl,
+            storekeeperEmployeeId: men.some((k) => k.employeeId === payload.storekeeperEmployeeId) ? payload.storekeeperEmployeeId : undefined,
+          } as any);
+          sent.push(other.asset.itemCode);
+        } catch (err: any) {
+          notSent.push(`${other.asset.itemCode}: ${err?.message || 'refused'}`);
+        }
+      }
+      if (notSent.length) toast.warning('Some assets on the form were not submitted', notSent.join(' · '));
+      toast.success(
+        'Disposal request submitted',
+        sent.length
+          ? `${[item.itemCode, ...sent].join(', ')} sent for approval (${payload.disposalNo}), each as its own request.`
+          : `${quantity} ${uom} of ${item.itemCode} sent for approval (${payload.disposalNo}).`,
+      );
       onSuccess(result, buildDisposalVoucher(result, { item, employees: [], printedBy: user?.fullNameEn, requestedByName: user?.fullNameEn }));
     } catch (err: any) {
       setFormError(`The disposal request could not be saved: ${err?.message || 'Server error'}`);
@@ -158,6 +300,21 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   return (
     <form id="disposal-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
       <FormError message={formError} />
+      {slipNote && (
+        <FormNotice icon={FileText} tone={slipNote.tone}>
+          <span role="status">{slipNote.text}</span>
+        </FormNotice>
+      )}
+      {extraAssets.length > 0 && (
+        <OtherAssets
+          label="Other assets on this form"
+          note="each that fits is disposed of as its own request, with the same reference"
+          okLabel="Will be disposed of"
+          notLabel="Not disposed of"
+          assets={extraAssets.map((o) => ({ key: o.key, code: o.asset?.itemCode ?? o.line.tagNumber ?? '—', name: o.asset?.name ?? o.line.description, problem: o.problem }))}
+          onLeaveOut={(key) => setExtraAssets((list) => list.filter((x) => x.key !== key))}
+        />
+      )}
 
       <FormSection step={1} title="Item to dispose of" subtitle="የሚወገደው ንብረት" icon={Trash2} accent="emerald">
         <FieldGrid>

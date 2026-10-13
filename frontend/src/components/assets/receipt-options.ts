@@ -1,7 +1,7 @@
 import { AssetCategory } from '../../types/asset-management';
 
 /** The transaction types the receipt offers */
-export const TRANSACTION_TYPES = ['PO Receipt', 'Direct Delivery', 'Donation / Grant Receipt', 'Transfer Receipt', 'Internal Production'];
+export const TRANSACTION_TYPES = ['PO Receipt', 'Petty Cash Purchase Receipt', 'Direct Delivery', 'Donation / Grant Receipt', 'Transfer Receipt', 'Internal Production'];
 
 /** IFMIS item categories, matched to the categories of this register */
 export const CATEGORY_FROM_IFMIS: [RegExp, AssetCategory][] = [

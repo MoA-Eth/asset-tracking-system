@@ -238,6 +238,12 @@ export function parseModel19(rows: PdfRow[]): Model19SlipFields {
   const program = rows.find((r) => /program/i.test(rowsToText([r])) && !/print\s*model/i.test(rowsToText([r])));
   if (program) found.programName = rowsToText([program]).trim();
 
+  // The figure columns, from their headings: IFMIS prints a line's total and its remark as one piece of text
+  // ("12918 968765"), so the figures are placed by column rather than taken as the last three numbers
+  const headingX = (pattern: RegExp) => rows.flatMap((r) => r.cells).find((c) => pattern.test(c.text))?.x;
+  const columns = { qty: headingX(/^qty$/i), price: headingX(/^unit\s*price$/i), total: headingX(/^total\s*amount$/i), remark: headingX(/^remark$/i) };
+  const byColumn = columns.qty !== undefined && columns.price !== undefined && columns.total !== undefined;
+
   // Items: a row that starts with its number and an item code
   const starts = rows
     .map((row, index) => ({ row, index }))
@@ -272,17 +278,106 @@ export function parseModel19(rows: PdfRow[]): Model19SlipFields {
         else if (near(cell, sub)) subInventory.push(cell.text);
       }
     }
-    // Quantity, unit price and total are the last three figures on the line
-    numbers.sort((c1, c2) => c1.x - c2.x);
-    const [quantity, unitPrice, totalAmount] = numbers.slice(-3).map((c) => asNumber(c.text));
+    let figures: { quantity?: number; unitPrice?: number; totalAmount?: number } = {};
+    if (byColumn) {
+      // Each figure belongs to the column it starts in; a piece like "12918 968765" is the total, then the remark
+      const { qty, price, total, remark } = columns as Required<typeof columns>;
+      for (const cell of row.cells) {
+        const first = cell.text.split(/\s+/)[0];
+        if (!NUMBER.test(first) || cell.x < qty - 40) continue;
+        const value = asNumber(first);
+        if (cell.x < price) figures.quantity ??= value;
+        else if (cell.x < total) figures.unitPrice ??= value;
+        else if (remark === undefined || cell.x < remark) figures.totalAmount ??= value;
+      }
+    } else {
+      // Without headings: quantity, unit price and total are the last three figures on the line
+      numbers.sort((c1, c2) => c1.x - c2.x);
+      const [quantity, unitPrice, totalAmount] = numbers.slice(-3).map((c) => asNumber(c.text));
+      if (numbers.length >= 3) figures = { quantity, unitPrice, totalAmount };
+    }
     found.lines.push({
       itemCode: code.text,
       description: description.join(' ').replace(/\s+/g, ' ').trim() || undefined,
       uom: uom?.text,
       subInventory: subInventory.join(' ').trim() || undefined,
       category: category.join(' ').replace(/\s+/g, ' ').trim() || undefined,
-      ...(numbers.length >= 3 ? { quantity, unitPrice, totalAmount } : {}),
+      ...figures,
     });
+  });
+  return found;
+}
+
+// ─── Fixed Asset Disposal Form (Model 22/B) ──────────────────────────────────
+
+/** One asset on an IFMIS disposal form */
+export interface DisposalSlipLine {
+  description?: string;
+  tagNumber?: string;
+  /** As IFMIS prints it, e.g. DONATION */
+  disposalType?: string;
+  originalCost?: number;
+  accumulatedDepreciation?: number;
+  bookValue?: number;
+}
+
+/** What an IFMIS "Fixed Asset Disposal Form" (Model 22/B) says */
+export interface DisposalSlipFields {
+  disposalNo?: string;
+  /** YYYY-MM-DD */
+  date?: string;
+  /** "Sold / Transferred / Donated to" */
+  recipient?: string;
+  lines: DisposalSlipLine[];
+}
+
+/** Whether the text is an IFMIS disposal form at all */
+export const isDisposalForm = (text: string): boolean => /fixed\s+asset\s+disposal\s+form|model\s*\/\s*22\s*\/\s*b\b/i.test(text);
+
+const MONEY = /^-?[\d,]+\.\d{2}$/;
+const TAG = /^[A-Za-z]{2,}[-/]?\d{3,}[A-Za-z0-9/\-]*$/;
+
+/** The fields of an IFMIS disposal form; anything not found is left out */
+export function parseDisposalForm(rows: PdfRow[]): DisposalSlipFields {
+  const found: DisposalSlipFields = { lines: [] };
+  // Header: "Label :" with its value in the next piece
+  const after = (label: RegExp) => {
+    for (const row of rows) {
+      const i = row.cells.findIndex((c) => label.test(c.text));
+      if (i >= 0) {
+        // Only what follows the label: "Sold /Transferred / Donated to :" is one piece with its own slashes
+        const match = label.exec(row.cells[i].text)!;
+        const inline = row.cells[i].text.slice(match.index + match[0].length).trim();
+        return inline || row.cells[i + 1]?.text.trim() || undefined;
+      }
+    }
+    return undefined;
+  };
+  found.disposalNo = after(/^no\s*:?$/i);
+  const date = after(/^date\s*:?$/i);
+  found.date = date ? toIsoDate(date) : undefined;
+  found.recipient = after(/donated\s+to\s*:?$/i);
+
+  // Assets: a row that starts with its number and has a tag number; the disposal type is printed just above the line
+  const typeX = rows.flatMap((r) => r.cells).find((c) => /^disposal\s*type$/i.test(c.text))?.x;
+  let previous = -1;
+  rows.forEach((row, index) => {
+    const tagIndex = row.cells.findIndex((c, i) => i > 0 && TAG.test(c.text));
+    if (!/^\d{1,3}$/.test(row.cells[0]?.text ?? '') || tagIndex < 0) return;
+    const money = row.cells.filter((c) => MONEY.test(c.text)).map((c) => asNumber(c.text));
+    const typeCell = rows
+      .slice(previous + 1, index + 1)
+      .flatMap((r) => r.cells)
+      .find((c) => /^[A-Z][A-Z ]{2,}$/.test(c.text) && (typeX === undefined || Math.abs(c.x - typeX) < 20));
+    found.lines.push({
+      description: row.cells.slice(1, tagIndex).map((c) => c.text).join(' ').trim() || undefined,
+      tagNumber: row.cells[tagIndex].text,
+      disposalType: typeCell?.text,
+      originalCost: money[0],
+      accumulatedDepreciation: money[1],
+      bookValue: money[2],
+    });
+    previous = index;
   });
   return found;
 }
