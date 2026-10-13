@@ -57,6 +57,8 @@ import { storeLocationLabel } from '../utils/location';
 import { departmentLabel } from '../utils/department';
 import { downloadCsv } from '../utils/csv';
 import { SLIP_ACCEPT_ATTR } from '../utils/slip-upload';
+import { useSystemSettings } from '../utils/system-settings';
+import { ReceiptImportModal } from '../components/assets/ReceiptImportModal';
 import {
   AssetGroup,
   AssetRow,
@@ -173,6 +175,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string; slip?: File } | null>(null);
   // "Fill in from an IFMIS slip": the file is picked first, then the receive form opens and reads it
   const slipPicker = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  // Imported receipts carry no scan, so the import is only offered while the scan is optional
+  const scanRequired = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [disposing, setDisposing] = useState<{ itemId: string } | null>(null);
@@ -1277,11 +1282,19 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   heading="More actions"
                   actions={[
                     { label: 'Fill in from an IFMIS slip', icon: FileUp, onClick: () => slipPicker.current?.click() },
+                    // One import per voucher, since each voucher's spreadsheet has its own columns
                     {
-                      label: 'Import items from Excel',
+                      label: 'Import Model 19 (receipts)',
+                      icon: FileSpreadsheet,
+                      onClick: () => setImportOpen(true),
+                      disabled: scanRequired,
+                      reason: scanRequired ? 'Every receipt needs its scanned slip (Settings), so receive them one by one.' : undefined,
+                    },
+                    {
+                      label: 'Import Model 22 (issues)',
                       icon: FileSpreadsheet,
                       disabled: true,
-                      reason: 'Coming soon, once the opening-stock file format is agreed.',
+                      reason: 'Coming soon, once the Model 22 spreadsheet format is agreed.',
                     },
                   ]}
                 />
@@ -1542,6 +1555,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       )}
 
       <Model19PrintModal isOpen={!!voucher19} voucher={voucher19} onClose={() => setVoucher19(null)} />
+      {importOpen && (
+        <ReceiptImportModal isOpen onClose={() => setImportOpen(false)} onImported={() => fetchData(true)} locations={locations} items={items} />
+      )}
       <Model22PrintModal isOpen={!!voucher22} voucher={voucher22} onClose={() => setVoucher22(null)} />
       <Model21PrintModal isOpen={!!voucher21} voucher={voucher21} onClose={() => setVoucher21(null)} />
       <DisposalPrintModal isOpen={!!voucherDisposal} voucher={voucherDisposal} onClose={() => setVoucherDisposal(null)} />
