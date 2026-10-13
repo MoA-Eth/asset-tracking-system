@@ -243,17 +243,16 @@ describe('Assets page', () => {
     await menuFor(user, 'MOA-S1');
     await user.click(screen.getByRole('menuitem', { name: 'Issue (Model 22)' }));
     const record = screen.getByRole('region', { name: 'Asset record MOA-S1' });
-    // The form's own actions are in its header
-    await user.click(within(record).getByRole('button', { name: 'More actions' }));
-    await user.click(screen.getByRole('menuitem', { name: /Import Model 22/i }));
+    // The form's own Import issues button is in its header
+    await user.click(within(record).getByRole('button', { name: 'Import issues' }));
     const csv = [
       'Model 22 No.,Issued date,Item code,Quantity,Recipient (employee ID),Directorate,Purpose',
       '0001234,2026-10-01,MOA-S1,2,MOA/2,ICT,Field work',
       '0001235,2026-10-01,MOA-I1,1,MOA/2,ICT,Field work',
     ].join('\n');
-    const input = () => document.getElementById('import-file-model22-issues-template-xlsx') as HTMLInputElement;
-    await waitFor(() => expect(input()).not.toBeDisabled());
-    await user.upload(input(), new File([csv], 'issues.csv', { type: 'text/csv' }));
+    // The Model 22 import window opens; a spreadsheet chosen there is checked
+    await waitFor(() => expect(screen.getByLabelText('File to import items from')).not.toBeDisabled());
+    await user.upload(screen.getByLabelText('File to import items from'), new File([csv], 'issues.csv', { type: 'text/csv' }));
 
     expect(await screen.findByText('MOA-I1 is issued, not in store.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Import 1 issue' }));
@@ -679,13 +678,14 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     // The list itself has no menu; it belongs to the form
-    expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Import receipts' })).toBeNull();
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.type(within(panel).getByLabelText(/Item description/i), 'Typed by hand');
-    await user.click(within(panel).getByRole('button', { name: 'More actions' }));
-    await user.click(screen.getByRole('menuitem', { name: /Fill in from an IFMIS slip/i }));
-    await user.upload(screen.getByLabelText('IFMIS slip to fill in from'), new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+    await user.click(within(panel).getByRole('button', { name: 'Import receipts' }));
+    // A PDF is a slip: the window closes and the slip is read into the open form
+    await waitFor(() => expect(screen.getByLabelText('File to import items from')).not.toBeDisabled());
+    await user.upload(screen.getByLabelText('File to import items from'), new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
     expect(await within(panel).findByText(/Filled in from the slip/)).toBeInTheDocument();
     expect(within(panel).getByText('model19.pdf')).toBeInTheDocument();
@@ -699,15 +699,15 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
-    await user.click(within(screen.getByRole('region', { name: 'Receive items' })).getByRole('button', { name: 'More actions' }));
-    await user.click(screen.getByRole('menuitem', { name: /Import Model 19 \(Excel\)/i }));
+    await user.click(within(screen.getByRole('region', { name: 'Receive items' })).getByRole('button', { name: 'Import receipts' }));
     const csv = [
       'Model 19 No.,Received date,Store,Item description,Category,Item type,Unit of measure,Quantity,Unit price (ETB)',
       '0000044,2026-09-25,Head office,Office desk,Office Furniture & Fixtures,Fixed asset,EA,4,"12,000"',
       '0000044,2026-09-25,Head office,Printer paper,Office Furniture & Fixtures,Consumable,BOX,0,300',
     ].join('\n');
-    await waitFor(() => expect(document.getElementById('import-file-receipts-template-xlsx')).not.toBeDisabled());
-    await user.upload(document.getElementById('import-file-receipts-template-xlsx') as HTMLInputElement, new File([csv], 'receipts.csv', { type: 'text/csv' }));
+    // The same button takes a spreadsheet: it is checked and previewed for import
+    await waitFor(() => expect(screen.getByLabelText('File to import items from')).not.toBeDisabled());
+    await user.upload(screen.getByLabelText('File to import items from'), new File([csv], 'receipts.csv', { type: 'text/csv' }));
 
     expect(await screen.findByText(/1 receipt will be registered\. 1 row has problems/)).toBeInTheDocument();
     expect(screen.getByText('Quantity must be a whole number, at least 1.')).toBeInTheDocument();

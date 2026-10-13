@@ -33,6 +33,6 @@ To write units off on a Model 22 instead of the disposal form, choose **Disposal
 
 ## Import many issues from Excel
 
-Open the issue form of any item and use **⋮ More actions → Import Model 22 (Excel)** at the top right. Press **Download template** and fill in one row per issue: Model 22 No., issued date, item code, quantity, recipient (8-digit employee ID) and purpose are required; the directorate defaults to the recipient's.
+Open the issue form of any item and press **Import issues** at the top right and choose the Excel or CSV file (the import window also has **Download template**). Fill in one row per issue: Model 22 No., issued date, item code, quantity, recipient (8-digit employee ID) and purpose are required; the directorate defaults to the recipient's.
 
 Only items **in store** can be issued, up to the quantity in store; a row naming an item that is issued, pending or disposed is skipped, saying its status. Choose the file (.xlsx or .csv): every row is checked first and rows with a problem are listed with the reason; nothing is saved until you press **Import**. Each good row becomes its own request and waits for Team Leader endorsement and Department Head approval. An item that already has a request waiting is skipped, so importing the same file again does not duplicate anything. The import is not offered while every voucher must have its scanned slip.

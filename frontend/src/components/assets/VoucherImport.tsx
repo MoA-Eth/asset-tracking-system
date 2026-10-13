@@ -23,6 +23,10 @@ export type VoucherImportKind = 'receipt' | 'issue' | 'transfer' | 'disposal';
 
 interface Props {
   kind: VoucherImportKind;
+  /** The receive form also takes a slip (PDF or picture): it is handed back here to fill the form */
+  onSlip?: (file: File) => void;
+  /** Why spreadsheets can't be imported right now, if they can't */
+  sheetsBlocked?: string;
   onClose: () => void;
   onImported: () => void;
   items: ItemWithRelations[];
@@ -32,8 +36,8 @@ interface Props {
   approvals: TransactionApproval[];
 }
 
-/** The import for one voucher, opened from the ⋮ menu of that voucher's form */
-export const VoucherImport: React.FC<Props> = ({ kind, onClose, onImported, items, employees, departments, locations, approvals }) => {
+/** The import for one voucher, opened by the import button in that voucher's form header (e.g. "Import issues") */
+export const VoucherImport: React.FC<Props> = ({ kind, onSlip, sheetsBlocked, onClose, onImported, items, employees, departments, locations, approvals }) => {
   const { user } = useAuth();
   const keepers = useStoreKeepers();
   const ctx: ImportContext & { departments: Department[] } = {
@@ -45,7 +49,7 @@ export const VoucherImport: React.FC<Props> = ({ kind, onClose, onImported, item
     pendingItemIds: new Set(approvals.filter((a) => a.status === ApprovalStatus.PENDING).map((a) => a.itemId)),
     today: new Date().toISOString().slice(0, 10),
   };
-  const common = { isOpen: true, onClose, onImported, ready: keepers.ready };
+  const common = { isOpen: true, onClose, onImported, ready: keepers.ready, onSlip, sheetsBlocked };
   const awaiting = 'Each row waits for Team Leader endorsement and Department Head approval like any other.';
 
   switch (kind) {
