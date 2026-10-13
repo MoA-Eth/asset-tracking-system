@@ -232,9 +232,36 @@ describe('Assets page', () => {
     // Submit is the form's own button and stays off until the required fields are filled
     expect(submitOf(record, 'stock-out-form')).toBeDisabled();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    // The form's own actions are in its header; the Model 22 import waits for its format
+  });
+
+  it('the issue form imports Model 22 issues: items in store are issued, others are skipped with their status', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getDepartments).mockResolvedValue([{ id: 'D1', code: 'ICT', nameEn: 'ICT Directorate', nameAm: '' }] as any);
+    vi.mocked(api.registerStockOut).mockResolvedValue({} as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await menuFor(user, 'MOA-S1');
+    await user.click(screen.getByRole('menuitem', { name: 'Issue (Model 22)' }));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-S1' });
+    // The form's own actions are in its header
     await user.click(within(record).getByRole('button', { name: 'More actions' }));
-    expect(screen.getByRole('menuitem', { name: /Import Model 22/i })).toBeDisabled();
+    await user.click(screen.getByRole('menuitem', { name: /Import Model 22/i }));
+    const csv = [
+      'Model 22 No.,Issued date,Item code,Quantity,Recipient (employee ID),Directorate,Purpose',
+      '0001234,2026-10-01,MOA-S1,2,MOA/2,ICT,Field work',
+      '0001235,2026-10-01,MOA-I1,1,MOA/2,ICT,Field work',
+    ].join('\n');
+    const input = () => document.getElementById('import-file-model22-issues-template-xlsx') as HTMLInputElement;
+    await waitFor(() => expect(input()).not.toBeDisabled());
+    await user.upload(input(), new File([csv], 'issues.csv', { type: 'text/csv' }));
+
+    expect(await screen.findByText('MOA-I1 is issued, not in store.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Import 1 issue' }));
+    expect(await screen.findByText(/1 imported\. They wait for Team Leader endorsement/)).toBeInTheDocument();
+    expect(api.registerStockOut).toHaveBeenCalledTimes(1);
+    expect(api.registerStockOut).toHaveBeenCalledWith(
+      expect.objectContaining({ itemId: 'S1', quantity: 2, recipientEmployeeId: 'E2', targetDepartmentId: 'D1', ifmisSlipNumber: '0001234' }),
+    );
   });
 
   it('opens the transfer form with the asset already chosen', async () => {
@@ -679,8 +706,8 @@ describe('Asset record', () => {
       '0000044,2026-09-25,Head office,Office desk,Office Furniture & Fixtures,Fixed asset,EA,4,"12,000"',
       '0000044,2026-09-25,Head office,Printer paper,Office Furniture & Fixtures,Consumable,BOX,0,300',
     ].join('\n');
-    await waitFor(() => expect(document.getElementById('receipt-import-file')).not.toBeDisabled());
-    await user.upload(document.getElementById('receipt-import-file') as HTMLInputElement, new File([csv], 'receipts.csv', { type: 'text/csv' }));
+    await waitFor(() => expect(document.getElementById('import-file-receipts-template-xlsx')).not.toBeDisabled());
+    await user.upload(document.getElementById('import-file-receipts-template-xlsx') as HTMLInputElement, new File([csv], 'receipts.csv', { type: 'text/csv' }));
 
     expect(await screen.findByText(/1 receipt will be registered\. 1 row has problems/)).toBeInTheDocument();
     expect(screen.getByText('Quantity must be a whole number, at least 1.')).toBeInTheDocument();

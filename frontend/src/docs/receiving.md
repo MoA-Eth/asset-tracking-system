@@ -40,7 +40,7 @@ The asset becomes **In store** and can be issued. If it is **rejected**, it stay
 
 ## Import many receipts from Excel
 
-For opening stock, or many receipts at once, open **Receive items** and use **⋮ More actions → Import Model 19 (Excel)** at the top right of the form. Each voucher has its own import in its own form, because each spreadsheet has its own columns.
+For opening stock, or many receipts at once, open **Receive items** and use **⋮ More actions → Import Model 19 (Excel)** at the top right of the form. Each voucher has its own import in its own form (Model 22 in the issue form, Model 21 in the transfer form, disposals in the disposal form), because each spreadsheet has its own columns and rules.
 
 1. Press **Download template** and fill in one row per receipt line, the same as one **Receive items** form: Model 19 No., received date, store, item description, category, item type, unit of measure, quantity and unit price are required. An empty condition is recorded as Good. If the store has several locations or several store men, fill in **Location in store** or **Received by (store man)**.
 2. Choose the file (.xlsx or .csv). You see every row first: rows with a problem are listed with the reason and skipped; nothing is saved yet.

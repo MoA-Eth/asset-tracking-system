@@ -1,6 +1,6 @@
 import { AssetCategory, CreateStockInRequest, ItemCondition, ItemType, Location, StoreKeeper } from '../types/asset-management';
 import { CATEGORY_FROM_IFMIS, COMMON_CATEGORIES } from '../components/assets/receipt-options';
-import { parseCsv } from './employee-import';
+import { amount, normalize, readSheetFile, Sheet, SheetField, SheetRow, sheetRowsFrom } from './sheet-import';
 import { toIsoDate } from './slip-reader';
 
 export type ReceiptField =
@@ -30,7 +30,7 @@ export type ReceiptField =
  * The columns of the receipt import, in template order. One row is one receipt line, the same as one
  * "Receive items" form: an item with its quantity, on a Model 19.
  */
-export const RECEIPT_FIELDS: { key: ReceiptField; heading: string; required?: boolean; aliases: string[] }[] = [
+export const RECEIPT_FIELDS: SheetField<ReceiptField>[] = [
   { key: 'slipNumber', heading: 'Model 19 No.', required: true, aliases: ['model 19', 'model 19 no', 'inv model 19 no', 'slip no', 'slip number', 'ifmis slip number', 'voucher no'] },
   { key: 'receivedDate', heading: 'Received date', required: true, aliases: ['date', 'slip date', 'receipt date', 'date received'] },
   { key: 'store', heading: 'Store', required: true, aliases: ['receiving store', 'store name'] },
@@ -58,62 +58,14 @@ export const RECEIPT_REQUIRED = RECEIPT_FIELDS.filter((f) => f.required).map((f)
 export const RECEIPT_HEADINGS = Object.fromEntries(RECEIPT_FIELDS.map((f) => [f.key, f.heading])) as Record<ReceiptField, string>;
 
 /** One receipt row read from a spreadsheet; `row` is the spreadsheet row number */
-export type ReceiptSheetRow = { row: number } & Record<ReceiptField, string>;
-
-const normalize = (value: unknown) =>
-  String(value ?? '')
-    .toLowerCase()
-    .replace(/[()_.:/\\-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-const HEADING_TO_FIELD = new Map<string, ReceiptField>(
-  RECEIPT_FIELDS.flatMap((f) => [f.heading, ...f.aliases].map((h) => [normalize(h), f.key] as [string, ReceiptField])),
-);
-
-const cell = (value: unknown) => {
-  if (value === null || value === undefined) return '';
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  return String(value).trim();
-};
-
-export interface ReceiptSheet {
-  rows: ReceiptSheetRow[];
-  /** Required columns the sheet doesn't have */
-  missing: ReceiptField[];
-}
+export type ReceiptSheetRow = SheetRow<ReceiptField>;
+export type ReceiptSheet = Sheet<ReceiptField>;
 
 /** Finds the heading row (the first that names an item description column, within the first 10 rows) and reads the rows below it */
-export function receiptRowsFromSheet(data: unknown[][]): ReceiptSheet {
-  const headerIndex = data.slice(0, 10).findIndex((r) => r.some((c) => HEADING_TO_FIELD.get(normalize(c)) === 'name'));
-  if (headerIndex < 0) return { rows: [], missing: [...RECEIPT_REQUIRED] };
-  const map = new Map<number, ReceiptField>();
-  data[headerIndex].forEach((heading, i) => {
-    const field = HEADING_TO_FIELD.get(normalize(heading));
-    if (field && ![...map.values()].includes(field)) map.set(i, field);
-  });
-  const found = [...map.values()];
-  const rows: ReceiptSheetRow[] = [];
-  data.slice(headerIndex + 1).forEach((r, i) => {
-    const out = { row: headerIndex + i + 2, ...Object.fromEntries(RECEIPT_FIELDS.map((f) => [f.key, ''])) } as ReceiptSheetRow;
-    map.forEach((field, idx) => {
-      out[field] = cell(r[idx]);
-    });
-    if (RECEIPT_FIELDS.some((f) => out[f.key] !== '')) rows.push(out);
-  });
-  return { rows, missing: RECEIPT_REQUIRED.filter((k) => !found.includes(k)) };
-}
+export const receiptRowsFromSheet = (data: unknown[][]): ReceiptSheet => sheetRowsFrom(data, RECEIPT_FIELDS, 'name');
 
 /** Reads the first sheet of an .xlsx file, or a .csv file */
-export async function readReceiptFile(file: File): Promise<ReceiptSheet> {
-  const name = file.name.toLowerCase();
-  if (name.endsWith('.csv')) return receiptRowsFromSheet(parseCsv(await file.text()));
-  if (name.endsWith('.xlsx')) {
-    const { readSheet } = await import('read-excel-file/browser');
-    return receiptRowsFromSheet((await readSheet(file)) as unknown[][]);
-  }
-  throw new Error('Choose an Excel (.xlsx) or CSV file. Older .xls files: open in Excel and save as .xlsx first.');
-}
+export const readReceiptFile = (file: File): Promise<ReceiptSheet> => readSheetFile(file, RECEIPT_FIELDS, 'name');
 
 /** The template: the headings, then one example line */
 export function receiptTemplateRows(): string[][] {
@@ -168,8 +120,6 @@ export function itemTypeFrom(text: string): ItemType | undefined {
   return undefined;
 }
 
-/** A number typed in a cell: "65,000.00" or "65000" */
-const amount = (text: string) => (text.trim() === '' ? NaN : Number(text.replace(/,/g, '').trim()));
 
 /** What the import needs to know about the system to check rows */
 export interface ReceiptImportContext {

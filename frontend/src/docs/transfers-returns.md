@@ -30,3 +30,9 @@ Use the same form for an **Issued** asset that is coming back.
 - **Approved transfer to an employee:** the new holder and directorate apply. **Approved transfer to store:** the asset is **In store** and no one holds it. **Rejected:** nothing changes.
 - An asset that is already **In store** can only be transferred to an employee; **Return to store** is offered for issued assets.
 - Assets issued to an outside organization cannot be transferred or returned yet.
+
+## Import many transfers from Excel
+
+Open the transfer form of any asset and use **⋮ More actions → Import Model 21 (Excel)** at the top right. Fill in one row per transfer: Model 21 No., transfer date, book, item code and the employee it goes to (8-digit employee ID) are required. If you fill in **From**, it must be the employee who holds the asset now.
+
+Only **fixed assets** that are **issued** to an employee or still **in store** can be transferred; consumables are issued, not transferred, and assets held by an outside organization are skipped. Choose the file (.xlsx or .csv): every row is checked first and rows with a problem are listed with the reason; nothing is saved until you press **Import**. Each good row becomes its own request and waits for Team Leader endorsement and Department Head approval. An item that already has a request waiting is skipped, so importing the same file again does not duplicate anything. Returns to store are not imported; record them one by one.
