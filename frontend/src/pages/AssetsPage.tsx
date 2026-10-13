@@ -878,15 +878,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </button>
           )}
         </td>
-        <td className="px-3 py-2 whitespace-nowrap">
+        <td className="px-3 py-2">
           <AssetStatus row={row} partly={isBatch && issuedUnits > 0 && inStoreUnits > 0} />
         </td>
-        <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">
-          {isBatch ? totalUnits : row.units}
-          <span className="ml-1 text-[10px] font-normal uppercase text-slate-500">{uom}</span>
+        <td className="px-3 py-2 text-right font-mono font-semibold text-slate-900">
+          <span className="whitespace-nowrap">
+            {isBatch ? totalUnits : row.units}
+            <span className="ml-1 text-[10px] font-normal uppercase text-slate-500">{uom}</span>
+          </span>
+          {/* One short line each, so a batch does not stretch the column */}
           {isBatch && (
-            <span className="block font-sans text-[10px] font-normal text-slate-500">
-              {issuedUnits} issued · {inStoreUnits} in store{disposedUnits > 0 && ` · ${disposedUnits} disposed`}
+            <span className="mt-0.5 block font-sans text-[10px] font-normal leading-tight text-slate-500">
+              <span className="block whitespace-nowrap">{issuedUnits} issued</span>
+              <span className="block whitespace-nowrap">{inStoreUnits} in store</span>
+              {disposedUnits > 0 && <span className="block whitespace-nowrap">{disposedUnits} disposed</span>}
             </span>
           )}
         </td>
@@ -1410,7 +1415,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-xs">
+              <table className="w-full min-w-[820px] text-left text-xs">
                 <thead className={table.headRow}>
                   <tr>
                     <SortableHeader
