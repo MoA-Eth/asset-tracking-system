@@ -19,15 +19,14 @@ Use this when new items arrive. Registering a receipt creates the asset record. 
 
 > One receipt registers one item line, with its quantity. For several different items on one slip, register each as its own receipt with the same Model 19 number.
 
-## Fill in from an IFMIS PDF or scan
+## Fill in from a Model 19 PDF
 
-If you have the voucher as a **PDF downloaded from IFMIS**, a **scanned PDF** or a **photo** (PNG, JPEG or WEBP), attach it in **Delivery and attachment** first. Or press **Import receipts** at the top right of the receive form and pick the file; it is attached and read, and anything you already typed is kept. The form reads it and fills in what is still empty. A note under the attachment lists what was filled. **Check every filled field against the paper** before submitting; nothing is submitted for you. Anything you had already typed is kept.
+If you have the Model 19 as a **PDF saved from IFMIS**, press **Import receipt** at the top right of the receive form and choose it, or attach it in **Delivery and attachment**. It is attached and read, and the form fills in what is still empty; anything you already typed is kept. A note under the attachment lists what was filled. **Check every filled field against the paper** before submitting; nothing is submitted for you.
 
-- **Model 19 (Print Model19 Report):** Model 19 No., PO number, received date, transaction type, source, buyer and program, and the first item: description, category, unit of measure, quantity and unit price. The IFMIS item code goes into the **Remark**, because every delivery of that item shares it.
-- **Fixed Asset Internal Transfer Form (Model 21):** voucher number, date, **Transfer Receipt**, the source location, and the asset: description, item code (the IFMIS tag number), quantity, unit price and **Fixed asset**.
-- A PDF printed from this app, or any other PDF, is not an IFMIS form: the note says so.
-- A **scanned** PDF or a **photo** is read with text recognition, which takes a few seconds. A scan can be misread, so check each filled field with extra care. The voucher details at the top read well even from a phone photo. An item line is filled in only when its quantity, unit price and total agree; if no line on the scan reads cleanly, the note says so and you type the item yourself. A flat, straight, well-lit scan reads best.
-- If nothing could be read, the note says so. The slip stays attached; fill in the fields as usual.
+- **What is filled:** Model 19 No., PO number, received date, transaction type, source, buyer and program, and the first item: description, category, unit of measure, quantity and unit price. The IFMIS item code goes into the **Remark**, because every delivery of that item shares it.
+- **Only a Model 19 is read here.** A Model 21 transfer form is not: the note says to read it from the transfer form of the asset. Any other PDF fills nothing.
+- **Only PDFs saved from IFMIS are read.** A scanned PDF or a photo has no text in it: it is attached as the scanned copy, and you fill in the fields as usual.
+- **Already received?** If the slip's item was already received on the same Model 19 No., the note says so with its item code, so the goods are not counted twice.
 - A slip that lists several items fills in the first one; register each of the others as its own receipt with the same Model 19 No.
 
 ## Correct a mistake
@@ -37,13 +36,3 @@ Until the Team Leader has endorsed it, open the receipt and choose **Edit receip
 ## After approval
 
 The asset becomes **In store** and can be issued. If it is **rejected**, it stays on record as **Rejected** with the reason, and you can register it again.
-
-## Import many receipts from Excel
-
-For opening stock, or many receipts at once, open **Receive items**, press **Import receipts** at the top right and choose an Excel or CSV file. The same button takes a slip or a spreadsheet: the app tells them apart by the file type. Each voucher has its own import in its own form (Model 22 in the issue form, Model 21 in the transfer form, disposals in the disposal form), because each spreadsheet has its own columns and rules.
-
-1. Press **Download template** and fill in one row per receipt line, the same as one **Receive items** form: Model 19 No., received date, store, item description, category, item type, unit of measure, quantity and unit price are required. An empty condition is recorded as Good. If the store has several store men, fill in **Received by (store man)**.
-2. Choose the file (.xlsx or .csv). You see every row first: rows with a problem are listed with the reason and skipped; nothing is saved yet.
-3. Press **Import**. Each good row becomes its own receipt, marked historical, with no scanned slip. It waits for Team Leader endorsement and Department Head approval like any other receipt.
-
-A row with the same Model 19 No. and description as a receipt already registered is skipped, so importing the same file again does not create duplicates. The import is not offered while the System Administrator requires a scanned slip on every receipt.

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Search, UserCheck, FileText, Car, Tag } from 'lucide-react';
 import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
-import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, QuantityInput, MoneyInput, inputClass, textareaClass, submitOnCtrlEnter } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, FormNotice, QuantityInput, MoneyInput, inputClass, textareaClass, submitOnCtrlEnter } from '../ui/FormKit';
+import { readPdfRows, rowsToText, isModel19, isModel21, parseModel21, sameEmployeeId, Model21SlipFields } from '../../utils/slip-reader';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -17,6 +18,16 @@ import { recallForm, rememberForm } from '../../utils/form-memory';
 import { useSlipRegister, usedMessage } from '../../hooks/useSlipRegister';
 
 /** What an open request on an asset is called in the picker */
+/** An asset's status in words, for what a Model 21 can't be used for */
+const STATUS_WORDS: Record<string, string> = {
+  PENDING_STOCK_IN: 'still waiting for receipt approval',
+  PENDING_STOCK_OUT: 'waiting for issue approval',
+  UNDER_TRANSFER: 'under transfer',
+  PENDING_DISPOSAL: 'waiting for disposal approval',
+  DISPOSED: 'disposed',
+  REJECTED: 'rejected at receipt',
+};
+
 const REQUEST_TYPE_LABELS: Record<string, string> = {
   STOCK_IN: 'Receipt',
   STOCK_OUT: 'Issue',
@@ -45,11 +56,13 @@ export interface TransferFormProps {
   editTransfer?: TransactionApproval;
   /** Asset chosen before the form opened, e.g. from its row in the register */
   initialItemId?: string;
+  /** A Model 21 PDF chosen with the form's header button: it is read into the form */
+  slip?: File;
   onCancel: () => void;
   onSaved: (voucher?: Model21Voucher) => void;
 }
 
-export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, editTransfer, initialItemId, onCancel, onSaved }) => {
+export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, editTransfer, initialItemId, slip, onCancel, onSaved }) => {
   const { user } = useAuth();
   const toast = useToast();
   const details = editTransfer?.requestDetails ?? {};
@@ -151,6 +164,110 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     const emp = employees.find((e) => e.id === employeeId);
     if (emp?.departmentId) setTargetDepartmentId(emp.departmentId);
   };
+
+// ── Reading a Model 21 PDF from IFMIS ──
+  const [slipNote, setSlipNote] = useState<{ tone: 'info' | 'warn'; text: string } | null>(null);
+
+  /**
+   * A Model 21 fills in the voucher, the asset and who receives it. The asset has to have come before it in its
+   * life: received and approved, a fixed asset, issued to the employee the form names (or still in store), with no
+   * other request waiting. Anything that doesn't fit is said, and the asset or person is not filled in.
+   */
+  const fillFromModel21 = (slip: Model21SlipFields) => {
+    const filled: string[] = [];
+    const problems: string[] = [];
+    const line = slip.lines[0];
+    if (slip.model21No && !model21No.trim()) {
+      setModel21No(slip.model21No);
+      filled.push('Model 21 No.');
+    }
+    if (slip.book && !book.trim()) {
+      setBook(slip.book);
+      filled.push('book');
+    }
+    if (line?.date && (!transferDateGc || transferDateGc === todayGc)) {
+      setTransferDateGc(line.date);
+      filled.push('transfer date');
+    }
+
+    const tag = line?.tagNumber?.trim().toLowerCase();
+    const asset = tag ? items.find((i) => i.itemCode.toLowerCase() === tag || i.serialNumber?.trim().toLowerCase() === tag) : undefined;
+    let usable = false;
+    if (!tag) problems.push('The form names no asset tag number.');
+    else if (!asset) problems.push(`No asset with tag ${line!.tagNumber} is registered here. It has to be received on a Model 19 and approved first.`);
+    else if (asset.itemType === ItemType.CONSUMABLE) problems.push(`${asset.itemCode} is a consumable item; consumables are issued, not transferred.`);
+    else if (asset.status !== ItemStatus.ISSUED && asset.status !== ItemStatus.AVAILABLE) {
+      problems.push(`${asset.itemCode} is ${STATUS_WORDS[asset.status] ?? asset.status.toLowerCase()}; only an issued asset, or a fixed asset in store, can be transferred.`);
+    } else if (asset.status === ItemStatus.ISSUED && asset.heldByOrganization) {
+      problems.push(`${asset.itemCode} is held by ${asset.heldByOrganization}, outside the Ministry.`);
+    } else if (pendingByItem.has(asset.id) && pendingByItem.get(asset.id)!.id !== editTransfer?.id) {
+      problems.push(`${asset.itemCode} already has a request waiting for approval.`);
+    } else if (asset.status === ItemStatus.ISSUED && slip.fromEmployeeId && !sameEmployeeId(asset.currentCustodian?.payrollId, slip.fromEmployeeId)) {
+      problems.push(`${asset.itemCode} is held by ${asset.currentCustodian?.fullNameEn ?? 'someone else'}, not by the employee the form transfers it from (${slip.fromName ?? slip.fromEmployeeId}).`);
+    } else {
+      usable = true;
+      if (!editTransfer && asset.id !== selectedItemId) {
+        handleItemSelect(asset.id);
+        filled.push(`asset (${asset.itemCode})`);
+      }
+      setReturnToId('');
+      if (line?.depreciation !== undefined) {
+        setDepreciation(line.depreciation);
+        filled.push('depreciation');
+      }
+      if (line?.bookValue !== undefined) {
+        setBookValue(line.bookValue);
+        filled.push('book value');
+      }
+    }
+
+    // Who receives it: only once the asset itself fits
+    if (usable && slip.toEmployeeId) {
+      const to = employees.find((e) => e.isActive !== false && sameEmployeeId(e.payrollId, slip.toEmployeeId));
+      if (!to) problems.push(`No active employee has ID ${slip.toEmployeeId}${slip.toName ? ` (${slip.toName})` : ''}.`);
+      else if (asset?.status === ItemStatus.ISSUED && to.id === asset.currentCustodianId) problems.push(`${asset.itemCode} is already with ${to.fullNameEn}.`);
+      else if (!targetEmployeeId) {
+        handleRecipientChange(to.id);
+        filled.push(`recipient (${to.fullNameEn})`);
+      }
+    }
+
+    const more = slip.lines.length > 1 ? ` The form lists ${slip.lines.length} assets; the first one was read. Transfer each of the others from its own record.` : '';
+    if (problems.length) {
+      setSlipNote({ tone: 'warn', text: `${problems.join(' ')}${filled.length ? ` Filled in: ${filled.join(', ')}.` : ''}${more}` });
+    } else if (filled.length) {
+      setSlipNote({ tone: 'info', text: `Filled in from the Model 21: ${filled.join(', ')}. Check them against the paper before submitting.${more}` });
+    } else {
+      setSlipNote({ tone: 'info', text: 'The form was read, but every field it covers is already filled in.' });
+    }
+  };
+
+  /** Only a Model 21 is read here; another IFMIS form is named, so it can be taken to its own form */
+  const readSlip = (file: File) => {
+    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
+      return void setSlipNote({ tone: 'warn', text: 'Choose the Model 21 as a PDF saved from IFMIS.' });
+    }
+    setSlipNote({ tone: 'info', text: 'Reading the Model 21…' });
+    readPdfRows(file)
+      .then((rows) => {
+        const text = rowsToText(rows);
+        if (!text.trim()) return setSlipNote({ tone: 'warn', text: 'This PDF has no text (it is a scanned image), so it could not be read. Fill in the fields as usual.' });
+        if (isModel21(text)) return fillFromModel21(parseModel21(text));
+        setSlipNote({
+          tone: 'warn',
+          text: isModel19(text)
+            ? 'This is a Model 19 receipt, not a Model 21. Read it from Receive items (Import receipt).'
+            : 'Only an IFMIS Model 21 (Fixed Asset Internal Transfer Form) PDF can be read here.',
+        });
+      })
+      .catch(() => setSlipNote({ tone: 'warn', text: "The PDF couldn't be read. Fill in the fields as usual." }));
+  };
+
+  // A PDF chosen with the form's header button
+  useEffect(() => {
+    if (slip) readSlip(slip);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slip]);
 
   const usedNo = slips.findUsed(model21No, ['TRANSFER', 'RETURN'], editTransfer?.id);
 
@@ -390,6 +507,12 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
   return (
     <form id="transfer-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
+      {slipNote && (
+        <FormNotice icon={FileText} tone={slipNote.tone}>
+          <span role="status">{slipNote.text}</span>
+        </FormNotice>
+      )}
+
       {/* ── Section 1: Transfer voucher ── */}
       <FormSection step={1} title="Transfer voucher" subtitle="የዝውውር ሰነድ · Model 21 register" icon={FileText} accent="emerald">
         <FieldGrid>

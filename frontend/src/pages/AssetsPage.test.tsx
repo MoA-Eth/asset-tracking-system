@@ -1,12 +1,11 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within, waitFor } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AssetsPage } from './AssetsPage';
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
 import { readPdfRows, PdfRow } from '../utils/slip-reader';
-import { ocrRows } from '../utils/slip-ocr';
 
 /** Lines of PDF text as the reader returns them: cells two spaces apart, laid out left to right */
 const asRows = (lines: string[]): PdfRow[] =>
@@ -17,10 +16,6 @@ const auth = vi.hoisted(() => ({ user: { id: 'enc', payrollId: 'ENC-1', permissi
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn() }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../context/ToastContext', () => ({ useToast: () => toast }));
-vi.mock('../utils/slip-ocr', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../utils/slip-ocr')>()),
-  ocrRows: vi.fn(),
-}));
 vi.mock('../utils/slip-reader', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../utils/slip-reader')>()),
   readPdfRows: vi.fn(),
@@ -234,33 +229,60 @@ describe('Assets page', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('the issue form imports Model 22 issues: items in store are issued, others are skipped with their status', async () => {
-    const user = userEvent.setup();
-    vi.mocked(api.getDepartments).mockResolvedValue([{ id: 'D1', code: 'ICT', nameEn: 'ICT Directorate', nameAm: '' }] as any);
-    vi.mocked(api.registerStockOut).mockResolvedValue({} as any);
-    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-    await screen.findByText('MOA-S1');
-    await menuFor(user, 'MOA-S1');
-    await user.click(screen.getByRole('menuitem', { name: 'Issue (Model 22)' }));
-    const record = screen.getByRole('region', { name: 'Asset record MOA-S1' });
-    // The form's own Import issues button is in its header
-    await user.click(within(record).getByRole('button', { name: 'Import issues' }));
-    const csv = [
-      'Model 22 No.,Issued date,Item code,Quantity,Recipient (employee ID),Directorate,Purpose',
-      '0001234,2026-10-01,MOA-S1,2,MOA/2,ICT,Field work',
-      '0001235,2026-10-01,MOA-I1,1,MOA/2,ICT,Field work',
-    ].join('\n');
-    // The Model 22 import window opens; a spreadsheet chosen there is checked
-    await waitFor(() => expect(screen.getByLabelText('File to import items from')).not.toBeDisabled());
-    await user.upload(screen.getByLabelText('File to import items from'), new File([csv], 'issues.csv', { type: 'text/csv' }));
+  describe('reading a Model 21 PDF into the transfer form', () => {
+    // An asset with an IFMIS-style tag, issued to Bikila Desta (MOA/1)
+    const gps = item('T1', 'Handheld GPS', 'ISSUED', { itemCode: 'MOA-072351' });
+    const model21 = (fromId: string, toId: string) =>
+      asRows([
+        'Fixed Asset Internal Transfer Form',
+        'Model/21',
+        'Model # 0004399',
+        'From Employee Name :  Desta, Bikila  To : Alemu, Kebede',
+        `From Employee ID :  ${fromId}  To : ${toId}`,
+        'Book :  MOA MC BOOK',
+        '1  Handheld GPS  MOA-072351  1  624,285.50  322,547.54  301,738.01  05-OCT-26',
+      ]);
+    const openTransfer = async (user: ReturnType<typeof userEvent.setup>) => {
+      vi.mocked(api.getItems).mockResolvedValue([...items, gps] as any);
+      render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+      await screen.findByText('MOA-S1');
+      await menuFor(user, 'MOA-072351');
+      await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
+      const record = screen.getByRole('region', { name: 'Asset record MOA-072351' });
+      await user.click(within(record).getByRole('button', { name: 'Import transfer' }));
+      return record;
+    };
 
-    expect(await screen.findByText('MOA-I1 is issued, not in store.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Import 1 issue' }));
-    expect(await screen.findByText(/1 imported\. They wait for Team Leader endorsement/)).toBeInTheDocument();
-    expect(api.registerStockOut).toHaveBeenCalledTimes(1);
-    expect(api.registerStockOut).toHaveBeenCalledWith(
-      expect.objectContaining({ itemId: 'S1', quantity: 2, recipientEmployeeId: 'E2', targetDepartmentId: 'D1', ifmisSlipNumber: '0001234' }),
-    );
+    it('fills the voucher and the recipient when the asset is with the employee the form names', async () => {
+      const user = userEvent.setup();
+      vi.mocked(readPdfRows).mockResolvedValue(model21('MOA/1', 'MOA/2'));
+      const record = await openTransfer(user);
+      await user.upload(screen.getByLabelText('Voucher PDF to import'), new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
+
+      expect(await within(record).findByText(/Filled in from the Model 21: .*recipient \(Kebede Alemu\)/)).toBeInTheDocument();
+      expect(within(record).getByDisplayValue('0004399')).toBeInTheDocument();
+      expect(within(record).getByDisplayValue('MOA MC BOOK')).toBeInTheDocument();
+    });
+
+    it('keeps the order of operations: an asset held by someone else is not filled in', async () => {
+      const user = userEvent.setup();
+      vi.mocked(readPdfRows).mockResolvedValue(model21('MOA/2', 'MOA/1'));
+      const record = await openTransfer(user);
+      await user.upload(screen.getByLabelText('Voucher PDF to import'), new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
+
+      expect(await within(record).findByText(/MOA-072351 is held by Bikila Desta, not by the employee the form transfers it from/)).toBeInTheDocument();
+      expect(within(record).queryByText(/recipient \(/)).toBeNull();
+    });
+
+    it('reads only a Model 21: a Model 19 is sent to Receive items', async () => {
+      const user = userEvent.setup();
+      vi.mocked(readPdfRows).mockResolvedValue(asRows(['Print Model19 Report', 'INV Model 19 No. :  0000044']));
+      const record = await openTransfer(user);
+      await user.upload(screen.getByLabelText('Voucher PDF to import'), new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+
+      expect(await within(record).findByText(/This is a Model 19 receipt, not a Model 21/)).toBeInTheDocument();
+      expect(within(record).queryByDisplayValue('0000044')).toBeNull();
+    });
   });
 
   it('opens the transfer form with the asset already chosen', async () => {
@@ -567,36 +589,43 @@ describe('Asset record', () => {
     expect(within(record).getAllByText('MOA-I1').length).toBeGreaterThan(0);
   });
 
-  it('fills the receipt from an attached IFMIS PDF, leaving what was typed and asking for a check', async () => {
+  it('reads only a Model 19 on the receive form: a Model 21 is sent to the transfer form and fills nothing', async () => {
     const user = userEvent.setup();
     vi.mocked(readPdfRows).mockResolvedValue(asRows([
       'Fixed Asset Internal Transfer Form',
       'Model/21',
       'Model # 0004399',
-      'From Employee Name :  Kebede, Abebe  To : Tesfaye, Sara',
       'From Employee ID :  109870  To : 110347',
-      'Book :  MOA MC BOOK',
-      'MoA SarisDefaultDefaultDefault  MoA Gurd ShollaDefaultDefaultDefault',
       '1  Handheld GPS  MOA-072351  2  624,285.50  322,547.54  301,738.01  05-OCT-26',
     ]));
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
-    // Something typed before the slip is attached is kept
-    await user.type(within(panel).getByLabelText(/Source/i), 'Central store');
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF-1.4'], 'model21.pdf', { type: 'application/pdf' }));
 
-    const slip = new File(['%PDF-1.4'], 'IFMIS_Fixed_Asset_Internal_Tra.pdf', { type: 'application/pdf' });
-    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, slip);
+    expect(await within(panel).findByText(/This is a Model 21 transfer form, not a Model 19/)).toBeInTheDocument();
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('');
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
+  });
 
-    expect(await within(panel).findByText(/Filled in from the slip/)).toBeInTheDocument();
-    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0004399');
-    expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('Transfer Receipt');
-    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Handheld GPS');
-    expect(within(panel).getByLabelText(/Item code/i)).toHaveValue('MOA-072351');
-    expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('2');
-    expect(within(panel).getByLabelText(/Item type/i)).toHaveValue('FIXED');
-    expect(within(panel).getByLabelText(/Source/i)).toHaveValue('Central store');
+  it('warns when the Model 19 line was already received', async () => {
+    const user = userEvent.setup();
+    const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+    // MOA-S2 (Generator) was received on M19-S2
+    vi.mocked(readPdfRows).mockResolvedValue([
+      r(98, [640, 'Print Model19 Report']),
+      r(146, [680, 'INV Model 19 No. :'], [812, 'M19-S2']),
+      r(283, [95, 'S/No.'], [135, 'Item Code'], [278, 'Item Description'], [403, 'UOM'], [826, 'Qty']),
+      r(316, [88, '1'], [128, '107101102.4336'], [270, 'Generator'], [403, 'EA'], [510, 'Agricultural'], [826, '1'], [960, '825'], [1050, '825']),
+    ]);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+
+    expect(await within(panel).findByText(/This slip's item was already received as MOA-S2/)).toBeInTheDocument();
   });
 
   it('fills the receipt from an IFMIS Model 19, keeping the IFMIS item code in the remark', async () => {
@@ -637,37 +666,20 @@ describe('Asset record', () => {
     expect(within(panel).getByDisplayValue('IFMIS item code 107101102.4336')).toBeInTheDocument();
   });
 
-  it('reads a photo of a Model 19: fills the header, and leaves item lines that do not add up', async () => {
+  it('attaches a photo of a slip without reading it: only PDFs saved from IFMIS are read', async () => {
     const user = userEvent.setup();
-    const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
-    vi.mocked(ocrRows).mockResolvedValue([
-      r(98, [640, 'Print Model 19 Report']),
-      r(146, [680, 'INV. Model 19 No. : 0000044']),
-      r(162, [714, 'PO Number: 186']),
-      r(178, [697, 'Received Date : 25-Sep-2026']),
-      r(193, [677, 'Transaction Type : PO Receipt']),
-      r(208, [742, 'Source: ERMEJA TRADING ONE MEMBER']),
-      r(240, [748, 'Buyer: Teka, Yebirgual Tamiru']),
-      // A misread line: no real unit, and its figures do not add up
-      r(316, [88, '1'], [124, '105101102.0415'], [268, 'Streptomycine le WJ'], [403, 'SR'], [960, '3080']),
-    ]);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'model19-photo.jpg', { type: 'image/jpeg' }));
 
-    expect(await within(panel).findByText(/Filled in from the scan/)).toBeInTheDocument();
-    expect(within(panel).getByText(/item lines on this scan could not be read reliably/)).toBeInTheDocument();
+    expect(await within(panel).findByText('model19-photo.jpg')).toBeInTheDocument();
     expect(readPdfRows).not.toHaveBeenCalled();
-    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000044');
-    expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('PO Receipt');
-    expect(within(panel).getByLabelText(/Source/i)).toHaveValue('ERMEJA TRADING ONE MEMBER');
-    // The misread item is not pasted in
-    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
+    expect(within(panel).queryByRole('status')).toBeNull();
   });
 
-  it('the receive form header menu reads an IFMIS slip into the open form, keeping what was typed', async () => {
+  it('the Import receipt button reads a Model 19 PDF into the open form, keeping what was typed', async () => {
     const user = userEvent.setup();
     const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
     vi.mocked(readPdfRows).mockResolvedValue([
@@ -677,15 +689,13 @@ describe('Asset record', () => {
     ]);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    // The list itself has no menu; it belongs to the form
-    expect(screen.queryByRole('button', { name: 'Import receipts' })).toBeNull();
+    // The list itself has no import; it belongs to the form
+    expect(screen.queryByRole('button', { name: 'Import receipt' })).toBeNull();
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.type(within(panel).getByLabelText(/Item description/i), 'Typed by hand');
-    await user.click(within(panel).getByRole('button', { name: 'Import receipts' }));
-    // A PDF is a slip: the window closes and the slip is read into the open form
-    await waitFor(() => expect(screen.getByLabelText('File to import items from')).not.toBeDisabled());
-    await user.upload(screen.getByLabelText('File to import items from'), new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+    await user.click(within(panel).getByRole('button', { name: 'Import receipt' }));
+    await user.upload(screen.getByLabelText('Voucher PDF to import'), new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
     expect(await within(panel).findByText(/Filled in from the slip/)).toBeInTheDocument();
     expect(within(panel).getByText('model19.pdf')).toBeInTheDocument();
@@ -693,47 +703,16 @@ describe('Asset record', () => {
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Typed by hand');
   });
 
-  it('imports receipts from a spreadsheet: preview first, then each good row is registered as a historical receipt', async () => {
-    const user = userEvent.setup();
-    vi.mocked(api.registerStockIn).mockResolvedValue({ item: { itemCode: 'MOA-0100' }, items: [{ itemCode: 'MOA-0100' }] } as any);
-    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-    await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
-    await user.click(within(screen.getByRole('region', { name: 'Receive items' })).getByRole('button', { name: 'Import receipts' }));
-    const csv = [
-      'Model 19 No.,Received date,Store,Item description,Category,Item type,Unit of measure,Quantity,Unit price (ETB)',
-      '0000044,2026-09-25,Head office,Office desk,Office Furniture & Fixtures,Fixed asset,EA,4,"12,000"',
-      '0000044,2026-09-25,Head office,Printer paper,Office Furniture & Fixtures,Consumable,BOX,0,300',
-    ].join('\n');
-    // The same button takes a spreadsheet: it is checked and previewed for import
-    await waitFor(() => expect(screen.getByLabelText('File to import items from')).not.toBeDisabled());
-    await user.upload(screen.getByLabelText('File to import items from'), new File([csv], 'receipts.csv', { type: 'text/csv' }));
-
-    expect(await screen.findByText(/1 receipt will be registered\. 1 row has problems/)).toBeInTheDocument();
-    expect(screen.getByText('Quantity must be a whole number, at least 1.')).toBeInTheDocument();
-    expect(api.registerStockIn).not.toHaveBeenCalled();
-
-    await user.click(screen.getByRole('button', { name: 'Import 1 receipt' }));
-    expect(await screen.findByText(/1 imported\. They wait for Team Leader endorsement/)).toBeInTheDocument();
-    expect(api.registerStockIn).toHaveBeenCalledTimes(1);
-    expect(api.registerStockIn).toHaveBeenCalledWith(
-      expect.objectContaining({ ifmisSlipNumber: '0000044', name: 'Office desk', storeLocationId: 'LOC-1', isHistoricalData: true }),
-    );
-    expect(screen.getByText('MOA-0100')).toBeInTheDocument();
-  });
-
   it('says so when the attached PDF is a scan with no text', async () => {
     const user = userEvent.setup();
     vi.mocked(readPdfRows).mockResolvedValue([]);
-    vi.mocked(ocrRows).mockResolvedValue([]);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'scan.pdf', { type: 'application/pdf' }));
-    expect(await within(panel).findByText(/Nothing could be read from this slip/)).toBeInTheDocument();
-    // No text inside the PDF: it was read as a scan
-    expect(ocrRows).toHaveBeenCalled();
+    // Only text PDFs saved from IFMIS are read; a scanned one is attached as it is
+    expect(await within(panel).findByText(/This PDF has no text \(it is a scanned image\)/)).toBeInTheDocument();
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
   });
 
