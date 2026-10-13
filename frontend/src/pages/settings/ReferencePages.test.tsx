@@ -46,7 +46,7 @@ describe('Store men', () => {
     const kalityCard = await screen.findByRole('region', { name: 'Kality' });
     expect(within(kalityCard).getByText('Abebe Kebede')).toBeInTheDocument();
     const sarisCard = screen.getByRole('region', { name: 'Saris' });
-    expect(within(sarisCard).getByText(/None assigned: this store can't receive, issue, dispose or take returns/)).toBeInTheDocument();
+    expect(within(sarisCard).getByText(/None assigned yet: this store's vouchers name no store man until one is added/)).toBeInTheDocument();
   });
 
   it('adds a store man from the staff register, offering only active employees not already on the list', async () => {

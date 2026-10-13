@@ -21,8 +21,6 @@ interface StoreManFieldProps {
   current?: string;
   /** Whether it has to be filled in (new requests); corrections may keep what they had */
   required?: boolean;
-  /** The store man rule is on: a store with none is refused. Off: it carries on, naming nobody. */
-  refuse?: boolean;
   hint?: string;
 }
 
@@ -42,7 +40,6 @@ export const StoreManField: React.FC<StoreManFieldProps> = ({
   hasStore = true,
   current,
   required = true,
-  refuse = true,
   hint,
 }) => {
   // The only store man is chosen for you; a choice that no longer belongs to this store is dropped
@@ -61,26 +58,15 @@ export const StoreManField: React.FC<StoreManFieldProps> = ({
     );
   }
 
-  if (ready && keepers.length === 0 && !refuse) {
+  // A store with none carries on: the voucher names nobody, and administrators are reminded to assign one
+  if (ready && keepers.length === 0) {
     return (
-      <Field label={label} optional htmlFor={id} hint={`${storeName} has no store man assigned yet, so none is named on the voucher.`}>
+      <Field label={label} optional htmlFor={id} hint={`${storeName} has no store man assigned yet, so none is named on the voucher. Ask the System Administrator to add one in Settings → Stores.`}>
         <ReadOnlyValue>—</ReadOnlyValue>
       </Field>
     );
   }
 
-  if (ready && keepers.length === 0) {
-    return (
-      <Field label={label} required={required} span="sm:col-span-2">
-        <div role="alert" className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          <AlertCircle className="mt-px h-4 w-4 shrink-0 text-amber-600" />
-          <span>
-            {storeName} has no store man assigned. Ask the System Administrator to assign one in Settings → Stores. This request can't be submitted until then.
-          </span>
-        </div>
-      </Field>
-    );
-  }
 
   if (keepers.length === 1) {
     return (

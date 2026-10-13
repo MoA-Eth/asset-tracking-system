@@ -30,13 +30,12 @@ beforeEach(() => {
   db.store.findUnique.mockResolvedValue({ id: 'STR-1', name: 'Kality store', isActive: true, address: '' });
   db.location.findUnique.mockResolvedValue({ id: 'LOC-1', storeId: 'STR-1', name: 'Shelf A', isActive: true, store: { id: 'STR-1', name: 'Kality store', isActive: true } });
   db.storeKeeper.findMany.mockResolvedValue([]);
-  // The rule is switched on here; the cases with it off are at the end
-  applySystemSettings({ storeManPolicy: 'REQUIRED' });
+  applySystemSettings({});
 });
 
 describe('which store man a request names', () => {
-  it('refuses a store that has no store man, and says what to do', async () => {
-    await expect(requireStoreKeeper(db, { storeId: 'STR-1' }, undefined, 'issuing the items')).rejects.toMatchObject({
+  it('refuses naming someone at a store that has no store man, and says what to do', async () => {
+    await expect(requireStoreKeeper(db, { storeId: 'STR-1' }, 'E-OTHER', 'issuing the items')).rejects.toMatchObject({
       statusCode: 400,
       message: 'Kality store has no store man assigned. Ask the System Administrator to assign one in Settings → Stores.',
     });
@@ -62,7 +61,8 @@ describe('which store man a request names', () => {
 
   it('does not count a store man who has been deactivated', async () => {
     db.storeKeeper.findMany.mockResolvedValue([keeper('E1', 'Abebe Kebede', false)]);
-    await expect(requireStoreKeeper(db, { storeId: 'STR-1' }, undefined, 'issuing the items')).rejects.toThrow(/has no store man assigned/);
+    // With only a deactivated one, the store has none: it carries on naming nobody
+    await expect(requireStoreKeeper(db, { storeId: 'STR-1' }, undefined, 'issuing the items')).resolves.toBeNull();
     db.storeKeeper.findMany.mockResolvedValue([keeper('E1', 'Abebe Kebede', false), keeper('E2', 'Sara Tesfaye')]);
     await expect(requireStoreKeeper(db, { storeId: 'STR-1' }, undefined, 'issuing the items')).resolves.toMatchObject({ employeeId: 'E2' });
   });
@@ -82,44 +82,6 @@ describe('the operations that name a store man', () => {
   beforeEach(() => {
     db.item.findUnique.mockResolvedValue({ ...stockItem });
     db.transactionApproval.findFirst.mockResolvedValue(null);
-  });
-
-  it('refuses a receipt into a store with no store man', async () => {
-    await expect(
-      store().registerStockIn({
-        name: 'Chair', category: 'OFFICE_FURNITURE', unitCostETB: 1500, quantity: 1, uom: 'EA', ifmisSlipNumber: 'GRN-1', ifmisSlipDateGc: '2026-10-01',
-        storeLocationId: 'LOC-1', condition: 'NEW', registeredById: 'EMP-ENC', isHistoricalData: true,
-      } as any),
-    ).rejects.toThrow(/Kality store has no store man assigned/);
-  });
-
-  it('refuses an issue from a store with no store man', async () => {
-    await expect(
-      store().registerStockOut({
-        itemId: 'item-1', recipientType: 'EXTERNAL', organizationName: 'Oromia Bureau', ifmisSlipNumber: 'M22-1', ifmisSlipDateGc: '2026-10-01',
-        purpose: 'Survey', registeredById: 'EMP-ENC',
-      } as any),
-    ).rejects.toThrow(/Kality store has no store man assigned/);
-    expect(db.item.update).not.toHaveBeenCalled();
-    expect(db.transactionApproval.create).not.toHaveBeenCalled();
-  });
-
-  it('refuses a disposal from a store with no store man', async () => {
-    await expect(
-      store().registerDisposal({ itemId: 'item-1', disposalNo: 'DSP-1', reason: 'Damaged', registeredById: 'EMP-ENC' } as any),
-    ).rejects.toThrow(/Kality store has no store man assigned/);
-    expect(db.transactionApproval.create).not.toHaveBeenCalled();
-  });
-
-  it('refuses a return to a store with no store man', async () => {
-    db.item.findUnique.mockResolvedValue({ ...stockItem, status: 'ISSUED', currentCustodianId: 'EMP-A' });
-    db.employee.findUnique.mockResolvedValue({ id: 'EMP-ENC', fullNameEn: 'Encoder', role: 'DATA_ENCODER', isActive: true });
-    await expect(
-      store().registerReturn({
-        itemId: 'item-1', model21No: 'R-1', returnReason: 'Done', condition: 'GOOD', ifmisSlipDateGc: '2026-10-01', registeredById: 'EMP-ENC',
-      } as any),
-    ).rejects.toThrow(/Kality store has no store man assigned/);
-    expect(db.transactionApproval.create).not.toHaveBeenCalled();
   });
 
   it('names the store man on an issue, and on a disposal', async () => {
@@ -159,7 +121,7 @@ describe('assigning the store men of a store', () => {
     expect(audit.details).toMatch(/added Sara Tesfaye; removed Abebe Kebede/);
   });
 
-  it('can leave a store with nobody (its forms then refuse)', async () => {
+  it('can leave a store with nobody (its vouchers then name no store man)', async () => {
     await setStoreKeepers('STR-1', [], 'EMP-ADMIN');
     expect(db.storeKeeper.deleteMany).toHaveBeenCalled();
     expect(db.storeKeeper.create).not.toHaveBeenCalled();
@@ -188,7 +150,7 @@ describe('assigning the store men of a store', () => {
   });
 });
 
-describe('while the store man rule is off (the default)', () => {
+describe('a store with no store man', () => {
   const store = () => StoreService.getInstance();
   const stockItem = { id: 'item-1', itemCode: 'MOA-1', name: 'Chair', category: 'OFFICE_FURNITURE', status: 'AVAILABLE', condition: 'GOOD', unitCostETB: 1500, storeLocationId: 'LOC-1', notes: JSON.stringify({ quantity: 10, uom: 'EA' }), currentCustodianId: null };
 
@@ -201,7 +163,7 @@ describe('while the store man rule is off (the default)', () => {
     db.employee.findUnique.mockResolvedValue({ id: 'EMP-ENC', fullNameEn: 'Encoder', role: 'DATA_ENCODER', isActive: true });
   });
 
-  it('lets a store with no store man carry on, naming nobody', async () => {
+  it('carries on, naming nobody', async () => {
     await expect(requireStoreKeeper(db, { storeId: 'STR-1' }, undefined, 'issuing the items')).resolves.toBeNull();
   });
 

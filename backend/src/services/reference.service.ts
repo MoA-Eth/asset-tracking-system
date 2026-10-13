@@ -3,7 +3,6 @@ import { prisma } from '../lib/prisma';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors/app-error';
 import { getTodayGcAndEc } from '../utils/eth-date';
 import { hasPermission } from '../security/role-policy';
-import { isStoreManRequired } from './settings.service';
 import { Department, Location, Store } from '../types/asset-management';
 
 /** Item records that are physically in a store (not yet issued, or waiting for approval) */
@@ -287,8 +286,8 @@ export async function setStoreKeepers(id: string, employeeIds: unknown, actorId:
 }
 
 /**
- * The store man a request names. When the store-man rule is on, a store with nobody assigned refuses the request, so every
- * voucher can name him; while it is off, such a store carries on and this returns null.
+ * The store man a request names. A store with nobody assigned carries on, and this returns null: its vouchers
+ * name no store man until one is assigned (administrators are reminded of such stores).
  * With one store man he is the default; with several, the request has to say which one.
  * `locationId` is where the stock is, or goes; its store decides who the store men are.
  */
@@ -309,8 +308,8 @@ export async function requireStoreKeeper(
   const rows = await db.storeKeeper.findMany({ where: { storeId: store.id }, include: { employee: true }, orderBy: { createdAt: 'asc' } });
   const active = rows.filter((k: any) => k.employee?.isActive !== false);
   if (active.length === 0) {
-    // Until the rule is switched on, a store nobody has been assigned to carries on as it always did
-    if (isStoreManRequired() || chosenEmployeeId) {
+    // A store nobody has been assigned to carries on and names nobody; naming someone there is a mistake
+    if (chosenEmployeeId) {
       throw new BadRequestError(`${store.name} has no store man assigned. Ask the System Administrator to assign one in Settings → Stores.`);
     }
     return null;

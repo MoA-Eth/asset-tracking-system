@@ -4,31 +4,21 @@ import { hasPermission } from '../security/role-policy';
 import { getTodayGcAndEc } from '../utils/eth-date';
 
 export type SlipAttachmentPolicy = 'REQUIRED' | 'OPTIONAL';
-export type StoreManPolicy = 'REQUIRED' | 'OPTIONAL';
 
 export interface SystemSettings {
   /** Whether a scanned slip must be attached to Stock-In, Stock-Out and Return requests */
   slipAttachmentPolicy: SlipAttachmentPolicy;
-  /**
-   * Whether a store with no store man refuses receiving, issuing, disposing and returns.
-   * OPTIONAL (the default): a store that has store men must name one; a store with none carries on as before.
-   * REQUIRED: a store with none refuses. Switch it on once every store has a store man.
-   */
-  storeManPolicy: StoreManPolicy;
 }
 
-const DEFAULTS: SystemSettings = { slipAttachmentPolicy: 'OPTIONAL', storeManPolicy: 'OPTIONAL' };
+const DEFAULTS: SystemSettings = { slipAttachmentPolicy: 'OPTIONAL' };
 const SLIP_POLICY_KEY = 'slipAttachmentPolicy';
-const STORE_MAN_POLICY_KEY = 'storeManPolicy';
 const isSlipPolicy = (value: unknown): value is SlipAttachmentPolicy => value === 'REQUIRED' || value === 'OPTIONAL';
-const isStoreManPolicy = (value: unknown): value is StoreManPolicy => value === 'REQUIRED' || value === 'OPTIONAL';
 
 // Kept in memory so every request can check the rule without a database read
 let current: SystemSettings = { ...DEFAULTS };
 
 export const getSystemSettings = (): SystemSettings => ({ ...current });
 export const isSlipRequired = (): boolean => current.slipAttachmentPolicy === 'REQUIRED';
-export const isStoreManRequired = (): boolean => current.storeManPolicy === 'REQUIRED';
 export const SLIP_REQUIRED_MESSAGE = 'A scanned copy of the slip is required. Attach it and try again.';
 
 /** For tests and startup only */
@@ -40,29 +30,16 @@ export function applySystemSettings(settings: Partial<SystemSettings>): void {
 export async function initSystemSettings(): Promise<void> {
   try {
     const rows = await prisma.systemSetting.findMany();
+    // A store-man rule saved by an earlier version is ignored: a store with no store man always carries on
     const slip = rows.find((row) => row.key === SLIP_POLICY_KEY)?.value;
-    const storeMan = rows.find((row) => row.key === STORE_MAN_POLICY_KEY)?.value;
-    applySystemSettings({
-      ...(isSlipPolicy(slip) ? { slipAttachmentPolicy: slip } : {}),
-      ...(isStoreManPolicy(storeMan) ? { storeManPolicy: storeMan } : {}),
-    });
+    applySystemSettings(isSlipPolicy(slip) ? { slipAttachmentPolicy: slip } : {});
   } catch (err: any) {
     console.warn('Saved system settings could not be loaded; using the built-in defaults.', err?.message ?? err);
   }
 }
 
-export async function updateSystemSettings(
-  input: { slipAttachmentPolicy?: unknown; storeManPolicy?: unknown },
-  actorId: string,
-): Promise<SystemSettings> {
-  const given = (key: string) => !!input && Object.prototype.hasOwnProperty.call(input, key) && (input as any)[key] !== undefined;
-  if (given('slipAttachmentPolicy') && !isSlipPolicy(input.slipAttachmentPolicy)) {
-    throw new BadRequestError('Choose whether the scanned slip is required or optional.');
-  }
-  if (given('storeManPolicy') && !isStoreManPolicy(input.storeManPolicy)) {
-    throw new BadRequestError('Choose whether a store man is required or optional.');
-  }
-  if (!given('slipAttachmentPolicy') && !given('storeManPolicy')) {
+export async function updateSystemSettings(input: { slipAttachmentPolicy?: unknown }, actorId: string): Promise<SystemSettings> {
+  if (!isSlipPolicy(input?.slipAttachmentPolicy)) {
     throw new BadRequestError('Choose whether the scanned slip is required or optional.');
   }
   const actor = await prisma.employee.findUnique({ where: { id: actorId } });
@@ -71,35 +48,17 @@ export async function updateSystemSettings(
   }
 
   const previous = getSystemSettings();
-  const next: SystemSettings = {
-    ...previous,
-    ...(given('slipAttachmentPolicy') ? { slipAttachmentPolicy: input.slipAttachmentPolicy as SlipAttachmentPolicy } : {}),
-    ...(given('storeManPolicy') ? { storeManPolicy: input.storeManPolicy as StoreManPolicy } : {}),
-  };
+  const next: SystemSettings = { ...previous, slipAttachmentPolicy: input.slipAttachmentPolicy };
 
   // Save first, so the running rule never differs from what is stored
-  const save = (key: string, value: string) =>
-    prisma.systemSetting.upsert({
-      where: { key },
-      create: { key, value, updatedById: actor.id },
-      update: { value, updatedById: actor.id },
-    });
-  if (given('slipAttachmentPolicy')) await save(SLIP_POLICY_KEY, next.slipAttachmentPolicy);
-  if (given('storeManPolicy')) await save(STORE_MAN_POLICY_KEY, next.storeManPolicy);
+  await prisma.systemSetting.upsert({
+    where: { key: SLIP_POLICY_KEY },
+    create: { key: SLIP_POLICY_KEY, value: next.slipAttachmentPolicy, updatedById: actor.id },
+    update: { value: next.slipAttachmentPolicy, updatedById: actor.id },
+  });
   applySystemSettings(next);
 
-  const changes: string[] = [];
   if (previous.slipAttachmentPolicy !== next.slipAttachmentPolicy) {
-    changes.push('Scanned slip attachment is now ' + (next.slipAttachmentPolicy === 'REQUIRED' ? 'required' : 'optional') + ' for receipts, issues and returns.');
-  }
-  if (previous.storeManPolicy !== next.storeManPolicy) {
-    changes.push(
-      next.storeManPolicy === 'REQUIRED'
-        ? 'A store man is now required: a store with none assigned refuses receipts, issues, disposals and returns.'
-        : 'A store man is now optional: a store with none assigned carries on without naming one.',
-    );
-  }
-  if (changes.length > 0) {
     try {
       const today = getTodayGcAndEc();
       const time = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -113,7 +72,7 @@ export async function updateSystemSettings(
           action: 'UPDATE_SYSTEM_SETTINGS',
           entityType: 'USER',
           entityId: actor.id,
-          details: changes.join(' '),
+          details: 'Scanned slip attachment is now ' + (next.slipAttachmentPolicy === 'REQUIRED' ? 'required' : 'optional') + ' for receipts, issues and returns.',
           previousState: { ...previous },
           newState: { ...next },
         },

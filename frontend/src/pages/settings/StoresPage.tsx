@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Employee, Location, Store } from '../../types/asset-management';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { StoreManReminder } from '../../components/ui/StoreManReminder';
 import { ActivePill, ConfirmDialog, StatusFilter, matchesStatus } from './reference-ui';
 import { RefreshButton } from '../../components/ui/RefreshButton';
 import { FilterPopover, FilterSection, FilterPill } from '../../components/ui/FilterPopover';
@@ -173,7 +174,7 @@ const StoreMen: React.FC<{ store: Store; canManage: boolean; employees: Employee
         ))}
         {men.length === 0 && (
           <span className="text-amber-800">
-            None assigned: this store can't receive, issue, dispose or take returns until a store man is added.
+            None assigned yet: this store's vouchers name no store man until one is added.
           </span>
         )}
       </div>
@@ -299,6 +300,9 @@ export const StoresPage: React.FC = () => {
 
   return (
     <div className="space-y-4 animate-fadeIn pb-16">
+      {/* Stores that still need a store man, for whoever can assign one */}
+      <StoreManReminder stores={stores ?? undefined} />
+
       {/* ── Page header matching AssetsPage ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
         <p className="text-xs text-slate-500">

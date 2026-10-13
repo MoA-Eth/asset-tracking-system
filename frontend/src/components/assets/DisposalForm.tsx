@@ -64,8 +64,6 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   const [formError, setFormError] = useState<string | null>(null);
   // The storekeeper named on the form: a store man of the store the item is in
   const keepers = useStoreKeepers();
-  const { storeManPolicy } = useSystemSettings();
-  const storeManRequired = storeManPolicy === 'REQUIRED';
   const [keeperId, setKeeperId] = useState('');
   const storeMen = keepers.ofLocation(item.storeLocationId);
 
@@ -76,7 +74,6 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   // Required fields still empty; the request can only be submitted once this is empty
   const missingFields = [
     !(Number.isInteger(quantity) && quantity >= 1 && quantity <= inStore) && 'quantity',
-    !isEdit && storeManRequired && keepers.ready && storeMen.length === 0 && 'a store man for this store',
     !isEdit && storeMen.length > 1 && !keeperId && 'storekeeper (store man)',
     !disposalNo.trim() && 'disposal reference no.',
     !dateGc && 'disposal date',
@@ -298,7 +295,6 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
             onChange={setKeeperId}
             current={isEdit ? editApproval?.requestDetails?.storekeeperName : undefined}
             required={!isEdit}
-            refuse={storeManRequired}
           />
           <FileDropField
             label="Committee decision or other document"
