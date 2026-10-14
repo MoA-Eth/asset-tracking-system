@@ -385,7 +385,9 @@ describe('Assets page', () => {
     expect(within(panel).getByLabelText(/Item type/i)).toHaveValue('FIXED');
     // What differs every time starts empty
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('');
-    expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('');
+    // A fixed asset is one item: its quantity is 1 and greyed out
+    expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('1');
+    expect(within(panel).getByLabelText(/^Quantity/i)).toBeDisabled();
     expect(within(panel).getByLabelText(/Serial number/i)).toHaveValue('');
     expect(within(panel).getByLabelText(/Item code/i)).toHaveValue('');
   });
@@ -724,11 +726,19 @@ describe('Asset record', () => {
 
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
     await user.selectOptions(within(panel).getByLabelText(/Physical condition/i), 'NEW');
-    await user.selectOptions(within(panel).getAllByLabelText(/Item type/i)[0], 'FIXED');
+    await user.selectOptions(within(panel).getAllByLabelText(/Item type/i)[0], 'CONSUMABLE');
     // The second line still needs its own item type and condition
     expect(submit).toBeDisabled();
     await user.click(within(others).getByRole('button', { name: /Use the first item's type and condition/ }));
-    expect(within(others).getByLabelText('Item 2 item type')).toHaveValue('FIXED');
+    expect(within(others).getByLabelText('Item 2 item type')).toHaveValue('CONSUMABLE');
+    // A fixed asset line is one item: its quantity becomes 1 and is greyed out
+    await user.selectOptions(within(others).getByLabelText('Item 2 item type'), 'FIXED');
+    expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('1');
+    expect(within(others).getByLabelText('Item 2 quantity')).toBeDisabled();
+    expect(within(others).getByText(/The slip lists 50: a fixed asset is one item/)).toBeInTheDocument();
+    await user.selectOptions(within(others).getByLabelText('Item 2 item type'), 'CONSUMABLE');
+    await user.clear(within(others).getByLabelText('Item 2 quantity'));
+    await user.type(within(others).getByLabelText('Item 2 quantity'), '50');
     expect(submit).toBeEnabled();
     vi.mocked(api.uploadSlip).mockResolvedValue({ url: '/api/uploads/slips/model19.pdf' } as any);
     await user.click(submit);
@@ -740,7 +750,7 @@ describe('Asset record', () => {
         ifmisSlipNumber: '0000044',
         items: [
           expect.objectContaining({ name: 'Sulfa Drug In Vial', quantity: 100 }),
-          expect.objectContaining({ name: 'Streptomycine', category: 'AGRI_MACHINERY', itemType: 'FIXED', condition: 'NEW', uom: 'EA', quantity: 50, unitCostETB: 341, remark: 'IFMIS item code 105101102.0415' }),
+          expect.objectContaining({ name: 'Streptomycine', category: 'AGRI_MACHINERY', itemType: 'CONSUMABLE', condition: 'NEW', uom: 'EA', quantity: 50, unitCostETB: 341, remark: 'IFMIS item code 105101102.0415' }),
         ],
       }),
     );
@@ -1133,7 +1143,8 @@ describe('Asset record', () => {
     await user.selectOptions(within(panel).getByLabelText(/^Category/i), 'IT_EQUIPMENT');
     await user.selectOptions(within(panel).getByLabelText(/Item type/i), 'FIXED');
     await user.selectOptions(within(panel).getByLabelText(/Physical condition/i), 'NEW');
-    await user.type(within(panel).getByLabelText(/^Quantity/i), '5');
+    // A fixed asset: one item, quantity 1
+    expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('1');
     const submit = within(panel).getByRole('button', { name: /Submit for approval/i });
     expect(submit).toBeEnabled();
     await user.click(submit);
@@ -1144,7 +1155,7 @@ describe('Asset record', () => {
     expect(sent.poNumber).toBeUndefined();
     expect(sent.source).toBeUndefined();
     expect(sent.buyer).toBeUndefined();
-    expect(sent.items?.[0]).toMatchObject({ quantity: 5, unitCostETB: 0, totalAmount: 0 });
+    expect(sent.items?.[0]).toMatchObject({ quantity: 1, unitCostETB: 0, totalAmount: 0 });
   });
 
   it('submits a new asset registration from the form footer and triggers Model 19 print modal', async () => {

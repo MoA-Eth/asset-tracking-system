@@ -19,7 +19,12 @@ export interface SlipLine {
   ifmisCode?: string;
   /** Set when this line was already received on the same Model 19 No. */
   alreadyAs?: string;
+  /** The quantity the slip printed, to warn when it lists several of a fixed asset */
+  slipQuantity?: number;
 }
+
+/** A fixed asset is one tagged item, so its line is always quantity 1 */
+export const oneIfFixed = (l: SlipLine): SlipLine => (l.itemType === ItemType.FIXED && l.quantity !== 1 ? { ...l, quantity: 1 } : l);
 
 /** What a line still needs before the receipt can be submitted */
 export const lineMissing = (l: SlipLine, donation = false): string[] =>
@@ -53,7 +58,7 @@ export const SlipLines: React.FC<{
   /** Copies the first item's type and condition into the lines that have none */
   onCopyFirst?: () => void;
 }> = ({ lines, donation, onChange, onCopyFirst }) => {
-  const set = (key: number, patch: Partial<SlipLine>) => onChange(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  const set = (key: number, patch: Partial<SlipLine>) => onChange(lines.map((l) => (l.key === key ? oneIfFixed({ ...l, ...patch }) : l)));
   const cell = (opts?: { align?: 'right'; invalid?: boolean; mono?: boolean }) => `${inputClass('emerald', opts)} !py-1 !text-xs`;
   const total = lines.reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0);
 
@@ -98,6 +103,9 @@ export const SlipLines: React.FC<{
                   <td className="px-2 py-1.5">
                     <input aria-label={`Item ${n} description`} value={l.name} onChange={(e) => set(l.key, { name: e.target.value })} className={cell({ invalid: !l.name.trim() })} />
                     {l.alreadyAs && <p className="mt-0.5 text-[10px] text-amber-700">Already received as {l.alreadyAs}; remove it unless this is a second delivery.</p>}
+                    {l.itemType === ItemType.FIXED && (l.slipQuantity ?? 0) > 1 && (
+                      <p className="mt-0.5 text-[10px] text-amber-700">The slip lists {l.slipQuantity}: a fixed asset is one item, so register the others as their own receipts.</p>
+                    )}
                   </td>
                   <td className="px-2 py-1.5">
                     <select aria-label={`Item ${n} category`} value={l.category} onChange={(e) => set(l.key, { category: e.target.value as AssetCategory })} className={cell({ invalid: !l.category })}>
@@ -131,6 +139,8 @@ export const SlipLines: React.FC<{
                       aria-label={`Item ${n} quantity`}
                       inputMode="numeric"
                       value={l.quantity || ''}
+                      disabled={l.itemType === ItemType.FIXED}
+                      title={l.itemType === ItemType.FIXED ? 'A fixed asset is one item' : undefined}
                       onChange={(e) => set(l.key, { quantity: Number(e.target.value.replace(/[^\d]/g, '')) || 0 })}
                       className={cell({ align: 'right', invalid: !(l.quantity >= 1) })}
                     />
