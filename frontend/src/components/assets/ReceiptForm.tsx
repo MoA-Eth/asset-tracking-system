@@ -10,11 +10,14 @@ import { useSystemSettings } from '../../utils/system-settings';
 import { ITEM_TYPE_OPTIONS } from './asset-state';
 import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
-import { readPdfRows, rowsToText, isModel21, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
+import { readPdfPages, rowsToText, isModel21, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES } from './receipt-options';
 import { SlipLines, SlipLine, lineMissing, oneIfFixed } from './SlipLines';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+
+/** IFMIS slips are a page or two; a longer one is read this far and the rest flagged */
+const MAX_SLIP_PAGES = 30;
 
 // ─── Stock-In Form (Flat Single-Item Format) ────────────────────────────────
 
@@ -252,68 +255,76 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
    * A Model 19 PDF from IFMIS fills in what is still empty: the header and the first item line. Only what the person
    * has not typed is filled, and they check it against the paper before submitting.
    */
+  /**
+   * The fields a slip can fill. `free` also counts a starting value as empty (today's date, the EA unit).
+   * `fromSlip` remembers the value each one last took from a slip: a field still holding it belongs to that slip,
+   * not to the person, so another slip may replace or clear it.
+   */
+  const fromSlip = useRef<Record<string, string | number>>({});
+  // The slip file chosen last, so an earlier, slower read can't overwrite it
+  const latestSlip = useRef<File | null>(null);
+  const today = new Date().toISOString().split('T')[0];
+  const slipFields = () => [
+    { key: 'model19No', label: 'Model 19 No.', current: ifmisSlipNumber, set: setIfmisSlipNumber, empty: '' },
+    { key: 'poNumber', label: 'PO number', current: poNumber, set: setPoNumber, empty: '' },
+    { key: 'receivedDate', label: 'received date', current: ifmisSlipDateGc, set: setIfmisSlipDateGc, empty: today, free: ifmisSlipDateGc === today },
+    { key: 'transactionType', label: 'transaction type', current: transactionType, set: setTransactionType, empty: '' },
+    { key: 'source', label: 'source', current: source, set: setSource, empty: '' },
+    { key: 'buyer', label: 'buyer', current: buyer, set: changeBuyer, empty: '' },
+    { key: 'programName', label: 'program', current: programName, set: setProgramName, empty: '' },
+    { key: 'name', label: 'item description', current: name, set: setName, empty: '' },
+    { key: 'category', label: 'category', current: category, set: setCategory, empty: '' },
+    { key: 'uom', label: 'unit of measure', current: uom, set: setUom, empty: 'EA', free: uom === 'EA' },
+    { key: 'quantity', label: 'quantity', current: quantity, set: setQuantity, empty: 0 },
+    { key: 'unitPrice', label: 'unit price', current: unitCostETB, set: setUnitCostETB, empty: 0 },
+    // The IFMIS item code is the inventory code a consumable is known by (a fixed asset is known by its tag instead)
+    { key: 'ifmisItemCode', label: 'item code', current: ifmisItemCode, set: setIfmisItemCode, empty: '' },
+  ] as { key: string; label: string; current: string | number; set: (v: any) => void; empty: string | number; free?: boolean }[];
+
+  /** Clears what an earlier slip filled in and the person hasn't changed, along with its other item lines */
+  const forgetSlip = () => {
+    for (const f of slipFields()) if (fromSlip.current[f.key] !== undefined && fromSlip.current[f.key] === f.current) f.set(f.empty);
+    fromSlip.current = {};
+    setExtraLines([]);
+    setSlipQuantity(0);
+  };
+
   const fillFromModel19 = (slip: Model19SlipFields) => {
     const filled: string[] = [];
     const line = slip.lines[0];
-    const today = new Date().toISOString().split('T')[0];
-    if (slip.model19No && !ifmisSlipNumber.trim()) {
-      setIfmisSlipNumber(slip.model19No);
-      filled.push('Model 19 No.');
-    }
-    if (slip.poNumber && !poNumber.trim()) {
-      setPoNumber(slip.poNumber);
-      filled.push('PO number');
-    }
-    if (slip.receivedDate && (!ifmisSlipDateGc || ifmisSlipDateGc === today)) {
-      setIfmisSlipDateGc(slip.receivedDate);
-      filled.push('received date');
-    }
-    const type = TRANSACTION_TYPES.find((t) => t.toLowerCase() === slip.transactionType?.toLowerCase());
-    if (type && !transactionType) {
-      setTransactionType(type);
-      filled.push('transaction type');
-    }
-    if (slip.source && !source.trim()) {
-      setSource(slip.source);
-      filled.push('source');
-    }
-    if (slip.buyer && !buyer.trim()) {
-      changeBuyer(slip.buyer);
-      filled.push('buyer');
-    }
-    if (slip.programName && !programName.trim()) {
-      setProgramName(slip.programName);
-      filled.push('program');
-    }
-    if (line) {
-      if (line.description && !name.trim()) {
-        setName(line.description);
-        filled.push('item description');
-      }
-      const mapped = CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(line.category ?? ''))?.[1];
-      if (mapped && !category) {
-        setCategory(mapped);
-        filled.push('category');
-      }
-      if (line.uom && (!uom.trim() || uom === 'EA') && line.uom.toUpperCase() !== uom) {
-        setUom(line.uom.toUpperCase());
-        filled.push('unit of measure');
-      }
-      if (line.quantity) setSlipQuantity(line.quantity);
-      if (line.quantity && !quantity) {
-        setQuantity(line.quantity);
-        filled.push('quantity');
-      }
-      if (line.unitPrice && !unitCostETB) {
-        setUnitCostETB(line.unitPrice);
-        filled.push('unit price');
-      }
-      // The IFMIS item code is the inventory code a consumable is known by (a fixed asset is known by its tag instead)
-      if (line.itemCode && !ifmisItemCode.trim()) {
-        setIfmisItemCode(line.itemCode);
-        filled.push('item code');
+    const values: Record<string, string | number | undefined> = {
+      model19No: slip.model19No,
+      poNumber: slip.poNumber,
+      receivedDate: slip.receivedDate,
+      transactionType: TRANSACTION_TYPES.find((t) => t.toLowerCase() === slip.transactionType?.toLowerCase()),
+      source: slip.source,
+      buyer: slip.buyer,
+      programName: slip.programName,
+      name: line?.description,
+      category: CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(line?.category ?? ''))?.[1],
+      uom: line?.uom?.toUpperCase(),
+      quantity: line?.quantity || undefined,
+      unitPrice: line?.unitPrice || undefined,
+      ifmisItemCode: line?.itemCode,
+    };
+    const taken: Record<string, string | number> = {};
+    for (const f of slipFields()) {
+      const value = values[f.key];
+      const fromEarlierSlip = fromSlip.current[f.key] !== undefined && fromSlip.current[f.key] === f.current;
+      const free = fromEarlierSlip || !!f.free || f.current === f.empty || (typeof f.current === 'string' && !f.current.trim());
+      if (value !== undefined && value !== '' && free) {
+        taken[f.key] = value;
+        if (value !== f.current) {
+          f.set(value);
+          filled.push(f.label);
+        }
+      } else if (fromEarlierSlip) {
+        // The earlier slip's value, which this slip doesn't give: cleared rather than mixed in
+        f.set(f.empty);
       }
     }
+    fromSlip.current = taken;
+    setSlipQuantity(line?.quantity ?? 0);
     // A receipt comes first in an item's life: the same slip line received twice would count the goods twice
     const receivedAs = (description?: string) =>
       slip.model19No && description
@@ -327,24 +338,23 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const already = alreadyCode ? { itemCode: alreadyCode } : undefined;
     // Every other line of the slip is listed under the first, to be registered as its own record
     const others = isEdit ? [] : slip.lines.slice(1);
-    if (others.length > 0) {
-      setExtraLines(
-        others.map((l, i) => ({
-          key: Date.now() + i,
-          slipQuantity: l.quantity,
-          name: l.description ?? '',
-          category: CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(l.category ?? ''))?.[1] ?? '',
-          itemType: '',
-          condition: '',
-          uom: (l.uom ?? 'EA').toUpperCase(),
-          quantity: l.quantity ?? 0,
-          unitPrice: l.unitPrice ?? 0,
-          ifmisCode: l.itemCode,
-          alreadyAs: receivedAs(l.description),
-        })),
-      );
-      filled.push(`${others.length} more ${others.length === 1 ? 'item' : 'items'} below`);
-    }
+    // Always replaced: lines of an earlier slip must not stay behind to be registered with this one
+    setExtraLines(
+      others.map((l, i) => ({
+        key: Date.now() + i,
+        slipQuantity: l.quantity,
+        name: l.description ?? '',
+        category: CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(l.category ?? ''))?.[1] ?? '',
+        itemType: '',
+        condition: '',
+        uom: (l.uom ?? 'EA').toUpperCase(),
+        quantity: l.quantity ?? 0,
+        unitPrice: l.unitPrice ?? 0,
+        ifmisCode: l.itemCode,
+        alreadyAs: receivedAs(l.description),
+      })),
+    );
+    if (others.length > 0) filled.push(`${others.length} more ${others.length === 1 ? 'item' : 'items'} below`);
     if (already) {
       setSlipNote({
         tone: 'warn',
@@ -377,12 +387,17 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   /** Only a Model 19 is read here; a scan, or a PDF that is no IFMIS form, is attached as the copy without being read */
   const fillFromSlip = (rows: PdfRow[]) => {
     const text = rowsToText(rows);
-    if (!text.trim()) {
-      setSlipNote({ tone: 'warn', text: 'This PDF has no text (it is a scanned image), so it could not be read. It is attached; fill in the fields as usual.' });
-      return;
-    }
     if (isModel19(text)) return fillFromModel19(parseModel19(rows));
-    setSlipNote({ tone: 'warn', text: 'Only an IFMIS Model 19 PDF can be read here. It is attached; fill in the fields as usual.' });
+    // Another PDF replaces the slip: what an earlier slip filled in no longer has a document behind it
+    const hadSlip = Object.keys(fromSlip.current).length > 0 || extraLines.length > 0;
+    forgetSlip();
+    const cleared = hadSlip ? ' What the previous slip filled in was cleared.' : '';
+    setSlipNote({
+      tone: 'warn',
+      text: !text.trim()
+        ? `This PDF has no text (it is a scanned image), so it could not be read. It is attached; fill in the fields as usual.${cleared}`
+        : `Only an IFMIS Model 19 PDF can be read here. It is attached; fill in the fields as usual.${cleared}`,
+    });
   };
 
   // A slip chosen with the header button is read like one picked in the form; fields already filled are kept
@@ -405,6 +420,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       return;
     }
     setFormError(null);
+    // Reading takes a moment: if another file is chosen meanwhile, only the last one counts
+    latestSlip.current = file;
     const attach = () => {
       setAttachmentFile(file);
       setAttachmentFileName(file.name);
@@ -412,13 +429,16 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     // A picture is attached as it is; only a PDF saved from IFMIS carries text to read
     if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
       attach();
-      setSlipNote(null);
+      const hadSlip = Object.keys(fromSlip.current).length > 0 || extraLines.length > 0;
+      // A photo may well be the same slip, so what was read from a PDF stays, with a reminder to check it
+      setSlipNote(hadSlip ? { tone: 'warn', text: 'The fields read from the earlier PDF are kept. Check they match this slip.' } : null);
       return;
     }
     // The PDF is read before it is attached: another IFMIS form is refused, not kept as this receipt's copy
     setSlipNote({ tone: 'info', text: 'Reading the slip…' });
-    readPdfRows(file)
-      .then((rows) => {
+    readPdfPages(file, MAX_SLIP_PAGES)
+      .then(({ rows, pages, pagesRead }) => {
+        if (latestSlip.current !== file) return;
         const other = otherForm(rowsToText(rows));
         if (other) {
           const message = `This is ${other}. The receive form takes only a Model 19, so it was not attached and nothing was filled in.`;
@@ -428,8 +448,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         }
         attach();
         fillFromSlip(rows);
+        if (pages > pagesRead) {
+          toast.warning(
+            'Slip only partly read',
+            `This slip has ${pages} pages; only the first ${pagesRead} were read. Add the items from the other pages by hand.`
+          );
+        }
       })
       .catch(() => {
+        if (latestSlip.current !== file) return;
         attach();
         setSlipNote({ tone: 'warn', text: "The slip couldn't be read. It is attached; fill in the fields as usual." });
       });

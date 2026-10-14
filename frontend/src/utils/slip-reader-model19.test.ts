@@ -106,3 +106,16 @@ describe('reading an IFMIS Model 19', () => {
     ]);
   });
 });
+
+describe('Model 19 program name', () => {
+  it('is read only from above the report title, never from an item line', () => {
+    const rows: PdfRow[] = [
+      row(98, [640, 'Print Model19 Report']),
+      row(146, [680, 'INV Model 19 No. :'], [812, '0000077']),
+      row(283, [95, 'S/No.'], [135, 'Item Code'], [278, 'Item Description'], [403, 'UOM'], [826, 'Qty']),
+      row(316, [88, '1'], [128, '103101101.0001'], [270, 'Programmable Logic Controller'], [403, 'EA'], [435, 'AStore'], [510, 'Electrical'], [826, '1'], [960, '5000'], [1050, '5000']),
+    ];
+    expect(parseModel19(rows).programName).toBeUndefined();
+    expect(parseModel19(rows).lines[0].description).toBe('Programmable Logic Controller');
+  });
+});

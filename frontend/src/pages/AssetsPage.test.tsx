@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { AssetsPage } from './AssetsPage';
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
-import { readPdfRows, PdfRow } from '../utils/slip-reader';
+import { readPdfRows, readPdfPages, PdfRow } from '../utils/slip-reader';
 
 /** Lines of PDF text as the reader returns them: cells two spaces apart, laid out left to right */
 const asRows = (lines: string[]): PdfRow[] =>
@@ -16,10 +16,15 @@ const auth = vi.hoisted(() => ({ user: { id: 'enc', payrollId: 'ENC-1', permissi
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn() }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../context/ToastContext', () => ({ useToast: () => toast }));
-vi.mock('../utils/slip-reader', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../utils/slip-reader')>()),
-  readPdfRows: vi.fn(),
-}));
+vi.mock('../utils/slip-reader', async (importOriginal) => {
+  const readPdfRows = vi.fn();
+  return {
+    ...(await importOriginal<typeof import('../utils/slip-reader')>()),
+    readPdfRows,
+    // The receive form reads pages with their count; by default a one-page PDF with the rows above
+    readPdfPages: vi.fn(async (file: File) => ({ rows: await readPdfRows(file), pages: 1, pagesRead: 1 })),
+  };
+});
 vi.mock('../api/client', () => ({
   api: {
     getItems: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn(), getStores: vi.fn(), getApprovals: vi.fn(),
@@ -1356,5 +1361,83 @@ describe('Receiving form: Delivered by follows the buyer', () => {
     await user.clear(deliveredBy);
     await user.type(buyer, '.');
     expect(deliveredBy).toHaveValue('Abebe Kebede Jr.');
+  });
+});
+
+describe('Receiving form: replacing or racing slips', () => {
+  const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+  const slip = (no: string, lines: [string, string][], extraHeader: PdfRow[] = []): PdfRow[] => [
+    r(98, [640, 'Print Model19 Report']),
+    r(146, [680, 'INV Model 19 No. :'], [812, no]),
+    ...extraHeader,
+    r(283, [95, 'S/No.'], [135, 'Item Code'], [278, 'Item Description'], [403, 'UOM'], [826, 'Qty']),
+    ...lines.map(([code, desc], i) => r(316 + i * 50, [88, String(i + 1)], [128, code], [270, desc], [403, 'EA'], [435, 'AMedicine'], [510, 'Medical'], [826, '10'], [960, '5'], [1050, '50'])),
+  ];
+  const openReceive = async (user: ReturnType<typeof userEvent.setup>) => {
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    const upload = (name: string) => user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], name, { type: 'application/pdf' }));
+    return { panel, upload };
+  };
+
+  beforeEach(() => {
+    auth.user.permissions = ENCODER;
+  });
+
+  it('replaces what a wrong slip filled in, including its extra item lines, when the right slip is attached', async () => {
+    const user = userEvent.setup();
+    const { panel, upload } = await openReceive(user);
+
+    vi.mocked(readPdfRows).mockResolvedValueOnce(
+      slip('WRONG-1', [['101.1', 'Wrong item'], ['101.2', 'Wrong extra A'], ['101.3', 'Wrong extra B']], [r(162, [714, 'PO Number :'], [812, '999'])])
+    );
+    await upload('wrong.pdf');
+    expect(await within(panel).findByRole('region', { name: 'Other items on this slip' })).toBeInTheDocument();
+    expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('999');
+
+    // The person types a source by hand: it must survive the swap
+    await user.type(within(panel).getByLabelText(/Source/i), 'Typed supplier');
+
+    vi.mocked(readPdfRows).mockResolvedValueOnce(slip('RIGHT-1', [['202.1', 'Right item']]));
+    await upload('right.pdf');
+    await vi.waitFor(() => expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('RIGHT-1'));
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Right item');
+    // The wrong slip's extra lines and its PO number are gone; what was typed is kept
+    expect(within(panel).queryByRole('region', { name: 'Other items on this slip' })).toBeNull();
+    expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('');
+    expect(within(panel).getByLabelText(/Source/i)).toHaveValue('Typed supplier');
+  });
+
+  it('uses the slip chosen last when an earlier one finishes reading later', async () => {
+    const user = userEvent.setup();
+    const { panel, upload } = await openReceive(user);
+
+    let finishFirst!: (rows: PdfRow[]) => void;
+    vi.mocked(readPdfPages)
+      .mockImplementationOnce(() => new Promise((resolve) => { finishFirst = (rows) => resolve({ rows, pages: 1, pagesRead: 1 }); }))
+      .mockResolvedValueOnce({ rows: slip('SECOND-1', [['303.1', 'Second slip item']]), pages: 1, pagesRead: 1 });
+
+    await upload('first.pdf');
+    await upload('second.pdf');
+    await vi.waitFor(() => expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('SECOND-1'));
+
+    // The first, slower read arrives now and must not take over
+    finishFirst(slip('FIRST-1', [['404.1', 'First slip item']]));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('SECOND-1');
+    expect(within(panel).getByText('second.pdf')).toBeInTheDocument();
+    expect(within(panel).queryByText('first.pdf')).toBeNull();
+  });
+
+  it('warns when a slip has more pages than were read', async () => {
+    const user = userEvent.setup();
+    const { upload } = await openReceive(user);
+    vi.mocked(readPdfPages).mockResolvedValueOnce({ rows: slip('LONG-1', [['505.1', 'Item']]), pages: 40, pagesRead: 30 });
+    await upload('long.pdf');
+    await vi.waitFor(() =>
+      expect(toast.warning).toHaveBeenCalledWith('Slip only partly read', expect.stringMatching(/40 pages; only the first 30 were read/))
+    );
   });
 });

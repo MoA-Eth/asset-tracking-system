@@ -27,10 +27,17 @@ export async function openPdf(file: File) {
 
 /** The rows of a PDF, top to bottom. Empty for a scanned PDF. */
 export async function readPdfRows(file: File, maxPages = 5): Promise<PdfRow[]> {
+  return (await readPdfPages(file, maxPages)).rows;
+}
+
+/** The rows of a PDF with its page count, so a reader can tell when pages past `maxPages` were left unread */
+export async function readPdfPages(file: File, maxPages = 5): Promise<{ rows: PdfRow[]; pages: number; pagesRead: number }> {
   const doc = await openPdf(file);
   const all: PdfRow[] = [];
+  const pages = doc.numPages;
+  const pagesRead = Math.min(pages, maxPages);
   try {
-    for (let p = 1; p <= Math.min(doc.numPages, maxPages); p++) {
+    for (let p = 1; p <= pagesRead; p++) {
       const page = await doc.getPage(p);
       const height = page.getViewport({ scale: 1 }).height;
       const content = await page.getTextContent();
@@ -50,7 +57,7 @@ export async function readPdfRows(file: File, maxPages = 5): Promise<PdfRow[]> {
   } finally {
     await doc.destroy();
   }
-  return all;
+  return { rows: all, pages, pagesRead };
 }
 
 /** The rows as text: one line per row, its cells two spaces apart */
@@ -234,8 +241,11 @@ export function parseModel19(rows: PdfRow[]): Model19SlipFields {
       }
     });
   });
-  // The program, printed above the report title
-  const program = rows.find((r) => /program/i.test(rowsToText([r])) && !/print\s*model/i.test(rowsToText([r])));
+  // The program, printed above the report title (only there: an item such as "Programmable controller" is no program)
+  const titleIndex = rows.findIndex((r) => /print\s*model\s*19/i.test(rowsToText([r])));
+  const headerIndex = rows.findIndex((r) => r.cells.some((c) => HEADER_LABELS.some((h) => h.label.test(c.text))));
+  const above = titleIndex >= 0 ? titleIndex : headerIndex >= 0 ? headerIndex : 0;
+  const program = rows.slice(0, above).find((r) => /program/i.test(rowsToText([r])));
   if (program) found.programName = rowsToText([program]).trim();
 
   // The figure columns, from their headings: IFMIS prints a line's total and its remark as one piece of text
