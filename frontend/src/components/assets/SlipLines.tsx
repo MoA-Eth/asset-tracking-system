@@ -15,8 +15,10 @@ export interface SlipLine {
   uom: string;
   quantity: number;
   unitPrice: number;
-  /** The IFMIS inventory code, kept in the remark as on the first line */
+  /** A consumable's IFMIS inventory code, read from the slip */
   ifmisCode?: string;
+  /** A fixed asset's tag number, typed: it becomes its item code */
+  tag?: string;
   /** Set when this line was already received on the same Model 19 No. */
   alreadyAs?: string;
   /** The quantity the slip printed, to warn when it lists several of a fixed asset */
@@ -32,6 +34,8 @@ export const lineMissing = (l: SlipLine, donation = false): string[] =>
     !l.name.trim() && 'description',
     !l.category && 'category',
     !l.itemType && 'item type',
+    l.itemType === ItemType.FIXED && !l.tag?.trim() && 'tag number',
+    l.itemType === ItemType.CONSUMABLE && !l.ifmisCode?.trim() && 'item code',
     !l.condition && 'condition',
     !l.uom.trim() && 'unit',
     !(Number.isInteger(l.quantity) && l.quantity >= 1) && 'quantity',
@@ -80,11 +84,12 @@ export const SlipLines: React.FC<{
         )}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] text-left text-xs">
+        <table className="w-full min-w-[980px] text-left text-xs">
           <thead>
             <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               <th className="px-2 py-1.5 w-8">#</th>
               <th className="px-2 py-1.5">Description</th>
+              <th className="px-2 py-1.5 w-36">Tag / item code</th>
               <th className="px-2 py-1.5 w-40">Category</th>
               <th className="px-2 py-1.5 w-36">Item type</th>
               <th className="px-2 py-1.5 w-28">Condition</th>
@@ -105,6 +110,15 @@ export const SlipLines: React.FC<{
                     {l.alreadyAs && <p className="mt-0.5 text-[10px] text-amber-700">Already received as {l.alreadyAs}; remove it unless this is a second delivery.</p>}
                     {l.itemType === ItemType.FIXED && (l.slipQuantity ?? 0) > 1 && (
                       <p className="mt-0.5 text-[10px] text-amber-700">The slip lists {l.slipQuantity}: a fixed asset is one item, so register the others as their own receipts.</p>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5">
+                    {l.itemType === ItemType.FIXED ? (
+                      <input aria-label={`Item ${n} tag number`} placeholder="MOA-…" value={l.tag ?? ''} onChange={(e) => set(l.key, { tag: e.target.value.toUpperCase() })} className={cell({ mono: true, invalid: !l.tag?.trim() })} />
+                    ) : l.itemType === ItemType.CONSUMABLE ? (
+                      <input aria-label={`Item ${n} item code`} value={l.ifmisCode ?? ''} onChange={(e) => set(l.key, { ifmisCode: e.target.value })} className={cell({ mono: true, invalid: !l.ifmisCode?.trim() })} />
+                    ) : (
+                      <input aria-label={`Item ${n} code`} disabled placeholder="Type first" className={cell({ mono: true })} />
                     )}
                   </td>
                   <td className="px-2 py-1.5">

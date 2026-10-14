@@ -219,6 +219,8 @@ export interface Item {
   history: ItemMovementHistory[];
 
   // Extended Model 19 (IFMIS Receiving) Fields
+  /** A consumable's IFMIS inventory item code, e.g. 108101101.0021 (shared by every delivery of it) */
+  ifmisItemCode?: string;
   provisionType?: ProvisionType;
   poNumber?: string;
   transactionType?: string;
@@ -509,6 +511,7 @@ export interface AuditLogEntry {
 export type ProvisionType = 'PURCHASE' | 'DONATION';
 
 export interface CreateStockInRequest {
+  ifmisItemCode?: string;
   provisionType?: ProvisionType;
   /** The store man of the receiving store who receives the goods */
   receivedByEmployeeId?: string;
@@ -547,6 +550,7 @@ export interface CreateStockInRequest {
 
   // Multi-item batch registration support
   items?: Array<{
+    ifmisItemCode?: string;
     itemCode?: string;
     name: string;
     category?: AssetCategory;
@@ -568,6 +572,7 @@ export interface CreateStockInRequest {
 
 /** Corrections to a Stock-In registration while it still waits for Stage 1 endorsement. */
 export interface UpdateStockInRequest {
+  ifmisItemCode?: string;
   provisionType?: ProvisionType;
   receivedByEmployeeId?: string;
   name: string;

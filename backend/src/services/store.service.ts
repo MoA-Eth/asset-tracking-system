@@ -85,6 +85,7 @@ function mapItem(raw: any): ItemWithRelations {
 
     // Model 19 fields
     provisionType: model19Meta.provisionType === 'DONATION' ? 'DONATION' : 'PURCHASE',
+    ifmisItemCode: model19Meta.ifmisItemCode || undefined,
     poNumber: model19Meta.poNumber || raw.poNumber || undefined,
     transactionType: model19Meta.transactionType || raw.transactionType || undefined,
     source: model19Meta.source || raw.source || undefined,
@@ -765,6 +766,7 @@ export class StoreService {
           unitCostETB: payload.unitCostETB,
           condition: payload.condition,
           itemCode: payload.itemCode,
+          ifmisItemCode: payload.ifmisItemCode,
           uom: payload.uom,
           subInventory: payload.subInventory,
           itemCategoryDisplay: payload.itemCategoryDisplay,
@@ -783,11 +785,22 @@ export class StoreService {
         line.totalAmount = 0;
       }
     }
-    // A fixed asset is one tagged item: several of them are registered as one receipt each
+    // A fixed asset is one tagged item: several of them are registered as one receipt each. It is known by its tag
+    // number, which becomes its item code; a consumable is known by its IFMIS inventory item code.
+    const tags: string[] = [];
     for (const line of rawItems) {
       const type = line.itemType || payload.itemType || 'FIXED';
+      const name = line.name || payload.name || 'asset';
       if (type === 'FIXED' && Number(line.quantity ?? 1) !== 1) {
-        throw new BadRequestError(`A fixed asset is one item, so its quantity is 1: register each ${line.name || payload.name || 'asset'} as its own receipt.`);
+        throw new BadRequestError(`A fixed asset is one item, so its quantity is 1: register each ${name} as its own receipt.`);
+      }
+      if (type === 'FIXED') {
+        const tag = String(line.itemCode ?? '').trim();
+        if (!tag) throw new BadRequestError(`Enter the tag number of ${name}, e.g. MOA-072351. A fixed asset is known by its tag.`);
+        if (tags.some((t) => t.toLowerCase() === tag.toLowerCase())) throw new BadRequestError(`Two lines on this slip have tag number ${tag}.`);
+        tags.push(tag);
+      } else if (!String(line.ifmisItemCode ?? payload.ifmisItemCode ?? '').trim()) {
+        throw new BadRequestError(`Enter the item code of ${name}, e.g. 108101101.0021. A consumable item is known by its item code.`);
       }
     }
     // Check every line before saving any, so a bad line can't leave half a slip registered
@@ -795,6 +808,10 @@ export class StoreService {
     const typedSerials = rawItems.map((line) => String(line.serialNumber ?? '').trim().toLowerCase()).filter(Boolean);
     if (new Set(typedSerials).size !== typedSerials.length) throw new BadRequestError('Two lines on this slip have the same serial number.');
     for (const line of rawItems) await assertSerialNumberFree(line.serialNumber);
+    for (const tag of tags) {
+      const other = await prisma.item.findFirst({ where: { itemCode: { equals: tag, mode: 'insensitive' } }, select: { itemCode: true, name: true } });
+      if (other) throw new ConflictError(`Tag number ${tag} is already registered (${other.name}). Check the tag on the asset.`);
+    }
 
     const createdItems: ItemWithRelations[] = [];
     let primaryApproval: TransactionApproval | undefined;
@@ -811,6 +828,7 @@ export class StoreService {
 
       const model19Meta = {
         provisionType: donation ? 'DONATION' : 'PURCHASE',
+        ifmisItemCode: String(lineItem.ifmisItemCode ?? payload.ifmisItemCode ?? '').trim() || undefined,
         poNumber: donation ? undefined : payload.poNumber,
         transactionType: payload.transactionType || 'PO Receipt',
         source: donation ? undefined : payload.source,
@@ -968,6 +986,7 @@ export class StoreService {
     const meta = {
       ...previousMeta,
       provisionType: donation ? 'DONATION' : 'PURCHASE',
+      ifmisItemCode: payload.ifmisItemCode !== undefined ? payload.ifmisItemCode.trim() || undefined : previousMeta.ifmisItemCode,
       poNumber: donation ? undefined : payload.poNumber?.trim() || undefined,
       transactionType: payload.transactionType || previousMeta.transactionType || 'PO Receipt',
       source: donation ? undefined : payload.source?.trim() || undefined,

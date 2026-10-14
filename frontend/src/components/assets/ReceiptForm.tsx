@@ -36,6 +36,7 @@ export interface StockInFormProps {
 /** What a new receipt can start from instead of empty: an earlier item ("Duplicate as new receipt") */
 export interface ReceiptTemplate {
   provisionType?: ProvisionType;
+  ifmisItemCode?: string;
   transactionType?: string;
   source?: string;
   buyer?: string;
@@ -52,6 +53,7 @@ export interface ReceiptTemplate {
 /** What a duplicate keeps from an item: what it is and where it comes from, never its number, serial, quantity or slip */
 export const templateFromItem = (item: ItemWithRelations): ReceiptTemplate => ({
   provisionType: item.provisionType,
+  ifmisItemCode: item.itemType === ItemType.CONSUMABLE ? item.ifmisItemCode : undefined,
   transactionType: item.transactionType,
   source: item.source,
   buyer: item.buyer,
@@ -107,7 +109,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [category, setCategory] = useState<AssetCategory | ''>(editItem?.category ?? start?.category ?? '');
   // Fixed asset or consumable: chosen on every receipt and kept with the item
   const [itemType, setItemType] = useState<ItemType | ''>(editItem?.itemType ?? (editItem ? ItemType.FIXED : start?.itemType ?? ''));
+  // A fixed asset is known by its tag number, which is its item code; a consumable by its IFMIS item code
   const [itemCode, setItemCode] = useState(editItem?.itemCode ?? '');
+  const [ifmisItemCode, setIfmisItemCode] = useState(editItem?.ifmisItemCode ?? start?.ifmisItemCode ?? '');
   const [uom, setUom] = useState(editItem?.uom || start?.uom || 'EA');
   const [subInventory, setSubInventory] = useState(editItem?.subInventory ?? '');
   const [lotBatchNo, setLotBatchNo] = useState(editItem?.lotBatchNo ?? '');
@@ -161,6 +165,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !storeId && 'receiving store',
     !isEdit && storeMen.length > 1 && !receiverId && 'received by (store man)',
     !name.trim() && 'item description',
+    !isEdit && itemType === ItemType.FIXED && !itemCode.trim() && 'tag number',
+    itemType === ItemType.CONSUMABLE && !ifmisItemCode.trim() && 'item code',
     !category && 'category',
     !itemType && 'item type',
     !condition && 'physical condition',
@@ -207,6 +213,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setUnitCostETB(0);
     setCondition('');
     setRemark('');
+    setIfmisItemCode('');
     setExtraLines([]);
     setProvisionType('PURCHASE');
     setDeliveredBy('');
@@ -282,10 +289,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         setUnitCostETB(line.unitPrice);
         filled.push('unit price');
       }
-      // The IFMIS item code is the inventory code, shared by every delivery of that item, so it can't be the item code here
-      if (line.itemCode && !remark.trim()) {
-        setRemark(`IFMIS item code ${line.itemCode}`);
-        filled.push('remark (IFMIS item code)');
+      // The IFMIS item code is the inventory code a consumable is known by (a fixed asset is known by its tag instead)
+      if (line.itemCode && !ifmisItemCode.trim()) {
+        setIfmisItemCode(line.itemCode);
+        filled.push('item code');
       }
     }
     // A receipt comes first in an item's life: the same slip line received twice would count the goods twice
@@ -465,6 +472,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           ifmisSlipDateGc,
           ifmisSlipAttachmentUrl: slipUrl,
           provisionType,
+          ifmisItemCode: itemType === ItemType.CONSUMABLE ? ifmisItemCode.trim() : undefined,
           poNumber: donation ? undefined : poNumber.trim() || undefined,
           transactionType,
           source: donation ? undefined : source.trim() || undefined,
@@ -496,7 +504,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     try {
       const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
       const itemsPayload = [{
-        itemCode: itemCode.trim() || undefined,
+        itemCode: itemType === ItemType.FIXED ? itemCode.trim() || undefined : undefined,
+        ifmisItemCode: itemType === ItemType.CONSUMABLE ? ifmisItemCode.trim() || undefined : undefined,
         name: name.trim(),
         category: category as AssetCategory,
         itemType: itemType as ItemType,
@@ -513,6 +522,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         totalAmount,
         remark: remark.trim() || undefined,
       }, ...extraLines.map((l) => ({
+        itemCode: l.itemType === ItemType.FIXED ? l.tag?.trim() || undefined : undefined,
+        ifmisItemCode: l.itemType === ItemType.CONSUMABLE ? l.ifmisCode?.trim() || undefined : undefined,
         name: l.name.trim(),
         category: l.category as AssetCategory,
         itemType: l.itemType as ItemType,
@@ -522,7 +533,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
         quantity: l.quantity,
         totalAmount: donation ? 0 : l.quantity * l.unitPrice,
-        remark: l.ifmisCode ? `IFMIS item code ${l.ifmisCode}` : undefined,
       }))];
 
       const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
@@ -556,7 +566,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       const targetStore = locations.find((l) => l.id === storeLocationId);
       const voucherItems: Model19LineItem[] = [{
         sNo: 1,
-        itemCode: itemCode.trim() || (res.items?.[0]?.itemCode || res.item?.itemCode || '—'),
+        itemCode: (itemType === ItemType.CONSUMABLE ? ifmisItemCode.trim() : itemCode.trim()) || res.items?.[0]?.itemCode || res.item?.itemCode || '—',
         itemDescription: name.trim(),
         uom: uom.trim(),
         subInventory: subInventory.trim() || targetStore?.name || '',
@@ -572,7 +582,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         remark: remark.trim() || '',
       }, ...extraLines.map((l, i): Model19LineItem => ({
         sNo: i + 2,
-        itemCode: res.items?.[i + 1]?.itemCode || '—',
+        itemCode: (l.itemType === ItemType.CONSUMABLE ? l.ifmisCode : l.tag) || res.items?.[i + 1]?.itemCode || '—',
         itemDescription: l.name.trim(),
         uom: l.uom.trim(),
         subInventory: targetStore?.name || '',
@@ -585,7 +595,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         quantity: l.quantity,
         unitPrice: donation ? 0 : l.unitPrice,
         totalAmount: donation ? 0 : l.quantity * l.unitPrice,
-        remark: l.ifmisCode ? `IFMIS item code ${l.ifmisCode}` : '',
+        remark: '',
       }))];
 
       const generatedVoucher: Model19Voucher = {
@@ -789,17 +799,36 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             </Field>
 
             {isEdit ? (
-              <Field label="Item code" hint="The item code can't be changed after registration">
+              <Field label={itemType === ItemType.CONSUMABLE ? 'Record code' : 'Tag number'} hint="It can't be changed after registration">
                 <ReadOnlyValue mono>{itemCode}</ReadOnlyValue>
               </Field>
-            ) : (
-              <Field label="Item code" optional hint="Leave blank to generate one automatically" htmlFor="stock-in-item-code">
+            ) : itemType === ItemType.FIXED ? (
+              <Field label="Tag number" required hint="The tag on the asset; it becomes its item code" htmlFor="stock-in-item-code">
                 <input
                   id="stock-in-item-code"
                   type="text"
-                  placeholder="e.g. 107101102.4336"
+                  required
+                  placeholder="e.g. MOA-072351"
                   value={itemCode}
-                  onChange={(e) => setItemCode(e.target.value)}
+                  onChange={(e) => setItemCode(e.target.value.toUpperCase())}
+                  className={input({ mono: true })}
+                />
+              </Field>
+            ) : itemType !== ItemType.CONSUMABLE ? (
+              <Field label="Tag number / item code" hint="Choose the item type first: a fixed asset is known by its tag number, a consumable by its item code">
+                <input type="text" disabled aria-label="Tag number or item code" placeholder="Choose the item type first" className={input({ mono: true })} />
+              </Field>
+            ) : null}
+
+            {itemType === ItemType.CONSUMABLE && (
+              <Field label="Item code" required hint="The inventory code from IFMIS, the same on every delivery of this item" htmlFor="stock-in-ifmis-code">
+                <input
+                  id="stock-in-ifmis-code"
+                  type="text"
+                  required
+                  placeholder="e.g. 108101101.0021"
+                  value={ifmisItemCode}
+                  onChange={(e) => setIfmisItemCode(e.target.value)}
                   className={input({ mono: true })}
                 />
               </Field>
@@ -997,7 +1026,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
   const voucherItems: Model19LineItem[] = targetItems.map((it, idx) => ({
     id: it.id,
     sNo: idx + 1,
-    itemCode: it.itemCode,
+    itemCode: it.itemType === ItemType.CONSUMABLE && it.ifmisItemCode ? it.ifmisItemCode : it.itemCode,
     itemDescription: it.name,
     uom: it.uom || 'EA',
     subInventory: it.subInventory || item.storeLocation?.roomNumber || '—',
