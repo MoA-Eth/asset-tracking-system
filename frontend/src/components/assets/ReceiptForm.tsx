@@ -149,6 +149,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   useEffect(() => {
     if (fixedOne && quantity !== 1) setQuantity(1);
   }, [fixedOne, quantity]);
+  // A serial number belongs to a fixed asset; a consumable shows the field only if it already has one
+  const showSerial = itemType !== ItemType.CONSUMABLE || !!serialNumber.trim();
   // What the slip's first line said, to warn when it lists several of a fixed asset
   const [slipQuantity, setSlipQuantity] = useState(0);
   const totalAmount = donation ? 0 : (Number(quantity) || 0) * (Number(unitCostETB) || 0);
@@ -657,6 +659,28 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             </select>
           </Field>
 
+          <Field label="Transaction type" required htmlFor="stock-in-transaction-type" error={fieldErrors.error('transactionType')}>
+            <select id="stock-in-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} onBlur={fieldErrors.touch('transactionType')} className={input({ invalid: !!fieldErrors.error('transactionType') })}>
+              <option value="" disabled>Select…</option>
+              {TRANSACTION_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Received date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
+            <input
+              id="stock-in-slip-date"
+              type="date"
+              required
+              value={ifmisSlipDateGc}
+              onChange={(e) => setIfmisSlipDateGc(e.target.value)}
+              className={input()}
+            />
+          </Field>
+
           <Field
             label="Model 19 No."
             required
@@ -675,43 +699,30 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             />
           </Field>
 
-          {!donation && (
-            <Field label="PO number" optional htmlFor="stock-in-po">
-              <input
-                id="stock-in-po"
-                type="text"
-                placeholder="e.g. 186"
-                value={poNumber}
-                onChange={(e) => setPoNumber(e.target.value)}
-                className={input({ mono: true })}
-              />
-            </Field>
-          )}
-
-          <Field label="Received date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
+          <Field label="Program / project" optional span="sm:col-span-2">
             <input
-              id="stock-in-slip-date"
-              type="date"
-              required
-              value={ifmisSlipDateGc}
-              onChange={(e) => setIfmisSlipDateGc(e.target.value)}
+              type="text"
+              value={programName}
+              onChange={(e) => setProgramName(e.target.value)}
+              placeholder="Program or project the goods were bought for"
               className={input()}
             />
           </Field>
 
-          <Field label="Transaction type" required htmlFor="stock-in-transaction-type" error={fieldErrors.error('transactionType')}>
-            <select id="stock-in-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} onBlur={fieldErrors.touch('transactionType')} className={input({ invalid: !!fieldErrors.error('transactionType') })}>
-              <option value="" disabled>Select…</option>
-              {TRANSACTION_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </Field>
-
+          {/* What it was bought on: a donation has none of it */}
           {!donation && (
             <>
+              <Field label="PO number" optional htmlFor="stock-in-po">
+                <input
+                  id="stock-in-po"
+                  type="text"
+                  placeholder="e.g. 186"
+                  value={poNumber}
+                  onChange={(e) => setPoNumber(e.target.value)}
+                  className={input({ mono: true })}
+                />
+              </Field>
+
               <Field label="Source (supplier / vendor)" required htmlFor="stock-in-source" error={fieldErrors.error('source')}>
                 <input
                   id="stock-in-source"
@@ -736,57 +747,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               </Field>
             </>
           )}
-
-          <Field label="Program / project" optional span="sm:col-span-2">
-            <input
-              type="text"
-              value={programName}
-              onChange={(e) => setProgramName(e.target.value)}
-              placeholder="Program or project the goods were bought for"
-              className={input()}
-            />
-          </Field>
-
-          <Field label="Receiving store" required htmlFor="stock-in-store">
-            <select id="stock-in-store" required value={storeId} onChange={(e) => chooseStore(e.target.value)} className={input()}>
-              <option value="" disabled>Select…</option>
-              {stores.map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </Field>        </FieldGrid>
+        </FieldGrid>
       </FormSection>
 
       {/* ── Section 2: Item received ── */}
       <FormSection step={2} title="Item received" subtitle="የተረከቡት ዕቃ ዝርዝር መረጃ" icon={PackagePlus} accent="emerald">
         <div className="space-y-3.5">
           <FieldGrid>
-            <Field label="Item description" required span="sm:col-span-2" htmlFor="stock-in-item-name" error={fieldErrors.error('itemName')}>
-              <input
-                id="stock-in-item-name"
-                type="text"
-                required
-                placeholder="e.g. Dell Latitude 5440 Laptop"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={fieldErrors.touch('itemName')}
-                className={input({ invalid: !!fieldErrors.error('itemName') })}
-              />
-            </Field>
-
-            <Field label="Category" required htmlFor="stock-in-category" error={fieldErrors.error('category')}>
-              <select id="stock-in-category" required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} onBlur={fieldErrors.touch('category')} className={input({ invalid: !!fieldErrors.error('category') })}>
-                <option value="" disabled>Select…</option>
-                {COMMON_CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
             <Field label="Item type" required htmlFor="stock-in-item-type" error={fieldErrors.error('itemType')} hint="ቋሚ ዕቃ (fixed) or አላቂ ዕቃ (consumable). It can't be changed once approved.">
               <select id="stock-in-item-type" required value={itemType} onChange={(e) => setItemType(e.target.value as ItemType)} onBlur={fieldErrors.touch('itemType')} className={input({ invalid: !!fieldErrors.error('itemType') })}>
                 <option value="" disabled>Select…</option>
@@ -834,27 +801,67 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               </Field>
             )}
 
-            <Field label="Serial number" optional htmlFor="stock-in-serial">
+            {/* A serial number belongs to a fixed asset; a consumable shows one only if it already has one */}
+            {showSerial ? (
+              <Field label="Serial number" optional htmlFor="stock-in-serial">
+                <input
+                  id="stock-in-serial"
+                  type="text"
+                  placeholder="e.g. SN-892348"
+                  value={serialNumber}
+                  onChange={(e) => setSerialNumber(e.target.value)}
+                  className={input({ mono: true })}
+                />
+              </Field>
+            ) : (
+              <Field label="Physical condition" required htmlFor="stock-in-condition" error={fieldErrors.error('condition')}>
+                <select id="stock-in-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} onBlur={fieldErrors.touch('condition')} className={input({ invalid: !!fieldErrors.error('condition') })}>
+                  <option value="" disabled>Select…</option>
+                  <option value={ItemCondition.NEW}>New (አዲስ)</option>
+                  <option value={ItemCondition.GOOD}>Good (ጥሩ)</option>
+                  <option value={ItemCondition.FAIR}>Fair (መካከለኛ)</option>
+                  <option value={ItemCondition.NEEDS_REPAIR}>Needs repair (ጥገና የሚያስፈልገው)</option>
+                  <option value={ItemCondition.DAMAGED}>Damaged (የተበላሸ)</option>
+                </select>
+              </Field>
+            )}
+
+            <Field label="Item description" required span={showSerial ? undefined : 'sm:col-span-2'} htmlFor="stock-in-item-name" error={fieldErrors.error('itemName')}>
               <input
-                id="stock-in-serial"
+                id="stock-in-item-name"
                 type="text"
-                placeholder="e.g. SN-892348"
-                value={serialNumber}
-                onChange={(e) => setSerialNumber(e.target.value)}
-                className={input({ mono: true })}
+                required
+                placeholder="e.g. Dell Latitude 5440 Laptop"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={fieldErrors.touch('itemName')}
+                className={input({ invalid: !!fieldErrors.error('itemName') })}
               />
             </Field>
 
-            <Field label="Physical condition" required htmlFor="stock-in-condition" error={fieldErrors.error('condition')}>
-              <select id="stock-in-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} onBlur={fieldErrors.touch('condition')} className={input({ invalid: !!fieldErrors.error('condition') })}>
+            <Field label="Category" required htmlFor="stock-in-category" error={fieldErrors.error('category')}>
+              <select id="stock-in-category" required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} onBlur={fieldErrors.touch('category')} className={input({ invalid: !!fieldErrors.error('category') })}>
                 <option value="" disabled>Select…</option>
-                <option value={ItemCondition.NEW}>New (አዲስ)</option>
-                <option value={ItemCondition.GOOD}>Good (ጥሩ)</option>
-                <option value={ItemCondition.FAIR}>Fair (መካከለኛ)</option>
-                <option value={ItemCondition.NEEDS_REPAIR}>Needs repair (ጥገና የሚያስፈልገው)</option>
-                <option value={ItemCondition.DAMAGED}>Damaged (የተበላሸ)</option>
+                {COMMON_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
               </select>
             </Field>
+
+            {showSerial && (
+              <Field label="Physical condition" required htmlFor="stock-in-condition" error={fieldErrors.error('condition')}>
+                <select id="stock-in-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} onBlur={fieldErrors.touch('condition')} className={input({ invalid: !!fieldErrors.error('condition') })}>
+                  <option value="" disabled>Select…</option>
+                  <option value={ItemCondition.NEW}>New (አዲስ)</option>
+                  <option value={ItemCondition.GOOD}>Good (ጥሩ)</option>
+                  <option value={ItemCondition.FAIR}>Fair (መካከለኛ)</option>
+                  <option value={ItemCondition.NEEDS_REPAIR}>Needs repair (ጥገና የሚያስፈልገው)</option>
+                  <option value={ItemCondition.DAMAGED}>Damaged (የተበላሸ)</option>
+                </select>
+              </Field>
+            )}
           </FieldGrid>
 
           {/* Quantity & valuation */}
@@ -935,8 +942,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       {/* ── Section 3: Delivery & attachment ── */}
       <FormSection
         step={3}
-        title="Delivery & attachment"
-        subtitle="ፊርማ እና ሰነድ"
+        title="Store, delivery & attachment"
+        subtitle="መጋዘን፣ ፊርማ እና ሰነድ"
         icon={Upload}
         accent="emerald"
         aside={
@@ -950,15 +957,16 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         }
       >
         <div className="space-y-3.5">
-          <FieldGrid cols={2}>
-            <Field label="Delivered by" optional>
-              <input
-                type="text"
-                placeholder="e.g. Delivery driver / vendor agent"
-                value={deliveredBy}
-                onChange={(e) => setDeliveredBy(e.target.value)}
-                className={input()}
-              />
+          <FieldGrid>
+            <Field label="Receiving store" required htmlFor="stock-in-store">
+              <select id="stock-in-store" required value={storeId} onChange={(e) => chooseStore(e.target.value)} className={input()}>
+                <option value="" disabled>Select…</option>
+                {stores.map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
             </Field>
 
             <StoreManField
@@ -973,6 +981,16 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               current={isEdit ? receivedBy || undefined : undefined}
               required={!isEdit}
             />
+
+            <Field label="Delivered by" optional>
+              <input
+                type="text"
+                placeholder="e.g. Delivery driver / vendor agent"
+                value={deliveredBy}
+                onChange={(e) => setDeliveredBy(e.target.value)}
+                className={input()}
+              />
+            </Field>
           </FieldGrid>
 
           <FileDropField
