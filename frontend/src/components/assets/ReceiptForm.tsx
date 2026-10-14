@@ -124,7 +124,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   // A new receipt starts empty (the field shows 0), so the number is always typed on purpose
   const [quantity, setQuantity] = useState<number>(editItem ? Number(editItem.quantity) || 1 : 0);
   const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? start?.unitCostETB ?? 0);
-  const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? start?.condition ?? '');
+  const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? start?.condition ?? ItemCondition.NEW);
   const [remark, setRemark] = useState(editItem?.remark ?? '');
 
   // Section 3: Signatures & Document Scan
@@ -170,8 +170,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   useEffect(() => {
     if (fixedOne && quantity !== 1) setQuantity(1);
   }, [fixedOne, quantity]);
-  // A serial number belongs to a fixed asset; a consumable shows the field only if it already has one
-  const showSerial = itemType !== ItemType.CONSUMABLE || !!serialNumber.trim();
   // What the slip's first line said, to warn when it lists several of a fixed asset
   const [slipQuantity, setSlipQuantity] = useState(0);
   const totalAmount = donation ? 0 : (Number(quantity) || 0) * (Number(unitCostETB) || 0);
@@ -247,7 +245,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setPrintedPadTo('');
     setQuantity(0);
     setUnitCostETB(0);
-    setCondition('');
+    setCondition(ItemCondition.NEW);
     setRemark('');
     setIfmisItemCode('');
     setExtraLines([]);
@@ -290,7 +288,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     { key: 'name', label: 'item description', current: name, set: setName, empty: '' },
     { key: 'category', label: 'category', current: category, set: setCategory, empty: '' },
     { key: 'itemType', label: 'item type', current: itemType, set: setItemType, empty: '' },
-    { key: 'condition', label: 'condition', current: condition, set: setCondition, empty: '' },
+    { key: 'condition', label: 'condition', current: condition, set: setCondition, empty: ItemCondition.NEW },
     { key: 'uom', label: 'unit of measure', current: uom, set: setUom, empty: 'EA', free: uom === 'EA' },
     { key: 'quantity', label: 'quantity', current: quantity, set: setQuantity, empty: 0 },
     { key: 'unitPrice', label: 'unit price', current: unitCostETB, set: setUnitCostETB, empty: 0 },
@@ -990,18 +988,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         lockFirstCode={isEdit && itemType === ItemType.FIXED}
         firstDetails={
           <FieldGrid cols={2}>
-            {showSerial && (
-              <Field label="Serial number" optional htmlFor="stock-in-serial">
-                <input
-                  id="stock-in-serial"
-                  type="text"
-                  placeholder="e.g. SN-892348"
-                  value={serialNumber}
-                  onChange={(e) => setSerialNumber(e.target.value)}
-                  className={input({ mono: true })}
-                />
-              </Field>
-            )}
             <Field label="Remark" optional>
               <input
                 type="text"

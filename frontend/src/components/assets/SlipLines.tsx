@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MoreHorizontal, Plus, X } from 'lucide-react';
+import { ArrowLeftRight, MoreHorizontal, Plus, X } from 'lucide-react';
 import { AssetCategory, ItemCondition, ItemType } from '../../types/asset-management';
 import { inputClass } from '../ui/FormKit';
 import { ITEM_TYPE_OPTIONS } from './asset-state';
@@ -81,13 +81,26 @@ export const ReceiptItems: React.FC<{
   /** Extra fields of the first line, opened from its ⋯ button (serial number, remark) */
   firstDetails?: React.ReactNode;
 }> = ({ lines, donation, onLineChange, onRemove, onAdd, showGaps = false, lockFirstCode = false, firstDetails }) => {
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  // The lines whose ⋯ details are open
+  const [open, setOpen] = useState<Set<number>>(new Set());
+  const toggle = (key: number) => setOpen((o) => { const next = new Set(o); if (next.has(key)) next.delete(key); else next.add(key); return next; });
   const set = (l: SlipLine, patch: Partial<SlipLine>) => {
     const next = oneIfFixed({ ...l, ...patch });
     onLineChange(l.key, Object.fromEntries(Object.entries(next).filter(([k, v]) => (l as any)[k] !== v)) as Partial<SlipLine>);
   };
   const cell = (opts?: { align?: 'right'; invalid?: boolean; mono?: boolean }) =>
     `${inputClass('emerald', { ...opts, invalid: showGaps && opts?.invalid })} !py-1 !text-xs`;
+  const conditionField = (l: SlipLine, n: number) => (
+    <label className="min-w-0">
+      <span className="mb-0.5 block text-[10px] font-medium text-slate-500">Condition</span>
+      <select aria-label={`Item ${n} condition`} value={l.condition} onChange={(e) => set(l, { condition: e.target.value as ItemCondition })} className={cell({ invalid: !l.condition })}>
+        <option value="">Select…</option>
+        {CONDITIONS.map(([value, label]) => (
+          <option key={value} value={value}>{label}</option>
+        ))}
+      </select>
+    </label>
+  );
   const total = lines.reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0);
   const money = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
@@ -158,13 +171,13 @@ export const ReceiptItems: React.FC<{
                   )}
                 </div>
                 <div className="col-start-3 row-start-1 sm:col-start-auto flex justify-end gap-0.5 pt-0.5">
-                  {first && firstDetails && (
+                  {(
                     <button
                       type="button"
-                      onClick={() => setDetailsOpen((o) => !o)}
-                      aria-expanded={detailsOpen}
+                      onClick={() => toggle(l.key)}
+                      aria-expanded={open.has(l.key)}
                       aria-label={`More details of item ${n}`}
-                      title="Serial number and remark"
+                      title={first && firstDetails ? 'Condition, serial number and remark' : 'Condition'}
                       className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
                     >
                       <MoreHorizontal className="h-3.5 w-3.5" />
@@ -184,17 +197,33 @@ export const ReceiptItems: React.FC<{
                 </div>
               </div>
 
-              {/* Line 2: what kind of item it is */}
-              <div className="mt-1.5 ml-8 grid grid-cols-2 gap-x-2 gap-y-1.5 sm:grid-cols-4">
-                <label className="min-w-0">
+              {/* Line 2: what kind of item it is. The condition waits behind ⋯ (a receipt is New) unless it is empty */}
+              <div className={`mt-1.5 ml-8 grid grid-cols-2 gap-x-2 gap-y-1.5 ${l.condition ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}>
+                <div className="min-w-0">
                   <span className={caption}>Item type</span>
-                  <select aria-label={`Item ${n} item type`} value={l.itemType} onChange={(e) => set(l, { itemType: e.target.value as ItemType })} className={cell({ invalid: !l.itemType })}>
-                    <option value="">Select…</option>
-                    {ITEM_TYPE_OPTIONS.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
-                </label>
+                  {l.itemType ? (
+                    // Known (from the IFMIS code, or chosen): a badge that switches between the two
+                    <button
+                      type="button"
+                      aria-label={`Item ${n} item type: ${fixed ? 'Fixed asset' : 'Consumable'}. Switch`}
+                      title="Click to switch between consumable and fixed asset"
+                      onClick={() => set(l, { itemType: fixed ? ItemType.CONSUMABLE : ItemType.FIXED })}
+                      className={`inline-flex h-[30px] w-full items-center justify-between gap-1 rounded-lg border px-2 text-xs font-semibold transition cursor-pointer ${
+                        fixed ? 'border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100' : 'border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100'
+                      }`}
+                    >
+                      {fixed ? 'Fixed asset' : 'Consumable'}
+                      <ArrowLeftRight className="h-3 w-3 opacity-60" />
+                    </button>
+                  ) : (
+                    <select aria-label={`Item ${n} item type`} value="" onChange={(e) => set(l, { itemType: e.target.value as ItemType })} className={cell({ invalid: true })}>
+                      <option value="">Select…</option>
+                      {ITEM_TYPE_OPTIONS.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
                 <label className="min-w-0">
                   <span className={caption}>{fixed ? 'Tag number' : l.itemType === ItemType.CONSUMABLE ? 'Item code' : 'Tag / item code'}</span>
                   {first && lockFirstCode ? (
@@ -216,18 +245,15 @@ export const ReceiptItems: React.FC<{
                     ))}
                   </select>
                 </label>
-                <label className="min-w-0">
-                  <span className={caption}>Condition</span>
-                  <select aria-label={`Item ${n} condition`} value={l.condition} onChange={(e) => set(l, { condition: e.target.value as ItemCondition })} className={cell({ invalid: !l.condition })}>
-                    <option value="">Select…</option>
-                    {CONDITIONS.map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </label>
+                {!l.condition && conditionField(l, n)}
               </div>
 
-              {first && firstDetails && detailsOpen && <div className="mt-2 ml-8">{firstDetails}</div>}
+              {open.has(l.key) && (
+                <div className="mt-2 ml-8 space-y-2 rounded-lg bg-slate-50 p-2.5">
+                  {l.condition && <div className="max-w-[12rem]">{conditionField(l, n)}</div>}
+                  {first && firstDetails}
+                </div>
+              )}
             </li>
           );
         })}

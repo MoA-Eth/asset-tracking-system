@@ -407,14 +407,12 @@ describe('Assets page', () => {
     // What the item is comes across
     expect(within(panel).getByLabelText('Item 1 description')).toHaveValue('Desk');
     expect(within(panel).getByLabelText(/Category/i)).not.toHaveValue('');
-    expect(within(panel).getByLabelText(/Item type/i)).toHaveValue('FIXED');
+    expect(within(panel).getByRole('button', { name: /Item 1 item type: Fixed asset/ })).toBeInTheDocument();
     // What differs every time starts empty
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('');
     // A fixed asset is one item: its quantity is 1 and greyed out
     expect(within(panel).getByLabelText('Item 1 quantity')).toHaveValue('1');
     expect(within(panel).getByLabelText('Item 1 quantity')).toBeDisabled();
-    await user.click(within(panel).getByRole('button', { name: 'More details of item 1' }));
-    expect(within(panel).getByLabelText(/Serial number/i)).toHaveValue('');
     // A fixed asset is known by its own tag, so a duplicate starts without one
     expect(within(panel).getByLabelText('Item 1 tag number')).toHaveValue('');
   });
@@ -762,19 +760,21 @@ describe('Asset record', () => {
     const submit = within(panel).getByRole('button', { name: 'Submit 2 items for approval' });
 
     // Item type comes from the IFMIS code (starting with 1: consumable) and condition is New, for every line
-    expect(within(panel).getByLabelText('Item 1 item type')).toHaveValue('CONSUMABLE');
-    expect(within(panel).getByLabelText('Item 1 condition')).toHaveValue('NEW');
-    expect(within(others).getByLabelText('Item 2 item type')).toHaveValue('CONSUMABLE');
+    expect(within(panel).getByRole('button', { name: /Item 1 item type: Consumable/ })).toBeInTheDocument();
+    expect(within(others).getByRole('button', { name: /Item 2 item type: Consumable/ })).toBeInTheDocument();
+    // Condition is New, waiting behind each line's ⋯
+    expect(within(panel).queryByLabelText('Item 1 condition')).toBeNull();
+    await user.click(within(others).getByRole('button', { name: 'More details of item 2' }));
     expect(within(others).getByLabelText('Item 2 condition')).toHaveValue('NEW');
     // Only the store is left to choose
     expect(submit).toBeDisabled();
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
     // A fixed asset line is one item: its quantity becomes 1 and is greyed out
-    await user.selectOptions(within(others).getByLabelText('Item 2 item type'), 'FIXED');
+    await user.click(within(others).getByRole('button', { name: /Item 2 item type/ }));
     expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('1');
     expect(within(others).getByLabelText('Item 2 quantity')).toBeDisabled();
     expect(within(others).getByText(/The slip lists 50: a fixed asset is one item/)).toBeInTheDocument();
-    await user.selectOptions(within(others).getByLabelText('Item 2 item type'), 'CONSUMABLE');
+    await user.click(within(others).getByRole('button', { name: /Item 2 item type/ }));
     await user.clear(within(others).getByLabelText('Item 2 quantity'));
     await user.type(within(others).getByLabelText('Item 2 quantity'), '50');
     expect(submit).toBeEnabled();
@@ -847,9 +847,9 @@ describe('Asset record', () => {
     expect(within(panel).getByLabelText('Item 1 unit')).toHaveValue('PKT');
     expect(within(panel).getByLabelText('Item 1 quantity')).toHaveValue('100');
     // A consumable is known by the code IFMIS prints; a fixed asset by its own tag instead
-    await user.selectOptions(within(panel).getByLabelText('Item 1 item type'), 'CONSUMABLE');
+    expect(within(panel).getByRole('button', { name: /Item 1 item type: Consumable/ })).toBeInTheDocument();
     expect(within(panel).getByLabelText('Item 1 item code')).toHaveValue('107101102.4336');
-    await user.selectOptions(within(panel).getByLabelText('Item 1 item type'), 'FIXED');
+    await user.click(within(panel).getByRole('button', { name: /Item 1 item type/ }));
     expect(within(panel).getByLabelText('Item 1 tag number')).toHaveValue('');
   });
 
@@ -1184,7 +1184,6 @@ describe('Asset record', () => {
     await user.selectOptions(within(panel).getByLabelText('Item 1 category'), 'IT_EQUIPMENT');
     await user.selectOptions(within(panel).getByLabelText(/Item type/i), 'FIXED');
     await user.type(within(panel).getByLabelText('Item 1 tag number'), 'moa-test-0001');
-    await user.selectOptions(within(panel).getByLabelText('Item 1 condition'), 'NEW');
     // A fixed asset: one item, quantity 1
     expect(within(panel).getByLabelText('Item 1 quantity')).toHaveValue('1');
     const submit = within(panel).getByRole('button', { name: /Submit for approval/i });
@@ -1233,7 +1232,6 @@ describe('Asset record', () => {
     // Item details
     await user.type(within(panel).getByLabelText('Item 1 description'), 'Precision Workstation');
     await user.selectOptions(within(panel).getByLabelText(/Category/i), 'IT_EQUIPMENT');
-    await user.selectOptions(within(panel).getByLabelText('Item 1 condition'), 'NEW');
     // Fixed asset or consumable has to be chosen too
     expect(submitBtn).toBeDisabled();
     await user.selectOptions(within(panel).getByLabelText(/Item type/i), 'CONSUMABLE');
@@ -1548,9 +1546,9 @@ describe('Receiving form: PDF first, ask only what is missing', () => {
     const items = within(panel).getByRole('region', { name: 'Items on this receipt' });
     expect(items).toHaveTextContent('Items (2)');
     expect(within(items).getByLabelText('Item 1 description')).toHaveValue('Fuel Visa Card Nafeta');
-    expect(within(items).getByLabelText('Item 1 item type')).toHaveValue('CONSUMABLE');
+    expect(within(items).getByRole('button', { name: /Item 1 item type: Consumable/ })).toBeInTheDocument();
     expect(within(items).getByLabelText('Item 1 category')).toHaveValue('FUEL_LUBRICANTS');
-    expect(within(items).getByLabelText('Item 1 condition')).toHaveValue('NEW');
+    expect(within(items).queryByLabelText('Item 1 condition')).toBeNull();
     expect(within(items).getByLabelText('Item 2 description')).toHaveValue('Coupon For Fuel Of Birr 1000');
     expect(within(items).getByLabelText('Item 2 unit price')).toHaveValue('1000');
 
