@@ -146,6 +146,12 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   // Who received the goods: a store man of the receiving store (a correction keeps the name it has until another is chosen)
   const [receivedById, setReceivedById] = useState('');
   const keepers = useStoreKeepers();
+  // A new receipt with no store yet goes to the store this person keeps, when they are store man of exactly one
+  const ownStore = keepers.storeOfKeeper(user?.id);
+  useEffect(() => {
+    if (!isEdit && !storeId && ownStore) chooseStore(ownStore);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownStore]);
   const storeMen = keepers.ofStore(storeId);
   const receiverId = receivedById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
   const receiverName = storeMen.find((k) => k.employeeId === receiverId)?.fullNameEn ?? receivedBy;

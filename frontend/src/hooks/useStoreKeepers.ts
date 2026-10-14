@@ -18,6 +18,8 @@ export interface StoreKeepersView {
    * since IFMIS prints "Last, First Middle".
    */
   findByName: (name?: string | null) => { storeId: string; keeper: StoreKeeper } | undefined;
+  /** The one store this employee is a store man of, if exactly one */
+  storeOfKeeper: (employeeId?: string | null) => string | undefined;
 }
 
 /** A name as a sorted set of lower-case words, so "Tesfaye, Abel Girma" equals "Abel Girma Tesfaye" */
@@ -70,6 +72,11 @@ export function useStoreKeepers(): StoreKeepersView {
         .filter((s) => s.isActive !== false)
         .flatMap((s) => ofStore(s.id).filter((k) => nameKey(k.fullNameEn) === key).map((keeper) => ({ storeId: s.id, keeper })));
       return matches.length === 1 ? matches[0] : undefined;
+    },
+    storeOfKeeper: (employeeId) => {
+      if (!employeeId) return undefined;
+      const own = (stores ?? []).filter((s) => s.isActive !== false && ofStore(s.id).some((k) => k.employeeId === employeeId));
+      return own.length === 1 ? own[0].id : undefined;
     },
   };
 }

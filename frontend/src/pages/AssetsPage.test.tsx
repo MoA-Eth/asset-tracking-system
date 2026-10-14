@@ -1469,3 +1469,26 @@ describe('Receiving form: store and signatures from the Model 19', () => {
     expect(within(panel).getByPlaceholderText(/Filled from the buyer/)).toHaveValue('Kebede, Tolosa Ayana');
   });
 });
+
+describe('Receiving form: the encoder’s own store', () => {
+  beforeEach(() => {
+    auth.user.permissions = ENCODER;
+  });
+
+  it('starts a new receipt in the store the signed-in person is store man of', async () => {
+    const user = userEvent.setup();
+    const kality = { id: 'LOC-2', name: 'Main', storeId: 'S2', storeName: 'Kality', siteName: 'Kality', roomNumber: 'Main' };
+    vi.mocked(api.getLocations).mockResolvedValue([store, kality] as any);
+    vi.mocked(api.getStores).mockResolvedValue([
+      { id: 'S1', name: 'Head office', address: '', isActive: true, locations: [{ id: 'L1', storeId: 'S1', name: 'Main', isActive: true }],
+        storeKeepers: [{ employeeId: 'SM1', fullNameEn: 'Abebe Store Man', fullNameAm: '', payrollId: '0001', isActive: true }] },
+      { id: 'S2', name: 'Kality', address: '', isActive: true, locations: [{ id: 'L2', storeId: 'S2', name: 'Main', isActive: true }],
+        storeKeepers: [{ employeeId: 'enc', fullNameEn: 'Store Encoder', fullNameAm: '', payrollId: 'ENC-1', isActive: true }] },
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    await vi.waitFor(() => expect(within(panel).getByLabelText(/Receiving store/i)).toHaveValue('S2'));
+  });
+});
