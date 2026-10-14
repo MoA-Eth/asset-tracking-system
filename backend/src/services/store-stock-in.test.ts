@@ -95,8 +95,8 @@ describe('StoreService.registerStockIn approval gate', () => {
       source: 'Some Supplier',
       buyer: 'Some Buyer',
       items: [
-        { name: 'Donated tablet', unitCostETB: 9000, quantity: 2, totalAmount: 18000 },
-        { name: 'Donated charger', unitCostETB: 300, quantity: 2 },
+        { name: 'Donated tablet', itemType: 'FIXED', unitCostETB: 9000, quantity: 1, totalAmount: 9000 },
+        { name: 'Donated charger', itemType: 'CONSUMABLE', unitCostETB: 300, quantity: 2 },
       ],
     } as any);
     expect(db.item.create).toHaveBeenCalledTimes(2);
@@ -203,5 +203,20 @@ describe('StoreService.registerStockIn approval gate', () => {
     } finally {
       applySystemSettings({});
     }
+  });
+
+  it('registers a fixed asset as one item: quantity 1, while a consumable can be several', async () => {
+    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'FIXED', quantity: 10 } as any)).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining('A fixed asset is one item'),
+    });
+    // No type sent is a fixed asset
+    await expect(
+      StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, items: [{ name: 'Laptop', unitCostETB: 1, quantity: 2 }] } as any),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(db.item.create).not.toHaveBeenCalled();
+
+    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'CONSUMABLE', quantity: 10 } as any);
+    expect(db.item.create).toHaveBeenCalledTimes(1);
   });
 });

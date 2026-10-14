@@ -12,7 +12,7 @@ import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { readPdfRows, rowsToText, isModel21, parseModel21, isModel19, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES } from './receipt-options';
-import { SlipLines, SlipLine, lineMissing } from './SlipLines';
+import { SlipLines, SlipLine, lineMissing, oneIfFixed } from './SlipLines';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -140,6 +140,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const policy = useSystemSettings().slipAttachmentPolicy;
   const isAttachmentRequired = policy === 'REQUIRED';
 
+  // A fixed asset is one tagged item: its quantity is 1 and can't be changed. A record from before this rule keeps its own.
+  const fixedOne = itemType === ItemType.FIXED && !(isEdit && Number(editItem?.quantity) > 1);
+  useEffect(() => {
+    if (fixedOne && quantity !== 1) setQuantity(1);
+  }, [fixedOne, quantity]);
+  // What the slip's first line said, to warn when it lists several of a fixed asset
+  const [slipQuantity, setSlipQuantity] = useState(0);
   const totalAmount = donation ? 0 : (Number(quantity) || 0) * (Number(unitCostETB) || 0);
   // The other item lines of a Model 19 read from its PDF: each is registered as its own record on submit
   const [extraLines, setExtraLines] = useState<SlipLine[]>([]);
@@ -266,6 +273,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         setUom(line.uom.toUpperCase());
         filled.push('unit of measure');
       }
+      if (line.quantity) setSlipQuantity(line.quantity);
       if (line.quantity && !quantity) {
         setQuantity(line.quantity);
         filled.push('quantity');
@@ -297,6 +305,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       setExtraLines(
         others.map((l, i) => ({
           key: Date.now() + i,
+          slipQuantity: l.quantity,
           name: l.description ?? '',
           category: CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(l.category ?? ''))?.[1] ?? '',
           itemType: '',
@@ -821,8 +830,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
           {/* Quantity & valuation */}
           <FieldGrid cols={4}>
-            <Field label="Quantity" required htmlFor="receipt-quantity">
-              <QuantityInput id="receipt-quantity" min={1} required value={quantity} onChange={setQuantity} />
+            <Field
+              label="Quantity"
+              required
+              htmlFor="receipt-quantity"
+              hint={fixedOne ? 'A fixed asset is one item. For several, register each as its own receipt (Duplicate as new receipt helps).' : undefined}
+              warning={fixedOne && slipQuantity > 1 ? `The slip lists ${slipQuantity} of this item: register each one as its own receipt.` : undefined}
+            >
+              <QuantityInput id="receipt-quantity" min={1} required value={quantity} onChange={setQuantity} disabled={fixedOne} />
             </Field>
 
             <Field label="Unit of measure" required htmlFor="stock-in-uom" error={fieldErrors.error('uom')}>
@@ -879,7 +894,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                 itemType || condition
                   ? () =>
                       setExtraLines((ls) =>
-                        ls.map((l) => ({ ...l, itemType: l.itemType || (itemType as ItemType | ''), condition: l.condition || (condition as ItemCondition | '') })),
+                        ls.map((l) => oneIfFixed({ ...l, itemType: l.itemType || (itemType as ItemType | ''), condition: l.condition || (condition as ItemCondition | '') })),
                       )
                   : undefined
               }
