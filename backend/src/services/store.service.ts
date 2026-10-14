@@ -788,8 +788,8 @@ export class StoreService {
         line.totalAmount = 0;
       }
     }
-    // A fixed asset is one tagged item: several of them are registered as one receipt each. It is known by its tag
-    // number, which becomes its item code; a consumable is known by its IFMIS inventory item code.
+    // A fixed asset is one item: several of them are registered as one receipt each. Every line is known by its IFMIS
+    // inventory item code; the system gives each record its own code (a tag sent with a fixed asset is used instead).
     const tags: string[] = [];
     for (const line of rawItems) {
       const type = line.itemType || payload.itemType || 'FIXED';
@@ -805,13 +805,13 @@ export class StoreService {
       if (type === 'FIXED' && Number(line.quantity ?? 1) !== 1) {
         throw new BadRequestError(`A fixed asset is one item, so its quantity is 1: register each ${name} as its own receipt.`);
       }
-      if (type === 'FIXED') {
-        const tag = String(line.itemCode ?? '').trim();
-        if (!tag) throw new BadRequestError(`Enter the tag number of ${name}, e.g. MOA-072351. A fixed asset is known by its tag.`);
+      // A tag is no longer asked on receipt; one sent (older clients, imports) still becomes the item code
+      const tag = type === 'FIXED' ? String(line.itemCode ?? '').trim() : '';
+      if (tag) {
         if (tags.some((t) => t.toLowerCase() === tag.toLowerCase())) throw new BadRequestError(`Two lines on this slip have tag number ${tag}.`);
         tags.push(tag);
-      } else if (!String(line.ifmisItemCode ?? payload.ifmisItemCode ?? '').trim()) {
-        throw new BadRequestError(`Enter the item code of ${name}, e.g. 108101101.0021. A consumable item is known by its item code.`);
+      } else if (!ifmisCode) {
+        throw new BadRequestError(`Enter the item code of ${name}, e.g. 108101101.0021. An item is known by its IFMIS item code.`);
       }
     }
     // Check every line before saving any, so a bad line can't leave half a slip registered

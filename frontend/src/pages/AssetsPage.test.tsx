@@ -416,8 +416,8 @@ describe('Assets page', () => {
     expect(within(panel).getByLabelText(/^Quantity/i)).toBeDisabled();
     // Serial number is no longer asked on a receipt
     expect(within(panel).queryByLabelText(/Serial number/i)).toBeNull();
-    // A fixed asset is known by its own tag, so a duplicate starts without one
-    expect(within(panel).getByLabelText(/Tag number/i)).toHaveValue('');
+    // No tag number is asked: the system gives the record its code
+    expect(within(panel).queryByLabelText(/Tag number/i)).toBeNull();
   });
 
   it('opens the disposal form in the record and submits the request', async () => {
@@ -756,7 +756,7 @@ describe('Asset record', () => {
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
     // The first line fills the form; the second is listed under it
-    const others = await within(panel).findByRole('region', { name: 'Other items on this slip' });
+    const others = await within(panel).findByRole('region', { name: 'Items (2)' });
     expect(within(others).getByLabelText('Item 2 description')).toHaveValue('Streptomycine');
     expect(within(others).getByLabelText('Item 2 category')).toHaveValue('AGRI_MACHINERY');
     expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('50');
@@ -851,7 +851,7 @@ describe('Asset record', () => {
     expect(within(panel).getByLabelText(/^Category/i)).toHaveValue('LAB_EQUIPMENT');
     expect(within(panel).getByLabelText(/Unit of measure/i)).toHaveValue('PKT');
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('100');
-    // The IFMIS code says what it is: 1… a consumable. A code starting with 0 would be a fixed asset, which also needs its tag
+    // The IFMIS code says what it is: 1… a consumable. A code starting with 0 would be a fixed asset
     const code = within(panel).getByLabelText(/IFMIS item code/i);
     expect(code).toHaveValue('107101102.4336');
     expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Consumable');
@@ -859,7 +859,8 @@ describe('Asset record', () => {
     await user.clear(code);
     await user.type(code, '007101102.4336');
     expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Fixed asset');
-    expect(within(panel).getByLabelText(/Tag number/i)).toHaveValue('');
+    // No tag number is asked, even for a fixed asset
+    expect(within(panel).queryByLabelText(/Tag number/i)).toBeNull();
   });
 
   it('attaches a photo of a slip without reading it: only PDFs saved from IFMIS are read', async () => {
@@ -1190,9 +1191,8 @@ describe('Asset record', () => {
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
     await user.type(within(panel).getByLabelText(/Item description/i), 'Donated tablet');
     await user.selectOptions(within(panel).getByLabelText(/^Category/i), 'IT_EQUIPMENT');
-    // A code starting with 0: a fixed asset, which is known by its tag
+    // A code starting with 0: a fixed asset
     await user.type(within(panel).getByLabelText(/IFMIS item code/i), '005101101.0001');
-    await user.type(within(panel).getByLabelText(/Tag number/i), 'moa-test-0001');
     // A fixed asset: one item, quantity 1
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('1');
     const submit = within(panel).getByRole('button', { name: /Submit for approval/i });
@@ -1205,7 +1205,8 @@ describe('Asset record', () => {
     expect(sent.poNumber).toBeUndefined();
     expect(sent.source).toBeUndefined();
     expect(sent.buyer).toBeUndefined();
-    expect(sent.items?.[0]).toMatchObject({ quantity: 1, unitCostETB: 0, totalAmount: 0, itemCode: 'MOA-TEST-0001' });
+    expect(sent.items?.[0]).toMatchObject({ quantity: 1, unitCostETB: 0, totalAmount: 0 });
+    expect(sent.items?.[0].itemCode).toBeUndefined();
   });
 
   it('submits a new asset registration from the form footer and triggers Model 19 print modal', async () => {
@@ -1280,7 +1281,7 @@ describe('Asset record', () => {
       unitCostETB: 75000,
       storeLocationId: 'LOC-1',
       receivedByEmployeeId: 'SM1',
-      items: [expect.objectContaining({ uom: 'KG', ifmisItemCode: '108101101.0021', itemCode: undefined })],
+      items: [expect.objectContaining({ uom: 'KG', ifmisItemCode: '108101101.0021' })],
     }));
 
     // Success toast shown
@@ -1353,7 +1354,7 @@ describe('Receiving form: Delivered by follows the buyer', () => {
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
 
-    const buyer = within(panel).getByPlaceholderText('Name of the buyer or procurement officer');
+    const buyer = within(panel).getByLabelText(/Buyer/);
     const deliveredBy = within(panel).getByPlaceholderText(/Filled from the buyer/);
 
     await user.type(buyer, 'Abebe Kebede');
@@ -1402,7 +1403,7 @@ describe('Receiving form: replacing or racing slips', () => {
       slip('WRONG-1', [['101.1', 'Wrong item'], ['101.2', 'Wrong extra A'], ['101.3', 'Wrong extra B']], [r(162, [714, 'PO Number :'], [812, '999'])])
     );
     await upload('wrong.pdf');
-    expect(await within(panel).findByRole('region', { name: 'Other items on this slip' })).toBeInTheDocument();
+    expect(await within(panel).findByLabelText('Item 2 description')).toBeInTheDocument();
     expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('999');
 
     // The person types a source by hand: it must survive the swap
@@ -1413,7 +1414,7 @@ describe('Receiving form: replacing or racing slips', () => {
     await vi.waitFor(() => expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('RIGHT-1'));
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Right item');
     // The wrong slip's extra lines and its PO number are gone; what was typed is kept
-    expect(within(panel).queryByRole('region', { name: 'Other items on this slip' })).toBeNull();
+    expect(within(panel).queryByLabelText('Item 2 description')).toBeNull();
     expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('');
     expect(within(panel).getByLabelText(/Source/i)).toHaveValue('Typed supplier');
   });
@@ -1507,7 +1508,7 @@ describe('Receiving form: item type from the IFMIS code, for PDFs and older reco
     auth.user.permissions = ENCODER;
   });
 
-  it('registers a fixed asset read from a Model 19 (code starting with 0): it asks for the tag and keeps the IFMIS code', async () => {
+  it('registers a fixed asset read from a Model 19 (code starting with 0): no tag is asked and the IFMIS code is kept', async () => {
     const user = userEvent.setup();
     vi.mocked(readPdfRows).mockResolvedValueOnce([
       r(98, [640, 'Print Model19 Report']),
@@ -1528,11 +1529,9 @@ describe('Receiving form: item type from the IFMIS code, for PDFs and older reco
 
     await vi.waitFor(() => expect(within(panel).getByLabelText(/IFMIS item code/i)).toHaveValue('005101101.0001'));
     expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Fixed asset');
-    // A fixed asset is known by its tag, which the slip doesn't have
-    const tag = within(panel).getByLabelText(/Tag number/i);
-    expect(tag).toHaveValue('');
+    // No tag is asked: only the store is left to choose
+    expect(within(panel).queryByLabelText(/Tag number/i)).toBeNull();
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
-    await user.type(tag, 'moa-099001');
 
     const submit = within(panel).getByRole('button', { name: /Submit for approval/i });
     await vi.waitFor(() => expect(submit).toBeEnabled());
@@ -1540,7 +1539,8 @@ describe('Receiving form: item type from the IFMIS code, for PDFs and older reco
     await vi.waitFor(() => expect(api.registerStockIn).toHaveBeenCalled());
     const sent = JSON.stringify(vi.mocked(api.registerStockIn).mock.calls[0][0]);
     expect(sent).toMatch(/"itemType":"FIXED"/);
-    expect(sent).toMatch(/"itemCode":"MOA-099001"/);
+    // The system gives the record its code
+    expect(sent).not.toMatch(/"itemCode"/);
     expect(sent).toMatch(/"ifmisItemCode":"005101101.0001"/);
   });
 
@@ -1562,5 +1562,38 @@ describe('Receiving form: item type from the IFMIS code, for PDFs and older reco
     expect(within(record).getByLabelText(/IFMIS item code/i)).toHaveValue('');
     expect(within(record).queryByText(/Still needed:.*IFMIS item code/)).toBeNull();
     expect(submitOf(record, 'stock-in-form')).toBeEnabled();
+  });
+});
+
+describe('Receiving form: one table for every item', () => {
+  beforeEach(() => {
+    auth.user.permissions = ENCODER;
+  });
+
+  it('adds items by hand as rows of the same table, and removes them', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+
+    expect(within(panel).getByRole('region', { name: 'Items (1)' })).toBeInTheDocument();
+    expect(within(panel).queryByLabelText('Item 2 description')).toBeNull();
+    // No cards or remark: the item is a row, with no separate remark field
+    expect(within(panel).queryByText('Item received')).toBeNull();
+    expect(within(panel).queryByLabelText(/Remark/i)).toBeNull();
+    // No tag number column, for any item
+    expect(within(panel).queryByRole('columnheader', { name: 'Tag number' })).toBeNull();
+
+    await user.click(within(panel).getByRole('button', { name: 'Add item' }));
+    expect(within(panel).getByRole('region', { name: 'Items (2)' })).toBeInTheDocument();
+    await user.type(within(panel).getByLabelText('Item 2 item code'), '005101101.0002');
+    expect(within(panel).getByLabelText('Item 2 item type')).toHaveTextContent('Fixed asset');
+    expect(within(panel).queryByLabelText('Item 2 tag number')).toBeNull();
+    expect(within(panel).getByRole('button', { name: 'Submit 2 items for approval' })).toBeDisabled();
+
+    await user.click(within(panel).getByRole('button', { name: 'Remove item 2' }));
+    expect(within(panel).queryByLabelText('Item 2 description')).toBeNull();
+    expect(within(panel).getByRole('button', { name: 'Submit for approval' })).toBeInTheDocument();
   });
 });

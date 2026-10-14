@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PackagePlus, FileText, Upload } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
-import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, MoneyInput, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
+import { FieldGrid, Field, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, MoneyInput, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { AssetCategory, ProvisionType, ItemType, ItemStatus, ItemCondition, ItemWithRelations, Location, Employee, Model19Voucher, Model19LineItem } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
@@ -11,7 +11,7 @@ import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode } from './receipt-options';
-import { SlipLines, SlipLine, ItemTypeTag, lineMissing } from './SlipLines';
+import { ReceiptItems, SlipLine, ItemTypeTag, lineMissing, blankLine, cellClass, money } from './SlipLines';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -111,8 +111,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [category, setCategory] = useState<AssetCategory | ''>(editItem?.category ?? start?.category ?? '');
   // Fixed asset or consumable: chosen on every receipt and kept with the item
   const [itemType, setItemType] = useState<ItemType | ''>(editItem?.itemType ?? (editItem ? ItemType.FIXED : start?.itemType ?? ''));
-  // A fixed asset is known by its tag number, which is its item code; a consumable by its IFMIS item code
-  const [itemCode, setItemCode] = useState(editItem?.itemCode ?? '');
+  // The record code the system gave the item, shown when correcting it; every item is known by its IFMIS item code
+  const itemCode = editItem?.itemCode ?? '';
   const [ifmisItemCode, setIfmisItemCode] = useState(editItem?.ifmisItemCode ?? start?.ifmisItemCode ?? '');
   const [uom, setUom] = useState(editItem?.uom || start?.uom || 'EA');
   const [subInventory, setSubInventory] = useState(editItem?.subInventory ?? '');
@@ -125,7 +125,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [quantity, setQuantity] = useState<number>(editItem ? Number(editItem.quantity) || 1 : 0);
   const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? start?.unitCostETB ?? 0);
   const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? start?.condition ?? ItemCondition.NEW);
-  const [remark, setRemark] = useState(editItem?.remark ?? '');
+  // Remark is no longer asked; a correction keeps what an older record has
+  const remark = editItem?.remark ?? '';
 
   // Section 3: Signatures & Document Scan
   const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? '');
@@ -170,7 +171,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const policy = useSystemSettings().slipAttachmentPolicy;
   const isAttachmentRequired = policy === 'REQUIRED';
 
-  // A fixed asset is one tagged item: its quantity is 1 and can't be changed. A record from before this rule keeps its own.
+  // A fixed asset is one item: its quantity is 1 and can't be changed. A record from before this rule keeps its own.
   const fixedOne = itemType === ItemType.FIXED && !(isEdit && Number(editItem?.quantity) > 1);
   useEffect(() => {
     if (fixedOne && quantity !== 1) setQuantity(1);
@@ -191,7 +192,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !storeId && 'receiving store',
     !isEdit && storeMen.length > 1 && !receiverId && 'received by (store man)',
     !name.trim() && 'item description',
-    !isEdit && itemType === ItemType.FIXED && !itemCode.trim() && 'tag number',
     !ifmisItemCode.trim() && !(isEdit && itemType) && 'IFMIS item code',
     !category && 'category',
     !!ifmisItemCode.trim() && !itemType && 'item code starting with 0 or 1',
@@ -230,7 +230,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setName('');
     setCategory('');
     setItemType('');
-    setItemCode('');
     setUom('EA');
     setSubInventory('');
     setLotBatchNo('');
@@ -239,7 +238,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setQuantity(0);
     setUnitCostETB(0);
     setCondition(ItemCondition.NEW);
-    setRemark('');
     setIfmisItemCode('');
     setExtraLines([]);
     setProvisionType('PURCHASE');
@@ -285,7 +283,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     { key: 'uom', label: 'unit of measure', current: uom, set: setUom, empty: 'EA', free: uom === 'EA' },
     { key: 'quantity', label: 'quantity', current: quantity, set: setQuantity, empty: 0 },
     { key: 'unitPrice', label: 'unit price', current: unitCostETB, set: setUnitCostETB, empty: 0 },
-    // The IFMIS item code is the inventory code a consumable is known by (a fixed asset is known by its tag instead)
+    // The IFMIS item code every item is known by; its first digit says fixed asset or consumable
     { key: 'ifmisItemCode', label: 'item code', current: ifmisItemCode, set: setIfmisItemCode, empty: '' },
     // After the buyer, so a deliverer named on the slip replaces the one copied from the buyer
     { key: 'deliveredBy', label: 'delivered by', current: deliveredBy, set: changeDeliveredBy, empty: '' },
@@ -600,7 +598,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     try {
       const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
       const itemsPayload = [{
-        itemCode: itemType === ItemType.FIXED ? itemCode.trim() || undefined : undefined,
         ifmisItemCode: ifmisItemCode.trim() || undefined,
         name: name.trim(),
         category: category as AssetCategory,
@@ -618,7 +615,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         totalAmount,
         remark: remark.trim() || undefined,
       }, ...extraLines.map((l) => ({
-        itemCode: l.itemType === ItemType.FIXED ? l.tag?.trim() || undefined : undefined,
         ifmisItemCode: l.ifmisCode?.trim() || undefined,
         name: l.name.trim(),
         category: l.category as AssetCategory,
@@ -662,7 +658,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       const targetStore = locations.find((l) => l.id === storeLocationId);
       const voucherItems: Model19LineItem[] = [{
         sNo: 1,
-        itemCode: (itemType === ItemType.CONSUMABLE ? ifmisItemCode.trim() : itemCode.trim()) || res.items?.[0]?.itemCode || res.item?.itemCode || '—',
+        itemCode: (itemType === ItemType.CONSUMABLE ? ifmisItemCode.trim() : '') || res.items?.[0]?.itemCode || res.item?.itemCode || '—',
         itemDescription: name.trim(),
         uom: uom.trim(),
         subInventory: subInventory.trim() || targetStore?.name || '',
@@ -678,7 +674,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         remark: remark.trim() || '',
       }, ...extraLines.map((l, i): Model19LineItem => ({
         sNo: i + 2,
-        itemCode: (l.itemType === ItemType.CONSUMABLE ? l.ifmisCode : l.tag) || res.items?.[i + 1]?.itemCode || '—',
+        itemCode: (l.itemType === ItemType.CONSUMABLE ? l.ifmisCode : '') || res.items?.[i + 1]?.itemCode || '—',
         itemDescription: l.name.trim(),
         uom: l.uom.trim(),
         subInventory: targetStore?.name || '',
@@ -733,54 +729,123 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center'; invalid?: boolean }) => inputClass('emerald', opts);
 
+  // Item 1 is a row of the items table like every other line
+  const firstRow = (
+    <tr className="align-top">
+      <td className="px-2 py-1.5 pt-3.5 font-mono text-slate-500">1</td>
+      <td className="px-2 py-1.5">
+        <label htmlFor="stock-in-item-name" className="sr-only">Item description</label>
+        <input
+          id="stock-in-item-name"
+          type="text"
+          required
+          placeholder="e.g. Dell Latitude 5440 Laptop"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={fieldErrors.touch('itemName')}
+          className={cellClass({ invalid: !!fieldErrors.error('itemName') })}
+        />
+        {fixedOne && slipQuantity > 1 && (
+          <p role="status" className="mt-0.5 text-[10px] text-amber-700">The slip lists {slipQuantity}: a fixed asset is one item, so register the others as their own receipts.</p>
+        )}
+      </td>
+      <td className="px-2 py-1.5">
+        <div className="flex items-center gap-1.5">
+          <label htmlFor="stock-in-ifmis-code" className="sr-only">IFMIS item code</label>
+          <input
+            id="stock-in-ifmis-code"
+            type="text"
+            required={!isEdit}
+            placeholder="e.g. 108101101.0021"
+            value={ifmisItemCode}
+            onChange={(e) => changeIfmisCode(e.target.value)}
+            onBlur={fieldErrors.touch('itemType')}
+            className={cellClass({ mono: true, invalid: !!fieldErrors.error('itemType') })}
+          />
+          <ItemTypeTag type={itemType} code={ifmisItemCode} label="Item type" />
+        </div>
+      </td>
+      <td className="px-2 py-1.5">
+        <label htmlFor="stock-in-category" className="sr-only">Category</label>
+        <select id="stock-in-category" required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} onBlur={fieldErrors.touch('category')} className={cellClass({ invalid: !!fieldErrors.error('category') })}>
+          <option value="" disabled>Select…</option>
+          {COMMON_CATEGORIES.map((c) => (
+            <option key={c.value} value={c.value}>{c.label}</option>
+          ))}
+        </select>
+      </td>
+      <td className="px-2 py-1.5">
+        <label htmlFor="stock-in-uom" className="sr-only">Unit of measure</label>
+        <input
+          id="stock-in-uom"
+          type="text"
+          list="uom-options"
+          required
+          value={uom}
+          onChange={(e) => setUom(e.target.value.toUpperCase())}
+          onBlur={fieldErrors.touch('uom')}
+          className={`${cellClass({ mono: true, invalid: !!fieldErrors.error('uom') })} uppercase`}
+        />
+      </td>
+      <td className="px-2 py-1.5">
+        <label htmlFor="receipt-quantity" className="sr-only">Quantity</label>
+        <QuantityInput
+          id="receipt-quantity"
+          min={1}
+          required
+          value={quantity}
+          onChange={setQuantity}
+          disabled={fixedOne}
+          title={fixedOne ? 'A fixed asset is one item' : undefined}
+          className={cellClass({ align: 'right', mono: true })}
+        />
+      </td>
+      {!donation && (
+        <td className="px-2 py-1.5">
+          <label htmlFor="stock-in-unit-cost" className="sr-only">Unit price (ETB)</label>
+          <MoneyInput
+            id="stock-in-unit-cost"
+            suffix=""
+            value={unitCostETB}
+            onChange={setUnitCostETB}
+            onBlur={fieldErrors.touch('unitCost')}
+            invalid={!!fieldErrors.error('unitCost')}
+            inputClassName="!h-9 !px-2 !text-xs"
+          />
+        </td>
+      )}
+      {!donation && <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{money(totalAmount)}</td>}
+      <td />
+    </tr>
+  );
+
   return (
-    <form id="stock-in-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
+    <form id="stock-in-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-6">
       <FormError message={formError} />
 
-      {/* ── Section 1: Voucher & procurement ── */}
-      <FormSection
-        step={1}
-        title="Voucher & procurement"
-        subtitle="የሰነድ እና የግዥ መረጃ · IFMIS Model 19 header"
-        icon={FileText}
-        accent="emerald"
-      >
-        <FieldGrid>
-          <Field label="Type of provision" required htmlFor="stock-in-provision" hint={donation ? 'Donated items have no PO number, supplier, buyer or price.' : undefined}>
-            <select id="stock-in-provision" required value={provisionType} onChange={(e) => chooseProvision(e.target.value as ProvisionType)} className={input()}>
-              <option value="PURCHASE">Purchase</option>
-              <option value="DONATION">Donation</option>
-            </select>
-          </Field>
+      {/* The Model 19 PDF first: it fills in most of what follows */}
+      <div className="space-y-2">
+        <FileDropField
+          label="Model 19 voucher"
+          accent="emerald"
+          required={isAttachmentRequired}
+          fileName={attachmentFileName}
+          accept={SLIP_ACCEPT_ATTR}
+          onChange={handleSlipSelected}
+          file={attachmentFile}
+          savedUrl={editItem?.ifmisSlipAttachmentUrl}
+          hint="Attach the Model 19 PDF saved from IFMIS and the form fills itself in. A scan or photo is attached as the copy."
+        />
+        {slipNote && (
+          <FormNotice icon={FileText} tone={slipNote.tone}>
+            <span role="status">{slipNote.text}</span>
+          </FormNotice>
+        )}
+      </div>
 
-          <Field label="Transaction type" required htmlFor="stock-in-transaction-type" error={fieldErrors.error('transactionType')}>
-            <select id="stock-in-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} onBlur={fieldErrors.touch('transactionType')} className={input({ invalid: !!fieldErrors.error('transactionType') })}>
-              <option value="" disabled>Select…</option>
-              {TRANSACTION_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label="Received date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
-            <input
-              id="stock-in-slip-date"
-              type="date"
-              required
-              value={ifmisSlipDateGc}
-              onChange={(e) => setIfmisSlipDateGc(e.target.value)}
-              className={input()}
-            />
-          </Field>
-
-          <Field
-            label="Model 19 No."
-            required
-            htmlFor="stock-in-model19"
-            error={fieldErrors.error('model19No')}
-          >
+      <Part title="Voucher">
+        <FieldGrid cols={4}>
+          <Field label="Model 19 No." required htmlFor="stock-in-model19" error={fieldErrors.error('model19No')}>
             <input
               id="stock-in-model19"
               type="text"
@@ -793,30 +858,29 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             />
           </Field>
 
-          <Field label="Program / project" optional span="sm:col-span-2">
-            <input
-              type="text"
-              value={programName}
-              onChange={(e) => setProgramName(e.target.value)}
-              placeholder="Program or project the goods were bought for"
-              className={input()}
-            />
+          <Field label="Received date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
+            <input id="stock-in-slip-date" type="date" required value={ifmisSlipDateGc} onChange={(e) => setIfmisSlipDateGc(e.target.value)} className={input()} />
+          </Field>
+
+          <Field label="Transaction type" required htmlFor="stock-in-transaction-type" error={fieldErrors.error('transactionType')}>
+            <select id="stock-in-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} onBlur={fieldErrors.touch('transactionType')} className={input({ invalid: !!fieldErrors.error('transactionType') })}>
+              <option value="" disabled>Select…</option>
+              {TRANSACTION_TYPES.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Type of provision" required htmlFor="stock-in-provision" hint={donation ? 'A donation has no PO, supplier, buyer or price.' : undefined}>
+            <select id="stock-in-provision" required value={provisionType} onChange={(e) => chooseProvision(e.target.value as ProvisionType)} className={input()}>
+              <option value="PURCHASE">Purchase</option>
+              <option value="DONATION">Donation</option>
+            </select>
           </Field>
 
           {/* What it was bought on: a donation has none of it */}
           {!donation && (
             <>
-              <Field label="PO number" optional htmlFor="stock-in-po">
-                <input
-                  id="stock-in-po"
-                  type="text"
-                  placeholder="e.g. 186"
-                  value={poNumber}
-                  onChange={(e) => setPoNumber(e.target.value)}
-                  className={input({ mono: true })}
-                />
-              </Field>
-
               <Field label="Source (supplier / vendor)" required htmlFor="stock-in-source" error={fieldErrors.error('source')}>
                 <input
                   id="stock-in-source"
@@ -830,223 +894,72 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                 />
               </Field>
 
-              <Field label="Buyer / procurement officer" optional>
-                <input
-                  type="text"
-                  placeholder="Name of the buyer or procurement officer"
-                  value={buyer}
-                  onChange={(e) => changeBuyer(e.target.value)}
-                  className={input()}
-                />
+              <Field label="PO number" optional htmlFor="stock-in-po">
+                <input id="stock-in-po" type="text" placeholder="e.g. 186" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className={input({ mono: true })} />
+              </Field>
+
+              <Field label="Buyer" optional htmlFor="stock-in-buyer">
+                <input id="stock-in-buyer" type="text" placeholder="Procurement officer" value={buyer} onChange={(e) => changeBuyer(e.target.value)} className={input()} />
               </Field>
             </>
           )}
+
+          <Field label="Program / project" optional htmlFor="stock-in-program">
+            <input id="stock-in-program" type="text" placeholder="What the goods were bought for" value={programName} onChange={(e) => setProgramName(e.target.value)} className={input()} />
+          </Field>
         </FieldGrid>
-      </FormSection>
+      </Part>
 
-      {/* ── Section 2: Item received ── */}
-      <FormSection step={2} title="Item received" subtitle="የተረከቡት ዕቃ ዝርዝር መረጃ" icon={PackagePlus} accent="emerald">
-        <div className="space-y-3.5">
-          <FieldGrid>
-            {/* The IFMIS item code says fixed asset or consumable: 1… is a consumable, 0… a fixed asset */}
-            <Field label="IFMIS item code" required hint={ITEM_CODE_RULE} htmlFor="stock-in-ifmis-code" error={fieldErrors.error('itemType')}>
-              <div className="flex items-center gap-2">
-                <input
-                  id="stock-in-ifmis-code"
-                  type="text"
-                  required
-                  placeholder="e.g. 108101101.0021"
-                  value={ifmisItemCode}
-                  onChange={(e) => changeIfmisCode(e.target.value)}
-                  onBlur={fieldErrors.touch('itemType')}
-                  className={input({ mono: true, invalid: !!fieldErrors.error('itemType') })}
-                />
-                <ItemTypeTag type={itemType} code={ifmisItemCode} label="Item type" />
-              </div>
-            </Field>
+      <Part
+        title={`Items (${extraLines.length + 1})`}
+        aside={<span className="text-[11px] text-slate-500">{ITEM_CODE_RULE} A fixed asset is one item.</span>}
+      >
+        <ReceiptItems
+          first={firstRow}
+          lines={extraLines}
+          donation={donation}
+          onChange={setExtraLines}
+          onAdd={isEdit ? undefined : () => setExtraLines((lines) => [...lines, blankLine()])}
+          total={totalAmount + extraTotal}
+        />
+      </Part>
 
-            {isEdit ? (
-              <Field label={itemType === ItemType.CONSUMABLE ? 'Record code' : 'Tag number'} hint="It can't be changed after registration">
-                <ReadOnlyValue mono>{itemCode}</ReadOnlyValue>
-              </Field>
-            ) : itemType === ItemType.FIXED ? (
-              <Field label="Tag number" required hint="The tag on the asset; it becomes its item code" htmlFor="stock-in-item-code">
-                <input
-                  id="stock-in-item-code"
-                  type="text"
-                  required
-                  placeholder="e.g. MOA-072351"
-                  value={itemCode}
-                  onChange={(e) => setItemCode(e.target.value.toUpperCase())}
-                  className={input({ mono: true })}
-                />
-              </Field>
-            ) : null}
+      <Part title="Store and signatures">
+        <FieldGrid>
+          <Field label="Receiving store" required htmlFor="stock-in-store">
+            <select id="stock-in-store" required value={storeId} onChange={(e) => chooseStore(e.target.value)} className={input()}>
+              <option value="" disabled>Select…</option>
+              {stores.map(([id, name]) => (
+                <option key={id} value={id}>{name}</option>
+              ))}
+            </select>
+          </Field>
 
-            <Field label="Category" required htmlFor="stock-in-category" error={fieldErrors.error('category')}>
-              <select id="stock-in-category" required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} onBlur={fieldErrors.touch('category')} className={input({ invalid: !!fieldErrors.error('category') })}>
-                <option value="" disabled>Select…</option>
-                {COMMON_CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
+          <StoreManField
+            id="stock-in-received-by"
+            label="Received by (store man)"
+            keepers={storeMen}
+            ready={keepers.ready}
+            storeName={keepers.storeName(storeId)}
+            hasStore={!!storeId}
+            value={receivedById}
+            onChange={setReceivedById}
+            current={isEdit ? receivedBy || undefined : undefined}
+            required={!isEdit}
+          />
 
-            <Field label="Item description" required span="sm:col-span-2" htmlFor="stock-in-item-name" error={fieldErrors.error('itemName')}>
-              <input
-                id="stock-in-item-name"
-                type="text"
-                required
-                placeholder="e.g. Dell Latitude 5440 Laptop"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={fieldErrors.touch('itemName')}
-                className={input({ invalid: !!fieldErrors.error('itemName') })}
-              />
-            </Field>
-          </FieldGrid>
-
-          {/* Quantity & valuation */}
-          <FieldGrid cols={4}>
-            <Field
-              label="Quantity"
-              required
-              htmlFor="receipt-quantity"
-              hint={fixedOne ? 'A fixed asset is one item. For several, register each as its own receipt (Duplicate as new receipt helps).' : undefined}
-              warning={fixedOne && slipQuantity > 1 ? `The slip lists ${slipQuantity} of this item: register each one as its own receipt.` : undefined}
-            >
-              <QuantityInput id="receipt-quantity" min={1} required value={quantity} onChange={setQuantity} disabled={fixedOne} />
-            </Field>
-
-            <Field label="Unit of measure" required htmlFor="stock-in-uom" error={fieldErrors.error('uom')}>
-              <input
-                id="stock-in-uom"
-                type="text"
-                list="uom-options"
-                required
-                value={uom}
-                onChange={(e) => setUom(e.target.value.toUpperCase())}
-                onBlur={fieldErrors.touch('uom')}
-                className={`${input({ mono: true, invalid: !!fieldErrors.error('uom') })} uppercase`}
-                placeholder="EA, KG, BOX…"
-              />
-            </Field>
-
-            {!donation && (
-              <>
-                <Field label="Unit price (ETB)" required htmlFor="stock-in-unit-cost" error={fieldErrors.error('unitCost')}>
-                  <MoneyInput
-                    id="stock-in-unit-cost"
-                    value={unitCostETB}
-                    onChange={setUnitCostETB}
-                    onBlur={fieldErrors.touch('unitCost')}
-                    invalid={!!fieldErrors.error('unitCost')}
-                  />
-                </Field>
-
-                <Field label="Total (ETB)">
-                  <TotalValue accent="emerald">
-                    {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                  </TotalValue>
-                </Field>
-              </>
-            )}
-          </FieldGrid>
-
-          <Field label="Remark" optional>
+          <Field label="Delivered by" optional htmlFor="stock-in-delivered-by">
             <input
+              id="stock-in-delivered-by"
               type="text"
-              placeholder="Specification notes or remarks for the voucher"
-              value={remark}
-              onChange={(e) => setRemark(e.target.value)}
+              placeholder="Filled from the buyer"
+              value={deliveredBy}
+              onChange={(e) => changeDeliveredBy(e.target.value)}
               className={input()}
             />
           </Field>
-
-          {extraLines.length > 0 && (
-            <SlipLines
-              donation={donation}
-              lines={extraLines}
-              onChange={setExtraLines}
-            />
-          )}
-        </div>
-      </FormSection>
-
-      {/* ── Section 3: Delivery & attachment ── */}
-      <FormSection
-        step={3}
-        title="Store, delivery & attachment"
-        subtitle="መጋዘን፣ ፊርማ እና ሰነድ"
-        icon={Upload}
-        accent="emerald"
-        aside={
-          <span
-            className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-              isAttachmentRequired ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            Slip {isAttachmentRequired ? 'required' : 'optional'}
-          </span>
-        }
-      >
-        <div className="space-y-3.5">
-          <FieldGrid>
-            <Field label="Receiving store" required htmlFor="stock-in-store">
-              <select id="stock-in-store" required value={storeId} onChange={(e) => chooseStore(e.target.value)} className={input()}>
-                <option value="" disabled>Select…</option>
-                {stores.map(([id, name]) => (
-                  <option key={id} value={id}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <StoreManField
-              id="stock-in-received-by"
-              label="Received by (store man)"
-              keepers={storeMen}
-              ready={keepers.ready}
-              storeName={keepers.storeName(storeId)}
-              hasStore={!!storeId}
-              value={receivedById}
-              onChange={setReceivedById}
-              current={isEdit ? receivedBy || undefined : undefined}
-              required={!isEdit}
-            />
-
-            <Field label="Delivered by" optional>
-              <input
-                type="text"
-                placeholder="Filled from the buyer; change it if someone else delivered"
-                value={deliveredBy}
-                onChange={(e) => changeDeliveredBy(e.target.value)}
-                className={input()}
-              />
-            </Field>
-          </FieldGrid>
-
-          <FileDropField
-            label="Scanned Model 19 voucher"
-            accent="emerald"
-            required={isAttachmentRequired}
-            fileName={attachmentFileName}
-            accept={SLIP_ACCEPT_ATTR}
-            onChange={handleSlipSelected}
-            file={attachmentFile}
-            savedUrl={editItem?.ifmisSlipAttachmentUrl}
-            hint="PDF, PNG, JPEG or WEBP · up to 10 MB. A Model 19 PDF saved from IFMIS fills in the form for you."
-          />
-          {slipNote && (
-            <FormNotice icon={FileText} tone={slipNote.tone}>
-              <span role="status">{slipNote.text}</span>
-            </FormNotice>
-          )}
-        </div>
-      </FormSection>
+        </FieldGrid>
+      </Part>
 
       <datalist id="uom-options">
         {COMMON_UOMS.map((u) => (
@@ -1066,6 +979,17 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     </form>
   );
 };
+
+/** A part of the form: a quiet heading and a rule instead of a card */
+const Part: React.FC<{ title: string; aside?: React.ReactNode; children: React.ReactNode }> = ({ title, aside, children }) => (
+  <section aria-label={title} className="space-y-3">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-slate-200 pb-1.5">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{title}</h3>
+      {aside}
+    </div>
+    {children}
+  </section>
+);
 
 /**
  * Model 19 voucher for a registration. Records received on the same slip print together;
