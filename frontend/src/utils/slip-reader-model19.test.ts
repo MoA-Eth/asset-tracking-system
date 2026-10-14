@@ -119,3 +119,54 @@ describe('Model 19 program name', () => {
     expect(parseModel19(rows).lines[0].description).toBe('Programmable Logic Controller');
   });
 });
+
+// Rows read from a real IFMIS "Print Model19 Report" (petty cash fuel purchase, 05-Sep-2020), exactly as the reader returns them
+const REAL_PETTY_CASH: PdfRow[] = [
+  row(36, [440, 'The Federal Democratic Republic of Ethiopia']),
+  row(54, [462, 'Ministry of Agriculture']),
+  row(63, [482, 'Print Model19 Report']),
+  row(101, [515, 'INV Model 19 No. :'], [613, '0000005']),
+  row(113, [541, 'PO Number :']),
+  row(125, [528, 'Received Date :'], [613, '05-Sep-2020']),
+  row(137, [513, 'Transaction Type :'], [613, 'Petty Cash Purchase Receipt']),
+  row(149, [562, 'Source :']),
+  row(160, [568, 'Buyer :']),
+  row(180, [541, 'Sequence #']),
+  row(188, [407, 'Item'], [465, 'Lot/'], [505, 'Serial'], [541, 'of Printed'], [815, 'Remark']),
+  row(197, [59, 'S/No.'], [91, 'Item Code'], [203, 'Item Description'], [302, 'UOM'], [349, 'Sub'], [399, 'Category'], [451, 'Batch No.'], [511, 'No.'], [541, 'Pad'], [625, 'Qty']),
+  row(205, [340, 'Inventory']),
+  row(209, [535, 'FROM'], [572, 'TO'], [683, 'Unit Price'], [748, 'Total Amount']),
+  row(219, [55, '1'], [85, '108101101.0021'], [198, 'Fuel Visa Card Nafeta'], [305, 'EA'], [328, 'Stationery'], [387, 'Fuel and'], [621, '12918'], [729, '1'], [783, '12918 968765']),
+  row(227, [317, 'IFMIS'], [387, 'Lubricant']),
+  row(239, [55, '2'], [85, '108101101.0010'], [198, 'Coupon For Fuel Of Birr'], [305, 'EA'], [328, 'Stationery'], [387, 'Fuel and'], [628, '50'], [716, '1000'], [783, '50000 968766']),
+  row(248, [198, '1000'], [387, 'Lubricant']),
+  row(258, [55, '3'], [85, '108101101.0010'], [198, 'Coupon For Fuel Of Birr'], [305, 'EA'], [328, 'Stationery'], [387, 'Fuel and'], [628, '25'], [716, '1000'], [783, '25000 968767']),
+  row(267, [198, '1000'], [387, 'Lubricant']),
+  row(278, [55, '4'], [85, '101101101.0052'], [198, 'Mobile Card 100 Birr'], [305, 'EA'], [328, 'Stationery'], [387, 'Office supplies'], [625, '336'], [720, '100'], [783, '33600 968768']),
+  row(287, [387, '& Other']),
+  row(296, [387, 'related Item']),
+  row(307, [688, 'Grand Total'], [778, '121518']),
+  row(410, [58, 'Delivered By : Name : ________________________________'], [454, 'Received By : Name : ____________________________']),
+  row(582, [21, 'Report Taken By: lidlyats on 05-Oct-2026 @ 04:01 pm. from "ifmisdb1" instance.'], [669, 'Page 1 of 1']),
+];
+
+describe('a real IFMIS Model 19 (petty cash purchase)', () => {
+  it('reads the header, leaving out what the slip leaves blank', () => {
+    const slip = parseModel19(REAL_PETTY_CASH);
+    expect(slip).toMatchObject({ model19No: '0000005', receivedDate: '2020-09-05', transactionType: 'Petty Cash Purchase Receipt' });
+    expect(slip.poNumber).toBeUndefined();
+    expect(slip.source).toBeUndefined();
+    expect(slip.buyer).toBeUndefined();
+    expect(slip.programName).toBeUndefined();
+  });
+
+  it('reads all four lines, with wrapped descriptions and categories, and the total apart from the remark', () => {
+    const { lines } = parseModel19(REAL_PETTY_CASH);
+    expect(lines.map((l) => [l.itemCode, l.description, l.category, l.quantity, l.unitPrice, l.totalAmount])).toEqual([
+      ['108101101.0021', 'Fuel Visa Card Nafeta', 'Fuel and Lubricant', 12918, 1, 12918],
+      ['108101101.0010', 'Coupon For Fuel Of Birr 1000', 'Fuel and Lubricant', 50, 1000, 50000],
+      ['108101101.0010', 'Coupon For Fuel Of Birr 1000', 'Fuel and Lubricant', 25, 1000, 25000],
+      ['101101101.0052', 'Mobile Card 100 Birr', 'Office supplies & Other related Item', 336, 100, 33600],
+    ]);
+  });
+});

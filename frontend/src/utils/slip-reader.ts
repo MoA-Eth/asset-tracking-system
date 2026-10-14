@@ -341,6 +341,10 @@ export interface DisposalSlipFields {
   lines: DisposalSlipLine[];
 }
 
+/** Whether the text is an IFMIS issue voucher (Model 22, "Receipt For Articles Or Property Issued") */
+export const isModel22 = (text: string): boolean =>
+  /receipt\s+for\s+articles\s+or\s+property\s+issued|\bmodel\s*22\s*no\b/i.test(text);
+
 /** Whether the text is an IFMIS disposal form at all */
 export const isDisposalForm = (text: string): boolean => /fixed\s+asset\s+disposal\s+form|model\s*\/\s*22\s*\/\s*b\b/i.test(text);
 

@@ -78,3 +78,12 @@ describe('dates and IDs as IFMIS prints them', () => {
     expect(sameEmployeeId(undefined, '1')).toBe(false);
   });
 });
+
+describe('recognising a Model 22 issue voucher', () => {
+  it('knows the IFMIS issue voucher and does not mistake other forms for it', async () => {
+    const { isModel22 } = await import('./slip-reader');
+    expect(isModel22('Receipt For Articles Or Property Issued\nModel 22 No. :  0000001/A Inventory')).toBe(true);
+    expect(isModel22('Print Model19 Report\nINV Model 19 No. : 0000005')).toBe(false);
+    expect(isModel22('Fixed Asset Disposal Form  Model/22/B')).toBe(false);
+  });
+});
