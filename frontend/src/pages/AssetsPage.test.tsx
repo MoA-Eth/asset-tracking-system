@@ -738,9 +738,10 @@ describe('Asset record', () => {
     vi.mocked(readPdfRows).mockResolvedValue([
       r(98, [640, 'Print Model19 Report']),
       r(146, [680, 'INV Model 19 No. :'], [812, '0000044']),
+      r(162, [714, 'PO Number :'], [812, '186']),
       r(193, [677, 'Transaction Type :'], [812, 'PO Receipt']),
       r(208, [742, 'Source :'], [812, 'TEST TRADING']),
-      r(283, [95, 'S/No.'], [135, 'Item Code'], [278, 'Item Description'], [403, 'UOM'], [826, 'Qty']),
+      r(283, [95, 'S/No.'], [135, 'Item Code'], [278, 'Item Description'], [403, 'UOM'], [440, 'Sub'], [826, 'Qty']),
       r(316, [88, '1'], [128, '107101102.4336'], [270, 'Sulfa Drug In Vial'], [403, 'PKT'], [435, 'AMedicine'], [510, 'Medical'], [826, '100'], [960, '825'], [1050, '82500']),
       r(366, [88, '2'], [124, '105101102.0415'], [268, 'Streptomycine'], [403, 'EA'], [435, 'AMedicine'], [510, 'Agricultural'], [826, '50'], [960, '341'], [1050, '17050']),
       r(630, [910, 'Grand Total'], [1050, '99550']),
@@ -755,7 +756,7 @@ describe('Asset record', () => {
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
-    // The first line fills the form; the second is listed under it
+    // The first line fills the form; the second is row 2
     const others = await within(panel).findByRole('region', { name: 'Items (2)' });
     expect(within(others).getByLabelText('Item 2 description')).toHaveValue('Streptomycine');
     expect(within(others).getByLabelText('Item 2 category')).toHaveValue('AGRI_MACHINERY');
@@ -792,8 +793,9 @@ describe('Asset record', () => {
       expect.objectContaining({
         ifmisSlipNumber: '0000044',
         items: [
-          expect.objectContaining({ name: 'Sulfa Drug In Vial', quantity: 100 }),
-          expect.objectContaining({ name: 'Streptomycine', category: 'AGRI_MACHINERY', itemType: 'CONSUMABLE', condition: 'NEW', uom: 'EA', quantity: 50, unitCostETB: 341, ifmisItemCode: '105101102.0415' }),
+          // The sub inventory printed on the slip is kept for every line
+          expect.objectContaining({ name: 'Sulfa Drug In Vial', quantity: 100, subInventory: 'AMedicine' }),
+          expect.objectContaining({ name: 'Streptomycine', category: 'AGRI_MACHINERY', itemType: 'CONSUMABLE', condition: 'NEW', uom: 'EA', quantity: 50, unitCostETB: 341, ifmisItemCode: '105101102.0415', subInventory: 'AMedicine' }),
         ],
       }),
     );
@@ -843,7 +845,7 @@ describe('Asset record', () => {
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
-    expect(await within(panel).findByText(/This slip lists 2 items: the first is in the form and the others are listed under it/)).toBeInTheDocument();
+    expect(await within(panel).findByText(/This slip lists 2 items, one row each/)).toBeInTheDocument();
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000044');
     expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('PO Receipt');
     expect(within(panel).getByLabelText(/Source/i)).toHaveValue('TEST TRADING ONE MEMBER P.L.C');
@@ -1409,13 +1411,13 @@ describe('Receiving form: replacing or racing slips', () => {
     // The person types a source by hand: it must survive the swap
     await user.type(within(panel).getByLabelText(/Source/i), 'Typed supplier');
 
-    vi.mocked(readPdfRows).mockResolvedValueOnce(slip('RIGHT-1', [['202.1', 'Right item']]));
+    vi.mocked(readPdfRows).mockResolvedValueOnce(slip('RIGHT-1', [['202.1', 'Right item']], [r(162, [714, 'PO Number :'], [812, '777'])]));
     await upload('right.pdf');
     await vi.waitFor(() => expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('RIGHT-1'));
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Right item');
     // The wrong slip's extra lines and its PO number are gone; what was typed is kept
     expect(within(panel).queryByLabelText('Item 2 description')).toBeNull();
-    expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('');
+    expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('777');
     expect(within(panel).getByLabelText(/Source/i)).toHaveValue('Typed supplier');
   });
 
@@ -1595,5 +1597,79 @@ describe('Receiving form: one table for every item', () => {
     await user.click(within(panel).getByRole('button', { name: 'Remove item 2' }));
     expect(within(panel).queryByLabelText('Item 2 description')).toBeNull();
     expect(within(panel).getByRole('button', { name: 'Submit for approval' })).toBeInTheDocument();
+  });
+});
+
+describe('Receiving form: "Still needed" leads to the field', () => {
+  beforeEach(() => {
+    auth.user.permissions = ENCODER;
+  });
+
+  it('jumps to the field when its name in the footer is clicked', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+
+    await user.click(within(panel).getByRole('button', { name: 'Model 19 No.' }));
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveFocus();
+    await user.click(within(panel).getByRole('button', { name: 'transaction type' }));
+    expect(within(panel).getByLabelText(/Transaction type/i)).toHaveFocus();
+
+    // Filled in, a name leaves the list and the next one comes up
+    await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000123');
+    expect(within(panel).queryByRole('button', { name: 'Model 19 No.' })).toBeNull();
+    await user.selectOptions(within(panel).getByLabelText(/Transaction type/i), 'PO Receipt');
+    await user.type(within(panel).getByLabelText(/Source/i), 'Supplier');
+    await user.click(within(panel).getByRole('button', { name: 'item description' }));
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveFocus();
+  });
+});
+
+describe('Receiving form: provision from the PO number on the Model 19', () => {
+  const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+  const model19 = (header: PdfRow[]): PdfRow[] => [
+    r(98, [640, 'Print Model19 Report']),
+    r(146, [680, 'INV Model 19 No. :'], [812, '0000321']),
+    ...header,
+    r(283, [95, 'S/No.'], [135, 'Item Code'], [278, 'Item Description'], [403, 'UOM'], [826, 'Qty']),
+    r(316, [88, '1'], [128, '108101101.0021'], [270, 'Printer paper'], [403, 'PKT'], [435, 'AStore'], [510, 'Stationery'], [826, '10'], [960, '450'], [1050, '4500']),
+  ];
+  const readSlip = async (header: PdfRow[]) => {
+    const user = userEvent.setup();
+    vi.mocked(readPdfRows).mockResolvedValueOnce(model19(header));
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+    await vi.waitFor(() => expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000321'));
+    return panel;
+  };
+
+  beforeEach(() => {
+    auth.user.permissions = ENCODER;
+  });
+
+  it('is a purchase when the slip has a PO number', async () => {
+    const panel = await readSlip([r(162, [714, 'PO Number :'], [812, '186']), r(193, [677, 'Transaction Type :'], [812, 'PO Receipt'])]);
+    expect(within(panel).getByLabelText(/Type of provision/i)).toHaveValue('PURCHASE');
+    expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('186');
+  });
+
+  it('is a donation when the slip has no PO number', async () => {
+    const panel = await readSlip([]);
+    expect(within(panel).getByLabelText(/Type of provision/i)).toHaveValue('DONATION');
+    expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('Donation / Grant Receipt');
+    // A donation has no PO, supplier or price
+    expect(within(panel).queryByLabelText(/PO number/i)).toBeNull();
+    expect(within(panel).queryByLabelText(/Unit price/i)).toBeNull();
+  });
+
+  it('goes by the PO number alone: a slip with no PO number is a donation whatever its transaction type', async () => {
+    const panel = await readSlip([r(193, [677, 'Transaction Type :'], [812, 'Petty Cash Purchase Receipt'])]);
+    expect(within(panel).getByLabelText(/Type of provision/i)).toHaveValue('DONATION');
+    expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('Petty Cash Purchase Receipt');
   });
 });

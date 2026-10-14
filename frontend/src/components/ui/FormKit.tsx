@@ -449,16 +449,62 @@ interface FormFooterProps {
   missingFields?: string[];
   /** Short line beside the buttons, e.g. why Submit is still off */
   note?: React.ReactNode;
+  /** Where a "Still needed" name leads when no field label matches it: name → CSS selector */
+  fieldTargets?: Record<string, string>;
 }
 
-export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, missingFields = [], note: customNote }) => {
+const fieldKey = (s: string) => s.toLowerCase().replace(/\(optional\)/g, '').replace(/[*():]/g, ' ').replace(/\s+/g, ' ').trim();
+
+/** The control of a field named like "Still needed" names it: by its label or aria-label, else by `targets` */
+export function findField(form: HTMLElement, field: string, given: Record<string, string> = {}): HTMLElement | null {
+  // The scanned copy is the form's file field, whatever the form calls it
+  const targets: Record<string, string> = { 'scanned slip': 'input[type="file"]', 'supporting document': 'input[type="file"]', ...given };
+  const named: [string, HTMLElement][] = [];
+  form.querySelectorAll('label').forEach((label) => {
+    // A label tied to its control, one wrapping it, or else the field's first control after it
+    const control = label.htmlFor
+      ? form.ownerDocument.getElementById(label.htmlFor)
+      : label.querySelector<HTMLElement>('input, select, textarea') ?? label.parentElement?.querySelector<HTMLElement>('input, select, textarea') ?? null;
+    if (control) named.push([fieldKey(label.textContent ?? ''), control]);
+  });
+  form.querySelectorAll<HTMLElement>('input[aria-label], select[aria-label], textarea[aria-label]').forEach((el) => named.push([fieldKey(el.getAttribute('aria-label') ?? ''), el]));
+  // "item 2 (unit price)" is item 2's unit price; "item 2" alone is its first cell
+  const lineMatch = field.match(/^item (\d+)(?: \((.+)\))?$/i);
+  const wanted = [field, ...(lineMatch ? [lineMatch[2] ? `item ${lineMatch[1]} ${lineMatch[2]}` : '', `item ${lineMatch[1]}`] : [])].filter(Boolean).map(fieldKey);
+  for (const want of wanted) {
+    const selector = Object.entries(targets).find(([name]) => fieldKey(name) === want)?.[1];
+    if (selector) return form.querySelector<HTMLElement>(selector);
+    // Exact, then a label that goes on ("received date" → "Received date (G.C.)"), then the longest label the name
+    // goes on from ("item 2 item code starting with 0 or 1" → "Item 2 item code")
+    const longer = named.find(([name]) => name === want) ?? named.find(([name]) => name.startsWith(want));
+    if (longer) return longer[1];
+    const shorter = named.filter(([name]) => name && want.startsWith(`${name} `)).sort((a, b) => b[0].length - a[0].length)[0];
+    if (shorter) return shorter[1];
+  }
+  // Last, a label naming it in brackets or at the end ("recipient" → "Received by (recipient)")
+  const want = fieldKey(field);
+  return named.find(([name]) => name.endsWith(` ${want}`))?.[1] ?? null;
+}
+
+export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, missingFields = [], note: customNote, fieldTargets }) => {
   const incomplete = missingFields.length > 0;
   const note = customNote ?? (incomplete ? 'Fill in all required fields (*) to submit' : undefined);
-  const stillNeeded = incomplete && !customNote
-    ? `Still needed: ${missingFields.slice(0, 4).join(', ')}${missingFields.length > 4 ? ` and ${missingFields.length - 4} more` : ''}`
-    : undefined;
+  const shown = incomplete && !customNote ? missingFields.slice(0, 4) : [];
+  const footer = useRef<HTMLDivElement>(null);
+  // Each name in "Still needed" takes the person to that field
+  const goTo = (field: string) => {
+    const form = footer.current?.closest('form');
+    if (!form) return;
+    const el = findField(form, field, fieldTargets);
+    if (!el) return;
+    // A hidden control (a file input) is shown through what wraps it
+    const visible = el.offsetParent !== null || el.getClientRects().length > 0 ? el : (el.closest('label') as HTMLElement | null) ?? el;
+    visible.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    visible.focus({ preventScroll: true });
+  };
   return (
   <div
+    ref={footer}
     className={`flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white/95 py-3 backdrop-blur ${
       sticky ? 'sticky -bottom-5 z-10 -mx-6 -mb-5 px-6 shadow-[0_-6px_12px_-8px_rgba(15,23,42,0.18)]' : 'pt-4'
     }`}
@@ -482,7 +528,25 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
       {note && (
         <p id="form-footer-note" className="text-[11px] text-slate-500">
           {note}
-          {stillNeeded && <span className="block font-medium text-slate-600">{stillNeeded}</span>}
+          {shown.length > 0 && (
+            <span className="block font-medium text-slate-600">
+              Still needed:{' '}
+              {shown.map((field, i) => (
+                <React.Fragment key={field}>
+                  {i > 0 && ', '}
+                  <button
+                    type="button"
+                    onClick={() => goTo(field)}
+                    title={`Go to ${field}`}
+                    className="cursor-pointer font-medium text-slate-700 underline decoration-slate-300 decoration-dotted underline-offset-2 transition hover:text-emerald-700 hover:decoration-emerald-500"
+                  >
+                    {field}
+                  </button>
+                </React.Fragment>
+              ))}
+              {missingFields.length > 4 && ` and ${missingFields.length - 4} more`}
+            </span>
+          )}
         </p>
       )}
       <button

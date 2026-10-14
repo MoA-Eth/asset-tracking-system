@@ -928,6 +928,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         submitting={submitting}
         submitLabel={editTransfer ? 'Save changes' : isReturn ? 'Submit transfer to store for approval' : 'Submit transfer for approval'}
         missingFields={missingFields}
+        fieldTargets={{ recipient: '#transfer-recipient', 'store man': '#transfer-store-man' }}
         onCancel={onCancel}
       />
     </form>
