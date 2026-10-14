@@ -29,6 +29,9 @@ import { applySystemSettings } from './settings.service';
 
 const basePayload = {
   name: 'Legacy Laptop',
+  // A fixed asset is known by its tag; a consumable by its IFMIS item code
+  itemCode: 'MOA-TEST-0001',
+  ifmisItemCode: '108101101.0001',
   category: AssetCategory.IT_EQUIPMENT,
   serialNumber: 'LAP-001',
   unitCostETB: 55000,
@@ -95,7 +98,7 @@ describe('StoreService.registerStockIn approval gate', () => {
       source: 'Some Supplier',
       buyer: 'Some Buyer',
       items: [
-        { name: 'Donated tablet', itemType: 'FIXED', unitCostETB: 9000, quantity: 1, totalAmount: 9000 },
+        { name: 'Donated tablet', itemType: 'FIXED', itemCode: 'MOA-TEST-0002', unitCostETB: 9000, quantity: 1, totalAmount: 9000 },
         { name: 'Donated charger', itemType: 'CONSUMABLE', unitCostETB: 300, quantity: 2 },
       ],
     } as any);
@@ -153,14 +156,16 @@ describe('StoreService.registerStockIn approval gate', () => {
   it('does not check items registered without a serial number', async () => {
     await StoreService.getInstance().registerStockIn({ ...basePayload, serialNumber: '', isHistoricalData: true } as any);
 
-    expect(db.item.findFirst).not.toHaveBeenCalled();
+    // The only lookup is the tag number's; no serial number is looked up
+    expect(db.item.findFirst).toHaveBeenCalledTimes(1);
+    expect(db.item.findFirst.mock.calls[0][0].where).toHaveProperty('itemCode');
     expect(db.item.create).toHaveBeenCalledTimes(1);
   });
 
   it('refuses a slip whose lines repeat a serial number, before saving any line', async () => {
     const items = [
-      { name: 'Laptop A', category: AssetCategory.IT_EQUIPMENT, serialNumber: 'SN-77', unitCostETB: 1 },
-      { name: 'Laptop B', category: AssetCategory.IT_EQUIPMENT, serialNumber: 'sn-77', unitCostETB: 1 },
+      { name: 'Laptop A', itemCode: 'MOA-TEST-0011', category: AssetCategory.IT_EQUIPMENT, serialNumber: 'SN-77', unitCostETB: 1 },
+      { name: 'Laptop B', itemCode: 'MOA-TEST-0012', category: AssetCategory.IT_EQUIPMENT, serialNumber: 'sn-77', unitCostETB: 1 },
     ];
     await expect(StoreService.getInstance().registerStockIn({ ...basePayload, items, isHistoricalData: true } as any)).rejects.toMatchObject({
       statusCode: 400,
@@ -218,5 +223,42 @@ describe('StoreService.registerStockIn approval gate', () => {
 
     await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'CONSUMABLE', quantity: 10 } as any);
     expect(db.item.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('knows a fixed asset by its tag number and a consumable by its IFMIS item code', async () => {
+    const { itemCode: _tag, ifmisItemCode: _code, ...noCodes } = basePayload;
+    await expect(StoreService.getInstance().registerStockIn({ ...noCodes, isHistoricalData: true } as any)).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining('Enter the tag number'),
+    });
+    await expect(StoreService.getInstance().registerStockIn({ ...noCodes, isHistoricalData: true, itemType: 'CONSUMABLE', quantity: 5 } as any)).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining('Enter the item code'),
+    });
+    expect(db.item.create).not.toHaveBeenCalled();
+
+    // The tag becomes the item code; the IFMIS code is kept with a consumable
+    await StoreService.getInstance().registerStockIn({ ...noCodes, isHistoricalData: true, itemCode: 'MOA-072351' } as any);
+    expect(db.item.create.mock.calls[0][0].data.itemCode).toBe('MOA-072351');
+    await StoreService.getInstance().registerStockIn({ ...noCodes, serialNumber: '', isHistoricalData: true, itemType: 'CONSUMABLE', quantity: 5, ifmisItemCode: '108101101.0021' } as any);
+    expect(JSON.parse(db.item.create.mock.calls[1][0].data.notes).ifmisItemCode).toBe('108101101.0021');
+  });
+
+  it('refuses a tag number already in the register, or twice on one slip', async () => {
+    db.item.findFirst.mockImplementation(async ({ where }: any) => (where.itemCode ? { itemCode: 'MOA-072351', name: 'Handheld GPS' } : null));
+    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemCode: 'moa-072351' } as any)).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('Tag number moa-072351 is already registered (Handheld GPS)'),
+    });
+    db.item.findFirst.mockResolvedValue(null);
+    const items = [
+      { name: 'GPS A', itemCode: 'MOA-1001', unitCostETB: 1 },
+      { name: 'GPS B', itemCode: 'moa-1001', unitCostETB: 1 },
+    ];
+    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, serialNumber: '', items, isHistoricalData: true } as any)).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Two lines on this slip have tag number moa-1001.',
+    });
+    expect(db.item.create).not.toHaveBeenCalled();
   });
 });

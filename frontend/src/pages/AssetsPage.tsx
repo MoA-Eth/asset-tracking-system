@@ -384,7 +384,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const matchesSearch = (row: AssetRow) => {
     if (!q) return true;
     const { item } = row;
-    return [item.name, item.itemCode, item.serialNumber, item.ifmisSlipNumber, item.itemCategoryDisplay, item.category, row.where, row.goingTo, row.request?.ifmisSlipNumber]
+    return [item.name, item.itemCode, item.ifmisItemCode, item.serialNumber, item.ifmisSlipNumber, item.itemCategoryDisplay, item.category, row.where, row.goingTo, row.request?.ifmisSlipNumber]
       .some((v) => (v || '').toLowerCase().includes(q));
   };
   /** The batch shows when it or any of its units matches; with a filter or search, only the matching units unfold */

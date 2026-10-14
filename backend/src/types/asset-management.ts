@@ -152,6 +152,8 @@ export interface Item {
 
   // Extended Model 19 (IFMIS Receiving) Fields
   /** Bought, or donated: a donation has no PO, supplier, buyer or price */
+  /** A consumable's IFMIS inventory item code, e.g. 108101101.0021 (shared by every delivery of it) */
+  ifmisItemCode?: string;
   provisionType?: ProvisionType;
   poNumber?: string;
   transactionType?: string;
@@ -422,6 +424,7 @@ export interface CreateStockInRequest {
   notes?: string;
 
   // Extended Model 19 fields
+  ifmisItemCode?: string;
   provisionType?: ProvisionType;
   poNumber?: string;
   transactionType?: string;
@@ -443,6 +446,7 @@ export interface CreateStockInRequest {
 
   // Multi-item batch registration support
   items?: Array<{
+    ifmisItemCode?: string;
     itemCode?: string;
     name: string;
     category?: AssetCategory;
@@ -478,6 +482,7 @@ export interface UpdateStockInRequest {
   /** New slip upload; omit to keep the current attachment */
   ifmisSlipAttachmentUrl?: string;
 
+  ifmisItemCode?: string;
   provisionType?: ProvisionType;
   poNumber?: string;
   transactionType?: string;

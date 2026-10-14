@@ -337,6 +337,26 @@ describe('Assets page', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('transfers an issued asset typed in by hand, with no PDF', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.transferItem).mockResolvedValue({} as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await menuFor(user, 'MOA-I1');
+    await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-I1' });
+
+    await user.type(within(record).getByPlaceholderText('Number on the Model 21 form'), 'M21-55');
+    await user.type(within(record).getByPlaceholderText('Book the form comes from'), 'Book 2');
+    await user.click(within(record).getByRole('combobox', { name: /To employee/ }));
+    await user.click(screen.getByRole('option', { name: /Kebede Alemu/ }));
+    expect(submitOf(record, 'transfer-form')).toBeEnabled();
+    await user.click(submitOf(record, 'transfer-form'));
+
+    await vi.waitFor(() => expect(api.transferItem).toHaveBeenCalledTimes(1));
+    expect(api.transferItem).toHaveBeenCalledWith(expect.objectContaining({ itemId: 'I1', toEmployeeId: 'E2', model21No: 'M21-55', book: 'Book 2' }));
+  });
+
   it('returns an issued asset to store from the transfer form, by choosing a store', async () => {
     const user = userEvent.setup();
     vi.mocked(api.registerReturn).mockResolvedValue({ id: 'ret-1' } as any);
@@ -389,7 +409,8 @@ describe('Assets page', () => {
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('1');
     expect(within(panel).getByLabelText(/^Quantity/i)).toBeDisabled();
     expect(within(panel).getByLabelText(/Serial number/i)).toHaveValue('');
-    expect(within(panel).getByLabelText(/Item code/i)).toHaveValue('');
+    // A fixed asset is known by its own tag, so a duplicate starts without one
+    expect(within(panel).getByLabelText(/Tag number/i)).toHaveValue('');
   });
 
   it('opens the disposal form in the record and submits the request', async () => {
@@ -750,7 +771,7 @@ describe('Asset record', () => {
         ifmisSlipNumber: '0000044',
         items: [
           expect.objectContaining({ name: 'Sulfa Drug In Vial', quantity: 100 }),
-          expect.objectContaining({ name: 'Streptomycine', category: 'AGRI_MACHINERY', itemType: 'CONSUMABLE', condition: 'NEW', uom: 'EA', quantity: 50, unitCostETB: 341, remark: 'IFMIS item code 105101102.0415' }),
+          expect.objectContaining({ name: 'Streptomycine', category: 'AGRI_MACHINERY', itemType: 'CONSUMABLE', condition: 'NEW', uom: 'EA', quantity: 50, unitCostETB: 341, ifmisItemCode: '105101102.0415' }),
         ],
       }),
     );
@@ -775,7 +796,7 @@ describe('Asset record', () => {
     expect(await within(panel).findByText(/This slip's item was already received as MOA-S2/)).toBeInTheDocument();
   });
 
-  it('fills the receipt from an IFMIS Model 19, keeping the IFMIS item code in the remark', async () => {
+  it('fills the receipt from an IFMIS Model 19, with the IFMIS code as the item code of a consumable', async () => {
     const user = userEvent.setup();
     const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
     vi.mocked(readPdfRows).mockResolvedValue([
@@ -808,9 +829,11 @@ describe('Asset record', () => {
     expect(within(panel).getByLabelText(/^Category/i)).toHaveValue('LAB_EQUIPMENT');
     expect(within(panel).getByLabelText(/Unit of measure/i)).toHaveValue('PKT');
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('100');
-    // The IFMIS code is shared by every delivery of the item, so it is kept as a note, not as the item code
-    expect(within(panel).getByLabelText(/Item code/i)).toHaveValue('');
-    expect(within(panel).getByDisplayValue('IFMIS item code 107101102.4336')).toBeInTheDocument();
+    // A consumable is known by the code IFMIS prints; a fixed asset by its own tag instead
+    await user.selectOptions(within(panel).getAllByLabelText(/Item type/i)[0], 'CONSUMABLE');
+    expect(within(panel).getByLabelText(/^Item code/i)).toHaveValue('107101102.4336');
+    await user.selectOptions(within(panel).getAllByLabelText(/Item type/i)[0], 'FIXED');
+    expect(within(panel).getByLabelText(/Tag number/i)).toHaveValue('');
   });
 
   it('attaches a photo of a slip without reading it: only PDFs saved from IFMIS are read', async () => {
@@ -1142,6 +1165,7 @@ describe('Asset record', () => {
     await user.type(within(panel).getByLabelText(/Item description/i), 'Donated tablet');
     await user.selectOptions(within(panel).getByLabelText(/^Category/i), 'IT_EQUIPMENT');
     await user.selectOptions(within(panel).getByLabelText(/Item type/i), 'FIXED');
+    await user.type(within(panel).getByLabelText(/Tag number/i), 'moa-test-0001');
     await user.selectOptions(within(panel).getByLabelText(/Physical condition/i), 'NEW');
     // A fixed asset: one item, quantity 1
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('1');
@@ -1155,7 +1179,7 @@ describe('Asset record', () => {
     expect(sent.poNumber).toBeUndefined();
     expect(sent.source).toBeUndefined();
     expect(sent.buyer).toBeUndefined();
-    expect(sent.items?.[0]).toMatchObject({ quantity: 1, unitCostETB: 0, totalAmount: 0 });
+    expect(sent.items?.[0]).toMatchObject({ quantity: 1, unitCostETB: 0, totalAmount: 0, itemCode: 'MOA-TEST-0001' });
   });
 
   it('submits a new asset registration from the form footer and triggers Model 19 print modal', async () => {
@@ -1195,6 +1219,9 @@ describe('Asset record', () => {
     // Fixed asset or consumable has to be chosen too
     expect(submitBtn).toBeDisabled();
     await user.selectOptions(within(panel).getByLabelText(/Item type/i), 'CONSUMABLE');
+    // A consumable is known by its item code
+    expect(submitBtn).toBeDisabled();
+    await user.type(within(panel).getByLabelText(/^Item code/i), '108101101.0021');
     expect(submitBtn).toBeDisabled();
 
     // Unit price
@@ -1230,7 +1257,7 @@ describe('Asset record', () => {
       unitCostETB: 75000,
       storeLocationId: 'LOC-1',
       receivedByEmployeeId: 'SM1',
-      items: [expect.objectContaining({ uom: 'KG' })],
+      items: [expect.objectContaining({ uom: 'KG', ifmisItemCode: '108101101.0021', itemCode: undefined })],
     }));
 
     // Success toast shown

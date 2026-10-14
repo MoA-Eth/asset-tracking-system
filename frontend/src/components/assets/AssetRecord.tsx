@@ -456,9 +456,15 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <ReadOnlyValue>{item.itemCategoryDisplay || item.category?.replace(/_/g, ' ')}</ReadOnlyValue>
               </FormKitField>
 
-              <FormKitField label="Item code" required>
+              <FormKitField label={item.itemType === 'CONSUMABLE' ? 'Record code' : 'Tag number'} required>
                 <ReadOnlyValue mono>{item.itemCode}</ReadOnlyValue>
               </FormKitField>
+
+              {item.ifmisItemCode && (
+                <FormKitField label="Item code">
+                  <ReadOnlyValue mono>{item.ifmisItemCode}</ReadOnlyValue>
+                </FormKitField>
+              )}
 
               <FormKitField label="Serial number" optional>
                 <div className="relative flex items-center w-full">
