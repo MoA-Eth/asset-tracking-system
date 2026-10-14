@@ -381,19 +381,20 @@ describe('Assets page', () => {
     // Choosing a store turns it into a transfer to that store
     await user.selectOptions(within(record).getByLabelText(/Return to store/), 'LOC-1');
     expect(within(record).queryByText('To employee')).toBeNull();
-    expect(within(record).getByLabelText(/Condition on return/)).toBeInTheDocument();
+    // Condition is not asked on a return
+    expect(within(record).queryByLabelText(/Condition/)).toBeNull();
     expect(within(record).getByLabelText(/Reason for return/)).toBeInTheDocument();
     expect(submitOf(record, 'transfer-form')).toHaveTextContent('Submit transfer to store for approval');
 
     await user.type(within(record).getByPlaceholderText('Number on the Model 21 form'), 'RET-77');
     await user.type(within(record).getByPlaceholderText('Book the form comes from'), 'Book 3');
-    await user.selectOptions(within(record).getByLabelText(/Condition on return/), 'GOOD');
     await user.type(within(record).getByLabelText(/Reason for return/), 'Work finished');
     await user.click(submitOf(record, 'transfer-form'));
 
     expect(api.registerReturn).toHaveBeenCalledWith(expect.objectContaining({
-      itemId: 'I1', ifmisSlipNumber: 'RET-77', returnReason: 'Work finished', condition: 'GOOD',
+      itemId: 'I1', ifmisSlipNumber: 'RET-77', returnReason: 'Work finished',
     }));
+    expect(vi.mocked(api.registerReturn).mock.calls[0][0].condition).toBeUndefined();
     expect(api.transferItem).not.toHaveBeenCalled();
   });
 

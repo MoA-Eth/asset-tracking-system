@@ -97,7 +97,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const isReturnEdit = editTransfer?.transactionType === 'RETURN';
   const [returnToId, setReturnToId] = useState(isReturnEdit ? editTransfer?.targetLocationId ?? editItem?.storeLocationId ?? '' : '');
   const isReturn = isReturnEdit || (!editTransfer && !!returnToId);
-  const [condition, setCondition] = useState<ItemCondition | ''>(isReturnEdit ? ((details.condition as ItemCondition) ?? '') : '');
+  // Condition is no longer asked on return; a correction keeps what an older return recorded
+  const condition = isReturnEdit ? (details.condition as ItemCondition | undefined) || undefined : undefined;
   const [returnReason, setReturnReason] = useState(isReturnEdit ? details.reason ?? '' : '');
   const [storeReceiverId, setStoreReceiverId] = useState(isReturnEdit ? details.storeRecipientId ?? '' : '');
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
@@ -309,7 +310,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     model21No: !model21No.trim() && 'Enter the number printed on the Model 21 form.',
     book: !book.trim() && 'Enter the book this form comes from.',
     date: !transferDateGc && 'Enter the date of the transfer.',
-    condition: isReturn && !condition && 'Select the condition the asset is returned in.',
     reason: isReturn && !returnReason.trim() && 'Say why the asset is coming back to store.',
   };
   const errorOf = (key: string) => (touched[key] && problems[key] ? (problems[key] as string) : undefined);
@@ -322,7 +322,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     !book.trim() && 'book',
     !isReturn && !targetEmployeeId && 'recipient',
     !isReturn && !editTransfer && storeMen.length > 1 && !transferrerId && 'store man',
-    isReturn && !condition && 'condition on return',
     isReturn && !returnReason.trim() && 'reason for return',
     isReturn && !editTransfer && returnStoreMen.length > 1 && !receiverId && 'received by (store man)',
     isReturn && isAttachmentReq && !attachmentFileName && 'scanned slip',
@@ -333,7 +332,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     if (!selectedItemId) return void toast.warning('Asset required', 'Choose the asset to transfer.');
     if (!isReturn && !targetEmployeeId) return void toast.warning('Recipient required', 'Choose the employee who receives the asset.');
     if (!model21No.trim()) return void toast.warning('Model 21 number required', 'Enter the number on the Model 21 form.');
-    if (isReturn && !condition) return void toast.warning('Condition required', 'Select the condition on return.');
     if (isReturn && !returnReason.trim()) return void toast.warning('Reason required', 'Enter the reason for returning the asset to store.');
     if (isReturn && isAttachmentReq && !attachmentFileName) return void toast.warning('Slip required', 'A scanned slip is required by the system setting.');
 
@@ -351,7 +349,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             ifmisSlipDateGc: transferDateGc,
             ifmisSlipAttachmentUrl: slipUrl,
             returnReason: returnReason.trim(),
-            condition: condition as ItemCondition,
+            condition,
             book: book.trim() || undefined,
             chassisNumber: chassisNumber.trim() || undefined,
             plateNo: plateNo.trim() || undefined,
@@ -375,7 +373,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           ifmisSlipDateGc: transferDateGc,
           ifmisSlipAttachmentUrl: slipUrl,
           returnReason: returnReason.trim(),
-          condition: condition as ItemCondition,
+          condition,
           returningEmployeeId: item?.currentCustodianId || undefined,
           registeredById: user?.id || '',
           model21No: model21No.trim(),
@@ -821,16 +819,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                   current={editTransfer ? editTransfer.requestDetails?.storeRecipientName : undefined}
                   required={!editTransfer}
                 />
-
-                <Field label="Condition on return" required htmlFor="transfer-condition" error={errorOf('condition')}>
-                  <select id="transfer-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} onBlur={touch('condition')} className={input({ invalid: !!errorOf('condition') })}>
-                    <option value="" disabled>Select…</option>
-                    <option value={ItemCondition.GOOD}>Good · fully functional</option>
-                    <option value={ItemCondition.FAIR}>Fair · minor wear</option>
-                    <option value={ItemCondition.NEEDS_REPAIR}>Needs repair</option>
-                    <option value={ItemCondition.DAMAGED}>Damaged / defective</option>
-                  </select>
-                </Field>
               </FieldGrid>
 
               <Field label="Reason for return" required htmlFor="transfer-return-reason" error={errorOf('reason')}>

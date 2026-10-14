@@ -206,8 +206,8 @@ export class ItemController {
     if (req.user) {
       payload.registeredById = req.user.id;
     }
-    if (!payload.itemId || !payload.ifmisSlipNumber || !payload.condition) {
-      throw new BadRequestError('Item ID, IFMIS Return Slip Number (Model 22), and Condition are mandatory.');
+    if (!payload.itemId || !payload.ifmisSlipNumber) {
+      throw new BadRequestError('Item ID and IFMIS Return Slip Number (Model 22) are mandatory.');
     }
     if (!payload.registeredById) {
       throw new BadRequestError('User identity is required to register return.');

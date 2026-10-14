@@ -77,7 +77,8 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   const [dateGc, setDateGc] = useState(editApproval?.ifmisSlipDateGc || today());
   const [reason, setReason] = useState(details?.reason ?? '');
   const [description, setDescription] = useState(details?.description ?? '');
-  const [condition, setCondition] = useState<string>(details?.condition ?? item.condition ?? '');
+  // Condition is no longer asked on disposal; a correction keeps what an older request recorded
+  const condition = details?.condition || undefined;
   // Book value follows the quantity until someone types their own figure
   const [bookValueText, setBookValueText] = useState(details?.bookValue !== undefined ? String(details.bookValue) : '');
   const [bookValueEdited, setBookValueEdited] = useState(details?.bookValue !== undefined);
@@ -239,7 +240,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       disposalDateGc: dateGc,
       reason: reason.trim(),
       description: description.trim() || undefined,
-      condition: (condition || undefined) as ItemCondition | undefined,
+      condition: condition as ItemCondition | undefined,
       bookValue,
       recipientName: recipientName.trim() || undefined,
       proceedsETB: amountOrUndefined(proceedsText),
@@ -363,16 +364,6 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
             </Field>
             <Field label="Disposal date (G.C.)" required hint={`${ethDate} E.C.`} error={fieldErrors.error('date')}>
               <input type="date" required value={dateGc} onChange={(e) => setDateGc(e.target.value)} onBlur={fieldErrors.touch('date')} className={input({ invalid: !!fieldErrors.error('date') })} />
-            </Field>
-            <Field label="Condition" optional>
-              <select value={condition} onChange={(e) => setCondition(e.target.value)} className={input()}>
-                <option value="">Not stated</option>
-                <option value={ItemCondition.NEW}>New</option>
-                <option value={ItemCondition.GOOD}>Good</option>
-                <option value={ItemCondition.FAIR}>Fair</option>
-                <option value={ItemCondition.NEEDS_REPAIR}>Needs repair</option>
-                <option value={ItemCondition.DAMAGED}>Damaged</option>
-              </select>
             </Field>
           </FieldGrid>
 
