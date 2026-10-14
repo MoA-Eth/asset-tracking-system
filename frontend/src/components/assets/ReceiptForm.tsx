@@ -7,12 +7,11 @@ import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, Fo
 import { AssetCategory, ProvisionType, ItemType, ItemStatus, ItemCondition, ItemWithRelations, Location, Employee, Model19Voucher, Model19LineItem } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
-import { ITEM_TYPE_OPTIONS } from './asset-state';
 import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
-import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, itemTypeFromIfmisCode } from './receipt-options';
-import { SlipLines, SlipLine, lineMissing, oneIfFixed } from './SlipLines';
+import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode } from './receipt-options';
+import { SlipLines, SlipLine, ItemTypeTag, lineMissing } from './SlipLines';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -56,7 +55,7 @@ export interface ReceiptTemplate {
 /** What a duplicate keeps from an item: what it is and where it comes from, never its number, serial, quantity or slip */
 export const templateFromItem = (item: ItemWithRelations): ReceiptTemplate => ({
   provisionType: item.provisionType,
-  ifmisItemCode: item.itemType === ItemType.CONSUMABLE ? item.ifmisItemCode : undefined,
+  ifmisItemCode: item.ifmisItemCode,
   transactionType: item.transactionType,
   source: item.source,
   buyer: item.buyer,
@@ -133,6 +132,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [deliveredByOwn, setDeliveredByOwn] = useState(
     !!editItem?.deliveredBy && editItem.deliveredBy !== (editItem.buyer ?? '')
   );
+  // The IFMIS item code decides fixed asset or consumable (1… consumable, 0… fixed); nobody picks it by hand
+  const changeIfmisCode = (value: string) => {
+    setIfmisItemCode(value);
+    setItemType(itemTypeFromIfmisCode(value) ?? '');
+  };
   const changeBuyer = (value: string) => {
     setBuyer(value);
     if (!deliveredByOwn) setDeliveredBy(value);
@@ -189,9 +193,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !isEdit && storeMen.length > 1 && !receiverId && 'received by (store man)',
     !name.trim() && 'item description',
     !isEdit && itemType === ItemType.FIXED && !itemCode.trim() && 'tag number',
-    itemType === ItemType.CONSUMABLE && !ifmisItemCode.trim() && 'item code',
+    !ifmisItemCode.trim() && !(isEdit && itemType) && 'IFMIS item code',
     !category && 'category',
-    !itemType && 'item type',
+    !!ifmisItemCode.trim() && !itemType && 'item code starting with 0 or 1',
     !(quantity >= 1) && 'quantity',
     !uom.trim() && 'unit of measure',
     !donation && !(unitCostETB > 0) && 'unit price',
@@ -210,7 +214,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     source: !donation && !source.trim() && 'Enter the supplier or vendor.',
     itemName: !name.trim() && 'Describe the item received.',
     category: !category && 'Choose the category.',
-    itemType: !itemType && 'Choose fixed asset or consumable.',
+    itemType: !itemType && (ifmisItemCode.trim() ? ITEM_CODE_RULE : 'Enter the IFMIS item code from the Model 19.'),
     uom: !uom.trim() && 'Enter the unit of measure, e.g. EA or KG.',
     unitCost: !donation && !(unitCostETB > 0) && 'Enter the unit price.',
   });
@@ -566,7 +570,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           ifmisSlipDateGc,
           ifmisSlipAttachmentUrl: slipUrl,
           provisionType,
-          ifmisItemCode: itemType === ItemType.CONSUMABLE ? ifmisItemCode.trim() : undefined,
+          ifmisItemCode: ifmisItemCode.trim() || undefined,
           poNumber: donation ? undefined : poNumber.trim() || undefined,
           transactionType,
           source: donation ? undefined : source.trim() || undefined,
@@ -599,7 +603,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
       const itemsPayload = [{
         itemCode: itemType === ItemType.FIXED ? itemCode.trim() || undefined : undefined,
-        ifmisItemCode: itemType === ItemType.CONSUMABLE ? ifmisItemCode.trim() || undefined : undefined,
+        ifmisItemCode: ifmisItemCode.trim() || undefined,
         name: name.trim(),
         category: category as AssetCategory,
         itemType: itemType as ItemType,
@@ -617,7 +621,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         remark: remark.trim() || undefined,
       }, ...extraLines.map((l) => ({
         itemCode: l.itemType === ItemType.FIXED ? l.tag?.trim() || undefined : undefined,
-        ifmisItemCode: l.itemType === ItemType.CONSUMABLE ? l.ifmisCode?.trim() || undefined : undefined,
+        ifmisItemCode: l.ifmisCode?.trim() || undefined,
         name: l.name.trim(),
         category: l.category as AssetCategory,
         itemType: l.itemType as ItemType,
@@ -846,15 +850,21 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       <FormSection step={2} title="Item received" subtitle="የተረከቡት ዕቃ ዝርዝር መረጃ" icon={PackagePlus} accent="emerald">
         <div className="space-y-3.5">
           <FieldGrid>
-            <Field label="Item type" required htmlFor="stock-in-item-type" error={fieldErrors.error('itemType')} hint="ቋሚ ዕቃ (fixed) or አላቂ ዕቃ (consumable). It can't be changed once approved.">
-              <select id="stock-in-item-type" required value={itemType} onChange={(e) => setItemType(e.target.value as ItemType)} onBlur={fieldErrors.touch('itemType')} className={input({ invalid: !!fieldErrors.error('itemType') })}>
-                <option value="" disabled>Select…</option>
-                {ITEM_TYPE_OPTIONS.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label} · {t.amharic}
-                  </option>
-                ))}
-              </select>
+            {/* The IFMIS item code says fixed asset or consumable: 1… is a consumable, 0… a fixed asset */}
+            <Field label="IFMIS item code" required hint={ITEM_CODE_RULE} htmlFor="stock-in-ifmis-code" error={fieldErrors.error('itemType')}>
+              <div className="flex items-center gap-2">
+                <input
+                  id="stock-in-ifmis-code"
+                  type="text"
+                  required
+                  placeholder="e.g. 108101101.0021"
+                  value={ifmisItemCode}
+                  onChange={(e) => changeIfmisCode(e.target.value)}
+                  onBlur={fieldErrors.touch('itemType')}
+                  className={input({ mono: true, invalid: !!fieldErrors.error('itemType') })}
+                />
+                <ItemTypeTag type={itemType} code={ifmisItemCode} label="Item type" />
+              </div>
             </Field>
 
             {isEdit ? (
@@ -873,25 +883,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                   className={input({ mono: true })}
                 />
               </Field>
-            ) : itemType !== ItemType.CONSUMABLE ? (
-              <Field label="Tag number / item code" hint="Choose the item type first: a fixed asset is known by its tag number, a consumable by its item code">
-                <input type="text" disabled aria-label="Tag number or item code" placeholder="Choose the item type first" className={input({ mono: true })} />
-              </Field>
             ) : null}
-
-            {itemType === ItemType.CONSUMABLE && (
-              <Field label="Item code" required hint="The inventory code from IFMIS, the same on every delivery of this item" htmlFor="stock-in-ifmis-code">
-                <input
-                  id="stock-in-ifmis-code"
-                  type="text"
-                  required
-                  placeholder="e.g. 108101101.0021"
-                  value={ifmisItemCode}
-                  onChange={(e) => setIfmisItemCode(e.target.value)}
-                  className={input({ mono: true })}
-                />
-              </Field>
-            )}
 
             {/* A serial number belongs to a fixed asset; a consumable shows one only if it already has one */}
             {showSerial && (
@@ -994,14 +986,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               donation={donation}
               lines={extraLines}
               onChange={setExtraLines}
-              onCopyFirst={
-                itemType
-                  ? () =>
-                      setExtraLines((ls) =>
-                        ls.map((l) => oneIfFixed({ ...l, itemType: l.itemType || (itemType as ItemType | '') })),
-                      )
-                  : undefined
-              }
             />
           )}
         </div>

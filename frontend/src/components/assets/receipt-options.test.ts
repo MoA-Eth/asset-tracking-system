@@ -20,10 +20,12 @@ describe('IFMIS item categories', () => {
 });
 
 describe('item type from the IFMIS item code', () => {
-  it('is a consumable when the code starts with 1, otherwise a fixed asset', () => {
+  it('is a consumable when the code starts with 1, a fixed asset when it starts with 0', () => {
     expect(itemTypeFromIfmisCode('108101101.0021')).toBe(ItemType.CONSUMABLE);
     expect(itemTypeFromIfmisCode('101101101.0052')).toBe(ItemType.CONSUMABLE);
-    expect(itemTypeFromIfmisCode('203101101.0001')).toBe(ItemType.FIXED);
+    expect(itemTypeFromIfmisCode('008101101.0001')).toBe(ItemType.FIXED);
+    // Any other first digit is not a known kind of item
+    expect(itemTypeFromIfmisCode('203101101.0001')).toBeUndefined();
   });
 
   it('makes no guess without a numeric code', () => {

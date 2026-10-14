@@ -1,9 +1,8 @@
 import React from 'react';
-import { Copy, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { AssetCategory, ItemCondition, ItemType } from '../../types/asset-management';
 import { inputClass } from '../ui/FormKit';
-import { ITEM_TYPE_OPTIONS } from './asset-state';
-import { COMMON_CATEGORIES } from './receipt-options';
+import { COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode } from './receipt-options';
 
 /** One more item line from the same Model 19, registered as its own record when the receipt is submitted */
 export interface SlipLine {
@@ -33,27 +32,52 @@ export const lineMissing = (l: SlipLine, donation = false): string[] =>
   [
     !l.name.trim() && 'description',
     !l.category && 'category',
-    !l.itemType && 'item type',
+    !l.ifmisCode?.trim() && 'item code',
+    !!l.ifmisCode?.trim() && !l.itemType && 'item code starting with 0 or 1',
     l.itemType === ItemType.FIXED && !l.tag?.trim() && 'tag number',
-    l.itemType === ItemType.CONSUMABLE && !l.ifmisCode?.trim() && 'item code',
     !l.uom.trim() && 'unit',
     !(Number.isInteger(l.quantity) && l.quantity >= 1) && 'quantity',
     !donation && !(l.unitPrice > 0) && 'unit price',
   ].filter(Boolean) as string[];
 
+/** Fixed asset or consumable, as the item code says: shown, never chosen */
+export const ItemTypeTag: React.FC<{ type: ItemType | ''; code?: string; label?: string }> = ({ type, code, label }) => {
+  const text = type === ItemType.FIXED ? 'Fixed asset' : type === ItemType.CONSUMABLE ? 'Consumable' : code?.trim() ? 'Check the code' : 'From the code';
+  const tone =
+    type === ItemType.FIXED
+      ? 'border-sky-200 bg-sky-50 text-sky-800'
+      : type === ItemType.CONSUMABLE
+        ? 'border-violet-200 bg-violet-50 text-violet-800'
+        : code?.trim()
+          ? 'border-rose-200 bg-rose-50 text-rose-700'
+          : 'border-slate-200 bg-slate-50 text-slate-400';
+  return (
+    <span aria-label={label} title={ITEM_CODE_RULE} className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${tone}`}>
+      {text}
+    </span>
+  );
+};
+
 /**
  * The other item lines of a Model 19 read from its PDF. Each becomes its own record (its own row in Assets) with the
- * same voucher details; the user sets what the PDF doesn't say: item type.
+ * same voucher details. The item type follows the IFMIS item code (1 = consumable, 0 = fixed asset).
  */
 export const SlipLines: React.FC<{
   lines: SlipLine[];
   /** A donation has no price: the price column is left out */
   donation?: boolean;
   onChange: (lines: SlipLine[]) => void;
-  /** Copies the first item's type into the lines that have none */
-  onCopyFirst?: () => void;
-}> = ({ lines, donation, onChange, onCopyFirst }) => {
-  const set = (key: number, patch: Partial<SlipLine>) => onChange(lines.map((l) => (l.key === key ? oneIfFixed({ ...l, ...patch }) : l)));
+}> = ({ lines, donation, onChange }) => {
+  const set = (key: number, patch: Partial<SlipLine>) =>
+    onChange(
+      lines.map((l) => {
+        if (l.key !== key) return l;
+        const next = { ...l, ...patch };
+        // The item code decides fixed asset or consumable
+        if ('ifmisCode' in patch) next.itemType = itemTypeFromIfmisCode(next.ifmisCode) ?? '';
+        return oneIfFixed(next);
+      }),
+    );
   const cell = (opts?: { align?: 'right'; invalid?: boolean; mono?: boolean }) => `${inputClass('emerald', opts)} !py-1 !text-xs`;
   const total = lines.reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0);
 
@@ -64,15 +88,6 @@ export const SlipLines: React.FC<{
           Other items on this slip ({lines.length})
           <span className="ml-1.5 font-normal text-slate-500">each is registered as its own record, with the same voucher details</span>
         </p>
-        {onCopyFirst && (
-          <button
-            type="button"
-            onClick={onCopyFirst}
-            className="inline-flex items-center gap-1 rounded-[3px] border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-800 cursor-pointer"
-          >
-            <Copy className="h-3 w-3" /> Use the first item's type
-          </button>
-        )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[960px] text-left text-xs">
@@ -80,9 +95,9 @@ export const SlipLines: React.FC<{
             <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               <th className="px-2 py-1.5 w-8">#</th>
               <th className="px-2 py-1.5 min-w-[220px]">Description</th>
-              <th className="px-2 py-1.5 w-36">Tag / item code</th>
+              <th className="px-2 py-1.5 w-56">IFMIS item code</th>
+              <th className="px-2 py-1.5 w-36">Tag number</th>
               <th className="px-2 py-1.5 w-40">Category</th>
-              <th className="px-2 py-1.5 w-36">Item type</th>
               <th className="px-2 py-1.5 w-16">Unit</th>
               <th className="px-2 py-1.5 w-20 text-right">Qty</th>
               {!donation && <th className="px-2 py-1.5 w-28 text-right">Unit price</th>}
@@ -103,12 +118,22 @@ export const SlipLines: React.FC<{
                     )}
                   </td>
                   <td className="px-2 py-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        aria-label={`Item ${n} item code`}
+                        placeholder="e.g. 108101101.0021"
+                        value={l.ifmisCode ?? ''}
+                        onChange={(e) => set(l.key, { ifmisCode: e.target.value })}
+                        className={cell({ mono: true, invalid: !l.ifmisCode?.trim() || !l.itemType })}
+                      />
+                      <ItemTypeTag type={l.itemType} code={l.ifmisCode} label={`Item ${n} item type`} />
+                    </div>
+                  </td>
+                  <td className="px-2 py-1.5">
                     {l.itemType === ItemType.FIXED ? (
                       <input aria-label={`Item ${n} tag number`} placeholder="MOA-…" value={l.tag ?? ''} onChange={(e) => set(l.key, { tag: e.target.value.toUpperCase() })} className={cell({ mono: true, invalid: !l.tag?.trim() })} />
-                    ) : l.itemType === ItemType.CONSUMABLE ? (
-                      <input aria-label={`Item ${n} item code`} value={l.ifmisCode ?? ''} onChange={(e) => set(l.key, { ifmisCode: e.target.value })} className={cell({ mono: true, invalid: !l.ifmisCode?.trim() })} />
                     ) : (
-                      <input aria-label={`Item ${n} code`} disabled placeholder="Type first" className={cell({ mono: true })} />
+                      <span className="block pt-1.5 text-slate-400" title="Only a fixed asset has a tag number">—</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5">
@@ -116,14 +141,6 @@ export const SlipLines: React.FC<{
                       <option value="">Select…</option>
                       {COMMON_CATEGORIES.map((c) => (
                         <option key={c.value} value={c.value}>{c.label}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <select aria-label={`Item ${n} item type`} value={l.itemType} onChange={(e) => set(l.key, { itemType: e.target.value as ItemType })} className={cell({ invalid: !l.itemType })}>
-                      <option value="">Select…</option>
-                      {ITEM_TYPE_OPTIONS.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
                       ))}
                     </select>
                   </td>

@@ -407,7 +407,7 @@ describe('Assets page', () => {
     // What the item is comes across
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Desk');
     expect(within(panel).getByLabelText(/Category/i)).not.toHaveValue('');
-    expect(within(panel).getByLabelText(/Item type/i)).toHaveValue('FIXED');
+    expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Fixed asset');
     // What differs every time starts empty
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('');
     // A fixed asset is one item: its quantity is 1 and greyed out
@@ -761,17 +761,23 @@ describe('Asset record', () => {
     const submit = within(panel).getByRole('button', { name: 'Submit 2 items for approval' });
 
     // Item type comes from the IFMIS code (starting with 1: consumable)
-    expect(within(panel).getAllByLabelText(/Item type/i)[0]).toHaveValue('CONSUMABLE');
-    expect(within(others).getByLabelText('Item 2 item type')).toHaveValue('CONSUMABLE');
+    expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Consumable');
+    expect(within(others).getByLabelText('Item 2 item type')).toHaveTextContent('Consumable');
     // Only the store is left to choose
     expect(submit).toBeDisabled();
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
-    // A fixed asset line is one item: its quantity becomes 1 and is greyed out
-    await user.selectOptions(within(others).getByLabelText('Item 2 item type'), 'FIXED');
+    // A fixed asset line (its code starts with 0) is one item: its quantity becomes 1 and is greyed out
+    const code2 = within(others).getByLabelText('Item 2 item code');
+    await user.clear(code2);
+    await user.type(code2, '005101102.0415');
+    expect(within(others).getByLabelText('Item 2 item type')).toHaveTextContent('Fixed asset');
     expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('1');
     expect(within(others).getByLabelText('Item 2 quantity')).toBeDisabled();
     expect(within(others).getByText(/The slip lists 50: a fixed asset is one item/)).toBeInTheDocument();
-    await user.selectOptions(within(others).getByLabelText('Item 2 item type'), 'CONSUMABLE');
+    // Back to the slip's code: a consumable again
+    await user.clear(code2);
+    await user.type(code2, '105101102.0415');
+    expect(within(others).getByLabelText('Item 2 item type')).toHaveTextContent('Consumable');
     await user.clear(within(others).getByLabelText('Item 2 quantity'));
     await user.type(within(others).getByLabelText('Item 2 quantity'), '50');
     expect(submit).toBeEnabled();
@@ -843,10 +849,14 @@ describe('Asset record', () => {
     expect(within(panel).getByLabelText(/^Category/i)).toHaveValue('LAB_EQUIPMENT');
     expect(within(panel).getByLabelText(/Unit of measure/i)).toHaveValue('PKT');
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('100');
-    // A consumable is known by the code IFMIS prints; a fixed asset by its own tag instead
-    await user.selectOptions(within(panel).getAllByLabelText(/Item type/i)[0], 'CONSUMABLE');
-    expect(within(panel).getByLabelText(/^Item code/i)).toHaveValue('107101102.4336');
-    await user.selectOptions(within(panel).getAllByLabelText(/Item type/i)[0], 'FIXED');
+    // The IFMIS code says what it is: 1… a consumable. A code starting with 0 would be a fixed asset, which also needs its tag
+    const code = within(panel).getByLabelText(/IFMIS item code/i);
+    expect(code).toHaveValue('107101102.4336');
+    expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Consumable');
+    expect(within(panel).queryByLabelText(/Tag number/i)).toBeNull();
+    await user.clear(code);
+    await user.type(code, '007101102.4336');
+    expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Fixed asset');
     expect(within(panel).getByLabelText(/Tag number/i)).toHaveValue('');
   });
 
@@ -1178,7 +1188,8 @@ describe('Asset record', () => {
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
     await user.type(within(panel).getByLabelText(/Item description/i), 'Donated tablet');
     await user.selectOptions(within(panel).getByLabelText(/^Category/i), 'IT_EQUIPMENT');
-    await user.selectOptions(within(panel).getByLabelText(/Item type/i), 'FIXED');
+    // A code starting with 0: a fixed asset, which is known by its tag
+    await user.type(within(panel).getByLabelText(/IFMIS item code/i), '005101101.0001');
     await user.type(within(panel).getByLabelText(/Tag number/i), 'moa-test-0001');
     // A fixed asset: one item, quantity 1
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('1');
@@ -1228,12 +1239,10 @@ describe('Asset record', () => {
     // Item details
     await user.type(within(panel).getByLabelText(/Item description/i), 'Precision Workstation');
     await user.selectOptions(within(panel).getByLabelText(/Category/i), 'IT_EQUIPMENT');
-    // Fixed asset or consumable has to be chosen too
+    // The IFMIS item code is needed too: it also says consumable (1…) or fixed asset (0…)
     expect(submitBtn).toBeDisabled();
-    await user.selectOptions(within(panel).getByLabelText(/Item type/i), 'CONSUMABLE');
-    // A consumable is known by its item code
-    expect(submitBtn).toBeDisabled();
-    await user.type(within(panel).getByLabelText(/^Item code/i), '108101101.0021');
+    await user.type(within(panel).getByLabelText(/IFMIS item code/i), '108101101.0021');
+    expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Consumable');
     expect(submitBtn).toBeDisabled();
 
     // Unit price

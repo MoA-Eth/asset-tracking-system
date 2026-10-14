@@ -31,7 +31,7 @@ const basePayload = {
   name: 'Legacy Laptop',
   // A fixed asset is known by its tag; a consumable by its IFMIS item code
   itemCode: 'MOA-TEST-0001',
-  ifmisItemCode: '108101101.0001',
+  ifmisItemCode: '008101101.0001',
   category: AssetCategory.IT_EQUIPMENT,
   serialNumber: 'LAP-001',
   unitCostETB: 55000,
@@ -99,7 +99,7 @@ describe('StoreService.registerStockIn approval gate', () => {
       buyer: 'Some Buyer',
       items: [
         { name: 'Donated tablet', itemType: 'FIXED', itemCode: 'MOA-TEST-0002', unitCostETB: 9000, quantity: 1, totalAmount: 9000 },
-        { name: 'Donated charger', itemType: 'CONSUMABLE', unitCostETB: 300, quantity: 2 },
+        { name: 'Donated charger', itemType: 'CONSUMABLE', ifmisItemCode: '108101101.0021', unitCostETB: 300, quantity: 2 },
       ],
     } as any);
     expect(db.item.create).toHaveBeenCalledTimes(2);
@@ -121,7 +121,7 @@ describe('StoreService.registerStockIn approval gate', () => {
   });
 
   it('saves the item type, and treats an item sent without one as a fixed asset', async () => {
-    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'CONSUMABLE' } as any);
+    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'CONSUMABLE', ifmisItemCode: '108101101.0021' } as any);
     expect(db.item.create.mock.calls[0][0].data.itemType).toBe('CONSUMABLE');
 
     await StoreService.getInstance().registerStockIn({ ...basePayload, serialNumber: 'LAP-002', isHistoricalData: true } as any);
@@ -131,6 +131,14 @@ describe('StoreService.registerStockIn approval gate', () => {
   it('refuses an item type that is neither fixed nor consumable', async () => {
     await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'SERVICE' } as any))
       .rejects.toMatchObject({ statusCode: 400, message: 'Choose whether this is a fixed asset or a consumable item.' });
+    expect(db.item.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses an item type that the IFMIS item code contradicts (1… consumable, 0… fixed asset)', async () => {
+    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'FIXED', ifmisItemCode: '108101101.0021' } as any))
+      .rejects.toMatchObject({ statusCode: 400, message: expect.stringMatching(/Item code 108101101\.0021 is a consumable/) });
+    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'CONSUMABLE', quantity: 3, ifmisItemCode: '008101101.0001' } as any))
+      .rejects.toMatchObject({ statusCode: 400, message: expect.stringMatching(/Item code 008101101\.0001 is a fixed asset/) });
     expect(db.item.create).not.toHaveBeenCalled();
   });
 
@@ -221,7 +229,7 @@ describe('StoreService.registerStockIn approval gate', () => {
     ).rejects.toMatchObject({ statusCode: 400 });
     expect(db.item.create).not.toHaveBeenCalled();
 
-    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'CONSUMABLE', quantity: 10 } as any);
+    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'CONSUMABLE', ifmisItemCode: '108101101.0021', quantity: 10 } as any);
     expect(db.item.create).toHaveBeenCalledTimes(1);
   });
 

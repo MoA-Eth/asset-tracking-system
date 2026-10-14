@@ -18,14 +18,17 @@ export const CATEGORY_FROM_IFMIS: [RegExp, AssetCategory][] = [
 ];
 
 /**
- * Fixed asset or consumable from the IFMIS item code on a Model 19: inventory codes starting with 1 are
- * consumables (e.g. 108101101.0021, fuel cards), any other first digit is a fixed asset. No code, no guess.
+ * Fixed asset or consumable from the IFMIS inventory item code on a Model 19, as the property office reads it:
+ * a code starting with 1 is a consumable (e.g. 108101101.0021, fuel cards), one starting with 0 a fixed asset.
+ * Any other code gives no type, so nothing is registered with a guessed one.
  */
 export function itemTypeFromIfmisCode(code?: string): ItemType | undefined {
   const first = code?.trim()[0];
-  if (!first || !/\d/.test(first)) return undefined;
-  return first === '1' ? ItemType.CONSUMABLE : ItemType.FIXED;
+  return first === '1' ? ItemType.CONSUMABLE : first === '0' ? ItemType.FIXED : undefined;
 }
+
+/** What a code that gives no item type should say */
+export const ITEM_CODE_RULE = 'An IFMIS item code starts with 1 (consumable) or 0 (fixed asset).';
 
 export const COMMON_UOMS = ['EA', 'PKT', 'SET', 'ROLL', 'PCS', 'BOX', 'BAG', 'KG', 'LTR', 'CAN', 'BOTTLE'];
 export const COMMON_CATEGORIES = [

@@ -794,6 +794,14 @@ export class StoreService {
     for (const line of rawItems) {
       const type = line.itemType || payload.itemType || 'FIXED';
       const name = line.name || payload.name || 'asset';
+      // The IFMIS item code says which it is: 1… a consumable, 0… a fixed asset
+      const ifmisCode = String(line.ifmisItemCode ?? payload.ifmisItemCode ?? '').trim();
+      const codeType = ifmisCode.startsWith('1') ? 'CONSUMABLE' : ifmisCode.startsWith('0') ? 'FIXED' : undefined;
+      if (codeType && (type === 'FIXED' || type === 'CONSUMABLE') && codeType !== type) {
+        throw new BadRequestError(
+          `Item code ${ifmisCode} is a ${codeType === 'FIXED' ? 'fixed asset' : 'consumable'} (codes starting with 1 are consumables, with 0 fixed assets), but ${name} was sent as a ${type === 'FIXED' ? 'fixed asset' : 'consumable'}.`,
+        );
+      }
       if (type === 'FIXED' && Number(line.quantity ?? 1) !== 1) {
         throw new BadRequestError(`A fixed asset is one item, so its quantity is 1: register each ${name} as its own receipt.`);
       }
