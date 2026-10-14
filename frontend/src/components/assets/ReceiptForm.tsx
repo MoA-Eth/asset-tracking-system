@@ -1,25 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PackagePlus, FileText, Upload } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
-import { FormSection, FieldGrid, Field, TotalValue, ReadOnlyValue, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, MoneyInput, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
+import { FormSection, FieldGrid, Field, FormError, FormNotice, FileDropField, FormFooter, inputClass, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { AssetCategory, ProvisionType, ItemType, ItemStatus, ItemCondition, ItemWithRelations, Location, Employee, Model19Voucher, Model19LineItem } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
-import { ITEM_TYPE_OPTIONS } from './asset-state';
 import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, itemTypeFromIfmisCode } from './receipt-options';
-import { SlipLines, SlipLine, lineMissing, oneIfFixed } from './SlipLines';
+import { ReceiptItems, SlipLine, blankLine, lineMissing, oneIfFixed } from './SlipLines';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 
 /** IFMIS slips are a page or two; a longer one is read this far and the rest flagged */
 const MAX_SLIP_PAGES = 30;
 
-const CONDITION_LABELS: Record<string, string> = { NEW: 'New', GOOD: 'Good', FAIR: 'Fair', NEEDS_REPAIR: 'Needs repair', DAMAGED: 'Damaged' };
 
 // ─── Stock-In Form (Flat Single-Item Format) ────────────────────────────────
 
@@ -206,41 +204,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     }),
   ].filter(Boolean) as string[];
 
-  /** The fields that still need the person, by key: the same rules as missingFields above */
-  const neededNow = (): Set<string> => {
-    const keys: [string, boolean][] = [
-      ['model19No', !ifmisSlipNumber.trim()],
-      ['receivedDate', !ifmisSlipDateGc],
-      ['transactionType', !transactionType],
-      ['source', !donation && !source.trim()],
-      ['store', !storeId],
-      ['receivedBy', !isEdit && !receiverId],
-      ['name', !name.trim()],
-      ['itemType', !itemType],
-      ['tag', !isEdit && itemType !== ItemType.CONSUMABLE && !itemCode.trim()],
-      ['ifmisCode', itemType !== ItemType.FIXED && !ifmisItemCode.trim()],
-      ['category', !category],
-      ['condition', !condition],
-      ['quantity', !(quantity >= 1)],
-      ['uom', !uom.trim()],
-      ['unitPrice', !donation && !(unitCostETB > 0)],
-    ];
-    return new Set(keys.filter(([, needed]) => needed).map(([key]) => key));
-  };
-
-  // After a Model 19 is read, the form shows what was read and asks only for what it still needs.
-  // What it asks for is fixed when the slip is read, so a field doesn't vanish while it is being typed in.
+  // Once a Model 19 was read, empty required fields are marked, so the gaps stand out
   const [slipRead, setSlipRead] = useState(0);
-  const [askFor, setAskFor] = useState<Set<string> | null>(null);
-  const [showAll, setShowAll] = useState(false);
-  useEffect(() => {
-    if (slipRead > 0) setAskFor(neededNow());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slipRead]);
-  const compact = !isEdit && askFor !== null && !showAll;
-  const stillNeeded = neededNow();
-  /** Whether a field shows: always in the full form; in the short one if it was asked for or still blocks submitting */
-  const ask = (key: string) => !compact || !!askFor?.has(key) || stillNeeded.has(key);
+  const showGaps = slipRead > 0;
+  // The rarely needed voucher fields (provision, program, PO, buyer, delivered by) open on request
+  const [showMore, setShowMore] = useState(false);
 
   // A field shows what is wrong with it once the user has been in it
   const fieldErrors = useFieldErrors({
@@ -257,8 +225,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   const handleReset = () => {
     fromSlip.current = {};
-    setAskFor(null);
-    setShowAll(false);
+    setSlipRead(0);
+    setShowMore(false);
     setIfmisSlipNumber('');
     setPoNumber('');
     setIfmisSlipDateGc(new Date().toISOString().split('T')[0]);
@@ -337,7 +305,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   /** Clears what an earlier slip filled in and the person hasn't changed, along with its other item lines */
   const forgetSlip = () => {
-    setAskFor(null);
+    setSlipRead(0);
     for (const f of slipFields()) if (fromSlip.current[f.key] !== undefined && fromSlip.current[f.key] === f.current) f.set(f.empty);
     fromSlip.current = {};
     setExtraLines([]);
@@ -391,11 +359,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       }
     }
     fromSlip.current = taken;
-    // New receipts switch to the short form: what was read, and what is still needed
-    if (!isEdit) {
-      setSlipRead((n) => n + 1);
-      setShowAll(false);
-    }
+    // From now on an empty required field is marked
+    setSlipRead((n) => n + 1);
     setSlipQuantity(line?.quantity ?? 0);
     // A receipt comes first in an item's life: the same slip line received twice would count the goods twice
     const receivedAs = (description?: string) =>
@@ -781,31 +746,47 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center'; invalid?: boolean }) => inputClass('emerald', opts);
 
-  // The short form's summary: what is filled in and not asked for again below. [label, field key ('' if never asked), value]
-  const money = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  const slipSummary = (
-    [
-      ['Model 19 No.', 'model19No', ifmisSlipNumber],
-      ['Received date', 'receivedDate', ifmisSlipDateGc ? `${ifmisSlipDateGc} (${formatGcToEc(ifmisSlipDateGc)} E.C.)` : ''],
-      ['Transaction type', 'transactionType', transactionType],
-      ['Program', '', programName],
-      ['PO number', '', donation ? '' : poNumber],
-      ['Source', 'source', donation ? '' : source],
-      ['Buyer', '', donation ? '' : buyer],
-      ['Item', 'name', name],
-      ['Item type', 'itemType', ITEM_TYPE_OPTIONS.find((t) => t.value === itemType)?.label ?? ''],
-      ['Item code', 'ifmisCode', itemType === ItemType.CONSUMABLE ? ifmisItemCode : ''],
-      ['Category', 'category', COMMON_CATEGORIES.find((c) => c.value === category)?.label ?? ''],
-      ['Condition', 'condition', CONDITION_LABELS[condition] ?? ''],
-      ['Quantity', 'quantity', quantity ? `${quantity} ${uom}${donation ? '' : ` × ETB ${money(unitCostETB)} = ETB ${money(totalAmount)}`}` : ''],
-      ['Other items', '', extraLines.length ? `${extraLines.length} more, listed below (all items ETB ${money(totalAmount + extraTotal)})` : ''],
-      ['Store', 'store', storeId ? stores.find(([id]) => id === storeId)?.[1] ?? '' : ''],
-      ['Received by', 'receivedBy', receiverId ? receiverName : ''],
-      ['Delivered by', '', deliveredBy],
-    ] as [string, string, string][]
-  )
-    .filter(([, key, value]) => value && !(key && ask(key)))
-    .map(([label, , value]) => [label, value] as [string, string]);
+  // The first item lives in the form's own fields; in the items table it is row 1, like every other line
+  const FIRST_LINE = -1;
+  const firstLine: SlipLine = {
+    key: FIRST_LINE,
+    name,
+    category,
+    itemType,
+    condition,
+    uom,
+    quantity,
+    unitPrice: unitCostETB,
+    ifmisCode: ifmisItemCode,
+    tag: itemCode,
+    slipQuantity,
+  };
+  const changeLine = (key: number, patch: Partial<SlipLine>) => {
+    if (key !== FIRST_LINE) {
+      setExtraLines((ls) => ls.map((l) => (l.key === key ? oneIfFixed({ ...l, ...patch }) : l)));
+      return;
+    }
+    if (patch.name !== undefined) setName(patch.name);
+    if (patch.category !== undefined) setCategory(patch.category);
+    if (patch.itemType !== undefined) setItemType(patch.itemType);
+    if (patch.condition !== undefined) setCondition(patch.condition);
+    if (patch.uom !== undefined) setUom(patch.uom);
+    if (patch.quantity !== undefined) setQuantity(patch.quantity);
+    if (patch.unitPrice !== undefined) setUnitCostETB(patch.unitPrice);
+    if (patch.ifmisCode !== undefined) setIfmisItemCode(patch.ifmisCode);
+    if (patch.tag !== undefined) setItemCode(patch.tag);
+  };
+  // The voucher fields behind "More details", named when filled
+  const moreFilled = [
+    donation && 'Donation',
+    programName && `Program: ${programName}`,
+    !donation && poNumber && `PO ${poNumber}`,
+    !donation && buyer && `Buyer: ${buyer}`,
+    deliveredBy && `Delivered by: ${deliveredBy}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
 
   return (
     <form id="stock-in-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
@@ -835,98 +816,120 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         )}
       </div>
 
-      {/* ── What was read from the slip, in short ── */}
-      {askFor !== null && !isEdit && (
-        <section aria-label="Read from the slip" className="rounded-xl border border-emerald-200 bg-emerald-50/40">
-          <div className="flex items-center gap-2 border-b border-emerald-100 px-4 py-2">
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Read from the slip</h3>
-            <button
-              type="button"
-              onClick={() => setShowAll((v) => !v)}
-              className="ml-auto text-xs font-semibold text-emerald-800 hover:underline cursor-pointer"
-            >
-              {showAll ? 'Show only what is needed' : 'Edit all fields'}
-            </button>
-          </div>
-          {compact && (
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 px-4 py-3 text-xs sm:grid-cols-2">
-              {slipSummary.map(([label, value]) => (
-                <div key={label} className="flex gap-2">
-                  <dt className="w-32 shrink-0 text-slate-500">{label}</dt>
-                  <dd className="min-w-0 font-medium text-slate-900">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-        </section>
-      )}
-
-      {/* ── Voucher & procurement ── */}
-      {(['model19No', 'receivedDate', 'transactionType', 'source'].some(ask) || !compact) && (
-        <FormSection
-          plain
-          step={1}
-          title={compact ? 'Still needed: voucher' : 'Voucher & procurement'}
-          icon={FileText}
-          accent="emerald"
-        >
+      {/* ── The receipt's own details, on two rows; the rarely needed ones open on request ── */}
+      <FormSection
+        plain
+        step={1}
+        title="Receipt"
+        icon={FileText}
+        accent="emerald"
+        aside={
+          <button
+            type="button"
+            onClick={() => setShowMore((v) => !v)}
+            aria-expanded={showMore}
+            className="text-xs font-semibold text-emerald-800 hover:underline cursor-pointer"
+          >
+            {showMore ? 'Fewer details' : 'More details'}
+          </button>
+        }
+      >
+        <div className="space-y-3.5">
           <FieldGrid>
-            {!compact && (
+            <Field label="Model 19 No." required htmlFor="stock-in-model19" error={fieldErrors.error('model19No')}>
+              <input
+                id="stock-in-model19"
+                type="text"
+                required
+                placeholder="e.g. 0000044"
+                value={ifmisSlipNumber}
+                onChange={(e) => setIfmisSlipNumber(e.target.value)}
+                onBlur={fieldErrors.touch('model19No')}
+                className={`${input({ mono: true, invalid: !!fieldErrors.error('model19No') || (showGaps && !ifmisSlipNumber.trim()) })} font-semibold`}
+              />
+            </Field>
+
+            <Field label="Received date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
+              <input
+                id="stock-in-slip-date"
+                type="date"
+                required
+                value={ifmisSlipDateGc}
+                onChange={(e) => setIfmisSlipDateGc(e.target.value)}
+                className={input({ invalid: showGaps && !ifmisSlipDateGc })}
+              />
+            </Field>
+
+            <Field label="Transaction type" required htmlFor="stock-in-transaction-type" error={fieldErrors.error('transactionType')}>
+              <select
+                id="stock-in-transaction-type"
+                required
+                value={transactionType}
+                onChange={(e) => setTransactionType(e.target.value)}
+                onBlur={fieldErrors.touch('transactionType')}
+                className={input({ invalid: !!fieldErrors.error('transactionType') || (showGaps && !transactionType) })}
+              >
+                <option value="" disabled>Select…</option>
+                {TRANSACTION_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            {!donation && (
+              <Field label="Source (supplier / vendor)" required htmlFor="stock-in-source" error={fieldErrors.error('source')}>
+                <input
+                  id="stock-in-source"
+                  type="text"
+                  required
+                  placeholder="Supplier or vendor name"
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                  onBlur={fieldErrors.touch('source')}
+                  className={input({ invalid: !!fieldErrors.error('source') || (showGaps && !source.trim()) })}
+                />
+              </Field>
+            )}
+
+            <Field label="Receiving store" required htmlFor="stock-in-store">
+              <select id="stock-in-store" required value={storeId} onChange={(e) => chooseStore(e.target.value)} className={input({ invalid: showGaps && !storeId })}>
+                <option value="" disabled>Select…</option>
+                {stores.map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <StoreManField
+              id="stock-in-received-by"
+              label="Received by (store man)"
+              keepers={storeMen}
+              ready={keepers.ready}
+              storeName={keepers.storeName(storeId)}
+              hasStore={!!storeId}
+              value={receivedById}
+              onChange={setReceivedById}
+              current={isEdit ? receivedBy || undefined : undefined}
+              required={!isEdit}
+            />
+          </FieldGrid>
+
+          {/* Closed, the filled ones are named, so nothing is hidden without a trace */}
+          {!showMore && moreFilled && <p className="text-[11px] text-slate-500">{moreFilled}</p>}
+
+          {showMore && (
+            <FieldGrid>
               <Field label="Type of provision" required htmlFor="stock-in-provision" hint={donation ? 'Donated items have no PO number, supplier, buyer or price.' : undefined}>
                 <select id="stock-in-provision" required value={provisionType} onChange={(e) => chooseProvision(e.target.value as ProvisionType)} className={input()}>
                   <option value="PURCHASE">Purchase</option>
                   <option value="DONATION">Donation</option>
                 </select>
               </Field>
-            )}
 
-            {ask('transactionType') && (
-              <Field label="Transaction type" required htmlFor="stock-in-transaction-type" error={fieldErrors.error('transactionType')}>
-                <select id="stock-in-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} onBlur={fieldErrors.touch('transactionType')} className={input({ invalid: !!fieldErrors.error('transactionType') })}>
-                  <option value="" disabled>Select…</option>
-                  {TRANSACTION_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
-
-            {ask('receivedDate') && (
-              <Field label="Received date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
-                <input
-                  id="stock-in-slip-date"
-                  type="date"
-                  required
-                  value={ifmisSlipDateGc}
-                  onChange={(e) => setIfmisSlipDateGc(e.target.value)}
-                  className={input()}
-                />
-              </Field>
-            )}
-
-            {ask('model19No') && (
-              <Field
-                label="Model 19 No."
-                required
-                htmlFor="stock-in-model19"
-                error={fieldErrors.error('model19No')}
-              >
-                <input
-                  id="stock-in-model19"
-                  type="text"
-                  required
-                  placeholder="e.g. 0000044"
-                  value={ifmisSlipNumber}
-                  onChange={(e) => setIfmisSlipNumber(e.target.value)}
-                  onBlur={fieldErrors.touch('model19No')}
-                  className={`${input({ mono: true, invalid: !!fieldErrors.error('model19No') })} font-semibold`}
-                />
-              </Field>
-            )}
-
-            {!compact && (
               <Field label="Program / project" optional span="sm:col-span-2">
                 <input
                   type="text"
@@ -936,12 +939,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                   className={input()}
                 />
               </Field>
-            )}
 
-            {/* What it was bought on: a donation has none of it */}
-            {!donation && (
-              <>
-                {!compact && (
+              {!donation && (
+                <>
                   <Field label="PO number" optional htmlFor="stock-in-po">
                     <input
                       id="stock-in-po"
@@ -952,24 +952,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                       className={input({ mono: true })}
                     />
                   </Field>
-                )}
 
-                {ask('source') && (
-                  <Field label="Source (supplier / vendor)" required htmlFor="stock-in-source" error={fieldErrors.error('source')}>
-                    <input
-                      id="stock-in-source"
-                      type="text"
-                      required
-                      placeholder="Supplier or vendor name"
-                      value={source}
-                      onChange={(e) => setSource(e.target.value)}
-                      onBlur={fieldErrors.touch('source')}
-                      className={input({ invalid: !!fieldErrors.error('source') })}
-                    />
-                  </Field>
-                )}
-
-                {!compact && (
                   <Field label="Buyer / procurement officer" optional>
                     <input
                       type="text"
@@ -979,246 +962,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                       className={input()}
                     />
                   </Field>
-                )}
-              </>
-            )}
-          </FieldGrid>
-        </FormSection>
-      )}
-
-      {/* ── Item received ── */}
-      {(['itemType', 'tag', 'ifmisCode', 'name', 'category', 'condition', 'quantity', 'uom', 'unitPrice'].some(ask) || !compact || extraLines.length > 0) && (
-        <FormSection plain step={2} title={compact ? 'Items' : 'Item received'} icon={PackagePlus} accent="emerald">
-          <div className="space-y-3.5">
-            <FieldGrid>
-              {ask('itemType') && (
-                <Field label="Item type" required htmlFor="stock-in-item-type" error={fieldErrors.error('itemType')} hint="ቋሚ ዕቃ (fixed) or አላቂ ዕቃ (consumable). It can't be changed once approved.">
-                  <select id="stock-in-item-type" required value={itemType} onChange={(e) => setItemType(e.target.value as ItemType)} onBlur={fieldErrors.touch('itemType')} className={input({ invalid: !!fieldErrors.error('itemType') })}>
-                    <option value="" disabled>Select…</option>
-                    {ITEM_TYPE_OPTIONS.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label} · {t.amharic}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                </>
               )}
 
-              {isEdit ? (
-                <Field label={itemType === ItemType.CONSUMABLE ? 'Record code' : 'Tag number'} hint="It can't be changed after registration">
-                  <ReadOnlyValue mono>{itemCode}</ReadOnlyValue>
-                </Field>
-              ) : itemType === ItemType.FIXED ? (
-                ask('tag') && (
-                  <Field label="Tag number" required hint="The tag on the asset; it becomes its item code" htmlFor="stock-in-item-code">
-                    <input
-                      id="stock-in-item-code"
-                      type="text"
-                      required
-                      placeholder="e.g. MOA-072351"
-                      value={itemCode}
-                      onChange={(e) => setItemCode(e.target.value.toUpperCase())}
-                      className={input({ mono: true })}
-                    />
-                  </Field>
-                )
-              ) : itemType !== ItemType.CONSUMABLE ? (
-                <Field label="Tag number / item code" hint="Choose the item type first: a fixed asset is known by its tag number, a consumable by its item code">
-                  <input type="text" disabled aria-label="Tag number or item code" placeholder="Choose the item type first" className={input({ mono: true })} />
-                </Field>
-              ) : null}
-
-              {itemType === ItemType.CONSUMABLE && ask('ifmisCode') && (
-                <Field label="Item code" required hint="The inventory code from IFMIS, the same on every delivery of this item" htmlFor="stock-in-ifmis-code">
-                  <input
-                    id="stock-in-ifmis-code"
-                    type="text"
-                    required
-                    placeholder="e.g. 108101101.0021"
-                    value={ifmisItemCode}
-                    onChange={(e) => setIfmisItemCode(e.target.value)}
-                    className={input({ mono: true })}
-                  />
-                </Field>
-              )}
-
-              {/* A serial number belongs to a fixed asset; a consumable shows one only if it already has one */}
-              {showSerial && !compact && (
-                <Field label="Serial number" optional htmlFor="stock-in-serial">
-                  <input
-                    id="stock-in-serial"
-                    type="text"
-                    placeholder="e.g. SN-892348"
-                    value={serialNumber}
-                    onChange={(e) => setSerialNumber(e.target.value)}
-                    className={input({ mono: true })}
-                  />
-                </Field>
-              )}
-
-              {ask('name') && (
-                <Field label="Item description" required span={showSerial && !compact ? undefined : 'sm:col-span-2'} htmlFor="stock-in-item-name" error={fieldErrors.error('itemName')}>
-                  <input
-                    id="stock-in-item-name"
-                    type="text"
-                    required
-                    placeholder="e.g. Dell Latitude 5440 Laptop"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    onBlur={fieldErrors.touch('itemName')}
-                    className={input({ invalid: !!fieldErrors.error('itemName') })}
-                  />
-                </Field>
-              )}
-
-              {ask('category') && (
-                <Field label="Category" required htmlFor="stock-in-category" error={fieldErrors.error('category')}>
-                  <select id="stock-in-category" required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} onBlur={fieldErrors.touch('category')} className={input({ invalid: !!fieldErrors.error('category') })}>
-                    <option value="" disabled>Select…</option>
-                    {COMMON_CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              )}
-
-              {ask('condition') && (
-                <Field label="Physical condition" required htmlFor="stock-in-condition" error={fieldErrors.error('condition')}>
-                  <select id="stock-in-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} onBlur={fieldErrors.touch('condition')} className={input({ invalid: !!fieldErrors.error('condition') })}>
-                    <option value="" disabled>Select…</option>
-                    <option value={ItemCondition.NEW}>New (አዲስ)</option>
-                    <option value={ItemCondition.GOOD}>Good (ጥሩ)</option>
-                    <option value={ItemCondition.FAIR}>Fair (መካከለኛ)</option>
-                    <option value={ItemCondition.NEEDS_REPAIR}>Needs repair (ጥገና የሚያስፈልገው)</option>
-                    <option value={ItemCondition.DAMAGED}>Damaged (የተበላሸ)</option>
-                  </select>
-                </Field>
-              )}
-            </FieldGrid>
-
-            {/* Quantity & valuation */}
-            {(['quantity', 'uom', 'unitPrice'].some(ask) || !compact) && (
-              <FieldGrid cols={4}>
-                {ask('quantity') && (
-                  <Field
-                    label="Quantity"
-                    required
-                    htmlFor="receipt-quantity"
-                    hint={fixedOne ? 'A fixed asset is one item. For several, register each as its own receipt (Duplicate as new receipt helps).' : undefined}
-                    warning={fixedOne && slipQuantity > 1 ? `The slip lists ${slipQuantity} of this item: register each one as its own receipt.` : undefined}
-                  >
-                    <QuantityInput id="receipt-quantity" min={1} required value={quantity} onChange={setQuantity} disabled={fixedOne} />
-                  </Field>
-                )}
-
-                {ask('uom') && (
-                  <Field label="Unit of measure" required htmlFor="stock-in-uom" error={fieldErrors.error('uom')}>
-                    <input
-                      id="stock-in-uom"
-                      type="text"
-                      list="uom-options"
-                      required
-                      value={uom}
-                      onChange={(e) => setUom(e.target.value.toUpperCase())}
-                      onBlur={fieldErrors.touch('uom')}
-                      className={`${input({ mono: true, invalid: !!fieldErrors.error('uom') })} uppercase`}
-                      placeholder="EA, KG, BOX…"
-                    />
-                  </Field>
-                )}
-
-                {!donation && (
-                  <>
-                    {ask('unitPrice') && (
-                      <Field label="Unit price (ETB)" required htmlFor="stock-in-unit-cost" error={fieldErrors.error('unitCost')}>
-                        <MoneyInput
-                          id="stock-in-unit-cost"
-                          value={unitCostETB}
-                          onChange={setUnitCostETB}
-                          onBlur={fieldErrors.touch('unitCost')}
-                          invalid={!!fieldErrors.error('unitCost')}
-                        />
-                      </Field>
-                    )}
-
-                    {!compact && (
-                      <Field label="Total (ETB)">
-                        <TotalValue accent="emerald">
-                          {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                        </TotalValue>
-                      </Field>
-                    )}
-                  </>
-                )}
-              </FieldGrid>
-            )}
-
-            {!compact && (
-              <Field label="Remark" optional>
-                <input
-                  type="text"
-                  placeholder="Specification notes or remarks for the voucher"
-                  value={remark}
-                  onChange={(e) => setRemark(e.target.value)}
-                  className={input()}
-                />
-              </Field>
-            )}
-
-            {extraLines.length > 0 && (
-              <SlipLines
-                donation={donation}
-                lines={extraLines}
-                onChange={setExtraLines}
-                onCopyFirst={
-                  itemType || condition
-                    ? () =>
-                        setExtraLines((ls) =>
-                          ls.map((l) => oneIfFixed({ ...l, itemType: l.itemType || (itemType as ItemType | ''), condition: l.condition || (condition as ItemCondition | '') })),
-                        )
-                    : undefined
-                }
-              />
-            )}
-          </div>
-        </FormSection>
-      )}
-
-      {/* ── Store & delivery ── */}
-      {(['store', 'receivedBy'].some(ask) || !compact) && (
-        <FormSection plain step={3} title={compact ? 'Still needed: store' : 'Store & delivery'} icon={Upload} accent="emerald">
-          <FieldGrid>
-            {ask('store') && (
-              <Field label="Receiving store" required htmlFor="stock-in-store">
-                <select id="stock-in-store" required value={storeId} onChange={(e) => chooseStore(e.target.value)} className={input()}>
-                  <option value="" disabled>Select…</option>
-                  {stores.map(([id, name]) => (
-                    <option key={id} value={id}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
-
-            {ask('receivedBy') && (
-              <StoreManField
-                id="stock-in-received-by"
-                label="Received by (store man)"
-                keepers={storeMen}
-                ready={keepers.ready}
-                storeName={keepers.storeName(storeId)}
-                hasStore={!!storeId}
-                value={receivedById}
-                onChange={setReceivedById}
-                current={isEdit ? receivedBy || undefined : undefined}
-                required={!isEdit}
-              />
-            )}
-
-            {!compact && (
               <Field label="Delivered by" optional>
                 <input
                   type="text"
@@ -1228,10 +974,46 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                   className={input()}
                 />
               </Field>
+            </FieldGrid>
+          )}
+        </div>
+      </FormSection>
+
+      {/* ── Every item in one table, one row per line ── */}
+      <ReceiptItems
+        lines={[firstLine, ...extraLines]}
+        donation={donation}
+        onLineChange={changeLine}
+        onRemove={(key) => setExtraLines((ls) => ls.filter((l) => l.key !== key))}
+        onAdd={isEdit ? undefined : () => setExtraLines((ls) => [...ls, blankLine()])}
+        showGaps={showGaps}
+        lockFirstCode={isEdit && itemType === ItemType.FIXED}
+        firstDetails={
+          <FieldGrid cols={2}>
+            {showSerial && (
+              <Field label="Serial number" optional htmlFor="stock-in-serial">
+                <input
+                  id="stock-in-serial"
+                  type="text"
+                  placeholder="e.g. SN-892348"
+                  value={serialNumber}
+                  onChange={(e) => setSerialNumber(e.target.value)}
+                  className={input({ mono: true })}
+                />
+              </Field>
             )}
+            <Field label="Remark" optional>
+              <input
+                type="text"
+                placeholder="Specification notes or remarks for the voucher"
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+                className={input()}
+              />
+            </Field>
           </FieldGrid>
-        </FormSection>
-      )}
+        }
+      />
 
       <datalist id="uom-options">
         {COMMON_UOMS.map((u) => (
