@@ -176,7 +176,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !uom.trim() && 'unit of measure',
     !donation && !(unitCostETB > 0) && 'unit price',
     isAttachmentRequired && !attachmentFileName && 'scanned slip',
-    ...extraLines.map((l, i) => lineMissing(l, donation).length > 0 && `item ${i + 2} (${lineMissing(l, donation).join(', ')})`),
+    // A line needing one thing says what; a line needing more is just named, its empty cells are marked in the table
+    ...extraLines.map((l, i) => {
+      const missing = lineMissing(l, donation);
+      return missing.length === 1 ? `item ${i + 2} (${missing[0]})` : missing.length > 1 && `item ${i + 2}`;
+    }),
   ].filter(Boolean) as string[];
 
   // A field shows what is wrong with it once the user has been in it

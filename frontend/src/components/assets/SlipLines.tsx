@@ -84,11 +84,11 @@ export const SlipLines: React.FC<{
         )}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] text-left text-xs">
+        <table className="w-full min-w-[1120px] text-left text-xs">
           <thead>
             <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               <th className="px-2 py-1.5 w-8">#</th>
-              <th className="px-2 py-1.5">Description</th>
+              <th className="px-2 py-1.5 min-w-[220px]">Description</th>
               <th className="px-2 py-1.5 w-36">Tag / item code</th>
               <th className="px-2 py-1.5 w-40">Category</th>
               <th className="px-2 py-1.5 w-36">Item type</th>
