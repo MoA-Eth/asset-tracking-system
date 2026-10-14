@@ -190,7 +190,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     itemType === ItemType.CONSUMABLE && !ifmisItemCode.trim() && 'item code',
     !category && 'category',
     !itemType && 'item type',
-    !condition && 'physical condition',
     !(quantity >= 1) && 'quantity',
     !uom.trim() && 'unit of measure',
     !donation && !(unitCostETB > 0) && 'unit price',
@@ -508,7 +507,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       !storeLocationId && (storeId ? 'location in the store' : 'receiving store'),
       !category && 'category',
       !itemType && 'item type',
-      !condition && 'physical condition',
     ].filter(Boolean);
     if (unchosen.length > 0) {
       const msg = `Please select the ${unchosen.join(', ')}.`;
@@ -573,7 +571,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           itemType: itemType as ItemType,
           serialNumber: serialNumber.trim() || undefined,
           unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
-          condition: condition as ItemCondition,
+          condition: (condition || ItemCondition.NEW) as ItemCondition,
           storeLocationId,
           ifmisSlipNumber: slipNo,
           ifmisSlipDateGc,
@@ -618,7 +616,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         itemType: itemType as ItemType,
         serialNumber: serialNumber.trim() || undefined,
         unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
-        condition: condition as ItemCondition,
+        condition: (condition || ItemCondition.NEW) as ItemCondition,
         uom: uom.trim(),
         subInventory: subInventory.trim() || undefined,
         itemCategoryDisplay: selectedCat?.label,
@@ -635,7 +633,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         category: l.category as AssetCategory,
         itemType: l.itemType as ItemType,
         unitCostETB: donation ? 0 : l.unitPrice,
-        condition: l.condition as ItemCondition,
+        condition: (l.condition || ItemCondition.NEW) as ItemCondition,
         uom: l.uom.trim(),
         itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
         quantity: l.quantity,
@@ -650,7 +648,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         itemType: itemType as ItemType,
         serialNumber: serialNumber.trim() || '',
         unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
-        condition: condition as ItemCondition,
+        condition: (condition || ItemCondition.NEW) as ItemCondition,
         storeLocationId,
         ifmisSlipNumber: slipNo,
         ifmisSlipDateGc,
@@ -986,19 +984,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         onAdd={isEdit ? undefined : () => setExtraLines((ls) => [...ls, blankLine()])}
         showGaps={showGaps}
         lockFirstCode={isEdit && itemType === ItemType.FIXED}
-        firstDetails={
-          <FieldGrid cols={2}>
-            <Field label="Remark" optional>
-              <input
-                type="text"
-                placeholder="Specification notes or remarks for the voucher"
-                value={remark}
-                onChange={(e) => setRemark(e.target.value)}
-                className={input()}
-              />
-            </Field>
-          </FieldGrid>
-        }
       />
 
       <datalist id="uom-options">

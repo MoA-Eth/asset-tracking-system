@@ -762,10 +762,9 @@ describe('Asset record', () => {
     // Item type comes from the IFMIS code (starting with 1: consumable) and condition is New, for every line
     expect(within(panel).getByRole('button', { name: /Item 1 item type: Consumable/ })).toBeInTheDocument();
     expect(within(others).getByRole('button', { name: /Item 2 item type: Consumable/ })).toBeInTheDocument();
-    // Condition is New, waiting behind each line's ⋯
+    // A received item is New: the form has no condition to fill in
     expect(within(panel).queryByLabelText('Item 1 condition')).toBeNull();
-    await user.click(within(others).getByRole('button', { name: 'More details of item 2' }));
-    expect(within(others).getByLabelText('Item 2 condition')).toHaveValue('NEW');
+    expect(within(others).queryByLabelText('Item 2 condition')).toBeNull();
     // Only the store is left to choose
     expect(submit).toBeDisabled();
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
