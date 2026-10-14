@@ -1497,3 +1497,68 @@ describe('Receiving form: the encoder’s own store', () => {
     await vi.waitFor(() => expect(within(panel).getByLabelText(/Receiving store/i)).toHaveValue('S2'));
   });
 });
+
+describe('Receiving form: item type from the IFMIS code, for PDFs and older records', () => {
+  const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+
+  beforeEach(() => {
+    auth.user.permissions = ENCODER;
+  });
+
+  it('registers a fixed asset read from a Model 19 (code starting with 0): it asks for the tag and keeps the IFMIS code', async () => {
+    const user = userEvent.setup();
+    vi.mocked(readPdfRows).mockResolvedValueOnce([
+      r(98, [640, 'Print Model19 Report']),
+      r(146, [680, 'INV Model 19 No. :'], [812, '0000088']),
+      r(193, [677, 'Transaction Type :'], [812, 'PO Receipt']),
+      r(208, [742, 'Source :'], [812, 'TEST COMPUTERS PLC']),
+      r(283, [95, 'S/No.'], [135, 'Item Code'], [278, 'Item Description'], [403, 'UOM'], [826, 'Qty']),
+      r(316, [88, '1'], [128, '005101101.0001'], [270, 'Dell Latitude Laptop'], [403, 'EA'], [435, 'AStore'], [510, 'Computer'], [826, '1'], [960, '50000'], [1050, '50000']),
+      r(630, [910, 'Grand Total'], [1050, '50000']),
+    ]);
+    vi.mocked(api.registerStockIn).mockResolvedValue({ item: { id: 'N9', itemCode: 'MOA-099001' }, items: [{ id: 'N9', itemCode: 'MOA-099001' }] } as any);
+    vi.mocked(api.uploadSlip).mockResolvedValue({ url: '/api/uploads/slips/model19.pdf' } as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+
+    await vi.waitFor(() => expect(within(panel).getByLabelText(/IFMIS item code/i)).toHaveValue('005101101.0001'));
+    expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Fixed asset');
+    // A fixed asset is known by its tag, which the slip doesn't have
+    const tag = within(panel).getByLabelText(/Tag number/i);
+    expect(tag).toHaveValue('');
+    await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
+    await user.type(tag, 'moa-099001');
+
+    const submit = within(panel).getByRole('button', { name: /Submit for approval/i });
+    await vi.waitFor(() => expect(submit).toBeEnabled());
+    await user.click(submit);
+    await vi.waitFor(() => expect(api.registerStockIn).toHaveBeenCalled());
+    const sent = JSON.stringify(vi.mocked(api.registerStockIn).mock.calls[0][0]);
+    expect(sent).toMatch(/"itemType":"FIXED"/);
+    expect(sent).toMatch(/"itemCode":"MOA-099001"/);
+    expect(sent).toMatch(/"ifmisItemCode":"005101101.0001"/);
+  });
+
+  it('corrects an older fixed asset that has a tag but no IFMIS code: the missing code does not block it', async () => {
+    const user = userEvent.setup();
+    const legacy = item('L1', 'Old laptop', 'PENDING_STOCK_IN', {
+      itemCode: 'MOA-001234', itemType: 'FIXED', transactionType: 'PO Receipt', source: 'Old vendor', condition: 'GOOD',
+    });
+    vi.mocked(api.getItems).mockResolvedValue([...items, legacy] as any);
+    vi.mocked(api.getApprovals).mockResolvedValue([...approvals, request('A-L1', 'STOCK_IN', 'L1', { currentStage: 1 })] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-001234');
+    await user.click(within(rowOf('MOA-001234')).getByText('MOA-001234'));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-001234' });
+    await user.click(within(record).getByRole('button', { name: 'Edit receipt' }));
+
+    // Still a fixed asset, known by its tag; the empty IFMIS code is not asked for
+    expect(within(record).getByLabelText('Item type')).toHaveTextContent('Fixed asset');
+    expect(within(record).getByLabelText(/IFMIS item code/i)).toHaveValue('');
+    expect(within(record).queryByText(/Still needed:.*IFMIS item code/)).toBeNull();
+    expect(submitOf(record, 'stock-in-form')).toBeEnabled();
+  });
+});
