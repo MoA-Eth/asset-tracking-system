@@ -337,6 +337,26 @@ describe('Assets page', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('transfers an issued asset typed in by hand, with no PDF', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.transferItem).mockResolvedValue({} as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await menuFor(user, 'MOA-I1');
+    await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-I1' });
+
+    await user.type(within(record).getByPlaceholderText('Number on the Model 21 form'), 'M21-55');
+    await user.type(within(record).getByPlaceholderText('Book the form comes from'), 'Book 2');
+    await user.click(within(record).getByRole('combobox', { name: /To employee/ }));
+    await user.click(screen.getByRole('option', { name: /Kebede Alemu/ }));
+    expect(submitOf(record, 'transfer-form')).toBeEnabled();
+    await user.click(submitOf(record, 'transfer-form'));
+
+    await vi.waitFor(() => expect(api.transferItem).toHaveBeenCalledTimes(1));
+    expect(api.transferItem).toHaveBeenCalledWith(expect.objectContaining({ itemId: 'I1', toEmployeeId: 'E2', model21No: 'M21-55', book: 'Book 2' }));
+  });
+
   it('returns an issued asset to store from the transfer form, by choosing a store', async () => {
     const user = userEvent.setup();
     vi.mocked(api.registerReturn).mockResolvedValue({ id: 'ret-1' } as any);
