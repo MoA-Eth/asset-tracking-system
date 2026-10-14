@@ -21,7 +21,8 @@ export const ItemTypeBadge: React.FC<{ type?: ItemType | string | null }> = ({ t
     <span
       title={itemTypeLabel(type)}
       className={`inline-block rounded px-1.5 py-px text-[10px] font-semibold leading-4 border ${
-        consumable ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-700 border-slate-200'
+        // Violet, a colour no status uses, so the type is never read as a state such as "Receipt pending" (amber)
+        consumable ? 'bg-violet-50 text-violet-800 border-violet-200' : 'bg-slate-100 text-slate-700 border-slate-200'
       }`}
     >
       {consumable ? 'Consumable' : 'Fixed'}
