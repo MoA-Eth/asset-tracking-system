@@ -695,22 +695,32 @@ describe('Asset record', () => {
     expect(within(record).getAllByText('MOA-I1').length).toBeGreaterThan(0);
   });
 
-  it('reads only a Model 19 on the receive form: a Model 21 is sent to the transfer form and fills nothing', async () => {
+  it.each([
+    [
+      'a Model 21 transfer form',
+      ['Fixed Asset Internal Transfer Form', 'Model/21', 'Model # 0004399', 'From Employee ID :  109870  To : 110347', '1  Handheld GPS  MOA-072351  2  624,285.50  322,547.54  301,738.01  05-OCT-26'],
+      /This is a Model 21 transfer form\. Read it from the transfer form of the asset/,
+    ],
+    [
+      'a disposal form',
+      ['Fixed Asset Disposal Form', 'Model/22/B', 'No:  0000015/2013', '1  Tablet Computer  MOA-000343  15,640.00  0.00  15,640.00'],
+      /This is a Fixed Asset Disposal Form \(Model 22\/B\)\. Read it from the disposal form of the asset/,
+    ],
+  ])('takes only a Model 19 on the receive form: %s is refused, not attached and fills nothing', async (_label, lines, message) => {
     const user = userEvent.setup();
-    vi.mocked(readPdfRows).mockResolvedValue(asRows([
-      'Fixed Asset Internal Transfer Form',
-      'Model/21',
-      'Model # 0004399',
-      'From Employee ID :  109870  To : 110347',
-      '1  Handheld GPS  MOA-072351  2  624,285.50  322,547.54  301,738.01  05-OCT-26',
-    ]));
+    vi.mocked(readPdfRows).mockResolvedValue(asRows(lines));
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
-    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF-1.4'], 'model21.pdf', { type: 'application/pdf' }));
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF-1.4'], 'other-form.pdf', { type: 'application/pdf' }));
 
-    expect(await within(panel).findByText(/This is a Model 21 transfer form, not a Model 19/)).toBeInTheDocument();
+    expect(await within(panel).findByText(message)).toBeInTheDocument();
+    expect(within(panel).getByText(/so it was not attached and nothing was filled in/)).toBeInTheDocument();
+    expect(toast.warning).toHaveBeenCalledWith('Not a Model 19', expect.any(String));
+    // Not kept as the receipt's scanned copy
+    expect(within(panel).queryByText('other-form.pdf')).toBeNull();
+    expect(within(panel).getByText('Click to attach a scanned copy')).toBeInTheDocument();
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('');
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
   });
