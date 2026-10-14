@@ -760,13 +760,14 @@ describe('Asset record', () => {
     expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('50');
     const submit = within(panel).getByRole('button', { name: 'Submit 2 items for approval' });
 
-    await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
-    await user.selectOptions(within(panel).getByLabelText(/Physical condition/i), 'NEW');
-    await user.selectOptions(within(panel).getAllByLabelText(/Item type/i)[0], 'CONSUMABLE');
-    // The second line still needs its own item type and condition
-    expect(submit).toBeDisabled();
-    await user.click(within(others).getByRole('button', { name: /Use the first item's type and condition/ }));
+    // Item type comes from the IFMIS code (starting with 1: consumable) and condition is New, for every line
+    expect(within(panel).getAllByLabelText(/Item type/i)[0]).toHaveValue('CONSUMABLE');
+    expect(within(panel).getByLabelText(/Physical condition/i)).toHaveValue('NEW');
     expect(within(others).getByLabelText('Item 2 item type')).toHaveValue('CONSUMABLE');
+    expect(within(others).getByLabelText('Item 2 condition')).toHaveValue('NEW');
+    // Only the store is left to choose
+    expect(submit).toBeDisabled();
+    await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
     // A fixed asset line is one item: its quantity becomes 1 and is greyed out
     await user.selectOptions(within(others).getByLabelText('Item 2 item type'), 'FIXED');
     expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('1');

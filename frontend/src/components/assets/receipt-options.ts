@@ -1,4 +1,4 @@
-import { AssetCategory } from '../../types/asset-management';
+import { AssetCategory, ItemType } from '../../types/asset-management';
 
 /** The transaction types the receipt offers */
 export const TRANSACTION_TYPES = ['PO Receipt', 'Petty Cash Purchase Receipt', 'Direct Delivery', 'Donation / Grant Receipt', 'Transfer Receipt', 'Internal Production'];
@@ -11,7 +11,21 @@ export const CATEGORY_FROM_IFMIS: [RegExp, AssetCategory][] = [
   [/furniture|fixture/i, AssetCategory.OFFICE_FURNITURE],
   [/computer|\bit\b|ict|electronic/i, AssetCategory.IT_EQUIPMENT],
   [/uniform|field|gear|cloth/i, AssetCategory.FIELD_GEAR],
+  [/fuel|lubric/i, AssetCategory.FUEL_LUBRICANTS],
+  [/office\s*suppl|stationer/i, AssetCategory.OFFICE_SUPPLIES],
+  // Last: any other "materials and supplies" not matched above
+  [/material|suppl/i, AssetCategory.OTHER_SUPPLIES],
 ];
+
+/**
+ * Fixed asset or consumable from the IFMIS item code on a Model 19: inventory codes starting with 1 are
+ * consumables (e.g. 108101101.0021, fuel cards), any other first digit is a fixed asset. No code, no guess.
+ */
+export function itemTypeFromIfmisCode(code?: string): ItemType | undefined {
+  const first = code?.trim()[0];
+  if (!first || !/\d/.test(first)) return undefined;
+  return first === '1' ? ItemType.CONSUMABLE : ItemType.FIXED;
+}
 
 export const COMMON_UOMS = ['EA', 'PKT', 'SET', 'ROLL', 'PCS', 'BOX', 'BAG', 'KG', 'LTR', 'CAN', 'BOTTLE'];
 export const COMMON_CATEGORIES = [
@@ -21,4 +35,7 @@ export const COMMON_CATEGORIES = [
   { value: AssetCategory.VEHICLE, label: 'Vehicles & Transport' },
   { value: AssetCategory.OFFICE_FURNITURE, label: 'Office Furniture & Fixtures' },
   { value: AssetCategory.FIELD_GEAR, label: 'Field Gear & Uniforms' },
+  { value: AssetCategory.OFFICE_SUPPLIES, label: 'Office Supplies & Stationery' },
+  { value: AssetCategory.FUEL_LUBRICANTS, label: 'Fuel & Lubricants' },
+  { value: AssetCategory.OTHER_SUPPLIES, label: 'Other Materials & Supplies' },
 ];

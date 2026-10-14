@@ -1,0 +1,34 @@
+import { describe, it, expect } from 'vitest';
+import { CATEGORY_FROM_IFMIS, itemTypeFromIfmisCode } from './receipt-options';
+import { AssetCategory, ItemType } from '../../types/asset-management';
+
+const categoryOf = (ifmis: string) => CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(ifmis))?.[1];
+
+describe('IFMIS item categories', () => {
+  it('maps the categories printed on real Model 19 and Model 22 slips', () => {
+    expect(categoryOf('Fuel and Lubricant')).toBe(AssetCategory.FUEL_LUBRICANTS);
+    expect(categoryOf('Office supplies & Other related Item')).toBe(AssetCategory.OFFICE_SUPPLIES);
+    expect(categoryOf('Other materials and supplies')).toBe(AssetCategory.OTHER_SUPPLIES);
+  });
+
+  it('keeps the specific categories ahead of the general supplies one', () => {
+    expect(categoryOf('Medical Supplies & Related Accessories')).toBe(AssetCategory.LAB_EQUIPMENT);
+    expect(categoryOf('Agricultural Supplies')).toBe(AssetCategory.AGRI_MACHINERY);
+    expect(categoryOf('Office Furniture')).toBe(AssetCategory.OFFICE_FURNITURE);
+    expect(categoryOf('Something unknown')).toBeUndefined();
+  });
+});
+
+describe('item type from the IFMIS item code', () => {
+  it('is a consumable when the code starts with 1, otherwise a fixed asset', () => {
+    expect(itemTypeFromIfmisCode('108101101.0021')).toBe(ItemType.CONSUMABLE);
+    expect(itemTypeFromIfmisCode('101101101.0052')).toBe(ItemType.CONSUMABLE);
+    expect(itemTypeFromIfmisCode('203101101.0001')).toBe(ItemType.FIXED);
+  });
+
+  it('makes no guess without a numeric code', () => {
+    expect(itemTypeFromIfmisCode(undefined)).toBeUndefined();
+    expect(itemTypeFromIfmisCode('')).toBeUndefined();
+    expect(itemTypeFromIfmisCode('MOA-000343')).toBeUndefined();
+  });
+});

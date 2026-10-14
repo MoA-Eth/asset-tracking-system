@@ -37,6 +37,9 @@ export const CATEGORY_OPTIONS: { value: AssetCategory; label: string }[] = [
   { value: AssetCategory.VEHICLE, label: 'Vehicles & Transport' },
   { value: AssetCategory.OFFICE_FURNITURE, label: 'Office Furniture & Fixtures' },
   { value: AssetCategory.FIELD_GEAR, label: 'Field Gear & Uniforms' },
+  { value: AssetCategory.OFFICE_SUPPLIES, label: 'Office Supplies & Stationery' },
+  { value: AssetCategory.FUEL_LUBRICANTS, label: 'Fuel & Lubricants' },
+  { value: AssetCategory.OTHER_SUPPLIES, label: 'Other Materials & Supplies' },
 ];
 
 /**

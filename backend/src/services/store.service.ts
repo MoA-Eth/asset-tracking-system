@@ -242,6 +242,9 @@ function getCategoryCode(cat: AssetCategory): string {
     case AssetCategory.OFFICE_FURNITURE: return 'FUR';
     case AssetCategory.LAB_EQUIPMENT: return 'LAB';
     case AssetCategory.FIELD_GEAR: return 'FLD';
+    case AssetCategory.OFFICE_SUPPLIES: return 'OFS';
+    case AssetCategory.FUEL_LUBRICANTS: return 'FUL';
+    case AssetCategory.OTHER_SUPPLIES: return 'SUP';
     default: return 'GEN';
   }
 }

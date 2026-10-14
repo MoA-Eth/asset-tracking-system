@@ -48,6 +48,10 @@ enum AssetCategory {
   OFFICE_FURNITURE
   LAB_EQUIPMENT
   FIELD_GEAR
+  // Consumables, matched from the IFMIS item categories on a Model 19
+  OFFICE_SUPPLIES
+  FUEL_LUBRICANTS
+  OTHER_SUPPLIES
 }
 
 enum TransactionType {

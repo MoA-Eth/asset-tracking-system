@@ -10,8 +10,8 @@ import { useSystemSettings } from '../../utils/system-settings';
 import { ITEM_TYPE_OPTIONS } from './asset-state';
 import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
-import { readPdfPages, rowsToText, isModel21, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
-import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES } from './receipt-options';
+import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
+import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, itemTypeFromIfmisCode } from './receipt-options';
 import { SlipLines, SlipLine, lineMissing, oneIfFixed } from './SlipLines';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -274,6 +274,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     { key: 'programName', label: 'program', current: programName, set: setProgramName, empty: '' },
     { key: 'name', label: 'item description', current: name, set: setName, empty: '' },
     { key: 'category', label: 'category', current: category, set: setCategory, empty: '' },
+    { key: 'itemType', label: 'item type', current: itemType, set: setItemType, empty: '' },
+    { key: 'condition', label: 'condition', current: condition, set: setCondition, empty: '' },
     { key: 'uom', label: 'unit of measure', current: uom, set: setUom, empty: 'EA', free: uom === 'EA' },
     { key: 'quantity', label: 'quantity', current: quantity, set: setQuantity, empty: 0 },
     { key: 'unitPrice', label: 'unit price', current: unitCostETB, set: setUnitCostETB, empty: 0 },
@@ -302,6 +304,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       programName: slip.programName,
       name: line?.description,
       category: CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(line?.category ?? ''))?.[1],
+      itemType: itemTypeFromIfmisCode(line?.itemCode),
+      // Goods on a receipt have just arrived from the supplier; the person changes it if something came damaged
+      condition: line ? ItemCondition.NEW : undefined,
       uom: line?.uom?.toUpperCase(),
       quantity: line?.quantity || undefined,
       unitPrice: line?.unitPrice || undefined,
@@ -345,8 +350,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         slipQuantity: l.quantity,
         name: l.description ?? '',
         category: CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(l.category ?? ''))?.[1] ?? '',
-        itemType: '',
-        condition: '',
+        itemType: itemTypeFromIfmisCode(l.itemCode) ?? '',
+        condition: ItemCondition.NEW,
         uom: (l.uom ?? 'EA').toUpperCase(),
         quantity: l.quantity ?? 0,
         unitPrice: l.unitPrice ?? 0,
@@ -368,7 +373,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     }
     const more =
       others.length > 0
-        ? ` This slip lists ${slip.lines.length} items: the first is in the form and the others are listed under it. Set their item type and condition; each is registered as its own record.`
+        ? ` This slip lists ${slip.lines.length} items: the first is in the form and the others are listed under it. Check their item type and condition; each is registered as its own record.`
         : '';
     filledNote(filled, more);
   };
@@ -382,7 +387,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         ? 'a Model 21 transfer form. Read it from the transfer form of the asset (Import transfer)'
         : isDisposalForm(text)
           ? 'a Fixed Asset Disposal Form (Model 22/B). Read it from the disposal form of the asset (Import disposal)'
-          : undefined;
+          : isModel22(text)
+            ? 'a Model 22 issue voucher (Receipt For Articles Or Property Issued). It belongs with the issue of the asset, not its receipt'
+            : undefined;
 
   /** Only a Model 19 is read here; a scan, or a PDF that is no IFMIS form, is attached as the copy without being read */
   const fillFromSlip = (rows: PdfRow[]) => {
