@@ -202,7 +202,6 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                     </>
                   )}
                   {d?.reason && <Row label="Reason">{d.reason}</Row>}
-                  {d?.condition && <Row label="Condition">{d.condition.replace(/_/g, ' ')}</Row>}
                   {d?.remark && <Row label={approval.transactionType === 'RETURN' ? 'Defects' : 'Remark'}>{d.remark}</Row>}
                   {!d?.reason && approval.purposeOrRemarks && <Row label="Purpose / remark">{approval.purposeOrRemarks}</Row>}
                   {approval.endorsedBy && (
@@ -234,7 +233,6 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                 )}
                 <Row label="Unit price">{formatETB(item.unitCostETB)}</Row>
                 <Row label="Serial number" mono>{item.serialNumber}</Row>
-                <Row label="Condition">{item.condition?.replace(/_/g, ' ')}</Row>
                 <Row label="Store">{item.storeLocation?.siteName}</Row>
                 <Row label="Custodian">{item.currentCustodian?.fullNameEn || item.heldByOrganization}</Row>
                 {item.heldByContact && <Row label="Contact person">{item.heldByContact}</Row>}

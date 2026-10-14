@@ -32,7 +32,6 @@ describe('My assets', () => {
     expect(within(laptop).getByText('Assigned to you')).toBeInTheDocument();
     const chair = within(table).getByText('MOA-FUR-1').closest('tr')!;
     expect(within(chair).getByText('3 EA')).toBeInTheDocument();
-    expect(within(chair).getByText('Fair')).toBeInTheDocument();
   });
 
   it('says so, in the singular, for one asset', async () => {

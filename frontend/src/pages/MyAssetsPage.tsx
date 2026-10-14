@@ -17,10 +17,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   OTHER_SUPPLIES: 'Other Materials & Supplies',
 };
 
-const CONDITION_LABELS: Record<string, string> = {
-  NEW: 'New', GOOD: 'Good', FAIR: 'Fair', NEEDS_REPAIR: 'Needs repair', DAMAGED: 'Damaged',
-};
-
 /** What is happening to an asset, in the words its holder would use */
 const statusOf = (asset: MyAsset): { label: string; tone: string; detail?: string } => {
   if (asset.pendingRequest?.type === 'RETURN') {
@@ -113,7 +109,6 @@ export const MyAssetsPage: React.FC = () => {
                   <th className="px-3 py-2.5">Asset</th>
                   <th className="px-3 py-2.5">Serial no.</th>
                   <th className="px-3 py-2.5 text-right">Quantity</th>
-                  <th className="px-3 py-2.5">Condition</th>
                   <th className="px-3 py-2.5">Assigned on</th>
                   <th className="px-3 py-2.5">Status</th>
                 </tr>
@@ -139,7 +134,6 @@ export const MyAssetsPage: React.FC = () => {
                       </td>
                       <td className="px-3 py-2.5 font-mono text-slate-700">{asset.serialNumber || '—'}</td>
                       <td className="px-3 py-2.5 text-right font-mono font-semibold text-slate-900">{units(asset)}</td>
-                      <td className="px-3 py-2.5 text-slate-700">{CONDITION_LABELS[asset.condition] ?? asset.condition}</td>
                       <td className="px-3 py-2.5 text-slate-700">
                         {asset.assignedOnGc ?? '—'}
                         {asset.voucherNo && <span className="block font-mono text-[10px] text-slate-500">{asset.voucherNo}</span>}
@@ -185,7 +179,6 @@ export const MyAssetsPage: React.FC = () => {
                   <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-slate-700">
                     <div><dt className="text-[10px] uppercase text-slate-500">Serial no.</dt><dd className="font-mono">{asset.serialNumber || '—'}</dd></div>
                     <div><dt className="text-[10px] uppercase text-slate-500">Quantity</dt><dd className="font-mono font-semibold">{units(asset)}</dd></div>
-                    <div><dt className="text-[10px] uppercase text-slate-500">Condition</dt><dd>{CONDITION_LABELS[asset.condition] ?? asset.condition}</dd></div>
                     <div><dt className="text-[10px] uppercase text-slate-500">Assigned on</dt><dd>{asset.assignedOnGc ?? '—'}</dd></div>
                   </dl>
                   {status.detail && <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-500"><Clock className="h-3 w-3" />{status.detail}</p>}
@@ -215,7 +208,6 @@ export const MyAssetsPage: React.FC = () => {
                   <Detail label="Item code" mono>{selected.itemCode}</Detail>
                   <Detail label="Serial no." mono>{selected.serialNumber}</Detail>
                   <Detail label="Category">{CATEGORY_LABELS[selected.category] ?? selected.category}</Detail>
-                  <Detail label="Condition">{CONDITION_LABELS[selected.condition] ?? selected.condition}</Detail>
                   <Detail label="Quantity" mono>{units(selected)}</Detail>
                   <Detail label="Directorate">{selected.department}</Detail>
                   <Detail label="Issued from">{selected.issuedFrom}</Detail>

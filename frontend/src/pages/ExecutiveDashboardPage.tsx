@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { StoreManReminder } from '../components/ui/StoreManReminder';
-import { ColumnChart, Donut } from '../components/ui/charts';
+import { Donut } from '../components/ui/charts';
 import { actionText, withRoleNames } from '../utils/roles';
 import { formatETB } from '../utils/eth-date';
 import { UserRole } from '../types/asset-management';
@@ -70,15 +70,6 @@ const ITEM_STATUS_STYLE: Record<string, { label: string; color: string }> = {
   DISPOSED:          { label: 'Disposed',          color: '#94a3b8' },
   REJECTED:          { label: 'Rejected',          color: '#dc2626' },
   OTHER:             { label: 'Other',             color: '#cbd5e1' },
-};
-
-/** Physical condition uses the status scale: good → warning → serious → critical. */
-const CONDITION_STYLE: Record<string, { label: string; color: string }> = {
-  NEW:          { label: 'New',          color: '#0ca30c' },
-  GOOD:         { label: 'Good',         color: '#0ca30c' },
-  FAIR:         { label: 'Fair',         color: '#eda100' },
-  NEEDS_REPAIR: { label: 'Needs repair', color: '#ec835a' },
-  DAMAGED:      { label: 'Damaged',      color: '#d03b3b' },
 };
 
 const ACTION_ICON: Record<string, LucideIcon> = {
@@ -483,12 +474,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
     .filter((c: any) => c.count > 0)
     .sort((a: any, b: any) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category));
 
-  const condRows: any[] = data?.conditionDistribution || [];
-  const condTotal = condRows.reduce((s: number, c: any) => s + c.count, 0) || 1;
-  const atRiskCount = condRows
-    .filter((c: any) => c.condition === 'NEEDS_REPAIR' || c.condition === 'DAMAGED')
-    .reduce((s: number, c: any) => s + c.count, 0);
-
   // Items that should have been distributed: in store longer than the limit (30 days)
   const stale = data?.staleInStore || { thresholdDays: 30, itemCount: 0, units: 0, valueETB: 0, items: [] };
   const staleItems: any[] = stale.items || [];
@@ -540,7 +525,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
       </div>
 
       {/* ── Row 2: Workflow counts ──────────────────────────────────────────── */}
-      {(pendingApprovals > 0 || pendingStockIn > 0 || pendingStockOut > 0 || pendingTransfer > 0 || pendingDisposal > 0 || atRiskCount > 0 || stale.itemCount > 0) && (
+      {(pendingApprovals > 0 || pendingStockIn > 0 || pendingStockOut > 0 || pendingTransfer > 0 || pendingDisposal > 0 || stale.itemCount > 0) && (
         <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-xs">
           <h2 className="mb-3 flex items-baseline gap-2 text-sm font-bold text-slate-800">
             Needs attention
@@ -561,9 +546,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           )}
           {pendingDisposal > 0 && (
             <WorkTile label="Pending disposals" count={pendingDisposal} icon={Trash2} onClick={() => onNavigate('assets')} />
-          )}
-          {atRiskCount > 0 && (
-            <WorkTile label="At-risk assets" count={atRiskCount} icon={AlertTriangle} tone="critical" note="Damaged or needs repair" />
           )}
           {stale.itemCount > 0 && (
             <WorkTile
@@ -736,36 +718,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
         </Panel>
       </div>
 
-      {/* ── Row 4: Condition + top assets ──────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <Panel className="lg:col-span-5" title="Asset condition" subtitle="የንብረቶች ጤንነት ሁኔታ" icon={Activity}>
-          {atRiskCount > 0 && (
-            <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-rose-200 bg-rose-50 p-3">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
-              <p className="text-xs text-rose-800">
-                <span className="font-semibold">{atRiskCount}</span> asset{atRiskCount !== 1 ? 's' : ''} need attention (damaged or needs repair)
-              </p>
-            </div>
-          )}
-          <ColumnChart
-            label="Units by condition"
-            empty="No items registered yet."
-            format={(value) => value.toLocaleString()}
-            axisFormat={(value) => value.toLocaleString()}
-            rows={condRows
-              .filter((cond: any) => CONDITION_STYLE[cond.condition])
-              .map((cond: any) => ({
-                key: cond.condition,
-                label: CONDITION_STYLE[cond.condition].label,
-                color: CONDITION_STYLE[cond.condition].color,
-                value: cond.count,
-                detail: Math.round((cond.count / condTotal) * 100) + '% of units',
-              }))}
-          />
-        </Panel>
-
+      {/* ── Row 4: Top assets ──────────────────────────────────────────────── */}
+      <div>
         <Panel
-          className="lg:col-span-7"
           title="Highest-value assets"
           subtitle="ከፍተኛ ዋጋ ያላቸው ንብረቶች"
           icon={TrendingUp}

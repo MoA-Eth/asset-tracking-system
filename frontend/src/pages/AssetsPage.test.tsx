@@ -414,7 +414,8 @@ describe('Assets page', () => {
     // A fixed asset is one item: its quantity is 1 and greyed out
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('1');
     expect(within(panel).getByLabelText(/^Quantity/i)).toBeDisabled();
-    expect(within(panel).getByLabelText(/Serial number/i)).toHaveValue('');
+    // Serial number is no longer asked on a receipt
+    expect(within(panel).queryByLabelText(/Serial number/i)).toBeNull();
     // A fixed asset is known by its own tag, so a duplicate starts without one
     expect(within(panel).getByLabelText(/Tag number/i)).toHaveValue('');
   });

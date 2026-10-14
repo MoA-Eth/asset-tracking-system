@@ -238,11 +238,6 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                   {item.itemCategoryDisplay || item.category.replace(/_/g, ' ')}
                 </span>
               )}
-              {!editing && item.condition && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                  {item.condition.replace(/_/g, ' ')}
-                </span>
-              )}
               {!editing && row.where && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-800 border border-blue-200" title={`Location / Custody: ${row.where}`}>
                   <MapPin className="w-2.5 h-2.5 text-blue-600" />
@@ -477,10 +472,6 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                     </div>
                   )}
                 </div>
-              </FormKitField>
-
-              <FormKitField label="Physical condition">
-                <ReadOnlyValue>{item.condition ? item.condition.replace(/_/g, ' ') : '—'}</ReadOnlyValue>
               </FormKitField>
 
               <FormKitField label="Quantity" required>

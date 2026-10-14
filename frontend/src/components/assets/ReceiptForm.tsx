@@ -117,7 +117,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [uom, setUom] = useState(editItem?.uom || start?.uom || 'EA');
   const [subInventory, setSubInventory] = useState(editItem?.subInventory ?? '');
   const [lotBatchNo, setLotBatchNo] = useState(editItem?.lotBatchNo ?? '');
-  const [serialNumber, setSerialNumber] = useState(editItem?.serialNumber ?? '');
+  // Serial number is no longer asked on receipt; a correction keeps what an older record has
+  const serialNumber = editItem?.serialNumber ?? '';
   const [printedPadFrom, setPrintedPadFrom] = useState(editItem?.printedPadFrom ?? '');
   const [printedPadTo, setPrintedPadTo] = useState(editItem?.printedPadTo ?? '');
   // A new receipt starts empty (the field shows 0), so the number is always typed on purpose
@@ -174,8 +175,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   useEffect(() => {
     if (fixedOne && quantity !== 1) setQuantity(1);
   }, [fixedOne, quantity]);
-  // A serial number belongs to a fixed asset; a consumable shows the field only if it already has one
-  const showSerial = itemType !== ItemType.CONSUMABLE || !!serialNumber.trim();
   // What the slip's first line said, to warn when it lists several of a fixed asset
   const [slipQuantity, setSlipQuantity] = useState(0);
   const totalAmount = donation ? 0 : (Number(quantity) || 0) * (Number(unitCostETB) || 0);
@@ -235,7 +234,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setUom('EA');
     setSubInventory('');
     setLotBatchNo('');
-    setSerialNumber('');
     setPrintedPadFrom('');
     setPrintedPadTo('');
     setQuantity(0);
@@ -884,20 +882,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                 />
               </Field>
             ) : null}
-
-            {/* A serial number belongs to a fixed asset; a consumable shows one only if it already has one */}
-            {showSerial && (
-              <Field label="Serial number" optional htmlFor="stock-in-serial">
-                <input
-                  id="stock-in-serial"
-                  type="text"
-                  placeholder="e.g. SN-892348"
-                  value={serialNumber}
-                  onChange={(e) => setSerialNumber(e.target.value)}
-                  className={input({ mono: true })}
-                />
-              </Field>
-            )}
 
             <Field label="Category" required htmlFor="stock-in-category" error={fieldErrors.error('category')}>
               <select id="stock-in-category" required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} onBlur={fieldErrors.touch('category')} className={input({ invalid: !!fieldErrors.error('category') })}>
