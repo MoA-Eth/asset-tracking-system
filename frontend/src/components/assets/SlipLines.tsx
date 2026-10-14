@@ -36,30 +36,21 @@ export const lineMissing = (l: SlipLine, donation = false): string[] =>
     !l.itemType && 'item type',
     l.itemType === ItemType.FIXED && !l.tag?.trim() && 'tag number',
     l.itemType === ItemType.CONSUMABLE && !l.ifmisCode?.trim() && 'item code',
-    !l.condition && 'condition',
     !l.uom.trim() && 'unit',
     !(Number.isInteger(l.quantity) && l.quantity >= 1) && 'quantity',
     !donation && !(l.unitPrice > 0) && 'unit price',
   ].filter(Boolean) as string[];
 
-const CONDITIONS: [ItemCondition, string][] = [
-  [ItemCondition.NEW, 'New'],
-  [ItemCondition.GOOD, 'Good'],
-  [ItemCondition.FAIR, 'Fair'],
-  [ItemCondition.NEEDS_REPAIR, 'Needs repair'],
-  [ItemCondition.DAMAGED, 'Damaged'],
-];
-
 /**
  * The other item lines of a Model 19 read from its PDF. Each becomes its own record (its own row in Assets) with the
- * same voucher details; the user sets what the PDF doesn't say: item type and condition.
+ * same voucher details; the user sets what the PDF doesn't say: item type.
  */
 export const SlipLines: React.FC<{
   lines: SlipLine[];
   /** A donation has no price: the price column is left out */
   donation?: boolean;
   onChange: (lines: SlipLine[]) => void;
-  /** Copies the first item's type and condition into the lines that have none */
+  /** Copies the first item's type into the lines that have none */
   onCopyFirst?: () => void;
 }> = ({ lines, donation, onChange, onCopyFirst }) => {
   const set = (key: number, patch: Partial<SlipLine>) => onChange(lines.map((l) => (l.key === key ? oneIfFixed({ ...l, ...patch }) : l)));
@@ -79,12 +70,12 @@ export const SlipLines: React.FC<{
             onClick={onCopyFirst}
             className="inline-flex items-center gap-1 rounded-[3px] border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-800 cursor-pointer"
           >
-            <Copy className="h-3 w-3" /> Use the first item's type and condition
+            <Copy className="h-3 w-3" /> Use the first item's type
           </button>
         )}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1120px] text-left text-xs">
+        <table className="w-full min-w-[960px] text-left text-xs">
           <thead>
             <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               <th className="px-2 py-1.5 w-8">#</th>
@@ -92,7 +83,6 @@ export const SlipLines: React.FC<{
               <th className="px-2 py-1.5 w-36">Tag / item code</th>
               <th className="px-2 py-1.5 w-40">Category</th>
               <th className="px-2 py-1.5 w-36">Item type</th>
-              <th className="px-2 py-1.5 w-28">Condition</th>
               <th className="px-2 py-1.5 w-16">Unit</th>
               <th className="px-2 py-1.5 w-20 text-right">Qty</th>
               {!donation && <th className="px-2 py-1.5 w-28 text-right">Unit price</th>}
@@ -134,14 +124,6 @@ export const SlipLines: React.FC<{
                       <option value="">Select…</option>
                       {ITEM_TYPE_OPTIONS.map((t) => (
                         <option key={t.value} value={t.value}>{t.label}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <select aria-label={`Item ${n} condition`} value={l.condition} onChange={(e) => set(l.key, { condition: e.target.value as ItemCondition })} className={cell({ invalid: !l.condition })}>
-                      <option value="">Select…</option>
-                      {CONDITIONS.map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
                       ))}
                     </select>
                   </td>

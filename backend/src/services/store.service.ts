@@ -347,7 +347,7 @@ function formatTransferNotes(slipNo: string, d: Model21RequestDetails): string {
 function formatReturnNotes(slipNo: string, d: Model21RequestDetails): string {
   return [
     `Return Reason: ${d.reason}`,
-    `Condition: ${d.condition}`,
+    d.condition ? `Condition: ${d.condition}` : '',
     slipNo ? `[Model/21 # ${slipNo}]` : '',
     d.book ? `Book: ${d.book}` : '',
     d.chassisNumber ? `Chassis: ${d.chassisNumber}` : '',
@@ -1626,7 +1626,7 @@ export class StoreService {
     if (isBlank(payload.returnReason)) throw new BadRequestError('Reason for return is required.');
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     assertMaxLength(payload.returnReason, 500, 'Reason for return');
-    if (!RETURN_CONDITIONS.includes(payload.condition)) throw new BadRequestError('Choose the condition of the returned item.');
+    if (payload.condition && !RETURN_CONDITIONS.includes(payload.condition)) throw new BadRequestError('Choose a valid item condition.');
     assertSlipDate(payload.ifmisSlipDateGc);
     if (payload.returningEmployeeId && item.currentCustodianId && payload.returningEmployeeId !== item.currentCustodianId) {
       throw new BadRequestError('Only the person who holds this item can return it.');
@@ -1657,7 +1657,8 @@ export class StoreService {
 
     const returnDetails: Model21RequestDetails = {
       reason: payload.returnReason,
-      condition: payload.condition,
+      // No condition given: the item keeps the one it has
+      condition: (payload.condition || item.condition || 'GOOD') as ItemCondition,
       remark: payload.defectRemark,
       book: payload.book,
       chassisNumber: payload.chassisNumber,
@@ -1929,7 +1930,7 @@ export class StoreService {
     const reason = (payload.returnReason || '').trim();
     if (!slipNo) throw new BadRequestError('Return Voucher (Model 21) number is mandatory.');
     if (!reason) throw new BadRequestError('Reason for return is required.');
-    if (!RETURN_CONDITIONS.includes(payload.condition)) throw new BadRequestError('Choose the condition of the returned item.');
+    if (payload.condition && !RETURN_CONDITIONS.includes(payload.condition)) throw new BadRequestError('Choose a valid item condition.');
 
     const storeRecipient = payload.storeRecipientId
       ? await prisma.employee.findUnique({ where: { id: payload.storeRecipientId } })
@@ -1960,7 +1961,7 @@ export class StoreService {
     const details: Model21RequestDetails = {
       ...previous,
       reason,
-      condition: payload.condition,
+      condition: payload.condition || previous.condition,
       remark: payload.defectRemark?.trim() || undefined,
       book: payload.book?.trim() || undefined,
       chassisNumber: payload.chassisNumber?.trim() || undefined,

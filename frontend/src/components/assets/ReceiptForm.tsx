@@ -124,7 +124,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   // A new receipt starts empty (the field shows 0), so the number is always typed on purpose
   const [quantity, setQuantity] = useState<number>(editItem ? Number(editItem.quantity) || 1 : 0);
   const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? start?.unitCostETB ?? 0);
-  const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? start?.condition ?? '');
+  const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? start?.condition ?? ItemCondition.NEW);
   const [remark, setRemark] = useState(editItem?.remark ?? '');
 
   // Section 3: Signatures & Document Scan
@@ -192,7 +192,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     itemType === ItemType.CONSUMABLE && !ifmisItemCode.trim() && 'item code',
     !category && 'category',
     !itemType && 'item type',
-    !condition && 'physical condition',
     !(quantity >= 1) && 'quantity',
     !uom.trim() && 'unit of measure',
     !donation && !(unitCostETB > 0) && 'unit price',
@@ -212,7 +211,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     itemName: !name.trim() && 'Describe the item received.',
     category: !category && 'Choose the category.',
     itemType: !itemType && 'Choose fixed asset or consumable.',
-    condition: !condition && 'Choose the physical condition.',
     uom: !uom.trim() && 'Enter the unit of measure, e.g. EA or KG.',
     unitCost: !donation && !(unitCostETB > 0) && 'Enter the unit price.',
   });
@@ -238,7 +236,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setPrintedPadTo('');
     setQuantity(0);
     setUnitCostETB(0);
-    setCondition('');
+    setCondition(ItemCondition.NEW);
     setRemark('');
     setIfmisItemCode('');
     setExtraLines([]);
@@ -498,7 +496,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       !storeLocationId && (storeId ? 'location in the store' : 'receiving store'),
       !category && 'category',
       !itemType && 'item type',
-      !condition && 'physical condition',
     ].filter(Boolean);
     if (unchosen.length > 0) {
       const msg = `Please select the ${unchosen.join(', ')}.`;
@@ -563,7 +560,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           itemType: itemType as ItemType,
           serialNumber: serialNumber.trim() || undefined,
           unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
-          condition: condition as ItemCondition,
+          condition: (condition as ItemCondition) || editItem.condition || ItemCondition.NEW,
           storeLocationId,
           ifmisSlipNumber: slipNo,
           ifmisSlipDateGc,
@@ -608,7 +605,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         itemType: itemType as ItemType,
         serialNumber: serialNumber.trim() || undefined,
         unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
-        condition: condition as ItemCondition,
+        condition: (condition as ItemCondition) || ItemCondition.NEW,
         uom: uom.trim(),
         subInventory: subInventory.trim() || undefined,
         itemCategoryDisplay: selectedCat?.label,
@@ -625,7 +622,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         category: l.category as AssetCategory,
         itemType: l.itemType as ItemType,
         unitCostETB: donation ? 0 : l.unitPrice,
-        condition: l.condition as ItemCondition,
+        condition: (l.condition as ItemCondition) || ItemCondition.NEW,
         uom: l.uom.trim(),
         itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
         quantity: l.quantity,
@@ -640,7 +637,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         itemType: itemType as ItemType,
         serialNumber: serialNumber.trim() || '',
         unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
-        condition: condition as ItemCondition,
+        condition: (condition as ItemCondition) || ItemCondition.NEW,
         storeLocationId,
         ifmisSlipNumber: slipNo,
         ifmisSlipDateGc,
@@ -897,7 +894,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             )}
 
             {/* A serial number belongs to a fixed asset; a consumable shows one only if it already has one */}
-            {showSerial ? (
+            {showSerial && (
               <Field label="Serial number" optional htmlFor="stock-in-serial">
                 <input
                   id="stock-in-serial"
@@ -908,31 +905,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                   className={input({ mono: true })}
                 />
               </Field>
-            ) : (
-              <Field label="Physical condition" required htmlFor="stock-in-condition" error={fieldErrors.error('condition')}>
-                <select id="stock-in-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} onBlur={fieldErrors.touch('condition')} className={input({ invalid: !!fieldErrors.error('condition') })}>
-                  <option value="" disabled>Select…</option>
-                  <option value={ItemCondition.NEW}>New (አዲስ)</option>
-                  <option value={ItemCondition.GOOD}>Good (ጥሩ)</option>
-                  <option value={ItemCondition.FAIR}>Fair (መካከለኛ)</option>
-                  <option value={ItemCondition.NEEDS_REPAIR}>Needs repair (ጥገና የሚያስፈልገው)</option>
-                  <option value={ItemCondition.DAMAGED}>Damaged (የተበላሸ)</option>
-                </select>
-              </Field>
             )}
-
-            <Field label="Item description" required span={showSerial ? undefined : 'sm:col-span-2'} htmlFor="stock-in-item-name" error={fieldErrors.error('itemName')}>
-              <input
-                id="stock-in-item-name"
-                type="text"
-                required
-                placeholder="e.g. Dell Latitude 5440 Laptop"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={fieldErrors.touch('itemName')}
-                className={input({ invalid: !!fieldErrors.error('itemName') })}
-              />
-            </Field>
 
             <Field label="Category" required htmlFor="stock-in-category" error={fieldErrors.error('category')}>
               <select id="stock-in-category" required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} onBlur={fieldErrors.touch('category')} className={input({ invalid: !!fieldErrors.error('category') })}>
@@ -945,18 +918,18 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               </select>
             </Field>
 
-            {showSerial && (
-              <Field label="Physical condition" required htmlFor="stock-in-condition" error={fieldErrors.error('condition')}>
-                <select id="stock-in-condition" required value={condition} onChange={(e) => setCondition(e.target.value as ItemCondition)} onBlur={fieldErrors.touch('condition')} className={input({ invalid: !!fieldErrors.error('condition') })}>
-                  <option value="" disabled>Select…</option>
-                  <option value={ItemCondition.NEW}>New (አዲስ)</option>
-                  <option value={ItemCondition.GOOD}>Good (ጥሩ)</option>
-                  <option value={ItemCondition.FAIR}>Fair (መካከለኛ)</option>
-                  <option value={ItemCondition.NEEDS_REPAIR}>Needs repair (ጥገና የሚያስፈልገው)</option>
-                  <option value={ItemCondition.DAMAGED}>Damaged (የተበላሸ)</option>
-                </select>
-              </Field>
-            )}
+            <Field label="Item description" required span="sm:col-span-2" htmlFor="stock-in-item-name" error={fieldErrors.error('itemName')}>
+              <input
+                id="stock-in-item-name"
+                type="text"
+                required
+                placeholder="e.g. Dell Latitude 5440 Laptop"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={fieldErrors.touch('itemName')}
+                className={input({ invalid: !!fieldErrors.error('itemName') })}
+              />
+            </Field>
           </FieldGrid>
 
           {/* Quantity & valuation */}
@@ -1022,10 +995,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               lines={extraLines}
               onChange={setExtraLines}
               onCopyFirst={
-                itemType || condition
+                itemType
                   ? () =>
                       setExtraLines((ls) =>
-                        ls.map((l) => oneIfFixed({ ...l, itemType: l.itemType || (itemType as ItemType | ''), condition: l.condition || (condition as ItemCondition | '') })),
+                        ls.map((l) => oneIfFixed({ ...l, itemType: l.itemType || (itemType as ItemType | '') })),
                       )
                   : undefined
               }

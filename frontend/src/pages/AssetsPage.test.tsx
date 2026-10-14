@@ -760,11 +760,9 @@ describe('Asset record', () => {
     expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('50');
     const submit = within(panel).getByRole('button', { name: 'Submit 2 items for approval' });
 
-    // Item type comes from the IFMIS code (starting with 1: consumable) and condition is New, for every line
+    // Item type comes from the IFMIS code (starting with 1: consumable)
     expect(within(panel).getAllByLabelText(/Item type/i)[0]).toHaveValue('CONSUMABLE');
-    expect(within(panel).getByLabelText(/Physical condition/i)).toHaveValue('NEW');
     expect(within(others).getByLabelText('Item 2 item type')).toHaveValue('CONSUMABLE');
-    expect(within(others).getByLabelText('Item 2 condition')).toHaveValue('NEW');
     // Only the store is left to choose
     expect(submit).toBeDisabled();
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
@@ -1182,7 +1180,6 @@ describe('Asset record', () => {
     await user.selectOptions(within(panel).getByLabelText(/^Category/i), 'IT_EQUIPMENT');
     await user.selectOptions(within(panel).getByLabelText(/Item type/i), 'FIXED');
     await user.type(within(panel).getByLabelText(/Tag number/i), 'moa-test-0001');
-    await user.selectOptions(within(panel).getByLabelText(/Physical condition/i), 'NEW');
     // A fixed asset: one item, quantity 1
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('1');
     const submit = within(panel).getByRole('button', { name: /Submit for approval/i });
@@ -1231,7 +1228,6 @@ describe('Asset record', () => {
     // Item details
     await user.type(within(panel).getByLabelText(/Item description/i), 'Precision Workstation');
     await user.selectOptions(within(panel).getByLabelText(/Category/i), 'IT_EQUIPMENT');
-    await user.selectOptions(within(panel).getByLabelText(/Physical condition/i), 'NEW');
     // Fixed asset or consumable has to be chosen too
     expect(submitBtn).toBeDisabled();
     await user.selectOptions(within(panel).getByLabelText(/Item type/i), 'CONSUMABLE');
