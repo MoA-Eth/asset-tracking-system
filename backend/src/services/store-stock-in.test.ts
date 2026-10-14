@@ -233,11 +233,11 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(db.item.create).toHaveBeenCalledTimes(1);
   });
 
-  it('knows a fixed asset by its tag number and a consumable by its IFMIS item code', async () => {
+  it('knows every item by its IFMIS item code; a fixed asset needs no tag and gets a system code', async () => {
     const { itemCode: _tag, ifmisItemCode: _code, ...noCodes } = basePayload;
     await expect(StoreService.getInstance().registerStockIn({ ...noCodes, isHistoricalData: true } as any)).rejects.toMatchObject({
       statusCode: 400,
-      message: expect.stringContaining('Enter the tag number'),
+      message: expect.stringContaining('Enter the item code'),
     });
     await expect(StoreService.getInstance().registerStockIn({ ...noCodes, isHistoricalData: true, itemType: 'CONSUMABLE', quantity: 5 } as any)).rejects.toMatchObject({
       statusCode: 400,
@@ -250,6 +250,9 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(db.item.create.mock.calls[0][0].data.itemCode).toBe('MOA-072351');
     await StoreService.getInstance().registerStockIn({ ...noCodes, serialNumber: '', isHistoricalData: true, itemType: 'CONSUMABLE', quantity: 5, ifmisItemCode: '108101101.0021' } as any);
     expect(JSON.parse(db.item.create.mock.calls[1][0].data.notes).ifmisItemCode).toBe('108101101.0021');
+    // A fixed asset with no tag: the system gives it a code
+    await StoreService.getInstance().registerStockIn({ ...noCodes, serialNumber: '', isHistoricalData: true, ifmisItemCode: '008101101.0001' } as any);
+    expect(db.item.create.mock.calls[2][0].data.itemCode).toMatch(/^MOA-[A-Z]+-\d{4}-\d{4}$/);
   });
 
   it('refuses a tag number already in the register, or twice on one slip', async () => {

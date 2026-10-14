@@ -114,6 +114,9 @@ interface MoneyInputProps {
   suffix?: string;
   placeholder?: string;
   disabled?: boolean;
+  /** Extra classes for the input, e.g. a smaller one in a table */
+  inputClassName?: string;
+  'aria-label'?: string;
 }
 
 const MONEY_FORMAT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -122,7 +125,7 @@ const MONEY_FORMAT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, 
  * An amount that is easy to read: 1,250,000.50 when you are not typing, the plain number while you are.
  * Anything that is not a digit or one decimal point is dropped as it is typed.
  */
-export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, onBlur, id, accent = 'emerald', invalid, suffix = 'ETB', placeholder = '0.00', disabled }) => {
+export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, onBlur, id, accent = 'emerald', invalid, suffix = 'ETB', placeholder = '0.00', disabled, inputClassName = '', 'aria-label': ariaLabel }) => {
   const [focused, setFocused] = useState(false);
   const [text, setText] = useState('');
   const shown = focused ? text : value ? MONEY_FORMAT.format(value) : '';
@@ -136,6 +139,7 @@ export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, onBlur,
         disabled={disabled}
         placeholder={placeholder}
         aria-invalid={invalid || undefined}
+        aria-label={ariaLabel}
         value={shown}
         onFocus={() => {
           setText(value ? String(value) : '');
@@ -151,7 +155,7 @@ export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, onBlur,
           const n = parseFloat(cleaned);
           onChange(Number.isFinite(n) ? n : 0);
         }}
-        className={`${inputClass(accent, { mono: true, align: 'right', invalid })} ${suffix ? 'pr-12' : ''}`}
+        className={`${inputClass(accent, { mono: true, align: 'right', invalid })} ${suffix ? 'pr-12' : ''} ${inputClassName}`}
       />
       {suffix && <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-semibold text-slate-400">{suffix}</span>}
     </div>
