@@ -10,7 +10,7 @@ import { useSystemSettings } from '../../utils/system-settings';
 import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
-import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode } from './receipt-options';
+import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
 import { ReceiptItems, SlipLine, ItemTypeTag, lineMissing, blankLine, cellClass, money } from './SlipLines';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -269,6 +269,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const latestSlip = useRef<File | null>(null);
   const today = new Date().toISOString().split('T')[0];
   const slipFields = () => [
+    // Purchase is where a new receipt starts, so the slip may change it
+    { key: 'provision', label: 'type of provision', current: provisionType, set: setProvisionType, empty: 'PURCHASE', free: provisionType === 'PURCHASE' },
     { key: 'model19No', label: 'Model 19 No.', current: ifmisSlipNumber, set: setIfmisSlipNumber, empty: '' },
     { key: 'poNumber', label: 'PO number', current: poNumber, set: setPoNumber, empty: '' },
     { key: 'receivedDate', label: 'received date', current: ifmisSlipDateGc, set: setIfmisSlipDateGc, empty: today, free: ifmisSlipDateGc === today },
@@ -284,6 +286,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     { key: 'quantity', label: 'quantity', current: quantity, set: setQuantity, empty: 0 },
     { key: 'unitPrice', label: 'unit price', current: unitCostETB, set: setUnitCostETB, empty: 0 },
     // The IFMIS item code every item is known by; its first digit says fixed asset or consumable
+    { key: 'subInventory', label: 'sub inventory', current: subInventory, set: setSubInventory, empty: '' },
     { key: 'ifmisItemCode', label: 'item code', current: ifmisItemCode, set: setIfmisItemCode, empty: '' },
     // After the buyer, so a deliverer named on the slip replaces the one copied from the buyer
     { key: 'deliveredBy', label: 'delivered by', current: deliveredBy, set: changeDeliveredBy, empty: '' },
@@ -309,11 +312,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const receiver = found && (storeIsFree || storeId === found.storeId) ? found : undefined;
     const unknownReceiver =
       slip.receivedBy && !found ? ` The slip says received by ${slip.receivedBy}, who is not a store man of any store; pick the store man.` : '';
+    const slipType = TRANSACTION_TYPES.find((t) => t.toLowerCase() === slip.transactionType?.toLowerCase());
     const values: Record<string, string | number | undefined> = {
+      // The slip's PO number decides it: a PO number means bought, none means donated
+      provision: provisionFromSlip(slip.poNumber),
       model19No: slip.model19No,
       poNumber: slip.poNumber,
       receivedDate: slip.receivedDate,
-      transactionType: TRANSACTION_TYPES.find((t) => t.toLowerCase() === slip.transactionType?.toLowerCase()),
+      // A donation slip with no transaction type of its own is received as a donation
+      transactionType: slipType ?? (provisionFromSlip(slip.poNumber) === 'DONATION' ? 'Donation / Grant Receipt' : undefined),
       source: slip.source,
       buyer: slip.buyer,
       programName: slip.programName,
@@ -326,6 +333,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       quantity: line?.quantity || undefined,
       unitPrice: line?.unitPrice || undefined,
       ifmisItemCode: line?.itemCode,
+      subInventory: line?.subInventory,
       deliveredBy: slip.deliveredBy,
       storeId: receiver?.storeId,
       receivedById: receiver?.keeper.employeeId,
@@ -339,7 +347,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         taken[f.key] = value;
         if (value !== f.current) {
           f.set(value);
-          filled.push(f.label);
+          // The sub inventory has no field of its own; it goes on the printed voucher
+          if (f.key !== 'subInventory') filled.push(f.label);
         }
       } else if (fromEarlierSlip) {
         // The earlier slip's value, which this slip doesn't give: cleared rather than mixed in
@@ -374,10 +383,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         quantity: l.quantity ?? 0,
         unitPrice: l.unitPrice ?? 0,
         ifmisCode: l.itemCode,
+        subInventory: l.subInventory,
         alreadyAs: receivedAs(l.description),
       })),
     );
-    if (others.length > 0) filled.push(`${others.length} more ${others.length === 1 ? 'item' : 'items'} below`);
+    if (others.length > 0) filled.push(`${others.length} more ${others.length === 1 ? 'item' : 'items'} (rows 2–${others.length + 1})`);
     if (already) {
       setSlipNote({
         tone: 'warn',
@@ -391,7 +401,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     }
     const more =
       others.length > 0
-        ? ` This slip lists ${slip.lines.length} items: the first is in the form and the others are listed under it. Check their item type and condition; each is registered as its own record.`
+        ? ` This slip lists ${slip.lines.length} items, one row each. Check every row; each is registered as its own record.`
         : '';
     filledNote(filled, more + unknownReceiver);
   };
@@ -623,6 +633,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         condition: (l.condition as ItemCondition) || ItemCondition.NEW,
         uom: l.uom.trim(),
         itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
+        subInventory: l.subInventory?.trim() || undefined,
         quantity: l.quantity,
         totalAmount: donation ? 0 : l.quantity * l.unitPrice,
       }))];
@@ -677,7 +688,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         itemCode: (l.itemType === ItemType.CONSUMABLE ? l.ifmisCode : '') || res.items?.[i + 1]?.itemCode || '—',
         itemDescription: l.name.trim(),
         uom: l.uom.trim(),
-        subInventory: targetStore?.name || '',
+        subInventory: l.subInventory?.trim() || targetStore?.name || '',
         itemCategory: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label || String(l.category).replace(/_/g, ' '),
         itemType: l.itemType as ItemType,
         lotBatchNo: '',
@@ -973,6 +984,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         submitLabel={isEdit ? 'Save changes' : extraLines.length > 0 ? `Submit ${extraLines.length + 1} items for approval` : 'Submit for approval'}
         // Submit stays off until every required field is filled
         missingFields={missingFields}
+        // Names with no field label of their own
+        fieldTargets={{ 'item code starting with 0 or 1': '#stock-in-ifmis-code', 'scanned slip': 'input[type="file"]' }}
         onCancel={onCancel}
         onReset={isEdit ? undefined : handleReset}
       />

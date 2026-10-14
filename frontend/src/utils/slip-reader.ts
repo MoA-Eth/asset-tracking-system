@@ -17,10 +17,16 @@ export interface PdfRow {
   cells: PdfCell[];
 }
 
-/** A PDF opened with the bundled reader (pdf.js, loaded only when a PDF is attached) */
+/**
+ * A PDF opened with the bundled reader (pdf.js, loaded only when a PDF is attached). pdf.js needs features older
+ * browsers lack (Promise.withResolvers: Firefox before 121, e.g. Firefox ESR 115, and Chrome before 119); those get
+ * its legacy build, which brings its own.
+ */
 export async function openPdf(file: File) {
-  const pdfjs = await import('pdfjs-dist');
-  const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+  const legacy = typeof (Promise as { withResolvers?: unknown }).withResolvers !== 'function';
+  const [pdfjs, worker] = legacy
+    ? await Promise.all([import('pdfjs-dist/legacy/build/pdf.mjs'), import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url')])
+    : await Promise.all([import('pdfjs-dist'), import('pdfjs-dist/build/pdf.worker.min.mjs?url')]);
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
   return pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
 }
