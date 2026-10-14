@@ -13,7 +13,16 @@ export interface StoreKeepersView {
   locations: { id: string; storeId: string; label: string }[];
   /** The store's name, for messages */
   storeName: (storeId?: string | null) => string;
+  /**
+   * The store man with this name and his store, when exactly one matches. Word order and commas don't matter,
+   * since IFMIS prints "Last, First Middle".
+   */
+  findByName: (name?: string | null) => { storeId: string; keeper: StoreKeeper } | undefined;
 }
+
+/** A name as a sorted set of lower-case words, so "Tesfaye, Abel Girma" equals "Abel Girma Tesfaye" */
+export const nameKey = (name: string): string =>
+  name.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
 
 /**
  * The store men of every store, so a form can offer the ones of the store it works in, and refuse a store with
@@ -54,5 +63,13 @@ export function useStoreKeepers(): StoreKeepersView {
       return ofStore(store?.id);
     },
     storeName: (storeId) => stores?.find((s) => s.id === storeId)?.name ?? 'This store',
+    findByName: (name) => {
+      const key = name ? nameKey(name) : '';
+      if (!key) return undefined;
+      const matches = (stores ?? [])
+        .filter((s) => s.isActive !== false)
+        .flatMap((s) => ofStore(s.id).filter((k) => nameKey(k.fullNameEn) === key).map((keeper) => ({ storeId: s.id, keeper })));
+      return matches.length === 1 ? matches[0] : undefined;
+    },
   };
 }

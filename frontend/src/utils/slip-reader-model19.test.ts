@@ -170,3 +170,20 @@ describe('a real IFMIS Model 19 (petty cash purchase)', () => {
     ]);
   });
 });
+
+describe('Model 19 signature lines', () => {
+  it('leaves blank (underscore) signature lines out', () => {
+    const slip = parseModel19(REAL_PETTY_CASH);
+    expect(slip.deliveredBy).toBeUndefined();
+    expect(slip.receivedBy).toBeUndefined();
+  });
+
+  it('reads the names when IFMIS printed them, in the same piece or the next', () => {
+    const rows: PdfRow[] = [
+      row(63, [482, 'Print Model19 Report']),
+      row(101, [515, 'INV Model 19 No. :'], [613, '0000006']),
+      row(410, [58, 'Delivered By : Name : Kebede, Tolosa Ayana'], [454, 'Received By : Name :'], [560, 'Man, Abebe Store']),
+    ];
+    expect(parseModel19(rows)).toMatchObject({ deliveredBy: 'Kebede, Tolosa Ayana', receivedBy: 'Man, Abebe Store' });
+  });
+});

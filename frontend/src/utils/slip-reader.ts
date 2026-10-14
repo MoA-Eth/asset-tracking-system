@@ -194,6 +194,9 @@ export interface Model19SlipFields {
   source?: string;
   buyer?: string;
   programName?: string;
+  /** Names on the signature lines at the bottom, when IFMIS printed them (often the lines are left blank) */
+  deliveredBy?: string;
+  receivedBy?: string;
   lines: Model19SlipLine[];
 }
 
@@ -247,6 +250,24 @@ export function parseModel19(rows: PdfRow[]): Model19SlipFields {
   const above = titleIndex >= 0 ? titleIndex : headerIndex >= 0 ? headerIndex : 0;
   const program = rows.slice(0, above).find((r) => /program/i.test(rowsToText([r])));
   if (program) found.programName = rowsToText([program]).trim();
+
+  // Signature lines: "Delivered By : Name : <name>" / "Received By : Name : <name>"; blank ones are only underscores
+  const signatory = (label: RegExp): string | undefined => {
+    const clean = (s: string) => s.replace(/_+/g, ' ').replace(/^\s*:\s*/, '').replace(/\s+/g, ' ').trim();
+    for (const row of rows) {
+      for (let i = 0; i < row.cells.length; i++) {
+        const match = label.exec(row.cells[i].text);
+        if (!match) continue;
+        let value = clean(row.cells[i].text.slice(match.index + match[0].length));
+        const next = row.cells[i + 1];
+        if (!value && next && !/\bby\s*:/i.test(next.text)) value = clean(next.text);
+        return value || undefined;
+      }
+    }
+    return undefined;
+  };
+  found.deliveredBy = signatory(/delivered\s+by\s*:?\s*(?:name\s*:?)?/i);
+  found.receivedBy = signatory(/received\s+by\s*:?\s*(?:name\s*:?)?/i);
 
   // The figure columns, from their headings: IFMIS prints a line's total and its remark as one piece of text
   // ("12918 968765"), so the figures are placed by column rather than taken as the last three numbers

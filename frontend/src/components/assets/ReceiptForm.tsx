@@ -281,6 +281,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     { key: 'unitPrice', label: 'unit price', current: unitCostETB, set: setUnitCostETB, empty: 0 },
     // The IFMIS item code is the inventory code a consumable is known by (a fixed asset is known by its tag instead)
     { key: 'ifmisItemCode', label: 'item code', current: ifmisItemCode, set: setIfmisItemCode, empty: '' },
+    // After the buyer, so a deliverer named on the slip replaces the one copied from the buyer
+    { key: 'deliveredBy', label: 'delivered by', current: deliveredBy, set: changeDeliveredBy, empty: '' },
+    // The store man who signed for the goods, and with him the store they went to
+    { key: 'storeId', label: 'receiving store', current: storeId, set: chooseStore, empty: '' },
+    { key: 'receivedById', label: 'received by', current: receivedById, set: setReceivedById, empty: '' },
   ] as { key: string; label: string; current: string | number; set: (v: any) => void; empty: string | number; free?: boolean }[];
 
   /** Clears what an earlier slip filled in and the person hasn't changed, along with its other item lines */
@@ -294,6 +299,12 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const fillFromModel19 = (slip: Model19SlipFields) => {
     const filled: string[] = [];
     const line = slip.lines[0];
+    // The store man only goes with his own store: not when the person already picked another store
+    const found = keepers.findByName(slip.receivedBy);
+    const storeIsFree = !storeId || fromSlip.current.storeId === storeId;
+    const receiver = found && (storeIsFree || storeId === found.storeId) ? found : undefined;
+    const unknownReceiver =
+      slip.receivedBy && !found ? ` The slip says received by ${slip.receivedBy}, who is not a store man of any store; pick the store man.` : '';
     const values: Record<string, string | number | undefined> = {
       model19No: slip.model19No,
       poNumber: slip.poNumber,
@@ -311,6 +322,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       quantity: line?.quantity || undefined,
       unitPrice: line?.unitPrice || undefined,
       ifmisItemCode: line?.itemCode,
+      deliveredBy: slip.deliveredBy,
+      storeId: receiver?.storeId,
+      receivedById: receiver?.keeper.employeeId,
     };
     const taken: Record<string, string | number> = {};
     for (const f of slipFields()) {
@@ -375,7 +389,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       others.length > 0
         ? ` This slip lists ${slip.lines.length} items: the first is in the form and the others are listed under it. Check their item type and condition; each is registered as its own record.`
         : '';
-    filledNote(filled, more);
+    filledNote(filled, more + unknownReceiver);
   };
 
   /** Only a Model 19 is read here; another IFMIS form is named, so it can be taken to its own form */

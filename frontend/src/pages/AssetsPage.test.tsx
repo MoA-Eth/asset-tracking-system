@@ -1442,3 +1442,30 @@ describe('Receiving form: replacing or racing slips', () => {
     );
   });
 });
+
+describe('Receiving form: store and signatures from the Model 19', () => {
+  beforeEach(() => {
+    auth.user.permissions = ENCODER;
+  });
+
+  it('fills Delivered by and, from the store man who received it, the receiving store', async () => {
+    const user = userEvent.setup();
+    const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+    vi.mocked(readPdfRows).mockResolvedValueOnce([
+      r(63, [482, 'Print Model19 Report']),
+      r(101, [515, 'INV Model 19 No. :'], [613, '0000006']),
+      r(197, [59, 'S/No.'], [91, 'Item Code'], [203, 'Item Description'], [302, 'UOM'], [625, 'Qty']),
+      r(219, [55, '1'], [85, '108101101.0021'], [198, 'Fuel Visa Card'], [305, 'EA'], [328, 'Stationery'], [387, 'Fuel and'], [621, '10'], [729, '1'], [783, '10']),
+      r(410, [58, 'Delivered By : Name : Kebede, Tolosa Ayana'], [454, 'Received By : Name : Man, Abebe Store']),
+    ]);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+
+    expect(await within(panel).findByText(/Filled in from the slip:.*delivered by, receiving store, received by/)).toBeInTheDocument();
+    expect(within(panel).getByLabelText(/Receiving store/i)).toHaveValue('S1');
+    expect(within(panel).getByPlaceholderText(/Filled from the buyer/)).toHaveValue('Kebede, Tolosa Ayana');
+  });
+});
