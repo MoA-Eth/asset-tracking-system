@@ -126,6 +126,18 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   // Section 3: Signatures & Document Scan
   const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? '');
+  // Delivered by follows the buyer until someone types a different name; clearing it makes it follow again
+  const [deliveredByOwn, setDeliveredByOwn] = useState(
+    !!editItem?.deliveredBy && editItem.deliveredBy !== (editItem.buyer ?? '')
+  );
+  const changeBuyer = (value: string) => {
+    setBuyer(value);
+    if (!deliveredByOwn) setDeliveredBy(value);
+  };
+  const changeDeliveredBy = (value: string) => {
+    setDeliveredBy(value);
+    setDeliveredByOwn(value.trim() !== '' && value !== buyer);
+  };
   // Left empty: the person who signs for the delivery isn't necessarily the one entering it
   const [receivedBy, setReceivedBy] = useState(editItem?.receivedBy ?? '');
   // Who received the goods: a store man of the receiving store (a correction keeps the name it has until another is chosen)
@@ -223,6 +235,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setExtraLines([]);
     setProvisionType('PURCHASE');
     setDeliveredBy('');
+    setDeliveredByOwn(false);
     setReceivedBy('');
     setReceivedById('');
     setAttachmentFileName('');
@@ -265,7 +278,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       filled.push('source');
     }
     if (slip.buyer && !buyer.trim()) {
-      setBuyer(slip.buyer);
+      changeBuyer(slip.buyer);
       filled.push('buyer');
     }
     if (slip.programName && !programName.trim()) {
@@ -769,7 +782,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                   type="text"
                   placeholder="Name of the buyer or procurement officer"
                   value={buyer}
-                  onChange={(e) => setBuyer(e.target.value)}
+                  onChange={(e) => changeBuyer(e.target.value)}
                   className={input()}
                 />
               </Field>
@@ -1013,9 +1026,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             <Field label="Delivered by" optional>
               <input
                 type="text"
-                placeholder="e.g. Delivery driver / vendor agent"
+                placeholder="Filled from the buyer; change it if someone else delivered"
                 value={deliveredBy}
-                onChange={(e) => setDeliveredBy(e.target.value)}
+                onChange={(e) => changeDeliveredBy(e.target.value)}
                 className={input()}
               />
             </Field>

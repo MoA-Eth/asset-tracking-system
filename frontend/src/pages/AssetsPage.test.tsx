@@ -1327,3 +1327,34 @@ describe('AssetsPage: time in store, totals and remembered view', () => {
     expect(within(totals).getByText(/In store/).textContent).toMatch(/9,000/);
   });
 });
+
+describe('Receiving form: Delivered by follows the buyer', () => {
+  beforeEach(() => {
+    auth.user.permissions = ENCODER;
+  });
+
+  it('fills Delivered by from the buyer until a different name is typed, and follows again when cleared', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+
+    const buyer = within(panel).getByPlaceholderText('Name of the buyer or procurement officer');
+    const deliveredBy = within(panel).getByPlaceholderText(/Filled from the buyer/);
+
+    await user.type(buyer, 'Abebe Kebede');
+    expect(deliveredBy).toHaveValue('Abebe Kebede');
+
+    // Someone else delivered: their name sticks while the buyer changes
+    await user.clear(deliveredBy);
+    await user.type(deliveredBy, 'Driver Tesfaye');
+    await user.type(buyer, ' Jr');
+    expect(deliveredBy).toHaveValue('Driver Tesfaye');
+
+    // Cleared: follows the buyer again
+    await user.clear(deliveredBy);
+    await user.type(buyer, '.');
+    expect(deliveredBy).toHaveValue('Abebe Kebede Jr.');
+  });
+});
