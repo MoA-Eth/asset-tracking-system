@@ -10,7 +10,7 @@ import { useSystemSettings } from '../../utils/system-settings';
 import { ITEM_TYPE_OPTIONS } from './asset-state';
 import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
-import { readPdfRows, rowsToText, isModel21, parseModel21, isModel19, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
+import { readPdfRows, rowsToText, isModel21, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES } from './receipt-options';
 import { SlipLines, SlipLine, lineMissing, oneIfFixed } from './SlipLines';
 import { useToast } from '../../context/ToastContext';
@@ -176,7 +176,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !uom.trim() && 'unit of measure',
     !donation && !(unitCostETB > 0) && 'unit price',
     isAttachmentRequired && !attachmentFileName && 'scanned slip',
-    ...extraLines.map((l, i) => lineMissing(l, donation).length > 0 && `item ${i + 2} (${lineMissing(l, donation).join(', ')})`),
+    // A line needing one thing says what; a line needing more is just named, its empty cells are marked in the table
+    ...extraLines.map((l, i) => {
+      const missing = lineMissing(l, donation);
+      return missing.length === 1 ? `item ${i + 2} (${missing[0]})` : missing.length > 1 && `item ${i + 2}`;
+    }),
   ].filter(Boolean) as string[];
 
   // A field shows what is wrong with it once the user has been in it
@@ -347,6 +351,17 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   };
 
   /** Only a Model 19 is read here; another IFMIS form is named, so it can be taken to its own form */
+  /** Which other IFMIS form a PDF is, if it is one: the receive form takes only a Model 19 */
+  const otherForm = (text: string) =>
+    isModel19(text)
+      ? undefined
+      : isModel21(text)
+        ? 'a Model 21 transfer form. Read it from the transfer form of the asset (Import transfer)'
+        : isDisposalForm(text)
+          ? 'a Fixed Asset Disposal Form (Model 22/B). Read it from the disposal form of the asset (Import disposal)'
+          : undefined;
+
+  /** Only a Model 19 is read here; a scan, or a PDF that is no IFMIS form, is attached as the copy without being read */
   const fillFromSlip = (rows: PdfRow[]) => {
     const text = rowsToText(rows);
     if (!text.trim()) {
@@ -354,12 +369,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       return;
     }
     if (isModel19(text)) return fillFromModel19(parseModel19(rows));
-    setSlipNote({
-      tone: 'warn',
-      text: isModel21(text)
-        ? 'This is a Model 21 transfer form, not a Model 19. Read it from the transfer form of the asset (Import transfer). It is attached here; remove it if it was a mistake.'
-        : 'Only an IFMIS Model 19 PDF can be read here. It is attached; fill in the fields as usual.',
-    });
+    setSlipNote({ tone: 'warn', text: 'Only an IFMIS Model 19 PDF can be read here. It is attached; fill in the fields as usual.' });
   };
 
   // A slip chosen with the header button is read like one picked in the form; fields already filled are kept
@@ -382,16 +392,34 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       return;
     }
     setFormError(null);
-    setAttachmentFile(file);
-    setAttachmentFileName(file.name);
-    setSlipNote(null);
-    // Only a PDF saved from IFMIS carries text to read; a picture is attached as it is
-    if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
-      setSlipNote({ tone: 'info', text: 'Reading the slip…' });
-      readPdfRows(file)
-        .then(fillFromSlip)
-        .catch(() => setSlipNote({ tone: 'warn', text: "The slip couldn't be read. It is attached; fill in the fields as usual." }));
+    const attach = () => {
+      setAttachmentFile(file);
+      setAttachmentFileName(file.name);
+    };
+    // A picture is attached as it is; only a PDF saved from IFMIS carries text to read
+    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
+      attach();
+      setSlipNote(null);
+      return;
     }
+    // The PDF is read before it is attached: another IFMIS form is refused, not kept as this receipt's copy
+    setSlipNote({ tone: 'info', text: 'Reading the slip…' });
+    readPdfRows(file)
+      .then((rows) => {
+        const other = otherForm(rowsToText(rows));
+        if (other) {
+          const message = `This is ${other}. The receive form takes only a Model 19, so it was not attached and nothing was filled in.`;
+          setSlipNote({ tone: 'warn', text: message });
+          toast.warning('Not a Model 19', message);
+          return;
+        }
+        attach();
+        fillFromSlip(rows);
+      })
+      .catch(() => {
+        attach();
+        setSlipNote({ tone: 'warn', text: "The slip couldn't be read. It is attached; fill in the fields as usual." });
+      });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
