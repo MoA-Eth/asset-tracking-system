@@ -194,6 +194,8 @@ interface FormSectionProps {
   /** Render as a collapsible section */
   collapsible?: boolean;
   defaultOpen?: boolean;
+  /** A light heading only: no step number, icon or subtitle, for forms that are mostly filled in for the person */
+  plain?: boolean;
   children: React.ReactNode;
 }
 
@@ -206,10 +208,23 @@ export const FormSection: React.FC<FormSectionProps> = ({
   aside,
   collapsible = false,
   defaultOpen = true,
+  plain = false,
   children,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   const isOpen = !collapsible || open;
+
+  if (plain) {
+    return (
+      <section aria-label={title} className="rounded-xl border border-slate-200 bg-white">
+        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-2">
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{title}</h3>
+          {aside && <span className="ml-auto">{aside}</span>}
+        </div>
+        <div className="px-4 py-4">{children}</div>
+      </section>
+    );
+  }
 
   const header = (
     <div className="flex items-center gap-3">

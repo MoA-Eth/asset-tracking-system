@@ -760,6 +760,9 @@ describe('Asset record', () => {
     expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('50');
     const submit = within(panel).getByRole('button', { name: 'Submit 2 items for approval' });
 
+    // The short form shows what was read; Edit all fields shows every field
+    expect(within(panel).getByRole('region', { name: 'Read from the slip' })).toHaveTextContent('0000044');
+    await user.click(within(panel).getByRole('button', { name: 'Edit all fields' }));
     // Item type comes from the IFMIS code (starting with 1: consumable) and condition is New, for every line
     expect(within(panel).getAllByLabelText(/Item type/i)[0]).toHaveValue('CONSUMABLE');
     expect(within(panel).getByLabelText(/Physical condition/i)).toHaveValue('NEW');
@@ -838,6 +841,13 @@ describe('Asset record', () => {
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
     expect(await within(panel).findByText(/This slip lists 2 items: the first is in the form and the others are listed under it/)).toBeInTheDocument();
+    const read = within(panel).getByRole('region', { name: 'Read from the slip' });
+    expect(read).toHaveTextContent('0000044');
+    expect(read).toHaveTextContent('Sulfa Drug In Vial');
+    // Only what the slip didn't give is asked: the store, not the Model 19 No.
+    expect(within(panel).queryByLabelText(/Model 19 No/i)).toBeNull();
+    expect(within(panel).getByLabelText(/Receiving store/i)).toBeInTheDocument();
+    await user.click(within(panel).getByRole('button', { name: 'Edit all fields' }));
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000044');
     expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('PO Receipt');
     expect(within(panel).getByLabelText(/Source/i)).toHaveValue('TEST TRADING ONE MEMBER P.L.C');
@@ -891,6 +901,8 @@ describe('Asset record', () => {
 
     expect(await within(panel).findByText(/Filled in from the slip/)).toBeInTheDocument();
     expect(within(panel).getByText('model19.pdf')).toBeInTheDocument();
+    expect(within(panel).getByRole('region', { name: 'Read from the slip' })).toHaveTextContent('Typed by hand');
+    await user.click(within(panel).getByRole('button', { name: 'Edit all fields' }));
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000051');
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Typed by hand');
   });
@@ -1396,14 +1408,16 @@ describe('Receiving form: replacing or racing slips', () => {
     );
     await upload('wrong.pdf');
     expect(await within(panel).findByRole('region', { name: 'Other items on this slip' })).toBeInTheDocument();
-    expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('999');
+    expect(within(panel).getByRole('region', { name: 'Read from the slip' })).toHaveTextContent('999');
 
     // The person types a source by hand: it must survive the swap
     await user.type(within(panel).getByLabelText(/Source/i), 'Typed supplier');
 
     vi.mocked(readPdfRows).mockResolvedValueOnce(slip('RIGHT-1', [['202.1', 'Right item']]));
     await upload('right.pdf');
-    await vi.waitFor(() => expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('RIGHT-1'));
+    await vi.waitFor(() => expect(within(panel).getByRole('region', { name: 'Read from the slip' })).toHaveTextContent('RIGHT-1'));
+    await user.click(within(panel).getByRole('button', { name: 'Edit all fields' }));
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('RIGHT-1');
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Right item');
     // The wrong slip's extra lines and its PO number are gone; what was typed is kept
     expect(within(panel).queryByRole('region', { name: 'Other items on this slip' })).toBeNull();
@@ -1422,12 +1436,14 @@ describe('Receiving form: replacing or racing slips', () => {
 
     await upload('first.pdf');
     await upload('second.pdf');
-    await vi.waitFor(() => expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('SECOND-1'));
+    const read = () => within(panel).getByRole('region', { name: 'Read from the slip' });
+    await vi.waitFor(() => expect(read()).toHaveTextContent('SECOND-1'));
 
     // The first, slower read arrives now and must not take over
     finishFirst(slip('FIRST-1', [['404.1', 'First slip item']]));
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('SECOND-1');
+    expect(read()).toHaveTextContent('SECOND-1');
+    expect(read()).not.toHaveTextContent('FIRST-1');
     expect(within(panel).getByText('second.pdf')).toBeInTheDocument();
     expect(within(panel).queryByText('first.pdf')).toBeNull();
   });
@@ -1465,6 +1481,10 @@ describe('Receiving form: store and signatures from the Model 19', () => {
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
     expect(await within(panel).findByText(/Filled in from the slip:.*delivered by, receiving store, received by/)).toBeInTheDocument();
+    const read = within(panel).getByRole('region', { name: 'Read from the slip' });
+    expect(read).toHaveTextContent('Head office');
+    expect(read).toHaveTextContent('Kebede, Tolosa Ayana');
+    await user.click(within(panel).getByRole('button', { name: 'Edit all fields' }));
     expect(within(panel).getByLabelText(/Receiving store/i)).toHaveValue('S1');
     expect(within(panel).getByPlaceholderText(/Filled from the buyer/)).toHaveValue('Kebede, Tolosa Ayana');
   });
@@ -1490,5 +1510,72 @@ describe('Receiving form: the encoder’s own store', () => {
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await vi.waitFor(() => expect(within(panel).getByLabelText(/Receiving store/i)).toHaveValue('S2'));
+  });
+});
+
+describe('Receiving form: PDF first, ask only what is missing', () => {
+  const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+  // The layout of a real IFMIS petty-cash Model 19 (frontend/test-fixtures/ifmis-model19-petty-cash.pdf): no source, buyer or names
+  const PETTY_CASH: PdfRow[] = [
+    r(63, [482, 'Print Model19 Report']),
+    r(101, [515, 'INV Model 19 No. :'], [613, '0000005']),
+    r(113, [541, 'PO Number :']),
+    r(125, [528, 'Received Date :'], [613, '05-Sep-2020']),
+    r(137, [513, 'Transaction Type :'], [613, 'Petty Cash Purchase Receipt']),
+    r(149, [562, 'Source :']),
+    r(160, [568, 'Buyer :']),
+    r(197, [59, 'S/No.'], [91, 'Item Code'], [203, 'Item Description'], [302, 'UOM'], [349, 'Sub'], [399, 'Category'], [625, 'Qty']),
+    r(209, [683, 'Unit Price'], [748, 'Total Amount']),
+    r(219, [55, '1'], [85, '108101101.0021'], [198, 'Fuel Visa Card Nafeta'], [305, 'EA'], [328, 'Stationery'], [387, 'Fuel and'], [621, '12918'], [729, '1'], [783, '12918 968765']),
+    r(227, [387, 'Lubricant']),
+    r(239, [55, '2'], [85, '108101101.0010'], [198, 'Coupon For Fuel Of Birr'], [305, 'EA'], [328, 'Stationery'], [387, 'Fuel and'], [628, '50'], [716, '1000'], [783, '50000 968766']),
+    r(248, [198, '1000'], [387, 'Lubricant']),
+    r(307, [688, 'Grand Total'], [778, '62918']),
+    r(410, [58, 'Delivered By : Name : ______'], [454, 'Received By : Name : ______']),
+  ];
+
+  beforeEach(() => {
+    auth.user.permissions = ENCODER;
+  });
+
+  it('shows what the slip gave, asks only for the source and the store, and keeps a field while it is typed in', async () => {
+    const user = userEvent.setup();
+    vi.mocked(readPdfRows).mockResolvedValueOnce(PETTY_CASH);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+
+    // Without a slip the whole form shows
+    expect(within(panel).getByLabelText(/PO number/i)).toBeInTheDocument();
+
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+    const read = await within(panel).findByRole('region', { name: 'Read from the slip' });
+    expect(read).toHaveTextContent('0000005');
+    expect(read).toHaveTextContent('Petty Cash Purchase Receipt');
+    expect(read).toHaveTextContent('Fuel Visa Card Nafeta');
+    expect(read).toHaveTextContent('Fuel & Lubricants');
+    expect(read).toHaveTextContent('Consumable item');
+
+    // Asked: what the slip left blank. Not asked: what it gave, and the optional fields
+    expect(within(panel).getByLabelText(/Source/i)).toHaveValue('');
+    expect(within(panel).getByLabelText(/Receiving store/i)).toBeInTheDocument();
+    for (const field of [/Model 19 No/i, /Transaction type/i, /Item description/i, /^Category/i, /PO number/i]) {
+      expect(within(panel).queryByLabelText(field)).toBeNull();
+    }
+
+    // The source stays on screen while it is typed, not only until its first letter
+    await user.type(within(panel).getByLabelText(/Source/i), 'Total Ethiopia');
+    expect(within(panel).getByLabelText(/Source/i)).toHaveValue('Total Ethiopia');
+
+    // Every field can still be opened, and closed again
+    await user.click(within(panel).getByRole('button', { name: 'Edit all fields' }));
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000005');
+    expect(within(panel).getByLabelText(/PO number/i)).toBeInTheDocument();
+    await user.click(within(panel).getByRole('button', { name: 'Show only what is needed' }));
+    expect(within(panel).queryByLabelText(/Model 19 No/i)).toBeNull();
+
+    // Only the store is left before it can be submitted
+    expect(within(panel).getByText(/Still needed: receiving store/)).toBeInTheDocument();
   });
 });
