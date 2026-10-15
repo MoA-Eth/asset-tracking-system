@@ -417,7 +417,7 @@ function formatDisposalNotes(d: Model21RequestDetails): string {
     d.recipientName ? `To: ${d.recipientName}` : '',
     d.proceedsETB !== undefined ? `Proceeds ETB ${d.proceedsETB}` : '',
     d.committeeRef ? `Committee ref: ${d.committeeRef}` : '',
-    d.description ? `Details: ${d.description}` : '',
+    d.description ? `Remark: ${d.description}` : '',
   ].filter(Boolean).join(' | ');
 }
 
@@ -441,7 +441,7 @@ function disposalDetailsOf(
   if (!reason) throw new BadRequestError('The reason for disposal is required.');
   assertMaxLength(disposalNo, 50, 'Disposal reference number');
   assertMaxLength(reason, 200, 'Reason for disposal');
-  assertMaxLength(payload.description, 500, 'Justification');
+  assertMaxLength(payload.description, 500, 'Remark');
   assertMaxLength(payload.recipientName, 200, 'Recipient');
   assertMaxLength(payload.committeeRef, 100, 'Committee decision reference');
   assertSlipDate(payload.disposalDateGc, 'The disposal date');
@@ -1620,7 +1620,7 @@ export class StoreService {
       document: file,
       quantity: d.quantity,
       reason: d.reason,
-      justification: d.description,
+      remark: d.description,
       condition: d.condition,
       'book value': d.bookValue,
       recipient: d.recipientName,

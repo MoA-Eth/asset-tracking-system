@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Trash2, FileText, ClipboardList } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
-import { FormSection, FieldGrid, Field, ReadOnlyValue, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, textareaClass, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
+import { FieldGrid, Field, ReadOnlyValue, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
+import { Part, SlipPreview } from './FormParts';
 import { readPdfRows, rowsToText, isModel19, isModel21, isDisposalForm, parseDisposalForm, DisposalSlipFields, DisposalSlipLine } from '../../utils/slip-reader';
 import { OtherAssets } from './OtherAssets';
 import { LearnTagPrompt, taggableAssets } from './LearnTagPrompt';
-import { findByTag } from '../../utils/asset-tag';
+import { findByTag, printedTag } from '../../utils/asset-tag';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { DisposalVoucher, Employee, ItemCondition, ItemStatus, ItemWithRelations, TransactionApproval } from '../../types/asset-management';
@@ -15,14 +16,8 @@ import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { getSystemSettings, useSystemSettings } from '../../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 
-/** Common reasons offered while typing; any other reason can be written in */
-export const DISPOSAL_REASON_SUGGESTIONS = [
-  'Damaged beyond repair',
-  'Gift / donation',
-  'Obsolete / no longer needed',
-  'Sale / auction',
-  'Lost or stolen',
-];
+/** Disposal types as IFMIS prints them in the Disposal Type column; another can be typed as IFMIS names it */
+export const DISPOSAL_TYPES = ['TRANSFER', 'DONATION', 'SALE', 'SCRAP'];
 
 export interface DisposalFormProps {
   /** The record being disposed of (in store), or the record of the request being corrected */
@@ -40,15 +35,6 @@ export interface DisposalFormProps {
   /** An asset changed while the form was open, e.g. its IFMIS tag number was recorded */
   onItemUpdated?: (item: ItemWithRelations) => void;
 }
-
-/** How IFMIS names the disposal, as the reason offered here */
-const REASON_FROM_IFMIS: [RegExp, string][] = [
-  [/donat|gift|transfer/i, 'Gift / donation'],
-  [/sale|sold|auction/i, 'Sale / auction'],
-  [/scrap|damage|write/i, 'Damaged beyond repair'],
-  [/obsolete/i, 'Obsolete / no longer needed'],
-  [/lost|stolen|theft/i, 'Lost or stolen'],
-];
 
 /** An asset's status in words, for what a disposal form can't be used for */
 const STATUS_WORDS: Record<string, string> = {
@@ -87,8 +73,21 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   const [bookValueText, setBookValueText] = useState(details?.bookValue !== undefined ? String(details.bookValue) : '');
   const [bookValueEdited, setBookValueEdited] = useState(details?.bookValue !== undefined);
   const [recipientName, setRecipientName] = useState(details?.recipientName ?? '');
-  const [proceedsText, setProceedsText] = useState(details?.proceedsETB !== undefined ? String(details.proceedsETB) : '');
-  const [committeeRef, setCommitteeRef] = useState(details?.committeeRef ?? '');
+  // Not on the IFMIS form, so no longer asked; a correction keeps what an older request recorded
+  const keptProceeds = details?.proceedsETB;
+  const keptCommitteeRef = details?.committeeRef;
+  // Organizations, offered for "Sold / transferred / donated to"
+  const [organizations, setOrganizations] = useState<string[]>([]);
+  useEffect(() => {
+    let live = true;
+    Promise.resolve()
+      .then(() => api.getOrganizations())
+      .then((list) => live && setOrganizations((list ?? []).filter((o) => o.isActive !== false).map((o) => o.name)))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
   // In edit mode the current document is kept unless a new file is chosen
   const [attachmentFileName, setAttachmentFileName] = useState(
     editApproval?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editApproval.ifmisSlipAttachmentUrl) : ''
@@ -108,17 +107,17 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   const missingFields = [
     !(Number.isInteger(quantity) && quantity >= 1 && quantity <= inStore) && 'quantity',
     !isEdit && storeMen.length > 1 && !keeperId && 'storekeeper (store man)',
-    !disposalNo.trim() && 'disposal reference no.',
-    !dateGc && 'disposal date',
-    !reason.trim() && 'reason',
-    isAttachmentReq && !attachmentFileName && 'supporting document',
+    !disposalNo.trim() && 'disposal form no.',
+    !dateGc && 'date',
+    !reason.trim() && 'disposal type',
+    isAttachmentReq && !attachmentFileName && 'signed copy',
   ].filter(Boolean) as string[];
 
   // A field shows what is wrong with it once the user has been in it
   const fieldErrors = useFieldErrors({
-    disposalNo: !disposalNo.trim() && 'Enter the disposal reference number.',
+    disposalNo: !disposalNo.trim() && 'Enter the No. printed on the disposal form.',
     date: !dateGc && 'Enter the date of the disposal.',
-    reason: !reason.trim() && 'Say why the item is being disposed of.',
+    reason: !reason.trim() && 'Choose the disposal type, as on the IFMIS form.',
   });
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,7 +164,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     const problems: string[] = [];
     if (form.disposalNo && !disposalNo.trim()) {
       setDisposalNo(form.disposalNo);
-      filled.push('reference no.');
+      filled.push('No.');
     }
     if (form.date && (!dateGc || dateGc === today())) {
       setDateGc(form.date);
@@ -173,12 +172,12 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     }
     if (form.recipient && !recipientName.trim()) {
       setRecipientName(form.recipient);
-      filled.push('disposed to');
+      filled.push('sold / transferred / donated to');
     }
     const type = form.lines.find((l) => l.disposalType)?.disposalType;
     if (type && !reason.trim()) {
-      setReason(REASON_FROM_IFMIS.find(([pattern]) => pattern.test(type))?.[1] ?? type.charAt(0) + type.slice(1).toLowerCase());
-      filled.push('reason');
+      setReason(type.trim().toUpperCase());
+      filled.push('disposal type');
     }
     // This record's own line
     const own = form.lines.find((l) => findByTag(knownItems, l.tagNumber, learnedTags.current)?.id === item.id);
@@ -245,32 +244,34 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (!disposalNo.trim()) return fail('Reference required', 'The disposal reference number is required.');
-    if (!reason.trim()) return fail('Reason required', 'Write the reason for disposal, e.g. damaged beyond repair or gift.');
+    if (!disposalNo.trim()) return fail('No. required', 'Enter the No. printed on the disposal form.');
+    if (!reason.trim()) return fail('Disposal type required', 'Choose the disposal type, as on the IFMIS form (e.g. TRANSFER).');
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
       return fail('Check quantity', `Quantity must be a whole number from 1 to ${inStore} (${uom} in store).`);
     }
     if (getSystemSettings().slipAttachmentPolicy === 'REQUIRED' && !attachmentFileName) {
-      return fail('Document required', 'System policy requires a supporting document (e.g. the committee decision).');
+      return fail('Signed copy required', 'System policy requires the signed disposal form, scanned.');
     }
 
     const payload = {
       quantity,
       disposalNo: disposalNo.trim(),
       disposalDateGc: dateGc,
-      reason: reason.trim(),
+      reason: reason.trim().toUpperCase(),
       description: description.trim() || undefined,
       condition: condition as ItemCondition | undefined,
       bookValue,
       recipientName: recipientName.trim() || undefined,
-      proceedsETB: amountOrUndefined(proceedsText),
-      committeeRef: committeeRef.trim() || undefined,
+      proceedsETB: keptProceeds,
+      committeeRef: keptCommitteeRef,
       storekeeperEmployeeId: keeperId || (storeMen.length === 1 ? storeMen[0].employeeId : undefined),
     };
 
     setSubmitting(true);
     try {
-      const fileUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
+      // The signed copy, or else the IFMIS PDF the form was read from
+      const copy = attachmentFile ?? readFile;
+      const fileUrl = copy ? (await api.uploadSlip(copy)).url : undefined;
       if (editApproval) {
         const res = await api.updateDisposal(editApproval.id, { ...payload, ifmisSlipAttachmentUrl: fileUrl });
         toast.success('Disposal request updated', `The request for ${editApproval.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
@@ -291,7 +292,6 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
             disposalDateGc: payload.disposalDateGc,
             reason: payload.reason,
             recipientName: payload.recipientName,
-            committeeRef: payload.committeeRef,
             bookValue: other.line.bookValue,
             ifmisSlipAttachmentUrl: fileUrl,
             storekeeperEmployeeId: men.some((k) => k.employeeId === payload.storekeeperEmployeeId) ? payload.storekeeperEmployeeId : undefined,
@@ -358,25 +358,86 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
         />
       )}
 
-      <FormSection step={1} title="Item to dispose of" subtitle="የሚወገደው ንብረት" icon={Trash2} accent="emerald">
+      <Part title="Voucher">
         <FieldGrid>
-          <Field label="Item code" hint={isEdit ? "The item can't be changed. To dispose of a different item, ask an approver to reject this request." : undefined}>
-            <ReadOnlyValue mono>{item.itemCode}</ReadOnlyValue>
+          <Field label="No." required htmlFor="disposal-no" error={fieldErrors.error('disposalNo')} hint="As printed at the top right of the IFMIS form">
+            <input
+              id="disposal-no"
+              type="text"
+              required
+              placeholder="e.g. 0001765/2018"
+              value={disposalNo}
+              onChange={(e) => setDisposalNo(e.target.value)}
+              onBlur={fieldErrors.touch('disposalNo')}
+              className={`${input({ mono: true, invalid: !!fieldErrors.error('disposalNo') })} font-semibold`}
+            />
           </Field>
-          <Field label="Item description" span="sm:col-span-2">
+          <Field label="Date (G.C.)" required hint={`${ethDate} E.C.`} error={fieldErrors.error('date')}>
+            <input type="date" required value={dateGc} onChange={(e) => setDateGc(e.target.value)} onBlur={fieldErrors.touch('date')} className={input({ invalid: !!fieldErrors.error('date') })} />
+          </Field>
+          <Field label="Disposal type" required htmlFor="disposal-reason" error={fieldErrors.error('reason')} hint="As IFMIS prints it; pick one or type another">
+            <input
+              id="disposal-reason"
+              type="text"
+              required
+              list="disposal-types"
+              placeholder="e.g. TRANSFER"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              onBlur={fieldErrors.touch('reason')}
+              className={`${input({ invalid: !!fieldErrors.error('reason') })} uppercase`}
+            />
+            <datalist id="disposal-types">
+              {DISPOSAL_TYPES.map((t) => (
+                <option key={t} value={t} />
+              ))}
+            </datalist>
+          </Field>
+        </FieldGrid>
+        <Field label="Sold / transferred / donated to" optional htmlFor="disposal-recipient" hint="The body or person it goes to, as on the form">
+          <input
+            id="disposal-recipient"
+            type="text"
+            list="disposal-organizations"
+            placeholder="e.g. East Shawa Zone Agriculture Office/Umer Ahmed"
+            value={recipientName}
+            onChange={(e) => setRecipientName(e.target.value)}
+            className={input()}
+          />
+          <datalist id="disposal-organizations">
+            {organizations.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+        </Field>
+      </Part>
+
+      <Part title="Asset">
+        <FieldGrid>
+          <Field label={item.ifmisTagNumber ? 'Tag number (IFMIS)' : 'Tag number'} hint={isEdit ? "The asset can't be changed. To dispose of a different one, ask an approver to reject this request." : item.ifmisTagNumber ? `Record code ${item.itemCode}` : undefined}>
+            <ReadOnlyValue mono>{printedTag(item)}</ReadOnlyValue>
+          </Field>
+          <Field label="Asset description" span="sm:col-span-2">
             <ReadOnlyValue>{item.name}</ReadOnlyValue>
           </Field>
-          <Field label="Quantity to dispose of" required htmlFor="disposal-quantity" hint={quantity > inStore ? `Only ${inStore} ${uom} in store` : `${inStore} ${uom} in store`}>
-            <QuantityInput id="disposal-quantity" min={1} max={inStore} required value={quantity} onChange={setQuantity} />
+          <Field label="Serial number">
+            <ReadOnlyValue mono>{item.serialNumber || '—'}</ReadOnlyValue>
           </Field>
-          <Field label="Unit price (ETB)">
-            <ReadOnlyValue mono align="right">{formatETB(unitPrice)}</ReadOnlyValue>
+          {/* A batch in store can be disposed of in part; a fixed asset is always one */}
+          {inStore > 1 && (
+            <Field label="Quantity to dispose of" required htmlFor="disposal-quantity" hint={quantity > inStore ? `Only ${inStore} ${uom} in store` : `${inStore} ${uom} in store`}>
+              <QuantityInput id="disposal-quantity" min={1} max={inStore} required value={quantity} onChange={setQuantity} />
+            </Field>
+          )}
+          <Field label="Original cost (ETB)">
+            <ReadOnlyValue mono align="right">{formatETB(unitPrice * quantity)}</ReadOnlyValue>
           </Field>
-          <Field label="Book value (ETB)" hint={bookValueEdited ? 'Entered value' : 'Unit price × quantity; change it if the value is known'}>
+          <Field label="Book value (ETB)" hint={bookValueEdited ? `Accumulated depreciation ${formatETB(Math.max(unitPrice * quantity - bookValue, 0))}` : 'The original cost until the book value is entered'}>
             <input
               type="number"
               min="0"
               step="0.01"
+              aria-label="Book value (ETB)"
               value={bookValueEdited ? bookValueText : String(unitPrice * quantity)}
               onChange={(e) => {
                 setBookValueEdited(true);
@@ -385,108 +446,35 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
               className={input({ mono: true, align: 'right' })}
             />
           </Field>
-        </FieldGrid>
-      </FormSection>
-
-      <FormSection step={2} title="Disposal details" subtitle="የማስወገጃ ምክንያት እና ዝርዝር" icon={FileText} accent="emerald">
-        <div className="space-y-3.5">
-          <FieldGrid>
-            <Field label="Disposal reference no." required error={fieldErrors.error('disposalNo')}>
-              <input
-                type="text"
-                required
-                placeholder="e.g. DSP-2026-001"
-                value={disposalNo}
-                onChange={(e) => setDisposalNo(e.target.value)}
-                onBlur={fieldErrors.touch('disposalNo')}
-                autoFocus={!isEdit}
-                className={`${input({ mono: true, invalid: !!fieldErrors.error('disposalNo') })} font-semibold`}
-              />
-            </Field>
-            <Field label="Disposal date (G.C.)" required hint={`${ethDate} E.C.`} error={fieldErrors.error('date')}>
-              <input type="date" required value={dateGc} onChange={(e) => setDateGc(e.target.value)} onBlur={fieldErrors.touch('date')} className={input({ invalid: !!fieldErrors.error('date') })} />
-            </Field>
-          </FieldGrid>
-
-          <FieldGrid cols={2}>
-            <Field label="Reason for disposal" required htmlFor="disposal-reason" error={fieldErrors.error('reason')} hint="Pick a suggestion or write your own">
-              <input
-                id="disposal-reason"
-                type="text"
-                required
-                list="disposal-reasons"
-                placeholder="e.g. Damaged beyond repair"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                onBlur={fieldErrors.touch('reason')}
-                className={input({ invalid: !!fieldErrors.error('reason') })}
-              />
-              <datalist id="disposal-reasons">
-                {DISPOSAL_REASON_SUGGESTIONS.map((s) => (
-                  <option key={s} value={s} />
-                ))}
-              </datalist>
-            </Field>
-            <Field label="Disposed to (recipient / buyer)" optional hint="For a gift, sale or transfer to another body">
-              <input
-                type="text"
-                placeholder="e.g. Kality Primary School"
-                value={recipientName}
-                onChange={(e) => setRecipientName(e.target.value)}
-                className={input()}
-              />
-            </Field>
-            <Field label="Proceeds (ETB)" optional hint="Money received, e.g. from a sale">
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={proceedsText}
-                onChange={(e) => setProceedsText(e.target.value)}
-                className={input({ mono: true, align: 'right' })}
-              />
-            </Field>
-            <Field label="Committee decision ref." optional>
-              <input
-                type="text"
-                placeholder="e.g. DC/12/2026"
-                value={committeeRef}
-                onChange={(e) => setCommitteeRef(e.target.value)}
-                className={input({ mono: true })}
-              />
-            </Field>
-          </FieldGrid>
-
-          <Field label="Justification" optional>
-            <textarea
-              rows={2}
-              placeholder="e.g. Frames broken after the office flood; repair costs more than replacement."
+          <Field label="Remark" optional span="sm:col-span-2">
+            <input
+              type="text"
+              aria-label="Remark"
+              placeholder="Printed in the Remark column"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className={textareaClass('emerald')}
+              className={input()}
             />
           </Field>
-        </div>
-      </FormSection>
+        </FieldGrid>
+      </Part>
 
-      <FormSection step={3} title="Supporting document" subtitle="ደጋፊ ሰነድ" icon={ClipboardList} accent="emerald">
-        <div className="space-y-3.5">
-          <Field label="Requested by (store)">
-            <ReadOnlyValue>{editApproval?.requestedBy?.fullNameEn || user?.fullNameEn || '—'}</ReadOnlyValue>
-          </Field>
-          <StoreManField
-            id="disposal-storekeeper"
-            label="Storekeeper (store man)"
-            keepers={storeMen}
-            ready={keepers.ready}
-            storeName={keepers.storeName(item.storeLocation?.storeId)}
-            value={keeperId}
-            onChange={setKeeperId}
-            current={isEdit ? editApproval?.requestDetails?.storekeeperName : undefined}
-            required={!isEdit}
-          />
+      <Part title="Store and signatures">
+        <StoreManField
+          id="disposal-storekeeper"
+          label="Storekeeper (store man)"
+          keepers={storeMen}
+          ready={keepers.ready}
+          storeName={keepers.storeName(item.storeLocation?.storeId)}
+          value={keeperId}
+          onChange={setKeeperId}
+          current={isEdit ? editApproval?.requestDetails?.storekeeperName : undefined}
+          required={!isEdit}
+        />
+        {/* The signed disposal form, scanned: kept as the request's copy (the IFMIS PDF until it is added) */}
+        <div id="disposal-signed-copy">
           <FileDropField
-            label="Committee decision or other document"
+            label="Signed copy"
             accent="emerald"
             required={isAttachmentReq}
             fileName={attachmentFileName}
@@ -494,15 +482,27 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
             onChange={handleFile}
             file={attachmentFile}
             savedUrl={editApproval?.ifmisSlipAttachmentUrl}
+            emptyText="Click to attach the signed disposal form, scanned"
+            hint="The IFMIS printout with its signatures, as a scan or photo. Until it is added, the IFMIS PDF is kept as the copy."
           />
         </div>
-      </FormSection>
+      </Part>
+
+      {/* The slip itself, open under the form, to check what was filled in against it */}
+      <SlipPreview ifmisFile={readFile} signedFile={attachmentFile} savedUrl={editApproval?.ifmisSlipAttachmentUrl} />
 
       <FormFooter
         accent="emerald"
         submitting={submitting}
         submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
         missingFields={missingFields}
+        fieldTargets={{
+          'disposal form no.': '#disposal-no',
+          'disposal type': '#disposal-reason',
+          'storekeeper (store man)': '#disposal-storekeeper',
+          'signed copy': '#disposal-signed-copy input[type=file]',
+          quantity: '#disposal-quantity',
+        }}
         onCancel={onCancel}
       />
     </form>

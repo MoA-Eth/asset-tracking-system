@@ -528,14 +528,15 @@ describe('Assets page', () => {
     // Submit is the form's own button and stays off until the required fields are filled
     expect(submitOf(record, 'disposal-form')).toBeDisabled();
 
-    await user.type(within(record).getByPlaceholderText('e.g. DSP-2026-001'), 'DSP-0007');
-    await user.type(within(record).getByLabelText(/Reason for disposal/), 'Gift / donation');
-    await user.type(within(record).getByPlaceholderText('e.g. Kality Primary School'), 'Kality School');
+    await user.type(within(record).getByLabelText(/^No\./), 'DSP-0007');
+    // Typed as IFMIS names it; saved in capitals as IFMIS prints it
+    await user.type(within(record).getByLabelText(/Disposal type/), 'donation');
+    await user.type(within(record).getByLabelText(/Sold \/ transferred \/ donated to/), 'Kality School');
     expect(submitOf(record, 'disposal-form')).toBeEnabled();
     await user.click(submitOf(record, 'disposal-form'));
 
     expect(api.registerDisposal).toHaveBeenCalledWith(expect.objectContaining({
-      itemId: 'S2', quantity: 1, storekeeperEmployeeId: 'SM1', disposalNo: 'DSP-0007', reason: 'Gift / donation', recipientName: 'Kality School', bookValue: 1000,
+      itemId: 'S2', quantity: 1, storekeeperEmployeeId: 'SM1', disposalNo: 'DSP-0007', reason: 'DONATION', recipientName: 'Kality School', bookValue: 1000,
     }));
   });
 
@@ -577,10 +578,12 @@ describe('Assets page', () => {
     expect(within(others).getByText('Will be disposed of')).toBeInTheDocument();
     expect(within(others).getByText(/MOA-000345 is issued to someone; take it back to store first/)).toBeInTheDocument();
 
+    // With no signed copy yet, the IFMIS PDF is kept as the copy of every request on the form
+    vi.mocked(api.uploadSlip).mockResolvedValue({ url: '/api/uploads/slips/disposal.pdf' } as any);
     await user.click(submitOf(record, 'disposal-form'));
     await vi.waitFor(() => expect(api.registerDisposal).toHaveBeenCalledTimes(2));
-    expect(api.registerDisposal).toHaveBeenNthCalledWith(1, expect.objectContaining({ itemId: 'T43', disposalNo: '0000015/2013', reason: 'Gift / donation', recipientName: 'Test Region Office', bookValue: 15640 }));
-    expect(api.registerDisposal).toHaveBeenNthCalledWith(2, expect.objectContaining({ itemId: 'T44', disposalNo: '0000015/2013', disposalDateGc: '2021-11-26', bookValue: 15640 }));
+    expect(api.registerDisposal).toHaveBeenNthCalledWith(1, expect.objectContaining({ itemId: 'T43', disposalNo: '0000015/2013', reason: 'DONATION', recipientName: 'Test Region Office', bookValue: 15640, ifmisSlipAttachmentUrl: '/api/uploads/slips/disposal.pdf' }));
+    expect(api.registerDisposal).toHaveBeenNthCalledWith(2, expect.objectContaining({ itemId: 'T44', disposalNo: '0000015/2013', disposalDateGc: '2021-11-26', bookValue: 15640, ifmisSlipAttachmentUrl: '/api/uploads/slips/disposal.pdf' }));
   });
 
   it('on a disposal form that names this item by an IFMIS tag it lacks, offers to record the tag on it', async () => {

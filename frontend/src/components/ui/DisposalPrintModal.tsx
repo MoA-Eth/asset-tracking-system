@@ -1,7 +1,7 @@
 import React from 'react';
 import { DisposalVoucher } from '../../types/asset-management';
 import {
-  VoucherShell, VoucherDetails, VoucherTotals, VoucherSignatures, formatVoucherAmount, orDash,
+  VoucherShell, VoucherDetails, VoucherSignatures, formatVoucherAmount, orDash,
   VOUCHER_TABLE_WRAP, VOUCHER_TABLE, VOUCHER_HEAD_ROW, VOUCHER_TH, VOUCHER_BODY, VOUCHER_TD,
 } from './VoucherLayout';
 
@@ -11,14 +11,10 @@ interface DisposalPrintModalProps {
   voucher: DisposalVoucher | null;
 }
 
-const CONDITION_LABELS: Record<string, string> = {
-  NEW: 'New', GOOD: 'Good', FAIR: 'Fair', NEEDS_REPAIR: 'Needs repair', DAMAGED: 'Damaged',
-};
-
 /**
- * The Ministry's "Fixed Asset Disposal Form": public body and recipient above, one line per asset
+ * The IFMIS "Fixed Asset Disposal Form" (Model 22/B): public body, recipient, number and date above, one line per asset
  * (tag, serial, disposal type, original cost, accumulated depreciation, book value, remark), the recipient's
- * statement, then the signatures. Chassis, engine and declaration numbers are for vehicles and machinery: the
+ * statement, then the storekeeper, FAMU accountant and recipient signatures. No totals, as on IFMIS. Chassis, engine and declaration numbers are for vehicles and machinery: the
  * system doesn't record them, so those cells are left to write in.
  */
 export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, onClose, voucher }) => {
@@ -30,7 +26,6 @@ export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, 
     const bookValue = Number(item.bookValue) || 0;
     return { item, originalCost, bookValue, depreciation: Math.max(originalCost - bookValue, 0) };
   });
-  const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((total, r) => total + pick(r), 0);
 
   return (
     <VoucherShell
@@ -51,9 +46,6 @@ export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, 
           { label: 'Name of Public Body', value: 'Ministry of Agriculture' },
           { label: 'Date', value: voucher.dateGc && `${voucher.dateGc}${voucher.dateEc ? ` (${voucher.dateEc} E.C.)` : ''}` },
           { label: 'Sold / Transferred / Donated to', value: voucher.recipientName },
-          { label: 'Committee Decision Ref.', value: voucher.committeeRef, mono: true },
-          { label: 'Condition', value: voucher.condition ? CONDITION_LABELS[voucher.condition] ?? voucher.condition : undefined },
-          { label: 'Proceeds (ETB)', value: voucher.proceedsETB === undefined ? undefined : formatVoucherAmount(voucher.proceedsETB) },
         ]}
       />
 
@@ -103,24 +95,14 @@ export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, 
         </table>
       </div>
 
-      <VoucherTotals
-        rows={[
-          { label: 'Original Cost', value: sum((r) => r.originalCost) },
-          { label: 'Accumulated Depreciation', value: sum((r) => r.depreciation) },
-          { label: 'Book Value', value: sum((r) => r.bookValue) },
-        ]}
-      />
-
       <p className="text-[11px] font-medium text-slate-900">
         The undersigned recipient, hereby, certify that I have correctly counted and received the items listed above.
       </p>
 
       <VoucherSignatures
-        columns={5}
+        columns={3}
         signatories={[
           { label: 'Storekeeper', name: voucher.storekeeperName || voucher.requestedByName },
-          { label: 'Endorsed By (Team Leader)', name: voucher.endorsedByName },
-          { label: 'Approved By (Department Head)', name: voucher.approvedByName },
           { label: 'FAMU Accountant' },
           { label: "Recipient", name: voucher.recipientName },
         ]}

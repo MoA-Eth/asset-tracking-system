@@ -1,22 +1,21 @@
 # Disposing of assets
 
-Use this to write off assets that leave the register: damaged, obsolete, gifted, sold, transferred to another body, or lost. It follows the Ministry's **Fixed Asset Disposal Form**.
+Use this to write off assets that leave the register: damaged, obsolete, gifted, sold, transferred to another body, or lost. It follows the IFMIS **Fixed Asset Disposal Form (Model 22/B)**.
 
 Only assets **in store** can be disposed of. If an asset is issued, return it to store first.
 
 ## Request a disposal
 
 1. On **Assets**, open the **⋮** menu of an **In store** asset and choose **Dispose**.
-2. Enter the **Quantity to dispose of**. You can dispose of part of a batch; the rest stays in store. The **Book value** follows the quantity, and you can change it.
-3. Enter the **Disposal reference no.** and the **Disposal date**.
-4. Enter the **Reason for disposal**: pick a suggestion or type your own (for example "Damaged beyond repair" or "Gift / donation").
-5. Optionally enter **Disposed to** (the recipient or buyer, with the person who signs), **Proceeds (ETB)**, the **Committee decision ref.** and a **Justification**.
-6. **Storekeeper (store man)** is a store man of the store the asset is in, and is the name printed on the form. Attach the committee decision or another document if your administrator requires it.
-7. Press **Submit for approval**. The disposal form opens for printing.
+2. If you have the IFMIS disposal form as a PDF, choose it in the box at the top: it fills in the form (see below).
+3. **Voucher:** enter the **No.** and **Date** from the top right of the form, the **Disposal type** as IFMIS prints it (TRANSFER, DONATION, SALE, SCRAP, or another as IFMIS names it), and who it is **Sold / transferred / donated to**. Organizations from Settings are offered as you type.
+4. **Asset:** check the tag number, description and serial number. For a batch, enter the **Quantity to dispose of**; the rest stays in store. Enter the **Book value**; until you do, it is the original cost. The accumulated depreciation is the difference. A **Remark** is printed in the Remark column.
+5. **Store and signatures:** **Storekeeper (store man)** is a store man of the store the asset is in, and is the name printed on the form. Attach the **Signed copy** (the IFMIS printout with its signatures, scanned) if you have it. Until it is added, the IFMIS PDF is kept as the copy.
+6. Check the fields against **Slip preview** at the bottom, then press **Submit for approval**. The disposal form opens for printing.
 
 ## What the printed form shows
 
-Public body, who it is sold, transferred or donated to, then for each asset: tag number, serial number, disposal type (your reason), original cost, accumulated depreciation, book value and remark. Chassis, engine and declaration numbers are left blank to write in. It ends with the recipient's statement and signature lines for the storekeeper, Team Leader, Department Head, FAMU accountant and recipient. It prints on A4, landscape.
+As on IFMIS: public body, who it is sold, transferred or donated to, the No. and date, then for each asset: tag number, serial number, disposal type, original cost, accumulated depreciation, book value and remark. Chassis, engine and declaration numbers are left blank to write in. There are no totals. It ends with the recipient's statement and signature lines for the storekeeper, FAMU accountant and recipient. It prints on A4, landscape.
 
 ## After submitting
 
@@ -27,9 +26,9 @@ Public body, who it is sold, transferred or donated to, then for each asset: tag
 
 ## Fill in from a disposal form PDF
 
-On the disposal form, choose the **Fixed Asset Disposal Form (Model 22/B)** as a PDF saved from IFMIS in the **IFMIS disposal form PDF** box at the top. It fills in the reference no., date, **Disposed to**, the reason (from the disposal type, e.g. DONATION becomes Gift / donation) and this item's book value. Check them against the paper before submitting.
+On the disposal form, choose the **Fixed Asset Disposal Form (Model 22/B)** as a PDF saved from IFMIS in the **IFMIS disposal form PDF** box at the top. It fills in the No., date, **Sold / transferred / donated to**, the **Disposal type** as printed (e.g. TRANSFER) and this item's book value. Check them against the paper before submitting.
 
-The other assets on the form are listed under it, each marked **Will be disposed of** or **Not disposed of** with the reason. In the order of operations an asset must already be **received and approved**, be **in store** (an issued asset has to come back to store first), and have no other request waiting. One **Submit** disposes of this item and every other asset that fits, each as its own request with the same reference, date, reason and recipient. Press **Leave out** to skip one.
+The other assets on the form are listed under it, each marked **Will be disposed of** or **Not disposed of** with the reason. In the order of operations an asset must already be **received and approved**, be **in store** (an issued asset has to come back to store first), and have no other request waiting. One **Submit** disposes of this item and every other asset that fits, each as its own request with the same No., date, disposal type and recipient. Press **Leave out** to skip one.
 
 If the form names this item, or another asset, by an IFMIS tag number it doesn't have yet, it asks which asset it is: pick it and press **Save as its IFMIS tag**, and the form is read again. The printed form shows each asset's IFMIS tag number when it has one.
 

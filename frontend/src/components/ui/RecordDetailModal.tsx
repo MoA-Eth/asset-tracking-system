@@ -192,7 +192,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                       {d?.bookValue !== undefined && <Row label="Book value" mono>{formatETB(d.bookValue)}</Row>}
                       {d?.proceedsETB !== undefined && <Row label="Proceeds" mono>{formatETB(d.proceedsETB)}</Row>}
                       {d?.committeeRef && <Row label="Committee ref." mono>{d.committeeRef}</Row>}
-                      {d?.description && <Row label="Justification">{d.description}</Row>}
+                      {d?.description && <Row label="Remark">{d.description}</Row>}
                     </>
                   )}
                   {approval.transactionType !== 'STOCK_IN' && approval.transactionType !== 'DISPOSAL' && (

@@ -21,12 +21,13 @@ const voucher: DisposalVoucher = {
 };
 
 describe('Disposal voucher', () => {
-  it("prints the Ministry form: the recipient, one line per asset with its cost and depreciation, and who signs", () => {
+  it('prints the IFMIS form: the recipient, one line per asset with its cost and depreciation, and its three signatures', () => {
     render(<DisposalPrintModal isOpen onClose={vi.fn()} voucher={voucher} />);
     expect(screen.getAllByText("Fixed Asset Disposal Form").length).toBeGreaterThan(0);
     expect(screen.getByText("DSP-0007")).toBeInTheDocument();
     expect(screen.getByText("Kality School", { selector: "dd" })).toBeInTheDocument();
-    expect(screen.getByText("Fair")).toBeInTheDocument();
+    // Not on the IFMIS form, though an older request recorded them
+    for (const gone of ["Fair", "DC/12/2026", "Committee Decision Ref. :", "Proceeds (ETB) :", "Condition :"]) expect(screen.queryByText(gone)).toBeNull();
     for (const heading of ["Tag Number", "Serial Number", "Chassis No", "Engine No", "Declaration Number", "Disposal Type", "Original Cost", "Accumulated Depreciation", "Book Value", "Remark"]) {
       expect(screen.getAllByText(heading).length).toBeGreaterThan(0);
     }
@@ -34,9 +35,11 @@ describe('Disposal voucher', () => {
     // 3 chairs at 1,500 = 4,500 cost, all of it depreciated but the 1,000 book value: so 3,500
     expect(screen.getByText("3,500.00", { selector: "td" })).toBeInTheDocument();
     expect(screen.getByText(/correctly counted and received the items/i)).toBeInTheDocument();
-    for (const role of ["Storekeeper", "Endorsed By (Team Leader)", "Approved By (Department Head)", "FAMU Accountant", "Recipient"]) {
-      expect(screen.getByText(role)).toBeInTheDocument();
-    }
+    for (const role of ["Storekeeper", "FAMU Accountant", "Recipient"]) expect(screen.getByText(role)).toBeInTheDocument();
+    // IFMIS has no approver lines and no totals
+    expect(screen.queryByText("Endorsed By (Team Leader)")).toBeNull();
+    expect(screen.queryByText("Approved By (Department Head)")).toBeNull();
+    expect(screen.getAllByText("Book Value")).toHaveLength(1);
   });
 
   it('marks a request that is not approved yet', () => {
