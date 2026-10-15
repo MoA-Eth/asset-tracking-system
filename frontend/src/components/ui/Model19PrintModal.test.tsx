@@ -129,13 +129,15 @@ describe('Model19PrintModal Component', () => {
     expect(screen.queryByText('PO Receipt')).toBeNull();
   });
 
-  it('prints a donation without PO number, source, buyer, prices or grand total', () => {
+  it('prints a donation with its PO number, source and buyer rows empty, and no prices or grand total', () => {
     render(<Model19PrintModal isOpen onClose={vi.fn()} voucher={{ ...mockVoucher, provisionType: 'DONATION', poNumber: '—', source: '—', buyer: '—' }} />);
     // No Type of Provision line: the IFMIS Model 19 has none
-    expect(screen.queryByText('Type of Provision')).toBeNull();
-    expect(screen.queryByText('PO Number')).toBeNull();
-    expect(screen.queryByText('Source')).toBeNull();
-    expect(screen.queryByText('Buyer')).toBeNull();
+    expect(screen.queryByText(/Type of Provision/)).toBeNull();
+    // As on the IFMIS Model 19, the rows are there with nothing in them (not even a dash)
+    for (const label of ['PO Number', 'Source', 'Buyer']) {
+      const row = screen.getByText(`${label} :`).closest('div')!;
+      expect(row.querySelector('dd')?.textContent).toBe('');
+    }
     expect(screen.queryByText('Unit Price')).toBeNull();
     expect(screen.queryByText('Grand Total')).toBeNull();
     // The items themselves are still listed with their quantities

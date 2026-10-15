@@ -15,8 +15,10 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
   if (!isOpen || !voucher) return null;
 
   const grandTotal = voucher.grandTotal || voucher.items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0);
-  // A donation has no PO, supplier, buyer or price, so those are left off the voucher
+  // A donation has no PO, supplier, buyer or price: as on the IFMIS Model 19, those rows are printed empty
   const donation = voucher.provisionType === 'DONATION';
+  // Saved vouchers carry "—" for a missing value; a blank row shows nothing
+  const ifPurchase = (value?: string) => (donation || !value || value === '—' ? '' : value);
 
   return (
     <VoucherShell
@@ -32,10 +34,11 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
     >
       <VoucherDetails
         fields={[
-          ...(donation ? [] : [{ label: 'PO Number', value: voucher.poNumber, mono: true }]),
+          { label: 'PO Number', value: ifPurchase(voucher.poNumber), mono: true, blank: true },
           { label: 'Received Date', value: voucher.receivedDateGc && `${voucher.receivedDateGc}${voucher.receivedDateEc ? ` (${voucher.receivedDateEc} E.C.)` : ''}` },
           { label: 'Transaction Type', value: voucher.transactionType },
-          ...(donation ? [] : [{ label: 'Source', value: voucher.source }, { label: 'Buyer', value: voucher.buyer }]),
+          { label: 'Source', value: ifPurchase(voucher.source), blank: true },
+          { label: 'Buyer', value: ifPurchase(voucher.buyer), blank: true },
         ]}
       />
 

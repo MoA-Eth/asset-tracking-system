@@ -129,6 +129,8 @@ export interface VoucherField {
   label: string;
   value?: React.ReactNode;
   mono?: boolean;
+  /** Printed empty when there is no value, as IFMIS prints it, instead of a dash */
+  blank?: boolean;
 }
 
 /** Boxed label/value pairs under the letterhead, two to a row */
@@ -143,7 +145,7 @@ export const VoucherDetails: React.FC<{ fields: VoucherField[] }> = ({ fields })
         }`}
       >
         <dt className="font-bold text-slate-800 whitespace-nowrap min-w-[130px]">{f.label} :</dt>
-        <dd className={`font-semibold text-slate-950 ${f.mono ? 'font-mono' : ''}`}>{orDash(f.value)}</dd>
+        <dd className={`font-semibold text-slate-950 ${f.mono ? 'font-mono' : ''}`}>{f.blank ? f.value : orDash(f.value)}</dd>
       </div>
     ))}
   </dl>
