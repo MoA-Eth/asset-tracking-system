@@ -7,9 +7,7 @@ import {
   AlertCircle,
   PackageMinus,
   ArrowRightLeft,
-  Eye,
   Pencil,
-  Printer,
   ChevronRight,
   X,
   Filter,
@@ -463,7 +461,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   // ── Printing ──
   const printRequest = async (request: TransactionApproval, record?: ItemWithRelations) => {
     const item = record ?? items.find((i) => i.id === request.itemId);
-    if (request.transactionType === 'STOCK_OUT') {
+    if (request.transactionType === 'STOCK_IN') {
+      // The receipt: the Model 19 lists every item registered on the same slip
+      if (item) setVoucher19(buildModel19Voucher(item, items, user?.fullNameEn));
+    } else if (request.transactionType === 'STOCK_OUT') {
       setVoucher22(buildModel22Voucher(request, { item, departments, employees, printedBy: user?.fullNameEn, requests: approvals, items }));
     } else if (request.transactionType === 'DISPOSAL') {
       setVoucherDisposal(buildDisposalVoucher(request, { item, employees, printedBy: user?.fullNameEn }));
@@ -642,16 +643,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   const actionsFor = (row: AssetRow): RowAction[] => {
     const { item, request } = row;
-    const view: RowAction = { label: 'View details', icon: Eye, onClick: () => openRecord(item.id) };
-    const printReceipt: RowAction = { label: 'Print Model 19', icon: Printer, onClick: () => setVoucher19(buildModel19Voucher(item, items, user?.fullNameEn)) };
-    // Vouchers of requests already approved, so signed copies can be printed again
-    const printIssue: RowAction = { label: 'Print Model 22 (issue)', icon: Printer, onClick: () => printRequest(row.lastIssue!, item), hidden: !row.lastIssue };
-    const printMove: RowAction = {
-      label: `Print Model 21 (${row.lastMove?.transactionType === 'RETURN' ? 'transfer to store' : 'transfer'})`,
-      icon: Printer,
-      onClick: () => printRequest(row.lastMove!, item),
-      hidden: !row.lastMove,
-    };
+    // Viewing is clicking the row; printing is from the record's list of requests
     switch (row.state) {
       case 'RECEIPT_PENDING':
         return [
@@ -664,8 +656,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             disabled: request?.currentStage === 2,
             reason: request?.currentStage === 2 ? ENDORSED_REASON : undefined,
           },
-          view,
-          printReceipt,
         ];
       case 'IN_STORE':
         return [
@@ -703,9 +693,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             },
             hidden: !canDispose,
           },
-          view,
-          printReceipt,
-          { ...printMove, hidden: row.lastMove?.transactionType !== 'RETURN' },
         ];
       case 'ISSUED':
         return [
@@ -719,9 +706,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             },
             hidden: !canTransfer || !!item.heldByOrganization,
           },
-          view,
-          printIssue,
-          printMove,
         ];
       case 'REQUEST_PENDING': {
         const kind = requestLabel(request!.transactionType, request!.requestDetails);
@@ -736,17 +720,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             disabled: request!.currentStage === 2,
             reason: request!.currentStage === 2 ? ENDORSED_REASON : undefined,
           },
-          view,
-          { label: `Print ${kind.model}`, icon: Printer, onClick: () => printRequest(request!, item) },
         ];
       }
-      case 'DISPOSED':
-        return [
-          view,
-          { label: 'Print disposal voucher', icon: Printer, onClick: () => printRequest(row.lastDisposal!, item), hidden: !row.lastDisposal },
-        ];
       default:
-        return [view];
+        return [];
     }
   };
 
@@ -934,6 +911,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <RowActionsMenu
             label={item.itemCode}
             actions={[
+              // Viewing and printing are done from the record (click the row; its printer button), not this menu
               ...actionsFor(row),
               {
                 label: 'Duplicate as new receipt',
@@ -960,7 +938,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   // Requests made on this record, and the issue that created it when it is a unit split off a batch
   const selectedRequests = selectedRow
     ? approvals
-        .filter((a) => a.itemId === selectedRow.item.id || a.requestDetails?.issuedItemCode === selectedRow.item.itemCode)
+        // Its own requests, and those that split it off a batch (a partial issue or disposal)
+        .filter((a) => a.itemId === selectedRow.item.id || [a.requestDetails?.issuedItemCode, a.requestDetails?.disposedItemCode].includes(selectedRow.item.itemCode))
         .sort((a, b) => String(b.createdAtGc).localeCompare(String(a.createdAtGc)))
     : [];
 
@@ -1240,11 +1219,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   : undefined
               }
               requests={selectedRequests}
-              actions={actionsFor(selectedRow).filter((a) => a.label !== 'View details')}
+              actions={actionsFor(selectedRow)}
               editForm={formOpenFor(selectedRow.item.id) ? editFormFor(selectedRow)?.form : undefined}
               formActions={formOpenFor(selectedRow.item.id) ? editFormFor(selectedRow)?.actions : undefined}
               onPrintRequest={(r) => printRequest(r, selectedRow.item)}
-              onPrintReceipt={() => setVoucher19(buildModel19Voucher(selectedRow.item, items, user?.fullNameEn))}
               onSelect={openRecord}
               onClose={closeRecord}
               position={recordIndex >= 0 ? { index: recordIndex, total: flatSelectableIds.length } : undefined}

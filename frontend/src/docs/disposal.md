@@ -22,7 +22,7 @@ As on IFMIS: public body, who it is sold, transferred or donated to, the No. and
 - The asset shows **Disposal pending**, and stays in store until approved.
 - Until the Team Leader endorses it, choose **Edit disposal** to correct it.
 - **Approved:** the asset (or the quantity you chose) becomes **Disposed** and is kept as a record. **Rejected:** it stays in store and the reason is shown.
-- Print the form again later from the asset: **Print disposal voucher**.
+- Print the form again later: open the asset and press **Print** on the disposal request in its list of requests.
 
 ## Fill in from a disposal form PDF
 

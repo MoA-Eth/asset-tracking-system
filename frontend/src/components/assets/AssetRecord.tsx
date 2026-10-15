@@ -30,8 +30,8 @@ export interface AssetRecordProps {
   editForm?: React.ReactNode;
   /** Actions of the open form, as buttons at the top right of the header */
   formActions?: RowAction[];
+  /** Prints a request's voucher, from the list of requests on the record */
   onPrintRequest: (request: TransactionApproval) => void;
-  onPrintReceipt: () => void;
   onSelect: (itemId: string) => void;
   onClose: () => void;
   /** Where this record sits in the list, and the way to the one before and after it */
@@ -43,62 +43,6 @@ export interface AssetRecordProps {
 }
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
-/** A printer icon: prints the record's voucher, or lists its vouchers when it has more than one */
-const PrintButton: React.FC<{ prints: RowAction[] }> = ({ prints }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const outside = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const escape = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('mousedown', outside);
-    document.addEventListener('keydown', escape);
-    return () => {
-      document.removeEventListener('mousedown', outside);
-      document.removeEventListener('keydown', escape);
-    };
-  }, [open]);
-
-  const single = prints.length === 1;
-  const label = single ? prints[0].label : 'Print a voucher';
-  return (
-    <span ref={ref} className="relative sm:ml-auto 2xl:ml-2">
-      <button
-        type="button"
-        aria-label={label}
-        title={label}
-        aria-haspopup={single ? undefined : 'menu'}
-        aria-expanded={single ? undefined : open}
-        onClick={() => (single ? prints[0].onClick?.() : setOpen((o) => !o))}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-300 bg-white text-emerald-700 shadow-xs transition hover:border-emerald-300 hover:bg-emerald-50 cursor-pointer"
-      >
-        <Printer className="h-4 w-4" />
-      </button>
-      {open && (
-        <div role="menu" aria-label="Print a voucher" className="absolute right-0 z-20 mt-1 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-          {prints.map((a) => (
-            <button
-              key={a.label}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                a.onClick?.();
-              }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900 focus:outline-none cursor-pointer"
-            >
-              <Printer className="h-3.5 w-3.5 text-emerald-700" />
-              {a.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </span>
-  );
-};
 
 export const CopyButton: React.FC<{ text: string; label?: string; className?: string }> = ({
   text,
@@ -221,7 +165,6 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   editForm,
   formActions,
   onPrintRequest,
-  onPrintReceipt,
   onSelect,
   onClose,
   position,
@@ -234,7 +177,6 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   const uom = item.uom || 'EA';
   const editing = !!editForm;
 
-  const prints = actions.filter((a) => !a.hidden && a.label.startsWith('Print'));
   const steps = actions.filter((a) => !a.hidden && !a.label.startsWith('Print'));
   const pending = row.request;
   const approved = row.state !== 'RECEIPT_PENDING' && row.state !== 'REJECTED';
@@ -303,7 +245,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
           </div>
 
           {/* While a form is open, its own Submit and Cancel at the bottom replace these */}
-          {!editing && (
+          {!editing && steps.length > 0 && (
           <div role="toolbar" aria-label="Asset actions" className="flex flex-wrap items-center gap-2 2xl:justify-end">
               <>
                 {steps.map((a, i) => (
@@ -319,7 +261,6 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                     {a.label}
                   </button>
                 ))}
-                {prints.length > 0 && <PrintButton prints={prints} />}
               </>
           </div>
           )}

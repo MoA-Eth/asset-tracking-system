@@ -27,7 +27,7 @@ An amber **N days in store** means the asset has waited more than 30 days and sh
 
 ## Open an asset
 
-1. Click a row, or open the **⋮** menu and choose **View details**.
+1. Click a row. The **⋮** menu on a row holds only what can be done next (issue, transfer, dispose, edit a pending request); it has no view or print.
 2. The record fills the page. Close it with **×** at the top right (or **Esc**) to return to your list as you left it. The **Previous / Next** arrows beside it (or the Up and Down keys) move through the list.
 3. The record shows the voucher and procurement details, the item, signatures and the scanned slip, who holds it, and every request made on it.
 4. The buttons at the top are the next steps that apply to this asset. They depend on its status and on your role.
@@ -47,4 +47,4 @@ A delivery is one row. Units issued out of it appear underneath (**Show N record
 
 ## Printing
 
-Use the **Print** button on a record, or the **⋮** menu: **Model 19** (receipt), **Model 22** (issue), **Model 21** (transfer or return) and the **disposal form**. A request that is not yet approved prints with a "NOT YET APPROVED" banner; print the signed copy after approval.
+Open the record and, under its list of requests, press **Print** on the request: **Model 19** (receipt), **Model 22** (issue), **Model 21** (transfer or return) or the **disposal form**. A request that is not yet approved prints with a "NOT YET APPROVED" banner; print the signed copy after approval.

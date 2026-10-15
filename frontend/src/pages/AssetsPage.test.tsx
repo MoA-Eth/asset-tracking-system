@@ -196,25 +196,26 @@ describe('Assets page', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
 
-    expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Duplicate as new receipt', 'View details', 'Print Model 19', 'Dispose']);
+    // Viewing and printing are on the record, not in this menu
+    expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Duplicate as new receipt', 'Dispose']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'Duplicate as new receipt', 'View details', 'Print Model 21 (transfer)']);
+    expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'Duplicate as new receipt']);
     await user.keyboard('{Escape}');
     await user.click(within(rowOf('MOA-S1')).getByRole('button', { name: 'Show 1 issued record' }));
     // A piece split off a batch has no Duplicate: the registration it came from has
-    expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'View details', 'Print Model 22 (issue)']);
+    expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Duplicate as new receipt', 'View details', 'Print Model 19', 'Print Model 21 (transfer to store)', 'Dispose']);
+    expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Duplicate as new receipt', 'Dispose']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-P1')).toEqual(['Edit transfer', 'Duplicate as new receipt', 'View details', 'Print Model 21']);
+    expect(await menuFor(user, 'MOA-P1')).toEqual(['Edit transfer', 'Duplicate as new receipt']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-O1')).toEqual(['Edit issue', 'Duplicate as new receipt', 'View details', 'Print Model 22']);
+    expect(await menuFor(user, 'MOA-O1')).toEqual(['Edit issue', 'Duplicate as new receipt']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-X1')).toEqual(['Duplicate as new receipt', 'View details']);
+    expect(await menuFor(user, 'MOA-X1')).toEqual(['Duplicate as new receipt']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-Q1')).toEqual(['Edit disposal', 'Duplicate as new receipt', 'View details', 'Print disposal voucher']);
+    expect(await menuFor(user, 'MOA-Q1')).toEqual(['Edit disposal', 'Duplicate as new receipt']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-D1')).toEqual(['Duplicate as new receipt', 'View details', 'Print disposal voucher']);
+    expect(await menuFor(user, 'MOA-D1')).toEqual(['Duplicate as new receipt']);
     await user.keyboard('{Escape}');
     // Endorsed by the Team Leader: the receipt can no longer be edited here
     await menuFor(user, 'MOA-R1');
@@ -682,11 +683,10 @@ describe('Assets page', () => {
     render(<AssetsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     expect(screen.queryByRole('button', { name: /Receive items/ })).not.toBeInTheDocument();
-    expect(await menuFor(user, 'MOA-S1')).toEqual(['View details', 'Print Model 19']);
-    await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-I1')).toEqual(['View details', 'Print Model 21 (transfer)']);
-    await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-P1')).toEqual(['View details', 'Print Model 21']);
+    // Nothing to do from a row: no menu. The record opens from the row and prints from there
+    for (const code of ['MOA-S1', 'MOA-I1', 'MOA-P1']) expect(within(rowOf(code)).queryByRole('button', { name: `Actions for ${code}` })).toBeNull();
+    await user.click(within(rowOf('MOA-S1')).getByText('MOA-S1'));
+    expect(screen.getByRole('region', { name: 'Asset record MOA-S1' })).toBeInTheDocument();
   });
 });
 
@@ -702,7 +702,7 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-S2');
-    expect(toolbarOf(record)).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Dispose', 'Print Model 19']);
+    expect(toolbarOf(record)).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Dispose']);
     // The record has the whole page: no list squeezed in beside it
     expect(screen.queryByRole('complementary', { name: 'Asset list' })).not.toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
@@ -782,7 +782,7 @@ describe('Asset record', () => {
     await user.click(within(batch).getByRole('button', { name: /MOA-S1-1/ }));
 
     const unit = screen.getByRole('region', { name: 'Asset record MOA-S1-1' });
-    expect(toolbarOf(unit)).toEqual(['Transfer (Model 21)', 'Print Model 22 (issue)']);
+    expect(toolbarOf(unit)).toEqual(['Transfer (Model 21)']);
     expect(within(unit).getByRole('button', { name: 'MOA-S1' })).toBeInTheDocument();
     expect(within(unit).getByText('Approved')).toBeInTheDocument();
   });
@@ -794,7 +794,7 @@ describe('Asset record', () => {
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-R1');
     // Opens in view mode first with prominent Edit receipt button
-    expect(toolbarOf(record)).toEqual(['Edit receipt', 'Print Model 19']);
+    expect(toolbarOf(record)).toEqual(['Edit receipt']);
     expect(within(record).getByText('Receipt pending endorsement · Editable in correction mode')).toBeInTheDocument();
 
     // Clicking Edit receipt enters edit mode with Save and Cancel
@@ -806,7 +806,7 @@ describe('Asset record', () => {
 
     // Cancel exits edit mode back to view mode
     await user.click(cancelOf(record, 'stock-in-form'));
-    expect(toolbarOf(record)).toEqual(['Edit receipt', 'Print Model 19']);
+    expect(toolbarOf(record)).toEqual(['Edit receipt']);
   });
 
   it('opens a pending issue in view mode, and allows editing with Save and Cancel', async () => {
@@ -815,7 +815,7 @@ describe('Asset record', () => {
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-O1');
     // Opens in view mode first with prominent Edit issue button
-    expect(toolbarOf(record)).toEqual(['Edit issue', 'Print Model 22']);
+    expect(toolbarOf(record)).toEqual(['Edit issue']);
     expect(within(record).getByText('Issue request pending endorsement · Editable in correction mode')).toBeInTheDocument();
 
     // Clicking Edit issue enters edit mode with Save and Cancel
@@ -827,7 +827,7 @@ describe('Asset record', () => {
 
     // Cancel exits edit mode back to view mode
     await user.click(cancelOf(record, 'stock-out-form'));
-    expect(toolbarOf(record)).toEqual(['Edit issue', 'Print Model 22']);
+    expect(toolbarOf(record)).toEqual(['Edit issue']);
     expect(within(record).getByText('Issue request pending endorsement · Editable in correction mode')).toBeInTheDocument();
   });
 
@@ -837,7 +837,7 @@ describe('Asset record', () => {
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-P1');
     // Opens in view mode first with prominent Edit transfer button
-    expect(toolbarOf(record)).toEqual(['Edit transfer', 'Print Model 21']);
+    expect(toolbarOf(record)).toEqual(['Edit transfer']);
     expect(within(record).getByText('Transfer request pending endorsement · Editable in correction mode')).toBeInTheDocument();
 
     // Clicking Edit transfer enters edit mode with Save and Cancel
@@ -849,7 +849,7 @@ describe('Asset record', () => {
 
     // Cancel exits edit mode back to view mode
     await user.click(cancelOf(record, 'transfer-form'));
-    expect(toolbarOf(record)).toEqual(['Edit transfer', 'Print Model 21']);
+    expect(toolbarOf(record)).toEqual(['Edit transfer']);
     expect(within(record).getByText('Transfer request pending endorsement · Editable in correction mode')).toBeInTheDocument();
   });
 
@@ -861,7 +861,7 @@ describe('Asset record', () => {
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-I1');
     // Opens in view mode first with prominent Edit button
-    expect(toolbarOf(record)).toEqual(['Edit transfer to store', 'Print Model 21']);
+    expect(toolbarOf(record)).toEqual(['Edit transfer to store']);
     expect(within(record).getByText('Transfer to store request pending endorsement · Editable in correction mode')).toBeInTheDocument();
 
     // Clicking Edit enters edit mode with Save and Cancel
@@ -873,7 +873,7 @@ describe('Asset record', () => {
 
     // Cancel exits edit mode back to view mode
     await user.click(cancelOf(record, 'transfer-form'));
-    expect(toolbarOf(record)).toEqual(['Edit transfer to store', 'Print Model 21']);
+    expect(toolbarOf(record)).toEqual(['Edit transfer to store']);
     expect(within(record).getByText('Transfer to store request pending endorsement · Editable in correction mode')).toBeInTheDocument();
   });
 
@@ -1130,7 +1130,7 @@ describe('Asset record', () => {
     const record = await open(user, 'MOA-R1');
     // Does not auto-open in edit mode because stage 2 is locked
     expect(record.querySelector('form#stock-in-form')).toBeNull();
-    expect(toolbarOf(record)).toEqual(['Edit receipt', 'Print Model 19']);
+    expect(toolbarOf(record)).toEqual(['Edit receipt']);
     expect(within(record).getByRole('button', { name: 'Edit receipt' })).toBeDisabled();
     expect(within(record).getByText('Receipt endorsed · Awaiting Dept. Head approval')).toBeInTheDocument();
   });
@@ -1183,25 +1183,33 @@ describe('Asset record', () => {
     expect(submitOf(record, 'stock-in-form')).toHaveTextContent('Save changes');
   });
 
-  it('prints from one icon, listing the vouchers when there are several', async () => {
+  it('prints each voucher from the list of requests, with no printer in the header', async () => {
     const user = userEvent.setup();
     // MOA-S1-1 was issued, then transferred: it has a Model 22 and a Model 21
     vi.mocked(api.getApprovals).mockResolvedValue([...approvals, request('T-S11', 'TRANSFER', 'S1-1', { status: 'APPROVED', reviewedAtGc: '2026-09-15' })] as any);
+    vi.mocked(api.getItemById).mockResolvedValue(undefined as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const batch = await open(user, 'MOA-S1');
     await user.click(within(batch).getByRole('button', { name: /MOA-S1-1/ }));
     const unit = screen.getByRole('region', { name: 'Asset record MOA-S1-1' });
 
-    const print = within(unit).getByRole('button', { name: 'Print a voucher' });
-    expect(print).toHaveTextContent('');
-    await user.click(print);
-    expect(within(within(unit).getByRole('menu')).getAllByRole('menuitem').map((m) => m.textContent)).toEqual([
-      'Print Model 22 (issue)',
-      'Print Model 21 (transfer)',
-    ]);
-    await user.keyboard('{Escape}');
-    expect(within(unit).queryByRole('menu')).not.toBeInTheDocument();
+    // No printer in the header or the toolbar
+    expect(within(unit).queryByRole('button', { name: 'Print a voucher' })).toBeNull();
+    expect(toolbarOf(unit).some((b) => /print/i.test(b ?? ''))).toBe(false);
+    const links = within(unit).getAllByRole('button', { name: /^Print Model/ }).map((b) => b.textContent?.trim());
+    expect(links).toEqual(expect.arrayContaining(['Print Model 22', 'Print Model 21']));
+    await user.click(within(unit).getByRole('button', { name: 'Print Model 21' }));
+    expect((await screen.findAllByText('Fixed Asset Internal Transfer Form')).length).toBeGreaterThan(0);
+  });
+
+  it('prints the Model 19 of a receipt from its request', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-R1');
+    await user.click(within(record).getByRole('button', { name: 'Print Model 19' }));
+    expect((await screen.findAllByText('Goods Receiving Report')).length).toBeGreaterThan(0);
   });
 
   it('locks the receipt once the Team Leader has endorsed it', async () => {
@@ -1213,12 +1221,14 @@ describe('Asset record', () => {
     expect(within(record).getByText(/The Team Leader has endorsed it/)).toBeInTheDocument();
   });
 
-  it('is read-only for approvers: only printing', async () => {
+  it('is read-only for approvers: no actions, and vouchers print from the requests', async () => {
     const user = userEvent.setup();
     auth.user.permissions = ['inventory.read', 'approvals.read', 'approvals.endorse'];
     render(<AssetsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    expect(toolbarOf(await open(user, 'MOA-I1'))).toEqual(['Print Model 21 (transfer)']);
+    const record = await open(user, 'MOA-I1');
+    expect(within(record).queryByRole('toolbar')).toBeNull();
+    expect(within(record).getAllByRole('button', { name: /^Print Model/ }).length).toBeGreaterThan(0);
   });
 
   it('navigates through records with arrow keys and closes on Escape', async () => {
