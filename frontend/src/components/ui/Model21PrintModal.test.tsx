@@ -118,3 +118,21 @@ describe('Model21PrintModal Component', () => {
     expect(handleClose).toHaveBeenCalled();
   });
 });
+
+describe('Model 21 printout matches the IFMIS form', () => {
+  it('uses the IFMIS column names and labels, and prints the remark once, under the table', () => {
+    render(<Model21PrintModal isOpen onClose={vi.fn()} voucher={mockModel21Voucher} />);
+    for (const heading of ['#', 'Serial Number', 'Chassis Number', 'Unit']) expect(screen.getByRole('columnheader', { name: heading })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'S/No.' })).toBeNull();
+    expect(screen.getByText('Accessory')).toBeInTheDocument();
+    expect(screen.getByText('tire no')).toBeInTheDocument();
+    expect(screen.getByText('Plate No')).toBeInTheDocument();
+    // Once, not again in the table's Remark column
+    expect(screen.getAllByText(/The right side mirror is missing/)).toHaveLength(1);
+  });
+
+  it('prints nothing for an empty remark', () => {
+    render(<Model21PrintModal isOpen onClose={vi.fn()} voucher={{ ...mockModel21Voucher, items: mockModel21Voucher.items.map((i) => ({ ...i, remark: undefined })) }} />);
+    expect(screen.queryByText('No defects reported.')).toBeNull();
+  });
+});

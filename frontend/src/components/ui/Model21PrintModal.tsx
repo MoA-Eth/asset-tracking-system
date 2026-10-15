@@ -43,13 +43,13 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
         <table className={VOUCHER_TABLE}>
           <thead>
             <tr className={VOUCHER_HEAD_ROW}>
-              <th className={`${VOUCHER_TH} text-center w-8`}>S/No.</th>
+              <th className={`${VOUCHER_TH} text-center w-8`}>#</th>
               <th className={`${VOUCHER_TH} min-w-[130px]`}>Description</th>
               <th className={`${VOUCHER_TH} whitespace-nowrap`}>Tag Number</th>
-              <th className={`${VOUCHER_TH} text-center whitespace-nowrap`}>Serial No.</th>
-              <th className={`${VOUCHER_TH} text-center whitespace-nowrap`}>Chassis No.</th>
+              <th className={`${VOUCHER_TH} text-center whitespace-nowrap`}>Serial Number</th>
+              <th className={`${VOUCHER_TH} text-center whitespace-nowrap`}>Chassis Number</th>
               <th className={`${VOUCHER_TH} text-center w-10`}>UOM</th>
-              <th className={`${VOUCHER_TH} text-right w-12`}>Qty</th>
+              <th className={`${VOUCHER_TH} text-right w-12`}>Unit</th>
               <th className={`${VOUCHER_TH} text-right whitespace-nowrap`}>Orig. Cost</th>
               <th className={`${VOUCHER_TH} text-right whitespace-nowrap`}>Depreciation</th>
               <th className={`${VOUCHER_TH} text-right whitespace-nowrap`}>Book Value</th>
@@ -75,7 +75,8 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
                 <td className={`${VOUCHER_TD} text-center font-mono whitespace-nowrap`}>{orDash(item.dateGc)}</td>
                 <td className={VOUCHER_TD}>{orDash(item.fromLocation)}</td>
                 <td className={VOUCHER_TD}>{orDash(item.toLocation)}</td>
-                <td className={`${VOUCHER_TD} text-slate-700`}>{orDash(item.remark)}</td>
+                {/* IFMIS prints the remark under the table, not in this column */}
+                <td className={VOUCHER_TD} />
               </tr>
             ))}
           </tbody>
@@ -87,19 +88,19 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
           <div className="space-y-1.5">
             {first.plateNo && (
               <div className="flex items-baseline gap-2">
-                <span className="font-bold text-slate-800 min-w-[80px]">Plate No :</span>
+                <span className="font-bold text-slate-800 min-w-[80px]">Plate No</span>
                 <span className="font-mono font-semibold text-slate-950">{first.plateNo}</span>
               </div>
             )}
             {first.engineNo && (
               <div className="flex items-baseline gap-2">
-                <span className="font-bold text-slate-800 min-w-[80px]">Engine No :</span>
+                <span className="font-bold text-slate-800 min-w-[80px]">Engine No</span>
                 <span className="font-mono font-semibold text-slate-950">{first.engineNo}</span>
               </div>
             )}
             {!!first.accessories?.length && (
               <div className="pt-1">
-                <span className="font-bold text-slate-800 block mb-1">Accessories :</span>
+                <span className="font-bold text-slate-800 block mb-1">Accessory</span>
                 <div className="space-y-0.5">
                   {first.accessories.map((acc, idx) => (
                     <div key={idx} className="flex justify-between max-w-[200px] text-slate-900">
@@ -114,7 +115,7 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
           <div>
             {!!first.tireNos?.length && (
               <>
-                <span className="font-bold text-slate-800 block mb-1">Tire Nos :</span>
+                <span className="font-bold text-slate-800 block mb-1">tire no</span>
                 <div className="space-y-0.5 font-mono text-slate-900">
                   {first.tireNos.map((tire, idx) => <div key={idx}>{tire}</div>)}
                 </div>
@@ -122,8 +123,12 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
             )}
           </div>
           <div>
-            <span className="font-bold text-slate-800 block mb-1">Remark :</span>
-            <div className="text-slate-900 leading-relaxed whitespace-pre-line">{first.remark || 'No defects reported.'}</div>
+            {first.remark && (
+              <>
+                <span className="font-bold text-slate-800 block mb-1">Remark</span>
+                <div className="text-slate-900 leading-relaxed whitespace-pre-line">{first.remark}</div>
+              </>
+            )}
           </div>
         </div>
       )}
