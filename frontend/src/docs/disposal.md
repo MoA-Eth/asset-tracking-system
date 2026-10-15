@@ -10,7 +10,7 @@ Only assets **in store** can be disposed of. If an asset is issued, return it to
 2. Enter the **Quantity to dispose of**. You can dispose of part of a batch; the rest stays in store. The **Book value** follows the quantity, and you can change it.
 3. Enter the **Disposal reference no.** and the **Disposal date**.
 4. Enter the **Reason for disposal**: pick a suggestion or type your own (for example "Damaged beyond repair" or "Gift / donation").
-5. Optionally enter the **Condition**, **Disposed to** (the recipient or buyer, with the person who signs), **Proceeds (ETB)**, the **Committee decision ref.** and a **Justification**.
+5. Optionally enter **Disposed to** (the recipient or buyer, with the person who signs), **Proceeds (ETB)**, the **Committee decision ref.** and a **Justification**.
 6. **Storekeeper (store man)** is a store man of the store the asset is in, and is the name printed on the form. Attach the committee decision or another document if your administrator requires it.
 7. Press **Submit for approval**. The disposal form opens for printing.
 

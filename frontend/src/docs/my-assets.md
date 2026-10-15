@@ -6,12 +6,12 @@ If you have the **Employee** role, you sign in to see the assets that have been 
 
 1. Sign in with your employee ID (or email) and your password. If your password is temporary, choose your own first.
 2. **My assets** opens. The top line tells you how many assets are assigned to you.
-3. For each asset you see: the item and its code, the **serial number**, the **quantity**, the **condition**, the date it was **assigned**, and its **status**.
+3. For each asset you see: the item and its code, the **serial number**, the **quantity**, the date it was **assigned**, and its **status**.
 4. Press **Refresh** to load the latest.
 
 ## See the details
 
-Click a row to open the details: item code, serial number, category, condition, quantity, directorate, where it was issued from, when it was assigned, the **issue slip number** and what it was issued **for**. Press **Esc** to close.
+Click a row to open the details: item code, serial number, category, quantity, directorate, where it was issued from, when it was assigned, the **issue slip number** and what it was issued **for**. Press **Esc** to close.
 
 ## What the statuses mean
 

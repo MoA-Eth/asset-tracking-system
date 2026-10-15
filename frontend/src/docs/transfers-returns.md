@@ -19,7 +19,7 @@ Use the same form for an **Issued** asset that is coming back.
 1. Open **Transfer (Model 21)** on the asset and fill in the **Model 21 No.**, the **Book** and the date.
 2. In **Return to store**, choose the store it goes back to. **To employee** and **To directorate** disappear.
 3. **Received by (store man)** is a store man of that store, chosen for you when there is only one. If the store has none, the transfer still goes ahead with no store man named.
-4. Choose the **Condition on return** (Good, Fair, Needs repair or Damaged) and enter the **Reason for return**. Note any defects or missing parts.
+4. Enter the **Reason for return**. Note any defects or missing parts.
 5. Attach the **scanned return slip** (required only if your administrator says so).
 6. Press **Submit transfer to store for approval**.
 

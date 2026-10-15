@@ -7,7 +7,7 @@ The dashboard shows the whole portfolio at a glance.
 1. **Total valuation, Total assets, In store, Issued:** the four numbers at the top, with how much is with staff and how much is in store.
 2. **Needs attention:** shown only when there is something to do. Click a tile to go there: pending approvals, pending receipts, issues, transfers and disposals, **At-risk assets** (damaged or needing repair) and **In store over 30 days**.
 3. **In store over 30 days:** items that should have been issued within a month, with how many days overdue, the units and the value.
-4. **Charts:** stock movement (received and issued per month, last 6 months), value by directorate, categories, condition, the highest-value assets, and assets by location.
+4. **Charts:** stock movement (received and issued per month, last 6 months), value by directorate, categories, the highest-value assets, and assets by location.
 5. **Recent activity:** the latest actions. **Full log** opens the audit log.
 
 If the dashboard cannot load, press **Retry**.
