@@ -9,6 +9,7 @@ import {
   listLocations, createLocation, updateLocation, setLocationActive, deleteLocation,
 } from '../services/reference.service';
 import { grantAccess, removeAccess, resetPassword } from '../services/access.service';
+import { listOrganizations, createOrganization, updateOrganization, setOrganizationActive } from '../services/organizations.service';
 
 const idParam = (req: Request) => String(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
 
@@ -162,5 +163,29 @@ export class ReferenceController {
   public resetPassword = asyncHandler(async (req: Request, res: Response) => {
     const updated = await resetPassword(idParam(req), req.body?.password, req.user!.id);
     return sendSuccess(res, updated, `Password reset for ${updated.fullNameEn}`);
+  });
+
+  /** GET /api/reference/organizations?includeInactive=true — outside organizations items are issued to */
+  public getOrganizations = asyncHandler(async (req: Request, res: Response) => {
+    const organizations = await listOrganizations({ includeInactive: req.query.includeInactive === 'true' });
+    return sendSuccess(res, organizations, 'Organizations list retrieved');
+  });
+
+  /** POST /api/reference/organizations  { name, shortName, contactPerson } */
+  public createOrganization = asyncHandler(async (req: Request, res: Response) => {
+    const created = await createOrganization(req.body ?? {}, req.user!.id);
+    return sendSuccess(res, created, `${created.name} added`, 201);
+  });
+
+  /** PUT /api/reference/organizations/:id */
+  public updateOrganization = asyncHandler(async (req: Request, res: Response) => {
+    const updated = await updateOrganization(idParam(req), req.body ?? {}, req.user!.id);
+    return sendSuccess(res, updated, `${updated.name} updated`);
+  });
+
+  /** PATCH /api/reference/organizations/:id/status  { active } */
+  public setOrganizationStatus = asyncHandler(async (req: Request, res: Response) => {
+    const updated = await setOrganizationActive(idParam(req), req.body?.active, req.user!.id);
+    return sendSuccess(res, updated, `${updated.name} ${updated.isActive ? 'reactivated' : 'deactivated'}`);
   });
 }

@@ -64,6 +64,20 @@ async function main() {
   }
   console.log(`  ✅ ${storeSeeds.length} stores and ${locations.length} locations seeded`);
 
+  // ── Outside organizations items are issued to (Settings → Organizations) ─────
+  const organizationSeeds = [
+    { id: 'ORG-OROMIA', name: 'Oromia Bureau of Agriculture', shortName: 'Oromia BoA', contactPerson: 'Mantegbosh Mirku' },
+    { id: 'ORG-AMHARA', name: 'Amhara Bureau of Agriculture', shortName: 'Amhara BoA', contactPerson: 'Alemu Tadesse' },
+    { id: 'ORG-SIDAMA', name: 'Sidama Bureau of Agriculture', shortName: 'Sidama BoA', contactPerson: '' },
+    { id: 'ORG-EIAR', name: 'Ethiopian Institute of Agricultural Research', shortName: 'EIAR', contactPerson: 'Dr. Hirut Bekele' },
+    { id: 'ORG-ATI', name: 'Agricultural Transformation Institute', shortName: 'ATI', contactPerson: '' },
+    { id: 'ORG-FAO', name: 'FAO Ethiopia', shortName: 'FAO', contactPerson: 'Logistics Office' },
+  ];
+  for (const org of organizationSeeds) {
+    await prisma.organization.upsert({ where: { id: org.id }, update: {}, create: { ...org, isActive: true } });
+  }
+  console.log(`  ✅ ${organizationSeeds.length} organizations seeded`);
+
   // ── Employees & Demo Accounts ─────────────────────────────────────────────
   const employees = await Promise.all([
     // System Administrator (SYSTEM_ADMIN)

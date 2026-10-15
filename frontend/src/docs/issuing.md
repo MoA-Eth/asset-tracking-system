@@ -28,9 +28,10 @@ The bar at the bottom stays in view with **Submit**; click a name under **Still 
    - **Add item** adds a row for another line of the same Model 22; **×** at the end of a row removes it.
    - All rows must come from **one store**. Each row becomes its own request.
    - Enter the **Transport cost** under the table if the slip has one.
-5. **Recipient and signatures:** choose the **Recipient type**:
-   - **Internal (employee):** pick the person in **Received by** (type a name or employee ID). Their directorate fills in; change it if needed.
-   - **External (organization):** type the **Organization**, and optionally the **Contact person** who signs for it.
+5. **Recipient and signatures:** in **Received by**, pick who receives the items. The list has both **employees** and **organizations**; type a name, employee ID or an organization's short name to find one.
+   - **An employee:** their **directorate** fills in; change it if needed.
+   - **An organization:** its usual **Contact person** fills in; change it if someone else signs.
+   - **An organization that is not in the list:** type its full name and choose **Add "…" as an organization**. It is added to the list (Settings → Organizations), so it is spelled the same next time.
 6. **Issued by (store man)** is the store man of the items' store; choose one if there are several. Attach the **Signed copy**.
 7. Press **Submit for approval** (or **Submit 3 items for approval**). The Model 22 voucher opens for printing.
 
@@ -38,7 +39,7 @@ The bar at the bottom stays in view with **Submit**; click a name under **Still 
 
 Choose it in **IFMIS Model 22 PDF** at the top. The form fills in and a note lists what was filled. **Check it against the paper** before submitting: the PDF is shown open in **Slip preview** at the bottom of the form.
 
-- **Filled in:** Model 22 No., issued date, transaction type, transport cost, and **every line as a row**, matched to the store item with the same **IFMIS item code** and enough in store. **Received by** picks the employee named on the slip, and **Issued by** the store man.
+- **Filled in:** Model 22 No., issued date, transaction type, transport cost, and **every line as a row**, matched to the store item with the same **IFMIS item code** and enough in store. **Received by** picks the employee named on the slip, or the organization when the name is one in the list; a name that is neither is offered to add as an organization. **Issued by** picks the store man.
 - **The same item code on several lines** (for example five umbrella lines) becomes **one row** with the total quantity, because one store item is issued in one request.
 - **A line not in store under its code** is marked in red: choose the store item yourself, or remove the row.
 - **A PDF with several vouchers:** only the first is read, and the note says so.
@@ -52,7 +53,7 @@ Choose it in **IFMIS Model 22 PDF** at the top. The form fills in and a note lis
 | Several items on one Model 22 | Open the issue from any of them and attach the PDF: every line becomes a row. Or add rows by hand. |
 | Items in different stores | One Model 22 per store. |
 | A slip line not in store | It is marked red: pick the item, or remove the row. |
-| An outside organization receives it | Recipient type **External**: organization and contact person. |
+| An outside organization receives it | Pick it in **Received by**, or add it there if it is new. |
 | Writing units off | Transaction type **Disposal** (below). |
 | A mistake after submitting | Until the Team Leader endorses it: **Edit issue**, fix, **Save changes**. After that it is locked. |
 

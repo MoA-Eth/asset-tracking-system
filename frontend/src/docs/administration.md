@@ -54,3 +54,12 @@ Receiving needs at least one active store.
 ## Password help
 
 Staff who forget their password ask you for a reset. There is no self-service reset. Use **Reset password** on their row, and give them the new temporary password.
+
+## Organizations
+
+**Settings → Organizations** lists the outside organizations items are issued to (regional bureaus, institutes, projects, NGOs). Each is listed once, so its name is spelled the same on every Model 22 and its items can be found together.
+
+- **Add** an organization with its full name, a **short name** (also found when searching, e.g. Oromia BoA) and its **usual contact person**, who is offered as the person who signs. Encoders can also add one from the issue form when it is missing.
+- **Edit** fixes a name or contact; past issues keep the name they were made with.
+- **Deactivate** an organization that no longer receives items: it is no longer offered on the issue form, and past records keep its name. **Reactivate** brings it back.
+- Organizations typed on issues before this list existed were added to it automatically, once each.

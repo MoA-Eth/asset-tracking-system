@@ -29,4 +29,10 @@ router.put('/employees/:id/access', requirePermission('roles.assign'), controlle
 router.delete('/employees/:id/access', requirePermission('roles.assign'), controller.removeAccess);
 router.post('/employees/:id/password', requirePermission('roles.assign'), controller.resetPassword);
 
+// Outside organizations: anyone who issues items may add one from the issue form; changing them is for administrators
+router.get('/organizations', requirePermission('references.read'), controller.getOrganizations);
+router.post('/organizations', requirePermission('references.manage', 'stock-out.write'), controller.createOrganization);
+router.put('/organizations/:id', requirePermission('references.manage'), controller.updateOrganization);
+router.patch('/organizations/:id/status', requirePermission('references.manage'), controller.setOrganizationStatus);
+
 export default router;

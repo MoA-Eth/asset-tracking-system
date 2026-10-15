@@ -116,3 +116,14 @@ describe('the purpose of an issue', () => {
       .rejects.toMatchObject({ statusCode: 400, message: 'Reason for disposal is required.' });
   });
 });
+
+describe('issuing to an organization from the list', () => {
+  it('takes the name and usual contact person from its record, and keeps its id with the request', async () => {
+    (db as any).organization = { findUnique: vi.fn(async () => ({ id: 'ORG-1', name: 'Oromia Bureau of Agriculture', contactPerson: 'Mantegbosh Mirku', isActive: true })) };
+    const { recipientEmployeeId: _e, targetDepartmentId: _d, ...rest } = voucher;
+    await store().registerStockOut({ ...rest, itemId: 'item-1', quantity: 1, recipientType: 'EXTERNAL', organizationId: 'ORG-1' } as any);
+    const created = db.transactionApproval.create.mock.calls[0][0].data;
+    expect(created.requestDetails).toMatchObject({ recipientType: 'EXTERNAL', organizationId: 'ORG-1', organizationName: 'Oromia Bureau of Agriculture', contactPerson: 'Mantegbosh Mirku' });
+    expect(created.recipientEmployeeId).toBeUndefined();
+  });
+});

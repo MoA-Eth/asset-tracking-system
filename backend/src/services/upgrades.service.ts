@@ -1,4 +1,6 @@
+import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
+import { organizationKey } from './organizations.service';
 import { DECISION_PERMISSIONS } from '../security/role-policy';
 import { getTodayGcAndEc } from '../utils/eth-date';
 
@@ -13,6 +15,44 @@ export const DISPOSALS_GRANT_MARKER = 'upgrade.disposalsPermission';
 export async function runStartupUpgrades(): Promise<void> {
   await moveRejectedReceipts();
   await grantDisposalPermission();
+  await gatherOrganizations();
+}
+
+/**
+ * Organizations used to be typed on each issue. They are now a list, so the names already used (on issue requests,
+ * and on items held by an organization) become its first entries, one per name: the same name in other capitals or
+ * spacing is one organization. Names already in the list are left alone, so this adds nothing on later starts.
+ */
+async function gatherOrganizations(): Promise<void> {
+  try {
+    const requests = await prisma.transactionApproval.findMany({ where: { transactionType: 'STOCK_OUT' as any }, select: { requestDetails: true } });
+    const held = await prisma.item.findMany({ where: { heldByOrganization: { not: null } }, select: { heldByOrganization: true, heldByContact: true } });
+    const found = new Map<string, { name: string; contactPerson: string }>();
+    const note = (raw: unknown, contact: unknown) => {
+      if (typeof raw !== 'string' || !raw.trim()) return;
+      const name = raw.trim().replace(/\s+/g, ' ').slice(0, 150);
+      const key = organizationKey(name);
+      if (!found.has(key)) found.set(key, { name, contactPerson: typeof contact === 'string' ? contact.trim().slice(0, 100) : '' });
+    };
+    for (const r of requests) {
+      const d = (r.requestDetails ?? {}) as Record<string, unknown>;
+      if (d.recipientType === 'EXTERNAL') note(d.organizationName, d.contactPerson);
+    }
+    for (const i of held) note(i.heldByOrganization, i.heldByContact);
+    if (found.size === 0) return;
+
+    const existing = new Set((await prisma.organization.findMany({ select: { name: true } })).map((o) => organizationKey(o.name)));
+    const missing = [...found.entries()].filter(([key]) => !existing.has(key)).map(([, o]) => o);
+    for (const o of missing) {
+      await prisma.organization.create({ data: { id: `ORG-${randomUUID().slice(0, 8).toUpperCase()}`, name: o.name, contactPerson: o.contactPerson, isActive: true } });
+    }
+    if (missing.length > 0) {
+      console.log(`Upgrade: ${missing.length} organization(s) gathered from past issues into the organization list.`);
+      await recordUpgrade('SYSTEM_UPGRADE_ORGANIZATIONS', `${missing.length} organization(s) taken from past issues into the organization list: ${missing.map((o) => o.name).join(', ')}.`);
+    }
+  } catch (err: any) {
+    console.warn('Upgrade step "organizations" did not run; it will be retried on the next start.', err?.message ?? err);
+  }
 }
 
 /**

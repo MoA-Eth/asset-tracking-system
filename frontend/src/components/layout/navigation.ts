@@ -101,6 +101,7 @@ export const SETTINGS_NAV: { label: string; icon: LucideIcon; groups: SettingsNa
       label: 'Organization',
       items: [
         { id: 'settings-stores', label: 'Stores', icon: Warehouse },
+        { id: 'settings-organizations', label: 'Organizations', icon: Building2 },
       ],
     },
     {

@@ -13,6 +13,8 @@ import {
   LocationInput,
   Store,
   StoreInput,
+  Organization,
+  OrganizationInput,
   EmployeeImportResult,
   Location,
   CreateStockInRequest,
@@ -279,6 +281,24 @@ export const api = {
   /** Stores with their locations; with includeInactive, administrators also get deactivated ones */
   getStores: (opts: { includeInactive?: boolean } = {}) => {
     return request<Store[]>(`/reference/stores${opts.includeInactive ? '?includeInactive=true' : ''}`);
+  },
+
+  /** Outside organizations items are issued to; with includeInactive, deactivated ones too (Settings) */
+  getOrganizations: (opts: { includeInactive?: boolean } = {}) => {
+    return request<Organization[]>(`/reference/organizations${opts.includeInactive ? '?includeInactive=true' : ''}`);
+  },
+
+  /** Anyone who issues items can add one (from the issue form); editing is for administrators */
+  createOrganization: (input: OrganizationInput) => {
+    return request<Organization>('/reference/organizations', { method: 'POST', body: JSON.stringify(input) });
+  },
+
+  updateOrganization: (id: string, input: OrganizationInput) => {
+    return request<Organization>(`/reference/organizations/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) });
+  },
+
+  setOrganizationActive: (id: string, active: boolean) => {
+    return request<Organization>(`/reference/organizations/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ active }) });
   },
 
   createStore: (input: StoreInput) => {

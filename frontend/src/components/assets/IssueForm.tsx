@@ -8,7 +8,7 @@ import { useSlipRegister, usedMessage } from '../../hooks/useSlipRegister';
 import { FieldGrid, Field, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, MoneyInput, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
-import { ItemWithRelations, TransactionApproval, Department, Employee, Model22Voucher } from '../../types/asset-management';
+import { ItemWithRelations, TransactionApproval, Department, Employee, Model22Voucher, Organization } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { departmentLabel } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -65,6 +65,8 @@ let rowKey = 0;
 const newRow = (itemId = '', quantity = 0, slip?: IssueRow['slip']): IssueRow => ({ key: ++rowKey, itemId, quantity, slip });
 
 const unitsOf = (item?: ItemWithRelations) => Number(item?.quantity) || 1;
+/** "  oromia   bureau " and "Oromia Bureau" are the same organization */
+const orgKey = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
 // Items registered before units were recorded count in EA, as on the server
 const uomOf = (item?: ItemWithRelations) => item?.uom || 'EA';
 
@@ -120,12 +122,26 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   // ── Recipient
   const [destinationDepartmentId, setDestinationDepartmentId] = useState<string>(editApproval?.targetDepartmentId ?? '');
   const [recipientEmployeeId, setRecipientEmployeeId] = useState<string>(editApproval?.recipientEmployeeId ?? '');
-  // An employee receives it (internal), or an outside organization typed as text (external)
+  // An employee receives it (internal), or an outside organization from the list (external): one picker for both
   const [recipientType, setRecipientType] = useState<'INTERNAL' | 'EXTERNAL'>(
     editApproval?.requestDetails?.recipientType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL'
   );
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  useEffect(() => {
+    api.getOrganizations().then(setOrganizations).catch(() => setOrganizations([]));
+  }, []);
+  const [organizationId, setOrganizationId] = useState<string>(editApproval?.requestDetails?.organizationId ?? '');
+  // The organization's name; a correction of an issue from before the list has only this, until matched below
   const [organizationName, setOrganizationName] = useState<string>(editApproval?.requestDetails?.organizationName ?? '');
   const [contactPerson, setContactPerson] = useState<string>(editApproval?.requestDetails?.contactPerson ?? '');
+  // A name on the slip that is no employee, offered as an organization
+  const [suggestedOrganization, setSuggestedOrganization] = useState<string | null>(null);
+  useEffect(() => {
+    if (organizationId || !organizationName) return;
+    const listed = organizations.find((o) => orgKey(o.name) === orgKey(organizationName));
+    if (listed) setOrganizationId(listed.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizations]);
   // A disposal has no recipient and gives its reason; an issue has no purpose (a correction keeps an older one)
   const isDisposal = isEdit ? editApproval?.requestDetails?.disposal === true : transactionType === DISPOSAL_TRANSACTION_TYPE;
   const isExternal = !isDisposal && recipientType === 'EXTERNAL';
@@ -137,6 +153,39 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     setRecipientEmployeeId(empId);
     const emp = employees.find((e) => e.id === empId);
     if (emp && emp.departmentId) setDestinationDepartmentId(emp.departmentId);
+  };
+  const chooseOrganization = (org: Organization) => {
+    setRecipientType('EXTERNAL');
+    setOrganizationId(org.id);
+    setOrganizationName(org.name);
+    // Its usual signer, unless someone was already typed
+    setContactPerson((c) => c.trim() || org.contactPerson || '');
+    setSuggestedOrganization(null);
+  };
+  // "emp:<id>" or "org:<id>" in the picker
+  const chooseRecipient = (value: string) => {
+    if (value.startsWith('emp:')) {
+      setRecipientType('INTERNAL');
+      handleEmployeeChange(value.slice(4));
+      setSuggestedOrganization(null);
+    } else if (value.startsWith('org:')) {
+      const org = organizations.find((o) => o.id === value.slice(4));
+      if (org) chooseOrganization(org);
+    }
+  };
+  const recipientValue = isExternal
+    ? organizationId ? `org:${organizationId}` : organizationName ? 'org:typed' : ''
+    : recipientEmployeeId ? `emp:${recipientEmployeeId}` : '';
+  // A new organization, added to the list from here so it is spelled the same next time
+  const addOrganization = async (name: string) => {
+    try {
+      const org = await api.createOrganization({ name });
+      setOrganizations((os) => [...os, org].sort((a, b) => a.name.localeCompare(b.name)));
+      chooseOrganization(org);
+      toast.success('Organization added', `${org.name} is in the list now.`);
+    } catch (err: any) {
+      toast.error("The organization couldn't be added", err.message || 'Server error');
+    }
   };
 
   // ── Who issues it: a store man of the store the items are in (one Model 22 issues from one store)
@@ -186,8 +235,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     !isEdit && storeMen.length > 1 && !issuerId && 'issued by (store man)',
     isDisposal && !purpose.trim() && 'reason for disposal',
     !isDisposal && !isExternal && !destinationDepartmentId && 'destination directorate',
-    !isDisposal && !isExternal && !recipientEmployeeId && 'recipient',
-    isExternal && !organizationName.trim() && 'organization',
+    !isDisposal && !(isExternal ? organizationName.trim() : recipientEmployeeId) && 'recipient',
     isAttachmentReq && !signedFileName && 'signed copy',
   ].filter(Boolean) as string[];
 
@@ -200,7 +248,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const recipientFields = isDisposal
     ? { disposal: true as const }
     : isExternal
-    ? { recipientType: 'EXTERNAL' as const, organizationName: organizationName.trim(), contactPerson: contactPerson.trim() || undefined }
+    ? { recipientType: 'EXTERNAL' as const, ...(organizationId ? { organizationId } : {}), organizationName: organizationName.trim(), contactPerson: contactPerson.trim() || undefined }
     : { recipientType: 'INTERNAL' as const, recipientEmployeeId, targetDepartmentId: destinationDepartmentId };
 
   const handleReset = () => {
@@ -214,8 +262,10 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     setRecipientEmployeeId('');
     setIssuedById('');
     setRecipientType('INTERNAL');
+    setOrganizationId('');
     setOrganizationName('');
     setContactPerson('');
+    setSuggestedOrganization(null);
     setPurpose('');
     setIfmisFile(null);
     setSignedFile(null);
@@ -265,10 +315,16 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     }
     // Recipient: the employee named on the slip, then their directorate; else the destination as a directorate
     const receiver = slip.receivedBy ? employees.find((e) => nameKey(e.fullNameEn) === nameKey(slip.receivedBy!)) : undefined;
+    const listed = !receiver && slip.receivedBy ? organizations.find((o) => [o.name, o.shortName].some((n) => n && orgKey(n) === orgKey(slip.receivedBy!))) : undefined;
     if (receiver && !isDisposal) {
       setRecipientType('INTERNAL');
       handleEmployeeChange(receiver.id);
       filled.push('received by');
+    } else if (listed && !isDisposal) {
+      chooseOrganization(listed);
+      filled.push('received by (organization)');
+    } else if (slip.receivedBy && !isDisposal) {
+      setSuggestedOrganization(slip.receivedBy);
     }
     const destination = slip.destination?.trim().toLowerCase();
     const dept = destination ? departments.find((d) => [d.nameEn, departmentLabel(d)].some((n) => n?.toLowerCase() === destination)) : undefined;
@@ -689,72 +745,65 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       <Part title="Recipient and signatures">
         <FieldGrid cols={2}>
           {!isDisposal && (
-            <Field label="Recipient type" required span="sm:col-span-2" hint="Internal: a staff member of the Ministry. External: an outside organization.">
-              <div role="radiogroup" aria-label="Recipient type" className="inline-flex rounded-lg border border-slate-300 bg-slate-50 p-0.5 text-xs font-semibold">
-                {(['INTERNAL', 'EXTERNAL'] as const).map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    role="radio"
-                    aria-checked={recipientType === type}
-                    onClick={() => setRecipientType(type)}
-                    className={`rounded-md px-3 py-1.5 transition cursor-pointer ${
-                      recipientType === type ? 'bg-emerald-700 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-200/70'
-                    }`}
-                  >
-                    {type === 'INTERNAL' ? 'Internal (employee)' : 'External (organization)'}
-                  </button>
-                ))}
-              </div>
-            </Field>
-          )}
-
-          {isDisposal ? null : isExternal ? (
             <>
-              <Field label="Organization" required htmlFor="stock-out-organization" hint="The organization that receives the items.">
-                <input
-                  id="stock-out-organization"
-                  type="text"
-                  value={organizationName}
-                  onChange={(e) => setOrganizationName(e.target.value)}
-                  maxLength={150}
-                  placeholder="e.g. Oromia Bureau of Agriculture"
-                  className={input()}
-                />
-              </Field>
-              <Field label="Contact person" optional htmlFor="stock-out-contact" hint="The person who signs for the organization.">
-                <input
-                  id="stock-out-contact"
-                  type="text"
-                  value={contactPerson}
-                  onChange={(e) => setContactPerson(e.target.value)}
-                  maxLength={100}
-                  placeholder="e.g. Mantegbosh Mirku"
-                  className={input()}
-                />
-              </Field>
-            </>
-          ) : (
-            <>
-              <Field label="Received by (recipient)" required htmlFor="stock-out-recipient" hint="Type a name or employee ID. Selecting a recipient fills in their directorate.">
+              <Field
+                label="Received by"
+                required
+                htmlFor="stock-out-recipient"
+                hint="An employee, or an outside organization. Type to search; a new organization can be added from here."
+              >
                 <SearchableSelect
                   id="stock-out-recipient"
-                  value={recipientEmployeeId}
-                  onChange={handleEmployeeChange}
-                  placeholder="Select an employee…"
-                  searchPlaceholder="Search by name or employee ID…"
-                  groups={[{ label: 'Employees', options: employees.map((emp) => ({ value: emp.id, label: `${emp.fullNameEn} (${emp.payrollId})` })) }]}
+                  value={recipientValue}
+                  onChange={chooseRecipient}
+                  placeholder="Select an employee or organization…"
+                  searchPlaceholder="Search a name, employee ID or organization…"
+                  groups={[
+                    { label: 'Employees', options: employees.map((emp) => ({ value: `emp:${emp.id}`, label: `${emp.fullNameEn} (${emp.payrollId})` })) },
+                    {
+                      label: 'Organizations',
+                      options: [
+                        ...organizations.map((o) => ({ value: `org:${o.id}`, label: o.name, note: [o.shortName, o.contactPerson && `contact: ${o.contactPerson}`].filter(Boolean).join(' · ') || undefined })),
+                        // An older issue's organization that is not in the list
+                        ...(isExternal && !organizationId && organizationName ? [{ value: 'org:typed', label: organizationName, note: 'not in the list' }] : []),
+                      ],
+                    },
+                  ]}
+                  onCreate={addOrganization}
+                  createLabel={(name) => `Add "${name}" as an organization`}
                 />
+                {suggestedOrganization && (
+                  <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[11px] text-amber-800">
+                    The slip names “{suggestedOrganization}”, who is not an employee.
+                    <button type="button" onClick={() => addOrganization(suggestedOrganization)} className="font-semibold text-emerald-800 underline underline-offset-2 cursor-pointer">
+                      Add as an organization
+                    </button>
+                  </p>
+                )}
               </Field>
 
-              <Field label="Destination directorate" required htmlFor="stock-out-directorate">
-                <select id="stock-out-directorate" value={destinationDepartmentId} onChange={(e) => setDestinationDepartmentId(e.target.value)} className={input()} required>
-                  <option value="" disabled>Select…</option>
-                  {departments.map((dept) => (
-                    <option key={dept.id} value={dept.id}>{departmentLabel(dept)}</option>
-                  ))}
-                </select>
-              </Field>
+              {isExternal ? (
+                <Field label="Contact person" optional htmlFor="stock-out-contact" hint="The person who signs for the organization.">
+                  <input
+                    id="stock-out-contact"
+                    type="text"
+                    value={contactPerson}
+                    onChange={(e) => setContactPerson(e.target.value)}
+                    maxLength={100}
+                    placeholder="e.g. Mantegbosh Mirku"
+                    className={input()}
+                  />
+                </Field>
+              ) : (
+                <Field label="Destination directorate" required htmlFor="stock-out-directorate">
+                  <select id="stock-out-directorate" value={destinationDepartmentId} onChange={(e) => setDestinationDepartmentId(e.target.value)} className={input()} required>
+                    <option value="" disabled>Select…</option>
+                    {departments.map((dept) => (
+                      <option key={dept.id} value={dept.id}>{departmentLabel(dept)}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
             </>
           )}
 

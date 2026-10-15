@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const db = vi.hoisted(() => ({
   employee: { findFirst: vi.fn() },
-  item: { updateMany: vi.fn() },
+  item: { updateMany: vi.fn(), findMany: vi.fn() },
+  transactionApproval: { findMany: vi.fn() },
+  organization: { findMany: vi.fn(), create: vi.fn() },
   auditLog: { create: vi.fn() },
   systemSetting: { findUnique: vi.fn(), create: vi.fn() },
   rolePermissionSet: { findMany: vi.fn(), update: vi.fn() },
@@ -20,6 +22,9 @@ beforeEach(() => {
   db.employee.findFirst.mockResolvedValue({ id: 'EMP-ADMIN-01' });
   db.systemSetting.findUnique.mockResolvedValue(null);
   db.rolePermissionSet.findMany.mockResolvedValue([]);
+  db.transactionApproval.findMany.mockResolvedValue([]);
+  db.item.findMany.mockResolvedValue([]);
+  db.organization.findMany.mockResolvedValue([]);
 });
 
 describe('startup upgrade: rejected receipts', () => {
@@ -87,5 +92,33 @@ describe('startup upgrade: disposal permission', () => {
     db.systemSetting.findUnique.mockRejectedValue(new Error('connection lost'));
     await expect(runStartupUpgrades()).resolves.toBeUndefined();
     expect(console.warn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('startup upgrade: organizations from past issues', () => {
+  it('lists each organization once, with its contact person, and skips those already in the list', async () => {
+    db.transactionApproval.findMany.mockResolvedValue([
+      { requestDetails: { recipientType: 'EXTERNAL', organizationName: 'Oromia Bureau of Agriculture', contactPerson: 'Mantegbosh Mirku' } },
+      { requestDetails: { recipientType: 'EXTERNAL', organizationName: '  oromia   bureau of agriculture ' } },
+      { requestDetails: { recipientType: 'EXTERNAL', organizationName: 'FAO Ethiopia' } },
+      { requestDetails: { recipientType: 'INTERNAL', recipientEmployeeId: 'EMP-1' } },
+    ]);
+    db.item.findMany.mockResolvedValue([{ heldByOrganization: 'Amhara BoA', heldByContact: 'Alemu' }]);
+    db.organization.findMany.mockResolvedValue([{ name: 'fao ethiopia' }]);
+
+    await runStartupUpgrades();
+
+    expect(db.organization.create.mock.calls.map((c) => [c[0].data.name, c[0].data.contactPerson])).toEqual([
+      ['Oromia Bureau of Agriculture', 'Mantegbosh Mirku'],
+      ['Amhara BoA', 'Alemu'],
+    ]);
+    expect(db.auditLog.create.mock.calls.map((c) => c[0].data.action)).toContain('SYSTEM_UPGRADE_ORGANIZATIONS');
+  });
+
+  it('adds nothing when every name is already listed', async () => {
+    db.transactionApproval.findMany.mockResolvedValue([{ requestDetails: { recipientType: 'EXTERNAL', organizationName: 'FAO Ethiopia' } }]);
+    db.organization.findMany.mockResolvedValue([{ name: 'FAO Ethiopia' }]);
+    await runStartupUpgrades();
+    expect(db.organization.create).not.toHaveBeenCalled();
   });
 });

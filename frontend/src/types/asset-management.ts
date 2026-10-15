@@ -105,6 +105,23 @@ export interface Location {
   itemCount?: number;
 }
 
+/** An outside organization items are issued to (Settings → Organizations) */
+export interface Organization {
+  id: string;
+  name: string;
+  /** e.g. "Oromia BoA": found when searching */
+  shortName: string;
+  /** The person who usually signs for it */
+  contactPerson: string;
+  isActive: boolean;
+}
+
+export interface OrganizationInput {
+  name: string;
+  shortName?: string;
+  contactPerson?: string;
+}
+
 export interface StoreInput {
   name: string;
   address?: string;
@@ -618,6 +635,8 @@ export interface CreateStockOutRequest {
   recipientEmployeeId?: string;
   targetDepartmentId?: string;
   /** EXTERNAL: the organization that receives it (required) */
+  /** The organization from the list, when one was chosen */
+  organizationId?: string;
   organizationName?: string;
   /** EXTERNAL: the person who signs for the organization (optional) */
   contactPerson?: string;
@@ -650,6 +669,8 @@ export interface UpdateStockOutRequest {
   recipientType?: 'INTERNAL' | 'EXTERNAL';
   recipientEmployeeId?: string;
   targetDepartmentId?: string;
+  /** The organization from the list, when one was chosen */
+  organizationId?: string;
   organizationName?: string;
   contactPerson?: string;
   ifmisSlipNumber: string;
@@ -762,6 +783,8 @@ export interface Model21RequestDetails {
   /** Stock-Out: INTERNAL (an employee) or EXTERNAL (an outside organization) */
   recipientType?: 'INTERNAL' | 'EXTERNAL';
   /** Stock-Out to an outside organization: its name, and the person who signs for it */
+  /** The organization from the list, when one was chosen */
+  organizationId?: string;
   organizationName?: string;
   contactPerson?: string;
   /** Stock-Out: units requested */

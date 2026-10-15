@@ -12,7 +12,7 @@ vi.mock('../../utils/slip-reader', async (importOriginal) => ({ ...(await import
 
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'encoder', fullNameEn: 'Store Encoder' } }) }));
 vi.mock('../../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn() }) }));
-vi.mock('../../api/client', () => ({ api: { registerStockOut: vi.fn(), uploadSlip: vi.fn(), getStores: vi.fn(), getSystemSettings: vi.fn() } }));
+vi.mock('../../api/client', () => ({ api: { registerStockOut: vi.fn(), uploadSlip: vi.fn(), getStores: vi.fn(), getSystemSettings: vi.fn(), getOrganizations: vi.fn(async () => []), createOrganization: vi.fn() } }));
 
 const store = (storeKeepers: any[]) => ({
   id: 'S1', name: 'Kality store', address: '', isActive: true, locations: [{ id: 'LOC-1', storeId: 'S1', name: 'Shelf A', isActive: true }], storeKeepers,
@@ -48,59 +48,83 @@ describe('Issue items (Model 22): unit of measure', () => {
   });
 });
 
-describe('Issue items (Model 22): internal or external recipient', () => {
+describe('Issue items (Model 22): one picker for an employee or an organization', () => {
   const employee = { id: 'EMP-A', fullNameEn: 'Abebe Kebede', payrollId: '00000001', departmentId: 'DEP-1' } as any;
   const department = { id: 'DEP-1', nameEn: 'Plant Protection', nameAm: '' } as any;
+  const oromia = { id: 'ORG-1', name: 'Oromia Bureau of Agriculture', shortName: 'Oromia BoA', contactPerson: 'Mantegbosh Mirku', isActive: true };
   const renderIssue = (onSuccess = vi.fn()) =>
     render(<StockOutForm availableItems={[item()]} departments={[department]} employees={[employee]} initialItemId="item-1" onCancel={vi.fn()} onSuccess={onSuccess} />);
   const submit = () => screen.getByRole('button', { name: /Submit for approval/ });
+  const pick = async (user: ReturnType<typeof userEvent.setup>, search: string) => {
+    await user.click(screen.getByRole('combobox', { name: /Received by/ }));
+    await user.type(screen.getByRole('textbox', { name: 'Search the list' }), search);
+  };
 
-  it('asks for an employee and directorate when internal, and for an organization and contact person when external', async () => {
-    const user = userEvent.setup();
-    renderIssue();
-    expect(screen.getByRole('radio', { name: 'Internal (employee)' })).toBeChecked();
-    expect(screen.getByText('Received by (recipient)')).toBeInTheDocument();
-    expect(screen.getByText('Destination directorate')).toBeInTheDocument();
-    expect(screen.queryByLabelText(/Organization/)).toBeNull();
-
-    await user.click(screen.getByRole('radio', { name: 'External (organization)' }));
-    expect(screen.getByLabelText(/Organization/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Contact person/)).toBeInTheDocument();
-    expect(screen.queryByText('Received by (recipient)')).toBeNull();
-    expect(screen.queryByText('Destination directorate')).toBeNull();
-
-    await user.click(screen.getByRole('radio', { name: 'Internal (employee)' }));
-    expect(screen.getByText('Received by (recipient)')).toBeInTheDocument();
+  beforeEach(() => {
+    vi.mocked(api.getOrganizations).mockResolvedValue([oromia] as any);
   });
 
-  it('sends the organization and contact person, with no employee or directorate', async () => {
+  it('lists employees and organizations together: no Internal / External choice', async () => {
+    const user = userEvent.setup();
+    renderIssue();
+    expect(screen.queryByRole('radio', { name: /Internal|External/ })).toBeNull();
+    await user.click(screen.getByRole('combobox', { name: /Received by/ }));
+    expect(await screen.findByRole('group', { name: 'Organizations' })).toHaveTextContent('Oromia Bureau of Agriculture');
+    expect(screen.getByRole('group', { name: 'Employees' })).toHaveTextContent('Abebe Kebede (00000001)');
+
+    // An employee: their directorate is asked (and filled in); no contact person
+    await user.click(screen.getByRole('option', { name: /Abebe Kebede/ }));
+    expect(screen.getByLabelText(/Destination directorate/)).toHaveValue('DEP-1');
+    expect(screen.queryByLabelText(/Contact person/)).toBeNull();
+
+    // An organization, found by its short name: its usual contact person is offered; no directorate
+    await pick(user, 'Oromia BoA');
+    await user.click(screen.getByRole('option', { name: /Oromia Bureau of Agriculture/ }));
+    expect(screen.getByLabelText(/Contact person/)).toHaveValue('Mantegbosh Mirku');
+    expect(screen.queryByLabelText(/Destination directorate/)).toBeNull();
+  });
+
+  it('sends the organization from the list, with its contact person, and no employee or directorate', async () => {
     const user = userEvent.setup();
     vi.mocked(api.registerStockOut).mockResolvedValue({ id: 'appr-1' } as any);
     const onSuccess = vi.fn();
     renderIssue(onSuccess);
-    // No Purpose of issue: it is not on the IFMIS Model 22
-    expect(screen.queryByText('Purpose of issue')).toBeNull();
+    await screen.findByText('Abebe Store Man');
 
-    await user.click(screen.getByRole('radio', { name: 'External (organization)' }));
-    expect(submit()).toBeDisabled();
     await user.type(screen.getByPlaceholderText('e.g. 0004653/A Inventory'), 'M22-001');
-    // Everything but the organization is filled in: Submit is still off
     expect(submit()).toBeDisabled();
-    await user.type(screen.getByLabelText(/Organization/), ' Oromia Bureau of Agriculture ');
-    await user.type(screen.getByLabelText(/Contact person/), 'Mantegbosh Mirku');
+    await pick(user, 'Oromia');
+    await user.click(screen.getByRole('option', { name: /Oromia Bureau of Agriculture/ }));
     expect(submit()).toBeEnabled();
     await user.click(submit());
 
     const payload = vi.mocked(api.registerStockOut).mock.calls[0][0];
-    // The store's only store man issues it, and is named on the request
-    expect(payload).toMatchObject({ issuedByEmployeeId: '1' });
-    expect(payload).toMatchObject({ itemId: 'item-1', recipientType: 'EXTERNAL', organizationName: 'Oromia Bureau of Agriculture', contactPerson: 'Mantegbosh Mirku', destination: 'Oromia Bureau of Agriculture' });
+    expect(payload).toMatchObject({ itemId: 'item-1', issuedByEmployeeId: '1', recipientType: 'EXTERNAL', organizationId: 'ORG-1', organizationName: 'Oromia Bureau of Agriculture', contactPerson: 'Mantegbosh Mirku', destination: 'Oromia Bureau of Agriculture' });
     expect(payload).not.toHaveProperty('recipientEmployeeId');
     expect(payload).not.toHaveProperty('targetDepartmentId');
     // The printed voucher names the person who signs and their organization
     expect(onSuccess.mock.calls[0][1]).toMatchObject({
       destination: 'Oromia Bureau of Agriculture', receivedByName: 'Mantegbosh Mirku, Oromia Bureau of Agriculture', issuedByName: 'Abebe Store Man',
     });
+  });
+
+  it('adds a new organization to the list from the picker, and chooses it', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.createOrganization).mockResolvedValue({ id: 'ORG-9', name: 'Amhara Bureau of Agriculture', shortName: '', contactPerson: '', isActive: true } as any);
+    renderIssue();
+    await pick(user, 'Amhara Bureau of Agriculture');
+    await user.click(screen.getByRole('button', { name: 'Add "Amhara Bureau of Agriculture" as an organization' }));
+    expect(api.createOrganization).toHaveBeenCalledWith({ name: 'Amhara Bureau of Agriculture' });
+    expect(await screen.findByRole('combobox', { name: /Received by/ })).toHaveTextContent('Amhara Bureau of Agriculture');
+    expect(screen.getByLabelText(/Contact person/)).toHaveValue('');
+  });
+
+  it('does not offer to add a name that is already in the list', async () => {
+    const user = userEvent.setup();
+    renderIssue();
+    await pick(user, 'oromia bureau of agriculture');
+    expect(await screen.findByRole('option', { name: /Oromia Bureau of Agriculture/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /as an organization/ })).toBeNull();
   });
 });
 
@@ -329,5 +353,45 @@ describe('Issue items (Model 22): read from the IFMIS PDF', () => {
     expect(await screen.findByText(/This is a Model 19 receipt/)).toBeInTheDocument();
     expect(screen.getByPlaceholderText('e.g. 0004653/A Inventory')).toHaveValue('');
     expect(screen.queryByText('m19.pdf')).toBeNull();
+  });
+});
+
+describe('Issue items (Model 22): an organization named on the slip', () => {
+  const row = (top: number, ...cells: [number, string][]) => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+  const slip = (receivedBy: string) => [
+    row(64, [297, 'Receipt For Articles Or Property Issued']),
+    row(118, [500, 'Model 22 No. :'], [579, '0000040/A Inventory']),
+    row(540, [30, 'Issued By : Name'], [111, ':'], [124, '_____'], [426, 'Received By : Name'], [513, ':'], [530, receivedBy]),
+  ];
+  const renderIssue = () =>
+    render(<StockOutForm availableItems={[item()]} departments={[]} employees={[{ id: 'EMP-A', fullNameEn: 'Abebe Kebede', payrollId: '1' } as any]} initialItemId="item-1" onCancel={vi.fn()} onSuccess={vi.fn()} />);
+  const upload = (user: ReturnType<typeof userEvent.setup>) =>
+    user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'm22.pdf', { type: 'application/pdf' }));
+
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => 'blob:m22');
+    URL.revokeObjectURL = vi.fn();
+    vi.mocked(api.getOrganizations).mockResolvedValue([{ id: 'ORG-1', name: 'Oromia Bureau of Agriculture', shortName: 'Oromia BoA', contactPerson: '', isActive: true }] as any);
+  });
+
+  it('chooses the listed organization the slip names, by its name or short name', async () => {
+    const user = userEvent.setup();
+    vi.mocked(readPdfPages).mockResolvedValue({ rows: slip('Oromia BoA'), pages: 1, pagesRead: 1 } as any);
+    renderIssue();
+    await screen.findByRole('combobox', { name: /Received by/ });
+    await upload(user);
+    await vi.waitFor(() => expect(screen.getByRole('combobox', { name: /Received by/ })).toHaveTextContent('Oromia Bureau of Agriculture'));
+  });
+
+  it('offers to add a name that is neither an employee nor listed, as an organization', async () => {
+    const user = userEvent.setup();
+    vi.mocked(readPdfPages).mockResolvedValue({ rows: slip('Sidama Bureau of Agriculture'), pages: 1, pagesRead: 1 } as any);
+    vi.mocked(api.createOrganization).mockResolvedValue({ id: 'ORG-7', name: 'Sidama Bureau of Agriculture', shortName: '', contactPerson: '', isActive: true } as any);
+    renderIssue();
+    await upload(user);
+    expect(await screen.findByText(/The slip names “Sidama Bureau of Agriculture”, who is not an employee/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Add as an organization' }));
+    expect(api.createOrganization).toHaveBeenCalledWith({ name: 'Sidama Bureau of Agriculture' });
+    await vi.waitFor(() => expect(screen.getByRole('combobox', { name: /Received by/ })).toHaveTextContent('Sidama Bureau of Agriculture'));
   });
 });

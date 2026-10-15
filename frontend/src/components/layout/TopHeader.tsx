@@ -244,6 +244,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         return { title: 'Employees', am: 'ሰራተኞች', icon: UserCheck, iconColor: 'text-emerald-700' };
       case 'settings-stores':
         return { title: 'Stores', am: 'መጋዘኖች', icon: Warehouse, iconColor: 'text-emerald-700' };
+      case 'settings-organizations':
+        return { title: 'Organizations', am: 'ድርጅቶች', icon: Building2, iconColor: 'text-emerald-700' };
       case 'settings-system':
         return { title: 'System Settings', am: 'የስርዓት ቅንብሮች', icon: Sliders, iconColor: 'text-emerald-700' };
       default:

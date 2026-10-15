@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Search } from 'lucide-react';
+import { Check, ChevronDown, Plus, Search } from 'lucide-react';
 
 export interface SelectOption {
   value: string;
@@ -23,6 +23,10 @@ interface SearchableSelectProps {
   placeholder?: string;
   searchPlaceholder?: string;
   autoFocus?: boolean;
+  /** Offers to add what was typed when nothing in the list is called exactly that, e.g. a new organization */
+  onCreate?: (text: string) => void;
+  /** The add row's wording, e.g. text => `Add "${text}" as an organization` */
+  createLabel?: (text: string) => string;
 }
 
 /**
@@ -37,6 +41,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   placeholder = 'Select…',
   searchPlaceholder = 'Type to search…',
   autoFocus,
+  onCreate,
+  createLabel = (text) => `Add "${text}"`,
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -91,6 +97,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (pickable[active]) choose(pickable[active]);
+      else create();
     } else if (e.key === 'Escape') {
       // Close the list only, not the window it sits in
       e.preventDefault();
@@ -101,6 +108,14 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   };
 
   const total = shown.reduce((n, g) => n + g.options.length, 0);
+  // What was typed, when it can be added: nothing in the list has exactly that name
+  const typed = query.trim().replace(/\s+/g, ' ');
+  const canCreate = !!onCreate && typed.length > 0 && !groups.some((g) => g.options.some((o) => o.label.trim().toLowerCase() === typed.toLowerCase()));
+  const create = () => {
+    if (!canCreate) return;
+    onCreate!(typed);
+    close();
+  };
 
   return (
     <div ref={rootRef}>
@@ -138,7 +153,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
             />
           </div>
           <ul id={`${id}-list`} ref={listRef} role="listbox" className="max-h-60 overflow-auto p-1 text-[13px]">
-            {total === 0 && <li className="px-3 py-3 text-center text-xs text-slate-500">Nothing matches “{query}”.</li>}
+            {total === 0 && !canCreate && <li className="px-3 py-3 text-center text-xs text-slate-500">Nothing matches “{query}”.</li>}
             {shown.map((group) => (
               <li key={group.label} role="presentation">
                 <p className="px-2.5 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -172,6 +187,16 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               </li>
             ))}
           </ul>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={create}
+              className="flex w-full items-center gap-1.5 border-t border-slate-200 px-3.5 py-2.5 text-left text-[13px] font-semibold text-emerald-800 transition hover:bg-emerald-50 cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{createLabel(typed)}</span>
+            </button>
+          )}
         </div>
       )}
     </div>

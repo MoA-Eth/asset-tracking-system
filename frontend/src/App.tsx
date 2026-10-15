@@ -16,6 +16,7 @@ import { loadSystemSettings } from './utils/system-settings';
 import { RolesPage } from './pages/settings/RolesPage';
 import { EmployeesPage } from './pages/settings/EmployeesPage';
 import { StoresPage } from './pages/settings/StoresPage';
+import { OrganizationsPage } from './pages/settings/OrganizationsPage';
 import { ProfilePage } from './pages/settings/ProfilePage';
 import { LoginPage } from './pages/LoginPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
@@ -227,6 +228,7 @@ const AuthenticatedPortal: React.FC = () => {
             {activeTab === 'settings-roles' && <RolesPage onViewUsers={viewRoleUsers} />}
             {activeTab === 'settings-employees' && <EmployeesPage />}
             {activeTab === 'settings-stores' && <StoresPage />}
+            {activeTab === 'settings-organizations' && <OrganizationsPage />}
             {activeTab === 'settings-system' && (
               <SystemSettingsPage />
             )}

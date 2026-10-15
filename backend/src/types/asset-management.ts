@@ -515,6 +515,8 @@ export interface CreateStockOutRequest {
   recipientEmployeeId?: string;
   targetDepartmentId?: string;
   /** EXTERNAL: the organization that receives it (required) */
+  /** EXTERNAL: the organization from the list; its name and usual contact person come from it */
+  organizationId?: string;
   organizationName?: string;
   /** EXTERNAL: the person who signs for the organization (optional) */
   contactPerson?: string;
@@ -547,6 +549,7 @@ export interface UpdateStockOutRequest {
   recipientType?: 'INTERNAL' | 'EXTERNAL';
   recipientEmployeeId?: string;
   targetDepartmentId?: string;
+  organizationId?: string;
   organizationName?: string;
   contactPerson?: string;
   ifmisSlipNumber: string;
@@ -661,6 +664,8 @@ export interface Model21RequestDetails {
   /** Stock-Out: INTERNAL (an employee) or EXTERNAL (an outside organization) */
   recipientType?: 'INTERNAL' | 'EXTERNAL';
   /** Stock-Out to an outside organization: its name, and the person who signs for it */
+  /** The organization's record, when it was chosen from the list */
+  organizationId?: string;
   organizationName?: string;
   contactPerson?: string;
   /** Stock-Out: units requested */

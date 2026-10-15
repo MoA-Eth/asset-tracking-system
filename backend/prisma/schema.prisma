@@ -108,6 +108,22 @@ model Department {
   @@map("departments")
 }
 
+/// An outside organization items are issued to (a regional bureau, a project, an NGO…). One record per organization,
+/// so its name is spelled the same on every issue and its items can be found together.
+model Organization {
+  id            String   @id
+  name          String   @unique
+  /// e.g. "Oromia BoA": found when searching, shown beside the name
+  shortName     String   @default("")
+  /// The person who usually signs for it; offered on the issue form
+  contactPerson String   @default("")
+  /// Deactivated organizations can't be picked on forms, but stay on past records
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@map("organizations")
+}
+
 /// A store receives and issues stock. It contains one or more locations.
 model Store {
   id       String  @id

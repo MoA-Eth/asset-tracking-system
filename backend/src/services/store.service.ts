@@ -36,6 +36,7 @@ import { BadRequestError, ConflictError, NotFoundError, ForbiddenError } from '.
 import { assignEmployeeRole } from './roles.service';
 import { hasPermission, ROLE_POLICY } from '../security/role-policy';
 import { assertUsableLocation, locationView, requireStoreKeeper } from './reference.service';
+import { requireOrganization } from './organizations.service';
 import { isSlipRequired, SLIP_REQUIRED_MESSAGE } from './settings.service';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1149,7 +1150,7 @@ export class StoreService {
     const disposal = ((approval.requestDetails ?? {}) as Record<string, any>).disposal === true;
     // Only a disposal needs a reason; an issue's purpose is not on the IFMIS Model 22, so it is optional
     if (!purpose && disposal) throw new BadRequestError('Reason for disposal is required.');
-    const external = disposal ? null : this.externalRecipientOf(payload);
+    const external = disposal ? null : await this.externalRecipientOf(payload);
     if (!external && !disposal) {
       if (!payload.recipientEmployeeId) throw new BadRequestError('Recipient staff member is required.');
       if (!payload.targetDepartmentId) throw new BadRequestError('Destination directorate is required.');
@@ -1306,14 +1307,19 @@ export class StoreService {
    * Who receives an issue: an employee, or an outside organization typed as text.
    * An organization needs a name; the person signing for it is optional.
    */
-  private externalRecipientOf(payload: { recipientType?: string; organizationName?: string; contactPerson?: string }) {
+  /**
+   * The outside organization an issue goes to: one from the list (organizationId), which gives its name and usual
+   * contact person, or a name typed by an older client. The name is kept on the request either way.
+   */
+  private async externalRecipientOf(payload: { recipientType?: string; organizationId?: string; organizationName?: string; contactPerson?: string }) {
     if (payload.recipientType !== 'EXTERNAL') return null;
-    const organizationName = (payload.organizationName || '').trim();
-    const contactPerson = (payload.contactPerson || '').trim();
+    const org = payload.organizationId ? await requireOrganization(prisma, payload.organizationId) : null;
+    const organizationName = org?.name ?? (payload.organizationName || '').trim();
+    const contactPerson = (payload.contactPerson || '').trim() || org?.contactPerson || '';
     if (!organizationName) throw new BadRequestError('The organization that receives the item is required.');
     assertMaxLength(organizationName, 150, 'Organization');
     assertMaxLength(contactPerson, 100, 'Contact person');
-    return { organizationName, contactPerson: contactPerson || undefined };
+    return { ...(org ? { organizationId: org.id } : {}), organizationName, contactPerson: contactPerson || undefined };
   }
 
   public async registerStockOut(payload: CreateStockOutRequest): Promise<TransactionApproval> {
@@ -1328,7 +1334,7 @@ export class StoreService {
     const disposal = payload.disposal === true;
     // Only a disposal needs a reason; an issue's purpose is not on the IFMIS Model 22, so it is optional
     if (disposal && isBlank(payload.purpose)) throw new BadRequestError('Reason for disposal is required.');
-    const external = disposal ? null : this.externalRecipientOf(payload);
+    const external = disposal ? null : await this.externalRecipientOf(payload);
     if (!disposal && !external && isBlank(payload.recipientEmployeeId)) throw new BadRequestError('Recipient staff member is required.');
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     assertMaxLength(payload.purpose, 500, disposal ? 'Reason for disposal' : 'Purpose of issue');
