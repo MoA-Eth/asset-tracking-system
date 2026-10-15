@@ -1959,6 +1959,7 @@ export class StoreService {
         ifmisSlipNumber: slipNo,
         ifmisSlipDateGc: dateGc,
         ifmisSlipDateEc: formatGcToEc(dateGc),
+        ...(payload.ifmisSlipAttachmentUrl ? { ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl } : {}),
         recipientEmployeeId: recipient.id,
         targetDepartmentId: department?.id ?? null,
         targetLocationId: location?.id ?? null,
@@ -2664,6 +2665,8 @@ export class StoreService {
         ifmisSlipNumber: slipNo,
         ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
         ifmisSlipDateEc: payload.ifmisSlipDateGc ? formatGcToEc(payload.ifmisSlipDateGc) : today.ec,
+        // The signed Model 21, when one was attached (optional for a transfer)
+        ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl || undefined,
         requestedById: payload.performedById,
         recipientEmployeeId: payload.toEmployeeId,
         targetDepartmentId: payload.toDepartmentId,

@@ -624,6 +624,8 @@ export interface CreateTransferRequest {
   transferredByEmployeeId?: string;
   /** Transfer date (YYYY-MM-DD); today when left out */
   ifmisSlipDateGc?: string;
+  /** The signed Model 21, scanned (optional for a transfer) */
+  ifmisSlipAttachmentUrl?: string;
   toEmployeeId?: string;
   toDepartmentId?: string;
   toLocationId?: string;
@@ -707,6 +709,8 @@ export interface UpdateTransferRequest {
   model21No: string;
   transferredByEmployeeId?: string;
   ifmisSlipDateGc?: string;
+  /** A new signed copy; left out, the one saved is kept */
+  ifmisSlipAttachmentUrl?: string;
   toEmployeeId: string;
   toDepartmentId?: string;
   toLocationId?: string;

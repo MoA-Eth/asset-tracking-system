@@ -270,6 +270,32 @@ describe('Assets page', () => {
       expect(within(record).getByDisplayValue('MOA MC BOOK')).toBeInTheDocument();
     });
 
+    it('fills the vehicle details printed under the table, and shows them', async () => {
+      const user = userEvent.setup();
+      const at = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+      vi.mocked(readPdfRows).mockResolvedValue([
+        ...model21('MOA/1', 'MOA/2'),
+        at(222, [262, 'Plate No'], [320, '4-23794'], [435, 'tire no']),
+        at(231, [262, 'Engine No'], [300, '1HZ-0641864'], [435, 'R240514711'], [560, 'Remark']),
+        at(240, [262, 'Accessory'], [435, 'R240504703'], [560, 'The right side mirror is missing.']),
+        at(249, [262, 'jack with handle'], [360, '1'], [435, 'YY0219']),
+        at(258, [262, 'key'], [360, '2']),
+      ]);
+      const record = await openTransfer(user);
+      // A GPS is no vehicle: its details are tucked away until there are some
+      expect(within(record).queryByRole('region', { name: 'Vehicle details' })).toBeNull();
+      await user.upload(document.querySelector('#transfer-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
+
+      expect(await within(record).findByText(/vehicle details \(plate, engine, accessories, 3 tire numbers, remark\)/)).toBeInTheDocument();
+      const vehicle = within(record).getByRole('region', { name: 'Vehicle details' });
+      expect(within(vehicle).getByDisplayValue('4-23794')).toBeInTheDocument();
+      expect(within(vehicle).getByDisplayValue('1HZ-0641864')).toBeInTheDocument();
+      expect(within(vehicle).getByDisplayValue('R240514711, R240504703, YY0219')).toBeInTheDocument();
+      expect(within(vehicle).getByLabelText(/Jack with handle/)).toHaveValue('1');
+      expect(within(vehicle).getByLabelText(/Keys/)).toHaveValue('2');
+      expect(within(record).getByDisplayValue('The right side mirror is missing.')).toBeInTheDocument();
+    });
+
     it('keeps the order of operations: an asset held by someone else is not filled in', async () => {
       const user = userEvent.setup();
       vi.mocked(readPdfRows).mockResolvedValue(model21('MOA/2', 'MOA/1'));
@@ -319,12 +345,14 @@ describe('Assets page', () => {
       // An asset that was never received can't be transferred
       expect(within(others).getByText(/No asset with tag MOA-072353 is registered here/)).toBeInTheDocument();
 
+      // The IFMIS PDF is kept as the copy of every request on the form (until a signed copy is attached)
+      vi.mocked(api.uploadSlip).mockResolvedValue({ url: '/api/uploads/slips/model21.pdf' } as any);
       await user.click(submitOf(record, 'transfer-form'));
       expect(api.transferItem).toHaveBeenCalledTimes(2);
-      expect(api.transferItem).toHaveBeenNthCalledWith(1, expect.objectContaining({ itemId: 'T1', toEmployeeId: 'E2', model21No: '0004399' }));
+      expect(api.transferItem).toHaveBeenNthCalledWith(1, expect.objectContaining({ itemId: 'T1', toEmployeeId: 'E2', model21No: '0004399', ifmisSlipAttachmentUrl: '/api/uploads/slips/model21.pdf' }));
       expect(api.transferItem).toHaveBeenNthCalledWith(
         2,
-        expect.objectContaining({ itemId: 'T2', toEmployeeId: 'E2', model21No: '0004399', book: 'MOA MC BOOK', depreciation: 20000, bookValue: 40000 }),
+        expect.objectContaining({ itemId: 'T2', toEmployeeId: 'E2', model21No: '0004399', book: 'MOA MC BOOK', depreciation: 20000, bookValue: 40000, ifmisSlipAttachmentUrl: '/api/uploads/slips/model21.pdf' }),
       );
     });
   });

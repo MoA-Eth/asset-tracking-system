@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Search, UserCheck, FileText, Car, Tag } from 'lucide-react';
+import { Search, FileText, Car } from 'lucide-react';
 import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
 import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, FormNotice, QuantityInput, MoneyInput, inputClass, textareaClass, submitOnCtrlEnter } from '../ui/FormKit';
-import { readPdfRows, rowsToText, isModel19, isModel21, parseModel21, sameEmployeeId, Model21SlipFields, Model21SlipLine } from '../../utils/slip-reader';
+import { readPdfRows, rowsToText, isModel19, isModel21, parseModel21, parseModel21Particulars, sameEmployeeId, Model21SlipFields, Model21SlipLine, Model21Particulars } from '../../utils/slip-reader';
+import { Part, SlipPreview } from './FormParts';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -102,7 +103,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [returnReason, setReturnReason] = useState(isReturnEdit ? details.reason ?? '' : '');
   const [storeReceiverId, setStoreReceiverId] = useState(isReturnEdit ? details.storeRecipientId ?? '' : '');
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
-  const [attachmentFileName, setAttachmentFileName] = useState(isReturnEdit && editTransfer?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editTransfer.ifmisSlipAttachmentUrl) : '');
+  const [attachmentFileName, setAttachmentFileName] = useState(editTransfer?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editTransfer.ifmisSlipAttachmentUrl) : '');
   const isAttachmentReq = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
   const todayGc = new Date().toISOString().split('T')[0];
   // Today unless changed; a correction keeps the date it was requested with
@@ -122,6 +123,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const transferrerId = transferredById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
   const transferrerName = storeMen.find((k) => k.employeeId === transferrerId)?.fullNameEn;
   const selectedIsVehicleLike = selectedItemObj?.category === 'VEHICLE' || selectedItemObj?.category === 'AGRI_MACHINERY';
+  const [showVehicle, setShowVehicle] = useState(false);
   const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center'; invalid?: boolean }) => inputClass('emerald', opts);
 
   // A newly chosen asset brings its own details
@@ -202,7 +204,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
    * is said, and that asset (or the recipient) is not filled in. The form's other assets are listed under it, each to
    * be transferred as its own request.
    */
-  const fillFromModel21 = (slip: Model21SlipFields) => {
+  const fillFromModel21 = (slip: Model21SlipFields, vehicle?: Model21Particulars) => {
     const filled: string[] = [];
     const problems: string[] = [];
     const line = slip.lines[0];
@@ -236,6 +238,23 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       if (line?.bookValue !== undefined) {
         setBookValue(line.bookValue);
         filled.push('book value');
+      }
+    }
+
+    // The vehicle details printed under the table, for the asset the form fills in
+    if (vehicle && (usable || editTransfer)) {
+      const qty = (name: string) => vehicle.accessories.find((a) => a.name === name)?.quantity;
+      const got = [
+        vehicle.chassisNumber && (setChassisNumber(vehicle.chassisNumber), 'chassis'),
+        vehicle.plateNo && (setPlateNo(vehicle.plateNo), 'plate'),
+        vehicle.engineNo && (setEngineNo(vehicle.engineNo), 'engine'),
+        vehicle.accessories.length > 0 && (setJackQty(qty('jack with handle') ?? 0), setTireWrenchQty(qty('tire wrench') ?? 0), setKeyQty(qty('key') ?? 0), setReserveTyreQty(qty('reserve tyre') ?? 0), 'accessories'),
+        vehicle.tireNos.length > 0 && (setTireSerials(vehicle.tireNos.join(', ')), `${vehicle.tireNos.length} tire numbers`),
+        vehicle.remark && (setDefectRemark(vehicle.remark), 'remark'),
+      ].filter(Boolean) as string[];
+      if (got.length) {
+        setShowVehicle(true);
+        filled.push(`vehicle details (${got.join(', ')})`);
       }
     }
 
@@ -287,7 +306,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       .then((rows) => {
         const text = rowsToText(rows);
         if (!text.trim()) return setSlipNote({ tone: 'warn', text: 'This PDF has no text (it is a scanned image), so it could not be read. Fill in the fields as usual.' });
-        if (isModel21(text)) return fillFromModel21(parseModel21(text));
+        if (isModel21(text)) return fillFromModel21(parseModel21(text), parseModel21Particulars(rows));
         setSlipNote({
           tone: 'warn',
           text: isModel19(text)
@@ -327,7 +346,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     !isReturn && !editTransfer && storeMen.length > 1 && !transferrerId && 'store man',
     isReturn && !returnReason.trim() && 'reason for return',
     isReturn && !editTransfer && returnStoreMen.length > 1 && !receiverId && 'received by (store man)',
-    isReturn && isAttachmentReq && !attachmentFileName && 'scanned slip',
+    isReturn && isAttachmentReq && !attachmentFileName && 'signed copy',
   ].filter(Boolean) as string[];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -336,15 +355,17 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     if (!isReturn && !targetEmployeeId) return void toast.warning('Recipient required', 'Choose the employee who receives the asset.');
     if (!model21No.trim()) return void toast.warning('Model 21 number required', 'Enter the number on the Model 21 form.');
     if (isReturn && !returnReason.trim()) return void toast.warning('Reason required', 'Enter the reason for returning the asset to store.');
-    if (isReturn && isAttachmentReq && !attachmentFileName) return void toast.warning('Slip required', 'A scanned slip is required by the system setting.');
+    if (isReturn && isAttachmentReq && !attachmentFileName) return void toast.warning('Signed copy required', 'The signed Model 21, scanned, is required by the system setting.');
 
     const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty, reserveTyreQty);
     const tireList = tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
     setSubmitting(true);
     try {
+      // The signed copy, or else the IFMIS PDF the form was read from
+      const copy = attachmentFile ?? readFile;
+      const slipUrl = copy ? (await api.uploadSlip(copy)).url : undefined;
       // ── Return to store: the asset goes back to a store instead of to an employee
       if (isReturn) {
-        const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
         const item = selectedItemObj;
         if (editTransfer) {
           await api.updateReturn(editTransfer.id, {
@@ -440,6 +461,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       if (editTransfer) {
         await api.updateTransfer(editTransfer.id, {
           model21No: model21No.trim(),
+          ifmisSlipAttachmentUrl: slipUrl,
           toEmployeeId: targetEmployeeId,
           toDepartmentId: targetDepartmentId || undefined,
           toLocationId: targetLocationId || undefined,
@@ -465,6 +487,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       const origCost = (selectedItem?.unitCostETB || 0) * (Number(selectedItem?.quantity) || 1);
       await api.transferItem({
         itemId: selectedItemId,
+        ifmisSlipAttachmentUrl: slipUrl,
         toEmployeeId: targetEmployeeId,
         toDepartmentId: targetDepartmentId || undefined,
         toLocationId: targetLocationId || undefined,
@@ -492,6 +515,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           const men = keepers.ofLocation(other.asset.storeLocationId);
           await api.transferItem({
             itemId: other.asset.id,
+            ifmisSlipAttachmentUrl: slipUrl,
             toEmployeeId: targetEmployeeId,
             toDepartmentId: targetDepartmentId || undefined,
             performedById: user?.id || '',
@@ -614,8 +638,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         />
       )}
 
-      {/* ── Section 1: Transfer voucher ── */}
-      <FormSection step={1} title="Transfer voucher" subtitle="የዝውውር ሰነድ · Model 21 register" icon={FileText} accent="emerald">
+      <Part title="Voucher">
         <FieldGrid>
           <Field
             label="Model 21 No."
@@ -666,10 +689,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             />
           </Field>
         </FieldGrid>
-      </FormSection>
+      </Part>
 
-      {/* ── Section 2: Asset ── */}
-      <FormSection step={2} title="Asset" subtitle="የሚዛወረው ንብረት" icon={Tag} accent="emerald">
+      <Part title="Asset">
         <div className="space-y-3.5">
           {editTransfer ? (
             <Field label="Issued asset" hint="The asset can't be changed. To transfer a different asset, ask an approver to reject this request.">
@@ -746,10 +768,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             </Field>
           </FieldGrid>
         </div>
-      </FormSection>
+      </Part>
 
-      {/* ── Section 3: Transfer to ── */}
-      <FormSection step={3} title={isReturn ? 'Transfer to store' : 'Transfer to'} subtitle="ተረካቢ" icon={UserCheck} accent="emerald">
+      <Part title={isReturn ? 'From and back to store' : 'From and to'}>
         <div className="space-y-3.5">
           <FieldGrid cols={2}>
             <Field label={fromStore ? 'From (store)' : 'From (current custodian)'}>
@@ -854,17 +875,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                   className={input({ invalid: !!errorOf('reason') })}
                 />
               </Field>
-
-              <FileDropField
-                label="Scanned return slip"
-                accent="emerald"
-                required={isAttachmentReq}
-                fileName={attachmentFileName}
-                accept={SLIP_ACCEPT_ATTR}
-                onChange={handleSlipSelected}
-                file={attachmentFile}
-                savedUrl={isReturnEdit ? editTransfer?.ifmisSlipAttachmentUrl : undefined}
-              />
             </>
           ) : (
           <StoreManField
@@ -891,49 +901,51 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             />
           </Field>
         </div>
-      </FormSection>
+      </Part>
 
-      {/* ── Section 4: Vehicle & machinery details (optional) ── */}
-      <FormSection
-        key={selectedIsVehicleLike ? 'vehicle' : 'other'}
-        step={4}
-        title="Vehicle & machinery details"
-        subtitle="Chassis, plate, engine, accessories, reserve tyre and tires · only for vehicles and machinery"
-        icon={Car}
-        accent="emerald"
-        collapsible
-        defaultOpen={selectedIsVehicleLike}
-      >
+      {/* ── Vehicle and machinery details: for vehicles and machinery, when the PDF gave some, or when asked for ── */}
+      {!(showVehicle || selectedIsVehicleLike || !!(chassisNumber.trim() || plateNo.trim() || engineNo.trim() || tireSerials.trim())) ? (
+        <button
+          type="button"
+          onClick={() => setShowVehicle(true)}
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 cursor-pointer"
+        >
+          <Car className="h-3.5 w-3.5" />
+          Add vehicle details (chassis, plate, engine, accessories, tires)
+        </button>
+      ) : (
+      <Part title="Vehicle details">
         <div className="space-y-3.5">
           <FieldGrid>
-            <Field label="Chassis number" optional>
-              <input type="text" placeholder="e.g. JTEBB71JX07008920" value={chassisNumber} onChange={(e) => setChassisNumber(e.target.value)} className={input({ mono: true })} />
+            <Field label="Chassis number" optional htmlFor="transfer-chassis">
+              <input id="transfer-chassis" type="text" placeholder="e.g. JTEBB71JX07008920" value={chassisNumber} onChange={(e) => setChassisNumber(e.target.value)} className={input({ mono: true })} />
             </Field>
-            <Field label="Plate number" optional>
-              <input type="text" placeholder="e.g. 4-23794" value={plateNo} onChange={(e) => setPlateNo(e.target.value)} className={input({ mono: true })} />
+            <Field label="Plate number" optional htmlFor="transfer-plate">
+              <input id="transfer-plate" type="text" placeholder="e.g. 4-23794" value={plateNo} onChange={(e) => setPlateNo(e.target.value)} className={input({ mono: true })} />
             </Field>
-            <Field label="Engine number" optional>
-              <input type="text" placeholder="e.g. 1HZ-0641864" value={engineNo} onChange={(e) => setEngineNo(e.target.value)} className={input({ mono: true })} />
+            <Field label="Engine number" optional htmlFor="transfer-engine">
+              <input id="transfer-engine" type="text" placeholder="e.g. 1HZ-0641864" value={engineNo} onChange={(e) => setEngineNo(e.target.value)} className={input({ mono: true })} />
             </Field>
           </FieldGrid>
 
           <FieldGrid cols={4}>
-            <Field label="Jack with handle (qty)">
-              <QuantityInput value={jackQty} onChange={setJackQty} />
+            <Field label="Jack with handle (qty)" htmlFor="transfer-jack">
+              <QuantityInput id="transfer-jack" value={jackQty} onChange={setJackQty} />
             </Field>
-            <Field label="Tire wrench (qty)">
-              <QuantityInput value={tireWrenchQty} onChange={setTireWrenchQty} />
+            <Field label="Tire wrench (qty)" htmlFor="transfer-wrench">
+              <QuantityInput id="transfer-wrench" value={tireWrenchQty} onChange={setTireWrenchQty} />
             </Field>
-            <Field label="Keys (qty)">
-              <QuantityInput value={keyQty} onChange={setKeyQty} />
+            <Field label="Keys (qty)" htmlFor="transfer-keys">
+              <QuantityInput id="transfer-keys" value={keyQty} onChange={setKeyQty} />
             </Field>
-            <Field label="Reserve tyre (qty)">
-              <QuantityInput value={reserveTyreQty} onChange={setReserveTyreQty} />
+            <Field label="Reserve tyre (qty)" htmlFor="transfer-reserve">
+              <QuantityInput id="transfer-reserve" value={reserveTyreQty} onChange={setReserveTyreQty} />
             </Field>
           </FieldGrid>
 
-          <Field label="Tire serial numbers" optional hint="Separate with commas or new lines">
+          <Field label="Tire serial numbers" optional htmlFor="transfer-tires" hint="Separate with commas or new lines">
             <input
+              id="transfer-tires"
               type="text"
               placeholder="e.g. R240514711, R240504703, YY0219"
               value={tireSerials}
@@ -942,14 +954,35 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             />
           </Field>
         </div>
-      </FormSection>
+      </Part>
+      )}
+
+      {/* The signed Model 21, scanned: kept as the request's copy (the IFMIS PDF until it is added) */}
+      <div id="transfer-signed-copy">
+        <FileDropField
+          label="Signed copy"
+          accent="emerald"
+          required={isReturn && isAttachmentReq}
+          fileName={attachmentFileName}
+          accept={SLIP_ACCEPT_ATTR}
+          onChange={handleSlipSelected}
+          file={attachmentFile}
+          savedUrl={editTransfer?.ifmisSlipAttachmentUrl}
+          emptyText="Click to attach the signed Model 21, scanned"
+          hint="The IFMIS printout with its signatures, as a scan or photo. Until it is added, the IFMIS PDF is kept as the copy."
+        />
+      </div>
+
+      {/* The slip itself, open under the form, to check what was filled in against it */}
+      <SlipPreview ifmisFile={readFile} signedFile={attachmentFile} savedUrl={editTransfer?.ifmisSlipAttachmentUrl} />
+
 
       <FormFooter
         accent="emerald"
         submitting={submitting}
         submitLabel={editTransfer ? 'Save changes' : isReturn ? 'Submit transfer to store for approval' : 'Submit transfer for approval'}
         missingFields={missingFields}
-        fieldTargets={{ recipient: '#transfer-recipient', 'store man': '#transfer-store-man' }}
+        fieldTargets={{ recipient: '#transfer-recipient', 'store man': '#transfer-store-man', 'signed copy': '#transfer-signed-copy input[type=file]' }}
         onCancel={onCancel}
       />
     </form>

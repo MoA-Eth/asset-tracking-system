@@ -155,7 +155,8 @@ export function parseModel21(text: string): Model21SlipFields {
     const dateCell = cells.find((c) => /^\d{1,2}-[A-Za-z]{3}-\d{2,4}$/.test(c));
     const money = cells.filter((c) => /^-?[\d,]+\.\d{2}$/.test(c));
     if (!dateCell && money.length === 0) continue;
-    const tagIndex = cells.findIndex((c, i) => i > 0 && /^[A-Za-z]{2,}[-/]?\d{3,}[A-Za-z0-9/\-]*$/.test(c));
+    // An IFMIS tag (MOA-016341) or a code this system gave (MOA-VEH-2024-0001)
+    const tagIndex = cells.findIndex((c, i) => i > 0 && (/^[A-Za-z]{2,}[-/]?\d{3,}[A-Za-z0-9/\-]*$/.test(c) || /^[A-Za-z]{2,}(?:[-/][A-Za-z]{2,})?[-/]\d{4}[-/]\d{3,}$/.test(c)));
     const unitCell = cells.find((c, i) => i > Math.max(tagIndex, 1) && /^\d+$/.test(c));
     found.lines.push({
       description: cells[1] && cells[1] !== cells[tagIndex] ? cells[1] : undefined,
@@ -166,6 +167,109 @@ export function parseModel21(text: string): Model21SlipFields {
       bookValue: money[2] !== undefined ? amount(money[2]) : undefined,
       date: dateCell ? toIsoDate(dateCell) : undefined,
     });
+  }
+  return found;
+}
+
+/** The vehicle and machinery details a Model 21 prints under its table */
+export interface Model21Particulars {
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  /** As the form names them: jack with handle, tire wrench, key, reserve tyre */
+  accessories: { name: string; quantity: number }[];
+  tireNos: string[];
+  remark?: string;
+}
+
+/** The accessories a Model 21 lists, by the names the transfer form keeps them under */
+const ACCESSORIES: [RegExp, string][] = [
+  [/^jack(\s+with\s+handle)?\b/i, 'jack with handle'],
+  [/^(tire|tyre|wheel)\s+wrench\b/i, 'tire wrench'],
+  [/^keys?\b/i, 'key'],
+  [/^(reserve|spare)\s+(tyre|tire)\b/i, 'reserve tyre'],
+];
+/** A tire or chassis number: letters and digits, with at least one digit */
+const CODE = /^(?=.*\d)[A-Za-z0-9]{4,}$/;
+
+/**
+ * The vehicle details of a Model 21, read by position: the chassis number is the pieces under the "Chassis" heading
+ * beside the asset line (IFMIS wraps it over several lines); plate, engine and accessories are "label value" pairs;
+ * the tire numbers are listed under "tire no", and the remark under "Remark". Anything not found is left out.
+ */
+export function parseModel21Particulars(rows: PdfRow[]): Model21Particulars {
+  const found: Model21Particulars = { accessories: [], tireNos: [] };
+  const clean = (t: string) => t.replace(/^\s*:\s*/, '').trim();
+
+  // "Plate No  4-23794", "Engine No  1HZ-0641864": the value in the same piece or the next one
+  const labelled = (label: RegExp): string | undefined => {
+    for (const row of rows) {
+      const i = row.cells.findIndex((c) => label.test(c.text));
+      if (i < 0) continue;
+      const inline = clean(row.cells[i].text.replace(label, ''));
+      const value = inline || clean(row.cells[i + 1]?.text ?? '');
+      if (/^[A-Za-z0-9][A-Za-z0-9\-/ ]*$/.test(value)) return value;
+    }
+    return undefined;
+  };
+  found.plateNo = labelled(/^plate\s*no\.?\s*:?/i);
+  found.engineNo = labelled(/^engine\s*no\.?\s*:?/i);
+
+  // "jack with handle  1", "key  2": the count in the same piece or the next one
+  for (const row of rows) {
+    row.cells.forEach((cell, i) => {
+      const hit = ACCESSORIES.find(([pattern]) => pattern.test(cell.text.trim()));
+      if (!hit || found.accessories.some((a) => a.name === hit[1])) return;
+      const inline = /(\d+)\s*$/.exec(cell.text.replace(hit[0], ''))?.[1];
+      const next = /^\d+$/.test(row.cells[i + 1]?.text.trim() ?? '') ? row.cells[i + 1].text.trim() : undefined;
+      const quantity = Number(inline ?? next);
+      if (quantity > 0) found.accessories.push({ name: hit[1], quantity });
+    });
+  }
+
+  // Tire numbers: the codes listed under "tire no", in its column
+  const tireLabel = rows.flatMap((r) => r.cells.map((c) => ({ row: r, cell: c }))).find(({ cell }) => /^t[iy]re\s*no\.?\s*:?$/i.test(cell.text.trim()));
+  if (tireLabel) {
+    for (const row of rows) {
+      if (row.top < tireLabel.row.top || row.top > tireLabel.row.top + 120) continue;
+      for (const cell of row.cells) {
+        if (Math.abs(cell.x - tireLabel.cell.x) < 20 && CODE.test(cell.text.trim())) found.tireNos.push(cell.text.trim());
+      }
+    }
+  }
+
+  // The remark: the lines under "Remark" (the last one on the page: the table's own heading comes first)
+  const remarkLabel = rows.flatMap((r) => r.cells.map((c) => ({ row: r, cell: c }))).filter(({ cell }) => /^remarks?\s*:?$/i.test(cell.text.trim())).pop();
+  if (remarkLabel) {
+    const lines: string[] = [];
+    for (const row of rows) {
+      if (row.top <= remarkLabel.row.top || row.top > remarkLabel.row.top + 60) continue;
+      if (/undersigned|signature/i.test(rowsToText([row]))) break;
+      const piece = row.cells.filter((c) => Math.abs(c.x - remarkLabel.cell.x) < 30).map((c) => c.text.trim()).join(' ');
+      if (piece) lines.push(piece);
+    }
+    if (lines.length) found.remark = lines.join(' ');
+  }
+
+  // The chassis number: what is under the "Chassis" heading, up to the next heading, beside the first asset line
+  const headings = rows.flatMap((r) => r.cells.map((c) => ({ row: r, cell: c })));
+  const chassis = headings.find(({ cell }) => /^chassis\b/i.test(cell.text.trim()));
+  if (chassis) {
+    const right = headings
+      .filter(({ row, cell }) => Math.abs(row.top - chassis.row.top) <= 12 && cell.x > chassis.cell.x + 5)
+      .map(({ cell }) => cell.x)
+      .sort((a, b) => a - b)[0] ?? chassis.cell.x + 40;
+    const line = rows.find((r) => r.top > chassis.row.top && /^\d{1,3}$/.test(r.cells[0]?.text.trim() ?? ''));
+    if (line) {
+      const pieces = rows
+        .filter((r) => Math.abs(r.top - line.top) <= 12)
+        .flatMap((r) => r.cells.filter((c) => c.x >= chassis.cell.x - 4 && c.x < right - 2).map((c) => ({ top: r.top, text: c.text.trim() })))
+        .filter((p) => /^[A-Za-z0-9]+$/.test(p.text))
+        .sort((a, b) => a.top - b.top)
+        .map((p) => p.text);
+      const joined = pieces.join('');
+      if (CODE.test(joined)) found.chassisNumber = joined;
+    }
   }
   return found;
 }

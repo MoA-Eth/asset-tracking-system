@@ -6,11 +6,12 @@ A **transfer** moves a **fixed asset** from one holder to another, hands it from
 
 1. On **Assets**, open the **⋮** menu of a fixed asset that is **Issued** or **In store** and choose **Transfer (Model 21)**.
 2. Enter the **Model 21 No.** and the **Book**. The **Transfer date** is today; change it if the transfer happened on another day (it can't be in the future).
-3. Check the asset. Optionally enter the **accumulated depreciation** (the **chassis number** is under Vehicle & machinery details).
+3. Check the asset. Optionally enter the **accumulated depreciation**.
 4. Choose **To employee** (required). The **directorate** fills in from the employee; change it if needed.
-5. Vehicles and machinery have optional details: chassis, plate, engine, accessories (jack, wrench, keys), reserve tyre, tires and defects.
+5. **Vehicle details** (chassis, plate, engine, accessories, reserve tyre, tire numbers) show for vehicles and machinery, or when the PDF has them; for anything else, press **Add vehicle details**. Note defects under **Defects / remarks**.
 6. **Recorded by (store man)** is a store man of the store the asset came from, chosen for you when there is only one. His name is printed on the voucher as **Recorded By**. When the asset is still **In store**, the field reads **Transferred by (store man)** and he is the **Transferor** on the voucher.
-7. Press **Submit transfer for approval**. The Model 21 voucher opens for printing.
+7. Attach the **Signed copy** (the IFMIS printout with its signatures, scanned) if you have it. Until it is added, the IFMIS PDF is kept as the copy.
+8. Press **Submit transfer for approval**. The Model 21 voucher opens for printing.
 
 ## Take an asset back to store
 
@@ -20,7 +21,7 @@ Use the same form for an **Issued** asset that is coming back.
 2. In **Return to store**, choose the store it goes back to. **To employee** and **To directorate** disappear.
 3. **Received by (store man)** is a store man of that store, chosen for you when there is only one. If the store has none, the transfer still goes ahead with no store man named.
 4. Enter the **Reason for return**. Note any defects or missing parts.
-5. Attach the **scanned return slip** (required only if your administrator says so).
+5. Attach the **Signed copy** (required only if your administrator says so).
 6. Press **Submit transfer to store for approval**.
 
 ## Good to know
@@ -33,7 +34,7 @@ Use the same form for an **Issued** asset that is coming back.
 
 ## Fill in from a Model 21 PDF
 
-On the transfer form, choose the Model 21 as a **PDF saved from IFMIS** in the **IFMIS Model 21 PDF** box at the top. It fills in the Model 21 No., book, transfer date, the asset (by its tag number), depreciation and book value, and the employee it goes to (by employee ID). Check them against the paper before submitting.
+On the transfer form, choose the Model 21 as a **PDF saved from IFMIS** in the **IFMIS Model 21 PDF** box at the top. It fills in the Model 21 No., book, transfer date, the asset (by its tag number), depreciation and book value, the employee it goes to (by employee ID), and for a vehicle the details printed under the table: **chassis number** (even when IFMIS wraps it over several lines), **plate**, **engine**, **accessories** (jack with handle, tire wrench, keys, reserve tyre), **tire numbers** and the **remark**. Check them against the paper before submitting: the PDF is shown open in **Slip preview** at the bottom of the form.
 
 The form keeps the order of operations, so nothing is filled in for an asset that isn't ready to transfer:
 
