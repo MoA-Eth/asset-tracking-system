@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload } from 'lucide-react';
 import { btn, statusTone, pill } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { Row } from '../ui/RecordDetailModal';
@@ -187,11 +187,10 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
     >
       {/* ── Title and toolbar ── */}
       <header className="shrink-0 relative space-y-2 border-b border-slate-200 px-5 py-4 bg-white z-10">
-        <div className={`flex items-center justify-between gap-3 ${editing && formActions?.length ? 'pr-32 lg:pr-40' : 'lg:pr-8'}`}>
-          <button type="button" onClick={onClose} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer">
-            <ArrowLeft className="h-3 w-3" /> Back to assets
-          </button>
-          {position && (
+        <div className="absolute right-3 top-3 flex items-center gap-1.5">
+          {editing && formActions?.map((a) => <HeaderActionButton key={a.label} action={a} />)}
+          {/* Moving to another asset is for reading; a form being filled stays put */}
+          {!editing && position && (
             <div className="flex items-center gap-1 text-[11px] text-slate-500">
               <button
                 type="button"
@@ -216,12 +215,9 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               </button>
             </div>
           )}
+          <CloseButton onClose={onClose} label="Close record" title="Back to assets (Esc)" />
         </div>
-        <div className="absolute right-3 top-3 flex items-center gap-1.5">
-          {editing && formActions?.map((a) => <HeaderActionButton key={a.label} action={a} />)}
-          <CloseButton onClose={onClose} label="Close record" title="Close (Esc)" className="hidden lg:inline-flex" />
-        </div>
-        <div className="flex flex-col gap-3 lg:pr-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
+        <div className={`flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between ${editing && formActions?.length ? 'pr-32 lg:pr-40' : !editing && position ? 'pr-44' : 'pr-8'}`}>
           <div className="min-w-0">
             <h3 className="truncate text-base font-extrabold text-slate-900" title={item.name}>{item.name}</h3>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">

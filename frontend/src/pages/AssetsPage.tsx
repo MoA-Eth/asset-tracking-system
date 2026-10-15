@@ -14,7 +14,6 @@ import {
   X,
   Filter,
   Download,
-  ArrowLeft,
   Trash2,
   Copy,
   FileUp,
@@ -1181,7 +1180,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       </div>
 
       {selectedRow || receipt ? (
-        /* ── The open record or registration, using the whole page; "Back to assets" returns to the list as it was ── */
+        /* ── The open record or registration, using the whole page; closing it (×, Esc) returns to the list as it was ── */
         <div className="grid items-start gap-3">
           {receipt ? (
             <section
@@ -1190,16 +1189,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             >
               {/* Fishbowl TitleBar */}
               <header className="shrink-0 relative space-y-2 border-b border-slate-200 px-5 py-4 bg-white z-10">
-                <button
-                  type="button"
-                  onClick={() => setReceipt(null)}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer"
-                >
-                  <ArrowLeft className="h-3 w-3" /> Back to assets
-                </button>
                 <div className="absolute right-3 top-3 flex items-center gap-1.5">
                   {!receipt.edit && <HeaderActionButton action={importAction('receipt')} />}
-                  <CloseButton onClose={() => setReceipt(null)} label="Close registration" title="Close (Esc)" className="hidden lg:inline-flex" />
+                  <CloseButton onClose={() => setReceipt(null)} label="Close registration" title="Back to assets (Esc)" />
                 </div>
                 <div className={receipt.edit ? 'lg:pr-8' : 'pr-32 lg:pr-40'}>
                   <div className="min-w-0">

@@ -28,7 +28,7 @@ An amber **N days in store** means the asset has waited more than 30 days and sh
 ## Open an asset
 
 1. Click a row, or open the **⋮** menu and choose **View details**.
-2. The record fills the page. Use **Back to assets** to return to your list as you left it, and the **Previous / Next** arrows (or the Up and Down keys) to move through the list. **Esc** also goes back.
+2. The record fills the page. Close it with **×** at the top right (or **Esc**) to return to your list as you left it. The **Previous / Next** arrows beside it (or the Up and Down keys) move through the list.
 3. The record shows the voucher and procurement details, the item, signatures and the scanned slip, who holds it, and every request made on it.
 4. The buttons at the top are the next steps that apply to this asset. They depend on its status and on your role.
 

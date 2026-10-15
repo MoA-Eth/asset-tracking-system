@@ -542,8 +542,9 @@ describe('Asset record', () => {
     expect(within(first).getByRole('button', { name: 'Previous asset' })).toBeDisabled();
     expect(within(first).getByRole('button', { name: 'Next asset' })).toBeDisabled();
 
-    // Back to assets: the same search and the same single result
-    await user.click(within(first).getByRole('button', { name: 'Back to assets' }));
+    // Closing it goes back to the list: the same search and the same single result
+    expect(within(first).queryByRole('button', { name: 'Back to assets' })).toBeNull();
+    await user.click(within(first).getByRole('button', { name: 'Close record' }));
     expect(screen.queryByRole('region', { name: /Asset record/ })).not.toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Search assets' })).toHaveValue('Generator');
     expect(rowOf('MOA-S2')).toBeInTheDocument();
@@ -1154,7 +1155,7 @@ describe('Asset record', () => {
 
     // The registration has the whole page: no list beside it, and a way back
     expect(screen.queryByRole('complementary', { name: 'Asset list' })).not.toBeInTheDocument();
-    expect(within(panel).getByRole('button', { name: 'Back to assets' })).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Close registration' })).toBeInTheDocument();
 
     // 1. Cancel button closes it
     await user.click(within(panel).getByRole('button', { name: 'Cancel' }));
