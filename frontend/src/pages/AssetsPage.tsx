@@ -856,7 +856,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           item.id === lastTouchedId ? table.rowHighlight : nested ? 'bg-slate-50/70 hover:bg-slate-100/70 transition' : table.row
         }`}
       >
-        <td className={`py-3 pr-3 ${nested ? 'pl-10' : 'pl-5'}`}>
+        <td className={`py-2.5 pr-3 ${nested ? 'pl-10' : 'pl-5'}`}>
           <span className="block font-medium text-slate-900">
             {nested && <span className="mr-1 text-slate-400" aria-hidden="true">↳</span>}
             {item.name}
@@ -876,10 +876,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </button>
           )}
         </td>
-        <td className="px-4 py-3">
+        <td className="px-4 py-2.5">
           <AssetStatus row={row} partly={isBatch && issuedUnits > 0 && inStoreUnits > 0} />
         </td>
-        <td className="px-4 py-3 text-right font-mono font-semibold text-slate-900">
+        <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-900">
           <span className="whitespace-nowrap">
             {isBatch ? totalUnits : row.units}
             <span className="ml-1 text-[10px] font-normal uppercase text-slate-500">{uom}</span>
@@ -893,7 +893,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </span>
           )}
         </td>
-        <td className="px-4 py-3 text-slate-700">
+        <td className="px-4 py-2.5 text-slate-700">
           <span className="block">{isBatch && row.state !== 'ISSUED' && inStoreUnits === 0 ? '—' : row.where}</span>
           {row.goingTo && <span className="block text-[10px] text-amber-800">→ {row.goingTo}</span>}
           {isBatch && out.length > 0 && (
@@ -902,12 +902,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </span>
           )}
         </td>
-        <td className="px-4 py-3 font-mono text-slate-700 whitespace-nowrap">
+        <td className="px-4 py-2.5 font-mono text-slate-700 whitespace-nowrap">
           <span className="block">{item.ifmisSlipNumber || '—'}</span>
           <span className="block text-[10px] text-slate-400">{item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10) || '—'}</span>
         </td>
-        <td className="px-4 py-3 text-right font-mono text-slate-700 whitespace-nowrap">{formatETB(item.unitCostETB)}</td>
-        <td className={`px-4 py-3 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
+        <td className="px-4 py-2.5 text-right font-mono text-slate-700 whitespace-nowrap">{formatETB(item.unitCostETB)}</td>
+        <td className={`px-4 py-2.5 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
           <RowActionsMenu
             label={item.itemCode}
             actions={[
@@ -1420,7 +1420,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="pl-5 pr-3 py-3 min-w-[200px]"
+                      thClassName="pl-5 pr-3 py-2.5 min-w-[200px]"
                     />
                     <SortableHeader
                       label="Status"
@@ -1428,7 +1428,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-4 py-3 w-36"
+                      thClassName="px-4 py-2.5 w-36"
                     />
                     <SortableHeader
                       label="Qty"
@@ -1437,7 +1437,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
                       align="right"
-                      thClassName="px-4 py-3 w-20 text-right"
+                      thClassName="px-4 py-2.5 w-20 text-right"
                     />
                     <SortableHeader
                       label="Held by / where"
@@ -1445,7 +1445,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-4 py-3 min-w-[170px]"
+                      thClassName="px-4 py-2.5 min-w-[170px]"
                     />
                     <SortableHeader
                       label="Model 19 slip"
@@ -1453,7 +1453,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-4 py-3 w-36 whitespace-nowrap"
+                      thClassName="px-4 py-2.5 w-36 whitespace-nowrap"
                     />
                     <SortableHeader
                       label="Unit cost"
@@ -1462,9 +1462,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
                       align="right"
-                      thClassName="px-4 py-3 w-28 text-right whitespace-nowrap"
+                      thClassName="px-4 py-2.5 w-28 text-right whitespace-nowrap"
                     />
-                    <th className={`px-4 py-3 ${table.actionsHead}`}>
+                    <th className={`px-4 py-2.5 ${table.actionsHead}`}>
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>
