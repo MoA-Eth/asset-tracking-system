@@ -25,15 +25,15 @@ export const btn = {
 /** Tables */
 export const table = {
   /** Header row: small uppercase labels on a light background */
-  headRow: 'table-head bg-white border-b border-slate-200 text-left text-xs font-medium text-slate-600',
+  headRow: 'table-head bg-slate-100 border-b border-slate-200 text-left text-[13px] font-normal text-slate-600',
   /** Body row */
   row: 'hover:bg-slate-50 transition',
   /** Row just created or updated by the user */
   rowHighlight: 'bg-emerald-50/80 border-l-4 border-emerald-600',
-  /** Item / tracking code cell text: plain, set apart only by the monospace font */
-  code: 'font-mono font-bold text-slate-800',
+  /** Item / tracking code: a quiet second line under the name */
+  code: 'text-xs text-slate-500 tabular-nums',
   /** Actions column ("⋮"), pinned to the right edge so it stays visible when the table scrolls */
-  actionsHead: 'sticky right-0 z-[1] bg-white w-12 text-right',
+  actionsHead: 'sticky right-0 z-[1] bg-slate-100 w-12 text-right',
   actionsCell: 'sticky right-0 z-[1] bg-white w-12 text-right whitespace-nowrap shadow-[-10px_0_10px_-10px_rgba(15,23,42,0.18)]',
   /** Search box above a table */
   search:

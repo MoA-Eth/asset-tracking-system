@@ -139,7 +139,7 @@ describe('Assets page', () => {
     await screen.findByText('MOA-S1');
     const batch = rowOf('MOA-S1');
     expect(batch).toHaveTextContent('Partly issued');
-    expect(batch).toHaveTextContent('10EA');
+    expect(batch).toHaveTextContent('10 ea');
     // One short line each under the total, so the column stays narrow
     expect(within(batch).getByText('3 issued')).toBeInTheDocument();
     expect(within(batch).getByText('7 in store')).toBeInTheDocument();
