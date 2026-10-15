@@ -135,4 +135,18 @@ describe('Model 21 printout matches the IFMIS form', () => {
     render(<Model21PrintModal isOpen onClose={vi.fn()} voucher={{ ...mockModel21Voucher, items: mockModel21Voucher.items.map((i) => ({ ...i, remark: undefined })) }} />);
     expect(screen.queryByText('No defects reported.')).toBeNull();
   });
+
+  it('keeps the IFMIS title on a return to store, and says it is a return, with the reason', () => {
+    render(<Model21PrintModal isOpen onClose={vi.fn()} voucher={{ ...mockModel21Voucher, isReturn: true, returnReason: 'Project ended' }} />);
+    expect(screen.getAllByText('Fixed Asset Internal Transfer Form').length).toBeGreaterThan(0);
+    expect(screen.getByText('Transaction Type :')).toBeInTheDocument();
+    expect(screen.getByText('Return to store')).toBeInTheDocument();
+    expect(screen.getByText('Project ended')).toBeInTheDocument();
+  });
+
+  it('prints a transfer as IFMIS does, with no transaction type', () => {
+    render(<Model21PrintModal isOpen onClose={vi.fn()} voucher={mockModel21Voucher} />);
+    expect(screen.queryByText('Transaction Type :')).toBeNull();
+    expect(screen.queryByText('Return to store')).toBeNull();
+  });
 });

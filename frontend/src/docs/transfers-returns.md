@@ -24,6 +24,8 @@ Use the same form for an **Issued** asset that is coming back.
 5. Attach the **Signed copy** (required only if your administrator says so).
 6. Press **Submit transfer to store for approval**.
 
+The printed voucher keeps the IFMIS title, **Fixed Asset Internal Transfer Form**, as IFMIS prints a return on the same form. Under the title it shows **Transaction Type: Return to store** and the **Reason for return**, so the signers can tell it is a return.
+
 ## Good to know
 
 - You can **edit** a pending transfer until the Team Leader endorses it. A transfer to store keeps its **Return to store** choice.

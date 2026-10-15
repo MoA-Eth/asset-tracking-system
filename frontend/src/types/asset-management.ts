@@ -437,6 +437,9 @@ export interface Model21Voucher {
   toEmployeeId: string;
   /** Transfer: the store man who recorded it, named as the second signatory */
   storeManName?: string;
+  /** A return to store: the IFMIS form is the same, so the printout says so under the title, with the reason */
+  isReturn?: boolean;
+  returnReason?: string;
   items: Model21LineItem[];
   famuAccountantName?: string;
   /** Name of the person printing; shown in the footer */

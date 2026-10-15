@@ -440,6 +440,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           book: book.trim() || '—',
           toEmployeeName: receiver?.fullNameEn || '—',
           toEmployeeId: receiver?.payrollId || '—',
+          isReturn: true,
+          returnReason: returnReason.trim(),
           items: [
             {
               sNo: 1,
@@ -460,7 +462,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               engineNo: engineNo.trim() || undefined,
               accessories: accessories.length > 0 ? accessories : undefined,
               tireNos: tireList.length > 0 ? tireList : undefined,
-              remark: defectRemark.trim() || returnReason.trim(),
+              remark: defectRemark.trim() || undefined,
             },
           ],
           printedBy: user?.fullNameEn,
@@ -1053,6 +1055,8 @@ export const buildModel21Voucher = async (
     toEmployeeName: toEmp?.fullNameEn || (r.transactionType === 'RETURN' ? d.storeRecipientName || storeName : '—'),
     toEmployeeId: toEmp?.payrollId || '—',
     storeManName: r.transactionType === 'TRANSFER' && !d.fromStore ? d.transferredByName : undefined,
+    isReturn: r.transactionType === 'RETURN',
+    returnReason: r.transactionType === 'RETURN' ? d.reason || undefined : undefined,
     items: [
       {
         sNo: 1,

@@ -36,6 +36,13 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
           { label: 'From Employee ID', value: voucher.fromEmployeeId, mono: true },
           { label: 'To Employee ID', value: voucher.toEmployeeId, mono: true },
           { label: 'Book', value: voucher.book },
+          // The same IFMIS form records a return to store; it says so, so the signers can tell
+          ...(voucher.isReturn
+            ? [
+                { label: 'Transaction Type', value: 'Return to store' },
+                { label: 'Reason for return', value: voucher.returnReason || '—' },
+              ]
+            : []),
         ]}
       />
 
