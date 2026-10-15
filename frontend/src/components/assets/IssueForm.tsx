@@ -618,7 +618,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                 onChange={(e) => setTransactionType(e.target.checked ? DISPOSAL_TRANSACTION_TYPE : issueType.current)}
                 className="h-4 w-4 accent-rose-700"
               />
-              Disposal (write-off)
+              Mark as disposal
             </label>
           ) : undefined
         }

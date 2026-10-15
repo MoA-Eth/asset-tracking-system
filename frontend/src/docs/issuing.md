@@ -59,7 +59,7 @@ Choose it in **IFMIS Model 22 PDF** at the top. The form fills in and a note lis
 
 ## Dispose of stock through Model 22
 
-Some units are written off on a Model 22 instead of the disposal form (expired, damaged, used up). Open **Issue (Model 22)** as usual and tick **Disposal (write-off)** beside the **Voucher** heading:
+Some units are written off on a Model 22 instead of the disposal form (expired, damaged, used up). Open **Issue (Model 22)** as usual and tick **Mark as disposal** beside the **Voucher** heading:
 
 - **Received by** goes away: enter the **Reason for disposal** instead. The section is then called **Reason and signatures**.
 - Everything else is the same: Model 22 No., date, items and quantities (several rows too), **Issued by (store man)**, the PDF and the signed copy. The button says **Submit disposal for approval**.
