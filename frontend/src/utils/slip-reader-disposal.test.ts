@@ -63,6 +63,10 @@ const FROM_PDFJS: PdfRow[] = [
   row(189, [134, '2'], [146, 'Lap Top'], [490, 'TRANSFER']),
   row(192, [201, 'MOA-004254'], [254, '5CG1103XNM']),
   row(196, [146, 'Computer'], [566, '80,378.00'], [626, '80,378.00'], [715, '0.00']),
+  // A long tag close to its serial comes as one piece
+  row(209, [134, '3'], [146, 'Laser Jet'], [490, 'TRANSFER']),
+  row(212, [201, 'MOA-IT-2026-0075 SLIP-TEST-01']),
+  row(216, [146, 'Printer'], [566, '12,500.00'], [626, '10,000.00'], [715, '2,500.00']),
   row(407, [90, 'I the undersigned recipient, hereby, certify that I have correctly counted and received the items listed above.']),
 ];
 
@@ -73,6 +77,7 @@ describe('reading an IFMIS disposal form', () => {
     expect(form.lines).toEqual([
       { description: 'Lap Top Computer', tagNumber: 'MOA-004344', serialNumber: 'SN-1792011873087', disposalType: 'TRANSFER', originalCost: 80378, accumulatedDepreciation: 80378, bookValue: 0 },
       { description: 'Lap Top Computer', tagNumber: 'MOA-004254', serialNumber: '5CG1103XNM', disposalType: 'TRANSFER', originalCost: 80378, accumulatedDepreciation: 80378, bookValue: 0 },
+      { description: 'Laser Jet Printer', tagNumber: 'MOA-IT-2026-0075', serialNumber: 'SLIP-TEST-01', disposalType: 'TRANSFER', originalCost: 12500, accumulatedDepreciation: 10000, bookValue: 2500 },
     ]);
   });
 

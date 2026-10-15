@@ -619,6 +619,35 @@ describe('Assets page', () => {
     expect(within(record).queryByRole('group', { name: 'Unknown IFMIS tag numbers' })).toBeNull();
   });
 
+  it('does not offer an asset the form already names for another line\'s unknown tag', async () => {
+    const user = userEvent.setup();
+    const laptop = item('L9', 'Lap Top Computer', 'AVAILABLE', { itemCode: 'MOA-IT-2026-0009', serialNumber: '5CG1091THZ' });
+    const spare = item('L8', 'Spare Laptop', 'AVAILABLE', { itemCode: 'MOA-IT-2026-0008' });
+    vi.mocked(api.getItems).mockResolvedValue([laptop, spare] as any);
+    const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+    vi.mocked(readPdfRows).mockResolvedValue([
+      r(132, [604, 'Fixed Asset Disposal Form']),
+      r(180, [183, 'Sold /Transferred / Donated to :'], [361, 'East Shawa Zone Agriculture Office'], [1018, 'No:'], [1048, '0001765/2018']),
+      r(233, [175, 'S.No'], [240, 'Asset Description'], [310, 'Tag Number'], [393, 'Serial Number'], [745, 'Disposal Type'], [830, 'Original Cost'], [1027, 'Book Value']),
+      r(257, [203, '1'], [221, 'Lap Top Computer'], [304, 'MOA-004344'], [385, '5CG1091THZ'], [742, 'TRANSFER'], [858, '80,378.00'], [948, '80,378.00'], [1083, '0.00']),
+      r(287, [203, '2'], [221, 'Lap Top Computer'], [304, 'MOA-004242'], [385, '5CG1093639'], [742, 'TRANSFER'], [858, '80,378.00'], [948, '80,378.00'], [1083, '0.00']),
+    ]);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-IT-2026-0009');
+    await menuFor(user, 'MOA-IT-2026-0009');
+    await user.click(screen.getByRole('menuitem', { name: 'Dispose' }));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-IT-2026-0009' });
+    await user.upload(document.querySelector('#disposal-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'disposal.pdf', { type: 'application/pdf' }));
+
+    const prompt = await within(record).findByRole('group', { name: 'Unknown IFMIS tag numbers' });
+    expect(within(prompt).getByText('MOA-004242')).toBeInTheDocument();
+    // This laptop is line 1 (found by its serial), so only the other asset is offered, and none is picked for you
+    await user.click(within(prompt).getByRole('combobox'));
+    expect(screen.queryByRole('option', { name: /MOA-IT-2026-0009/ })).toBeNull();
+    expect(screen.getByRole('option', { name: /MOA-IT-2026-0008/ })).toBeInTheDocument();
+    expect(within(prompt).getByRole('button', { name: 'Save as its IFMIS tag' })).toBeDisabled();
+  });
+
   it('on a disposal form that names this item by an IFMIS tag it lacks, offers to record the tag on it', async () => {
     const user = userEvent.setup();
     const chair = item('C1', 'Office Chair', 'AVAILABLE', { itemCode: 'MOA-OF-2026-0001' });

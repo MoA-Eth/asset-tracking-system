@@ -17,4 +17,15 @@ in. They say in their footer that they are not IFMIS documents.
   kit (fixed asset) and wheat seed (consumable).
 - `sample-model22-issue.pdf`: Model 22 No. 0000201/A Inventory, laid out like the real one: Mobile Card ×20 and fuel coupons on two lines (10 + 5, combined into one row), an umbrella line that is not in the demo stores, a transport cost of 300, and both signature names (Issued by "Tesfaye, Hiwot", the Saris store man; Received by "Tolosa, Kassahun"). Open **Issue (Model 22)** on an item of the Saris store and choose it.
 
-Upload them on the Receive items form to check what is filled in.
+- `sample-disposal-transfer.pdf`: Fixed Asset Disposal Form (Model 22/B) No. 0001765/2018, laid out like a photographed
+  IFMIS printout: the disposal type (TRANSFER) printed above each line number, descriptions over two lines, and the
+  tag, serial and figures set a little lower. Sold / Transferred / Donated to "East Shawa Zone Agriculture
+  Office/Umer Ahmed", 4 lines matching the local demo records. Open **Dispose** on `MOA-IT-2024-0001` (Dell
+  Latitude 5540, Kality) and choose it:
+  1. the Dell itself, named by an IFMIS tag (MOA-004344) it doesn't have yet, so found by its serial number; book value 0;
+  2. the HP printer by its record code (MOA-IT-2026-0075): will be disposed of;
+  3. the Epson scanner by its serial number (SLIP-TEST-02): will be disposed of;
+  4. a laptop no record has (MOA-004242): not disposed of, and the form offers to record its tag on an asset.
+
+Upload them on the Receive items form to check what is filled in. The Model 21 and disposal samples go on the transfer
+and disposal forms of an asset.

@@ -566,7 +566,8 @@ export function parseModel22(rows: PdfRow[]): Model22SlipFields {
 export const isDisposalForm = (text: string): boolean => /fixed\s+asset\s+disposal\s+form|model\s*\/\s*22\s*\/\s*b\b/i.test(text);
 
 const MONEY = /^-?[\d,]+\.\d{2}$/;
-const TAG = /^[A-Za-z]{2,}[-/]?\d{3,}[A-Za-z0-9/\-]*$/;
+// An IFMIS tag (MOA-004344) or a record code with its category (MOA-IT-2026-0075)
+const TAG = /^[A-Za-z]{2,}(?:[-/][A-Za-z]{2,5})?[-/]?\d{3,}[A-Za-z0-9/\-]*$/;
 
 /** The fields of an IFMIS disposal form; anything not found is left out */
 export function parseDisposalForm(rows: PdfRow[]): DisposalSlipFields {
@@ -611,7 +612,15 @@ export function parseDisposalForm(rows: PdfRow[]): DisposalSlipFields {
   starts.forEach((start, n) => {
     const from = start.top - lead;
     const to = (starts[n + 1]?.top ?? start.top + pitch) - lead;
-    const band = body.filter((r) => r.top >= from && r.top < to).flatMap((r) => r.cells.map((c) => ({ ...c, top: r.top })));
+    const band = body
+      .filter((r) => r.top >= from && r.top < to)
+      .flatMap((r) => r.cells)
+      // Close columns can come as one piece ("MOA-IT-2026-0075 SLIP-TEST-01"): the tag and the serial after it
+      .flatMap((c) => {
+        const [first, ...rest] = c.text.split(/\s+/);
+        const nearTag = tagX === undefined || Math.abs(c.x - tagX) < 40;
+        return nearTag && rest.length && TAG.test(first) ? [{ x: c.x, text: first }, { x: serialX ?? c.x + 50, text: rest.join(' ') }] : [c];
+      });
     const number = start.cells[0];
     const tag = band.find((c) => TAG.test(c.text) && (tagX === undefined || Math.abs(c.x - tagX) < 40));
     if (!tag) return;

@@ -142,6 +142,8 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   const extraReady = extraAssets.filter((o) => o.asset && !o.problem) as { key: number; line: DisposalSlipLine; asset: ItemWithRelations }[];
   // IFMIS tags the form names that no asset has; each can be recorded on the asset it is, and the form read again
   const [unknownTags, setUnknownTags] = useState<string[]>([]);
+  // Assets the form already names: not offered for another line's tag
+  const [matchedIds, setMatchedIds] = useState<Set<string>>(new Set());
   const learnedTags = useRef(new Map<string, string>());
   const lastRead = useRef<DisposalSlipFields | null>(null);
   // This record is always one of the assets, also when correcting a request (which has no list)
@@ -165,6 +167,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   const fillFromDisposalForm = (form: DisposalSlipFields) => {
     lastRead.current = form;
     setUnknownTags([...new Set(form.lines.filter((l) => !assetOf(l)).map((l) => l.tagNumber?.trim() ?? '').filter(Boolean))]);
+    setMatchedIds(new Set(form.lines.map((l) => assetOf(l)?.id).filter((id): id is string => !!id)));
     const filled: string[] = [];
     const problems: string[] = [];
     if (form.disposalNo && !disposalNo.trim()) {
@@ -350,7 +353,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
         </FormNotice>
       )}
       {unknownTags.length > 0 && (
-        <LearnTagPrompt tags={unknownTags} candidates={taggableAssets(isEdit ? [item] : knownItems, learnedTags.current)} suggestedId={item.id} onLearned={tagLearned} />
+        <LearnTagPrompt tags={unknownTags} candidates={taggableAssets(isEdit ? [item] : knownItems, learnedTags.current).filter((a) => !matchedIds.has(a.id))} suggestedId={item.id} onLearned={tagLearned} />
       )}
       {extraAssets.length > 0 && (
         <OtherAssets
