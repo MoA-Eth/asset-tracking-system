@@ -6,16 +6,16 @@ Use this when new items arrive. A receipt creates the asset records. They stay *
 
 - [ ] You have the Model 19, best as the **PDF saved from IFMIS** (it fills in the form for you), or the paper slip.
 - [ ] You know which store the items go to.
-- [ ] If your administrator requires scanned slips, you have the scan (PDF, PNG, JPEG or WEBP, up to 10 MB).
+- [ ] The **signed copy**: the IFMIS printout with its signatures, scanned or photographed (PDF, PNG, JPEG or WEBP, up to 10 MB). It is required only if your administrator says so.
 
 ## The form
 
 It follows the Model 19, top to bottom:
 
-1. **Model 19 voucher:** attach the PDF or scan here.
+1. **IFMIS Model 19 PDF:** the PDF saved from IFMIS, read to fill in the form.
 2. **Voucher:** Model 19 No., PO number, received date, transaction type, then source, buyer and program.
 3. **Items:** one row per line on the slip, with each row's total and the grand total.
-4. **Store and signatures:** receiving store, received by (store man), delivered by.
+4. **Store and signatures:** receiving store, received by (store man), delivered by, and the **Signed copy** (the signed printout, scanned).
 
 The bar at the bottom stays in view with **Submit**. While something is missing it lists it under **Still needed**: click a name to jump to that field.
 
@@ -31,15 +31,16 @@ The bar at the bottom stays in view with **Submit**. While something is missing 
    - A **fixed asset is one item**: its quantity is 1.
    - **Add item** adds a row for another line of the same Model 19; **×** at the end of a row removes it.
    - The system gives every item its own record code.
-5. **Store and signatures:** choose the **Receiving store** (yours is chosen if you are the store man of one). **Received by** is that store's store man; choose one if there are several. **Delivered by** follows the buyer until you type another name.
+5. **Store and signatures:** choose the **Receiving store** (yours is chosen if you are the store man of one). **Received by** is that store's store man; choose one if there are several. **Delivered by** follows the buyer until you type another name. Attach the **Signed copy**: it is kept as the receipt's copy. Until you add one, the IFMIS PDF is kept instead.
 6. Press **Submit for approval**. The Model 19 voucher opens to print.
 
 ## Fill in from a Model 19 PDF
 
-Attach it in **Model 19 voucher**, or press **Import receipt** at the top right. The form fills in what is still empty and keeps what you typed; a note lists what was filled. **Check it against the paper** (press **View** to open the copy) before submitting.
+Choose it in **IFMIS Model 19 PDF** at the top. The form fills in what is still empty and keeps what you typed; a note lists what was filled. **Check it against the paper** (press **View** to open it) before submitting.
 
 - **Filled in:** the voucher header, **every item line as a row** (code, type, description, category, unit, quantity, price), delivered by, and received by when IFMIS printed the names. A store man named on the slip also sets the store.
 - **Another PDF** replaces what the first one filled in, including its rows; what you typed stays.
+- **The signed scan is never read.** Attaching it, even as a PDF, changes nothing that was filled in. A scan or photo chosen in the IFMIS PDF box by mistake is moved to **Signed copy**.
 
 ## Common cases
 
@@ -53,7 +54,8 @@ Attach it in **Model 19 voucher**, or press **Import receipt** at the top right.
 | No Model 19 yet | It can't be registered yet: the Model 19 No. is required. |
 | Donation | Leave the PO number empty. No source, buyer or prices. |
 | Petty-cash purchase (no PO number on the slip) | It comes in as a donation. If it was bought, type the PO number, or ask your supervisor how to record it. |
-| A scan or photo, not an IFMIS PDF | It is attached as the copy; fill in the fields by hand. |
+| Usual flow: IFMIS PDF, then the signed printout | Choose the IFMIS PDF at the top (it fills the form), then attach the signed scan under **Signed copy**. |
+| Only a scan or photo, no IFMIS PDF | Attach it under **Signed copy** and fill in the fields by hand. |
 | A Model 21, Model 22 or disposal form | Refused here and not attached; the note says which form it belongs to. |
 | The slip was already received | The note warns with the existing record codes, so the goods aren't counted twice. |
 | A mistake after submitting | Until the Team Leader endorses it: **Edit receipt**, fix, **Save changes**. After that: ask an approver to reject it, then register it again. |

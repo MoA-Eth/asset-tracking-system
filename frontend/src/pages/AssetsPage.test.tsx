@@ -728,7 +728,8 @@ describe('Asset record', () => {
     expect(toast.warning).toHaveBeenCalledWith('Not a Model 19', expect.any(String));
     // Not kept as the receipt's scanned copy
     expect(within(panel).queryByText('other-form.pdf')).toBeNull();
-    expect(within(panel).getByText('Click to attach a scanned copy')).toBeInTheDocument();
+    expect(within(panel).getByText('Click to choose the Model 19 PDF saved from IFMIS')).toBeInTheDocument();
+    expect(within(panel).getByText('Click to attach the signed Model 19, scanned')).toBeInTheDocument();
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('');
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
   });
@@ -866,15 +867,16 @@ describe('Asset record', () => {
     expect(within(panel).queryByLabelText(/Tag number/i)).toBeNull();
   });
 
-  it('attaches a photo of a slip without reading it: only PDFs saved from IFMIS are read', async () => {
+  it('attaches a photo of the signed slip without reading it: only PDFs saved from IFMIS are read', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
-    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'model19-photo.jpg', { type: 'image/jpeg' }));
+    const signed = within(panel).getByRole('region', { name: 'Store and signatures' });
+    await user.upload(signed.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'model19-photo.jpg', { type: 'image/jpeg' }));
 
-    expect(await within(panel).findByText('model19-photo.jpg')).toBeInTheDocument();
+    expect(await within(signed).findByText('model19-photo.jpg')).toBeInTheDocument();
     expect(readPdfRows).not.toHaveBeenCalled();
     expect(within(panel).queryByRole('status')).toBeNull();
 
@@ -885,28 +887,35 @@ describe('Asset record', () => {
     expect(within(viewer).getByRole('img', { name: 'IFMIS slip model19-photo.jpg' })).toBeInTheDocument();
   });
 
-  it('the Import receipt button reads a Model 19 PDF into the open form, keeping what was typed', async () => {
+  it('reads the IFMIS PDF at the top, then keeps what it filled in when the signed scan is attached', async () => {
     const user = userEvent.setup();
     const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
-    vi.mocked(readPdfRows).mockResolvedValue([
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    // One place to read the IFMIS PDF: the box at the top, no Import receipt button
+    expect(screen.queryByRole('button', { name: 'Import receipt' })).toBeNull();
+    await user.type(within(panel).getByLabelText(/Item description/i), 'Typed by hand');
+
+    vi.mocked(readPdfRows).mockResolvedValueOnce([
       r(98, [640, 'Print Model19 Report']),
       r(146, [680, 'INV Model 19 No. :'], [812, '0000051']),
       r(193, [677, 'Transaction Type :'], [812, 'PO Receipt']),
     ]);
-    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-    await screen.findByText('MOA-S1');
-    // The list itself has no import; it belongs to the form
-    expect(screen.queryByRole('button', { name: 'Import receipt' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
-    const panel = screen.getByRole('region', { name: 'Receive items' });
-    await user.type(within(panel).getByLabelText(/Item description/i), 'Typed by hand');
-    await user.click(within(panel).getByRole('button', { name: 'Import receipt' }));
-    await user.upload(screen.getByLabelText('Voucher PDF to import'), new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
-
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
     expect(await within(panel).findByText(/Filled in from the slip/)).toBeInTheDocument();
     expect(within(panel).getByText('model19.pdf')).toBeInTheDocument();
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000051');
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Typed by hand');
+
+    // The signed printout, scanned to a PDF (no text), is the copy: it is not read and clears nothing
+    vi.mocked(readPdfRows).mockClear();
+    const signed = within(panel).getByRole('region', { name: 'Store and signatures' });
+    await user.upload(signed.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'signed-scan.pdf', { type: 'application/pdf' }));
+    expect(await within(signed).findByText('signed-scan.pdf')).toBeInTheDocument();
+    expect(readPdfRows).not.toHaveBeenCalled();
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000051');
   });
 
   it('says so when the attached PDF is a scan with no text', async () => {
@@ -916,10 +925,12 @@ describe('Asset record', () => {
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
+    await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000077');
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'scan.pdf', { type: 'application/pdf' }));
-    // Only text PDFs saved from IFMIS are read; a scanned one is attached as it is
-    expect(await within(panel).findByText(/This PDF has no text \(it is a scanned image\)/)).toBeInTheDocument();
-    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
+    // Only text PDFs saved from IFMIS are read; a scanned one is the signed copy, and what was typed stays
+    expect(await within(panel).findByText(/This PDF is a scan \(it has no text\)\. It is attached below as the signed copy/)).toBeInTheDocument();
+    expect(within(within(panel).getByRole('region', { name: 'Store and signatures' })).getByText('scan.pdf')).toBeInTheDocument();
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000077');
   });
 
   it('opens an endorsed stage-2 record in view mode with locked actions and accurate banner', async () => {

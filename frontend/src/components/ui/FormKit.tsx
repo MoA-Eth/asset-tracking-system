@@ -383,9 +383,11 @@ interface FileDropFieldProps {
   file?: File | null;
   /** The copy already saved with the record, viewed when no new file is attached */
   savedUrl?: string;
+  /** What the empty field says, instead of asking for a scanned copy */
+  emptyText?: string;
 }
 
-export const FileDropField: React.FC<FileDropFieldProps> = ({ label, accent, required, fileName, accept, onChange, hint, file, savedUrl }) => {
+export const FileDropField: React.FC<FileDropFieldProps> = ({ label, accent, required, fileName, accept, onChange, hint, file, savedUrl, emptyText }) => {
   const missing = required && !fileName;
   const [viewing, setViewing] = useState(false);
   // A new file is shown over the saved copy it replaces
@@ -406,7 +408,7 @@ export const FileDropField: React.FC<FileDropFieldProps> = ({ label, accent, req
         </span>
         <span className="min-w-0 flex-1">
           <span className={`block truncate text-[13px] ${fileName ? 'font-medium text-slate-900' : missing ? 'text-amber-800' : 'text-slate-500'}`}>
-            {fileName || (missing ? 'A scanned copy is required' : 'Click to attach a scanned copy')}
+            {fileName || (missing ? 'A scanned copy is required' : emptyText ?? 'Click to attach a scanned copy')}
           </span>
           <span className="block text-[11px] text-slate-400">{hint || 'PDF, PNG, JPEG or WEBP · up to 10 MB'}</span>
         </span>

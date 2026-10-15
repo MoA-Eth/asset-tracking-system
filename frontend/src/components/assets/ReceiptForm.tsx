@@ -157,11 +157,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const storeMen = keepers.ofStore(storeId);
   const receiverId = receivedById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
   const receiverName = storeMen.find((k) => k.employeeId === receiverId)?.fullNameEn ?? receivedBy;
-  // In edit mode the current slip is kept unless a new file is chosen
-  const [attachmentFileName, setAttachmentFileName] = useState(
+  // Two files. The IFMIS Model 19 PDF is read to fill in the form. The signed copy is that printout signed and
+  // scanned: it is never read, and it is kept as the receipt's copy (the IFMIS PDF is kept until one is added).
+  const [ifmisFile, setIfmisFile] = useState<File | null>(null);
+  // In edit mode the copy already saved counts as the signed copy, unless a new file is chosen
+  const [signedFileName, setSignedFileName] = useState(
     editItem?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editItem.ifmisSlipAttachmentUrl) : ''
   );
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [signedFile, setSignedFile] = useState<File | null>(null);
+  const copyFile = signedFile ?? ifmisFile;
   const [formError, setFormError] = useState<string | null>(null);
 
   const policy = useSystemSettings().slipAttachmentPolicy;
@@ -194,7 +198,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !(quantity >= 1) && 'quantity',
     !uom.trim() && 'unit of measure',
     !donation && !(unitCostETB > 0) && 'unit price',
-    isAttachmentRequired && !attachmentFileName && 'scanned slip',
+    isAttachmentRequired && !signedFileName && 'signed copy',
     // A line needing one thing says what; a line needing more is just named, its empty cells are marked in the table
     ...extraLines.map((l, i) => {
       const missing = lineMissing(l, donation);
@@ -240,8 +244,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setDeliveredByOwn(false);
     setReceivedBy('');
     setReceivedById('');
-    setAttachmentFileName('');
-    setAttachmentFile(null);
+    setIfmisFile(null);
+    setSignedFileName('');
+    setSignedFile(null);
     setFormError(null);
   };
 
@@ -410,20 +415,27 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             ? 'a Model 22 issue voucher (Receipt For Articles Or Property Issued). It belongs with the issue of the asset, not its receipt'
             : undefined;
 
-  /** Only a Model 19 is read here; a scan, or a PDF that is no IFMIS form, is attached as the copy without being read */
-  const fillFromSlip = (rows: PdfRow[]) => {
-    const text = rowsToText(rows);
-    if (isModel19(text)) return fillFromModel19(parseModel19(rows));
-    // Another PDF replaces the slip: what an earlier slip filled in no longer has a document behind it
-    const hadSlip = Object.keys(fromSlip.current).length > 0 || extraLines.length > 0;
-    forgetSlip();
-    const cleared = hadSlip ? ' What the previous slip filled in was cleared.' : '';
-    setSlipNote({
-      tone: 'warn',
-      text: !text.trim()
-        ? `This PDF has no text (it is a scanned image), so it could not be read. It is attached; fill in the fields as usual.${cleared}`
-        : `Only an IFMIS Model 19 PDF can be read here. It is attached; fill in the fields as usual.${cleared}`,
-    });
+  /** The signed copy: attached as the receipt's copy, never read */
+  const takeSigned = (file: File) => {
+    const error = validateSlipFile(file);
+    if (error) {
+      setFormError(error);
+      toast.warning('Invalid Slip File', error);
+      return;
+    }
+    setFormError(null);
+    setSignedFile(file);
+    setSignedFileName(file.name);
+  };
+  const handleSignedSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) takeSigned(file);
+  };
+  /** A scan given where the IFMIS PDF goes: it cannot be read, so it becomes the signed copy, and what was read stays */
+  const scanGiven = (file: File, what: string) => {
+    takeSigned(file);
+    setSlipNote({ tone: 'info', text: `${what} It is attached below as the signed copy. Nothing was read from it; what was filled in stays.` });
   };
 
   // A slip chosen with the header button is read like one picked in the form; fields already filled are kept
@@ -448,18 +460,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setFormError(null);
     // Reading takes a moment: if another file is chosen meanwhile, only the last one counts
     latestSlip.current = file;
-    const attach = () => {
-      setAttachmentFile(file);
-      setAttachmentFileName(file.name);
-    };
-    // A picture is attached as it is; only a PDF saved from IFMIS carries text to read
-    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
-      attach();
-      const hadSlip = Object.keys(fromSlip.current).length > 0 || extraLines.length > 0;
-      // A photo may well be the same slip, so what was read from a PDF stays, with a reminder to check it
-      setSlipNote(hadSlip ? { tone: 'warn', text: 'The fields read from the earlier PDF are kept. Check they match this slip.' } : null);
-      return;
-    }
+    // A picture is a scan: only a PDF saved from IFMIS carries text to read
+    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return scanGiven(file, 'This is a photo or scan.');
     // The PDF is read before it is attached: another IFMIS form is refused, not kept as this receipt's copy
     setSlipNote({ tone: 'info', text: 'Reading the slip…' });
     readPdfPages(file, MAX_SLIP_PAGES)
@@ -472,8 +474,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           toast.warning('Not a Model 19', message);
           return;
         }
-        attach();
-        fillFromSlip(rows);
+        const text = rowsToText(rows);
+        // A scanned PDF has no text: it is the signed copy, not the IFMIS PDF
+        if (!text.trim()) return scanGiven(file, 'This PDF is a scan (it has no text).');
+        if (!isModel19(text)) {
+          setSlipNote({ tone: 'warn', text: 'Only an IFMIS Model 19 PDF can be read here. It was not attached and nothing was filled in.' });
+          return;
+        }
+        setIfmisFile(file);
+        fillFromModel19(parseModel19(rows));
         if (pages > pagesRead) {
           toast.warning(
             'Slip only partly read',
@@ -483,8 +492,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       })
       .catch(() => {
         if (latestSlip.current !== file) return;
-        attach();
-        setSlipNote({ tone: 'warn', text: "The slip couldn't be read. It is attached; fill in the fields as usual." });
+        setSlipNote({ tone: 'warn', text: "The PDF couldn't be read, so nothing was filled in. If it is the signed scan, attach it under Signed copy." });
       });
   };
 
@@ -541,8 +549,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       return;
     }
 
-    if (isAttachmentRequired && !attachmentFileName) {
-      const msg = 'System Policy requires a scanned IFMIS Model 19 slip attachment.';
+    if (isAttachmentRequired && !signedFileName) {
+      const msg = 'System Policy requires the signed Model 19, scanned.';
       setFormError(msg);
       toast.warning('Attachment Required', msg);
       return;
@@ -554,7 +562,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     if (editItem) {
       try {
         const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
-        const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
+        const slipUrl = copyFile ? (await api.uploadSlip(copyFile)).url : undefined;
         const res = await api.updateStockIn(editItem.id, {
           name: name.trim(),
           category: category as AssetCategory,
@@ -629,7 +637,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         totalAmount: donation ? 0 : l.quantity * l.unitPrice,
       }))];
 
-      const slipUrl = attachmentFile ? (await api.uploadSlip(attachmentFile)).url : undefined;
+      const slipUrl = copyFile ? (await api.uploadSlip(copyFile)).url : undefined;
 
       const res = await api.registerStockIn({
         name: name.trim(),
@@ -828,15 +836,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       {/* The Model 19 PDF first: it fills in most of what follows */}
       <div className="space-y-2">
         <FileDropField
-          label="Model 19 voucher"
+          label="IFMIS Model 19 PDF"
           accent="emerald"
-          required={isAttachmentRequired}
-          fileName={attachmentFileName}
+          required={false}
+          fileName={ifmisFile?.name ?? ''}
           accept={SLIP_ACCEPT_ATTR}
           onChange={handleSlipSelected}
-          file={attachmentFile}
-          savedUrl={editItem?.ifmisSlipAttachmentUrl}
-          hint="Attach the Model 19 PDF saved from IFMIS and the form fills itself in. A scan or photo is attached as the copy."
+          file={ifmisFile}
+          emptyText="Click to choose the Model 19 PDF saved from IFMIS"
+          hint="The form fills itself in from it. The signed, scanned copy goes under Store and signatures."
         />
         {slipNote && (
           <FormNotice icon={FileText} tone={slipNote.tone}>
@@ -954,6 +962,18 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             />
           </Field>
         </FieldGrid>
+        <FileDropField
+          label="Signed copy"
+          accent="emerald"
+          required={isAttachmentRequired}
+          fileName={signedFileName}
+          accept={SLIP_ACCEPT_ATTR}
+          onChange={handleSignedSelected}
+          file={signedFile}
+          savedUrl={editItem?.ifmisSlipAttachmentUrl}
+          emptyText="Click to attach the signed Model 19, scanned"
+          hint={`The IFMIS printout with its signatures, as a scan or photo (PDF, PNG, JPEG or WEBP, up to 10 MB).${isAttachmentRequired ? '' : ' Until it is added, the IFMIS PDF is kept as the copy.'}`}
+        />
       </Part>
 
       <datalist id="uom-options">
@@ -969,7 +989,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         // Submit stays off until every required field is filled
         missingFields={missingFields}
         // Names with no field label of their own
-        fieldTargets={{ 'item code starting with 0 or 1': '#stock-in-ifmis-code', 'scanned slip': 'input[type="file"]' }}
+        fieldTargets={{ 'item code starting with 0 or 1': '#stock-in-ifmis-code', 'signed copy': 'section[aria-label="Store and signatures"] input[type="file"]' }}
         onCancel={onCancel}
         onReset={isEdit ? undefined : handleReset}
       />

@@ -1190,10 +1190,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               {/* Fishbowl TitleBar */}
               <header className="shrink-0 relative space-y-2 border-b border-slate-200 px-5 py-4 bg-white z-10">
                 <div className="absolute right-3 top-3 flex items-center gap-1.5">
-                  {!receipt.edit && <HeaderActionButton action={importAction('receipt')} />}
                   <CloseButton onClose={() => setReceipt(null)} label="Close registration" title="Back to assets (Esc)" />
                 </div>
-                <div className={receipt.edit ? 'lg:pr-8' : 'pr-32 lg:pr-40'}>
+                <div className="pr-8">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2.5">
                       <h3 className="text-base font-extrabold text-slate-900">
