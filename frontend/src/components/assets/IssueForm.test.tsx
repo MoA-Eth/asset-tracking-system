@@ -228,6 +228,36 @@ describe('Model 22 voucher for an issue to an organization', () => {
   });
 });
 
+describe('Reprinting a Model 22 saved with several lines', () => {
+  const line = (id: string, code: string, name: string, extra: object = {}) =>
+    ({
+      id, transactionType: 'STOCK_OUT', itemId: `item-${id}`, itemCode: code, itemName: name, ifmisSlipNumber: '0000201/A',
+      status: 'PENDING', currentStage: 1, createdAtGc: '2026-10-14', requestDetails: { quantity: 2 }, ...extra,
+    }) as any;
+  // As the server lists them: newest first. The first line saved carries the transport cost.
+  const requests = [
+    line('c', 'MOA-3', 'Toner', { status: 'REJECTED' }),
+    line('b', 'MOA-2', 'Pens'),
+    line('a', 'MOA-1', 'Paper', { requestDetails: { quantity: 2, transportationCost: 150 } }),
+    line('x', 'MOA-9', 'Other voucher', { ifmisSlipNumber: '0000202/A' }),
+  ];
+  const items = [item({ id: 'item-a', unitCostETB: 100 }), item({ id: 'item-b', unitCostETB: 10 })];
+
+  it('prints every line saved with the same Model 22 No., in the order saved, from whichever line it is opened', () => {
+    const voucher = buildModel22Voucher(requests[1], { item: items[1], departments: [], employees: [], requests, items });
+    expect(voucher.items.map((l) => [l.sNo, l.itemDescription, l.totalAmount])).toEqual([
+      [1, 'Paper', 200],
+      [2, 'Pens', 20],
+    ]);
+    expect(voucher).toMatchObject({ total: 220, transportationCost: 150, grandTotal: 370 });
+  });
+
+  it('prints a rejected line on its own', () => {
+    const voucher = buildModel22Voucher(requests[0], { departments: [], employees: [], requests, items });
+    expect(voucher.items.map((l) => l.itemDescription)).toEqual(['Toner']);
+  });
+});
+
 describe('Issue items (Model 22): the store man', () => {
   const renderIssue = () =>
     render(<StockOutForm availableItems={[item()]} departments={[]} employees={[]} initialItemId="item-1" onCancel={vi.fn()} onSuccess={vi.fn()} />);

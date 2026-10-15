@@ -464,7 +464,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const printRequest = async (request: TransactionApproval, record?: ItemWithRelations) => {
     const item = record ?? items.find((i) => i.id === request.itemId);
     if (request.transactionType === 'STOCK_OUT') {
-      setVoucher22(buildModel22Voucher(request, { item, departments, employees, printedBy: user?.fullNameEn }));
+      setVoucher22(buildModel22Voucher(request, { item, departments, employees, printedBy: user?.fullNameEn, requests: approvals, items }));
     } else if (request.transactionType === 'DISPOSAL') {
       setVoucherDisposal(buildDisposalVoucher(request, { item, employees, printedBy: user?.fullNameEn }));
     } else if (request.transactionType === 'TRANSFER' || request.transactionType === 'RETURN') {

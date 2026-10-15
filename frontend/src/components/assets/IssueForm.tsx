@@ -900,10 +900,29 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   );
 };
 
-/** Model 22 voucher for an issue request, from the request and its item */
+/**
+ * The requests printed on one Model 22: those saved with the same Model 22 No. (a voucher's lines are saved together,
+ * one request each), in the order they were saved. A rejected line is left off, unless the one being printed is rejected.
+ */
+export const sameModel22 = (approval: TransactionApproval, requests: TransactionApproval[] = []): TransactionApproval[] => {
+  const no = approval.ifmisSlipNumber?.trim().toLowerCase();
+  if (!no || approval.status === 'REJECTED') return [approval];
+  const lines = requests.filter(
+    (r) => r.id === approval.id || (r.transactionType === 'STOCK_OUT' && r.status !== 'REJECTED' && r.ifmisSlipNumber?.trim().toLowerCase() === no),
+  );
+  if (!lines.some((r) => r.id === approval.id)) lines.push(approval);
+  // The list comes newest first and lines of one voucher share a date, so on the same day the later in the list was saved first
+  const at = (r: TransactionApproval) => requests.findIndex((x) => x.id === r.id);
+  return lines.sort((a, b) => String(a.createdAtGc ?? '').slice(0, 10).localeCompare(String(b.createdAtGc ?? '').slice(0, 10)) || at(b) - at(a));
+};
+
+/**
+ * Model 22 voucher for an issue request, from the request and its item. Given the other requests (and their items), it
+ * lists every line saved on the same voucher, as the original printout did.
+ */
 export const buildModel22Voucher = (
   approval: TransactionApproval,
-  context: { item?: ItemWithRelations; departments: Department[]; employees: Employee[]; printedBy?: string },
+  context: { item?: ItemWithRelations; departments: Department[]; employees: Employee[]; printedBy?: string; requests?: TransactionApproval[]; items?: ItemWithRelations[] },
 ): Model22Voucher => {
   const { item: itemDetails, departments, employees } = context;
   const details = approval.requestDetails ?? {};
@@ -913,11 +932,29 @@ export const buildModel22Voucher = (
   const outside = details.recipientType === 'EXTERNAL' ? details.organizationName : undefined;
   const requester = employees.find((e) => e.id === approval.requestedById) || approval.requestedBy;
   const issuedDateGc = approval.ifmisSlipDateGc || (approval.createdAtGc ? approval.createdAtGc.split('T')[0] : new Date().toISOString().split('T')[0]);
-  const unitPrice = itemDetails?.unitCostETB || 0;
-  const qty = Number(details.quantity) || Number(itemDetails?.quantity) || 1;
-  const totalAmount = unitPrice * qty;
-  const transportationCost = Number(details.transportationCost) || 0;
   const subInventory = itemDetails?.subInventory || itemDetails?.storeLocation?.roomNumber || '—';
+  const lines = sameModel22(approval, context.requests).map((r, i) => {
+    const item = r.id === approval.id ? itemDetails : context.items?.find((x) => x.id === r.itemId);
+    const unitPrice = item?.unitCostETB || 0;
+    const quantity = Number(r.requestDetails?.quantity) || Number(item?.quantity) || 1;
+    return {
+      sNo: i + 1,
+      itemCode: item?.ifmisItemCode || r.itemCode,
+      itemDescription: r.itemName,
+      uom: item?.uom || 'EA',
+      subInventory: item?.subInventory || item?.storeLocation?.roomNumber || subInventory,
+      itemCategory: item?.itemCategoryDisplay || (item?.category as string) || '—',
+      quantity,
+      unitPrice,
+      totalAmount: unitPrice * quantity,
+      // The purpose isn't on the IFMIS Model 22, so the Remark column stays empty as there
+      remark: '',
+      transportationCost: Number(r.requestDetails?.transportationCost) || 0,
+    };
+  });
+  const totalAmount = lines.reduce((sum, l) => sum + l.totalAmount, 0);
+  // Saved with the voucher's first line
+  const transportationCost = lines.reduce((sum, l) => sum + l.transportationCost, 0);
 
   return {
     approvalState: approval.status === 'PENDING' ? 'PENDING' : approval.status === 'REJECTED' ? 'REJECTED' : undefined,
@@ -933,21 +970,7 @@ export const buildModel22Voucher = (
     issuedByName: details.issuedByName || requester?.fullNameEn || '—',
     receivedByName: outside ? externalReceiverName(outside, details.contactPerson) : recipient?.fullNameEn || '—',
     receivedByEmployeeId: approval.recipientEmployeeId,
-    items: [
-      {
-        sNo: 1,
-        itemCode: itemDetails?.ifmisItemCode || approval.itemCode,
-        itemDescription: approval.itemName,
-        uom: itemDetails?.uom || 'EA',
-        subInventory,
-        itemCategory: itemDetails?.itemCategoryDisplay || (itemDetails?.category as string) || '—',
-        quantity: qty,
-        unitPrice,
-        totalAmount,
-        // The purpose isn't on the IFMIS Model 22, so the Remark column stays empty as there
-        remark: '',
-      },
-    ],
+    items: lines.map(({ transportationCost: _cost, ...line }) => line),
     total: totalAmount,
     transportationCost,
     grandTotal: totalAmount + transportationCost,

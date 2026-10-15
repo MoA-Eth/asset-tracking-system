@@ -59,8 +59,14 @@ export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose }) => 
           if (!record) throw new Error('item not found');
           next = { kind: 'model19', voucher: { ...buildModel19Voucher(record, all, printedBy), approvalState: stateOf(approval) } };
         } else if (type === 'STOCK_OUT') {
-          const [departments, employees]: [Department[], Employee[]] = await Promise.all([api.getDepartments(), api.getEmployees()]);
-          next = { kind: 'model22', voucher: buildModel22Voucher(approval, { item, departments, employees, printedBy }) };
+          // The other lines of the same Model 22 are printed with it
+          const [departments, employees, requests, items]: [Department[], Employee[], TransactionApproval[], ItemWithRelations[]] = await Promise.all([
+            api.getDepartments(),
+            api.getEmployees(),
+            api.getApprovals().catch(() => []),
+            api.getItems().catch(() => []),
+          ]);
+          next = { kind: 'model22', voucher: buildModel22Voucher(approval, { item, departments, employees, printedBy, requests, items }) };
         } else if (type === 'DISPOSAL') {
           const employees: Employee[] = await api.getEmployees();
           next = { kind: 'disposal', voucher: buildDisposalVoucher(approval, { item, employees, printedBy }) };

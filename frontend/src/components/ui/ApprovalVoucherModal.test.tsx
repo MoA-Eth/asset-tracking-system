@@ -7,7 +7,7 @@ import { api } from '../../api/client';
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1', fullNameEn: 'Team Leader' } }) }));
 vi.mock('./RecordDetailModal', () => ({ RecordDetailModal: () => <div>Full record and history</div> }));
 vi.mock('../../api/client', () => ({
-  api: { getItemById: vi.fn(), getItems: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn() },
+  api: { getItemById: vi.fn(), getItems: vi.fn(), getApprovals: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn() },
 }));
 
 const item = { id: 'i1', itemCode: 'MOA-IT-2026-0007', name: 'Dell Latitude', category: 'IT_EQUIPMENT', uom: 'EA', unitCostETB: 1000, quantity: 5, storeLocationId: 'L1', storeLocation: { id: 'L1', siteName: 'Kality', roomNumber: 'Shelf A' } };
@@ -25,6 +25,7 @@ beforeEach(() => {
   vi.mocked(api.getDepartments).mockResolvedValue([{ id: 'D1', nameEn: 'Plant Protection' }] as any);
   vi.mocked(api.getEmployees).mockResolvedValue([{ id: 'E1', fullNameEn: 'Abebe Kebede', payrollId: '1' }] as any);
   vi.mocked(api.getLocations).mockResolvedValue([] as any);
+  vi.mocked(api.getApprovals).mockResolvedValue([issue] as any);
 });
 
 describe('A request seen from Approvals', () => {
@@ -34,6 +35,14 @@ describe('A request seen from Approvals', () => {
     expect(screen.getByText('Received By')).toBeInTheDocument();
     expect(screen.getByText('Abebe Store Man')).toBeInTheDocument();
     expect(screen.getByText(/M22-050/)).toBeInTheDocument();
+  });
+
+  it('lists the other lines saved on the same Model 22', async () => {
+    const other = { ...issue, id: 'a2', itemId: 'i2', itemCode: 'MOA-IT-2026-0008', itemName: 'HP Monitor' };
+    vi.mocked(api.getApprovals).mockResolvedValue([other, issue] as any);
+    render(<ApprovalVoucherModal approval={issue} onClose={vi.fn()} />);
+    expect(await screen.findByText('HP Monitor')).toBeInTheDocument();
+    expect(screen.getByText('Dell Latitude')).toBeInTheDocument();
   });
 
   it('falls back to the record when no voucher can be built', async () => {
