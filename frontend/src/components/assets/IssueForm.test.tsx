@@ -177,7 +177,7 @@ describe('Issue items (Model 22): disposal', () => {
 
     // An issue to begin with; the box makes it a disposal, and unticking it goes back to the issue's type
     expect(screen.getByLabelText(/Transaction type/)).toHaveValue('Move Order Issue');
-    await user.click(screen.getByRole('checkbox', { name: /Use this Model 22 to dispose of the items/ }));
+    await user.click(screen.getByRole('checkbox', { name: 'Disposal (write-off)' }));
     expect(screen.queryByLabelText(/Transaction type/)).toBeNull();
     expect(screen.queryByText('Received by')).toBeNull();
     expect(screen.queryByText('Destination directorate')).toBeNull();
@@ -201,8 +201,8 @@ describe('Issue items (Model 22): disposal', () => {
     const user = userEvent.setup();
     render(<StockOutForm availableItems={[item()]} departments={[department]} employees={[employee]} initialItemId="item-1" onCancel={vi.fn()} onSuccess={vi.fn()} />);
     await user.selectOptions(screen.getByLabelText(/Transaction type/), 'Direct Store Issue');
-    await user.click(screen.getByRole('checkbox', { name: /Use this Model 22 to dispose of the items/ }));
-    await user.click(screen.getByRole('checkbox', { name: /Use this Model 22 to dispose of the items/ }));
+    await user.click(screen.getByRole('checkbox', { name: 'Disposal (write-off)' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Disposal (write-off)' }));
     expect(screen.getByLabelText(/Transaction type/)).toHaveValue('Direct Store Issue');
     expect(screen.getByRole('combobox', { name: /Received by/ })).toBeInTheDocument();
   });
@@ -277,7 +277,7 @@ describe('Issue items (Model 22): inline errors and keyboard', () => {
     vi.mocked(api.registerStockOut).mockResolvedValue({ id: 'appr-1' } as any);
     const user = userEvent.setup();
     renderIssue();
-    await user.click(screen.getByRole('checkbox', { name: /Use this Model 22 to dispose of the items/ }));
+    await user.click(screen.getByRole('checkbox', { name: 'Disposal (write-off)' }));
     const number = screen.getByPlaceholderText('e.g. 0004653/A Inventory');
     await user.type(number, 'M22-020');
     // The reason is still missing

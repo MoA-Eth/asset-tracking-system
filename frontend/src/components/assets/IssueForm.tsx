@@ -601,7 +601,28 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         </div>
       )}
 
-      <Part title="Voucher">
+      {/* The same Model 22 can write units off instead of handing them to someone; the disposal form stays for sales and donations */}
+      <Part
+        title="Voucher"
+        aside={
+          !isEdit || isDisposal ? (
+            <label
+              title="Write the items off on this Model 22: no recipient, a reason instead, and it prints as a disposal. For a sale or donation, use Dispose."
+              className={`inline-flex items-center gap-2 text-xs font-medium ${isDisposal ? 'text-rose-800' : 'text-slate-700'} ${isEdit ? 'cursor-default' : 'cursor-pointer'}`}
+            >
+              <input
+                id="stock-out-disposal"
+                type="checkbox"
+                checked={isDisposal}
+                disabled={isEdit}
+                onChange={(e) => setTransactionType(e.target.checked ? DISPOSAL_TRANSACTION_TYPE : issueType.current)}
+                className="h-4 w-4 accent-rose-700"
+              />
+              Disposal (write-off)
+            </label>
+          ) : undefined
+        }
+      >
         <FieldGrid>
           <Field label="Model 22 No." required htmlFor="stock-out-model22" error={fieldErrors.error('model22No')} warning={usedNo ? usedMessage(model22No, usedNo) : undefined}>
             <input
@@ -633,30 +654,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           )}
         </FieldGrid>
 
-        {/* The same Model 22, used to write units off instead of handing them to someone; the disposal form stays for sales and donations */}
-        {(!isEdit || isDisposal) && (
-        <label
-          className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-xs transition ${
-            isDisposal ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200 bg-slate-50/60 hover:border-slate-300'
-          } ${isEdit ? 'cursor-default' : 'cursor-pointer'}`}
-        >
-          <input
-            id="stock-out-disposal"
-            type="checkbox"
-            checked={isDisposal}
-            disabled={isEdit}
-            onChange={(e) => setTransactionType(e.target.checked ? DISPOSAL_TRANSACTION_TYPE : issueType.current)}
-            className="mt-0.5 h-4 w-4 accent-rose-700"
-          />
-          <span>
-            <span className="block font-semibold text-slate-800">Use this Model 22 to dispose of the items (write-off)</span>
-            <span className="block text-[11px] text-slate-500">
-              No recipient: give the reason instead. When approved, the units leave the register as Disposed, and the voucher prints as a disposal.
-              {' '}Use the <span className="font-medium">Dispose</span> action instead for a sale or donation that needs the Fixed Asset Disposal Form.
-            </span>
-          </span>
-        </label>
-        )}
       </Part>
 
       <Part title={rows.length > 1 ? `Items (${rows.length})` : 'Items'} aside={<span className="text-[11px] text-slate-500">From one store. Unit and price are as received on Model 19.</span>}>
