@@ -254,7 +254,8 @@ describe('Assets page', () => {
       await menuFor(user, 'MOA-072351');
       await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
       const record = screen.getByRole('region', { name: 'Asset record MOA-072351' });
-      await user.click(within(record).getByRole('button', { name: 'Import transfer' }));
+      // The Model 21 PDF goes in the box at the top of the form; there is no Import button
+      expect(within(record).queryByRole('button', { name: /Import/ })).toBeNull();
       return record;
     };
 
@@ -262,7 +263,7 @@ describe('Assets page', () => {
       const user = userEvent.setup();
       vi.mocked(readPdfRows).mockResolvedValue(model21('MOA/1', 'MOA/2'));
       const record = await openTransfer(user);
-      await user.upload(screen.getByLabelText('Voucher PDF to import'), new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
+      await user.upload(document.querySelector('#transfer-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
 
       expect(await within(record).findByText(/Filled in from the Model 21: .*recipient \(Kebede Alemu\)/)).toBeInTheDocument();
       expect(within(record).getByDisplayValue('0004399')).toBeInTheDocument();
@@ -273,7 +274,7 @@ describe('Assets page', () => {
       const user = userEvent.setup();
       vi.mocked(readPdfRows).mockResolvedValue(model21('MOA/2', 'MOA/1'));
       const record = await openTransfer(user);
-      await user.upload(screen.getByLabelText('Voucher PDF to import'), new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
+      await user.upload(document.querySelector('#transfer-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
 
       expect(await within(record).findByText(/MOA-072351 is held by Bikila Desta, not by the employee the form transfers it from/)).toBeInTheDocument();
       expect(within(record).queryByText(/recipient \(/)).toBeNull();
@@ -283,7 +284,7 @@ describe('Assets page', () => {
       const user = userEvent.setup();
       vi.mocked(readPdfRows).mockResolvedValue(asRows(['Print Model19 Report', 'INV Model 19 No. :  0000044']));
       const record = await openTransfer(user);
-      await user.upload(screen.getByLabelText('Voucher PDF to import'), new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+      await user.upload(document.querySelector('#transfer-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
       expect(await within(record).findByText(/This is a Model 19 receipt, not a Model 21/)).toBeInTheDocument();
       expect(within(record).queryByDisplayValue('0000044')).toBeNull();
@@ -311,8 +312,7 @@ describe('Assets page', () => {
       await menuFor(user, 'MOA-072351');
       await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
       const record = screen.getByRole('region', { name: 'Asset record MOA-072351' });
-      await user.click(within(record).getByRole('button', { name: 'Import transfer' }));
-      await user.upload(screen.getByLabelText('Voucher PDF to import'), new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
+      await user.upload(document.querySelector('#transfer-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
 
       const others = await within(record).findByRole('region', { name: 'Other assets on this form' });
       expect(within(others).getByText('Will be transferred')).toBeInTheDocument();
@@ -471,8 +471,8 @@ describe('Assets page', () => {
     await menuFor(user, 'MOA-000343');
     await user.click(screen.getByRole('menuitem', { name: 'Dispose' }));
     const record = screen.getByRole('region', { name: 'Asset record MOA-000343' });
-    await user.click(within(record).getByRole('button', { name: 'Import disposal' }));
-    await user.upload(screen.getByLabelText('Voucher PDF to import'), new File(['%PDF'], 'disposal.pdf', { type: 'application/pdf' }));
+    expect(within(record).queryByRole('button', { name: /Import/ })).toBeNull();
+    await user.upload(document.querySelector('#disposal-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'disposal.pdf', { type: 'application/pdf' }));
 
     expect(await within(record).findByText(/Filled in from the disposal form/)).toBeInTheDocument();
     expect(within(record).getByDisplayValue('0000015/2013')).toBeInTheDocument();
@@ -707,12 +707,12 @@ describe('Asset record', () => {
     [
       'a Model 21 transfer form',
       ['Fixed Asset Internal Transfer Form', 'Model/21', 'Model # 0004399', 'From Employee ID :  109870  To : 110347', '1  Handheld GPS  MOA-072351  2  624,285.50  322,547.54  301,738.01  05-OCT-26'],
-      /This is a Model 21 transfer form\. Read it from the transfer form of the asset/,
+      /This is a Model 21 transfer form\. Read it on the transfer form of the asset/,
     ],
     [
       'a disposal form',
       ['Fixed Asset Disposal Form', 'Model/22/B', 'No:  0000015/2013', '1  Tablet Computer  MOA-000343  15,640.00  0.00  15,640.00'],
-      /This is a Fixed Asset Disposal Form \(Model 22\/B\)\. Read it from the disposal form of the asset/,
+      /This is a Fixed Asset Disposal Form \(Model 22\/B\)\. Read it on the disposal form of the asset/,
     ],
   ])('takes only a Model 19 on the receive form: %s is refused, not attached and fills nothing', async (_label, lines, message) => {
     const user = userEvent.setup();

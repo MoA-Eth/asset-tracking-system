@@ -409,9 +409,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     isModel19(text)
       ? undefined
       : isModel21(text)
-        ? 'a Model 21 transfer form. Read it from the transfer form of the asset (Import transfer)'
+        ? 'a Model 21 transfer form. Read it on the transfer form of the asset'
         : isDisposalForm(text)
-          ? 'a Fixed Asset Disposal Form (Model 22/B). Read it from the disposal form of the asset (Import disposal)'
+          ? 'a Fixed Asset Disposal Form (Model 22/B). Read it on the disposal form of the asset'
           : isModel22(text)
             ? 'a Model 22 issue voucher (Receipt For Articles Or Property Issued). It belongs with the issue of the asset, not its receipt'
             : undefined;

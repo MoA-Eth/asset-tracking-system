@@ -33,7 +33,7 @@ Use the same form for an **Issued** asset that is coming back.
 
 ## Fill in from a Model 21 PDF
 
-On the transfer form, press **Import transfer** at the top right and choose the Model 21 as a **PDF saved from IFMIS**. It fills in the Model 21 No., book, transfer date, the asset (by its tag number), depreciation and book value, and the employee it goes to (by employee ID). Check them against the paper before submitting.
+On the transfer form, choose the Model 21 as a **PDF saved from IFMIS** in the **IFMIS Model 21 PDF** box at the top. It fills in the Model 21 No., book, transfer date, the asset (by its tag number), depreciation and book value, and the employee it goes to (by employee ID). Check them against the paper before submitting.
 
 The form keeps the order of operations, so nothing is filled in for an asset that isn't ready to transfer:
 

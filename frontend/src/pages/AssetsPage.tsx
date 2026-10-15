@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Boxes,
   Plus,
@@ -16,7 +16,6 @@ import {
   Download,
   Trash2,
   Copy,
-  FileUp,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -25,7 +24,6 @@ import { FilterPopover, FilterSection, FilterPill, FilterSelect } from '../compo
 import { SortableHeader } from '../components/ui/SortableHeader';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
-import { HeaderActionButton } from '../components/ui/HeaderActionButton';
 import { AssetRecord } from '../components/assets/AssetRecord';
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
@@ -168,31 +166,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
 
   // Pop-ups: one per form, each either new (from a row or the header) or correcting a pending request
-  const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string; slip?: File } | null>(null);
-  // A form's import button takes the voucher as a PDF saved from IFMIS and reads it into that form. Each form
-  // reads only its own voucher: the receive form a Model 19, the transfer form a Model 21.
-  const pdfPicker = useRef<HTMLInputElement>(null);
-  const pdfFor = useRef<'receipt' | 'transfer' | 'disposal'>('receipt');
-  const importAction = (kind: 'receipt' | 'transfer' | 'disposal'): RowAction => ({
-    label: { receipt: 'Import receipt', transfer: 'Import transfer', disposal: 'Import disposal' }[kind],
-    icon: FileUp,
-    onClick: () => {
-      pdfFor.current = kind;
-      pdfPicker.current?.click();
-    },
-  });
-  const takePdf = (file: File) => {
-    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
-      return void toast.warning('Choose a PDF', 'Import the voucher as a PDF saved from IFMIS.');
-    }
-    // Read into the open form, keeping what is already typed
-    if (pdfFor.current === 'receipt') setReceipt((r) => (r ? { ...r, slip: file } : r));
-    else if (pdfFor.current === 'transfer') setTransfer((t) => (t ? { ...t, slip: file } : t));
-    else setDisposing((d) => (d ? { ...d, slip: file } : d));
-  };
+  const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string } | null>(null);
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
-  const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval; slip?: File } | null>(null);
-  const [disposing, setDisposing] = useState<{ itemId: string; slip?: File } | null>(null);
+  const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
+  const [disposing, setDisposing] = useState<{ itemId: string } | null>(null);
   // The asset record open beside the list, and whether what it has pending is being corrected in place
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -541,8 +518,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     if (transfer && (transfer.itemId === item.id || transfer.edit?.itemId === item.id)) {
       return {
         id: 'transfer-form',
-        // Transfers carry no scanned slip, so their import is offered whatever the setting
-        actions: transfer.edit ? undefined : [importAction('transfer')],
         form: (
           <TransferForm
             key={transfer.edit?.id ?? `transfer-${item.id}`}
@@ -553,7 +528,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             pendingByItem={pendingByItem}
             editTransfer={transfer.edit}
             initialItemId={item.id}
-            slip={transfer.slip}
             onCancel={() => setTransfer(null)}
             onSaved={(voucher) => done(voucher, setVoucher21)}
           />
@@ -581,14 +555,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     if (disposing && disposing.itemId === item.id) {
       return {
         id: 'disposal-form',
-        actions: [importAction('disposal')],
         form: (
           <DisposalForm
             key={`disposal-${item.id}`}
             item={item}
             allItems={items}
             pendingItemIds={new Set(pendingByItem.keys())}
-            slip={disposing.slip}
             onCancel={() => setDisposing(null)}
             onSuccess={(_result, voucher) => done(voucher, setVoucherDisposal)}
           />
@@ -1221,7 +1193,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     editItem={receipt.edit}
                     template={receipt.template}
                     registered={items.filter((i) => !i.parentItemId).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
-                    initialSlip={receipt.slip}
                     onCancel={() => setReceipt(null)}
                     onSuccess={(result, voucher) => {
                       setReceipt(null);
@@ -1528,18 +1499,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       )}
 
       <Model19PrintModal isOpen={!!voucher19} voucher={voucher19} onClose={() => setVoucher19(null)} />
-      <input
-        ref={pdfPicker}
-        type="file"
-        accept=".pdf,application/pdf"
-        aria-label="Voucher PDF to import"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = '';
-          if (file) takePdf(file);
-        }}
-      />
       <Model22PrintModal isOpen={!!voucher22} voucher={voucher22} onClose={() => setVoucher22(null)} />
       <Model21PrintModal isOpen={!!voucher21} voucher={voucher21} onClose={() => setVoucher21(null)} />
       <DisposalPrintModal isOpen={!!voucherDisposal} voucher={voucherDisposal} onClose={() => setVoucherDisposal(null)} />

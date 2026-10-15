@@ -27,7 +27,7 @@ Public body, who it is sold, transferred or donated to, then for each asset: tag
 
 ## Fill in from a disposal form PDF
 
-On the disposal form, press **Import disposal** at the top right and choose the **Fixed Asset Disposal Form (Model 22/B)** as a PDF saved from IFMIS. It fills in the reference no., date, **Disposed to**, the reason (from the disposal type, e.g. DONATION becomes Gift / donation) and this item's book value. Check them against the paper before submitting.
+On the disposal form, choose the **Fixed Asset Disposal Form (Model 22/B)** as a PDF saved from IFMIS in the **IFMIS disposal form PDF** box at the top. It fills in the reference no., date, **Disposed to**, the reason (from the disposal type, e.g. DONATION becomes Gift / donation) and this item's book value. Check them against the paper before submitting.
 
 The other assets on the form are listed under it, each marked **Will be disposed of** or **Not disposed of** with the reason. In the order of operations an asset must already be **received and approved**, be **in store** (an issued asset has to come back to store first), and have no other request waiting. One **Submit** disposes of this item and every other asset that fits, each as its own request with the same reference, date, reason and recipient. Press **Leave out** to skip one.
 

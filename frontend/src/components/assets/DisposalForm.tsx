@@ -190,9 +190,12 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     else setSlipNote({ tone: 'info', text: `The form was read, but every field it covers is already filled in.${more}` });
   };
 
+  // The IFMIS PDF the form was read from, shown in the box at the top
+  const [readFile, setReadFile] = useState<File | null>(null);
   /** Only a disposal form is read here; another IFMIS form is named, so it can be taken to its own form */
   const readSlip = (file: File) => {
     if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return void setSlipNote({ tone: 'warn', text: 'Choose the disposal form as a PDF saved from IFMIS.' });
+    setReadFile(file);
     setSlipNote({ tone: 'info', text: 'Reading the disposal form…' });
     readPdfRows(file)
       .then((rows) => {
@@ -202,16 +205,16 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
         setSlipNote({
           tone: 'warn',
           text: isModel19(text)
-            ? 'This is a Model 19 receipt, not a disposal form. Read it from Receive items (Import receipt).'
+            ? 'This is a Model 19 receipt, not a disposal form. Read it on Receive items (Model 19).'
             : isModel21(text)
-              ? 'This is a Model 21 transfer form, not a disposal form. Read it from the transfer form of the asset (Import transfer).'
+              ? 'This is a Model 21 transfer form, not a disposal form. Read it on the transfer form of the asset.'
               : 'Only an IFMIS Fixed Asset Disposal Form (Model 22/B) PDF can be read here.',
         });
       })
       .catch(() => setSlipNote({ tone: 'warn', text: "The PDF couldn't be read. Fill in the fields as usual." }));
   };
 
-  // A PDF chosen with the form's header button
+  // A PDF handed to the form when it opens
   useEffect(() => {
     if (slip) readSlip(slip);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -301,6 +304,24 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   return (
     <form id="disposal-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
       <FormError message={formError} />
+      {/* The IFMIS PDF first: it fills in the form */}
+      {!isEdit && (
+        <FileDropField
+          label="IFMIS disposal form PDF (Model 22/B)"
+          accent="emerald"
+          required={false}
+          fileName={readFile?.name ?? ''}
+          accept=".pdf,application/pdf"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (file) readSlip(file);
+          }}
+          file={readFile}
+          emptyText="Click to choose the disposal form PDF saved from IFMIS"
+          hint="The form fills itself in from it; a scanned PDF can't be read."
+        />
+      )}
       {slipNote && (
         <FormNotice icon={FileText} tone={slipNote.tone}>
           <span role="status">{slipNote.text}</span>
