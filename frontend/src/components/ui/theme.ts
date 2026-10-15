@@ -25,7 +25,7 @@ export const btn = {
 /** Tables */
 export const table = {
   /** Header row: small uppercase labels on a light background */
-  headRow: 'table-head bg-slate-50 border-b border-slate-200 text-left text-[11px] font-bold uppercase tracking-wider text-slate-600',
+  headRow: 'table-head bg-white border-b border-slate-200 text-left text-xs font-medium text-slate-600',
   /** Body row */
   row: 'hover:bg-slate-50 transition',
   /** Row just created or updated by the user */
@@ -33,7 +33,7 @@ export const table = {
   /** Item / tracking code cell text: plain, set apart only by the monospace font */
   code: 'font-mono font-bold text-slate-800',
   /** Actions column ("⋮"), pinned to the right edge so it stays visible when the table scrolls */
-  actionsHead: 'sticky right-0 z-[1] bg-slate-50 w-12 text-right',
+  actionsHead: 'sticky right-0 z-[1] bg-white w-12 text-right',
   actionsCell: 'sticky right-0 z-[1] bg-white w-12 text-right whitespace-nowrap shadow-[-10px_0_10px_-10px_rgba(15,23,42,0.18)]',
   /** Search box above a table */
   search:

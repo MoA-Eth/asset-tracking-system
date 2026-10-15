@@ -129,7 +129,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         aria-controls={`${id}-list`}
         autoFocus={autoFocus}
         onClick={() => (open ? close() : setOpen(true))}
-        className="flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-left text-[13px] shadow-[0_1px_1px_rgba(15,23,42,0.03)] transition hover:border-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
+        className="flex h-10 w-full items-center justify-between gap-2 rounded-[4px] border border-slate-300 hover:border-slate-500 focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 bg-white px-3 text-left text-[13px] transition-colors focus:outline-none cursor-pointer"
       >
         <span className={`truncate ${selected ? 'text-slate-900' : 'text-slate-400'}`}>{selected ? selected.label : placeholder}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />

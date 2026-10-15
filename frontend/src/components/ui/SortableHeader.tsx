@@ -34,7 +34,7 @@ export const SortableHeader: React.FC<SortableHeaderProps> = ({
       <button
         type="button"
         onClick={() => onSort(columnKey)}
-        className={`group inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-emerald-900 cursor-pointer select-none transition-colors ${
+        className={`group inline-flex items-center gap-1.5 font-medium text-slate-600 hover:text-slate-900 cursor-pointer select-none transition-colors ${
           align === 'right' ? 'ml-auto' : align === 'center' ? 'mx-auto' : ''
         } ${className}`}
         title={title || `Sort by ${label}`}

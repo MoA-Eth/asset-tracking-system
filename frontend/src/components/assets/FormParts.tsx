@@ -8,8 +8,8 @@ import { getSlipDisplayName } from '../../utils/slip-upload';
 /** A part of the form: a quiet heading and a rule instead of a card */
 export const Part: React.FC<{ title: string; aside?: React.ReactNode; children: React.ReactNode }> = ({ title, aside, children }) => (
   <section aria-label={title} className="space-y-3">
-    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-slate-200 pb-1.5">
-      <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{title}</h3>
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-slate-100 pb-2">
+      <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
       {aside}
     </div>
     {children}

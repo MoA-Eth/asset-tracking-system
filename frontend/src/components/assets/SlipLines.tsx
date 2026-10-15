@@ -107,7 +107,7 @@ export const ReceiptItems: React.FC<{
       <div className="overflow-x-auto">
         <table className="w-full min-w-[880px] text-left text-xs">
           <thead className="bg-slate-50">
-            <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+            <tr className="text-xs font-medium text-slate-600">
               <th className="px-2 py-2 w-8">#</th>
               <th className="px-2 py-2 min-w-[170px]">Description</th>
               <th className="px-2 py-2 w-52">IFMIS item code</th>
