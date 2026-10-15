@@ -169,18 +169,21 @@ describe('Issue items (Model 22): disposal', () => {
   const department = { id: 'DEP-1', nameEn: 'Plant Protection', nameAm: '' } as any;
   const employee = { id: 'EMP-A', fullNameEn: 'Abebe Kebede', payrollId: '00000001', departmentId: 'DEP-1' } as any;
 
-  it('has a Disposal transaction type that replaces the recipient with a reason, and sends no recipient', async () => {
+  it('is a disposal when its box is ticked: the reason replaces the recipient, and no recipient is sent', async () => {
     const user = userEvent.setup();
     vi.mocked(api.registerStockOut).mockResolvedValue({ id: 'appr-1' } as any);
     const onSuccess = vi.fn();
     render(<StockOutForm availableItems={[item()]} departments={[department]} employees={[employee]} initialItemId="item-1" onCancel={vi.fn()} onSuccess={onSuccess} />);
 
-    await user.selectOptions(screen.getByLabelText(/Transaction type/), 'Disposal');
-    expect(screen.queryByText('Received by (recipient)')).toBeNull();
+    // An issue to begin with; the box makes it a disposal, and unticking it goes back to the issue's type
+    expect(screen.getByLabelText(/Transaction type/)).toHaveValue('Move Order Issue');
+    await user.click(screen.getByRole('checkbox', { name: /Use this Model 22 to dispose of the items/ }));
+    expect(screen.queryByLabelText(/Transaction type/)).toBeNull();
+    expect(screen.queryByText('Received by')).toBeNull();
     expect(screen.queryByText('Destination directorate')).toBeNull();
-    expect(screen.queryByRole('radio', { name: 'External (organization)' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Reason and signatures' })).toBeInTheDocument();
 
-    const submit = screen.getByRole('button', { name: /Submit for approval/ });
+    const submit = screen.getByRole('button', { name: 'Submit disposal for approval' });
     await user.type(screen.getByPlaceholderText('e.g. 0004653/A Inventory'), 'M22-009');
     expect(submit).toBeDisabled();
     await user.type(screen.getByPlaceholderText(/Expired, damaged beyond repair/), 'Expired');
@@ -191,7 +194,17 @@ describe('Issue items (Model 22): disposal', () => {
     expect(payload).toMatchObject({ itemId: 'item-1', disposal: true, transactionType: 'Disposal', purpose: 'Expired' });
     expect(payload).not.toHaveProperty('recipientEmployeeId');
     expect(payload).not.toHaveProperty('targetDepartmentId');
-    expect(onSuccess.mock.calls[0][1]).toMatchObject({ transactionType: 'Disposal', destination: 'Disposal (write-off)', receivedByName: '—' });
+    expect(onSuccess.mock.calls[0][1]).toMatchObject({ transactionType: 'Disposal', destination: 'Disposal (write-off)', receivedByName: '—', disposalReason: 'Expired' });
+  });
+
+  it('goes back to the issue it was when the box is unticked', async () => {
+    const user = userEvent.setup();
+    render(<StockOutForm availableItems={[item()]} departments={[department]} employees={[employee]} initialItemId="item-1" onCancel={vi.fn()} onSuccess={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText(/Transaction type/), 'Direct Store Issue');
+    await user.click(screen.getByRole('checkbox', { name: /Use this Model 22 to dispose of the items/ }));
+    await user.click(screen.getByRole('checkbox', { name: /Use this Model 22 to dispose of the items/ }));
+    expect(screen.getByLabelText(/Transaction type/)).toHaveValue('Direct Store Issue');
+    expect(screen.getByRole('combobox', { name: /Received by/ })).toBeInTheDocument();
   });
 
   it('prints a recorded disposal as a Disposal, with no recipient', () => {
@@ -264,7 +277,7 @@ describe('Issue items (Model 22): inline errors and keyboard', () => {
     vi.mocked(api.registerStockOut).mockResolvedValue({ id: 'appr-1' } as any);
     const user = userEvent.setup();
     renderIssue();
-    await user.selectOptions(screen.getByLabelText(/Transaction type/), 'Disposal');
+    await user.click(screen.getByRole('checkbox', { name: /Use this Model 22 to dispose of the items/ }));
     const number = screen.getByPlaceholderText('e.g. 0004653/A Inventory');
     await user.type(number, 'M22-020');
     // The reason is still missing

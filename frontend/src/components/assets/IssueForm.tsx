@@ -98,6 +98,11 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const [transactionType, setTransactionType] = useState<string>(
     memory.transactionType && memory.transactionType !== DISPOSAL_TRANSACTION_TYPE ? memory.transactionType : DEFAULT_TRANSACTION_TYPE,
   );
+  // The issue's transaction type, to go back to when the disposal box is unticked
+  const issueType = useRef(transactionType === DISPOSAL_TRANSACTION_TYPE ? DEFAULT_TRANSACTION_TYPE : transactionType);
+  useEffect(() => {
+    if (transactionType !== DISPOSAL_TRANSACTION_TYPE && transactionType) issueType.current = transactionType;
+  }, [transactionType]);
   // A transaction type a Model 22 printed that is not in the usual list
   const [slipType, setSlipType] = useState<string | null>(null);
   const typeOptions = slipType && !TRANSACTION_TYPES.includes(slipType) ? [...TRANSACTION_TYPES, slipType] : TRANSACTION_TYPES;
@@ -514,6 +519,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         issuedByName: issuerName || user?.fullNameEn || '—',
         receivedByName: isDisposal ? '—' : isExternal ? externalReceiverName(organizationName, contactPerson) : recipient?.fullNameEn || '—',
         receivedByEmployeeId: isDisposal || isExternal ? undefined : recipientEmployeeId,
+        disposalReason: isDisposal ? purpose.trim() : undefined,
         items: rows.map((r, i) => {
           const item = itemOf(r)!;
           const unitPrice = item.unitCostETB || 0;
@@ -615,18 +621,42 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             <input id="stock-out-date" type="date" required value={issuedDateGc} onChange={(e) => setIssuedDateGc(e.target.value)} className={input()} />
           </Field>
 
-          {!isEdit && (
+          {!isEdit && !isDisposal && (
             <Field label="Transaction type" required htmlFor="stock-out-transaction-type">
               <select id="stock-out-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
                 <option value="" disabled>Select…</option>
                 {typeOptions.map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
-                <option value={DISPOSAL_TRANSACTION_TYPE}>Disposal (write-off)</option>
               </select>
             </Field>
           )}
         </FieldGrid>
+
+        {/* The same Model 22, used to write units off instead of handing them to someone; the disposal form stays for sales and donations */}
+        {(!isEdit || isDisposal) && (
+        <label
+          className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-xs transition ${
+            isDisposal ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200 bg-slate-50/60 hover:border-slate-300'
+          } ${isEdit ? 'cursor-default' : 'cursor-pointer'}`}
+        >
+          <input
+            id="stock-out-disposal"
+            type="checkbox"
+            checked={isDisposal}
+            disabled={isEdit}
+            onChange={(e) => setTransactionType(e.target.checked ? DISPOSAL_TRANSACTION_TYPE : issueType.current)}
+            className="mt-0.5 h-4 w-4 accent-rose-700"
+          />
+          <span>
+            <span className="block font-semibold text-slate-800">Use this Model 22 to dispose of the items (write-off)</span>
+            <span className="block text-[11px] text-slate-500">
+              No recipient: give the reason instead. When approved, the units leave the register as Disposed, and the voucher prints as a disposal.
+              {' '}Use the <span className="font-medium">Dispose</span> action instead for a sale or donation that needs the Fixed Asset Disposal Form.
+            </span>
+          </span>
+        </label>
+        )}
       </Part>
 
       <Part title={rows.length > 1 ? `Items (${rows.length})` : 'Items'} aside={<span className="text-[11px] text-slate-500">From one store. Unit and price are as received on Model 19.</span>}>
@@ -742,7 +772,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         {mixedStores && <p role="alert" className="text-[11px] font-medium text-rose-700">These items are in different stores. One Model 22 issues from one store: issue each store's items on its own.</p>}
       </Part>
 
-      <Part title="Recipient and signatures">
+      <Part title={isDisposal ? 'Reason and signatures' : 'Recipient and signatures'}>
         <FieldGrid cols={2}>
           {!isDisposal && (
             <>
@@ -857,9 +887,15 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       <FormFooter
         accent="emerald"
         submitting={submitting}
-        submitLabel={isEdit ? 'Save changes' : rows.length > 1 ? `Submit ${rows.length} items for approval` : 'Submit for approval'}
+        submitLabel={
+          isEdit
+            ? 'Save changes'
+            : isDisposal
+              ? rows.length > 1 ? `Submit disposal of ${rows.length} items for approval` : 'Submit disposal for approval'
+              : rows.length > 1 ? `Submit ${rows.length} items for approval` : 'Submit for approval'
+        }
         missingFields={missingFields}
-        fieldTargets={{ 'signed copy': 'section[aria-label="Recipient and signatures"] input[type="file"]', 'items from one store': '#stock-out-item' }}
+        fieldTargets={{ 'signed copy': 'section[aria-label$="and signatures"] input[type="file"]', 'items from one store': '#stock-out-item' }}
         onCancel={onCancel}
         onReset={isEdit ? undefined : handleReset}
       />
@@ -893,6 +929,7 @@ export const buildModel22Voucher = (
     issuedDateEc: approval.ifmisSlipDateEc || approval.createdAtEc || formatGcToEc(issuedDateGc),
     // As recorded with the request; older requests were all move orders
     transactionType: details.disposal ? 'Disposal' : details.transactionType || 'Move Order Issue',
+    disposalReason: details.disposal ? splitPurposeAndRemark(approval.purposeOrRemarks ?? '').purpose : undefined,
     destination: details.disposal ? 'Disposal (write-off)' : outside || (targetDept ? departmentLabel(targetDept) : '—'),
     destinationDepartmentId: approval.targetDepartmentId,
     subInventory,

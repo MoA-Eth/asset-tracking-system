@@ -84,7 +84,11 @@ const TYPE_TEXT: Record<string, { label: string; approved: string }> = {
   RETURN: { label: 'Model 21 Return', approved: 'Asset is now RETURNED to store inventory.' },
   DISPOSAL: { label: 'Disposal request', approved: 'The asset is now recorded as DISPOSED.' },
 };
-const typeText = (type?: string) => TYPE_TEXT[type ?? ''] ?? { label: 'Request', approved: 'The request is approved.' };
+// A Model 22 can be a disposal (write-off) instead of an issue
+const typeText = (type?: string, details?: { disposal?: boolean } | null) =>
+  type === 'STOCK_OUT' && details?.disposal
+    ? { label: 'Model 22 disposal', approved: 'The units are now recorded as DISPOSED.' }
+    : TYPE_TEXT[type ?? ''] ?? { label: 'Request', approved: 'The request is approved.' };
 
 const approvalUnits = (a: TransactionApproval): string | null => {
   const uom = a.requestDetails?.uom || a.itemUom || 'EA';
@@ -306,7 +310,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
     const target = approvals.find((a) => a.id === approvalId) || selectedApproval;
     const itemCode = target?.itemCode || 'Transaction';
-    const typeLabel = typeText(target?.transactionType).label;
+    const typeLabel = typeText(target?.transactionType, target?.requestDetails).label;
 
     setActionLoading(true);
     // The server records the signed-in reviewer
@@ -333,7 +337,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           `${typeLabel} (${itemCode}) verified and advanced to Directorate Head for Stage 2 final approval.`
         );
       } else if (action === 'APPROVE') {
-        const resultDesc = typeText(target?.transactionType).approved;
+        const resultDesc = typeText(target?.transactionType, target?.requestDetails).approved;
         toast.success(
           'Authorization Approved',
           `${typeLabel} (${itemCode}) granted final sign-off. ${resultDesc}`
@@ -419,7 +423,15 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   };
 
   // Light, pastel, subtle badges
-  const getTypeBadge = (type: TransactionType) => {
+  const getTypeBadge = (type: TransactionType, details?: { disposal?: boolean } | null) => {
+    if (type === TransactionType.STOCK_OUT && details?.disposal) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose-50 text-rose-800 border border-rose-200">
+          <PackageMinus className="w-3 h-3 text-rose-700" />
+          Model 22 (DISPOSAL)
+        </span>
+      );
+    }
     switch (type) {
       case TransactionType.STOCK_IN:
         return (
@@ -771,7 +783,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
                       {/* Statutory Type Badge */}
                       <td className="py-2 px-3 whitespace-nowrap">
-                        {getTypeBadge(appr.transactionType)}
+                        {getTypeBadge(appr.transactionType, appr.requestDetails)}
                       </td>
 
                       {/* Tracking Code & Item Name */}
@@ -902,7 +914,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                           className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 cursor-pointer w-3.5 h-3.5"
                         />
                       )}
-                      {getTypeBadge(appr.transactionType)}
+                      {getTypeBadge(appr.transactionType, appr.requestDetails)}
                     </div>
                     {getStageIndicator(appr)}
                   </div>
@@ -1067,7 +1079,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-900 text-sm">{selectedApproval.itemName}</span>
-                  {getTypeBadge(selectedApproval.transactionType)}
+                  {getTypeBadge(selectedApproval.transactionType, selectedApproval.requestDetails)}
                 </div>
                 <p className="font-mono text-slate-800 font-bold">{selectedApproval.itemCode}</p>
                 {approvalUnits(selectedApproval) && (

@@ -22,6 +22,10 @@ interface RecordDetailModalProps {
   onClose: () => void;
 }
 
+// A Model 22 can be a disposal (write-off) instead of an issue
+const requestTypeLabel = (a: { transactionType: string; requestDetails?: { disposal?: boolean } | null }) =>
+  a.transactionType === 'STOCK_OUT' && a.requestDetails?.disposal ? 'Disposal (Model 22)' : REQUEST_LABELS[a.transactionType] ?? a.transactionType;
+
 const REQUEST_LABELS: Record<string, string> = {
   STOCK_IN: 'Receipt (Model 19)',
   STOCK_OUT: 'Issue (Model 22)',
@@ -134,7 +138,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
       <Modal
         isOpen
         onClose={onClose}
-        title={`${approval ? REQUEST_LABELS[approval.transactionType] ?? approval.transactionType : 'Item'} · ${approval?.itemCode ?? item?.itemCode ?? ''}`}
+        title={`${approval ? requestTypeLabel(approval) : 'Item'} · ${approval?.itemCode ?? item?.itemCode ?? ''}`}
         subtitle={approval?.itemName ?? item?.name ?? 'Loading record…'}
         size="xl"
       >
@@ -152,7 +156,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
             <div className="grid gap-4 md:grid-cols-2">
               {approval && (
                 <Section title="Request" icon={FileText}>
-                  <Row label="Type">{REQUEST_LABELS[approval.transactionType] ?? approval.transactionType}</Row>
+                  <Row label="Type">{requestTypeLabel(approval)}</Row>
                   <Row label="Status">
                     {requestStatus && <span className={`${pill} ${statusTone[requestStatus.tone]}`}>{requestStatus.label}</span>}
                   </Row>

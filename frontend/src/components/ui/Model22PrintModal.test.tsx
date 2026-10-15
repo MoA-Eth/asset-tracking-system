@@ -98,3 +98,23 @@ describe('Model22PrintModal Component', () => {
     expect(handleClose).toHaveBeenCalled();
   });
 });
+
+describe('A Model 22 used as a disposal', () => {
+  it('prints as a disposal: its title, date and reason, signed by who disposed of it, with no recipient', () => {
+    render(
+      <Model22PrintModal
+        isOpen
+        onClose={vi.fn()}
+        voucher={{ ...mockModel22Voucher, transactionType: 'Disposal', destination: 'Disposal (write-off)', receivedByName: '—', disposalReason: 'Expired, destroyed under supervision' }}
+      />,
+    );
+    expect(screen.getAllByText('Articles Or Property Disposed Of (Write-off)').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Receipt For Articles Or Property Issued')).toBeNull();
+    expect(screen.getByText('Disposal Date :')).toBeInTheDocument();
+    expect(screen.getByText('Disposal (write-off)')).toBeInTheDocument();
+    expect(screen.getByText('Expired, destroyed under supervision')).toBeInTheDocument();
+    expect(screen.queryByText('Destination :')).toBeNull();
+    expect(screen.getAllByText(/Disposed By/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Received By/)).toBeNull();
+  });
+});

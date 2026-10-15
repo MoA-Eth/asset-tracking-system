@@ -17,23 +17,25 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, on
   const total = voucher.total || voucher.items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0);
   const transportationCost = Number(voucher.transportationCost) || 0;
   const grandTotal = voucher.grandTotal || (total + transportationCost);
+  // A Model 22 used to write units off prints as a disposal: no recipient, and the reason instead
+  const disposal = voucher.transactionType === 'Disposal';
 
   return (
     <VoucherShell
       isOpen={isOpen}
       onClose={onClose}
       model="Model 22"
-      toolbarTitle="Model 22 Issue Voucher (የዕቃ ወጪ ማዘዣ እና መረከቢያ)"
-      title="Receipt For Articles Or Property Issued"
+      toolbarTitle={disposal ? 'Model 22 Disposal Voucher (write-off)' : 'Model 22 Issue Voucher (የዕቃ ወጪ ማዘዣ እና መረከቢያ)'}
+      title={disposal ? 'Articles Or Property Disposed Of (Write-off)' : 'Receipt For Articles Or Property Issued'}
       number={voucher.model22No}
       approvalState={voucher.approvalState}
       printedBy={voucher.printedBy}
     >
       <VoucherDetails
         fields={[
-          { label: 'Issued Date', value: voucher.issuedDateGc && `${voucher.issuedDateGc}${voucher.issuedDateEc ? ` (${voucher.issuedDateEc} E.C.)` : ''}` },
-          { label: 'Transaction Type', value: voucher.transactionType || 'Move Order Issue' },
-          { label: 'Destination', value: voucher.destination },
+          { label: disposal ? 'Disposal Date' : 'Issued Date', value: voucher.issuedDateGc && `${voucher.issuedDateGc}${voucher.issuedDateEc ? ` (${voucher.issuedDateEc} E.C.)` : ''}` },
+          { label: 'Transaction Type', value: disposal ? 'Disposal (write-off)' : voucher.transactionType || 'Move Order Issue' },
+          ...(disposal ? [{ label: 'Reason for Disposal', value: voucher.disposalReason }] : [{ label: 'Destination', value: voucher.destination }]),
         ]}
       />
 
@@ -99,8 +101,9 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, on
 
       <VoucherSignatures
         signatories={[
-          { label: 'Issued By', name: voucher.issuedByName },
-          { label: 'Received By', name: voucher.receivedByName },
+          ...(disposal
+            ? [{ label: 'Disposed By', name: voucher.issuedByName }]
+            : [{ label: 'Issued By', name: voucher.issuedByName }, { label: 'Received By', name: voucher.receivedByName }]),
         ]}
       />
     </VoucherShell>

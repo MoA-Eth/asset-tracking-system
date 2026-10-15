@@ -354,6 +354,8 @@ export interface Model22Voucher {
   issuedByName?: string;
   receivedByName?: string;
   receivedByEmployeeId?: string;
+  /** A Model 22 used as a disposal (write-off): why the units are written off */
+  disposalReason?: string;
   items: Model22LineItem[];
   total: number;
   transportationCost?: number;

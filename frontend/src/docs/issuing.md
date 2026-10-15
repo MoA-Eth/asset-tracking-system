@@ -23,7 +23,7 @@ The bar at the bottom stays in view with **Submit**; click a name under **Still 
 
 1. On **Assets**, open the **⋮** menu of an **In store** asset and choose **Issue (Model 22)**. The form starts with that asset in its first row.
 2. Attach the Model 22 PDF (see below), or fill in by hand.
-3. **Voucher:** enter the **Model 22 No.**, the **Issued date** and the **Transaction type** (Move Order Issue, Miscellaneous issue, Subinventory Transfer, Direct Store Issue, Department Assignment, Project Allocation, or Disposal).
+3. **Voucher:** enter the **Model 22 No.**, the **Issued date** and the **Transaction type** (Move Order Issue, Miscellaneous issue, Subinventory Transfer, Direct Store Issue, Department Assignment, or Project Allocation).
 4. **Items:** for each row choose the **store item** (type a name, record code or IFMIS item code) and the **quantity**, a whole number up to what is in store. You can issue **part** of a batch: those units get their own record and the rest stays in store. Unit and unit price are the item's, as received on Model 19.
    - **Add item** adds a row for another line of the same Model 22; **×** at the end of a row removes it.
    - All rows must come from **one store**. Each row becomes its own request.
@@ -59,7 +59,15 @@ Choose it in **IFMIS Model 22 PDF** at the top. The form fills in and a note lis
 
 ## Dispose of stock through Model 22
 
-To write units off on a Model 22 instead of the disposal form, choose **Disposal (write-off)** as the **Transaction type**. The recipient fields go away and you enter the **Reason for disposal** (for example expired, damaged or used up). It goes through the same two approvals. When approved, the units leave the register as **Disposed**, and a partial quantity splits off its own record. Use the **Dispose** action instead when you need the Fixed Asset Disposal Form, for example to record who the items were sold or given to.
+Some units are written off on a Model 22 instead of the disposal form (expired, damaged, used up). Open **Issue (Model 22)** as usual and tick **Use this Model 22 to dispose of the items (write-off)** under the Voucher:
+
+- **Received by** goes away: enter the **Reason for disposal** instead. The section is then called **Reason and signatures**.
+- Everything else is the same: Model 22 No., date, items and quantities (several rows too), **Issued by (store man)**, the PDF and the signed copy. The button says **Submit disposal for approval**.
+- Untick it to go back to an issue, with the transaction type you had.
+- It goes through the same two approvals. When approved, the units leave the register as **Disposed**; a partial quantity splits off its own record. On the approvals page it shows as **Model 22 (DISPOSAL)**, and on the asset as **Disposal pending**.
+- **The voucher prints as a disposal:** "Articles Or Property Disposed Of (Write-off)", with the disposal date, the reason for disposal, and **Disposed By** (no Received By).
+
+Use the **Dispose** action instead when you need the Fixed Asset Disposal Form, for example to record who the items were sold or given to.
 
 ## After submitting
 
