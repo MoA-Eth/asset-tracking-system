@@ -11,25 +11,26 @@ interface SlipViewerModalProps {
   onClose: () => void;
 }
 
-type ViewerState =
+export type SlipState =
   | { status: 'loading' }
   | { status: 'ready'; kind: 'pdf' | 'image'; objectUrl: string }
   | { status: 'missing' };
 
 /**
- * Previews a scanned IFMIS slip (PDF or image), saved or just attached in a form. Sits above other modals (z-60).
- * Records created before real uploads existed point at files that were never
- * stored, so anything that isn't a PDF/image response is shown as "not available".
+ * A slip (PDF or image) ready to show: a file just attached is shown straight from the browser, a saved one is
+ * fetched. Records created before real uploads existed point at files that were never stored, so anything that
+ * isn't a PDF/image response is "missing".
  */
-export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, file, onClose }) => {
-  const [state, setState] = useState<ViewerState>({ status: 'loading' });
-  const fileName = file?.name ?? getSlipDisplayName(url ?? '');
+export function useSlip(url?: string, file?: File | null): SlipState {
+  const [state, setState] = useState<SlipState>({ status: 'loading' });
 
   useEffect(() => {
     let objectUrl: string | null = null;
     let cancelled = false;
+    const release = () => {
+      if (objectUrl) URL.revokeObjectURL?.(objectUrl);
+    };
 
-    // A file just attached is shown straight from the browser
     if (file) {
       const kind = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
         ? 'pdf'
@@ -42,14 +43,17 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, file, onC
       }
       objectUrl = URL.createObjectURL(file);
       setState({ status: 'ready', kind, objectUrl });
-      return () => {
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
-      };
+      return release;
     }
 
+    if (!url) {
+      setState({ status: 'missing' });
+      return;
+    }
+    setState({ status: 'loading' });
     (async () => {
       try {
-        const res = await fetchSlip(url ?? '');
+        const res = await fetchSlip(url);
         const contentType = res.headers.get('content-type') || '';
         const kind = contentType.startsWith('application/pdf')
           ? 'pdf'
@@ -69,9 +73,48 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, file, onC
 
     return () => {
       cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      release();
     };
   }, [url, file]);
+
+  return state;
+}
+
+/** The slip itself: the PDF in the browser's own viewer, or the image */
+export const SlipContent: React.FC<{ state: SlipState; fileName: string; heightClass?: string }> = ({ state, fileName, heightClass = 'h-[78vh]' }) => (
+  <>
+    {state.status === 'loading' && (
+      <div className="flex items-center justify-center py-24 text-xs text-slate-500">
+        <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
+        Loading slip...
+      </div>
+    )}
+
+    {state.status === 'ready' && state.kind === 'image' && (
+      <img src={state.objectUrl} alt={`IFMIS slip ${fileName}`} className="block mx-auto object-contain max-h-[78vh]" />
+    )}
+
+    {state.status === 'ready' && state.kind === 'pdf' && (
+      <iframe src={state.objectUrl} title={`IFMIS slip ${fileName}`} className={`w-full border-0 bg-white ${heightClass}`} />
+    )}
+
+    {state.status === 'missing' && (
+      <div className="py-20 px-6 text-center space-y-2">
+        <FileX className="w-8 h-8 text-amber-600 mx-auto" />
+        <p className="text-sm font-bold text-slate-900">Slip file not available</p>
+        <p className="text-xs text-slate-600 max-w-md mx-auto">
+          This request references <span className="font-mono">{fileName}</span>, but the file could not be
+          loaded. It was probably recorded before slip uploads were enabled.
+        </p>
+      </div>
+    )}
+  </>
+);
+
+/** Previews a scanned IFMIS slip (PDF or image), saved or just attached in a form. Sits above other modals (z-60). */
+export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, file, onClose }) => {
+  const state = useSlip(url, file);
+  const fileName = file?.name ?? getSlipDisplayName(url ?? '');
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -121,31 +164,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, file, onC
         </div>
 
         <div className="flex-1 overflow-auto bg-slate-100">
-          {state.status === 'loading' && (
-            <div className="flex items-center justify-center py-24 text-xs text-slate-500">
-              <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
-              Loading slip...
-            </div>
-          )}
-
-          {state.status === 'ready' && state.kind === 'image' && (
-            <img src={state.objectUrl} alt={`IFMIS slip ${fileName}`} className="block max-h-[78vh] mx-auto object-contain" />
-          )}
-
-          {state.status === 'ready' && state.kind === 'pdf' && (
-            <iframe src={state.objectUrl} title={`IFMIS slip ${fileName}`} className="w-full h-[78vh] border-0 bg-white" />
-          )}
-
-          {state.status === 'missing' && (
-            <div className="py-20 px-6 text-center space-y-2">
-              <FileX className="w-8 h-8 text-amber-600 mx-auto" />
-              <p className="text-sm font-bold text-slate-900">Slip file not available</p>
-              <p className="text-xs text-slate-600 max-w-md mx-auto">
-                This request references <span className="font-mono">{fileName}</span>, but the file could not be
-                loaded. It was probably recorded before slip uploads were enabled.
-              </p>
-            </div>
-          )}
+          <SlipContent state={state} fileName={fileName} />
         </div>
       </div>
     </div>

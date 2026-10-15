@@ -1694,3 +1694,40 @@ describe('Receiving form: provision from the PO number on the Model 19', () => {
     expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('Petty Cash Purchase Receipt');
   });
 });
+
+describe('Receiving form: the uploaded slip is shown open under the form', () => {
+  const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+
+  beforeEach(() => {
+    auth.user.permissions = ENCODER;
+  });
+
+  it('previews the IFMIS PDF as soon as it is chosen, and switches to the signed copy', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    // Nothing chosen: no preview
+    expect(within(panel).queryByRole('region', { name: 'Slip preview' })).toBeNull();
+
+    vi.mocked(readPdfRows).mockResolvedValueOnce([r(98, [640, 'Print Model19 Report']), r(146, [680, 'INV Model 19 No. :'], [812, '0000061'])]);
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
+    const preview = await within(panel).findByRole('region', { name: 'Slip preview' });
+    // Open straight away, with no button to press
+    expect(within(preview).getByTitle('IFMIS slip model19.pdf')).toBeInTheDocument();
+
+    // With the signed copy too, both can be shown; the IFMIS PDF stays first
+    const signed = within(panel).getByRole('region', { name: 'Store and signatures' });
+    await user.upload(signed.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'signed.jpg', { type: 'image/jpeg' }));
+    expect(within(preview).getByTitle('IFMIS slip model19.pdf')).toBeInTheDocument();
+    await user.click(within(preview).getByRole('button', { name: 'Signed copy' }));
+    expect(within(preview).getByRole('img', { name: 'IFMIS slip signed.jpg' })).toBeInTheDocument();
+
+    // It can be put away and brought back
+    await user.click(within(preview).getByRole('button', { name: 'Hide' }));
+    expect(within(preview).queryByRole('img')).toBeNull();
+    await user.click(within(preview).getByRole('button', { name: 'Show' }));
+    expect(within(preview).getByRole('img', { name: 'IFMIS slip signed.jpg' })).toBeInTheDocument();
+  });
+});

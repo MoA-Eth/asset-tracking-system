@@ -36,7 +36,7 @@ The bar at the bottom stays in view with **Submit**. While something is missing 
 
 ## Fill in from a Model 19 PDF
 
-Choose it in **IFMIS Model 19 PDF** at the top. The form fills in what is still empty and keeps what you typed; a note lists what was filled. **Check it against the paper** (press **View** to open it) before submitting.
+Choose it in **IFMIS Model 19 PDF** at the top. The form fills in what is still empty and keeps what you typed; a note lists what was filled. **Check it against the paper** before submitting: the PDF is shown open in **Slip preview** at the bottom of the form, so you can compare without opening anything. With a signed copy attached too, switch between them there; **Hide** puts it away.
 
 - **Filled in:** the voucher header, **every item line as a row** (code, type, description, category, unit, quantity, price), delivered by, and received by when IFMIS printed the names. A store man named on the slip also sets the store.
 - **Another PDF** replaces what the first one filled in, including its rows; what you typed stays.
