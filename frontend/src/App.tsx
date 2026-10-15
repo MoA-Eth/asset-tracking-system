@@ -150,7 +150,7 @@ const AuthenticatedPortal: React.FC = () => {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#F8FAFC] text-slate-800 flex flex-row font-sans selection:bg-emerald-600 selection:text-white antialiased">
+    <div className="h-screen w-screen overflow-hidden bg-[#EEF1F5] text-slate-800 flex flex-row font-sans selection:bg-emerald-600 selection:text-white antialiased">
       {/* Desktop Sidebar (lg screens) */}
       <DesktopSidebar
         activeTab={activeTab}

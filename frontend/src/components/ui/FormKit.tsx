@@ -320,7 +320,7 @@ export const ReadOnlyValue: React.FC<{
   className = '',
 }) => (
   <div
-    className={`flex h-10 w-full items-center rounded-[4px] border border-slate-200 bg-slate-50 px-3 text-[13px] text-slate-700 ${
+    className={`flex h-10 w-full items-center rounded-[4px] border border-slate-200 bg-white px-3 text-[13px] text-slate-700 ${
       mono ? 'font-mono' : ''
     } ${align === 'right' ? 'justify-end' : ''} ${className}`}
   >
