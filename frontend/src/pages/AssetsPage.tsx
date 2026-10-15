@@ -1162,7 +1162,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           {receipt ? (
             <section
               aria-label="Receive items"
-              className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs lg:h-[calc(100vh-10rem)] lg:sticky lg:top-4"
+              className="rounded-md flex min-w-0 flex-1 flex-col overflow-hidden bg-white lg:h-[calc(100vh-10rem)] lg:sticky lg:top-4 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]"
             >
               {/* Fishbowl TitleBar */}
               <header className="shrink-0 relative space-y-2 border-b border-slate-200 px-5 py-4 bg-white z-10">
@@ -1244,7 +1244,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         </div>
       ) : (
         /* ── Register ── */
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+        <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative flex-1 max-w-md">

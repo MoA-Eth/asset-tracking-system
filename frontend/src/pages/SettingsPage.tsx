@@ -276,7 +276,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
       )}
 
       {/* ── User Permissions Table ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         {/* Table Card Header matching Assets & Employees: Search on left, Action button on right */}
         <div className="border-b border-slate-200 px-3.5 py-2.5">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">

@@ -344,7 +344,7 @@ export const StoresPage: React.FC = () => {
       </div>
 
       {/* ── Toolbar Card matching AssetsPage: Search on left, Action button on right ── */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-xs p-3 sm:px-4 sm:py-3">
+      <div className="rounded-md bg-white p-3 sm:px-4 sm:py-3 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -386,12 +386,12 @@ export const StoresPage: React.FC = () => {
           </button>
         </div>
       ) : loading && stores.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-xs text-slate-400">
+        <div className="rounded-md bg-white p-10 text-center text-xs text-slate-400 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
           <RefreshCw className="mx-auto mb-2 h-5 w-5 animate-spin text-emerald-700" />
           Loading stores…
         </div>
       ) : shown.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-xs text-slate-500">
+        <div className="rounded-md bg-white p-10 text-center text-xs text-slate-500 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
           {stores.length === 0 ? (
             `No stores yet.${canManage ? ' Add the first one with "Add store".' : ''}`
           ) : (
@@ -418,7 +418,7 @@ export const StoresPage: React.FC = () => {
             const held = store.itemCount ?? 0;
             const onlyPlace = store.isActive && usableLocations - store.locations.filter((l) => l.isActive).length === 0;
             return (
-              <section key={store.id} aria-label={store.name} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+              <section key={store.id} aria-label={store.name} className="rounded-md overflow-hidden bg-white shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
                 {/* Store */}
                 <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-white">

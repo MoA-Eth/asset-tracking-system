@@ -184,7 +184,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   return (
     <section
       aria-label={`Asset record ${item.itemCode}`}
-      className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs lg:h-[calc(100vh-10rem)] lg:sticky lg:top-4"
+      className="rounded-md flex min-w-0 flex-1 flex-col overflow-hidden bg-white lg:h-[calc(100vh-10rem)] lg:sticky lg:top-4 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]"
     >
       {/* ── Title and toolbar ── */}
       <header className="shrink-0 relative space-y-2 border-b border-slate-200 px-5 py-4 bg-white z-10">

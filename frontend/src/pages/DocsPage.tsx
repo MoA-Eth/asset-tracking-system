@@ -124,7 +124,7 @@ export const DocsPage: React.FC = () => {
         </div>
       </nav>
 
-      <article ref={reader} aria-label={guide.title} className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-xs sm:px-8 sm:py-7">
+      <article ref={reader} aria-label={guide.title} className="rounded-md min-w-0 flex-1 bg-white px-5 py-5 sm:px-8 sm:py-7 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
           <BookOpen className="h-3.5 w-3.5" />
           {guide.category} · For {guide.audience.toLowerCase()}

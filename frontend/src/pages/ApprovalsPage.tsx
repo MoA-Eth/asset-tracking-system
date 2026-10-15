@@ -602,7 +602,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       </div>
 
       {/* ── 2. Filters & Search Control Bar ── */}
-      <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+      <div className="rounded-md p-3.5 bg-white space-y-3 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         {/* Row 1: Search + Transaction Type Dropdown */}
         <div className="flex flex-col sm:flex-row items-center gap-2.5">
           <div className="relative flex-1 w-full">
@@ -690,7 +690,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         /* ══════════════════════════════════════════════════════════════════════
            HIGH-DENSITY DATA TABLE (Enterprise Standard)
            ══════════════════════════════════════════════════════════════════════ */
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-[13px] min-w-[940px]">
               <thead>

@@ -144,7 +144,7 @@ const StatTile: React.FC<{
   footer: React.ReactNode;
   meterPct?: number;
 }> = ({ label, labelAm, icon: Icon, value, footer, meterPct }) => (
-  <div className="flex flex-col rounded-2xl border border-b-2 border-slate-200 border-b-slate-300 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_20px_-6px_rgba(15,23,42,0.12)] transition duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_14px_28px_-8px_rgba(15,23,42,0.18)]">
+  <div className="rounded-md flex flex-col border-b-2 border-b-slate-300 bg-white p-5 transition duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_14px_28px_-8px_rgba(15,23,42,0.18)] shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
         <p className="text-xs font-semibold text-slate-700">{label}</p>

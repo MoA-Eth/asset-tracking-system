@@ -57,7 +57,7 @@ export const SystemSettingsPage: React.FC = () => {
         <p className="text-xs text-slate-500">Rules that apply to every user and every store across the platform.</p>
       </div>
 
-      <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+      <div className="rounded-md p-4 bg-white space-y-4 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
             <FileText className="w-4 h-4 text-emerald-700" />

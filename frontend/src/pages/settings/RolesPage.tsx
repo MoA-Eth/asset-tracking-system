@@ -283,7 +283,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
           )}
 
           {/* Permission Matrix Section */}
-          <section aria-label="System roles" className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+          <section aria-label="System roles" className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
             {/* Legend */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-200 px-5 py-2.5 text-[11px] text-slate-500">
               <span className="flex items-center gap-1.5">
@@ -447,7 +447,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
               role="region"
               tabIndex={-1}
               aria-label={`${selectedRole.name} details`}
-              className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 transition-all animate-fadeIn"
+              className="rounded-md bg-white overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 transition-all animate-fadeIn shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]"
             >
               <div className="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between gap-3 sm:items-center">
                 <div>

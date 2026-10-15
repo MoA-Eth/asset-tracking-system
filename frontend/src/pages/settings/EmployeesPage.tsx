@@ -473,7 +473,7 @@ export const EmployeesPage: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+        <div className="rounded-md overflow-hidden bg-white shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
           {/* Table Card Header matching AssetsPage: Search on left, Action button on right */}
           <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">

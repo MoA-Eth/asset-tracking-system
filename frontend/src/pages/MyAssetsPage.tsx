@@ -102,7 +102,7 @@ export const MyAssetsPage: React.FC = () => {
       {count > 0 && (
         <>
           {/* Wide screens: one table */}
-          <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white sm:block">
+          <div className="rounded-md hidden overflow-hidden bg-white sm:block shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className={table.headRow}>
@@ -167,7 +167,7 @@ export const MyAssetsPage: React.FC = () => {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && e.target === e.currentTarget) setSelected(asset);
                   }}
-                  className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  className="rounded-md cursor-pointer bg-white p-4 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
