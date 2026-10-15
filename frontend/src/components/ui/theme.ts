@@ -37,7 +37,7 @@ export const table = {
   actionsCell: 'sticky right-0 z-[1] bg-white w-12 text-right whitespace-nowrap shadow-[-10px_0_10px_-10px_rgba(15,23,42,0.18)]',
   /** Search box above a table */
   search:
-    'w-full pl-8 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500',
+    'w-full pl-8 pr-8 py-2 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors',
 } as const;
 
 /** Status colors, shared by every badge and chip */
