@@ -123,7 +123,8 @@ describe('Stock-Out correction before Stage 1 endorsement', () => {
 
   it('rejects missing or unknown values with a 400', async () => {
     await expect(store().updateStockOut('appr-1', { ...edit, ifmisSlipNumber: ' ' }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
-    await expect(store().updateStockOut('appr-1', { ...edit, purpose: '' }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
+    // The purpose is optional (it is not on the IFMIS Model 22): an empty one is not refused
+    await expect(store().updateStockOut('appr-1', { ...edit, purpose: '' }, 'EMP-ENC')).resolves.toBeDefined();
     await expect(store().updateStockOut('appr-1', { ...edit, recipientEmployeeId: 'EMP-GONE' }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
     await expect(store().updateStockOut('appr-1', { ...edit, targetDepartmentId: 'DEP-GONE' }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
   });

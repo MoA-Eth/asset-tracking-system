@@ -275,6 +275,16 @@ export function parseModel19(rows: PdfRow[]): Model19SlipFields {
   found.deliveredBy = signatory(/delivered\s+by\s*:?\s*(?:name\s*:?)?/i);
   found.receivedBy = signatory(/received\s+by\s*:?\s*(?:name\s*:?)?/i);
 
+  found.lines = parseItemLines(rows);
+  return found;
+}
+
+/**
+ * The item lines of an IFMIS voucher table. Model 19 and Model 22 print the same columns: S/No., item code,
+ * description, UOM, sub inventory, category, then quantity, unit price, total amount and remark.
+ */
+function parseItemLines(rows: PdfRow[]): Model19SlipLine[] {
+  const lines: Model19SlipLine[] = [];
   // The figure columns, from their headings: IFMIS prints a line's total and its remark as one piece of text
   // ("12918 968765"), so the figures are placed by column rather than taken as the last three numbers
   const headingX = (pattern: RegExp) => rows.flatMap((r) => r.cells).find((c) => pattern.test(c.text))?.x;
@@ -333,7 +343,7 @@ export function parseModel19(rows: PdfRow[]): Model19SlipFields {
       const [quantity, unitPrice, totalAmount] = numbers.slice(-3).map((c) => asNumber(c.text));
       if (numbers.length >= 3) figures = { quantity, unitPrice, totalAmount };
     }
-    found.lines.push({
+    lines.push({
       itemCode: code.text,
       description: description.join(' ').replace(/\s+/g, ' ').trim() || undefined,
       uom: uom?.text,
@@ -342,7 +352,7 @@ export function parseModel19(rows: PdfRow[]): Model19SlipFields {
       ...figures,
     });
   });
-  return found;
+  return lines;
 }
 
 // ─── Fixed Asset Disposal Form (Model 22/B) ──────────────────────────────────
@@ -371,6 +381,80 @@ export interface DisposalSlipFields {
 /** Whether the text is an IFMIS issue voucher (Model 22, "Receipt For Articles Or Property Issued") */
 export const isModel22 = (text: string): boolean =>
   /receipt\s+for\s+articles\s+or\s+property\s+issued|\bmodel\s*22\s*no\b/i.test(text);
+
+/** What an IFMIS issue voucher (Model 22, "Receipt For Articles Or Property Issued") says */
+export interface Model22SlipFields {
+  /** As printed, e.g. "0000001/A Inventory" */
+  model22No?: string;
+  /** YYYY-MM-DD */
+  issuedDate?: string;
+  transactionType?: string;
+  destination?: string;
+  transportationCost?: number;
+  /** Names on the signature lines, when IFMIS printed them */
+  issuedBy?: string;
+  receivedBy?: string;
+  lines: Model19SlipLine[];
+  /** How many vouchers the PDF holds: only the first is read */
+  vouchers: number;
+}
+
+const M22_LABELS: { key: 'model22No' | 'issuedDate' | 'transactionType' | 'destination'; label: RegExp }[] = [
+  { key: 'model22No', label: /^model\s*22\s*no\.?/i },
+  { key: 'issuedDate', label: /^issued\s*date/i },
+  { key: 'transactionType', label: /^transaction\s*type/i },
+  { key: 'destination', label: /^destination\b/i },
+];
+
+/**
+ * The fields of an IFMIS Model 22; anything not found is left out. A report can hold several vouchers one after
+ * another: the first one is read, and `vouchers` says how many there are.
+ */
+export function parseModel22(rows: PdfRow[]): Model22SlipFields {
+  const headers = rows.map((r, i) => (r.cells.some((c) => M22_LABELS[0].label.test(c.text)) ? i : -1)).filter((i) => i >= 0);
+  const voucher = headers.length > 1 ? rows.slice(0, headers[1]) : rows;
+  const found: Model22SlipFields = { lines: parseItemLines(voucher), vouchers: Math.max(headers.length, 1) };
+
+  // Header: "Label :" then its value, in the same piece or the next one
+  for (const row of voucher) {
+    row.cells.forEach((cell, i) => {
+      for (const { key, label } of M22_LABELS) {
+        if (found[key] || !label.test(cell.text)) continue;
+        const inline = cell.text.replace(label, '').replace(/^\s*[:.]?\s*/, '').trim();
+        const next = row.cells[i + 1];
+        const value = inline || (next && !M22_LABELS.some((h) => h.label.test(next.text)) ? next.text.replace(/^:\s*/, '').trim() : '');
+        if (!value || value === ':') continue;
+        found[key] = key === 'issuedDate' ? toIsoDate(value) : value;
+      }
+    });
+  }
+  // "Transportation Cost:" and its figure, when there is one
+  for (const row of voucher) {
+    const at = row.cells.findIndex((c) => /transportation\s*cost/i.test(c.text));
+    if (at < 0) continue;
+    const figure = row.cells.slice(at + 1).map((c) => c.text.replace(/,/g, '')).find((t) => /^\d+(\.\d+)?$/.test(t));
+    if (figure && Number(figure) > 0) found.transportationCost = Number(figure);
+  }
+
+  // Signature lines (on the last page): "Issued By : Name : <name>" / "Received By : Name : <name>"
+  const signatory = (label: RegExp): string | undefined => {
+    const clean = (t: string) => t.replace(/_+/g, ' ').replace(/^\s*:\s*/, '').replace(/\s+/g, ' ').trim();
+    for (const row of rows) {
+      for (let i = 0; i < row.cells.length; i++) {
+        const match = label.exec(row.cells[i].text);
+        if (!match) continue;
+        let value = clean(row.cells[i].text.slice(match.index + match[0].length));
+        // The value is in the next pieces, up to the other signature on the same line
+        for (let j = i + 1; !value && j < row.cells.length && !/\bby\s*:/i.test(row.cells[j].text); j++) value = clean(row.cells[j].text);
+        return value || undefined;
+      }
+    }
+    return undefined;
+  };
+  found.issuedBy = signatory(/issued\s+by\s*:?\s*(?:name\s*:?)?/i);
+  found.receivedBy = signatory(/received\s+by\s*:?\s*(?:name\s*:?)?/i);
+  return found;
+}
 
 /** Whether the text is an IFMIS disposal form at all */
 export const isDisposalForm = (text: string): boolean => /fixed\s+asset\s+disposal\s+form|model\s*\/\s*22\s*\/\s*b\b/i.test(text);

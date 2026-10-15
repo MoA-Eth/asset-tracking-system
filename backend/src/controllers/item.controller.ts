@@ -136,7 +136,10 @@ export class ItemController {
       payload.registeredById = req.user.id;
     }
     const external = payload.recipientType === 'EXTERNAL';
-    if (!payload.itemId || !payload.ifmisSlipNumber || (external ? !payload.organizationName?.trim() : !payload.recipientEmployeeId)) {
+    // Several lines of one Model 22 name their items per line
+    const batch = Array.isArray(payload.lines);
+    const recipientGiven = payload.disposal === true || (external ? !!payload.organizationName?.trim() : !!payload.recipientEmployeeId);
+    if ((!batch && !payload.itemId) || !payload.ifmisSlipNumber || !recipientGiven) {
       throw new BadRequestError(
         external
           ? 'Asset Item, Organization, and IFMIS Issue Voucher are required.'
@@ -146,11 +149,11 @@ export class ItemController {
     if (!payload.registeredById) {
       throw new BadRequestError('User identity is required to register stock-out.');
     }
-    const result = await this.store.registerStockOut(payload).catch(async (err) => {
+    const result = await (batch ? this.store.registerStockOuts(payload) : this.store.registerStockOut(payload)).catch(async (err) => {
       await discardUnusedSlip(payload.ifmisSlipAttachmentUrl);
       throw err;
     });
-    return sendSuccess(res, result, 'Issue request submitted for approval', 201);
+    return sendSuccess(res, result, batch ? 'Issue requests submitted for approval' : 'Issue request submitted for approval', 201);
   });
 
   /**

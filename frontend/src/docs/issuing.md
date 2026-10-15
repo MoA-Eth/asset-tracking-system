@@ -4,29 +4,70 @@ Use this to hand items from the store to a staff member, or to an outside organi
 
 ## Before you begin
 
-- [ ] You have the Model 22 slip number.
-- [ ] You know who receives the items, and the purpose.
-- [ ] If scanned slips are required, you have the scan.
+- [ ] You have the Model 22, best as the **PDF saved from IFMIS** (it fills in the form for you), or the paper slip.
+- [ ] You know who receives the items.
+- [ ] The **signed copy**: the IFMIS printout with its signatures, scanned or photographed. It is required only if your administrator says so.
 
-## Issue an item
+## The form
 
-1. On **Assets**, open the **⋮** menu of an **In store** asset and choose **Issue (Model 22)**.
-2. **Voucher details:** enter the **Model 22 No.**, the **Issued date** and the **Transaction type** (Move Order Issue, Direct Store Issue, Department Assignment, Project Allocation or Disposal).
-3. **Item issued:** check the item. Enter the **Quantity to issue**, a whole number up to what is in store. You can issue **part** of a batch: those units get their own record and the rest stays in store.
-4. **Recipient and custody:** choose the **Recipient type**:
+It follows the Model 22, top to bottom:
+
+1. **IFMIS Model 22 PDF:** the PDF saved from IFMIS, read to fill in the form.
+2. **Voucher:** Model 22 No., issued date, transaction type.
+3. **Items:** one row per line on the slip: the store item, unit, what is in store, quantity, unit price and total, then the transport cost and grand total.
+4. **Recipient and signatures:** who receives the items, the store man who issues them, and the **Signed copy**.
+
+The bar at the bottom stays in view with **Submit**; click a name under **Still needed** to jump to that field.
+
+## Issue items
+
+1. On **Assets**, open the **⋮** menu of an **In store** asset and choose **Issue (Model 22)**. The form starts with that asset in its first row.
+2. Attach the Model 22 PDF (see below), or fill in by hand.
+3. **Voucher:** enter the **Model 22 No.**, the **Issued date** and the **Transaction type** (Move Order Issue, Miscellaneous issue, Subinventory Transfer, Direct Store Issue, Department Assignment, Project Allocation, or Disposal).
+4. **Items:** for each row choose the **store item** (type a name, record code or IFMIS item code) and the **quantity**, a whole number up to what is in store. You can issue **part** of a batch: those units get their own record and the rest stays in store. Unit and unit price are the item's, as received on Model 19.
+   - **Add item** adds a row for another line of the same Model 22; **×** at the end of a row removes it.
+   - All rows must come from **one store**. Each row becomes its own request.
+   - Enter the **Transport cost** under the table if the slip has one.
+5. **Recipient and signatures:** choose the **Recipient type**:
    - **Internal (employee):** pick the person in **Received by** (type a name or employee ID). Their directorate fills in; change it if needed.
-   - **External (organization):** type the **Organization**, and optionally the **Contact person** who signs for it. There is no employee or directorate.
-5. **Issued by (store man)** shows the store man of the store the item is in. With several, choose one. Enter the **Purpose of issue** and, if you like, a remark. Attach the scan.
-6. Press **Submit for approval**. It stays off until the required fields (*) are filled. The Model 22 voucher opens for printing.
+   - **External (organization):** type the **Organization**, and optionally the **Contact person** who signs for it.
+6. **Issued by (store man)** is the store man of the items' store; choose one if there are several. Attach the **Signed copy**.
+7. Press **Submit for approval** (or **Submit 3 items for approval**). The Model 22 voucher opens for printing.
+
+## Fill in from a Model 22 PDF
+
+Choose it in **IFMIS Model 22 PDF** at the top. The form fills in and a note lists what was filled. **Check it against the paper** before submitting: the PDF is shown open in **Slip preview** at the bottom of the form.
+
+- **Filled in:** Model 22 No., issued date, transaction type, transport cost, and **every line as a row**, matched to the store item with the same **IFMIS item code** and enough in store. **Received by** picks the employee named on the slip, and **Issued by** the store man.
+- **The same item code on several lines** (for example five umbrella lines) becomes **one row** with the total quantity, because one store item is issued in one request.
+- **A line not in store under its code** is marked in red: choose the store item yourself, or remove the row.
+- **A PDF with several vouchers:** only the first is read, and the note says so.
+- **The signed scan is never read.** A scan or photo chosen in the IFMIS PDF box is moved to **Signed copy**. A Model 19, Model 21 or disposal form is refused here.
+
+## Common cases
+
+| Case | What to do |
+|---|---|
+| One item | Issue it from its **⋮** menu: one row. Submit. |
+| Several items on one Model 22 | Open the issue from any of them and attach the PDF: every line becomes a row. Or add rows by hand. |
+| Items in different stores | One Model 22 per store. |
+| A slip line not in store | It is marked red: pick the item, or remove the row. |
+| An outside organization receives it | Recipient type **External**: organization and contact person. |
+| Writing units off | Transaction type **Disposal** (below). |
+| A mistake after submitting | Until the Team Leader endorses it: **Edit issue**, fix, **Save changes**. After that it is locked. |
 
 ## Dispose of stock through Model 22
 
-To write units off on a Model 22 instead of the disposal form, choose **Disposal (write-off)** as the **Transaction type**. The recipient fields go away and **Purpose of issue** becomes the **Reason for disposal** (for example expired, damaged or used up). The rest is the same: quantity, **Issued by (store man)**, slip and scan. It goes through the same two approvals. When approved, the units leave the register as **Disposed**, and a partial quantity splits off its own record. The Model 22 voucher prints with the transaction type **Disposal**. Use the **Dispose** action instead when you need the Fixed Asset Disposal Form, for example to record who the items were sold or given to.
+To write units off on a Model 22 instead of the disposal form, choose **Disposal (write-off)** as the **Transaction type**. The recipient fields go away and you enter the **Reason for disposal** (for example expired, damaged or used up). It goes through the same two approvals. When approved, the units leave the register as **Disposed**, and a partial quantity splits off its own record. Use the **Dispose** action instead when you need the Fixed Asset Disposal Form, for example to record who the items were sold or given to.
 
 ## After submitting
 
 - The asset shows **Issue pending**, with **With Team Leader** or **With Dept. Head**.
-- Until the Team Leader endorses it, choose **Edit issue** to correct the recipient, quantity, slip or purpose. After that it is locked.
+- Until the Team Leader endorses it, choose **Edit issue** to correct the recipient, quantity or slip. After that it is locked.
 - **Approved:** the asset becomes **Issued** to the recipient. **Rejected:** it stays in store, and the reason shows on the asset.
 
-> An asset issued to an outside organization cannot be returned or transferred through the system yet. To issue a different item than the one in a pending request, ask an approver to reject it and start again.
+## The printed Model 22
+
+Same layout as the IFMIS voucher: Model 22 No., Issued Date, Transaction Type and Destination; the **Item** column shows the IFMIS item code; then Total, Transportation Cost and Grand Total, and Issued By / Received By.
+
+> An asset issued to an outside organization cannot be returned or transferred through the system yet.

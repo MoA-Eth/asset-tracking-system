@@ -15,5 +15,6 @@ in. They say in their footer that they are not IFMIS documents.
   in too. Grand total 127,500.
 - `sample-model19-donation.pdf`: Model 19 No. 0000124 with no PO number (so a donation) and 2 lines: a soil testing
   kit (fixed asset) and wheat seed (consumable).
+- `sample-model22-issue.pdf`: Model 22 No. 0000201/A Inventory, laid out like the real one: Mobile Card ×20 and fuel coupons on two lines (10 + 5, combined into one row), an umbrella line that is not in the demo stores, a transport cost of 300, and both signature names (Issued by "Tesfaye, Hiwot", the Saris store man; Received by "Tolosa, Kassahun"). Open **Issue (Model 22)** on an item of the Saris store and choose it.
 
 Upload them on the Receive items form to check what is filled in.

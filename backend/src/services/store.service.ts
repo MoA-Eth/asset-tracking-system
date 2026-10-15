@@ -1146,8 +1146,9 @@ export class StoreService {
     const slipNo = (payload.ifmisSlipNumber || '').trim();
     const purpose = (payload.purpose || '').trim();
     if (!slipNo) throw new BadRequestError('The Model 22 slip number is required to issue an item.');
-    if (!purpose) throw new BadRequestError('Purpose of issue is required.');
     const disposal = ((approval.requestDetails ?? {}) as Record<string, any>).disposal === true;
+    // Only a disposal needs a reason; an issue's purpose is not on the IFMIS Model 22, so it is optional
+    if (!purpose && disposal) throw new BadRequestError('Reason for disposal is required.');
     const external = disposal ? null : this.externalRecipientOf(payload);
     if (!external && !disposal) {
       if (!payload.recipientEmployeeId) throw new BadRequestError('Recipient staff member is required.');
@@ -1325,7 +1326,8 @@ export class StoreService {
     if (isBlank(payload.ifmisSlipNumber)) throw new BadRequestError('The Model 22 slip number is required to issue an item.');
     // A disposal through Model 22 has no recipient: the purpose is the reason for writing the units off
     const disposal = payload.disposal === true;
-    if (isBlank(payload.purpose)) throw new BadRequestError(disposal ? 'Reason for disposal is required.' : 'Purpose of issue is required.');
+    // Only a disposal needs a reason; an issue's purpose is not on the IFMIS Model 22, so it is optional
+    if (disposal && isBlank(payload.purpose)) throw new BadRequestError('Reason for disposal is required.');
     const external = disposal ? null : this.externalRecipientOf(payload);
     if (!disposal && !external && isBlank(payload.recipientEmployeeId)) throw new BadRequestError('Recipient staff member is required.');
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
@@ -1353,7 +1355,7 @@ export class StoreService {
     }
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
 
-    const notesText = formatStockOutNotes(payload.purpose, payload.remark);
+    const notesText = formatStockOutNotes(payload.purpose?.trim() ?? '', payload.remark);
 
     await prisma.item.update({
       where: { id: item.id },
@@ -1399,6 +1401,9 @@ export class StoreService {
           ...(disposal ? { disposal: true } : {}),
           ...(issuer ? { issuedByEmployeeId: issuer.employeeId, issuedByName: issuer.fullNameEn } : {}),
           ...(external ? { recipientType: 'EXTERNAL', ...external } : {}),
+          // As printed on the Model 22: its transaction type, and the transport cost (kept on the voucher's first line)
+          ...(payload.transactionType?.trim() ? { transactionType: payload.transactionType.trim() } : {}),
+          ...(Number(payload.transportationCost) > 0 ? { transportationCost: Number(payload.transportationCost) } : {}),
         } as any,
         status: 'PENDING' as any,
         createdAtGc: today.gc,
@@ -1418,6 +1423,46 @@ export class StoreService {
     );
 
     return mapApproval(approval);
+  }
+
+  /**
+   * The lines of one Model 22: each is its own issue request with the voucher's details. Every line is checked
+   * before any is saved, so a bad line can't leave half a voucher registered. One Model 22 issues from one store.
+   */
+  public async registerStockOuts(payload: CreateStockOutRequest): Promise<{ approval: TransactionApproval; approvals: TransactionApproval[] }> {
+    const lines = payload.lines ?? [];
+    if (lines.length === 0) throw new BadRequestError('Add at least one item to issue.');
+    const ids = lines.map((l) => l.itemId);
+    if (new Set(ids).size !== ids.length) throw new BadRequestError('The same store item is on two lines: put its quantities on one line.');
+    const items = await prisma.item.findMany({ where: { id: { in: ids } }, include: { storeLocation: true } });
+    const stores = new Set<string>();
+    for (const line of lines) {
+      const item = items.find((i) => i.id === line.itemId);
+      if (!item) throw new NotFoundError(`Item ${line.itemId} not found.`);
+      if (item.status !== 'AVAILABLE') throw new ConflictError(`Item ${item.itemCode} must be in store to be issued. Current: ${item.status}`);
+      await assertNoPendingApproval(item);
+      const inStore = quantityOf(item);
+      const quantity = Number(line.quantity);
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
+        throw new BadRequestError(`${item.itemCode}: quantity must be a whole number from 1 to ${inStore} (${uomOf(item)} in store).`);
+      }
+      stores.add(item.storeLocation?.storeId ?? item.storeLocationId);
+    }
+    if (stores.size > 1) throw new BadRequestError('One Model 22 issues from one store, and these items are in different stores. Issue each store\'s items on its own Model 22.');
+
+    const approvals: TransactionApproval[] = [];
+    for (const [i, line] of lines.entries()) {
+      approvals.push(
+        await this.registerStockOut({
+          ...payload,
+          lines: undefined,
+          itemId: line.itemId,
+          quantity: line.quantity,
+          transportationCost: i === 0 ? payload.transportationCost : undefined,
+        }),
+      );
+    }
+    return { approval: approvals[0], approvals };
   }
 
   // ── Disposal ─────────────────────────────────────────────────────────────

@@ -22,9 +22,12 @@ export interface StoreKeepersView {
   storeOfKeeper: (employeeId?: string | null) => string | undefined;
 }
 
-/** A name as a sorted set of lower-case words, so "Tesfaye, Abel Girma" equals "Abel Girma Tesfaye" */
+/**
+ * A name as a sorted set of lower-case words, so "Tesfaye, Abel Girma" equals "Abel Girma Tesfaye". A note in
+ * brackets is not part of the name: "Kassahun Tolosa (Property Director)" equals "Tolosa, Kassahun".
+ */
 export const nameKey = (name: string): string =>
-  name.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
+  name.toLowerCase().replace(/\([^)]*\)/g, ' ').replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
 
 /**
  * The store men of every store, so a form can offer the ones of the store it works in, and refuse a store with

@@ -5,6 +5,10 @@ import userEvent from '@testing-library/user-event';
 import { StockOutForm, buildModel22Voucher } from './IssueForm';
 import { api } from '../../api/client';
 import { loadSystemSettings } from '../../utils/system-settings';
+import { readPdfPages } from '../../utils/slip-reader';
+
+// The PDF is read in the browser; here its rows are given, and the real reader parses them
+vi.mock('../../utils/slip-reader', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../utils/slip-reader')>()), readPdfPages: vi.fn() }));
 
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'encoder', fullNameEn: 'Store Encoder' } }) }));
 vi.mock('../../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn() }) }));
@@ -30,9 +34,11 @@ const renderWith = (stock: any) =>
 describe('Issue items (Model 22): unit of measure', () => {
   it("shows the unit the item was received in, and it can't be edited or cleared", () => {
     renderWith(item());
-    const field = screen.getByText('Unit of measure').closest('label')!.parentElement!;
-    expect(field).toHaveTextContent('BAG');
-    expect(field.querySelector('input')).toBeNull();
+    // The Unit column of the item's row: shown, not typed
+    const cells = screen.getByLabelText('Quantity to issue').closest('tr')!.querySelectorAll('td');
+    const unit = cells[[...screen.getAllByRole('columnheader')].findIndex((h) => h.textContent === 'Unit')];
+    expect(unit).toHaveTextContent('BAG');
+    expect(unit.querySelector('input')).toBeNull();
     expect(screen.getAllByText(/40 BAG in store/).length).toBeGreaterThan(0);
   });
 
@@ -72,11 +78,12 @@ describe('Issue items (Model 22): internal or external recipient', () => {
     vi.mocked(api.registerStockOut).mockResolvedValue({ id: 'appr-1' } as any);
     const onSuccess = vi.fn();
     renderIssue(onSuccess);
+    // No Purpose of issue: it is not on the IFMIS Model 22
+    expect(screen.queryByText('Purpose of issue')).toBeNull();
 
     await user.click(screen.getByRole('radio', { name: 'External (organization)' }));
     expect(submit()).toBeDisabled();
     await user.type(screen.getByPlaceholderText('e.g. 0004653/A Inventory'), 'M22-001');
-    await user.type(screen.getByPlaceholderText('e.g. Move Order Issue for Agricultural Operations'), 'Programme support');
     // Everything but the organization is filled in: Submit is still off
     expect(submit()).toBeDisabled();
     await user.type(screen.getByLabelText(/Organization/), ' Oromia Bureau of Agriculture ');
@@ -243,5 +250,84 @@ describe('Issue items (Model 22): inline errors and keyboard', () => {
     await user.type(screen.getByPlaceholderText(/Expired, damaged beyond repair/), 'Expired');
     await user.keyboard('{Control>}{Enter}{/Control}');
     expect(api.registerStockOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Issue items (Model 22): read from the IFMIS PDF', () => {
+  const row = (top: number, ...cells: [number, string][]) => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+  // A Model 22 with the same umbrella on two lines, gloves, and soap that is not in this store
+  const MODEL22 = [
+    row(64, [297, 'Receipt For Articles Or Property Issued']),
+    row(118, [500, 'Model 22 No. :'], [579, '0000031/A Inventory']),
+    row(130, [506, 'Issued Date :'], [579, '07-Oct-2026']),
+    row(141, [479, 'Transaction Type :'], [579, 'Miscellaneous issue']),
+    row(197, [534, 'Qty'], [574, 'Unit Price'], [660, 'Total Amount'], [732, 'Remark']),
+    row(205, [24, 'S/No.'], [57, 'Item'], [124, 'Item Description'], [197, 'UOM'], [220, 'Inventory'], [263, 'Item Category']),
+    row(216, [29, '1'], [51, '111101102.0010'], [119, 'Umberella'], [201, 'EA'], [218, 'Uniforms'], [263, 'Other materials'], [534, '1'], [607, '168.75'], [683, '168.75']),
+    row(235, [29, '2'], [51, '101102101.0027'], [119, 'Plastic Glove'], [201, 'EA'], [218, 'Uniforms'], [263, 'Office supplies'], [534, '6'], [611, '34.90'], [683, '209.40']),
+    row(254, [29, '3'], [51, '111101102.0010'], [119, 'Umberella'], [201, 'EA'], [218, 'Uniforms'], [263, 'Other materials'], [534, '1'], [607, '168.75'], [683, '168.75']),
+    row(273, [29, '4'], [51, '101102101.0028'], [119, 'Powder Soap'], [201, 'EA'], [218, 'Stationery'], [263, 'Office supplies'], [534, '3'], [611, '12.36'], [683, '37.08']),
+    row(804, [30, 'Issued By : Name'], [111, ':'], [124, '_____'], [426, 'Received By : Name'], [513, ':'], [530, 'Kebede, Abebe']),
+  ];
+  const umbrellas = item({ id: 'item-U', itemCode: 'MOA-SUP-0001', name: 'Umbrella', quantity: 10, uom: 'EA', unitCostETB: 168.75, ifmisItemCode: '111101102.0010' });
+  const gloves = item({ id: 'item-G', itemCode: 'MOA-SUP-0002', name: 'Plastic glove', quantity: 20, uom: 'EA', unitCostETB: 34.9, ifmisItemCode: '101102101.0027' });
+  const employee = { id: 'EMP-A', fullNameEn: 'Abebe Kebede', payrollId: '00000001', departmentId: 'DEP-1' } as any;
+  const department = { id: 'DEP-1', nameEn: 'Plant Protection', nameAm: '' } as any;
+  // The chosen PDF is shown under the form from a link the browser makes
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => 'blob:m22');
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  it('fills the voucher, matches each line to a store item by its IFMIS code, combines repeated codes, and submits the lines together', async () => {
+    const user = userEvent.setup();
+    vi.mocked(readPdfPages).mockResolvedValue({ rows: MODEL22, pages: 1, pagesRead: 1 } as any);
+    vi.mocked(api.uploadSlip).mockResolvedValue({ url: '/api/uploads/slips/m22.pdf' } as any);
+    vi.mocked(api.registerStockOut).mockResolvedValue({ approval: { id: 'appr-1', itemId: 'item-U' }, approvals: [] } as any);
+    const onSuccess = vi.fn();
+    render(<StockOutForm availableItems={[umbrellas, gloves]} departments={[department]} employees={[employee]} onCancel={vi.fn()} onSuccess={onSuccess} />);
+
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'm22.pdf', { type: 'application/pdf' }));
+    const note = await screen.findByText(/Filled in from the slip/);
+    expect(screen.getByPlaceholderText('e.g. 0004653/A Inventory')).toHaveValue('0000031/A Inventory');
+    expect(screen.getByLabelText(/Transaction type/)).toHaveValue('Miscellaneous issue');
+    // The two umbrella lines are one row; soap is not in this store
+    expect(note).toHaveTextContent('lines with the same item code are combined: 2 × 111101102.0010');
+    expect(note).toHaveTextContent('1 line is not in store under its item code');
+    expect(screen.getByLabelText('Quantity to issue')).toHaveValue('2');
+    expect(screen.getByLabelText('Item 2 quantity')).toHaveValue('6');
+    expect(screen.getByText(/Not in store under this code:/)).toHaveTextContent('101102101.0028 Powder Soap');
+    // The employee named on the slip receives them
+    expect(screen.getByText('Abebe Kebede (00000001)')).toBeInTheDocument();
+
+    const submit = screen.getByRole('button', { name: 'Submit 3 items for approval' });
+    expect(submit).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Remove item 3' }));
+    const submit2 = screen.getByRole('button', { name: 'Submit 2 items for approval' });
+    expect(submit2).toBeEnabled();
+    await user.click(submit2);
+
+    const payload = vi.mocked(api.registerStockOut).mock.calls[0][0];
+    expect(payload).toMatchObject({
+      ifmisSlipNumber: '0000031/A Inventory',
+      ifmisSlipDateGc: '2026-10-07',
+      transactionType: 'Miscellaneous issue',
+      recipientEmployeeId: 'EMP-A',
+      targetDepartmentId: 'DEP-1',
+      ifmisSlipAttachmentUrl: '/api/uploads/slips/m22.pdf',
+      lines: [{ itemId: 'item-U', quantity: 2 }, { itemId: 'item-G', quantity: 6 }],
+    });
+    // The printed voucher lists both lines, by their IFMIS item code as IFMIS prints them
+    expect(onSuccess.mock.calls[0][1].items.map((l: any) => [l.itemCode, l.quantity])).toEqual([['111101102.0010', 2], ['101102101.0027', 6]]);
+  });
+
+  it('refuses a Model 19 here: it is not attached and fills nothing', async () => {
+    const user = userEvent.setup();
+    vi.mocked(readPdfPages).mockResolvedValue({ rows: [row(98, [640, 'Print Model19 Report']), row(146, [680, 'INV Model 19 No. :'], [812, '0000044'])], pages: 1, pagesRead: 1 } as any);
+    render(<StockOutForm availableItems={[umbrellas]} departments={[department]} employees={[employee]} onCancel={vi.fn()} onSuccess={vi.fn()} />);
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'm19.pdf', { type: 'application/pdf' }));
+    expect(await screen.findByText(/This is a Model 19 receipt/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('e.g. 0004653/A Inventory')).toHaveValue('');
+    expect(screen.queryByText('m19.pdf')).toBeNull();
   });
 });
