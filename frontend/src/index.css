@@ -3,8 +3,9 @@
 @theme {
   --font-sans: 'Inter', 'Noto Sans Ethiopic', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-amharic: 'Noto Sans Ethiopic', 'Inter', sans-serif;
-  /* Codes and numbers: the same look on every machine, not whatever the system has */
-  --font-mono: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  /* Codes and numbers: the app's own font, so a code reads the same in a table, a form or a record; their digits are
+     evenly spaced (see .font-mono below), so columns of numbers still line up */
+  --font-mono: 'Inter', 'Noto Sans Ethiopic', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   --color-moa-green-dark: #072F1C;
   --color-moa-green: #0B3D25;
@@ -52,8 +53,9 @@ html {
   text-rendering: optimizeLegibility;
 }
 
-/* Digits line up in columns of amounts and quantities */
-table {
+/* Digits line up in columns of amounts and quantities, and in codes */
+table,
+.font-mono {
   font-variant-numeric: tabular-nums;
 }
 
