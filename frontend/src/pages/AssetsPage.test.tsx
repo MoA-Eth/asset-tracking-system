@@ -586,6 +586,39 @@ describe('Assets page', () => {
     expect(api.registerDisposal).toHaveBeenNthCalledWith(2, expect.objectContaining({ itemId: 'T44', disposalNo: '0000015/2013', disposalDateGc: '2021-11-26', bookValue: 15640, ifmisSlipAttachmentUrl: '/api/uploads/slips/disposal.pdf' }));
   });
 
+  it('finds the item on a disposal form by its serial number when its IFMIS tag is not recorded yet', async () => {
+    const user = userEvent.setup();
+    const laptop = item('L9', 'Lap Top Computer', 'AVAILABLE', { itemCode: 'MOA-IT-2026-0009', serialNumber: '5CG1091THZ', unitCostETB: 80378 });
+    vi.mocked(api.getItems).mockResolvedValue([laptop] as any);
+    const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+    // As IFMIS prints it: the type above the number, the description wrapped, the tag, serial and figures lower
+    vi.mocked(readPdfRows).mockResolvedValue([
+      r(132, [604, 'Fixed Asset Disposal Form']),
+      r(180, [183, 'Sold /Transferred / Donated to :'], [361, 'East Shawa Zone Agriculture Office/Umer Ahmed'], [1018, 'No:'], [1048, '0001765/2018']),
+      r(199, [1008, 'Date:'], [1036, '28-JUL-26']),
+      r(233, [175, 'S.No'], [240, 'Asset Description'], [310, 'Tag Number'], [393, 'Serial Number'], [745, 'Disposal Type'], [830, 'Original Cost'], [1027, 'Book Value']),
+      r(256, [742, 'TRANSFER']),
+      r(257, [203, '1'], [221, 'Lap Top']),
+      r(261, [304, 'MOA-004344']),
+      r(263, [385, '5CG1091THZ']),
+      r(267, [221, 'Computer'], [858, '80,378.00'], [948, '80,378.00'], [1083, '0.00']),
+    ]);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-IT-2026-0009');
+    await menuFor(user, 'MOA-IT-2026-0009');
+    await user.click(screen.getByRole('menuitem', { name: 'Dispose' }));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-IT-2026-0009' });
+    await user.upload(document.querySelector('#disposal-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'disposal.pdf', { type: 'application/pdf' }));
+
+    expect(await within(record).findByText(/Filled in from the disposal form: .*disposal type.*book value/)).toBeInTheDocument();
+    expect(within(record).getByDisplayValue('0001765/2018')).toBeInTheDocument();
+    expect(within(record).getByDisplayValue('TRANSFER')).toBeInTheDocument();
+    expect(within(record).getByDisplayValue('East Shawa Zone Agriculture Office/Umer Ahmed')).toBeInTheDocument();
+    expect(within(record).getByDisplayValue('0')).toBeInTheDocument();
+    // Found by its serial, so nothing to ask
+    expect(within(record).queryByRole('group', { name: 'Unknown IFMIS tag numbers' })).toBeNull();
+  });
+
   it('on a disposal form that names this item by an IFMIS tag it lacks, offers to record the tag on it', async () => {
     const user = userEvent.setup();
     const chair = item('C1', 'Office Chair', 'AVAILABLE', { itemCode: 'MOA-OF-2026-0001' });

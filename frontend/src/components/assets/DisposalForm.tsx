@@ -8,7 +8,7 @@ import { Part, SlipPreview } from './FormParts';
 import { readPdfRows, rowsToText, isModel19, isModel21, isDisposalForm, parseDisposalForm, DisposalSlipFields, DisposalSlipLine } from '../../utils/slip-reader';
 import { OtherAssets } from './OtherAssets';
 import { LearnTagPrompt, taggableAssets } from './LearnTagPrompt';
-import { findByTag, printedTag } from '../../utils/asset-tag';
+import { findByTag, printedTag, tagKey } from '../../utils/asset-tag';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { DisposalVoucher, Employee, ItemCondition, ItemStatus, ItemWithRelations, TransactionApproval } from '../../types/asset-management';
@@ -147,10 +147,15 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   // This record is always one of the assets, also when correcting a request (which has no list)
   const knownItems = allItems.some((i) => i.id === item.id) ? allItems : [item, ...allItems];
 
+  /** The asset a line names: by its tag, or else by the serial number it was received with (its IFMIS tag not recorded yet) */
+  const assetOf = (line: DisposalSlipLine) =>
+    findByTag(knownItems, line.tagNumber, learnedTags.current) ??
+    (line.serialNumber?.trim() ? knownItems.find((i) => !!i.serialNumber?.trim() && tagKey(i.serialNumber) === tagKey(line.serialNumber)) : undefined);
+
   /** Whether an asset the form lists can be disposed of, in the order of its life: received, approved and in store, with nothing pending */
   const checkLine = (line: DisposalSlipLine): { asset?: ItemWithRelations; problem?: string } => {
     if (!line.tagNumber?.trim()) return { problem: 'The line names no tag number.' };
-    const asset = findByTag(knownItems, line.tagNumber, learnedTags.current);
+    const asset = assetOf(line);
     if (!asset) return { problem: `No asset here has the tag ${line.tagNumber}. If it was received under another code, record the tag on it above; otherwise it has to be received on a Model 19 and approved first.` };
     if (asset.status !== ItemStatus.AVAILABLE) return { asset, problem: `${asset.itemCode} is ${STATUS_WORDS[asset.status] ?? asset.status.toLowerCase()}; only an item in store can be disposed of.` };
     if (pendingItemIds?.has(asset.id)) return { asset, problem: `${asset.itemCode} already has a request waiting for approval.` };
@@ -159,7 +164,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
 
   const fillFromDisposalForm = (form: DisposalSlipFields) => {
     lastRead.current = form;
-    setUnknownTags([...new Set(form.lines.map((l) => l.tagNumber?.trim() ?? '').filter((t) => t && !findByTag(knownItems, t, learnedTags.current)))]);
+    setUnknownTags([...new Set(form.lines.filter((l) => !assetOf(l)).map((l) => l.tagNumber?.trim() ?? '').filter(Boolean))]);
     const filled: string[] = [];
     const problems: string[] = [];
     if (form.disposalNo && !disposalNo.trim()) {
@@ -180,7 +185,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       filled.push('disposal type');
     }
     // This record's own line
-    const own = form.lines.find((l) => findByTag(knownItems, l.tagNumber, learnedTags.current)?.id === item.id);
+    const own = form.lines.find((l) => assetOf(l)?.id === item.id);
     if (!own) problems.push(`${item.itemCode} isn't on this disposal form${item.ifmisTagNumber ? ` (its IFMIS tag is ${item.ifmisTagNumber})` : ''}.`);
     else if (own.bookValue !== undefined && !bookValueEdited) {
       setBookValueText(String(own.bookValue));
@@ -350,7 +355,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       {extraAssets.length > 0 && (
         <OtherAssets
           label="Other assets on this form"
-          note="each that fits is disposed of as its own request, with the same reference"
+          note="each that fits is disposed of as its own request, with the same No."
           okLabel="Will be disposed of"
           notLabel="Not disposed of"
           assets={extraAssets.map((o) => ({ key: o.key, code: o.asset?.itemCode ?? o.line.tagNumber ?? '—', name: o.asset?.name ?? o.line.description, problem: o.problem }))}

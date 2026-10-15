@@ -465,6 +465,8 @@ function parseItemLines(rows: PdfRow[]): Model19SlipLine[] {
 export interface DisposalSlipLine {
   description?: string;
   tagNumber?: string;
+  /** Matches an asset whose IFMIS tag isn't recorded yet, by the serial number received with it */
+  serialNumber?: string;
   /** As IFMIS prints it, e.g. DONATION */
   disposalType?: string;
   originalCost?: number;
@@ -582,31 +584,55 @@ export function parseDisposalForm(rows: PdfRow[]): DisposalSlipFields {
     }
     return undefined;
   };
-  found.disposalNo = after(/^no\s*:?$/i);
-  const date = after(/^date\s*:?$/i);
+  // The value may come in the same piece as its label ("Date: 28-JUL-26") or in the next one
+  found.disposalNo = after(/^no\s*:?(?=\s|$)/i);
+  const date = after(/^date\s*:?(?=\s|$)/i);
   found.date = date ? toIsoDate(date) : undefined;
   found.recipient = after(/donated\s+to\s*:?$/i);
 
-  // Assets: a row that starts with its number and has a tag number; the disposal type is printed just above the line
-  const typeX = rows.flatMap((r) => r.cells).find((c) => /^disposal\s*type$/i.test(c.text))?.x;
-  let previous = -1;
-  rows.forEach((row, index) => {
-    const tagIndex = row.cells.findIndex((c, i) => i > 0 && TAG.test(c.text));
-    if (!/^\d{1,3}$/.test(row.cells[0]?.text ?? '') || tagIndex < 0) return;
-    const money = row.cells.filter((c) => MONEY.test(c.text)).map((c) => asNumber(c.text));
-    const typeCell = rows
-      .slice(previous + 1, index + 1)
-      .flatMap((r) => r.cells)
-      .find((c) => /^[A-Z][A-Z ]{2,}$/.test(c.text) && (typeX === undefined || Math.abs(c.x - typeX) < 20));
+  // Assets. IFMIS doesn't print a line's cells on one baseline: the disposal type sits just above its number, a long
+  // description wraps onto the next line, and the tag, serial and figures sit a little lower. So each line is the band
+  // from just above its number to just above the next one.
+  const cellsOf = rows.flatMap((r) => r.cells);
+  const headingX = (pattern: RegExp) => cellsOf.find((c) => pattern.test(c.text))?.x;
+  const typeX = headingX(/^disposal\s*type$/i);
+  const tagX = headingX(/^tag\s*number$/i);
+  const serialX = headingX(/^serial\s*number$/i);
+  const headIndex = rows.findIndex((r) => r.cells.some((c) => /^tag\s*number$/i.test(c.text)));
+  const endIndex = rows.findIndex((r, i) => i > headIndex && r.cells.some((c) => /undersigned|report taken/i.test(c.text)));
+  // The headings wrap over several rows ("Asset" / "Description", "Accumulated" / "Depreciation"): none of them is a line
+  const HEADING = /^(s\.?\s*no|asset|description|asset description|tag number|serial number|chassis no|engine no|declaration|number|declaration number|disposal type|original cost|accumulated|depreciation|accumulated depreciation|book value|remark)$/i;
+  const body = rows.slice(headIndex + 1, endIndex < 0 ? undefined : endIndex).filter((r) => !r.cells.every((c) => HEADING.test(c.text)));
+  // A line starts with its number, left of the tag column
+  const starts = body.filter((r) => /^\d{1,3}$/.test(r.cells[0]?.text ?? '') && (tagX === undefined || r.cells[0].x < tagX - 10));
+  const pitch = starts.length > 1 ? starts[1].top - starts[0].top : 30;
+  // The disposal type is printed this far above the number at most; anything lower belongs to the line
+  const lead = Math.min(12, pitch * 0.45);
+  starts.forEach((start, n) => {
+    const from = start.top - lead;
+    const to = (starts[n + 1]?.top ?? start.top + pitch) - lead;
+    const band = body.filter((r) => r.top >= from && r.top < to).flatMap((r) => r.cells.map((c) => ({ ...c, top: r.top })));
+    const number = start.cells[0];
+    const tag = band.find((c) => TAG.test(c.text) && (tagX === undefined || Math.abs(c.x - tagX) < 40));
+    if (!tag) return;
+    const typeCell = band.find((c) => /^[A-Z][A-Z /]{2,}$/.test(c.text) && (typeX === undefined || Math.abs(c.x - typeX) < 20));
+    const serial = serialX === undefined ? undefined : band.find((c) => c !== tag && c !== typeCell && !MONEY.test(c.text) && Math.abs(c.x - serialX) < 40);
+    const description = band
+      .filter((c) => c !== number && c.x > number.x && c.x < tag.x - 2 && c !== typeCell)
+      .map((c) => c.text)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const money = band.filter((c) => MONEY.test(c.text)).sort((a, b) => a.x - b.x).map((c) => asNumber(c.text));
     found.lines.push({
-      description: row.cells.slice(1, tagIndex).map((c) => c.text).join(' ').trim() || undefined,
-      tagNumber: row.cells[tagIndex].text,
+      description: description || undefined,
+      tagNumber: tag.text,
+      ...(serial ? { serialNumber: serial.text } : {}),
       disposalType: typeCell?.text,
       originalCost: money[0],
       accumulatedDepreciation: money[1],
       bookValue: money[2],
     });
-    previous = index;
   });
   return found;
 }

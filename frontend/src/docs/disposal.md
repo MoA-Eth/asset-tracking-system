@@ -30,6 +30,6 @@ On the disposal form, choose the **Fixed Asset Disposal Form (Model 22/B)** as a
 
 The other assets on the form are listed under it, each marked **Will be disposed of** or **Not disposed of** with the reason. In the order of operations an asset must already be **received and approved**, be **in store** (an issued asset has to come back to store first), and have no other request waiting. One **Submit** disposes of this item and every other asset that fits, each as its own request with the same No., date, disposal type and recipient. Press **Leave out** to skip one.
 
-If the form names this item, or another asset, by an IFMIS tag number it doesn't have yet, it asks which asset it is: pick it and press **Save as its IFMIS tag**, and the form is read again. The printed form shows each asset's IFMIS tag number when it has one.
+An asset is found by its IFMIS tag number, its record code, or the serial number on the form, so an asset received with its serial number is found even before its IFMIS tag is recorded. If the form names this item, or another asset, by an IFMIS tag number no asset has and the serial doesn't match either, it asks which asset it is: pick it and press **Save as its IFMIS tag**, and the form is read again. The printed form shows each asset's IFMIS tag number when it has one.
 
 Only a disposal form is read here; a Model 19 or Model 21 is sent to its own form. A scanned PDF has no text and can't be read.
