@@ -29,7 +29,7 @@ Use the same form for an **Issued** asset that is coming back.
 - A request on an asset blocks a second one: only one open request per record.
 - **Approved transfer to an employee:** the new holder and directorate apply. **Approved transfer to store:** the asset is **In store** and no one holds it. **Rejected:** nothing changes.
 - An asset that is already **In store** can only be transferred to an employee; **Return to store** is offered for issued assets.
-- Assets issued to an outside organization cannot be transferred or returned yet.
+- Assets issued to an outside organization stay with it: they are not transferred or returned through the system.
 
 ## Fill in from a Model 21 PDF
 

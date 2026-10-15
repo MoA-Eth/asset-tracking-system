@@ -71,4 +71,4 @@ To write units off on a Model 22 instead of the disposal form, choose **Disposal
 
 Same layout as the IFMIS voucher: Model 22 No., Issued Date, Transaction Type and Destination; the **Item** column shows the IFMIS item code; then Total, Transportation Cost and Grand Total, and Issued By / Received By.
 
-> An asset issued to an outside organization cannot be returned or transferred through the system yet.
+> Items issued to an outside organization stay with it: they are not returned or transferred through the system.
