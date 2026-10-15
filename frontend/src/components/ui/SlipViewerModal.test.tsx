@@ -32,7 +32,8 @@ describe('<SlipViewerModal />', () => {
 
     expect(screen.getByText('Model-19-slip.pdf')).toBeInTheDocument();
     const frame = await screen.findByTitle('IFMIS slip Model-19-slip.pdf');
-    expect(frame).toHaveAttribute('src', 'blob:slip-preview');
+    // The viewer opens without its page-thumbnail panel, so the page has the whole frame
+    expect(frame).toHaveAttribute('src', 'blob:slip-preview#pagemode=none&navpanes=0&zoom=page-width&view=FitH');
     // Slips need the session token, so the new tab opens the file already loaded, not the bare address
     expect(screen.getByRole('link', { name: /open in new tab/i })).toHaveAttribute('href', 'blob:slip-preview');
   });

@@ -80,6 +80,12 @@ export function useSlip(url?: string, file?: File | null): SlipState {
   return state;
 }
 
+/**
+ * How the browser's PDF viewer opens the slip: without its side panel of page thumbnails, the page as wide as the
+ * frame. pagemode and zoom are read by Firefox, navpanes and view by Chrome and Edge; each ignores the others.
+ */
+const PDF_OPEN = '#pagemode=none&navpanes=0&zoom=page-width&view=FitH';
+
 /** The slip itself: the PDF in the browser's own viewer, or the image */
 export const SlipContent: React.FC<{ state: SlipState; fileName: string; heightClass?: string }> = ({ state, fileName, heightClass = 'h-[78vh]' }) => (
   <>
@@ -95,7 +101,7 @@ export const SlipContent: React.FC<{ state: SlipState; fileName: string; heightC
     )}
 
     {state.status === 'ready' && state.kind === 'pdf' && (
-      <iframe src={state.objectUrl} title={`IFMIS slip ${fileName}`} className={`w-full border-0 bg-white ${heightClass}`} />
+      <iframe src={`${state.objectUrl}${PDF_OPEN}`} title={`IFMIS slip ${fileName}`} className={`w-full border-0 bg-white ${heightClass}`} />
     )}
 
     {state.status === 'missing' && (
