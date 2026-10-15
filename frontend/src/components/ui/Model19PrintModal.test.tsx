@@ -131,7 +131,8 @@ describe('Model19PrintModal Component', () => {
 
   it('prints a donation without PO number, source, buyer, prices or grand total', () => {
     render(<Model19PrintModal isOpen onClose={vi.fn()} voucher={{ ...mockVoucher, provisionType: 'DONATION', poNumber: '—', source: '—', buyer: '—' }} />);
-    expect(screen.getByText('Donation')).toBeTruthy();
+    // No Type of Provision line: the IFMIS Model 19 has none
+    expect(screen.queryByText('Type of Provision')).toBeNull();
     expect(screen.queryByText('PO Number')).toBeNull();
     expect(screen.queryByText('Source')).toBeNull();
     expect(screen.queryByText('Buyer')).toBeNull();

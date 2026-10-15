@@ -379,10 +379,6 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 </div>
               </FormKitField>
 
-              <FormKitField label="Type of provision" required>
-                <ReadOnlyValue>{item.provisionType === 'DONATION' ? 'Donation' : 'Purchase'}</ReadOnlyValue>
-              </FormKitField>
-
               {item.provisionType !== 'DONATION' && (
               <FormKitField label="PO number" optional>
                 <div className="relative flex items-center w-full">

@@ -80,17 +80,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const rememberedLocation = locations.find((l) => l.id === (start?.storeLocationId ?? memory.storeLocationId));
 
   // Section 1: Document Voucher Header Metadata
-  // Bought or donated: a donation has no PO number, supplier, buyer or price, so those fields are hidden
-  const [provisionType, setProvisionType] = useState<ProvisionType>(editItem?.provisionType ?? template?.provisionType ?? 'PURCHASE');
-  const donation = provisionType === 'DONATION';
-  const chooseProvision = (value: ProvisionType) => {
-    setProvisionType(value);
-    // A donation is received as a donation unless another type was chosen on purpose
-    if (value === 'DONATION' && (!transactionType || transactionType === 'PO Receipt')) setTransactionType('Donation / Grant Receipt');
-    if (value === 'PURCHASE' && transactionType === 'Donation / Grant Receipt') setTransactionType('');
-  };
   const [ifmisSlipNumber, setIfmisSlipNumber] = useState(editItem?.ifmisSlipNumber ?? '');
   const [poNumber, setPoNumber] = useState(editItem?.poNumber ?? '');
+  // Bought or donated, as on the Model 19: a PO number means a purchase, none a donation (with no supplier, buyer or
+  // price). Nobody picks it. A purchase registered before this rule without a PO number stays one when corrected.
+  const olderPurchase = isEdit && editItem?.provisionType !== 'DONATION' && !editItem?.poNumber?.trim();
+  const provisionType: ProvisionType = poNumber.trim() || olderPurchase ? 'PURCHASE' : 'DONATION';
+  const donation = provisionType === 'DONATION';
   const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(editItem?.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
   const [transactionType, setTransactionType] = useState(editItem?.transactionType || start?.transactionType || memory.transactionType || '');
   const [source, setSource] = useState(editItem?.source ?? start?.source ?? '');
@@ -240,7 +236,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setCondition(ItemCondition.NEW);
     setIfmisItemCode('');
     setExtraLines([]);
-    setProvisionType('PURCHASE');
     setDeliveredBy('');
     setDeliveredByOwn(false);
     setReceivedBy('');
@@ -269,8 +264,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const latestSlip = useRef<File | null>(null);
   const today = new Date().toISOString().split('T')[0];
   const slipFields = () => [
-    // Purchase is where a new receipt starts, so the slip may change it
-    { key: 'provision', label: 'type of provision', current: provisionType, set: setProvisionType, empty: 'PURCHASE', free: provisionType === 'PURCHASE' },
     { key: 'model19No', label: 'Model 19 No.', current: ifmisSlipNumber, set: setIfmisSlipNumber, empty: '' },
     { key: 'poNumber', label: 'PO number', current: poNumber, set: setPoNumber, empty: '' },
     { key: 'receivedDate', label: 'received date', current: ifmisSlipDateGc, set: setIfmisSlipDateGc, empty: today, free: ifmisSlipDateGc === today },
@@ -314,8 +307,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       slip.receivedBy && !found ? ` The slip says received by ${slip.receivedBy}, who is not a store man of any store; pick the store man.` : '';
     const slipType = TRANSACTION_TYPES.find((t) => t.toLowerCase() === slip.transactionType?.toLowerCase());
     const values: Record<string, string | number | undefined> = {
-      // The slip's PO number decides it: a PO number means bought, none means donated
-      provision: provisionFromSlip(slip.poNumber),
       model19No: slip.model19No,
       poNumber: slip.poNumber,
       receivedDate: slip.receivedDate,
@@ -869,6 +860,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             />
           </Field>
 
+          <Field label="PO number" optional htmlFor="stock-in-po" hint={donation ? (olderPurchase ? undefined : 'None: received as a donation, with no price.') : 'Bought: received as a purchase.'}>
+            <input id="stock-in-po" type="text" placeholder="Empty for a donation" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className={input({ mono: true })} />
+          </Field>
+
           <Field label="Received date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
             <input id="stock-in-slip-date" type="date" required value={ifmisSlipDateGc} onChange={(e) => setIfmisSlipDateGc(e.target.value)} className={input()} />
           </Field>
@@ -882,14 +877,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             </select>
           </Field>
 
-          <Field label="Type of provision" required htmlFor="stock-in-provision" hint={donation ? 'A donation has no PO, supplier, buyer or price.' : undefined}>
-            <select id="stock-in-provision" required value={provisionType} onChange={(e) => chooseProvision(e.target.value as ProvisionType)} className={input()}>
-              <option value="PURCHASE">Purchase</option>
-              <option value="DONATION">Donation</option>
-            </select>
-          </Field>
-
-          {/* What it was bought on: a donation has none of it */}
+          {/* What it was bought from: a donation (no PO number) has none of it */}
           {!donation && (
             <>
               <Field label="Source (supplier / vendor)" required htmlFor="stock-in-source" error={fieldErrors.error('source')}>
@@ -903,10 +891,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                   onBlur={fieldErrors.touch('source')}
                   className={input({ invalid: !!fieldErrors.error('source') })}
                 />
-              </Field>
-
-              <Field label="PO number" optional htmlFor="stock-in-po">
-                <input id="stock-in-po" type="text" placeholder="e.g. 186" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className={input({ mono: true })} />
               </Field>
 
               <Field label="Buyer" optional htmlFor="stock-in-buyer">

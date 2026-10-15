@@ -32,7 +32,6 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
     >
       <VoucherDetails
         fields={[
-          { label: 'Type of Provision', value: donation ? 'Donation' : 'Purchase' },
           ...(donation ? [] : [{ label: 'PO Number', value: voucher.poNumber, mono: true }]),
           { label: 'Received Date', value: voucher.receivedDateGc && `${voucher.receivedDateGc}${voucher.receivedDateEc ? ` (${voucher.receivedDateEc} E.C.)` : ''}` },
           { label: 'Transaction Type', value: voucher.transactionType },

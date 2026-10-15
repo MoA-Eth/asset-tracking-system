@@ -1181,13 +1181,16 @@ describe('Asset record', () => {
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
 
-    // Purchase is the default, with its procurement fields
-    expect(within(panel).getByLabelText(/Type of provision/i)).toHaveValue('PURCHASE');
-    expect(within(panel).getByLabelText(/PO number/i)).toBeInTheDocument();
-    await user.selectOptions(within(panel).getByLabelText(/Type of provision/i), 'DONATION');
-    // A donation has none of them, and is received as a donation
-    for (const label of [/PO number/i, /Source/i, /Buyer/i, /Unit price/i, /^Total/i]) expect(within(panel).queryByLabelText(label)).toBeNull();
-    expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('Donation / Grant Receipt');
+    // Nobody picks purchase or donation: the PO number decides, as on the Model 19
+    expect(within(panel).queryByLabelText(/Type of provision/i)).toBeNull();
+    const po = within(panel).getByLabelText(/PO number/i);
+    // With a PO number: a purchase, with its supplier, buyer and price
+    await user.type(po, '186');
+    for (const label of [/Source/i, /Buyer/i, /Unit price/i]) expect(within(panel).getByLabelText(label)).toBeInTheDocument();
+    // Without one: a donation, which has none of them
+    await user.clear(po);
+    for (const label of [/Source/i, /Buyer/i, /Unit price/i]) expect(within(panel).queryByLabelText(label)).toBeNull();
+    await user.selectOptions(within(panel).getByLabelText(/Transaction type/i), 'Donation / Grant Receipt');
 
     await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000777');
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
@@ -1234,6 +1237,8 @@ describe('Asset record', () => {
     // Fill form
     await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000999');
     await user.selectOptions(within(panel).getByLabelText(/Transaction type/i), 'Direct Delivery');
+    // A purchase: it has a PO number
+    await user.type(within(panel).getByLabelText(/PO number/i), '186');
     await user.type(within(panel).getByLabelText(/Source/i), 'Tech Supplies Ltd');
 
     // Receiving store
@@ -1355,6 +1360,8 @@ describe('Receiving form: Delivered by follows the buyer', () => {
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
+    // A purchase: it has a PO number
+    await user.type(within(panel).getByLabelText(/PO number/i), '186');
 
     const buyer = within(panel).getByLabelText(/Buyer/);
     const deliveredBy = within(panel).getByPlaceholderText(/Filled from the buyer/);
@@ -1621,6 +1628,8 @@ describe('Receiving form: "Still needed" leads to the field', () => {
     await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000123');
     expect(within(panel).queryByRole('button', { name: 'Model 19 No.' })).toBeNull();
     await user.selectOptions(within(panel).getByLabelText(/Transaction type/i), 'PO Receipt');
+    // A purchase: it has a PO number
+    await user.type(within(panel).getByLabelText(/PO number/i), '186');
     await user.type(within(panel).getByLabelText(/Source/i), 'Supplier');
     await user.click(within(panel).getByRole('button', { name: 'item description' }));
     expect(within(panel).getByLabelText(/Item description/i)).toHaveFocus();
@@ -1654,22 +1663,22 @@ describe('Receiving form: provision from the PO number on the Model 19', () => {
 
   it('is a purchase when the slip has a PO number', async () => {
     const panel = await readSlip([r(162, [714, 'PO Number :'], [812, '186']), r(193, [677, 'Transaction Type :'], [812, 'PO Receipt'])]);
-    expect(within(panel).getByLabelText(/Type of provision/i)).toHaveValue('PURCHASE');
+    expect(within(panel).getByLabelText(/Unit price/i)).toBeInTheDocument();
     expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('186');
   });
 
   it('is a donation when the slip has no PO number', async () => {
     const panel = await readSlip([]);
-    expect(within(panel).getByLabelText(/Type of provision/i)).toHaveValue('DONATION');
+    expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('');
     expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('Donation / Grant Receipt');
-    // A donation has no PO, supplier or price
-    expect(within(panel).queryByLabelText(/PO number/i)).toBeNull();
+    // A donation has no supplier or price
+    expect(within(panel).queryByLabelText(/Source/i)).toBeNull();
     expect(within(panel).queryByLabelText(/Unit price/i)).toBeNull();
   });
 
   it('goes by the PO number alone: a slip with no PO number is a donation whatever its transaction type', async () => {
     const panel = await readSlip([r(193, [677, 'Transaction Type :'], [812, 'Petty Cash Purchase Receipt'])]);
-    expect(within(panel).getByLabelText(/Type of provision/i)).toHaveValue('DONATION');
+    expect(within(panel).queryByLabelText(/Unit price/i)).toBeNull();
     expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('Petty Cash Purchase Receipt');
   });
 });
