@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CATEGORY_FROM_IFMIS, itemTypeFromIfmisCode } from './receipt-options';
+import { CATEGORY_FROM_IFMIS, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
 import { AssetCategory, ItemType } from '../../types/asset-management';
 
 const categoryOf = (ifmis: string) => CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(ifmis))?.[1];
@@ -32,5 +32,14 @@ describe('item type from the IFMIS item code', () => {
     expect(itemTypeFromIfmisCode(undefined)).toBeUndefined();
     expect(itemTypeFromIfmisCode('')).toBeUndefined();
     expect(itemTypeFromIfmisCode('MOA-000343')).toBeUndefined();
+  });
+});
+
+describe('provision from the Model 19', () => {
+  it('is a purchase with a PO number and a donation without one, whatever the transaction type', () => {
+    expect(provisionFromSlip('186')).toBe('PURCHASE');
+    expect(provisionFromSlip(' 4500012 ')).toBe('PURCHASE');
+    expect(provisionFromSlip(undefined)).toBe('DONATION');
+    expect(provisionFromSlip('  ')).toBe('DONATION');
   });
 });

@@ -1,4 +1,4 @@
-import { AssetCategory, ItemType } from '../../types/asset-management';
+import { AssetCategory, ItemType, ProvisionType } from '../../types/asset-management';
 
 /** The transaction types the receipt offers */
 export const TRANSACTION_TYPES = ['PO Receipt', 'Petty Cash Purchase Receipt', 'Direct Delivery', 'Donation / Grant Receipt', 'Transfer Receipt', 'Internal Production'];
@@ -42,3 +42,8 @@ export const COMMON_CATEGORIES = [
   { value: AssetCategory.FUEL_LUBRICANTS, label: 'Fuel & Lubricants' },
   { value: AssetCategory.OTHER_SUPPLIES, label: 'Other Materials & Supplies' },
 ];
+
+/** Bought or donated, as a Model 19 shows it: a PO number means a purchase, none a donation */
+export function provisionFromSlip(poNumber?: string): ProvisionType {
+  return poNumber?.trim() ? 'PURCHASE' : 'DONATION';
+}

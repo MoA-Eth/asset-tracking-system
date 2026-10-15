@@ -16,6 +16,8 @@ export interface SlipLine {
   unitPrice: number;
   /** A consumable's IFMIS inventory code, read from the slip */
   ifmisCode?: string;
+  /** The IFMIS sub inventory the slip printed for this line, kept for the voucher */
+  subInventory?: string;
   /** Set when this line was already received on the same Model 19 No. */
   alreadyAs?: string;
   /** The quantity the slip printed, to warn when it lists several of a fixed asset */
