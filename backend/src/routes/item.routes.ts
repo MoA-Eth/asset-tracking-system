@@ -17,6 +17,8 @@ router.get('/:id', requirePermission('inventory.read'), controller.getItemById);
 
 router.post('/stock-in', requirePermission('stock-in.write'), controller.registerStockIn);
 router.put('/:id/stock-in', requirePermission('stock-in.write'), controller.updateStockIn);
+// Whoever records receipts, transfers or disposals may record the IFMIS tag those forms name the asset by
+router.patch('/:id/ifmis-tag', requirePermission('stock-in.write', 'transfers.write', 'disposals.write'), controller.setIfmisTag);
 router.post('/stock-out', requirePermission('stock-out.write'), controller.registerStockOut);
 router.put('/stock-out/:approvalId', requirePermission('stock-out.write'), controller.updateStockOut);
 router.post('/disposal', requirePermission('disposals.write'), controller.registerDisposal);

@@ -4,7 +4,7 @@
 
 ## Find an asset
 
-1. Type in **Search** to find by name, code, serial number, slip number or person.
+1. Type in **Search** to find by name, code, IFMIS tag number, serial number, slip number or person.
 2. Press **Filter** to narrow the list: **Lifecycle status** (In store, Issued, Pending, Rejected, Disposed), **Store and custody location**, **Asset category**, **Item type** (fixed asset or consumable), and **Time in store** (over 30 days).
 3. Click a column heading to sort. Active filters show as chips you can remove. **Clear** resets everything.
 4. **Export CSV** saves every row that matches your filters, not only the page you see.
@@ -31,6 +31,15 @@ An amber **N days in store** means the asset has waited more than 30 days and sh
 2. The record fills the page. Close it with **×** at the top right (or **Esc**) to return to your list as you left it. The **Previous / Next** arrows beside it (or the Up and Down keys) move through the list.
 3. The record shows the voucher and procurement details, the item, signatures and the scanned slip, who holds it, and every request made on it.
 4. The buttons at the top are the next steps that apply to this asset. They depend on its status and on your role.
+
+## IFMIS tag number
+
+IFMIS gives every fixed asset its own tag number (e.g. MOA-016341) and prints it on the Model 21 and the disposal form. A Model 19 doesn't carry it, so a record received here has only its own **record code** until the tag is added.
+
+- **On the record:** under **IFMIS tag number**, press **Add** (or **Change**), type the tag and press Enter. Leave it empty to remove it. Anyone who receives, transfers or disposes of assets can do this.
+- **From a PDF:** when a Model 21 or disposal form names a tag no asset has, the form says so and asks which asset it is. Pick it and press **Save as its IFMIS tag**; the form is read again and finds it.
+
+A tag belongs to one asset only. Once recorded, PDFs find the asset by it, search finds it, and the printed Model 21 and disposal form show it in place of the record code.
 
 ## Batches
 

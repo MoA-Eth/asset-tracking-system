@@ -206,6 +206,8 @@ export interface ItemMovementHistory {
 export interface Item {
   id: string;
   itemCode: string;          // e.g. MOA-IT-2024-0001
+  /** A fixed asset's tag number in IFMIS (e.g. MOA-016341), by which its Model 21 and disposal form name it */
+  ifmisTagNumber?: string;
   name: string;
   category: AssetCategory;
   /** Fixed asset or consumable; items from before this existed are fixed assets */

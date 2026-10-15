@@ -124,6 +124,8 @@ export type ItemType = 'FIXED' | 'CONSUMABLE';
 export interface Item {
   id: string;
   itemCode: string;          // e.g. MOA-IT-2024-0001
+  /** A fixed asset's tag number in IFMIS (e.g. MOA-016341), by which its Model 21 and disposal form name it */
+  ifmisTagNumber?: string;
   name: string;
   category: AssetCategory;
   /** Chosen when the item is received; items from before this existed are FIXED */

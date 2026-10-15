@@ -54,6 +54,7 @@ function mapItem(raw: any): ItemWithRelations {
   return {
     id: raw.id,
     itemCode: raw.itemCode,
+    ifmisTagNumber: raw.ifmisTagNumber ?? undefined,
     name: raw.name,
     category: raw.category as AssetCategory,
     itemType: (raw.itemType ?? 'FIXED') as ItemType,
@@ -699,6 +700,7 @@ export class StoreService {
       const q = filter.search.trim();
       where.OR = [
         { itemCode: { contains: q, mode: 'insensitive' } },
+        { ifmisTagNumber: { contains: q, mode: 'insensitive' } },
         { name: { contains: q, mode: 'insensitive' } },
         { serialNumber: { contains: q, mode: 'insensitive' } },
         { ifmisSlipNumber: { contains: q, mode: 'insensitive' } },
@@ -1469,6 +1471,38 @@ export class StoreService {
       );
     }
     return { approval: approvals[0], approvals };
+  }
+
+  /**
+   * Records (or clears) a fixed asset's IFMIS tag number, by which IFMIS names it on its Model 21 and disposal form.
+   * The receipt doesn't carry it, so it is added on the record, or when a Model 21 or disposal form first names it.
+   * One asset per tag: no other record may have it as its tag or its code.
+   */
+  public async setIfmisTag(itemId: string, raw: unknown, actorId: string): Promise<ItemWithRelations> {
+    if (raw !== null && raw !== undefined && typeof raw !== 'string') throw new BadRequestError('The tag number must be text.');
+    const tag = ((raw as string | null | undefined) ?? '').trim().replace(/\s+/g, '').toUpperCase();
+    if (tag && !/^[A-Z0-9][A-Z0-9/\-.]{2,39}$/.test(tag)) throw new BadRequestError('A tag number is letters, digits, dashes and slashes, e.g. MOA-016341.');
+    const item = await prisma.item.findUnique({ where: { id: itemId } });
+    if (!item) throw new NotFoundError('Item not found.');
+    if (item.itemType !== 'FIXED') throw new BadRequestError(`${item.itemCode} is a consumable; only a fixed asset has a tag number.`);
+    if (tag) {
+      const other = await prisma.item.findFirst({
+        where: { id: { not: itemId }, OR: [{ ifmisTagNumber: { equals: tag, mode: 'insensitive' } }, { itemCode: { equals: tag, mode: 'insensitive' } }] },
+        select: { itemCode: true, name: true },
+      });
+      if (other) throw new ConflictError(`Tag ${tag} is already on ${other.itemCode} (${other.name}).`);
+    }
+    const previous = item.ifmisTagNumber ?? '';
+    if (previous === tag) return (await this.getItemById(itemId))!;
+    await prisma.item.update({ where: { id: itemId }, data: { ifmisTagNumber: tag || null } });
+    await addAuditLog(
+      actorId,
+      'SET_IFMIS_TAG',
+      'ITEM',
+      itemId,
+      tag ? `IFMIS tag number of ${item.itemCode} set to ${tag}${previous ? ` (was ${previous})` : ''}.` : `IFMIS tag number ${previous} removed from ${item.itemCode}.`,
+    );
+    return (await this.getItemById(itemId))!;
   }
 
   // ── Disposal ─────────────────────────────────────────────────────────────

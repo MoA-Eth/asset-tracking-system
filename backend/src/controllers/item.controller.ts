@@ -124,6 +124,13 @@ export class ItemController {
     return sendSuccess(res, { item }, 'Receipt updated');
   });
 
+  /** PATCH /api/items/:id/ifmis-tag  { tag } — a fixed asset's IFMIS tag number (empty clears it) */
+  public setIfmisTag = asyncHandler(async (req: Request, res: Response) => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const item = await this.store.setIfmisTag(id, req.body?.tag, req.user!.id);
+    return sendSuccess(res, { item }, item.ifmisTagNumber ? `Tag ${item.ifmisTagNumber} recorded` : 'Tag removed');
+  });
+
   /**
    * POST /api/items/stock-out
    * Scenario 2.2: Outbound store issue mirrored from IFMIS Model 20/22.

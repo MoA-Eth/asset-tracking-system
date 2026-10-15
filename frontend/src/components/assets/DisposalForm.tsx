@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Trash2, FileText, ClipboardList } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
@@ -6,6 +6,8 @@ import { useStoreKeepers } from '../../hooks/useStoreKeepers';
 import { FormSection, FieldGrid, Field, ReadOnlyValue, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, textareaClass, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { readPdfRows, rowsToText, isModel19, isModel21, isDisposalForm, parseDisposalForm, DisposalSlipFields, DisposalSlipLine } from '../../utils/slip-reader';
 import { OtherAssets } from './OtherAssets';
+import { LearnTagPrompt, taggableAssets } from './LearnTagPrompt';
+import { findByTag } from '../../utils/asset-tag';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { DisposalVoucher, Employee, ItemCondition, ItemStatus, ItemWithRelations, TransactionApproval } from '../../types/asset-management';
@@ -35,6 +37,8 @@ export interface DisposalFormProps {
   pendingItemIds?: Set<string>;
   /** A disposal form PDF chosen with the form's header button: it is read into the form */
   slip?: File;
+  /** An asset changed while the form was open, e.g. its IFMIS tag number was recorded */
+  onItemUpdated?: (item: ItemWithRelations) => void;
 }
 
 /** How IFMIS names the disposal, as the reason offered here */
@@ -60,7 +64,7 @@ const STATUS_WORDS: Record<string, string> = {
 const today = () => new Date().toISOString().split('T')[0];
 const amountOrUndefined = (text: string) => (text.trim() === '' ? undefined : Math.max(0, Number(text) || 0));
 
-export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, onCancel, onSuccess, allItems = [], pendingItemIds, slip }) => {
+export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, onCancel, onSuccess, allItems = [], pendingItemIds, slip, onItemUpdated }) => {
   const { user } = useAuth();
   const toast = useToast();
   const isEdit = !!editApproval;
@@ -137,19 +141,26 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   // The other assets the form lists: each that fits is disposed of as its own request on submit
   const [extraAssets, setExtraAssets] = useState<{ key: number; line: DisposalSlipLine; asset?: ItemWithRelations; problem?: string }[]>([]);
   const extraReady = extraAssets.filter((o) => o.asset && !o.problem) as { key: number; line: DisposalSlipLine; asset: ItemWithRelations }[];
+  // IFMIS tags the form names that no asset has; each can be recorded on the asset it is, and the form read again
+  const [unknownTags, setUnknownTags] = useState<string[]>([]);
+  const learnedTags = useRef(new Map<string, string>());
+  const lastRead = useRef<DisposalSlipFields | null>(null);
+  // This record is always one of the assets, also when correcting a request (which has no list)
+  const knownItems = allItems.some((i) => i.id === item.id) ? allItems : [item, ...allItems];
 
   /** Whether an asset the form lists can be disposed of, in the order of its life: received, approved and in store, with nothing pending */
   const checkLine = (line: DisposalSlipLine): { asset?: ItemWithRelations; problem?: string } => {
-    const tag = line.tagNumber?.trim().toLowerCase();
-    if (!tag) return { problem: 'The line names no tag number.' };
-    const asset = allItems.find((i) => i.itemCode.toLowerCase() === tag || i.serialNumber?.trim().toLowerCase() === tag);
-    if (!asset) return { problem: `No asset with tag ${line.tagNumber} is registered here. It has to be received on a Model 19 and approved first.` };
+    if (!line.tagNumber?.trim()) return { problem: 'The line names no tag number.' };
+    const asset = findByTag(knownItems, line.tagNumber, learnedTags.current);
+    if (!asset) return { problem: `No asset here has the tag ${line.tagNumber}. If it was received under another code, record the tag on it above; otherwise it has to be received on a Model 19 and approved first.` };
     if (asset.status !== ItemStatus.AVAILABLE) return { asset, problem: `${asset.itemCode} is ${STATUS_WORDS[asset.status] ?? asset.status.toLowerCase()}; only an item in store can be disposed of.` };
     if (pendingItemIds?.has(asset.id)) return { asset, problem: `${asset.itemCode} already has a request waiting for approval.` };
     return { asset };
   };
 
   const fillFromDisposalForm = (form: DisposalSlipFields) => {
+    lastRead.current = form;
+    setUnknownTags([...new Set(form.lines.map((l) => l.tagNumber?.trim() ?? '').filter((t) => t && !findByTag(knownItems, t, learnedTags.current)))]);
     const filled: string[] = [];
     const problems: string[] = [];
     if (form.disposalNo && !disposalNo.trim()) {
@@ -170,9 +181,8 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       filled.push('reason');
     }
     // This record's own line
-    const tagOf = (l: DisposalSlipLine) => l.tagNumber?.trim().toLowerCase();
-    const own = form.lines.find((l) => tagOf(l) === item.itemCode.toLowerCase() || (!!item.serialNumber && tagOf(l) === item.serialNumber.trim().toLowerCase()));
-    if (!own) problems.push(`${item.itemCode} isn't on this disposal form.`);
+    const own = form.lines.find((l) => findByTag(knownItems, l.tagNumber, learnedTags.current)?.id === item.id);
+    if (!own) problems.push(`${item.itemCode} isn't on this disposal form${item.ifmisTagNumber ? ` (its IFMIS tag is ${item.ifmisTagNumber})` : ''}.`);
     else if (own.bookValue !== undefined && !bookValueEdited) {
       setBookValueText(String(own.bookValue));
       setBookValueEdited(true);
@@ -212,6 +222,13 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
         });
       })
       .catch(() => setSlipNote({ tone: 'warn', text: "The PDF couldn't be read. Fill in the fields as usual." }));
+  };
+
+  /** A tag was recorded on an asset: the form is read again, so that asset is found */
+  const tagLearned = (tag: string, asset: ItemWithRelations) => {
+    learnedTags.current.set(asset.id, asset.ifmisTagNumber ?? tag);
+    onItemUpdated?.(asset);
+    if (lastRead.current) fillFromDisposalForm(lastRead.current);
   };
 
   // A PDF handed to the form when it opens
@@ -326,6 +343,9 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
         <FormNotice icon={FileText} tone={slipNote.tone}>
           <span role="status">{slipNote.text}</span>
         </FormNotice>
+      )}
+      {unknownTags.length > 0 && (
+        <LearnTagPrompt tags={unknownTags} candidates={taggableAssets(isEdit ? [item] : knownItems, learnedTags.current)} suggestedId={item.id} onLearned={tagLearned} />
       )}
       {extraAssets.length > 0 && (
         <OtherAssets
@@ -515,7 +535,8 @@ export const buildDisposalVoucher = (
       {
         sNo: 1,
         // A partial disposal is filed under the record split off for the disposed units
-        itemCode: d.disposedItemCode || approval.itemCode,
+        // IFMIS prints a fixed asset's own tag number when it has one
+        itemCode: item?.ifmisTagNumber || d.disposedItemCode || approval.itemCode,
         description: approval.itemName,
         serialNo: item?.serialNumber || undefined,
         uom: d.uom || item?.uom || 'EA',

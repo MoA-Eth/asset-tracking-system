@@ -211,6 +211,9 @@ model Employee {
 model Item {
   id           String        @id @default(uuid())
   itemCode     String        @unique
+  /// A fixed asset's tag number in IFMIS (e.g. MOA-016341), as printed on its Model 21 and disposal form; set on the record.
+  /// One asset per tag; the server checks that (ignoring case) rather than a unique index, which deploys would refuse to add.
+  ifmisTagNumber String?
   name         String
   category     AssetCategory
   itemType     ItemType      @default(FIXED)

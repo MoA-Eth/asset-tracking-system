@@ -43,6 +43,8 @@ The form keeps the order of operations, so nothing is filled in for an asset tha
 - If it is issued, it must be held by the employee the form transfers it **from**.
 - It must not have another request waiting for approval.
 
+**An asset IFMIS knows by its own tag:** the form finds an asset by its **IFMIS tag number** first, then by its record code. If the form names a tag no asset has (e.g. MOA-016341 on an asset received here as MOA-VEH-2026-0001), it asks which asset it is: pick it and press **Save as its IFMIS tag**. The tag is kept on the asset, the form is read again, and later forms find it straight away.
+
 **A form with several assets:** the first fills the form and the others are listed under it, each checked the same way and marked **Will be transferred** or **Not transferred** with the reason. One **Submit** transfers the first and every asset that fits, each as its own request, to the same recipient with the same Model 21 No., book and date. Press **Leave out** to skip one.
 
 Only a Model 21 is read here; a Model 19 is sent to **Receive items**. A scanned PDF has no text and can't be read.

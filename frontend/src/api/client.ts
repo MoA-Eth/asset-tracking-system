@@ -183,6 +183,14 @@ export const api = {
     });
   },
 
+  /** Records a fixed asset's IFMIS tag number; an empty tag removes it */
+  setIfmisTag: (itemId: string, tag: string) => {
+    return request<{ item: ItemWithRelations }>(`/items/${encodeURIComponent(itemId)}/ifmis-tag`, {
+      method: 'PATCH',
+      body: JSON.stringify({ tag }),
+    });
+  },
+
   updateTransfer: (approvalId: string, payload: UpdateTransferRequest) => {
     return request<{ approval: TransactionApproval }>(`/items/transfer/${encodeURIComponent(approvalId)}`, {
       method: 'PUT',

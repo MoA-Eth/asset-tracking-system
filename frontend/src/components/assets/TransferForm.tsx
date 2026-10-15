@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, FileText, Car } from 'lucide-react';
 import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
@@ -12,6 +12,8 @@ import { useSystemSettings } from '../../utils/system-settings';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
 import { StoreManField } from './StoreManField';
 import { OtherAssets } from './OtherAssets';
+import { LearnTagPrompt, taggableAssets } from './LearnTagPrompt';
+import { findByTag, printedTag } from '../../utils/asset-tag';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { departmentLabel } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -62,9 +64,11 @@ export interface TransferFormProps {
   slip?: File;
   onCancel: () => void;
   onSaved: (voucher?: Model21Voucher) => void;
+  /** An asset changed while the form was open, e.g. its IFMIS tag number was recorded */
+  onItemUpdated?: (item: ItemWithRelations) => void;
 }
 
-export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, editTransfer, initialItemId, slip, onCancel, onSaved }) => {
+export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, editTransfer, initialItemId, slip, onCancel, onSaved, onItemUpdated }) => {
   const { user } = useAuth();
   const toast = useToast();
   const details = editTransfer?.requestDetails ?? {};
@@ -173,6 +177,10 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [slipNote, setSlipNote] = useState<{ tone: 'info' | 'warn'; text: string } | null>(null);
   // The other assets a Model 21 lists: each that fits is transferred as its own request on submit
   const [extraAssets, setExtraAssets] = useState<{ key: number; line: Model21SlipLine; asset?: ItemWithRelations; problem?: string }[]>([]);
+  // IFMIS tags the form names that no asset has; each can be recorded on the asset it is, and the form read again
+  const [unknownTags, setUnknownTags] = useState<string[]>([]);
+  const learnedTags = useRef(new Map<string, string>());
+  const lastRead = useRef<{ slip: Model21SlipFields; vehicle?: Model21Particulars } | null>(null);
   const extraReady = extraAssets.filter((o) => o.asset && !o.problem) as { key: number; line: Model21SlipLine; asset: ItemWithRelations }[];
 
   /**
@@ -180,10 +188,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
    * fixed asset, issued to the employee the form transfers it from (or still in store), with no other request waiting.
    */
   const checkLine = (line: Model21SlipLine | undefined, slip: Model21SlipFields): { asset?: ItemWithRelations; problem?: string } => {
-    const tag = line?.tagNumber?.trim().toLowerCase();
-    if (!tag) return { problem: 'The form names no asset tag number.' };
-    const asset = items.find((i) => i.itemCode.toLowerCase() === tag || i.serialNumber?.trim().toLowerCase() === tag);
-    if (!asset) return { problem: `No asset with tag ${line!.tagNumber} is registered here. It has to be received on a Model 19 and approved first.` };
+    if (!line?.tagNumber?.trim()) return { problem: 'The form names no asset tag number.' };
+    const asset = findByTag(items, line.tagNumber, learnedTags.current);
+    if (!asset) return { problem: `No asset here has the tag ${line.tagNumber}. If it was received under another code, record the tag on it below; otherwise it has to be received on a Model 19 and approved first.` };
     const problem =
       asset.itemType === ItemType.CONSUMABLE
         ? `${asset.itemCode} is a consumable item; consumables are issued, not transferred.`
@@ -205,6 +212,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
    * be transferred as its own request.
    */
   const fillFromModel21 = (slip: Model21SlipFields, vehicle?: Model21Particulars) => {
+    lastRead.current = { slip, vehicle };
+    setUnknownTags([...new Set(slip.lines.map((l) => l.tagNumber?.trim() ?? '').filter((t) => t && !findByTag(items, t, learnedTags.current)))]);
     const filled: string[] = [];
     const problems: string[] = [];
     const line = slip.lines[0];
@@ -315,6 +324,13 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         });
       })
       .catch(() => setSlipNote({ tone: 'warn', text: "The PDF couldn't be read. Fill in the fields as usual." }));
+  };
+
+  /** A tag was recorded on an asset: the form is read again, so that asset is found */
+  const tagLearned = (_tag: string, asset: ItemWithRelations) => {
+    learnedTags.current.set(asset.id, asset.ifmisTagNumber ?? _tag);
+    onItemUpdated?.(asset);
+    if (lastRead.current) fillFromModel21(lastRead.current.slip, lastRead.current.vehicle);
   };
 
   // A PDF handed to the form when it opens
@@ -428,7 +444,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             {
               sNo: 1,
               description: item?.name || '—',
-              tagNumber: item?.itemCode || '—',
+              tagNumber: printedTag(item) || '—',
               serialNumber: item?.serialNumber || '',
               chassisNumber: chassisNumber.trim() || undefined,
               uom: item?.uom || 'EA',
@@ -551,7 +567,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           {
             sNo: 1,
             description: selectedItem?.name || '—',
-            tagNumber: selectedItem?.itemCode || '—',
+            tagNumber: printedTag(selectedItem) || '—',
             serialNumber: selectedItem?.serialNumber || '',
             chassisNumber: chassisNumber.trim() || undefined,
             uom: selectedItem?.uom || 'EA',
@@ -573,7 +589,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           ...sent.map((o, i) => ({
             sNo: i + 2,
             description: o.asset.name,
-            tagNumber: o.asset.itemCode,
+            tagNumber: printedTag(o.asset),
             serialNumber: o.asset.serialNumber || '',
             uom: o.asset.uom || 'EA',
             unit: Number(o.asset.quantity) || 1,
@@ -626,6 +642,14 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         <FormNotice icon={FileText} tone={slipNote.tone}>
           <span role="status">{slipNote.text}</span>
         </FormNotice>
+      )}
+      {unknownTags.length > 0 && (
+        <LearnTagPrompt
+          tags={unknownTags}
+          candidates={taggableAssets(editItem ? [editItem] : items, learnedTags.current)}
+          suggestedId={editTransfer?.itemId ?? selectedItemId}
+          onLearned={tagLearned}
+        />
       )}
       {extraAssets.length > 0 && !isReturn && (
         <OtherAssets
@@ -1033,7 +1057,7 @@ export const buildModel21Voucher = async (
       {
         sNo: 1,
         description: r.itemName,
-        tagNumber: r.itemCode,
+        tagNumber: item?.ifmisTagNumber || r.itemCode,
         serialNumber: item?.serialNumber || '',
         chassisNumber: d.chassisNumber || undefined,
         uom: item?.uom || 'EA',

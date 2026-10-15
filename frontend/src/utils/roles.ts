@@ -15,7 +15,7 @@ export const roleName = (code?: string | null): string => (code ? ROLE_NAMES[cod
  * "APPROVE_STOCK_IN" → "Approve receipt", "STOCK_OUT_REJECTED" → "Issue rejected"
  */
 export const actionText = (code: string): string => {
-  const text = code.replace(/STOCK_IN/g, 'RECEIPT').replace(/STOCK_OUT/g, 'ISSUE').replace(/_/g, ' ').toLowerCase();
+  const text = code.replace(/STOCK_IN/g, 'RECEIPT').replace(/STOCK_OUT/g, 'ISSUE').replace(/_/g, ' ').toLowerCase().replace(/\bifmis\b/g, 'IFMIS');
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
 

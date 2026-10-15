@@ -224,6 +224,22 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     fetchData();
   }, [fetchData]);
 
+  /** An asset changed elsewhere (e.g. a form recorded its IFMIS tag): the list takes the new tag without reloading */
+  const itemUpdated = useCallback((updated: ItemWithRelations) => {
+    setItems((list) => list.map((i) => (i.id === updated.id ? { ...i, ifmisTagNumber: updated.ifmisTagNumber } : i)));
+  }, []);
+
+  const saveIfmisTag = async (item: ItemWithRelations, tag: string) => {
+    try {
+      const { item: updated } = await api.setIfmisTag(item.id, tag);
+      itemUpdated(updated);
+      toast.success(updated.ifmisTagNumber ? 'IFMIS tag recorded' : 'IFMIS tag removed', updated.ifmisTagNumber ? `${updated.ifmisTagNumber} is the IFMIS tag number of ${item.itemCode}.` : `${item.itemCode} has no IFMIS tag number now.`);
+    } catch (err: any) {
+      toast.warning("The tag wasn't saved", err?.message || 'Try again.');
+      throw err;
+    }
+  };
+
   useEffect(() => {
     const handleUpdate = () => {
       fetchData(true);
@@ -360,7 +376,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const matchesSearch = (row: AssetRow) => {
     if (!q) return true;
     const { item } = row;
-    return [item.name, item.itemCode, item.ifmisItemCode, item.serialNumber, item.ifmisSlipNumber, item.itemCategoryDisplay, item.category, row.where, row.goingTo, row.request?.ifmisSlipNumber]
+    return [item.name, item.itemCode, item.ifmisTagNumber, item.ifmisItemCode, item.serialNumber, item.ifmisSlipNumber, item.itemCategoryDisplay, item.category, row.where, row.goingTo, row.request?.ifmisSlipNumber]
       .some((v) => (v || '').toLowerCase().includes(q));
   };
   /** The batch shows when it or any of its units matches; with a filter or search, only the matching units unfold */
@@ -528,6 +544,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             pendingByItem={pendingByItem}
             editTransfer={transfer.edit}
             initialItemId={item.id}
+            onItemUpdated={itemUpdated}
             onCancel={() => setTransfer(null)}
             onSaved={(voucher) => done(voucher, setVoucher21)}
           />
@@ -561,6 +578,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             item={item}
             allItems={items}
             pendingItemIds={new Set(pendingByItem.keys())}
+            onItemUpdated={itemUpdated}
             onCancel={() => setDisposing(null)}
             onSuccess={(_result, voucher) => done(voucher, setVoucherDisposal)}
           />
@@ -576,6 +594,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             key={request.id}
             item={item}
             editApproval={request}
+            onItemUpdated={itemUpdated}
             onCancel={() => setEditing(false)}
             onSuccess={() => done()}
           />
@@ -611,6 +630,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             locations={locations}
             pendingByItem={pendingByItem}
             editTransfer={request}
+            onItemUpdated={itemUpdated}
             onCancel={() => setEditing(false)}
             onSaved={(voucher) => done(voucher, setVoucher21)}
           />
@@ -1230,6 +1250,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               position={recordIndex >= 0 ? { index: recordIndex, total: flatSelectableIds.length } : undefined}
               onPrevious={previousId ? () => openRecord(previousId) : undefined}
               onNext={nextId ? () => openRecord(nextId) : undefined}
+              onSaveIfmisTag={
+                selectedRow.item.itemType !== 'CONSUMABLE' && (canReceive || canTransfer || canDispose)
+                  ? (tag) => saveIfmisTag(selectedRow.item, tag)
+                  : undefined
+              }
             />
           ) : null}
         </div>

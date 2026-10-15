@@ -38,6 +38,8 @@ export interface AssetRecordProps {
   position?: { index: number; total: number };
   onPrevious?: () => void;
   onNext?: () => void;
+  /** Records the fixed asset's IFMIS tag number; absent when this person can't */
+  onSaveIfmisTag?: (tag: string) => Promise<void>;
 }
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -149,6 +151,62 @@ const RequestStatus: React.FC<{ request: TransactionApproval }> = ({ request }) 
   );
 
 /**
+ * A fixed asset's tag number in IFMIS (e.g. MOA-016341). The receipt doesn't carry it; it is recorded here, or when a
+ * Model 21 or disposal form first names it, and those forms then find the asset by it.
+ */
+const IfmisTagField: React.FC<{ tag?: string; onSave?: (tag: string) => Promise<void> }> = ({ tag, onSave }) => {
+  const [draft, setDraft] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (draft === null || !onSave) return;
+    setSaving(true);
+    try {
+      await onSave(draft.trim());
+      setDraft(null);
+    } catch {
+      // The page says what went wrong; the typed tag stays to be corrected
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <FormKitField label="IFMIS tag number" optional hint={draft === null ? 'As IFMIS prints it on the Model 21 and disposal form' : 'Leave empty to remove it'}>
+      {draft === null ? (
+        <div className="relative flex items-center w-full">
+          <ReadOnlyValue mono className={tag || onSave ? 'pr-16' : ''}>{tag || '—'}</ReadOnlyValue>
+          <div className="absolute right-1.5 flex items-center gap-1">
+            {tag && <CopyButton text={tag} label="Copy IFMIS tag number" />}
+            {onSave && (
+              <button type="button" onClick={() => setDraft(tag ?? '')} className="rounded px-1.5 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 cursor-pointer">
+                {tag ? 'Change' : 'Add'}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <input
+            id="ifmis-tag-number"
+            aria-label="IFMIS tag number"
+            autoFocus
+            value={draft}
+            placeholder="e.g. MOA-016341"
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); save(); }
+              if (e.key === 'Escape') { e.stopPropagation(); setDraft(null); }
+            }}
+            className="min-w-0 flex-1 rounded-[3px] border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs uppercase focus:border-emerald-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-100"
+          />
+          <button type="button" onClick={save} disabled={saving} className={btn.row}>{saving ? 'Saving…' : 'Save'}</button>
+          <button type="button" onClick={() => setDraft(null)} disabled={saving} className={btn.row}>Cancel</button>
+        </div>
+      )}
+    </FormKitField>
+  );
+};
+
+/**
  * One asset record, opened from the register:
  * Matches the Receive Items form layout (FormSections, no tabs), with status-based field locking.
  */
@@ -169,6 +227,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   position,
   onPrevious,
   onNext,
+  onSaveIfmisTag,
 }) => {
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
   const { item } = row;
@@ -443,9 +502,11 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <ReadOnlyValue>{item.itemCategoryDisplay || item.category?.replace(/_/g, ' ')}</ReadOnlyValue>
               </FormKitField>
 
-              <FormKitField label={item.itemType === 'CONSUMABLE' ? 'Record code' : 'Tag number'} required>
+              <FormKitField label="Record code" required>
                 <ReadOnlyValue mono>{item.itemCode}</ReadOnlyValue>
               </FormKitField>
+
+              {item.itemType !== 'CONSUMABLE' && <IfmisTagField key={item.id} tag={item.ifmisTagNumber} onSave={editing ? undefined : onSaveIfmisTag} />}
 
               {item.ifmisItemCode && (
                 <FormKitField label="Item code">

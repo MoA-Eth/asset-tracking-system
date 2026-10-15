@@ -29,7 +29,7 @@ vi.mock('../api/client', () => ({
   api: {
     getOrganizations: vi.fn(async () => []), createOrganization: vi.fn(), getItems: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn(), getStores: vi.fn(), getApprovals: vi.fn(),
     getItemById: vi.fn(), transferItem: vi.fn(), updateTransfer: vi.fn(), registerReturn: vi.fn(), registerStockOut: vi.fn(),
-    registerStockIn: vi.fn(), updateStockIn: vi.fn(), uploadSlip: vi.fn(), registerDisposal: vi.fn(), updateDisposal: vi.fn(),
+    registerStockIn: vi.fn(), updateStockIn: vi.fn(), uploadSlip: vi.fn(), registerDisposal: vi.fn(), updateDisposal: vi.fn(), setIfmisTag: vi.fn(),
   },
 }));
 
@@ -343,7 +343,7 @@ describe('Assets page', () => {
       const others = await within(record).findByRole('region', { name: 'Other assets on this form' });
       expect(within(others).getByText('Will be transferred')).toBeInTheDocument();
       // An asset that was never received can't be transferred
-      expect(within(others).getByText(/No asset with tag MOA-072353 is registered here/)).toBeInTheDocument();
+      expect(within(others).getByText(/No asset here has the tag MOA-072353/)).toBeInTheDocument();
 
       // The IFMIS PDF is kept as the copy of every request on the form (until a signed copy is attached)
       vi.mocked(api.uploadSlip).mockResolvedValue({ url: '/api/uploads/slips/model21.pdf' } as any);
@@ -355,6 +355,74 @@ describe('Assets page', () => {
         expect.objectContaining({ itemId: 'T2', toEmployeeId: 'E2', model21No: '0004399', book: 'MOA MC BOOK', depreciation: 20000, bookValue: 40000, ifmisSlipAttachmentUrl: '/api/uploads/slips/model21.pdf' }),
       );
     });
+
+    describe('an asset IFMIS knows by its own tag number', () => {
+      // Received here under a system code; IFMIS names it MOA-016341 on its Model 21
+      const truck = item('V1', 'Isuzu Truck', 'ISSUED', { itemCode: 'MOA-VEH-2026-0001' });
+      const model21For = (tag: string) =>
+        asRows([
+          'Fixed Asset Internal Transfer Form',
+          'Model/21',
+          'Model # 0004400',
+          'From Employee Name :  Desta, Bikila  To : Alemu, Kebede',
+          'From Employee ID :  MOA/1  To : MOA/2',
+          'Book :  MOA MC BOOK',
+          `1  Isuzu Truck  ${tag}  1  624,285.50  322,547.54  301,738.01  05-OCT-26`,
+        ]);
+      const openTruck = async (user: ReturnType<typeof userEvent.setup>, asset: object) => {
+        vi.mocked(api.getItems).mockResolvedValue([...items, asset] as any);
+        render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+        await screen.findByText('MOA-S1');
+        await menuFor(user, 'MOA-VEH-2026-0001');
+        await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
+        return screen.getByRole('region', { name: 'Asset record MOA-VEH-2026-0001' });
+      };
+
+      it('offers to record a tag no asset has on the asset, then reads the form again', async () => {
+        const user = userEvent.setup();
+        vi.mocked(readPdfRows).mockResolvedValue(model21For('MOA-016341'));
+        vi.mocked(api.setIfmisTag).mockResolvedValue({ item: { ...truck, ifmisTagNumber: 'MOA-016341' } } as any);
+        const record = await openTruck(user, truck);
+        await user.upload(document.querySelector('#transfer-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
+
+        expect(await within(record).findByText(/No asset here has the tag MOA-016341/)).toBeInTheDocument();
+        const prompt = within(record).getByRole('group', { name: 'Unknown IFMIS tag numbers' });
+        // The asset the form is open for is offered first
+        expect(within(prompt).getByText(/MOA-VEH-2026-0001 · Isuzu Truck/)).toBeInTheDocument();
+        await user.click(within(prompt).getByRole('button', { name: 'Save as its IFMIS tag' }));
+
+        expect(api.setIfmisTag).toHaveBeenCalledWith('V1', 'MOA-016341');
+        expect(await within(record).findByText(/Filled in from the Model 21: .*recipient \(Kebede Alemu\)/)).toBeInTheDocument();
+        expect(within(record).queryByRole('group', { name: 'Unknown IFMIS tag numbers' })).toBeNull();
+      });
+
+      it('finds the asset by its IFMIS tag once it has one', async () => {
+        const user = userEvent.setup();
+        vi.mocked(readPdfRows).mockResolvedValue(model21For('moa-016341'));
+        const record = await openTruck(user, { ...truck, ifmisTagNumber: 'MOA-016341' });
+        await user.upload(document.querySelector('#transfer-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
+
+        expect(await within(record).findByText(/Filled in from the Model 21: .*recipient \(Kebede Alemu\)/)).toBeInTheDocument();
+        expect(within(record).queryByRole('group', { name: 'Unknown IFMIS tag numbers' })).toBeNull();
+        expect(api.setIfmisTag).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  it('records the IFMIS tag number on a fixed asset from its record', async () => {
+    const user = userEvent.setup();
+    const laptop = item('L1', 'Laptop', 'AVAILABLE', { itemCode: 'MOA-IT-2026-0001' });
+    vi.mocked(api.getItems).mockResolvedValue([laptop] as any);
+    vi.mocked(api.setIfmisTag).mockResolvedValue({ item: { ...laptop, ifmisTagNumber: 'MOA-016342' } } as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await user.click(await screen.findByText('MOA-IT-2026-0001'));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-IT-2026-0001' });
+
+    await user.click(within(record).getByRole('button', { name: 'Add' }));
+    await user.type(within(record).getByRole('textbox', { name: 'IFMIS tag number' }), 'MOA-016342{Enter}');
+
+    expect(api.setIfmisTag).toHaveBeenCalledWith('L1', 'MOA-016342');
+    expect(await within(record).findByText('MOA-016342')).toBeInTheDocument();
   });
 
   it('opens the transfer form with the asset already chosen', async () => {
@@ -513,6 +581,34 @@ describe('Assets page', () => {
     await vi.waitFor(() => expect(api.registerDisposal).toHaveBeenCalledTimes(2));
     expect(api.registerDisposal).toHaveBeenNthCalledWith(1, expect.objectContaining({ itemId: 'T43', disposalNo: '0000015/2013', reason: 'Gift / donation', recipientName: 'Test Region Office', bookValue: 15640 }));
     expect(api.registerDisposal).toHaveBeenNthCalledWith(2, expect.objectContaining({ itemId: 'T44', disposalNo: '0000015/2013', disposalDateGc: '2021-11-26', bookValue: 15640 }));
+  });
+
+  it('on a disposal form that names this item by an IFMIS tag it lacks, offers to record the tag on it', async () => {
+    const user = userEvent.setup();
+    const chair = item('C1', 'Office Chair', 'AVAILABLE', { itemCode: 'MOA-OF-2026-0001' });
+    vi.mocked(api.getItems).mockResolvedValue([chair] as any);
+    vi.mocked(api.setIfmisTag).mockResolvedValue({ item: { ...chair, ifmisTagNumber: 'MOA-000350' } } as any);
+    const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
+    vi.mocked(readPdfRows).mockResolvedValue([
+      r(49, [444, 'Fixed Asset Disposal Form']),
+      r(92, [60, 'Sold /Transferred / Donated to :'], [221, 'Test Region Office'], [821, 'No:'], [849, '0000016/2013']),
+      r(143, [53, 'S.No'], [173, 'Tag Number'], [576, 'Disposal Type'], [653, 'Original Cost'], [830, 'Book Value']),
+      r(159, [572, 'DONATION']),
+      r(168, [79, '1'], [94, 'Office Chair'], [168, 'MOA-000350'], [679, '2,500.00'], [783, '0.00'], [859, '2,500.00']),
+    ]);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-OF-2026-0001');
+    await menuFor(user, 'MOA-OF-2026-0001');
+    await user.click(screen.getByRole('menuitem', { name: 'Dispose' }));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-OF-2026-0001' });
+    await user.upload(document.querySelector('#disposal-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'disposal.pdf', { type: 'application/pdf' }));
+
+    expect(await within(record).findByText(/MOA-OF-2026-0001 isn't on this disposal form/)).toBeInTheDocument();
+    const prompt = within(record).getByRole('group', { name: 'Unknown IFMIS tag numbers' });
+    await user.click(within(prompt).getByRole('button', { name: 'Save as its IFMIS tag' }));
+
+    expect(api.setIfmisTag).toHaveBeenCalledWith('C1', 'MOA-000350');
+    expect(await within(record).findByText(/Filled in from the disposal form: .*book value/)).toBeInTheDocument();
   });
 
   it('is read-only for approvers', async () => {
