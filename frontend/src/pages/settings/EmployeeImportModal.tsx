@@ -233,7 +233,7 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
             )}
 
             <div className="max-h-[22rem] overflow-auto rounded-xl border border-slate-200">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-[13px]">
                 <thead className="sticky top-0 z-[1]">
                   <tr className={table.headRow}>
                     <th className="px-3 py-2 w-14 text-right">Row</th>
@@ -243,11 +243,11 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
                     <th className="px-3 py-2">Result</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-200">
                   {shown.map((r) => (
                     <tr key={`${r.row}-${r.payrollId}`} className={r.action === 'error' ? 'bg-red-50/40' : ''}>
-                      <td className="px-3 py-2 text-right font-mono text-slate-500">{r.row}</td>
-                      <td className={`px-3 py-2 whitespace-nowrap ${table.code}`}>{r.payrollId || '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-500">{r.row}</td>
+                      <td className="px-3 py-2 whitespace-nowrap tabular-nums text-slate-700">{r.payrollId || '—'}</td>
                       <td className="px-3 py-2 text-slate-900">{r.fullNameEn || '—'}</td>
                       <td className="px-3 py-2 text-slate-600">{r.department || '—'}</td>
                       <td className="px-3 py-2">

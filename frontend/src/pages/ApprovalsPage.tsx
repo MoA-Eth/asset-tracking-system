@@ -692,11 +692,11 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
            ══════════════════════════════════════════════════════════════════════ */
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs min-w-[940px]">
+            <table className="w-full text-left border-collapse text-[13px] min-w-[940px]">
               <thead>
                 <tr className={table.headRow}>
                   {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
-                    <th className="py-2 px-3 w-10 text-center shrink-0">
+                    <th className="py-2.5 px-3 w-10 text-center shrink-0">
                       <input
                         type="checkbox"
                         checked={isAllSelected}
@@ -707,49 +707,49 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     </th>
                   )}
                   <SortableHeader
-                    label="Statutory Form"
+                    label="Form"
                     columnKey="type"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2 px-3 w-32 whitespace-nowrap shrink-0"
+                    thClassName="py-2.5 px-3 w-32 whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
-                    label="Tracking Code & Asset Description"
+                    label="Asset"
                     columnKey="item"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2 px-3 min-w-[190px]"
+                    thClassName="py-2.5 px-3 min-w-[190px]"
                   />
                   <SortableHeader
-                    label="IFMIS Slip Reference"
+                    label="IFMIS slip"
                     columnKey="slip"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2 px-3 w-36 whitespace-nowrap shrink-0"
+                    thClassName="py-2.5 px-3 w-36 whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
-                    label="Workflow Stage"
+                    label="Stage"
                     columnKey="stage"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2 px-3 w-36 whitespace-nowrap shrink-0"
+                    thClassName="py-2.5 px-3 w-36 whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
-                    label="Requester / Justification"
+                    label="Requested by"
                     columnKey="requester"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2 px-3 min-w-[170px]"
+                    thClassName="py-2.5 px-3 min-w-[170px]"
                   />
-                  <th className="sticky right-0 z-[1] bg-slate-50 py-2 px-3 text-right w-36 whitespace-nowrap shrink-0">Review Action</th>
+                  <th className="sticky right-0 z-[1] bg-slate-100 py-2.5 px-3 text-right w-36 whitespace-nowrap shrink-0 font-normal">Review</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-200">
                 {pager.pageItems.map((appr) => {
                   const isSelected = selectedIds.includes(appr.id);
                   const isPending = appr.status === ApprovalStatus.PENDING;
@@ -789,15 +789,11 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       {/* Tracking Code & Item Name */}
                       <td className="py-2 px-3">
                         <div className="flex flex-col">
-                          <span className="font-mono font-bold text-slate-800 text-xs">
-                            {appr.itemCode}
+                          <span className="text-slate-900 line-clamp-1">{appr.itemName}</span>
+                          <span className="flex items-center gap-x-1.5 whitespace-nowrap">
+                            <span className={table.code}>{appr.itemCode}</span>
+                            {approvalUnits(appr) && <span className="text-xs text-sky-800">· {approvalUnits(appr)}</span>}
                           </span>
-                          <span className="font-medium text-slate-900 line-clamp-1 group-hover:text-emerald-900 transition">
-                            {appr.itemName}
-                          </span>
-                          {approvalUnits(appr) && (
-                            <span className="text-[11px] font-mono font-semibold text-sky-800">{approvalUnits(appr)}</span>
-                          )}
                         </div>
                       </td>
 
@@ -805,9 +801,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       <td className="py-2 px-3 whitespace-nowrap">
                         <div className="flex flex-col">
                           <div className="flex items-center gap-1">
-                            <span className="font-mono font-medium text-slate-800 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded w-fit text-[11px]">
-                              {appr.ifmisSlipNumber}
-                            </span>
+                            <span className="tabular-nums text-slate-700">{appr.ifmisSlipNumber}</span>
                             {appr.ifmisSlipAttachmentUrl && (
                               <button
                                 type="button"
@@ -820,9 +814,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                               </button>
                             )}
                           </div>
-                          <span className="text-[10px] text-slate-400 mt-0.5">
-                            {appr.ifmisSlipDateEc} E.C.
-                          </span>
+                          <span className="text-xs text-slate-500">{appr.ifmisSlipDateEc} E.C.</span>
                         </div>
                       </td>
 
@@ -834,10 +826,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       {/* Requester & Justification */}
                       <td className="py-2 px-3 max-w-xs">
                         <div className="flex flex-col text-slate-600">
-                          <span className="font-medium text-slate-800 truncate">
+                          <span className="text-slate-800 truncate">
                             {appr.requestedBy?.fullNameEn || '—'}
                           </span>
-                          <span className="text-[11px] text-slate-500 italic truncate" title={appr.purposeOrRemarks}>
+                          <span className="text-xs text-slate-500 truncate" title={appr.purposeOrRemarks}>
                             {appr.purposeOrRemarks || 'No remarks provided'}
                           </span>
                         </div>

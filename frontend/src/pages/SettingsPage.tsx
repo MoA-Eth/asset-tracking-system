@@ -303,7 +303,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
         </div>
           {/* Email and directorate fold under the name on narrow screens, so the role and actions stay in view */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className={table.headRow}>
                   <SortableHeader
@@ -351,7 +351,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-200">
                 {pager.pageItems.map((emp) => {
                   const dept = departments.find((d) => d.id === emp.departmentId);
                   const deptName = dept ? departmentLabel(dept) : '—';
@@ -379,8 +379,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                           </div>
                         </div>
                       </td>
-                      <td className={`py-3 px-3 whitespace-nowrap ${table.code}`}>{emp.payrollId}</td>
-                      <td className="hidden md:table-cell py-3 px-3 font-mono text-slate-700">
+                      <td className="py-3 px-3 whitespace-nowrap tabular-nums text-slate-700">{emp.payrollId}</td>
+                      <td className="hidden md:table-cell py-3 px-3 tabular-nums text-slate-700">
                         <p className="max-w-[220px] truncate" title={emp.email ?? undefined}>{emp.email}</p>
                       </td>
                       <td className="hidden lg:table-cell py-3 px-3 text-slate-700 font-medium">

@@ -504,7 +504,7 @@ export const EmployeesPage: React.FC = () => {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-[13px]">
               <thead>
                 <tr className={table.headRow}>
                   <SortableHeader
@@ -566,7 +566,7 @@ export const EmployeesPage: React.FC = () => {
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-200">
                 {loading && employees.length === 0 ? (
                   <tr>
                     <td colSpan={colCount} className="p-10 text-center text-slate-400">
@@ -612,7 +612,7 @@ export const EmployeesPage: React.FC = () => {
                             {[e.fullNameAm, e.jobTitle].filter(Boolean).join(' · ')}
                           </p>
                         </td>
-                        <td className={`px-3 py-2.5 whitespace-nowrap ${table.code}`}>{e.payrollId}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-slate-700">{e.payrollId}</td>
                         <td className="px-3 py-2.5 text-slate-700">
                           <p className="max-w-[260px] truncate" title={dept?.nameEn}>{dept?.nameEn ?? '—'}</p>
                           {e.unit && <p className="max-w-[260px] truncate text-[11px] text-slate-500" title={e.unit}>{e.unit}</p>}
@@ -620,7 +620,7 @@ export const EmployeesPage: React.FC = () => {
                         {canManage && (
                           <td className="px-3 py-2.5 text-slate-600">
                             <p className="truncate max-w-[200px]" title={e.email ?? undefined}>{e.email || '—'}</p>
-                            {e.phone && <p className="font-mono text-[11px] text-slate-500">{e.phone}</p>}
+                            {e.phone && <p className="tabular-nums text-[11px] text-slate-500">{e.phone}</p>}
                           </td>
                         )}
                         <td className="px-3 py-2.5 whitespace-nowrap">
@@ -634,7 +634,7 @@ export const EmployeesPage: React.FC = () => {
                           )}
                         </td>
                         {canManage && (
-                          <td className="px-3 py-2.5 text-right font-mono whitespace-nowrap">
+                          <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
                             {e.heldItemCount ? (
                               <span className="inline-flex items-center gap-1 text-slate-900">
                                 <Package className="h-3 w-3 text-slate-400" />

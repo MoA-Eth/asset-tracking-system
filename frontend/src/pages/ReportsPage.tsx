@@ -32,6 +32,7 @@ import { useToast } from '../context/ToastContext';
 import { RefreshButton } from '../components/ui/RefreshButton';
 import { ReportCharts } from '../components/reports/ReportCharts';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
+import { CATEGORY_OPTIONS } from '../components/assets/asset-state';
 
 export type ReportType = 'all' | 'registered' | 'available' | 'issued' | 'transferred';
 export type TimeframePreset =
@@ -156,6 +157,16 @@ export const ReportsPage: React.FC = () => {
     const b = balanceOf(item);
     if (b.issued > 0 && b.available > 0) return 'Partly issued';
     return item.status === 'PENDING_DISPOSAL' ? 'Disposal pending' : item.status.replace(/_/g, ' ');
+  };
+
+  /** The status in plain words, for the table on screen (the exports keep the status as recorded) */
+  const STATUS_WORDS: Record<string, string> = {
+    AVAILABLE: 'In store', ISSUED: 'Issued', PENDING_STOCK_IN: 'Receipt pending', PENDING_STOCK_OUT: 'Issue pending',
+    UNDER_TRANSFER: 'Transfer pending', PENDING_DISPOSAL: 'Disposal pending', DISPOSED: 'Disposed', REJECTED: 'Rejected',
+  };
+  const statusWords = (item: ItemWithRelations) => {
+    const label = statusLabel(item);
+    return label === 'Partly issued' ? label : STATUS_WORDS[item.status] ?? label;
   };
 
   /** Units a row contributes to this report: in store, issued, or all of them */
@@ -836,12 +847,12 @@ export const ReportsPage: React.FC = () => {
 
         {/* Data Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[1140px]">
+          <table className="w-full text-left text-[13px] min-w-[1140px]">
             <thead className={table.headRow}>
               <tr>
-                <th className="py-2.5 px-3 w-10 text-center shrink-0 font-semibold text-slate-700">#</th>
+                <th className="py-2.5 px-3 w-10 text-center shrink-0 font-normal">#</th>
                 <SortableHeader
-                  label="Tracking Code"
+                  label="Code"
                   columnKey="code"
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
@@ -849,7 +860,7 @@ export const ReportsPage: React.FC = () => {
                   thClassName="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap"
                 />
                 <SortableHeader
-                  label="Asset Item"
+                  label="Asset"
                   columnKey="name"
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
@@ -893,7 +904,7 @@ export const ReportsPage: React.FC = () => {
                   thClassName="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
                 />
                 <SortableHeader
-                  label="In Store"
+                  label="In store"
                   columnKey="available"
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
@@ -903,7 +914,7 @@ export const ReportsPage: React.FC = () => {
                   thClassName="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
                 />
                 <SortableHeader
-                  label="IFMIS Slip #"
+                  label="IFMIS slip"
                   columnKey="slip"
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
@@ -919,7 +930,7 @@ export const ReportsPage: React.FC = () => {
                   thClassName="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap"
                 />
                 <SortableHeader
-                  label="Custodian / Location"
+                  label="Custodian / location"
                   columnKey="custodian"
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
@@ -927,7 +938,7 @@ export const ReportsPage: React.FC = () => {
                   thClassName="py-2.5 px-3 min-w-[150px] max-w-[220px]"
                 />
                 <SortableHeader
-                  label="Unit Cost"
+                  label="Unit cost"
                   columnKey="cost"
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
@@ -937,7 +948,7 @@ export const ReportsPage: React.FC = () => {
                 />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-200">
               {filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="py-16 text-center text-slate-400 space-y-1">
@@ -956,31 +967,31 @@ export const ReportsPage: React.FC = () => {
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px] w-10 shrink-0">
+                      <td className="py-2 px-3 text-center text-slate-400 tabular-nums text-xs w-10 shrink-0">
                         {pager.from + idx}
                       </td>
-                      <td className={`py-2.5 px-3 ${table.code} whitespace-nowrap w-32 shrink-0`}>
+                      <td className="py-2 px-3 tabular-nums text-slate-700 whitespace-nowrap w-32 shrink-0">
                         {item.itemCode}
                       </td>
-                      <td className="py-2.5 px-3 min-w-[180px] max-w-[260px]">
-                        <div className="font-semibold text-slate-900 truncate" title={item.name}>
+                      <td className="py-2 px-3 min-w-[180px] max-w-[260px]">
+                        <div className="text-slate-900 truncate" title={item.name}>
                           {item.name}
                         </div>
                         {item.serialNumber && (
                           <div
-                            className="text-[10px] text-slate-400 font-mono truncate"
+                            className="text-xs text-slate-500 truncate"
                             title={`SN: ${item.serialNumber}`}
                           >
                             SN: {item.serialNumber}
                           </div>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap w-28 shrink-0">
-                        {item.category.replace(/_/g, ' ')}
+                      <td className="py-2 px-3 text-slate-600 whitespace-nowrap w-28 shrink-0">
+                        {item.itemCategoryDisplay || CATEGORY_OPTIONS.find((o) => o.value === item.category)?.label || item.category}
                       </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap w-28 shrink-0">
+                      <td className="py-2 px-3 whitespace-nowrap w-28 shrink-0">
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                          className={`px-2 py-0.5 rounded-full text-[11px] font-medium border whitespace-nowrap ${
                             isPartly
                               ? statusTone.partly
                               : isAvailable
@@ -990,39 +1001,39 @@ export const ReportsPage: React.FC = () => {
                               : statusTone.pending
                           }`}
                         >
-                          {statusLabel(item)}
+                          {statusWords(item)}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap w-16 shrink-0">
-                        {balanceOf(item).total} <span className="text-[10px] font-normal text-slate-400">{item.uom || 'EA'}</span>
+                      <td className="py-2 px-3 text-right tabular-nums text-slate-900 whitespace-nowrap w-16 shrink-0">
+                        {balanceOf(item).total} <span className="text-slate-500">{(item.uom || 'EA').toLowerCase()}</span>
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono text-slate-700 whitespace-nowrap w-16 shrink-0">
+                      <td className="py-2 px-3 text-right tabular-nums text-slate-700 whitespace-nowrap w-16 shrink-0">
                         {balanceOf(item).issued}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-semibold text-emerald-800 whitespace-nowrap w-16 shrink-0">
+                      <td className="py-2 px-3 text-right tabular-nums text-emerald-800 whitespace-nowrap w-16 shrink-0">
                         {balanceOf(item).available}
                       </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-amber-900 whitespace-nowrap w-32 shrink-0">
+                      <td className="py-2 px-3 tabular-nums text-slate-700 whitespace-nowrap w-32 shrink-0">
                         {item.ifmisSlipNumber}
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap w-28 shrink-0">
+                      <td className="py-2 px-3 tabular-nums text-slate-600 whitespace-nowrap w-28 shrink-0">
                         {item.ifmisSlipDateEc || item.createdAtEc}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-700 min-w-[150px] max-w-[220px]">
+                      <td className="py-2 px-3 text-slate-700 min-w-[150px] max-w-[220px]">
                         {item.currentCustodian ? (
                           <div
-                            className="font-semibold text-slate-900 truncate"
+                            className="text-slate-900 truncate"
                             title={item.currentCustodian.fullNameEn}
                           >
                             {item.currentCustodian.fullNameEn}
                           </div>
                         ) : item.heldByOrganization ? (
-                          <div className="font-semibold text-slate-900 truncate" title={item.heldByOrganization}>
+                          <div className="text-slate-900 truncate" title={item.heldByOrganization}>
                             {item.heldByOrganization}
                           </div>
                         ) : (splitsByRoot.get(item.id) ?? []).some((s) => s.currentCustodian) ? (
                           <div
-                            className="font-semibold text-slate-900 truncate"
+                            className="text-slate-900 truncate"
                             title={(splitsByRoot.get(item.id) ?? [])
                               .filter((s) => s.currentCustodian)
                               .map((s) => `${s.currentCustodian!.fullNameEn} (${s.quantity || 1} ${s.uom || 'EA'})`)
@@ -1037,7 +1048,7 @@ export const ReportsPage: React.FC = () => {
                           </div>
                         ) : item.assignedDepartment ? (
                           <div
-                            className="font-semibold text-slate-800 truncate"
+                            className="text-slate-800 truncate"
                             title={item.assignedDepartment.nameEn}
                           >
                             {item.assignedDepartment.nameEn}
@@ -1048,7 +1059,7 @@ export const ReportsPage: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap w-28 shrink-0">
+                      <td className="py-2 px-3 text-right tabular-nums text-slate-900 whitespace-nowrap w-28 shrink-0">
                         {formatETB(item.unitCostETB)}
                       </td>
                     </tr>

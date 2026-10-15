@@ -336,9 +336,9 @@ export const AuditLogsPage: React.FC = () => {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] text-left text-xs">
+              <table className="w-full min-w-[860px] text-left text-[13px]">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <tr className="border-b border-slate-200 bg-slate-100 text-[13px] font-normal text-slate-600">
                     <th scope="col" className="w-8 px-2 py-2"><span className="sr-only">Details</span></th>
                     <SortableHeader
                       label="Date & time"
@@ -346,7 +346,7 @@ export const AuditLogsPage: React.FC = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={handleSort}
-                      thClassName="w-40 px-3 py-2 whitespace-nowrap"
+                      thClassName="w-40 px-3 py-2.5 whitespace-nowrap"
                     />
                     <SortableHeader
                       label="Who"
@@ -354,7 +354,7 @@ export const AuditLogsPage: React.FC = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={handleSort}
-                      thClassName="w-48 px-3 py-2"
+                      thClassName="w-48 px-3 py-2.5"
                     />
                     <SortableHeader
                       label="Action"
@@ -362,7 +362,7 @@ export const AuditLogsPage: React.FC = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={handleSort}
-                      thClassName="w-44 px-3 py-2"
+                      thClassName="w-44 px-3 py-2.5"
                     />
                     <SortableHeader
                       label="Slip no."
@@ -370,12 +370,12 @@ export const AuditLogsPage: React.FC = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={handleSort}
-                      thClassName="w-36 px-3 py-2 whitespace-nowrap"
+                      thClassName="w-36 px-3 py-2.5 whitespace-nowrap"
                     />
-                    <th scope="col" className="px-3 py-2">What happened</th>
+                    <th scope="col" className="px-3 py-2.5 font-normal">What happened</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-200">
                   {pager.pageItems.map((log) => {
                     const isExpanded = expandedLogId === log.id;
                     const [ecDate, ecTime] = splitStamp(log.timestampEc);
@@ -402,21 +402,21 @@ export const AuditLogsPage: React.FC = () => {
                             </button>
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap">
-                            <span className="block font-mono font-semibold tabular-nums text-slate-900">
+                            <span className="block tabular-nums text-slate-900">
                               {ecDate} <span className="font-normal text-slate-500">{ecTime}</span>
                             </span>
-                            <span className="block font-mono text-[10px] tabular-nums text-slate-400">{gcDate} G.C.</span>
+                            <span className="block text-xs tabular-nums text-slate-500">{gcDate} G.C.</span>
                           </td>
                           <td className="px-3 py-2">
-                            <span className="block font-semibold text-slate-900">{log.userName}</span>
-                            <span className="block text-[11px] text-slate-500">{roleName(log.userRole)}</span>
+                            <span className="block text-slate-900">{log.userName}</span>
+                            <span className="block text-xs text-slate-500">{roleName(log.userRole)}</span>
                           </td>
                           <td className="px-3 py-2">
-                            <span className={`inline-block rounded-md border px-2 py-0.5 text-[11px] font-semibold ${KIND_TONE[activityKind(log.action)]}`}>
+                            <span className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-medium ${KIND_TONE[activityKind(log.action)]}`}>
                               {actionLabel(log.action)}
                             </span>
                           </td>
-                          <td className="px-3 py-2 font-mono text-slate-700">{log.ifmisSlipNumber || <span className="text-slate-300">—</span>}</td>
+                          <td className="px-3 py-2 tabular-nums text-slate-700">{log.ifmisSlipNumber || <span className="text-slate-300">—</span>}</td>
                           <td className="px-3 py-2 text-slate-700">
                             <span className={isExpanded ? '' : 'line-clamp-2'}>{withRoleNames(log.details)}</span>
                           </td>

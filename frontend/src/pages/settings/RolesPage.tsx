@@ -302,10 +302,10 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
 
             {/* Matrix Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs min-w-[760px] border-collapse">
+              <table className="w-full text-left text-[13px] min-w-[760px] border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200">
-                    <th scope="col" className="w-[260px] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 align-bottom">
+                    <th scope="col" className="w-[260px] px-5 py-3 text-[13px] font-normal text-slate-600 align-bottom">
                       Permission
                     </th>
                     {filtered.map((role) => {
@@ -347,7 +347,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
                     })}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100/80">
+                <tbody className="divide-y divide-slate-200">
                   {filtered.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-slate-500">
@@ -359,7 +359,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
                       <React.Fragment key={group.name}>
                         {/* Group Header Row */}
                         <tr className="bg-slate-50">
-                          <td colSpan={filtered.length + 1} className="px-5 pb-1.5 pt-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          <td colSpan={filtered.length + 1} className="px-5 pb-1.5 pt-4 text-[13px] font-semibold text-slate-800">
                             {group.name}
                           </td>
                         </tr>

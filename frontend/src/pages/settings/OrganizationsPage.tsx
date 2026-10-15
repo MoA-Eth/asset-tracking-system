@@ -194,7 +194,7 @@ export const OrganizationsPage: React.FC = () => {
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-[13px]">
             <thead>
               <tr className={table.headRow}>
                 <th className="px-4 py-2.5">Organization</th>
@@ -203,7 +203,7 @@ export const OrganizationsPage: React.FC = () => {
                 {canManage && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-200">
               {shown.map((o) => (
                 <tr key={o.id} className={table.row}>
                   <td className="px-4 py-2.5">

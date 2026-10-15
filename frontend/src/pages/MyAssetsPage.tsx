@@ -103,7 +103,7 @@ export const MyAssetsPage: React.FC = () => {
         <>
           {/* Wide screens: one table */}
           <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white sm:block">
-            <table className="w-full text-xs">
+            <table className="w-full text-[13px]">
               <thead>
                 <tr className={table.headRow}>
                   <th className="px-3 py-2.5">Asset</th>
@@ -113,7 +113,7 @@ export const MyAssetsPage: React.FC = () => {
                   <th className="px-3 py-2.5">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-200">
                 {assets!.map((asset) => {
                   const status = statusOf(asset);
                   return (
@@ -130,13 +130,13 @@ export const MyAssetsPage: React.FC = () => {
                       <td className="px-3 py-2.5">
                         <span className="block font-medium text-slate-900">{asset.name}</span>
                         <span className={`block ${table.code}`}>{asset.itemCode}</span>
-                        <span className="block text-[10px] text-slate-500">{CATEGORY_LABELS[asset.category] ?? asset.category}</span>
+                        <span className="block text-xs text-slate-500">{CATEGORY_LABELS[asset.category] ?? asset.category}</span>
                       </td>
-                      <td className="px-3 py-2.5 font-mono text-slate-700">{asset.serialNumber || '—'}</td>
-                      <td className="px-3 py-2.5 text-right font-mono font-semibold text-slate-900">{units(asset)}</td>
+                      <td className="px-3 py-2.5 tabular-nums text-slate-700">{asset.serialNumber || '—'}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-slate-900">{units(asset)}</td>
                       <td className="px-3 py-2.5 text-slate-700">
                         {asset.assignedOnGc ?? '—'}
-                        {asset.voucherNo && <span className="block font-mono text-[10px] text-slate-500">{asset.voucherNo}</span>}
+                        {asset.voucherNo && <span className="block tabular-nums text-[10px] text-slate-500">{asset.voucherNo}</span>}
                       </td>
                       <td className="px-3 py-2.5">
                         <span className={`${pill} ${status.tone}`}>{status.label}</span>

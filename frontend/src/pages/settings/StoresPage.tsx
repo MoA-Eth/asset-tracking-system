@@ -479,7 +479,7 @@ export const StoresPage: React.FC = () => {
                 />
 
                 {/* Its locations */}
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-[13px]">
                   <thead>
                     <tr className={table.headRow}>
                       <SortableHeader
@@ -516,7 +516,7 @@ export const StoresPage: React.FC = () => {
                       )}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-200">
                     {sortLocations(store.locations).map((l) => {
                       const here = l.itemCount ?? 0;
                       const lastHere = store.locations.length === 1;
@@ -530,7 +530,7 @@ export const StoresPage: React.FC = () => {
                             </span>
                           </td>
                           {canManage && (
-                            <td className="px-3 py-2.5 text-right font-mono whitespace-nowrap">
+                            <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
                               {here > 0 ? (
                                 <span className="inline-flex items-center gap-1 text-slate-900">
                                   <Package className="h-3 w-3 text-slate-400" />
