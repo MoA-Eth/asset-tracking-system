@@ -100,11 +100,13 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, on
       />
 
       <VoucherSignatures
-        signatories={[
-          ...(disposal
-            ? [{ label: 'Disposed By', name: voucher.issuedByName }]
-            : [{ label: 'Issued By', name: voucher.issuedByName }, { label: 'Received By', name: voucher.receivedByName }]),
-        ]}
+        signatories={
+          voucher.signatories || [
+            ...(disposal
+              ? [{ label: 'Disposed By', name: voucher.issuedByName }]
+              : [{ label: 'Issued By', name: voucher.issuedByName }, { label: 'Received By', name: voucher.receivedByName }]),
+          ]
+        }
       />
     </VoucherShell>
   );

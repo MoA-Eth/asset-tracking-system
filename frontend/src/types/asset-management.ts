@@ -282,6 +282,17 @@ export interface Model19LineItem {
   remark?: string;
 }
 
+
+export interface VoucherSignatory {
+  label: string;
+  name?: string;
+  title?: string;
+  date?: string;
+  signatureUrl?: string;
+  stampUrl?: string;
+  stampAmharicUrl?: string;
+}
+
 export interface Model19Voucher {
   /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
   approvalState?: 'PENDING' | 'REJECTED';
@@ -302,6 +313,7 @@ export interface Model19Voucher {
   printedBy?: string;
   items: Model19LineItem[];
   grandTotal: number;
+  signatories?: VoucherSignatory[];
 }
 
 export interface Model22LineItem {
@@ -365,6 +377,7 @@ export interface Model22Voucher {
   grandTotal: number;
   /** Name of the person printing; shown in the footer */
   printedBy?: string;
+  signatories?: VoucherSignatory[];
 }
 
 /** Printed record of a disposal request (Asset Disposal Certificate) */
@@ -397,6 +410,7 @@ export interface DisposalVoucher {
   approvedByName?: string;
   /** Name of the person printing; shown in the footer */
   printedBy?: string;
+  signatories?: VoucherSignatory[];
 }
 
 export interface Model21Accessory {
@@ -445,6 +459,7 @@ export interface Model21Voucher {
   famuAccountantName?: string;
   /** Name of the person printing; shown in the footer */
   printedBy?: string;
+  signatories?: VoucherSignatory[];
 }
 
 /** Units of one registered item across the records split off it by partial Stock-Outs */

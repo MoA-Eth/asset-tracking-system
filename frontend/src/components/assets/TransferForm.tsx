@@ -1,3 +1,4 @@
+import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, FileText, Car } from 'lucide-react';
 import { api } from '../../api/client';
@@ -1084,5 +1085,13 @@ export const buildModel21Voucher = async (
       },
     ],
     printedBy: context.printedBy,
+    signatories: [
+      { label: 'Transferor', name: fromName },
+      ...(r.transactionType === 'TRANSFER' && !d.fromStore && d.transferredByName ? [{ label: 'Recorded By', name: d.transferredByName }] : []),
+      { label: 'FAMU Accountant' },
+      { label: 'Recipient', name: toEmp?.fullNameEn || (r.transactionType === 'RETURN' ? d.storeRecipientName || storeName : '—') },
+      getEndorserSignatory(r, { isEndorsed: r.status === ApprovalStatus.APPROVED || r.currentStage >= 2 }),
+      getAuthorizerSignatory(r, { isApproved: r.status === ApprovalStatus.APPROVED, totalAmount: origCost }),
+    ],
   };
 };

@@ -57,7 +57,7 @@ export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose }) => 
           const all: ItemWithRelations[] = await api.getItems();
           const record = item ?? all.find((i) => i.id === approval.itemId);
           if (!record) throw new Error('item not found');
-          next = { kind: 'model19', voucher: { ...buildModel19Voucher(record, all, printedBy), approvalState: stateOf(approval) } };
+          next = { kind: 'model19', voucher: { ...buildModel19Voucher(record, all, printedBy, approval), approvalState: stateOf(approval) } };
         } else if (type === 'STOCK_OUT') {
           // The other lines of the same Model 22 are printed with it
           const [departments, employees, requests, items]: [Department[], Employee[], TransactionApproval[], ItemWithRelations[]] = await Promise.all([

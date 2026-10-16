@@ -1,3 +1,4 @@
+import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Plus, X } from 'lucide-react';
 import { api } from '../../api/client';
@@ -986,5 +987,17 @@ export const buildModel22Voucher = (
     transportationCost,
     grandTotal: totalAmount + transportationCost,
     printedBy: context.printedBy,
+    signatories: details.disposal
+      ? [
+          { label: 'Disposed By', name: details.issuedByName || requester?.fullNameEn || '—' },
+          getEndorserSignatory(approval, { isEndorsed: approval.status === 'APPROVED' || approval.currentStage >= 2 }),
+          getAuthorizerSignatory(approval, { isApproved: approval.status === 'APPROVED', totalAmount: totalAmount + transportationCost }),
+        ]
+      : [
+          { label: 'Issued By', name: details.issuedByName || requester?.fullNameEn || '—' },
+          { label: 'Received By', name: outside ? externalReceiverName(outside, details.contactPerson) : recipient?.fullNameEn || '—' },
+          getEndorserSignatory(approval, { isEndorsed: approval.status === 'APPROVED' || approval.currentStage >= 2 }),
+          getAuthorizerSignatory(approval, { isApproved: approval.status === 'APPROVED', totalAmount: totalAmount + transportationCost }),
+        ],
   };
 };

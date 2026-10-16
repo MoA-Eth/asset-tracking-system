@@ -1,3 +1,4 @@
+import { isChiefDirectorApproval, APPROVER_PROFILES } from '../../utils/approver-signatures';
 import React from 'react';
 import { Printer, ShieldCheck, FileCheck, Building2, UserCheck, Barcode, ExternalLink } from 'lucide-react';
 import { CloseButton } from './CloseButton';
@@ -46,6 +47,12 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
     : isReturn
     ? 'የዕቃ መመለሻ ማዘዣ — ሞዴል 22 (Model 22 Store Return)'
     : 'የዕቃ ወጪ ማዘዣ እና መረከቢያ — ሞዴል 20 (Model 20 Issue Voucher)';
+
+  const totalETB = (unitCost * quantity) || approval?.totalAmount || 0;
+  const isChiefApproved = isChiefDirectorApproval(totalETB, approval);
+  const isApproved = approval?.status === 'APPROVED' || item?.status === 'AVAILABLE' || item?.status === 'ISSUED';
+  const authorizerProfile = isChiefApproved ? APPROVER_PROFILES.CHIEF_DIRECTOR : APPROVER_PROFILES.DEPARTMENT_HEAD;
+  const approvalDate = approval?.reviewedAtGc || item?.createdAtGc || approval?.ifmisSlipDateGc;
 
   const handlePrint = () => {
     toast.info('Preparing Printout', `Generating statutory handover document for Slip #${slipNo}...`);
@@ -225,13 +232,39 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
 
             <div className="space-y-6">
               <div>
-                <p className="text-[10px] font-bold uppercase text-slate-500">Approved By (Dept Head):</p>
-                <div className="h-10 border-b border-dashed border-slate-400 mt-1 flex items-end pb-1">
-                  <span className="font-semibold text-slate-800">
-                    {approval?.reviewedBy?.fullNameEn || item?.approvedBy?.fullNameEn || '—'}
+                <p className="text-[10px] font-bold uppercase text-slate-500">
+                  {isChiefApproved ? 'Approved By (Chief Executive Officer):' : 'Approved By (Dept Head):'}
+                </p>
+                {authorizerProfile && (
+                  <p className="text-[9px] text-slate-500 font-semibold truncate mt-0.5" title={authorizerProfile.jobTitleEn}>
+                    {authorizerProfile.jobTitleEn}
+                  </p>
+                )}
+                <div className="min-h-12 border-b border-dashed border-slate-400 mt-1 flex items-end justify-between pb-1 relative">
+                  <span className="font-semibold text-slate-800 z-10">
+                    {approval?.reviewedBy?.fullNameEn || item?.approvedBy?.fullNameEn || (isApproved ? authorizerProfile?.nameEn : '—')}
                   </span>
+                  {isApproved && authorizerProfile && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <img
+                        src={authorizerProfile.signatureUrl}
+                        alt="Approver Signature"
+                        className="max-h-11 max-w-[100px] object-contain mix-blend-multiply select-none"
+                      />
+                      <img
+                        src={authorizerProfile.stampUrl}
+                        alt="Approver Stamp"
+                        className="max-h-9 max-w-[110px] object-contain mix-blend-multiply select-none"
+                      />
+                    </div>
+                  )}
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">Signature & Stamp</p>
+                <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1">
+                  <span>Signature & Stamp</span>
+                  {isApproved && approvalDate && (
+                    <span className="font-mono text-slate-600 font-semibold">{approvalDate}</span>
+                  )}
+                </div>
               </div>
             </div>
 

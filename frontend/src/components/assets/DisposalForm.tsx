@@ -1,3 +1,4 @@
+import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useEffect, useRef, useState } from 'react';
 import { FileText } from 'lucide-react';
 import { api } from '../../api/client';
@@ -558,5 +559,12 @@ export const buildDisposalVoucher = (
     endorsedByName: nameOf(approval.endorsedById, approval.endorsedBy),
     approvedByName: approval.status === 'APPROVED' ? nameOf(approval.reviewedById, approval.reviewedBy) : undefined,
     printedBy: context.printedBy,
+    signatories: [
+      { label: 'Storekeeper', name: d.storekeeperName || context.requestedByName || nameOf(approval.requestedById, approval.requestedBy) },
+      { label: 'FAMU Accountant' },
+      { label: 'Recipient', name: d.recipientName },
+      getEndorserSignatory(approval, { isEndorsed: approval.status === 'APPROVED' || approval.currentStage >= 2 }),
+      getAuthorizerSignatory(approval, { isApproved: approval.status === 'APPROVED', totalAmount: d.bookValue ?? unitPrice * quantity }),
+    ],
   };
 };

@@ -145,13 +145,15 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
       </p>
 
       <VoucherSignatures
-        columns={voucher.storeManName ? 4 : undefined}
-        signatories={[
-          { label: 'Transferor', name: voucher.fromEmployeeName },
-          ...(voucher.storeManName ? [{ label: 'Recorded By', name: voucher.storeManName }] : []),
-          { label: 'FAMU Accountant', name: voucher.famuAccountantName },
-          { label: 'Recipient', name: voucher.toEmployeeName },
-        ]}
+        columns={voucher.signatories ? (voucher.signatories.length === 3 ? 3 : voucher.signatories.length >= 4 ? 4 : 2) : (voucher.storeManName ? 4 : undefined)}
+        signatories={
+          voucher.signatories || [
+            { label: 'Transferor', name: voucher.fromEmployeeName },
+            ...(voucher.storeManName ? [{ label: 'Recorded By', name: voucher.storeManName }] : []),
+            { label: 'FAMU Accountant', name: voucher.famuAccountantName },
+            { label: 'Recipient', name: voucher.toEmployeeName },
+          ]
+        }
       />
     </VoucherShell>
   );

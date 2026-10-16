@@ -170,26 +170,71 @@ export const VoucherTotals: React.FC<{ rows: { label: string; value: number | un
   </div>
 );
 
-/** One column per signatory: role, the recorded name (or a blank line to write it), and a signature line */
-export const VoucherSignatures: React.FC<{ signatories: { label: string; name?: string }[]; columns?: 2 | 3 | 4 | 5 }> = ({ signatories, columns }) => (
-  <div
-    className={`pt-6 grid grid-cols-1 gap-8 text-[11px] text-slate-900 ${
-      { 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4', 5: 'sm:grid-cols-5' }[columns ?? (signatories.length === 3 ? 3 : 2)]
-    }`}
-  >
-    {signatories.map((s) => (
-      <div key={s.label} className="space-y-3">
-        <p className="font-bold">{s.label}</p>
-        {/* Fixed-height rows aligned to the line, so a blank name sits level with a filled one */}
-        <div className="flex items-end gap-2 h-6">
-          <span className="font-semibold whitespace-nowrap">Name :</span>
-          <span className="font-medium flex-1 truncate border-b border-slate-500 print:border-black">{s.name || ' '}</span>
+export interface Signatory {
+  label: string;
+  name?: string;
+  title?: string;
+  date?: string;
+  signatureUrl?: string;
+  stampUrl?: string;
+  stampAmharicUrl?: string;
+}
+
+/** One column per signatory: role, title, name, digital signature & official stamp (or blank line), and date */
+export const VoucherSignatures: React.FC<{ signatories: Signatory[]; columns?: 2 | 3 | 4 | 5 }> = ({ signatories, columns }) => {
+  const colCount = columns ?? (signatories.length === 3 ? 3 : signatories.length >= 4 ? 4 : 2);
+  const gridClass = {
+    2: 'sm:grid-cols-2',
+    3: 'sm:grid-cols-3',
+    4: 'sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4',
+    5: 'sm:grid-cols-3 lg:grid-cols-5 print:grid-cols-5',
+  }[colCount];
+
+  return (
+    <div className={`pt-6 grid grid-cols-1 gap-6 text-[11px] text-slate-900 ${gridClass}`}>
+      {signatories.map((s, idx) => (
+        <div key={`${s.label}-${idx}`} className="space-y-2 border border-slate-200/80 rounded-lg p-2.5 bg-slate-50/40 print:bg-transparent print:border-none print:p-0">
+          <div>
+            <p className="font-bold text-slate-900">{s.label}</p>
+            {s.title && (
+              <p className="text-[10px] text-slate-600 font-semibold truncate mt-0.5" title={s.title}>
+                {s.title}
+              </p>
+            )}
+          </div>
+          {/* Fixed-height rows aligned to the line, so a blank name sits level with a filled one */}
+          <div className="flex items-end gap-2 h-6">
+            <span className="font-semibold whitespace-nowrap">Name :</span>
+            <span className="font-medium flex-1 truncate border-b border-slate-500 print:border-black">{s.name || ' '}</span>
+          </div>
+          <div className="flex items-end gap-2 min-h-12">
+            <span className="font-semibold whitespace-nowrap pb-1">Signature :</span>
+            <div className="flex-1 border-b border-slate-500 print:border-black relative min-h-11 flex items-end justify-between px-1">
+              {s.signatureUrl && (
+                <img
+                  src={s.signatureUrl}
+                  alt={`${s.label} signature`}
+                  className="max-h-10 max-w-[100px] object-contain mix-blend-multiply select-none"
+                />
+              )}
+              {s.stampUrl && (
+                <img
+                  src={s.stampUrl}
+                  alt={`${s.label} stamp`}
+                  className="max-h-9 max-w-[110px] object-contain mix-blend-multiply select-none mb-0.5"
+                />
+              )}
+              {!s.signatureUrl && !s.stampUrl && (
+                <span className="w-full text-transparent select-none">{' '}</span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-end gap-2 h-5 text-[10px]">
+            <span className="font-semibold whitespace-nowrap">Date :</span>
+            <span className="font-mono text-slate-800 flex-1 truncate border-b border-slate-400 print:border-black">{s.date || ' '}</span>
+          </div>
         </div>
-        <div className="flex items-end gap-2 h-6">
-          <span className="font-semibold whitespace-nowrap">Signature :</span>
-          <span className="flex-1 border-b border-slate-500 print:border-black">{' '}</span>
-        </div>
-      </div>
-    ))}
-  </div>
-);
+      ))}
+    </div>
+  );
+};

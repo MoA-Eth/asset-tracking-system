@@ -100,10 +100,12 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
       {!donation && <VoucherTotals rows={[{ label: 'Grand Total', value: grandTotal }]} />}
 
       <VoucherSignatures
-        signatories={[
-          { label: 'Delivered By', name: voucher.deliveredByName },
-          { label: 'Received By', name: voucher.receivedByName },
-        ]}
+        signatories={
+          voucher.signatories || [
+            { label: 'Delivered By', name: voucher.deliveredByName },
+            { label: 'Received By', name: voucher.receivedByName },
+          ]
+        }
       />
     </VoucherShell>
   );
