@@ -2762,15 +2762,43 @@ export class StoreService {
 
   // ── Executive Dashboard ─────────────────────────────────────────────────
 
-  public async getExecutiveDashboard() {
-    const [allItemsRaw, departments, locations, pendingApprovals, recentLogs, approvedStockOuts] = await Promise.all([
+  /**
+   * Everything on the dashboard, optionally for one store, one category and/or one item type, and for a period.
+   * - Store, category and item type narrow the items, so every figure follows them.
+   * - A period (from–to, G.C. dates) narrows activity: the totals and charts cover assets received in it (shown where
+   *   they are now), pending requests made in it, and movement month by month across it. Stock in store longer than the
+   *   limit stays "as of today". Recent activity is the system log and is not narrowed.
+   */
+  public async getExecutiveDashboard(filter: { storeId?: unknown; category?: unknown; itemType?: unknown; from?: unknown; to?: unknown } = {}) {
+    const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+    const storeId = text(filter.storeId);
+    const category = text(filter.category);
+    const itemType = text(filter.itemType);
+    if (category && !(Object.values(AssetCategory) as string[]).includes(category)) throw new BadRequestError('Unknown category.');
+    if (itemType && itemType !== 'FIXED' && itemType !== 'CONSUMABLE') throw new BadRequestError('Item type is FIXED or CONSUMABLE.');
+    const filtered = !!(storeId || category || itemType);
+    const day = (v: unknown, name: string) => {
+      const d = text(v);
+      if (d && (!/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(Date.parse(d)))) throw new BadRequestError(`${name} must be a date (YYYY-MM-DD).`);
+      return d;
+    };
+    const from = day(filter.from, 'From');
+    const to = day(filter.to, 'To');
+    if (from && to && from > to) throw new BadRequestError('The period starts after it ends.');
+    const inPeriod = (date?: string | null) => {
+      const d = (date || '').slice(0, 10);
+      return !!d && (!from || d >= from) && (!to || d <= to);
+    };
+    const periodSet = !!(from || to);
+
+    const [allItemsRaw, departments, allLocations, pendingRequests, recentLogs, approvedStockOuts] = await Promise.all([
       prisma.item.findMany({
         include: ITEM_INCLUDES,
         orderBy: { unitCostETB: 'desc' },
       }),
       prisma.department.findMany({ orderBy: { code: 'asc' } }),
       prisma.location.findMany({ include: { store: true }, orderBy: [{ store: { name: 'asc' } }, { name: 'asc' }] }),
-      prisma.transactionApproval.count({ where: { status: 'PENDING' } }),
+      prisma.transactionApproval.findMany({ where: { status: 'PENDING' }, select: { itemId: true, createdAtGc: true } }),
       prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 8 }),
       prisma.transactionApproval.findMany({
         where: { transactionType: 'STOCK_OUT' as any, status: 'APPROVED' as any },
@@ -2778,7 +2806,23 @@ export class StoreService {
       }),
     ]);
 
-    const allItems = allItemsRaw.map(mapItem);
+    // The items the filters keep: an item belongs to the store of its location (issued ones to the store they left)
+    const scopedItems = allItemsRaw.map(mapItem).filter(
+      (i) =>
+        (!storeId || i.storeLocation?.storeId === storeId) &&
+        (!category || i.category === category) &&
+        (!itemType || (itemType === 'CONSUMABLE' ? i.itemType === 'CONSUMABLE' : i.itemType !== 'CONSUMABLE')),
+    );
+    const keptIds = new Set(scopedItems.map((i) => i.id));
+    // Received in the period: by the receipt (Model 19) date; a record split off a batch by the date of its batch
+    const scopedById = new Map(scopedItems.map((i) => [i.id, i]));
+    const receivedOn = (i: (typeof scopedItems)[number]) => {
+      const reg = (i.parentItemId && scopedById.get(i.parentItemId)) || i;
+      return reg.ifmisSlipDateGc || reg.createdAtGc;
+    };
+    const allItems = periodSet ? scopedItems.filter((i) => inPeriod(receivedOn(i))) : scopedItems;
+    const locations = storeId ? allLocations.filter((l) => l.storeId === storeId) : allLocations;
+    const pendingApprovals = pendingRequests.filter((r) => (!filtered || keptIds.has(r.itemId)) && (!periodSet || inPeriod(r.createdAtGc))).length;
 
     // Count units, not records: a partial Stock-Out splits one registration into several records,
     // so record counts would change while the stock did not. Values are unit price × units.
@@ -2819,7 +2863,8 @@ export class StoreService {
 
     // Units that have stayed in store longer than the distribution limit, oldest first
     const todayMs = Date.parse(getTodayGcAndEc().gc);
-    const staleItems = available
+    const staleItems = scopedItems
+      .filter((i) => IN_STORE_STATUSES.includes(i.status))
       .map((i) => {
         const since = inStoreSince(i);
         const sinceMs = since ? Date.parse(since.slice(0, 10)) : NaN;
@@ -2842,21 +2887,32 @@ export class StoreService {
 
     // Units received and issued per month, for the last 6 months including this one
     const [thisYear, thisMonth] = getTodayGcAndEc().gc.split('-').map(Number);
-    const movementMonths = Array.from({ length: 6 }, (_, k) =>
-      new Date(Date.UTC(thisYear, thisMonth - 1 - (5 - k), 1)).toISOString().slice(0, 7)
+    const monthsBetween = (a: string, b: string) => {
+      const [ay, am] = a.split('-').map(Number);
+      const [by, bm] = b.split('-').map(Number);
+      return (by - ay) * 12 + (bm - am);
+    };
+    const lastMonth = (to ?? getTodayGcAndEc().gc).slice(0, 7);
+    const spanMonths = from ? Math.min(Math.max(monthsBetween(from.slice(0, 7), lastMonth) + 1, 1), 24) : 6;
+    const [endYear, endMonth] = from || to ? lastMonth.split('-').map(Number) : [thisYear, thisMonth];
+    const movementMonths = Array.from({ length: spanMonths }, (_, k) =>
+      new Date(Date.UTC(endYear, endMonth - 1 - (spanMonths - 1 - k), 1)).toISOString().slice(0, 7)
     );
     const receivedByMonth = new Map<string, number>();
     const issuedByMonth = new Map<string, number>();
     // Received: each approved registration with the units split off it, by its receiving (Model 19) month.
     // Units disposed of later were still received; rejected receipts never were.
-    for (const reg of allItems.filter((i) => !i.parentItemId && i.status !== 'PENDING_STOCK_IN' && i.status !== ItemStatus.REJECTED)) {
+    for (const reg of scopedItems.filter((i) => !i.parentItemId && i.status !== 'PENDING_STOCK_IN' && i.status !== ItemStatus.REJECTED)) {
+      if (periodSet && !inPeriod(reg.ifmisSlipDateGc || reg.createdAtGc)) continue;
       const month = (reg.ifmisSlipDateGc || reg.createdAtGc || '').slice(0, 7);
-      const unitsReceived = unitsOf(reg) + units(allItems.filter((c) => c.parentItemId === reg.id && c.status !== ItemStatus.REJECTED));
+      const unitsReceived = unitsOf(reg) + units(scopedItems.filter((c) => c.parentItemId === reg.id && c.status !== ItemStatus.REJECTED));
       receivedByMonth.set(month, (receivedByMonth.get(month) ?? 0) + unitsReceived);
     }
     // Issued: each approved Stock-Out by the month it was approved (a partial issue counts its own units)
-    const itemsById = new Map(allItems.map((i) => [i.id, i]));
+    const itemsById = scopedById;
     for (const so of approvedStockOuts) {
+      if (filtered && !keptIds.has(so.itemId)) continue;
+      if (periodSet && !inPeriod(so.reviewedAtGc || so.createdAtGc)) continue;
       const month = (so.reviewedAtGc || so.createdAtGc || '').slice(0, 7);
       const requested = Number((so.requestDetails as Record<string, any> | null)?.quantity);
       const item = itemsById.get(so.itemId);

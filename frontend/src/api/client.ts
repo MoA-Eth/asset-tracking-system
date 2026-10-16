@@ -131,8 +131,10 @@ export const api = {
   },
 
   // Executive Dashboard
-  getExecutiveDashboard: () => {
-    return request<any>('/items/dashboard/executive');
+  /** The dashboard's figures, for one store, category and/or item type when given */
+  getExecutiveDashboard: (filter: { storeId?: string; category?: string; itemType?: string; from?: string; to?: string } = {}) => {
+    const query = new URLSearchParams(Object.entries(filter).filter(([, v]) => !!v) as [string, string][]).toString();
+    return request<any>(`/items/dashboard/executive${query ? `?${query}` : ''}`);
   },
 
   // Items Inventory

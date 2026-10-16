@@ -36,8 +36,9 @@ export class ItemController {
    * GET /api/items/dashboard/executive
    * Retrieves aggregated KPI cards, valuation, and category distribution for leadership.
    */
-  public getExecutiveDashboard = asyncHandler(async (_req: Request, res: Response) => {
-    const data = await this.store.getExecutiveDashboard();
+  public getExecutiveDashboard = asyncHandler(async (req: Request, res: Response) => {
+    const { storeId, category, itemType, from, to } = req.query;
+    const data = await this.store.getExecutiveDashboard({ storeId, category, itemType, from, to });
     return sendSuccess(res, data, 'Executive dashboard data retrieved');
   });
 

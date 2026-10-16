@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Layers,
   CheckCircle2,
@@ -23,13 +24,17 @@ import {
   BarChart3,
   Trash2,
   LucideIcon,
+  X,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { StoreManReminder } from '../components/ui/StoreManReminder';
+import { FilterPopover, FilterSection, FilterSelect } from '../components/ui/FilterPopover';
+import { CATEGORY_OPTIONS } from '../components/assets/asset-state';
+import { PERIOD_OPTIONS, PeriodKey, periodRange } from '../utils/periods';
 import { Donut } from '../components/ui/charts';
 import { actionText, withRoleNames } from '../utils/roles';
-import { formatETB } from '../utils/eth-date';
-import { UserRole } from '../types/asset-management';
+import { formatETB, formatGcToEc, getTodayGcAndEc } from '../utils/eth-date';
+import { Store, UserRole } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
 
 interface ExecutiveDashboardPageProps {
@@ -392,17 +397,76 @@ const StockMovementChart: React.FC<{ months: MovementMonth[] }> = ({ months }) =
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
+/** What the dashboard is narrowed to; remembered in this browser */
+interface DashboardFilters {
+  storeId: string;
+  category: string;
+  itemType: string;
+  /** A preset on the Ethiopian fiscal calendar, 'custom' for the dates below, or '' for all time */
+  period: '' | PeriodKey | 'custom';
+  from: string;
+  to: string;
+}
+const NO_FILTERS: DashboardFilters = { storeId: '', category: '', itemType: '', period: '', from: '', to: '' };
+const FILTERS_KEY = 'moa_dashboard_filters';
+const recallFilters = (): DashboardFilters => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FILTERS_KEY) || 'null');
+    return saved && typeof saved === 'object' ? { ...NO_FILTERS, ...saved } : NO_FILTERS;
+  } catch {
+    return NO_FILTERS;
+  }
+};
+const ITEM_TYPE_OPTIONS = [
+  { value: 'FIXED', label: 'Fixed assets' },
+  { value: 'CONSUMABLE', label: 'Consumables' },
+];
+
 export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ onNavigate }) => {
   const toast = useToast();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<DashboardFilters>(recallFilters);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setHeaderSlot(document.getElementById('page-header-actions'));
+  }, []);
 
-  const fetchDashboard = async () => {
+  // The stores to choose from; the dashboard works without them
+  useEffect(() => {
+    api.getStores().then(setStores).catch(() => setStores([]));
+  }, []);
+
+  const changeFilters = (next: DashboardFilters) => {
+    setFilters(next);
+    try {
+      localStorage.setItem(FILTERS_KEY, JSON.stringify(next));
+    } catch {
+      // Not remembered when storage is unavailable
+    }
+  };
+  // The dates the period covers: a preset as of today, or the custom range (either end may be open)
+  const period =
+    filters.period === 'custom'
+      ? filters.from || filters.to
+        ? { from: filters.from, to: filters.to, label: `${filters.from || '…'} – ${filters.to || '…'}` }
+        : undefined
+      : filters.period
+        ? periodRange(filters.period, getTodayGcAndEc().gc)
+        : undefined;
+  const request = { storeId: filters.storeId, category: filters.category, itemType: filters.itemType, from: period?.from ?? '', to: period?.to ?? '' };
+  const activeFilterCount = [filters.storeId, filters.category, filters.itemType, period].filter(Boolean).length;
+  const storeName = stores.find((st) => st.id === filters.storeId)?.name ?? 'Store';
+  const categoryName = CATEGORY_OPTIONS.find((c) => c.value === filters.category)?.label ?? filters.category;
+  const itemTypeName = ITEM_TYPE_OPTIONS.find((t) => t.value === filters.itemType)?.label ?? filters.itemType;
+
+  const fetchDashboard = async (current: typeof request = request) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.getExecutiveDashboard();
+      const res = await api.getExecutiveDashboard(current);
       setData(res);
     } catch (err: any) {
       const msg = err.message || 'Failed to load executive metrics.';
@@ -413,14 +477,16 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
     }
   };
 
+  // Load again whenever the filters change, and when a request is decided elsewhere
   useEffect(() => {
-    fetchDashboard();
+    fetchDashboard(request);
     const handleUpdate = () => {
-      fetchDashboard();
+      fetchDashboard(request);
     };
     window.addEventListener('moa_approvals_updated', handleUpdate);
     return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request.storeId, request.category, request.itemType, request.from, request.to]);
 
   if (loading && !data) {
     return (
@@ -439,7 +505,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
         <AlertCircle className="w-8 h-8 text-rose-600 mx-auto" />
         <h3 className="text-sm font-semibold text-slate-900">Couldn't load the dashboard</h3>
         <p className="text-xs text-slate-600">{error}</p>
-        <button onClick={fetchDashboard} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-[4px] transition cursor-pointer inline-flex items-center gap-1.5">
+        <button onClick={() => fetchDashboard()} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-[4px] transition cursor-pointer inline-flex items-center gap-1.5">
           <RefreshCw className="w-3.5 h-3.5" /> Retry
         </button>
       </div>
@@ -486,9 +552,123 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
   const activeLocations = storeLocations.filter((l: any) => l.itemCount > 0).length;
   const recentLogs: any[] = data?.recentAuditLogs || [];
 
+  // The filters: in the top bar, where the date shows on other pages; on the page itself when there is no top bar
+  const filterControls = (
+    <>
+      <div className="hidden min-w-0 flex-wrap items-center gap-1.5 text-xs text-slate-600 md:flex">
+        {activeFilterCount > 0 && (
+          <>
+            {[
+              filters.storeId && { key: 'storeId', label: storeName },
+              filters.category && { key: 'category', label: categoryName },
+              filters.itemType && { key: 'itemType', label: itemTypeName },
+              period && { key: 'period', label: period.label },
+            ]
+              .filter(Boolean)
+              .map((chip) => {
+                const c = chip as { key: keyof DashboardFilters; label: string };
+                return (
+                  <span key={c.key} className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 py-0.5 pl-2.5 pr-1 font-medium text-emerald-900">
+                    {c.label}
+                    <button
+                      type="button"
+                      onClick={() => changeFilters(c.key === 'period' ? { ...filters, period: '', from: '', to: '' } : { ...filters, [c.key]: '' })}
+                      aria-label={`Remove filter ${c.label}`}
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                );
+              })}
+          </>
+        )}
+        {loading && data && <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-600" aria-label="Updating" />}
+      </div>
+      <FilterPopover
+        label="Filter"
+        ariaLabel="Filter the dashboard"
+        title="Filters"
+        resetLabel="Reset"
+        align="right"
+        activeCount={activeFilterCount}
+        onReset={() => changeFilters(NO_FILTERS)}
+      >
+        <FilterSection label="Period" htmlFor="dashboard-filter-period">
+          <FilterSelect
+            id="dashboard-filter-period"
+            value={filters.period || 'ALL'}
+            onChange={(v) => changeFilters({ ...filters, period: v === 'ALL' ? '' : (v as DashboardFilters['period']) })}
+            placeholder="All time"
+            options={[...PERIOD_OPTIONS, { value: 'custom', label: 'Custom range…' }]}
+          />
+          {filters.period === 'custom' ? (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <label className="text-[11px] text-slate-500">
+                From
+                <input
+                  type="date"
+                  aria-label="From"
+                  value={filters.from}
+                  max={filters.to || undefined}
+                  onChange={(e) => changeFilters({ ...filters, from: e.target.value })}
+                  className="mt-0.5 h-9 w-full rounded-[4px] border border-slate-300 bg-white px-2 text-[13px] text-slate-800 focus:border-emerald-700 focus:outline-none focus:ring-1 focus:ring-emerald-700"
+                />
+                {filters.from && <span className="block">{formatGcToEc(filters.from)} E.C.</span>}
+              </label>
+              <label className="text-[11px] text-slate-500">
+                To
+                <input
+                  type="date"
+                  aria-label="To"
+                  value={filters.to}
+                  min={filters.from || undefined}
+                  onChange={(e) => changeFilters({ ...filters, to: e.target.value })}
+                  className="mt-0.5 h-9 w-full rounded-[4px] border border-slate-300 bg-white px-2 text-[13px] text-slate-800 focus:border-emerald-700 focus:outline-none focus:ring-1 focus:ring-emerald-700"
+                />
+                {filters.to && <span className="block">{formatGcToEc(filters.to)} E.C.</span>}
+              </label>
+            </div>
+          ) : (
+            period && <p className="mt-1 text-[11px] text-slate-500">{period.from} – {period.to} G.C.</p>
+          )}
+        </FilterSection>
+        <FilterSection label="Store" htmlFor="dashboard-filter-store">
+          <FilterSelect
+            id="dashboard-filter-store"
+            value={filters.storeId || 'ALL'}
+            onChange={(v) => changeFilters({ ...filters, storeId: v === 'ALL' ? '' : v })}
+            placeholder="All stores"
+            options={stores.filter((st) => st.isActive !== false || st.id === filters.storeId).map((st) => ({ value: st.id, label: st.name }))}
+          />
+        </FilterSection>
+        <FilterSection label="Category" htmlFor="dashboard-filter-category">
+          <FilterSelect
+            id="dashboard-filter-category"
+            value={filters.category || 'ALL'}
+            onChange={(v) => changeFilters({ ...filters, category: v === 'ALL' ? '' : v })}
+            placeholder="All categories"
+            options={CATEGORY_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
+          />
+        </FilterSection>
+        <FilterSection label="Item type" htmlFor="dashboard-filter-type">
+          <FilterSelect
+            id="dashboard-filter-type"
+            value={filters.itemType || 'ALL'}
+            onChange={(v) => changeFilters({ ...filters, itemType: v === 'ALL' ? '' : v })}
+            placeholder="Fixed assets and consumables"
+            options={ITEM_TYPE_OPTIONS}
+          />
+        </FilterSection>
+      </FilterPopover>
+    </>
+  );
+
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
       <StoreManReminder onAssign={() => onNavigate('settings-stores')} />
+
+      {headerSlot ? createPortal(filterControls, headerSlot) : <div className="flex flex-wrap items-center justify-end gap-2">{filterControls}</div>}
 
       {/* ── Row 1: KPI tiles ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -661,7 +841,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
       </div>
 
       {/* ── Stock movement ─────────────────────────────────────────────────── */}
-      <Panel title="Stock movement" subtitle="የዕቃ እንቅስቃሴ · units received and issued per month, last 6 months" icon={BarChart3}>
+      <Panel title="Stock movement" subtitle={`የዕቃ እንቅስቃሴ · units received and issued per month, ${period ? period.label : "last 6 months"}`} icon={BarChart3}>
         <StockMovementChart months={stockMovement} />
       </Panel>
 

@@ -298,7 +298,11 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
       {/* Right: today's date and notifications */}
       <div className="flex items-center gap-2.5 text-xs shrink-0">
-        {/* Today in the Ethiopian calendar, as the vouchers use it; click to switch to Gregorian */}
+        {/* A page's own controls (the dashboard's filters), placed here by the page */}
+        <div id="page-header-actions" className="flex min-w-0 items-center gap-2" />
+        {/* Today in the Ethiopian calendar, as the vouchers use it; click to switch to Gregorian. The dashboard
+            uses this place for its filters. */}
+        {activeTab !== 'dashboard' && (
         <button
           type="button"
           onClick={() => setShowAmDate((v) => !v)}
@@ -308,6 +312,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <Calendar className="h-3.5 w-3.5 text-emerald-700" />
           <span className="tabular-nums">{showAmDate ? dateInfo.gc + ' G.C.' : dateInfo.ecFormattedEn || dateInfo.ec + ' E.C.'}</span>
         </button>
+        )}
 
         {/* Store scope selector: hidden until pages filter by the selected store. Its options come from Settings → Stores. */}
         {/* <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-50 border border-slate-200">

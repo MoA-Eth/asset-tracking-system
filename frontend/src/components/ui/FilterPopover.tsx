@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ListFilter, X, ChevronDown } from 'lucide-react';
+import { ListFilter, X } from 'lucide-react';
 
 export interface FilterPopoverProps {
   label?: string;
@@ -189,7 +189,7 @@ export const FilterSelect: React.FC<{
       aria-label={ariaLabel || placeholder || 'Select option'}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full appearance-none rounded-[4px] border border-slate-200 bg-slate-50/70 py-2 pl-3 pr-8 text-xs text-slate-800 transition hover:bg-slate-50 focus:border-[#0B3D25] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0B3D25]/20 cursor-pointer"
+      className="w-full rounded-[4px] border border-slate-300 bg-white py-2 pl-3 pr-8 text-[13px] text-slate-800 transition-colors hover:border-slate-500 focus:border-emerald-700 focus:outline-none focus:ring-1 focus:ring-emerald-700 cursor-pointer"
     >
       {placeholder && <option value="ALL">{placeholder}</option>}
       {options.map((opt) => (
@@ -198,7 +198,7 @@ export const FilterSelect: React.FC<{
         </option>
       ))}
     </select>
-    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+    {/* The arrow is the one every dropdown has (index.css) */}
   </div>
 );
 
