@@ -783,7 +783,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         'In Store Quantity',
         'Issued Quantity',
         'Held By / Where',
-        'Model 19 Slip #',
+        'IFMIS Slip #',
         'Slip Date (G.C.)',
         'Unit Cost (ETB)',
         'Total Value (ETB)',
@@ -1454,7 +1454,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       thClassName="px-3 py-2.5 min-w-[170px]"
                     />
                     <SortableHeader
-                      label="Model 19 slip"
+                      label="IFMIS Slip"
                       columnKey="slip"
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
