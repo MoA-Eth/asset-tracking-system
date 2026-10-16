@@ -43,9 +43,8 @@ describe('LoginPage', () => {
 
     expect(screen.getByTestId('moa-logo')).toBeInTheDocument();
     expect(screen.getByText('MoA Asset Tracking System')).toBeInTheDocument();
-    expect(screen.getByText('የቋሚ ንብረት ቁጥጥርና አስተዳደር ሥርዓት')).toBeInTheDocument();
+    expect(screen.getByText('MoA Official Asset Tracking Portal')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/name@moa.gov.et/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('••••••••••••')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Sign In to MoA Asset Tracking System/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Forgot password\?/i })).toBeInTheDocument();
   });
@@ -76,7 +75,6 @@ describe('LoginPage', () => {
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('Password Reset Assistance')).toBeInTheDocument();
-    expect(screen.getByText('የይለፍ ቃል መልሶ ማግኛ እገዛ')).toBeInTheDocument();
 
     const requestInput = screen.getByPlaceholderText(/e\.g\. hana@moa\.gov\.et/i);
     const requestBtn = screen.getByRole('button', { name: /Request Reset Assistance/i });

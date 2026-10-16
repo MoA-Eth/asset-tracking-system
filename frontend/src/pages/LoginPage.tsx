@@ -23,7 +23,6 @@ import {
   Send,
 } from "lucide-react";
 import { MoaLogo } from "../components/ui/MoaLogo";
-import { APP_VERSION } from "../version";
 
 export const LoginPage: React.FC = () => {
   const { login, sessionNotice } = useAuth();
@@ -135,11 +134,11 @@ export const LoginPage: React.FC = () => {
         </div>
         <div className="text-[10px] font-mono text-emerald-400/60 hidden md:flex items-center gap-1.5 bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-500/20 pointer-events-auto">
           <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>Official Civil Service Portal</span>
+          <span>MoA Official Asset Tracking Portal</span>
         </div>
       </header>
 
-      {/* Main Login Arena - Centered with Enhanced Height and Prominence */}
+      {/* Main Login Arena - Centered with Prominence */}
       <main className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 z-10">
         <div className="w-full max-w-[420px] animate-fadeIn">
           {/* Error Banner */}
@@ -187,7 +186,7 @@ export const LoginPage: React.FC = () => {
                 የቋሚ ንብረት ቁጥጥርና አስተዳደር ሥርዓት
               </p>
               <p className="text-[11px] text-emerald-200/60 mt-1.5">
-                Sign in with your civil service credentials
+                Sign in with your credentials
               </p>
             </div>
 
@@ -507,13 +506,6 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Page Footer */}
-      <footer className="absolute bottom-0 left-0 right-0 py-2.5 px-4 text-center text-[10px] sm:text-[11px] text-emerald-400/50 z-20 pointer-events-none">
-        <span className="pointer-events-auto">
-          Federal Democratic Republic of Ethiopia &bull; Ministry of Agriculture &bull; Version {APP_VERSION}
-        </span>
-      </footer>
     </div>
   );
 };
