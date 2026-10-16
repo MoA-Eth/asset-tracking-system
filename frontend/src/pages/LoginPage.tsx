@@ -96,7 +96,7 @@ export const LoginPage: React.FC = () => {
                 Ministry of Agriculture
               </p>
               <h1 className="text-2xl font-bold text-white tracking-tight">
-                Asset Tracking Portal
+                MoA Asset Tracking System
               </h1>
               <p className="text-xs text-emerald-200/60 mt-1">
                 Sign in with your civil service credentials
@@ -171,7 +171,7 @@ export const LoginPage: React.FC = () => {
                   style={{ background: "linear-gradient(135deg, #12633C 0%, #0B3D25 100%)" }}
                   rightIcon={<ArrowRight className="w-4 h-4" />}
                 >
-                  Sign In to Asset Tracking Portal
+                  Sign In to MoA Asset Tracking System
                 </Button>
               </div>
 
