@@ -94,7 +94,7 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col justify-between selection:bg-emerald-600 selection:text-white relative overflow-hidden"
+      className="min-h-screen w-full flex flex-col selection:bg-emerald-600 selection:text-white relative overflow-hidden"
       style={{
         background: "radial-gradient(ellipse at 50% 20%, #0d3d24 0%, #082618 45%, #03120a 100%)",
       }}
@@ -107,7 +107,7 @@ export const LoginPage: React.FC = () => {
         }}
       />
       <div
-        className="pointer-events-none fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[380px] h-[220px] opacity-15 blur-[80px]"
+        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[380px] h-[220px] opacity-15 blur-[80px]"
         style={{
           background: "radial-gradient(ellipse at 50% 30%, #FCDD09 0%, transparent 70%)",
         }}
@@ -123,9 +123,9 @@ export const LoginPage: React.FC = () => {
         }}
       />
 
-      {/* Top Ministry Accent Bar (Compact) */}
-      <header className="w-full pt-2.5 sm:pt-3 px-4 sm:px-6 flex items-center justify-between text-xs z-10 shrink-0">
-        <div className="flex items-center gap-2 text-emerald-300/80">
+      {/* Top Ministry Accent Bar (Absolute so it never displaces center alignment) */}
+      <header className="absolute top-0 left-0 right-0 pt-3.5 px-4 sm:px-6 flex items-center justify-between text-xs z-20 pointer-events-none">
+        <div className="flex items-center gap-2 text-emerald-300/80 pointer-events-auto">
           <div className="size-5 rounded bg-emerald-950/60 border border-emerald-500/30 flex items-center justify-center">
             <Building2 className="w-3 h-3 text-emerald-400" />
           </div>
@@ -133,15 +133,15 @@ export const LoginPage: React.FC = () => {
           <span className="text-emerald-500/60 font-sans">&bull;</span>
           <span className="font-sans text-emerald-300/60 text-[11px] hidden sm:inline">የኢ.ፌ.ዴ.ሪ ግብርና ሚኒስቴር</span>
         </div>
-        <div className="text-[10px] font-mono text-emerald-400/60 hidden md:flex items-center gap-1.5 bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+        <div className="text-[10px] font-mono text-emerald-400/60 hidden md:flex items-center gap-1.5 bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-500/20 pointer-events-auto">
           <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
           <span>Official Civil Service Portal</span>
         </div>
       </header>
 
-      {/* Main Login Arena - Offset upward to give generous space from bottom */}
-      <main className="flex-1 flex items-center justify-center px-4 pt-1 pb-10 sm:pb-14 z-10">
-        <div className="w-full max-w-[408px] animate-fadeIn -translate-y-3 sm:-translate-y-6">
+      {/* Main Login Arena - Perfectly Centered in Viewport */}
+      <main className="min-h-screen w-full flex items-center justify-center p-4 z-10">
+        <div className="w-full max-w-[406px] animate-fadeIn">
           {/* Error Banner */}
           {errorMsg && (
             <div className="mb-3 p-3 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-shake shadow-lg">
@@ -150,7 +150,7 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {/* Authentic MoA Card with Rich Visual Depth and Balanced Proportions */}
+          {/* Authentic MoA Card with Rich Visual Depth and True Centered Alignment */}
           <form
             onSubmit={handleFormSubmit}
             className="rounded-2xl sm:rounded-3xl border border-emerald-500/30 backdrop-blur-2xl p-6 sm:p-7 relative overflow-hidden ring-1 ring-white/10"
@@ -508,9 +508,11 @@ export const LoginPage: React.FC = () => {
         </div>
       )}
 
-      {/* Page Footer (Compact) */}
-      <footer className="py-2.5 px-4 text-center text-[10px] sm:text-[11px] text-emerald-400/50 shrink-0 border-t border-white/[0.04]">
-        Federal Democratic Republic of Ethiopia &bull; Ministry of Agriculture &bull; Version {APP_VERSION}
+      {/* Page Footer (Absolute so it never displaces center alignment) */}
+      <footer className="absolute bottom-0 left-0 right-0 py-2.5 px-4 text-center text-[10px] sm:text-[11px] text-emerald-400/50 z-20 pointer-events-none">
+        <span className="pointer-events-auto">
+          Federal Democratic Republic of Ethiopia &bull; Ministry of Agriculture &bull; Version {APP_VERSION}
+        </span>
       </footer>
     </div>
   );
