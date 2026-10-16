@@ -25,6 +25,12 @@ import {
   Trash2,
   LucideIcon,
   X,
+  ChevronDown,
+  ChevronUp,
+  Truck,
+  Tractor,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { StoreManReminder } from '../components/ui/StoreManReminder';
@@ -148,7 +154,8 @@ const StatTile: React.FC<{
   value: React.ReactNode;
   footer: React.ReactNode;
   meterPct?: number;
-}> = ({ label, labelAm, icon: Icon, value, footer, meterPct }) => (
+  splitBar?: { primaryPct: number };
+}> = ({ label, labelAm, icon: Icon, value, footer, meterPct, splitBar }) => (
   <div className="rounded-md flex flex-col border-b-2 border-b-slate-300 bg-white p-5 transition duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_14px_28px_-8px_rgba(15,23,42,0.18)] shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
@@ -162,7 +169,21 @@ const StatTile: React.FC<{
     <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
     <div className="mt-auto space-y-1.5 pt-3">
       {meterPct !== undefined && <Meter pct={meterPct} />}
-      <p className="text-[11px] text-slate-500">{footer}</p>
+      {splitBar && (
+        <div className="flex h-1.5 w-full gap-0.5 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-l-full bg-emerald-600 transition-all duration-700"
+            style={{ width: `${Math.max(4, Math.min(96, splitBar.primaryPct))}%` }}
+            title={`Fixed Assets: ${splitBar.primaryPct}%`}
+          />
+          <div
+            className="h-full rounded-r-full bg-violet-500 transition-all duration-700"
+            style={{ width: `${100 - Math.max(4, Math.min(96, splitBar.primaryPct))}%` }}
+            title={`Consumables: ${100 - splitBar.primaryPct}%`}
+          />
+        </div>
+      )}
+      <div className="text-[11px] text-slate-500">{footer}</div>
     </div>
   </div>
 );
@@ -430,6 +451,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
   const [filters, setFilters] = useState<DashboardFilters>(recallFilters);
   const [stores, setStores] = useState<Store[]>([]);
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  const [isStaleExpanded, setIsStaleExpanded] = useState(false);
+  const [locationsViewMode, setLocationsViewMode] = useState<'table' | 'grid'>('table');
   useEffect(() => {
     setHeaderSlot(document.getElementById('page-header-actions'));
   }, []);
@@ -517,14 +540,31 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
   const availableCount    = data?.availableCount       || 0;
   const issuedCount       = data?.issuedCount          || 0;
   const pendingApprovals  = data?.pendingApprovalsCount || 0;
+  const pendingApprovalsValuationETB = data?.pendingApprovalsValuationETB || 0;
+  const pendingStageCounts = data?.pendingStageCounts || { stage1: 0, stage2: 0, stage3: 0 };
   const pendingStockIn    = data?.pendingStockInCount   || 0;
   const pendingStockOut   = data?.pendingStockOutCount  || 0;
   const pendingTransfer   = data?.pendingTransferCount  || 0;
   const pendingDisposal   = data?.pendingDisposalCount  || 0;
+  const pendingDisposalValuationETB = data?.pendingDisposalValuationETB || 0;
   const totalValuation    = data?.totalValuationETB     || 0;
+  const fixedAssetsCount  = data?.fixedAssetsCount      || 0;
+  const fixedAssetsValuationETB = data?.fixedAssetsValuationETB || 0;
+  const consumableCount   = data?.consumableCount       || 0;
+  const consumableValuationETB = data?.consumableValuationETB || 0;
   const issuedValuation   = data?.issuedValuationETB    || 0;
   const availableValuation= data?.availableValuationETB || 0;
   const unassignedCount   = data?.unassignedItemsCount  || 0;
+  const fleetStats = data?.fleetStats || {
+    totalVehicles: 0,
+    vehicleValuationETB: 0,
+    activeVehicles: 0,
+    inStoreVehicles: 0,
+    totalMachinery: 0,
+    machineryValuationETB: 0,
+    activeMachinery: 0,
+    inStoreMachinery: 0,
+  };
 
   const issuedPct    = totalItems > 0 ? Math.round((issuedCount / totalItems) * 100) : 0;
   const availablePct = totalItems > 0 ? Math.round((availableCount / totalItems) * 100) : 0;
@@ -543,7 +583,12 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
   // Items that should have been distributed: in store longer than the limit (30 days)
   const stale = data?.staleInStore || { thresholdDays: 30, itemCount: 0, units: 0, valueETB: 0, items: [] };
   const staleItems: any[] = stale.items || [];
-  const showStale = () => document.getElementById('stale-in-store')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const showStale = () => {
+    setIsStaleExpanded(true);
+    setTimeout(() => {
+      document.getElementById('stale-in-store')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
 
   const stockMovement: MovementMonth[] = data?.stockMovement || [];
 
@@ -677,30 +722,64 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           labelAm="ጠቅላላ የካፒታል ንብረት ዋጋ"
           icon={Banknote}
           value={formatETB(totalValuation)}
-          footer={<>Issued {formatETB(issuedValuation)} · in store {formatETB(availableValuation)}</>}
+          splitBar={
+            totalValuation > 0 && (fixedAssetsValuationETB > 0 || consumableValuationETB > 0)
+              ? { primaryPct: Math.round((fixedAssetsValuationETB / totalValuation) * 100) }
+              : undefined
+          }
+          footer={
+            fixedAssetsValuationETB > 0 || consumableValuationETB > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span>Fixed: <strong className="text-slate-800">{formatETB(fixedAssetsValuationETB)}</strong></span>
+                <span>Consumables: <strong className="text-slate-800">{formatETB(consumableValuationETB)}</strong></span>
+              </div>
+            ) : (
+              <>Issued {formatETB(issuedValuation)} · in store {formatETB(availableValuation)}</>
+            )
+          }
         />
         <StatTile
           label="Total assets"
           labelAm="በመዝገብ ላይ ያለ ጠቅላላ ንብረት"
           icon={Layers}
           value={<>{totalItems.toLocaleString()}<span className="ml-1 text-sm font-normal text-slate-400">units</span></>}
-          footer={unassignedCount > 0 ? `${unassignedCount} not assigned to a directorate` : 'All assets assigned'}
-        />
-        <StatTile
-          label="In store"
-          labelAm="በመጋዘን ያለ ዝግጁ ንብረት"
-          icon={Warehouse}
-          value={<>{availableCount}<span className="ml-1 text-sm font-normal text-slate-400">/ {totalItems}</span></>}
-          meterPct={availablePct}
-          footer={`${availablePct}% of assets available`}
-        />
-        <StatTile
-          label="Issued"
-          labelAm="ወጪ የተደረገ ንብረት"
-          icon={UserCheck}
-          value={<>{issuedCount}<span className="ml-1 text-sm font-normal text-slate-400">/ {totalItems}</span></>}
           meterPct={issuedPct}
-          footer={`${issuedPct}% of assets with custodians`}
+          footer={`${issuedPct}% active with custodians (${issuedCount.toLocaleString()} units)`}
+        />
+        <StatTile
+          label="Approvals in pipeline"
+          labelAm="በሂደት ላይ ያሉ ማረጋገጫዎች"
+          icon={Clock}
+          value={<>{pendingApprovals}<span className="ml-1 text-sm font-normal text-slate-400">pending</span></>}
+          footer={
+            pendingApprovalsValuationETB > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <strong className="text-slate-800">{formatETB(pendingApprovalsValuationETB)}</strong>
+                <span className="flex items-center gap-1 font-mono text-[10px]">
+                  <span className="rounded bg-slate-100 px-1 py-0.5 text-slate-700" title="Stage 1: Team Leader">TL:{pendingStageCounts.stage1}</span>
+                  <span className="rounded bg-slate-100 px-1 py-0.5 text-slate-700" title="Stage 2: Department Head">Dept:{pendingStageCounts.stage2}</span>
+                  {pendingStageCounts.stage3 > 0 && (
+                    <span className="rounded bg-slate-100 px-1 py-0.5 text-slate-700" title="Stage 3: Director">Dir:{pendingStageCounts.stage3}</span>
+                  )}
+                </span>
+              </div>
+            ) : pendingApprovals > 0 ? (
+              `TL:${pendingStageCounts.stage1} · Dept:${pendingStageCounts.stage2} · Dir:${pendingStageCounts.stage3} awaiting sign-off`
+            ) : (
+              'All workflow queues clear'
+            )
+          }
+        />
+        <StatTile
+          label="Idle capital (>30 days)"
+          labelAm="ከ30 ቀን በላይ በመጋዘን የቆየ"
+          icon={Warehouse}
+          value={formatETB(stale.valueETB)}
+          footer={
+            stale.itemCount > 0
+              ? `${stale.units.toLocaleString()} units overdue across ${stale.itemCount} items`
+              : 'Zero stagnant inventory in stores'
+          }
         />
       </div>
 
@@ -713,19 +792,33 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           </h2>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
           {pendingApprovals > 0 && (
-            <WorkTile label="Pending approvals" count={pendingApprovals} icon={Clock} tone="warning" note="Needs action" onClick={() => onNavigate('approvals')} />
+            <WorkTile
+              label="Pending approvals"
+              count={pendingApprovals}
+              icon={Clock}
+              tone="warning"
+              note={pendingApprovalsValuationETB > 0 ? `${formatETB(pendingApprovalsValuationETB)} · Action required` : 'Needs action'}
+              onClick={() => onNavigate('approvals')}
+            />
           )}
           {pendingStockIn > 0 && (
-            <WorkTile label="Pending stock-in" count={pendingStockIn} icon={Package} onClick={() => onNavigate('assets')} />
+            <WorkTile label="Pending stock-in" count={pendingStockIn} icon={Package} note="Receiving & inspection" onClick={() => onNavigate('assets')} />
           )}
           {pendingStockOut > 0 && (
-            <WorkTile label="Pending stock-out" count={pendingStockOut} icon={ArrowRightLeft} onClick={() => onNavigate('assets')} />
+            <WorkTile label="Pending stock-out" count={pendingStockOut} icon={ArrowRightLeft} note="Model 20 issuance" onClick={() => onNavigate('assets')} />
           )}
           {pendingTransfer > 0 && (
-            <WorkTile label="Pending transfers" count={pendingTransfer} icon={ArrowRightLeft} onClick={() => onNavigate('assets')} />
+            <WorkTile label="Pending transfers" count={pendingTransfer} icon={ArrowRightLeft} note="Custodian handovers" onClick={() => onNavigate('assets')} />
           )}
           {pendingDisposal > 0 && (
-            <WorkTile label="Pending disposals" count={pendingDisposal} icon={Trash2} onClick={() => onNavigate('assets')} />
+            <WorkTile
+              label="Pending disposals"
+              count={pendingDisposal}
+              icon={Trash2}
+              tone="critical"
+              note={pendingDisposalValuationETB > 0 ? `${formatETB(pendingDisposalValuationETB)} · Model 28` : 'Disposal queue'}
+              onClick={() => onNavigate('assets')}
+            />
           )}
           {stale.itemCount > 0 && (
             <WorkTile
@@ -733,7 +826,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
               count={stale.itemCount}
               icon={Warehouse}
               tone="warning"
-              note={`${stale.units} units · distribute`}
+              note={`${formatETB(stale.valueETB)} · ${stale.units} units`}
               onClick={showStale}
             />
           )}
@@ -779,69 +872,108 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
                 </dl>
               </div>
 
-              {/* One row per item, oldest first */}
-              <ul className="max-h-[26rem] divide-y divide-slate-100 overflow-auto">
-                {staleItems.map((i: any) => {
-                  const overdue = Math.max(0, i.daysInStore - stale.thresholdDays);
-                  // Bar fills over a further month past the limit
-                  const overduePct = Math.min(100, Math.round((overdue / stale.thresholdDays) * 100));
-                  const arrived = i.inStoreSinceGc
-                    ? new Date(`${i.inStoreSinceGc}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                    : '—';
-                  return (
-                    <li key={i.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:gap-4">
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-                          <Package className="h-4 w-4" />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-slate-900">{i.name}</p>
-                          <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
-                            <span className="font-mono">{i.itemCode}</span>
-                            <span>· Arrived {arrived}</span>
-                            {i.issuePending && (
-                              <span className="rounded-full border border-slate-200 bg-white px-1.5 py-px text-[10px] font-medium text-slate-600">
-                                Issue requested
-                              </span>
-                            )}
-                            {i.disposalPending && (
-                              <span className="rounded-full border border-slate-200 bg-white px-1.5 py-px text-[10px] font-medium text-slate-600">
-                                Disposal requested
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
+              {/* Collapsible toggle bar */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setIsStaleExpanded((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 font-semibold text-emerald-700 hover:text-emerald-800 transition cursor-pointer"
+                >
+                  {isStaleExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  {isStaleExpanded ? 'Hide item-level details' : `Inspect ${staleItems.length} overdue inventory items`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('assets')}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+                >
+                  <span>Open in Asset Register</span>
+                  <ArrowRightLeft className="h-3 w-3" />
+                </button>
+              </div>
 
-                      <div className="w-full sm:w-44">
-                        <div className="flex items-baseline justify-between text-[11px]">
-                          <span className="font-semibold text-amber-800">
-                            Overdue by {overdue} {overdue === 1 ? 'day' : 'days'}
+              {/* One row per item, oldest first (collapsed by default to prevent dashboard clutter) */}
+              {isStaleExpanded && (
+                <ul className="max-h-[22rem] divide-y divide-slate-100 overflow-auto pt-2">
+                  {staleItems.map((i: any) => {
+                    const overdue = Math.max(0, i.daysInStore - stale.thresholdDays);
+                    const overduePct = Math.min(100, Math.round((overdue / stale.thresholdDays) * 100));
+                    const arrived = i.inStoreSinceGc
+                      ? new Date(`${i.inStoreSinceGc}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                      : '—';
+                    return (
+                      <li key={i.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:gap-4">
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <Package className="h-4 w-4" />
                           </span>
-                          <span className="text-slate-400">{i.daysInStore}d</span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-slate-900">{i.name}</p>
+                            <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
+                              <span className="font-mono">{i.itemCode}</span>
+                              <span>· Arrived {arrived}</span>
+                              {i.issuePending && (
+                                <span className="rounded-full border border-slate-200 bg-white px-1.5 py-px text-[10px] font-medium text-slate-600">
+                                  Issue requested
+                                </span>
+                              )}
+                              {i.disposalPending && (
+                                <span className="rounded-full border border-slate-200 bg-white px-1.5 py-px text-[10px] font-medium text-slate-600">
+                                  Disposal requested
+                                </span>
+                              )}
+                            </p>
+                          </div>
                         </div>
-                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-amber-100">
-                          <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.max(6, overduePct)}%` }} />
-                        </div>
-                      </div>
 
-                      <div className="flex shrink-0 items-baseline justify-between gap-4 sm:w-40 sm:flex-col sm:items-end sm:gap-0">
-                        <span className="font-mono text-xs font-semibold text-slate-900">
-                          {i.unitsInStore} {i.uom}
-                        </span>
-                        <span className="text-[11px] text-slate-500">{formatETB(i.valueETB)}</span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                        <div className="w-full sm:w-44">
+                          <div className="flex items-baseline justify-between text-[11px]">
+                            <span className="font-semibold text-amber-800">
+                              Overdue by {overdue} {overdue === 1 ? 'day' : 'days'}
+                            </span>
+                            <span className="text-slate-400">{i.daysInStore}d</span>
+                          </div>
+                          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-amber-100">
+                            <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.max(6, overduePct)}%` }} />
+                          </div>
+                        </div>
+
+                        <div className="flex shrink-0 items-baseline justify-between gap-4 sm:w-40 sm:flex-col sm:items-end sm:gap-0">
+                          <span className="font-mono text-xs font-semibold text-slate-900">
+                            {i.unitsInStore} {i.uom}
+                          </span>
+                          <span className="text-[11px] text-slate-500">{formatETB(i.valueETB)}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           )}
         </Panel>
       </div>
 
       {/* ── Stock movement ─────────────────────────────────────────────────── */}
-      <Panel title="Stock movement" subtitle={`የዕቃ እንቅስቃሴ · units received and issued per month, ${period ? period.label : "last 6 months"}`} icon={BarChart3}>
+      <Panel
+        title="Stock movement"
+        subtitle={`የዕቃ እንቅስቃሴ · units received and issued per month, ${period ? period.label : "last 6 months"}`}
+        icon={BarChart3}
+        action={
+          stockMovement.length > 0 ? (
+            <div className="hidden sm:flex items-center gap-3 text-xs">
+              <span className="flex items-center gap-1.5 text-slate-600">
+                <span className="h-2 w-2 rounded-full bg-[#eb6834]" />
+                <span>Received: <strong className="font-mono text-slate-900">{stockMovement.reduce((s, m) => s + m.received, 0).toLocaleString()}</strong></span>
+              </span>
+              <span className="flex items-center gap-1.5 text-slate-600">
+                <span className="h-2 w-2 rounded-full bg-[#2a78d6]" />
+                <span>Issued: <strong className="font-mono text-slate-900">{stockMovement.reduce((s, m) => s + m.issued, 0).toLocaleString()}</strong></span>
+              </span>
+            </div>
+          ) : undefined
+        }
+      >
         <StockMovementChart months={stockMovement} />
       </Panel>
 
@@ -884,57 +1016,175 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           {categoryRows.length === 0 ? (
             <EmptyState icon={Package}>No items registered yet.</EmptyState>
           ) : (
-            <Donut
-              label="Units by category"
-              empty="No items registered yet."
-              segments={categoryRows.map((c: any) => ({
-                key: c.category,
-                label: CATEGORY_STYLE[c.category]?.en || c.category,
-                color: CATEGORY_STYLE[c.category]?.color || '#cbd5e1',
-                value: c.count,
-              }))}
-            />
-          )}
-        </Panel>
-      </div>
+            <div className="space-y-4">
+              <Donut
+                label="Units by category"
+                empty="No items registered yet."
+                segments={categoryRows.map((c: any) => ({
+                  key: c.category,
+                  label: CATEGORY_STYLE[c.category]?.en || c.category,
+                  color: CATEGORY_STYLE[c.category]?.color || '#cbd5e1',
+                  value: c.count,
+                }))}
+              />
 
-      {/* ── Row 4: Top assets ──────────────────────────────────────────────── */}
-      <div>
-        <Panel
-          title="Highest-value assets"
-          subtitle="ከፍተኛ ዋጋ ያላቸው ንብረቶች"
-          icon={TrendingUp}
-          action={<LinkButton onClick={() => onNavigate('assets')}>View all</LinkButton>}
-        >
-          {topAssets.length === 0 ? (
-            <EmptyState icon={Award}>No assets registered yet.</EmptyState>
-          ) : (
-            <ol className="divide-y divide-slate-100">
-              {topAssets.map((asset: any, idx: number) => (
-                <li key={asset.id} className="flex items-center gap-3 py-2.5">
-                  <span className="w-4 shrink-0 text-xs font-medium text-slate-400">{idx + 1}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-slate-900">{asset.name}</p>
-                    <p className="font-mono text-[10px] text-slate-500">{asset.itemCode}</p>
+              {/* Strategic Fleet & Heavy Machinery Overview */}
+              <div className="border-t border-slate-100 pt-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    High-Value Fleet & Heavy Machinery
+                  </span>
+                  <span className="text-[10px] text-slate-400">ከፍተኛ ካፒታል</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="rounded-md border border-slate-200 bg-slate-50/70 p-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex h-6 w-6 items-center justify-center rounded bg-blue-100 text-blue-700">
+                          <Truck className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="text-xs font-semibold text-slate-900">Vehicles</span>
+                      </div>
+                      <span className="font-mono text-xs font-bold text-slate-900">{fleetStats.totalVehicles}</span>
+                    </div>
+                    <p className="mt-1.5 text-xs font-bold text-slate-900">{formatETB(fleetStats.vehicleValuationETB)}</p>
+                    <p className="text-[10px] text-slate-500">
+                      {fleetStats.activeVehicles} active · {fleetStats.inStoreVehicles} in store
+                    </p>
                   </div>
-                  <StatusTag status={asset.status} />
-                  <span className="w-28 shrink-0 text-right text-xs font-semibold text-slate-900">{formatETB(asset.unitCostETB)}</span>
-                </li>
-              ))}
-            </ol>
+
+                  <div className="rounded-md border border-slate-200 bg-slate-50/70 p-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex h-6 w-6 items-center justify-center rounded bg-amber-100 text-amber-700">
+                          <Tractor className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="text-xs font-semibold text-slate-900">Agri Machinery</span>
+                      </div>
+                      <span className="font-mono text-xs font-bold text-slate-900">{fleetStats.totalMachinery}</span>
+                    </div>
+                    <p className="mt-1.5 text-xs font-bold text-slate-900">{formatETB(fleetStats.machineryValuationETB)}</p>
+                    <p className="text-[10px] text-slate-500">
+                      {fleetStats.activeMachinery} deployed · {fleetStats.inStoreMachinery} in store
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </Panel>
       </div>
 
-      {/* ── Row 5: Locations ───────────────────────────────────────────────── */}
+      {/* ── Row 4: Locations (Warehouse & Store Distribution) ────────────────── */}
       <Panel
-        title="Assets by location"
-        subtitle="በማከማቻ ቦታ የተከፋፈለ የንብረት ክምችት"
+        title="Assets by store location"
+        subtitle="በማከማቻ ቦታ የተከፋፈለ የንብረት ክምችት · Regional and central warehouses"
         icon={Warehouse}
-        action={<CountPill>{activeLocations} active location{activeLocations !== 1 ? 's' : ''}</CountPill>}
+        action={
+          <div className="flex items-center gap-2">
+            <CountPill>{activeLocations} active location{activeLocations !== 1 ? 's' : ''}</CountPill>
+            <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5 text-slate-600">
+              <button
+                type="button"
+                title="Table view"
+                onClick={() => setLocationsViewMode('table')}
+                className={`rounded px-1.5 py-0.5 text-xs transition cursor-pointer ${locationsViewMode === 'table' ? 'bg-white font-medium text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <List className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                title="Card grid view"
+                onClick={() => setLocationsViewMode('grid')}
+                className={`rounded px-1.5 py-0.5 text-xs transition cursor-pointer ${locationsViewMode === 'grid' ? 'bg-white font-medium text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        }
       >
         {storeLocations.length === 0 ? (
           <EmptyState icon={Warehouse}>No store locations configured yet.</EmptyState>
+        ) : locationsViewMode === 'table' ? (
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="border-b border-slate-200 bg-slate-50 font-semibold text-slate-700">
+                <tr>
+                  <th className="px-3.5 py-1.5">Facility / Site</th>
+                  <th className="px-3.5 py-1.5">Building & Room</th>
+                  <th className="px-3.5 py-1.5 text-right">Items & Units</th>
+                  <th className="px-3.5 py-1.5">Status Allocation</th>
+                  <th className="px-3.5 py-1.5 text-right">Valuation (ETB)</th>
+                  <th className="px-3.5 py-1.5">Key Categories</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {storeLocations.map((loc: any) => {
+                  const total = loc.itemCount || 0;
+                  const avail = loc.availableCount || 0;
+                  const issued = loc.issuedCount || 0;
+                  const pending = loc.pendingCount || 0;
+                  const other = Math.max(0, total - avail - issued - pending);
+                  const segments = [
+                    { key: 'AVAILABLE', ...ITEM_STATUS_STYLE.AVAILABLE, count: avail },
+                    { key: 'ISSUED', ...ITEM_STATUS_STYLE.ISSUED, count: issued },
+                    { key: 'PENDING', ...ITEM_STATUS_STYLE.PENDING, count: pending },
+                    { key: 'OTHER', ...ITEM_STATUS_STYLE.OTHER, count: other },
+                  ];
+                  const topCats = (loc.categoryBreakdown || []).slice(0, 2);
+
+                  return (
+                    <tr key={loc.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-3.5 py-2 font-medium text-slate-900 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => loc.storeId && changeFilters({ ...filters, storeId: loc.storeId })}
+                            title={`Filter dashboard to ${loc.siteName}`}
+                            className="inline-flex items-center gap-1 font-semibold text-slate-900 hover:text-emerald-700 hover:underline cursor-pointer"
+                          >
+                            {loc.siteName}
+                          </button>
+                          {loc.isCentralStore && (
+                            <span className="shrink-0 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-emerald-800">
+                              Central
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3.5 py-2 text-slate-500 whitespace-nowrap">
+                        {loc.building} — {loc.roomNumber}
+                      </td>
+                      <td className="px-3.5 py-2 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">
+                        {total.toLocaleString()}
+                      </td>
+                      <td className="px-3.5 py-2 min-w-[150px]">
+                        <SegmentBar segments={segments} height="h-2" />
+                        <div className="mt-1 flex flex-wrap gap-x-2 text-[10px] text-slate-500">
+                          {avail > 0 && <span className="text-emerald-700 font-medium">{avail} ready</span>}
+                          {issued > 0 && <span>{issued} issued</span>}
+                          {pending > 0 && <span className="text-amber-700">{pending} pending</span>}
+                        </div>
+                      </td>
+                      <td className="px-3.5 py-2 text-right font-semibold text-slate-900 whitespace-nowrap">
+                        {formatETB(loc.totalValueETB || 0)}
+                      </td>
+                      <td className="px-3.5 py-2 whitespace-nowrap">
+                        <div className="flex flex-wrap gap-1">
+                          {topCats.map((cat: any) => (
+                            <span key={cat.category} className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] text-slate-600">
+                              {CATEGORY_STYLE[cat.category]?.en || cat.category} ({cat.count})
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {storeLocations.map((loc: any) => {
@@ -1013,19 +1263,52 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
         )}
       </Panel>
 
-      {/* ── Row 6: Recent activity ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-5">
+      {/* ── Row 5: Highest-Value Assets & Executive Governance (Side-by-Side) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Panel
-          title="Recent activity"
-          subtitle="ቅርብ ጊዜ የስርዓት ድርጊቶች"
+          title="Highest-value capital assets"
+          subtitle="ከፍተኛ ዋጋ ያላቸው ንብረቶች"
+          icon={TrendingUp}
+          action={<LinkButton onClick={() => onNavigate('assets')}>View all</LinkButton>}
+        >
+          {topAssets.length === 0 ? (
+            <EmptyState icon={Award}>No assets registered yet.</EmptyState>
+          ) : (
+            <ol className="divide-y divide-slate-100">
+              {topAssets.map((asset: any, idx: number) => (
+                <li key={asset.id} className="flex items-center gap-3 py-2.5">
+                  <span className="w-4 shrink-0 text-xs font-medium text-slate-400">{idx + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium text-slate-900">{asset.name}</p>
+                    <p className="flex flex-wrap items-center gap-x-1.5 font-mono text-[10px] text-slate-500">
+                      <span>{asset.itemCode}</span>
+                      {asset.assignedDepartment?.nameEn && (
+                        <span className="font-sans text-slate-400">· {asset.assignedDepartment.nameEn}</span>
+                      )}
+                      {asset.currentCustodian?.fullNameEn && (
+                        <span className="font-sans text-slate-400">({asset.currentCustodian.fullNameEn})</span>
+                      )}
+                    </p>
+                  </div>
+                  <StatusTag status={asset.status} />
+                  <span className="w-28 shrink-0 text-right text-xs font-semibold text-slate-900">{formatETB(asset.unitCostETB)}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Panel>
+
+        <Panel
+          title="Executive governance & activity"
+          subtitle="ቅርብ ጊዜ የስርዓት ድርጊቶችና የኦዲት መዝገብ"
           icon={ShieldCheck}
-          action={<LinkButton onClick={() => onNavigate('audit')}>Full log</LinkButton>}
+          action={<LinkButton onClick={() => onNavigate('audit')}>Full audit log</LinkButton>}
         >
           {recentLogs.length === 0 ? (
             <EmptyState icon={Activity}>No activity recorded yet.</EmptyState>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {recentLogs.map((log: any) => {
+              {recentLogs.slice(0, 6).map((log: any) => {
                 const { icon: Icon, tone } = getActionVisual(log.action);
                 return (
                   <li key={log.id} className="flex items-start gap-3 py-2.5">

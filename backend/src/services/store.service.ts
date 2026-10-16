@@ -2836,7 +2836,7 @@ export class StoreService {
       }),
       prisma.department.findMany({ orderBy: { code: 'asc' } }),
       prisma.location.findMany({ include: { store: true }, orderBy: [{ store: { name: 'asc' } }, { name: 'asc' }] }),
-      prisma.transactionApproval.findMany({ where: { status: 'PENDING' }, select: { itemId: true, createdAtGc: true } }),
+      prisma.transactionApproval.findMany({ where: { status: 'PENDING' }, select: { itemId: true, createdAtGc: true, currentStage: true } }),
       prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 8 }),
       prisma.transactionApproval.findMany({
         where: { transactionType: 'STOCK_OUT' as any, status: 'APPROVED' as any },
@@ -2860,7 +2860,17 @@ export class StoreService {
     };
     const allItems = periodSet ? scopedItems.filter((i) => inPeriod(receivedOn(i))) : scopedItems;
     const locations = storeId ? allLocations.filter((l) => l.storeId === storeId) : allLocations;
-    const pendingApprovals = pendingRequests.filter((r) => (!filtered || keptIds.has(r.itemId)) && (!periodSet || inPeriod(r.createdAtGc))).length;
+    const pendingApprovalsList = pendingRequests.filter((r) => (!filtered || keptIds.has(r.itemId)) && (!periodSet || inPeriod(r.createdAtGc)));
+    const pendingApprovals = pendingApprovalsList.length;
+    const pendingApprovalsValuationETB = pendingApprovalsList.reduce((s, r) => {
+      const it = scopedById.get(r.itemId);
+      return s + (it ? (Number(it.unitCostETB) || 0) * (Number(it.quantity) || 1) : 0);
+    }, 0);
+    const pendingStageCounts = {
+      stage1: pendingApprovalsList.filter((r) => (r.currentStage ?? 1) === 1).length,
+      stage2: pendingApprovalsList.filter((r) => r.currentStage === 2).length,
+      stage3: pendingApprovalsList.filter((r) => r.currentStage === 3).length,
+    };
 
     // Count units, not records: a partial Stock-Out splits one registration into several records,
     // so record counts would change while the stock did not. Values are unit price × units.
@@ -2898,6 +2908,31 @@ export class StoreService {
     });
 
     const unassignedItems = onRecord.filter((i) => !i.assignedDepartmentId);
+
+    // Fixed capital assets vs operational consumables split
+    const fixedItems = onRecord.filter((i) => (i.itemType ?? 'FIXED') !== 'CONSUMABLE');
+    const consumableItems = onRecord.filter((i) => i.itemType === 'CONSUMABLE');
+    const fixedAssetsCount = units(fixedItems);
+    const fixedAssetsValuationETB = sum(fixedItems);
+    const consumableCount = units(consumableItems);
+    const consumableValuationETB = sum(consumableItems);
+
+    // Capital pending disposal
+    const pendingDisposalValuationETB = sum(pendingDisposal);
+
+    // High-risk fleet & agricultural machinery stats
+    const vehicles = onRecord.filter((i) => i.category === 'VEHICLE');
+    const machinery = onRecord.filter((i) => i.category === 'AGRI_MACHINERY');
+    const fleetStats = {
+      totalVehicles: units(vehicles),
+      vehicleValuationETB: sum(vehicles),
+      activeVehicles: units(vehicles.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
+      inStoreVehicles: units(vehicles.filter((i) => IN_STORE_STATUSES.includes(i.status))),
+      totalMachinery: units(machinery),
+      machineryValuationETB: sum(machinery),
+      activeMachinery: units(machinery.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
+      inStoreMachinery: units(machinery.filter((i) => IN_STORE_STATUSES.includes(i.status))),
+    };
 
     // Units that have stayed in store longer than the distribution limit, oldest first
     const todayMs = Date.parse(getTodayGcAndEc().gc);
@@ -3026,7 +3061,15 @@ export class StoreService {
       disposedCount: units(disposed),
       disposedValuationETB: sum(disposed),
       pendingApprovalsCount: pendingApprovals,
+      pendingApprovalsValuationETB,
+      pendingStageCounts,
       totalValuationETB: sum(onRecord),
+      fixedAssetsCount,
+      fixedAssetsValuationETB,
+      consumableCount,
+      consumableValuationETB,
+      pendingDisposalValuationETB,
+      fleetStats,
       unassignedItemsCount: units(unassignedItems),
       unassignedValuationETB: sum(unassignedItems),
       unassignedItems,
