@@ -10,6 +10,7 @@ import {
   KeyRound,
   UserX,
   UserMinus,
+  X,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { table, btn } from '../components/ui/theme';
@@ -21,7 +22,6 @@ import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu } from '../components/ui/RowActionsMenu';
 import { ConfirmDialog } from './settings/reference-ui';
 import { AddUserModal, ResetPasswordModal, ROLE_LABELS } from './settings/UserAccessModals';
-import { RefreshButton } from '../components/ui/RefreshButton';
 import { FilterPopover, FilterSection, FilterSelect } from '../components/ui/FilterPopover';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
 
@@ -216,58 +216,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
   }
 
   return (
-    <div className="space-y-5 animate-fadeIn pb-16">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3.5">
-        <p className="text-xs text-slate-500">
-          The people who can sign in, and their roles. Staff are added under Settings → Employees; give them sign-in here.
-        </p>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Reusable Filter Popover */}
-          <FilterPopover
-            label="Filter"
-            ariaLabel="Filter users"
-            title="Filters"
-            resetLabel="Reset"
-            activeCount={activeFilterCount}
-            onReset={resetFilters}
-            resultCountText={`${filteredEmployees.length} ${filteredEmployees.length === 1 ? 'user' : 'users'}`}
-          >
-            {/* Role Filter */}
-            <FilterSection label="System Role">
-              <FilterSelect
-                id="user-role-filter"
-                ariaLabel="Filter users by role"
-                placeholder="All roles"
-                value={roleFilter}
-                onChange={(val) => setRoleFilter(val as UserRole | 'ALL')}
-                options={Object.values(UserRole).map((code) => ({
-                  value: code,
-                  label: ROLE_LABELS[code] || code.replace(/_/g, ' '),
-                }))}
-              />
-            </FilterSection>
-
-            {/* Directorate / Department Filter */}
-            <FilterSection label="Directorate / Department">
-              <FilterSelect
-                id="user-dept-filter"
-                ariaLabel="Filter users by directorate"
-                placeholder={`All Directorates (${departments.length})`}
-                value={selectedDeptFilter}
-                onChange={setSelectedDeptFilter}
-                options={departments.map((d) => ({
-                  value: d.id,
-                  label: departmentLabel(d),
-                }))}
-              />
-            </FilterSection>
-          </FilterPopover>
-        </div>
-      </div>
-
-      {/* Success Notification */}
+    <div className="space-y-3 animate-fadeIn pb-16">
+            {/* Success Notification */}
       {successMsg && (
         <div className="p-3.5 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center gap-2 animate-fadeIn shadow-xs">
           <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
@@ -277,31 +227,116 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
 
       {/* ── User Permissions Table ── */}
       <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-        {/* Table Card Header matching Assets & Employees: Search on left, Action button on right */}
+        {/* Table Card Header: Search + Filter on left, Action buttons on right */}
         <div className="border-b border-slate-200 px-3.5 py-2.5">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search by name, email or employee ID…"
-                aria-label="Search staff"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
-              />
+            <div className="flex flex-1 items-center gap-2 max-w-lg min-w-0">
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search by name, email or employee ID…"
+                  aria-label="Search staff"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
+                />
+              </div>
+
+              <FilterPopover
+                label="Filter"
+                ariaLabel="Filter users"
+                title="Filters"
+                resetLabel="Reset"
+                activeCount={activeFilterCount}
+                onReset={resetFilters}
+                resultCountText={`${filteredEmployees.length} ${filteredEmployees.length === 1 ? 'user' : 'users'}`}
+              >
+                {/* Role Filter */}
+                <FilterSection label="System Role">
+                  <FilterSelect
+                    id="user-role-filter"
+                    ariaLabel="Filter users by role"
+                    placeholder="All roles"
+                    value={roleFilter}
+                    onChange={(val) => setRoleFilter(val as UserRole | 'ALL')}
+                    options={Object.values(UserRole).map((code) => ({
+                      value: code,
+                      label: ROLE_LABELS[code] || code.replace(/_/g, ' '),
+                    }))}
+                  />
+                </FilterSection>
+
+                {/* Directorate / Department Filter */}
+                <FilterSection label="Directorate / Department">
+                  <FilterSelect
+                    id="user-dept-filter"
+                    ariaLabel="Filter users by directorate"
+                    placeholder={`All Directorates (${departments.length})`}
+                    value={selectedDeptFilter}
+                    onChange={setSelectedDeptFilter}
+                    options={departments.map((d) => ({
+                      value: d.id,
+                      label: departmentLabel(d),
+                    }))}
+                  />
+                </FilterSection>
+              </FilterPopover>
             </div>
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              className={`${btn.primary} shrink-0`}
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>Add user</span>
-            </button>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setAdding(true)}
+                className={`${btn.primary} shrink-0`}
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>Add user</span>
+              </button>
+            </div>
           </div>
+
+          {/* Active filter chips */}
+          {activeFilterCount > 0 && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
+              <span className="text-[11px] font-medium text-slate-500">Active filters:</span>
+              {roleFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+                  <span>Role: {ROLE_LABELS[roleFilter] || roleFilter}</span>
+                  <button
+                    type="button"
+                    onClick={() => setRoleFilter('ALL')}
+                    className="hover:text-emerald-950 p-0.5 rounded hover:bg-emerald-100 cursor-pointer"
+                    aria-label="Remove role filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {selectedDeptFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+                  <span>Dept: {departmentLabel(departments.find((d) => d.id === selectedDeptFilter))}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDeptFilter('ALL')}
+                    className="hover:text-emerald-950 p-0.5 rounded hover:bg-emerald-100 cursor-pointer"
+                    aria-label="Remove department filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="text-[11px] font-semibold text-slate-500 hover:text-emerald-700 underline cursor-pointer ml-1"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </div>
-          {/* Email and directorate fold under the name on narrow screens, so the role and actions stay in view */}
+        {/* Email and directorate fold under the name on narrow screens, so the role and actions stay in view */}
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-[13px]">
               <thead>
@@ -346,7 +381,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                     onSort={handleSort}
                     thClassName="py-1.5 px-3"
                   />
-                  <th className={`py-3 px-3 ${table.actionsHead}`}>
+                  <th className={`py-1.5 px-3 ${table.actionsHead}`}>
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>

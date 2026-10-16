@@ -51,12 +51,7 @@ export const SystemSettingsPage: React.FC = () => {
   );
 
   return (
-    <div className="space-y-5 animate-fadeIn pb-16">
-      {/* Page Header */}
-      <div className="border-b border-slate-200 pb-3.5">
-        <p className="text-xs text-slate-500">Rules that apply to every user and every store across the platform.</p>
-      </div>
-
+    <div className="space-y-3 animate-fadeIn pb-16">
       <div className="rounded-md p-4 bg-white space-y-4 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">

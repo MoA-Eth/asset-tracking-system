@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Building2, Plus, Search, Pencil, Ban, RotateCcw, AlertCircle, RefreshCw } from 'lucide-react';
+import { Building2, Plus, Search, Pencil, Ban, RotateCcw, AlertCircle, RefreshCw, X } from 'lucide-react';
 import { api } from '../../api/client';
 import { btn, table } from '../../components/ui/theme';
 import { Modal } from '../../components/ui/Modal';
@@ -118,116 +118,145 @@ export const OrganizationsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 animate-fadeIn pb-16">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
-        <p className="text-xs text-slate-500">
-          Outside organizations items are issued to on Model 22. Each is listed once, so its name is the same on every issue. Items can also be added from the issue form.
-        </p>
-        {canManage && (
-          <FilterPopover
-            label="Filter"
-            ariaLabel="Filter organizations"
-            title="Filters"
-            resetLabel="Reset"
-            activeCount={statusFilter !== 'ACTIVE' ? 1 : 0}
-            onReset={() => setStatusFilter('ACTIVE')}
-            resultCountText={`${shown.length} ${shown.length === 1 ? 'organization' : 'organizations'}`}
-          >
-            <FilterSection label="Status">
-              <div className="flex flex-wrap gap-1.5 pt-0.5">
-                {(
-                  [
-                    ['ACTIVE', 'Active', active],
-                    ['INACTIVE', 'Deactivated', organizations.length - active],
-                    ['ALL', 'All', organizations.length],
-                  ] as [StatusFilter, string, number][]
-                ).map(([value, label, count]) => (
-                  <FilterPill key={value} label={label} count={count} active={statusFilter === value} onClick={() => setStatusFilter(value)} />
-                ))}
-              </div>
-            </FilterSection>
-          </FilterPopover>
-        )}
-      </div>
-
-      <div className="rounded-md bg-white p-3 sm:px-4 sm:py-3 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, short name or contact…"
-              aria-label="Search organizations"
-              className={table.search.replace('pr-8', 'pr-3')}
-            />
-          </div>
-          {canAdd && (
-            <button type="button" onClick={() => setEditing({ organization: null })} className={`${btn.primary} shrink-0`}>
-              <Plus className="h-4 w-4" />
-              <span>Add organization</span>
-            </button>
-          )}
-        </div>
-        <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100 mt-2.5">
-          <span>
-            <span className="font-semibold text-slate-900">{shown.length}</span> of {organizations.length} organizations
-          </span>
-          <span>{active} active</span>
-        </div>
-      </div>
-
+    <div className="space-y-3 animate-fadeIn pb-16">
       {error ? (
         <div className="flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
-      ) : loading ? (
-        <div className="flex items-center justify-center py-12 text-xs text-slate-500">
-          <RefreshCw className="mr-2 h-4 w-4 animate-spin text-emerald-700" />
-          Loading organizations…
-        </div>
-      ) : shown.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-12 text-center text-xs text-slate-500">
-          <Building2 className="mx-auto mb-2 h-6 w-6 text-slate-400" />
-          {organizations.length === 0 ? 'No organizations yet. They are added when items are first issued to one.' : 'No organization matches.'}
-        </div>
       ) : (
         <div className="rounded-md overflow-hidden bg-white shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-          <table className="w-full text-left text-[13px]">
-            <thead>
-              <tr className={table.headRow}>
-                <th className="px-4 py-1.5">Organization</th>
-                <th className="px-4 py-1.5">Usual contact person</th>
-                <th className="px-4 py-1.5">Status</th>
-                {canManage && <th className="px-4 py-1.5 w-12" />}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {shown.map((o) => (
-                <tr key={o.id} className={table.row}>
-                  <td className="px-4 py-2.5">
-                    <span className="block font-medium text-slate-900">{o.name}</span>
-                    {o.shortName && <span className="block text-[11px] text-slate-500">{o.shortName}</span>}
-                  </td>
-                  <td className="px-4 py-2.5 text-slate-700">{o.contactPerson || '—'}</td>
-                  <td className="px-4 py-2.5"><ActivePill active={o.isActive} /></td>
-                  {canManage && (
-                    <td className="px-4 py-2.5 text-right">
-                      <RowActionsMenu
-                        label={o.name}
-                        actions={[
-                          { label: 'Edit organization', icon: Pencil, onClick: () => setEditing({ organization: o }) },
-                          { label: 'Deactivate', icon: Ban, onClick: () => setConfirm({ organization: o, action: 'deactivate' }), hidden: !o.isActive },
-                          { label: 'Reactivate', icon: RotateCcw, onClick: () => setConfirm({ organization: o, action: 'reactivate' }), hidden: o.isActive },
-                        ]}
-                      />
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* Table Card Header: Search + Filter on left, Action button on right */}
+          <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-1 items-center gap-2 max-w-lg min-w-0">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by name, short name or contact…"
+                    aria-label="Search organizations"
+                    className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
+                  />
+                </div>
+                {canManage && (
+                  <FilterPopover
+                    label="Filter"
+                    ariaLabel="Filter organizations"
+                    title="Filters"
+                    resetLabel="Reset"
+                    activeCount={statusFilter !== 'ACTIVE' ? 1 : 0}
+                    onReset={() => setStatusFilter('ACTIVE')}
+                    resultCountText={`${shown.length} ${shown.length === 1 ? 'organization' : 'organizations'}`}
+                  >
+                    <FilterSection label="Status">
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {(
+                          [
+                            ['ACTIVE', 'Active', active],
+                            ['INACTIVE', 'Deactivated', organizations.length - active],
+                            ['ALL', 'All', organizations.length],
+                          ] as [StatusFilter, string, number][]
+                        ).map(([value, label, count]) => (
+                          <FilterPill key={value} label={label} count={count} active={statusFilter === value} onClick={() => setStatusFilter(value)} />
+                        ))}
+                      </div>
+                    </FilterSection>
+                  </FilterPopover>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {canAdd && (
+                  <button type="button" onClick={() => setEditing({ organization: null })} className={`${btn.primary} shrink-0`}>
+                    <Plus className="h-4 w-4" />
+                    <span>Add organization</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Active filter chips */}
+            {statusFilter !== 'ACTIVE' && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
+                <span className="text-[11px] font-medium text-slate-500">Active filters:</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+                  <span>Status: {statusFilter === 'INACTIVE' ? 'Deactivated' : 'All'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('ACTIVE')}
+                    className="hover:text-emerald-950 p-0.5 rounded hover:bg-emerald-100 cursor-pointer"
+                    aria-label="Remove status filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ACTIVE')}
+                  className="text-[11px] font-semibold text-slate-500 hover:text-emerald-700 underline cursor-pointer ml-1"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between text-xs text-slate-500 pt-0.5">
+              <span>
+                <span className="font-semibold text-slate-900">{shown.length}</span> of {organizations.length} organizations
+              </span>
+              <span>{active} active</span>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-12 text-xs text-slate-500">
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin text-emerald-700" />
+              Loading organizations…
+            </div>
+          ) : shown.length === 0 ? (
+            <div className="py-12 text-center text-xs text-slate-500">
+              <Building2 className="mx-auto mb-2 h-6 w-6 text-slate-400" />
+              {organizations.length === 0 ? 'No organizations yet. They are added when items are first issued to one.' : 'No organization matches.'}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className={table.headRow}>
+                    <th className="px-4 py-1.5">Organization</th>
+                    <th className="px-4 py-1.5">Usual contact person</th>
+                    <th className="px-4 py-1.5">Status</th>
+                    {canManage && <th className="px-4 py-1.5 w-12" />}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {shown.map((o) => (
+                    <tr key={o.id} className={table.row}>
+                      <td className="px-4 py-2.5">
+                        <span className="block font-medium text-slate-900">{o.name}</span>
+                        {o.shortName && <span className="block text-[11px] text-slate-500">{o.shortName}</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-700">{o.contactPerson || '—'}</td>
+                      <td className="px-4 py-2.5"><ActivePill active={o.isActive} /></td>
+                      {canManage && (
+                        <td className="px-4 py-2.5 text-right">
+                          <RowActionsMenu
+                            label={o.name}
+                            actions={[
+                              { label: 'Edit organization', icon: Pencil, onClick: () => setEditing({ organization: o }) },
+                              { label: 'Deactivate', icon: Ban, onClick: () => setConfirm({ organization: o, action: 'deactivate' }), hidden: !o.isActive },
+                              { label: 'Reactivate', icon: RotateCcw, onClick: () => setConfirm({ organization: o, action: 'reactivate' }), hidden: o.isActive },
+                            ]}
+                          />
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

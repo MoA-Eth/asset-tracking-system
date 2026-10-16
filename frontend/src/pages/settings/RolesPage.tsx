@@ -231,14 +231,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
   };
 
   return (
-    <div className="space-y-4 animate-fadeIn pb-12">
-      {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3.5">
-        <p className="text-xs text-slate-500">
-          What each role is allowed to do. Switch a permission on or off, then save; every change is recorded in the audit log.
-        </p>
-      </header>
-
+    <div className="space-y-3 animate-fadeIn pb-12">
       {loading ? (
         <div role="status" className="flex justify-center items-center gap-2 py-24 text-sm text-slate-500">
           <RefreshCw className="w-5 h-5 animate-spin text-emerald-700" />

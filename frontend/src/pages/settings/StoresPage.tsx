@@ -11,7 +11,6 @@ import { Employee, Location, Store } from '../../types/asset-management';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { StoreManReminder } from '../../components/ui/StoreManReminder';
 import { ActivePill, ConfirmDialog, StatusFilter, matchesStatus } from './reference-ui';
-import { RefreshButton } from '../../components/ui/RefreshButton';
 import { FilterPopover, FilterSection, FilterPill } from '../../components/ui/FilterPopover';
 import { SortableHeader, SortDirection } from '../../components/ui/SortableHeader';
 
@@ -299,75 +298,95 @@ export const StoresPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 animate-fadeIn pb-16">
+    <div className="space-y-3 animate-fadeIn pb-16">
       {/* Stores that still need a store man, for whoever can assign one */}
       <StoreManReminder stores={stores ?? undefined} />
 
-      {/* ── Page header matching AssetsPage ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
-        <p className="text-xs text-slate-500">
-          Each store receives and issues stock, and has one or more locations inside it (rooms, sections, shelves). Receiving picks a store, then a location.
-        </p>
-        <div className="flex items-center gap-2 shrink-0">
-          {canManage && (
-            <FilterPopover
-              label="Filter"
-              ariaLabel="Filter stores"
-              title="Filters"
-              resetLabel="Reset"
-              activeCount={statusFilter !== 'ACTIVE' ? 1 : 0}
-              onReset={() => setStatusFilter('ACTIVE')}
-              resultCountText={`${shown.length} ${shown.length === 1 ? 'store' : 'stores'}`}
-            >
-              <FilterSection label="Store Status">
-                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  {(
-                    [
-                      ['ACTIVE', 'Active', activeStores.length],
-                      ['INACTIVE', 'Deactivated', stores.length - activeStores.length],
-                      ['ALL', 'All', stores.length],
-                    ] as [StatusFilter, string, number][]
-                  ).map(([value, label, count]) => (
-                    <FilterPill
-                      key={value}
-                      label={label}
-                      count={count}
-                      active={statusFilter === value}
-                      onClick={() => setStatusFilter(value)}
-                    />
-                  ))}
-                </div>
-              </FilterSection>
-            </FilterPopover>
-          )}
-        </div>
-      </div>
-
-      {/* ── Toolbar Card matching AssetsPage: Search on left, Action button on right ── */}
+      {/* ── Toolbar Card: Search + Filter on left, Action button on right ── */}
       <div className="rounded-md bg-white p-3 sm:px-4 sm:py-3 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              id="store-search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by store, address or location…"
-              aria-label="Search stores and locations"
-              className={table.search.replace('pr-8', 'pr-3')}
-            />
+          <div className="flex flex-1 items-center gap-2 max-w-lg min-w-0">
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                id="store-search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by store, address or location…"
+                aria-label="Search stores and locations"
+                className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
+              />
+            </div>
+            {canManage && (
+              <FilterPopover
+                label="Filter"
+                ariaLabel="Filter stores"
+                title="Filters"
+                resetLabel="Reset"
+                activeCount={statusFilter !== 'ACTIVE' ? 1 : 0}
+                onReset={() => setStatusFilter('ACTIVE')}
+                resultCountText={`${shown.length} ${shown.length === 1 ? 'store' : 'stores'}`}
+              >
+                <FilterSection label="Store Status">
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {(
+                      [
+                        ['ACTIVE', 'Active', activeStores.length],
+                        ['INACTIVE', 'Deactivated', stores.length - activeStores.length],
+                        ['ALL', 'All', stores.length],
+                      ] as [StatusFilter, string, number][]
+                    ).map(([value, label, count]) => (
+                      <FilterPill
+                        key={value}
+                        label={label}
+                        count={count}
+                        active={statusFilter === value}
+                        onClick={() => setStatusFilter(value)}
+                      />
+                    ))}
+                  </div>
+                </FilterSection>
+              </FilterPopover>
+            )}
           </div>
-          {canManage && (
+          <div className="flex items-center gap-2 shrink-0">
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => setEditing({ kind: 'store', store: null })}
+                className={`${btn.primary} shrink-0`}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add store</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Active filter chips */}
+        {statusFilter !== 'ACTIVE' && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 mt-2.5">
+            <span className="text-[11px] font-medium text-slate-500">Active filters:</span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+              <span>Status: {statusFilter === 'INACTIVE' ? 'Deactivated' : 'All'}</span>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('ACTIVE')}
+                className="hover:text-emerald-950 p-0.5 rounded hover:bg-emerald-100 cursor-pointer"
+                aria-label="Remove status filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
             <button
               type="button"
-              onClick={() => setEditing({ kind: 'store', store: null })}
-              className={`${btn.primary} shrink-0`}
+              onClick={() => setStatusFilter('ACTIVE')}
+              className="text-[11px] font-semibold text-slate-500 hover:text-emerald-700 underline cursor-pointer ml-1"
             >
-              <Plus className="h-4 w-4" />
-              <span>Add store</span>
+              Clear all
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100 mt-2.5">
           <span>
@@ -488,7 +507,7 @@ export const StoresPage: React.FC = () => {
                         currentSortColumn={locSortColumn}
                         currentSortDirection={locSortDirection}
                         onSort={handleLocSort}
-                        thClassName="px-4 py-2 pl-16"
+                        thClassName="px-4 py-1.5 pl-16"
                       />
                       {canManage && (
                         <SortableHeader
@@ -498,7 +517,7 @@ export const StoresPage: React.FC = () => {
                           currentSortDirection={locSortDirection}
                           onSort={handleLocSort}
                           align="right"
-                          thClassName="px-3 py-2 text-right whitespace-nowrap"
+                          thClassName="px-3 py-1.5 text-right whitespace-nowrap"
                         />
                       )}
                       <SortableHeader
@@ -507,10 +526,10 @@ export const StoresPage: React.FC = () => {
                         currentSortColumn={locSortColumn}
                         currentSortDirection={locSortDirection}
                         onSort={handleLocSort}
-                        thClassName="px-3 py-2 w-32"
+                        thClassName="px-3 py-1.5 w-32"
                       />
                       {canManage && (
-                        <th className={`px-3 py-2 ${table.actionsHead}`}>
+                        <th className={`px-3 py-1.5 ${table.actionsHead}`}>
                           <span className="sr-only">Actions</span>
                         </th>
                       )}

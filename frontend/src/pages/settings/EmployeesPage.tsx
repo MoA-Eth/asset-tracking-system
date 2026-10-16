@@ -12,8 +12,7 @@ import {
   KeyRound,
   IdCard,
   Building2,
-  Package,
-} from 'lucide-react';
+  Package,  X,} from 'lucide-react';
 import { api } from '../../api/client';
 import { btn, table, pill, statusTone } from '../../components/ui/theme';
 import { Modal } from '../../components/ui/Modal';
@@ -25,7 +24,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Department, Employee, EmployeeInput, UserRole } from '../../types/asset-management';
 import { EMPLOYEE_FIELDS, EMPLOYEE_ID_FORMAT, EMPLOYEE_ID_PATTERN, EmployeeField } from '../../utils/employee-import';
-import { RefreshButton } from '../../components/ui/RefreshButton';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../../components/ui/FilterPopover';
 import { SortableHeader, SortDirection } from '../../components/ui/SortableHeader';
 
@@ -394,76 +392,7 @@ export const EmployeesPage: React.FC = () => {
   const colCount = canManage ? 8 : 5;
 
   return (
-    <div className="space-y-4 animate-fadeIn pb-16">
-      {/* ── Page header matching AssetsPage ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
-        <p className="text-xs text-slate-500">
-          Staff who hold, receive or approve items. Only active employees appear in the issue and transfer forms.
-        </p>
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Reusable Filter Popover */}
-          <FilterPopover
-            label="Filter"
-            ariaLabel="Filter employees"
-            title="Filters"
-            resetLabel="Reset"
-            activeCount={activeFilterCount}
-            onReset={resetFilters}
-            resultCountText={`${rows.length} ${rows.length === 1 ? 'employee' : 'employees'}`}
-          >
-            {/* Employment Status Filter */}
-            {canManage && (
-              <FilterSection label="Employment Status">
-                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  {(
-                    [
-                      ['ACTIVE', 'Active', counts.active],
-                      ['INACTIVE', 'Deactivated', counts.inactive],
-                      ['ALL', 'All', employees.length],
-                    ] as [StatusFilter, string, number][]
-                  ).map(([value, label, count]) => (
-                    <FilterPill
-                      key={value}
-                      label={label}
-                      count={count}
-                      active={statusFilter === value}
-                      onClick={() => setStatusFilter(value)}
-                    />
-                  ))}
-                </div>
-              </FilterSection>
-            )}
-
-            {/* Department Filter */}
-            <FilterSection label="Department">
-              <FilterSelect
-                id="employee-dept-filter"
-                ariaLabel="Filter by department"
-                placeholder="All departments"
-                value={deptFilter}
-                onChange={setDeptFilter}
-                options={departments.map((d) => ({
-                  value: d.id,
-                  label: d.nameEn,
-                }))}
-              />
-            </FilterSection>
-          </FilterPopover>
-
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              title="Import employees from Excel"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[4px] border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs shrink-0"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Import from Excel</span>
-            </button>
-          )}
-        </div>
-      </div>
-
+    <div className="space-y-3 animate-fadeIn pb-16">
       {/* Table */}
       {error ? (
         <div role="alert" className="mx-auto max-w-md space-y-3 rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
@@ -475,27 +404,132 @@ export const EmployeesPage: React.FC = () => {
         </div>
       ) : (
         <div className="rounded-md overflow-hidden bg-white shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-          {/* Table Card Header matching AssetsPage: Search on left, Action button on right */}
+          {/* Table Card Header: Search + Filter on left, Action buttons on right */}
           <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  id="employee-search"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name, employee ID, unit or job title…"
-                  aria-label="Search employees"
-                  className={table.search.replace('pr-8', 'pr-3')}
-                />
+              <div className="flex flex-1 items-center gap-2 max-w-lg min-w-0">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    id="employee-search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by name, employee ID, unit or job title…"
+                    aria-label="Search employees"
+                    className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
+                  />
+                </div>
+
+                {/* Reusable Filter Popover */}
+                <FilterPopover
+                  label="Filter"
+                  ariaLabel="Filter employees"
+                  title="Filters"
+                  resetLabel="Reset"
+                  activeCount={activeFilterCount}
+                  onReset={resetFilters}
+                  resultCountText={`${rows.length} ${rows.length === 1 ? 'employee' : 'employees'}`}
+                >
+                  {/* Employment Status Filter */}
+                  {canManage && (
+                    <FilterSection label="Employment Status">
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {(
+                          [
+                            ['ACTIVE', 'Active staff', counts.active],
+                            ['INACTIVE', 'Deactivated', counts.inactive],
+                            ['ALL', 'All', employees.length],
+                          ] as [StatusFilter, string, number][]
+                        ).map(([value, label, count]) => (
+                          <FilterPill
+                            key={value}
+                            label={label}
+                            count={count}
+                            active={statusFilter === value}
+                            onClick={() => setStatusFilter(value)}
+                          />
+                        ))}
+                      </div>
+                    </FilterSection>
+                  )}
+
+                  {/* Department Filter */}
+                  <FilterSection label="Department">
+                    <FilterSelect
+                      id="employee-dept-filter"
+                      ariaLabel="Filter by department"
+                      placeholder="All departments"
+                      value={deptFilter}
+                      onChange={setDeptFilter}
+                      options={departments.map((d) => ({
+                        value: d.id,
+                        label: d.nameEn,
+                      }))}
+                    />
+                  </FilterSection>
+                </FilterPopover>
               </div>
-              {canManage && (
-                <button type="button" onClick={openAdd} className={`${btn.primary} shrink-0`}>
-                  <UserPlus className="h-4 w-4" />
-                  <span>Add employee</span>
-                </button>
-              )}
+
+              <div className="flex items-center gap-2 shrink-0">
+                {canManage && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setImportOpen(true)}
+                      title="Import employees from Excel"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs shrink-0"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Import from Excel</span>
+                    </button>
+                    <button type="button" onClick={openAdd} className={`${btn.primary} shrink-0`}>
+                      <UserPlus className="h-4 w-4" />
+                      <span>Add employee</span>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
+
+            {/* Active filter chips */}
+            {activeFilterCount > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
+                <span className="text-[11px] font-medium text-slate-500">Active filters:</span>
+                {statusFilter !== 'ACTIVE' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+                    <span>Status: {statusFilter === 'INACTIVE' ? 'Deactivated' : 'All'}</span>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('ACTIVE')}
+                      className="hover:text-emerald-950 p-0.5 rounded hover:bg-emerald-100 cursor-pointer"
+                      aria-label="Remove status filter"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {deptFilter !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+                    <span>Dept: {departments.find((d) => d.id === deptFilter)?.nameEn ?? deptFilter}</span>
+                    <button
+                      type="button"
+                      onClick={() => setDeptFilter('ALL')}
+                      className="hover:text-emerald-950 p-0.5 rounded hover:bg-emerald-100 cursor-pointer"
+                      aria-label="Remove department filter"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="text-[11px] font-semibold text-slate-500 hover:text-emerald-700 underline cursor-pointer ml-1"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
 
             <div className="flex items-center justify-between text-xs text-slate-500 pt-0.5">
               <span>
