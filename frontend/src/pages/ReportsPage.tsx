@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search,
   RefreshCw,
@@ -14,6 +14,7 @@ import {
   X,
   AlertCircle,
   FileSpreadsheet,
+  MoreVertical,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { storeLocationLabel } from '../utils/location';
@@ -74,6 +75,26 @@ export const ReportsPage: React.FC = () => {
   const [customTo, setCustomTo] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedLocation, setSelectedLocation] = useState<string>('ALL');
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isActionsMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+        setIsActionsMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsActionsMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isActionsMenuOpen]);
 
   const dateInfo = getTodayGcAndEc();
 
@@ -628,44 +649,10 @@ export const ReportsPage: React.FC = () => {
 
   return (
     <div className="space-y-4 animate-fadeIn pb-16">
-      {/* 1. Header Bar with Direct Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-        <p className="text-xs text-slate-500">
-          Official asset registry, valuation breakdowns, and inventory movement reports across all ministry stores.
-        </p>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={handleExportCSV}
-            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-[4px] transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
-            title="Export filtered records to CSV"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Export CSV</span>
-          </button>
-          <button
-            onClick={handleExportPDF}
-            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-[4px] transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
-            title="Export filtered records to official PDF"
-          >
-            <FileDown className="w-3.5 h-3.5 text-slate-500" />
-            <span>Export PDF</span>
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="p-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium rounded-[4px] transition shadow-2xs flex items-center justify-center cursor-pointer h-8 w-8"
-            title="Print report"
-            aria-label="Print report"
-          >
-            <Printer className="w-3.5 h-3.5 text-slate-600" />
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Unified Filter & Search Bar matching Assets, Approvals & Settings */}
+      {/* 1. Unified Control Bar with Search, Filters, and Export/Print Actions */}
       <div className="rounded-md p-3.5 bg-white space-y-3 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-        {/* Row 1: Search + Unified FilterPopover */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
+        {/* Row 1: Search + FilterPopover + Export & Print Actions */}
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-2.5">
           {/* Search Box */}
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -679,8 +666,8 @@ export const ReportsPage: React.FC = () => {
             />
           </div>
 
-          {/* Unified Filter Popover */}
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+          {/* Action Group: Filter + Export CSV + Export PDF + Print */}
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto shrink-0 justify-end">
             <FilterPopover
               label="Filter"
               ariaLabel="Filter report records"
@@ -758,6 +745,74 @@ export const ReportsPage: React.FC = () => {
                 />
               </FilterSection>
             </FilterPopover>
+
+            {/* 3-Dot Actions Menu for Export & Print */}
+            <div className="relative inline-flex" ref={actionsMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsActionsMenuOpen((prev) => !prev)}
+                aria-haspopup="menu"
+                aria-expanded={isActionsMenuOpen}
+                aria-label="Report export and print actions"
+                title="Export and print options"
+                className={`inline-flex items-center justify-center h-8 w-8 rounded-[4px] border transition cursor-pointer select-none shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                  isActionsMenuOpen
+                    ? 'border-emerald-700/60 bg-emerald-50/80 text-emerald-950 shadow-xs'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900'
+                }`}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+
+              {isActionsMenuOpen && (
+                <div
+                  role="menu"
+                  aria-label="Report export options"
+                  className="absolute right-0 top-full mt-1.5 w-48 z-50 rounded-md border border-slate-200 bg-white p-1 shadow-lg animate-fadeIn text-xs"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      handleExportCSV();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Export CSV</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      handleExportPDF();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                  >
+                    <FileDown className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Export PDF</span>
+                  </button>
+
+                  <div className="my-1 border-t border-slate-100" />
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      window.print();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Print Report</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         {/* Custom Date Pickers (only when Custom Range is active) */}
