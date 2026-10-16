@@ -75,7 +75,7 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 
     if (!response.ok) {
       if (token === localStorage.getItem('moa_token')) {
-        if (response.status === 401 && endpoint !== '/auth/login') window.dispatchEvent(new Event('moa_session_expired'));
+        if (response.status === 401 && endpoint !== '/auth/login' && endpoint !== '/auth/reset-password') window.dispatchEvent(new Event('moa_session_expired'));
         if (response.status === 403) window.dispatchEvent(new Event('moa_access_changed'));
       }
       let errorMsg = `ATS server returned HTTP ${response.status}.`;
@@ -123,6 +123,20 @@ export const api = {
 
   getMe: () => {
     return request<AuthUser>('/auth/me');
+  },
+
+  /** Public self-service password reset or change from login screen */
+  resetOrChangePassword: (data: {
+    usernameOrEmail?: string;
+    currentPassword?: string;
+    payrollId?: string;
+    email?: string;
+    newPassword: string;
+  }) => {
+    return request<{ message: string; username: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 
   /** Replace your own password (also clears a temporary one) */

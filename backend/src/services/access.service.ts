@@ -166,3 +166,88 @@ export async function changeOwnPassword(userId: string, current: unknown, next: 
     await audit(tx, employee, 'CHANGE_PASSWORD', userId, `${employee.fullNameEn} changed their password.`, undefined, { passwordChanged: true });
   });
 }
+
+/**
+ * Public self-service password change or reset from the login portal:
+ * - If currentPassword is provided: verifies current password, sets newPassword.
+ * - If currentPassword is omitted: verifies that payrollId and email match active employee, then sets newPassword.
+ */
+export async function publicChangeOrResetPassword(input: {
+  usernameOrEmail?: unknown;
+  currentPassword?: unknown;
+  payrollId?: unknown;
+  email?: unknown;
+  newPassword?: unknown;
+}): Promise<{ message: string; username: string }> {
+  const usernameOrEmail = typeof input.usernameOrEmail === 'string' ? input.usernameOrEmail.trim() : '';
+  const currentPassword = typeof input.currentPassword === 'string' ? input.currentPassword : '';
+  const payrollId = typeof input.payrollId === 'string' ? input.payrollId.trim() : '';
+  const email = typeof input.email === 'string' ? input.email.trim() : '';
+  const next = input.newPassword;
+
+  if (!usernameOrEmail && !payrollId && !email) {
+    throw new BadRequestError('Enter your registered email or employee ID.');
+  }
+
+  const query = (usernameOrEmail || payrollId || email).toLowerCase();
+
+  const employee = await prisma.employee.findFirst({
+    where: {
+      OR: [
+        { email: { equals: query, mode: 'insensitive' } },
+        { payrollId: { equals: query, mode: 'insensitive' } },
+      ],
+    },
+  });
+
+  if (!employee || employee.isActive === false || !employee.role) {
+    throw new BadRequestError('Account not found or has no system access. Contact your Administrator.');
+  }
+
+  // If current password provided, verify it
+  if (currentPassword) {
+    if (!employee.password || !(await verifyPassword(currentPassword, employee.password))) {
+      throw new BadRequestError('Your current or temporary password is not correct.');
+    }
+  } else {
+    // If resetting without current password, both payrollId and email must be provided and match
+    const pId = (payrollId || usernameOrEmail).toLowerCase();
+    const em = (email || usernameOrEmail).toLowerCase();
+    const empPayrollId = (employee.payrollId || '').toLowerCase();
+    const empEmail = (employee.email || '').toLowerCase();
+
+    const matchesId = pId === empPayrollId;
+    const matchesEmail = em === empEmail;
+
+    if (!matchesId || !matchesEmail) {
+      throw new BadRequestError('To reset without your current password, please enter matching Employee ID and registered Email.');
+    }
+  }
+
+  const validNewPassword = checkNewPassword(next, 'Your new password');
+  if (currentPassword && validNewPassword === currentPassword) {
+    throw new BadRequestError('Choose a password that is different from your current one.');
+  }
+
+  const hash = await hashPassword(validNewPassword);
+  await prisma.$transaction(async (tx) => {
+    await tx.employee.update({
+      where: { id: employee.id },
+      data: { password: hash, mustChangePassword: false },
+    });
+    await audit(
+      tx,
+      employee,
+      'CHANGE_PASSWORD',
+      employee.id,
+      employee.fullNameEn + ' (' + employee.payrollId + ') updated their password via portal.',
+      undefined,
+      { passwordChanged: true }
+    );
+  });
+
+  return {
+    message: 'Your password has been successfully updated. You can now sign in.',
+    username: employee.email || employee.payrollId,
+  };
+}

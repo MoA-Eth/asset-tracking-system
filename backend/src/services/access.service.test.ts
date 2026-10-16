@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { changeOwnPassword, checkNewPassword, grantAccess, removeAccess, resetPassword } from './access.service';
+import { changeOwnPassword, checkNewPassword, grantAccess, publicChangeOrResetPassword, removeAccess, resetPassword } from './access.service';
 import { AuthService } from './auth.service';
 import { requireAuth } from '../middleware/auth.middleware';
 import { createSessionToken, hashPassword, verifyPassword } from '../security/credentials';
@@ -151,3 +151,42 @@ describe('Repeated failed sign-ins', () => {
     expect(unknown).toBe(wrong);
   });
 });
+
+describe('Public password change or reset from login portal', () => {
+  it('changes password with valid current password', async () => {
+    db.employee.findFirst.mockResolvedValue({ ...people.encoder, email: 'encoder@moa.gov.et' });
+    const res = await publicChangeOrResetPassword({
+      usernameOrEmail: 'E-1',
+      currentPassword: 'old-pass-1',
+      newPassword: 'brand-new-2',
+    });
+    expect(res.message).toMatch(/successfully updated/i);
+    const data = db.employee.update.mock.calls[0][0].data;
+    expect(data.mustChangePassword).toBe(false);
+    expect(await verifyPassword('brand-new-2', data.password)).toBe(true);
+  });
+
+  it('resets password when payrollId and email match without current password', async () => {
+    db.employee.findFirst.mockResolvedValue({ ...people.encoder, email: 'encoder@moa.gov.et' });
+    const res = await publicChangeOrResetPassword({
+      payrollId: 'E-1',
+      email: 'encoder@moa.gov.et',
+      newPassword: 'brand-new-3',
+    });
+    expect(res.message).toMatch(/successfully updated/i);
+    const data = db.employee.update.mock.calls[0][0].data;
+    expect(await verifyPassword('brand-new-3', data.password)).toBe(true);
+  });
+
+  it('refuses reset if payrollId and email do not match', async () => {
+    db.employee.findFirst.mockResolvedValue({ ...people.encoder, email: 'encoder@moa.gov.et' });
+    await expect(
+      publicChangeOrResetPassword({
+        payrollId: 'E-1',
+        email: 'wrong@moa.gov.et',
+        newPassword: 'brand-new-4',
+      })
+    ).rejects.toThrow('enter matching Employee ID and registered Email');
+  });
+});
+

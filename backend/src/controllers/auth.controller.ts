@@ -4,7 +4,7 @@ import { asyncHandler } from '../middleware/async-handler';
 import { sendSuccess } from '../utils/api-response';
 import { LoginRequest } from '../types/asset-management';
 import { BadRequestError } from '../errors/app-error';
-import { changeOwnPassword } from '../services/access.service';
+import { changeOwnPassword, publicChangeOrResetPassword } from '../services/access.service';
 
 export class AuthController {
   private authService = AuthService.getInstance();
@@ -36,6 +36,15 @@ export class AuthController {
    * POST /api/auth/change-password  { currentPassword, newPassword }
    * A signed-in person replaces their own password (required after a temporary one).
    */
+  /**
+   * POST /api/auth/reset-password
+   * Public password change or reset from login screen.
+   */
+  public resetOrChangePassword = asyncHandler(async (req: Request, res: Response) => {
+    const result = await publicChangeOrResetPassword(req.body);
+    return sendSuccess(res, result, 'Password successfully updated');
+  });
+
   public changePassword = asyncHandler(async (req: Request, res: Response) => {
     await changeOwnPassword(req.user!.id, req.body?.currentPassword, req.body?.newPassword);
     return sendSuccess(res, null, 'Password changed');
