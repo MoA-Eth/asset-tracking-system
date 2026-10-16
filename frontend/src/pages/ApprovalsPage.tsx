@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
+
   FileCheck2,
   CheckCircle2,
   XCircle,
@@ -14,8 +15,7 @@ import {
   User,
   ShieldAlert,
   AlertCircle,
-  List,
-  LayoutGrid,
+
   CheckSquare,
   Square,
   ArrowUpDown,
@@ -70,7 +70,7 @@ export function getVisibleQueueTabs(role: UserRole, permissions?: string[]): Tab
     ? ['MY_QUEUE', 'APPROVED', 'REJECTED', 'ALL']
     : ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'REJECTED', 'ALL'];
 }
-type ViewMode = 'table' | 'cards';
+
 
 /**
  * Units a request covers. Stock-Out keeps its requested quantity; other requests use the units on the
@@ -111,12 +111,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
 
-  // Navigation & View Controls
+  // Navigation Controls
   const [activeTab, setActiveTab] = useState<TabFilter>('MY_QUEUE');
-  // Cards on a phone, the table on wider screens
-  const [viewMode, setViewMode] = useState<ViewMode>(() =>
-    typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches ? 'cards' : 'table',
-  );
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | TransactionType>('ALL');
 
@@ -528,45 +524,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
   return (
     <div className="space-y-2.5 animate-fadeIn pb-8">
-      {/* ── 1. Page Header & Live Role Alert Banner ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <FileCheck2 className="w-5 h-5 text-emerald-800" />
-            Approvals & Authorization Queue (የማረጋገጫና ፈቃድ መስጫ)
-          </h2>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {/* View Mode Toggle Button Group */}
-          <div className="bg-slate-100 p-0.5 rounded-md border border-slate-200 flex items-center">
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-[4px] transition cursor-pointer flex items-center gap-1 text-xs font-semibold ${
-                viewMode === 'table'
-                  ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-              title="Compact Enterprise Table View (Recommended)"
-            >
-              <List className="w-4 h-4" />
-              <span className="hidden md:inline pr-1">Table View</span>
-            </button>
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`p-1.5 rounded-[4px] transition cursor-pointer flex items-center gap-1 text-xs font-semibold ${
-                viewMode === 'cards'
-                  ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-              title="Grid Cards View"
-            >
-              <LayoutGrid className="w-4 h-4" />
-              <span className="hidden md:inline pr-1">Cards View</span>
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Role Permission Context Banner (Light & Simple) */}
       <div className="p-3 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-600 shadow-2xs">
@@ -596,9 +553,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             )}
           </span>
         </div>
-        <span className="hidden md:inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-slate-700 border border-slate-200">
-          SOD Protected
-        </span>
+
       </div>
 
       {/* ── 2. Filters & Search Control Bar ── */}
@@ -686,7 +641,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             All registered stock transactions are fully cleared for the selected filters.
           </p>
         </div>
-      ) : viewMode === 'table' ? (
+      ) : (
         /* ══════════════════════════════════════════════════════════════════════
            HIGH-DENSITY DATA TABLE (Enterprise Standard)
            ══════════════════════════════════════════════════════════════════════ */
@@ -871,119 +826,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               </tbody>
             </table>
           </div>
-        </div>
-      ) : (
-        /* ══════════════════════════════════════════════════════════════════════
-           COMPACT CARDS GRID (Clean, Light & Simple Alternative)
-           ══════════════════════════════════════════════════════════════════════ */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {pager.pageItems.map((appr) => {
-            const isSelected = selectedIds.includes(appr.id);
-            const isPending = appr.status === ApprovalStatus.PENDING;
-            const stage = appr.currentStage ?? 1;
-            const isActionableForMe =
-              isPending &&
-              ((canEndorse && stage === 1) ||
-                (canApprove && stage === 2));
-
-            return (
-              <div
-                key={appr.id}
-                className={`p-4 rounded-md border transition-all flex flex-col justify-between bg-white ${
-                  isSelected
-                    ? 'border-emerald-700 ring-1 ring-emerald-700/30 shadow-xs'
-                    : 'border-slate-200 hover:border-slate-300 shadow-2xs hover:shadow-xs'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-1.5">
-                      {canReview && isActionableForMe && (
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleSelectItem(appr.id)}
-                          className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 cursor-pointer w-3.5 h-3.5"
-                        />
-                      )}
-                      {getTypeBadge(appr.transactionType, appr.requestDetails)}
-                    </div>
-                    {getStageIndicator(appr)}
-                  </div>
-
-                  <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{appr.itemName}</h3>
-                  <p className="text-xs font-mono text-slate-700 font-bold mt-0.5">{appr.itemCode}</p>
-                  {approvalUnits(appr) && (
-                    <p className="text-[11px] font-mono font-semibold text-sky-800">{approvalUnits(appr)}</p>
-                  )}
-
-                  <div className="mt-2.5 p-2.5 rounded-md bg-slate-50/80 border border-slate-200/80 space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">IFMIS Slip:</span>
-                      <span className="flex items-center gap-1">
-                        <span className="font-mono text-slate-800 font-semibold bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[11px]">
-                          {appr.ifmisSlipNumber}
-                        </span>
-                        {appr.ifmisSlipAttachmentUrl && (
-                          <button
-                            type="button"
-                            onClick={() => setViewingSlipUrl(appr.ifmisSlipAttachmentUrl ?? null)}
-                            className="p-1 rounded text-emerald-700 hover:bg-emerald-50 transition cursor-pointer"
-                            title="View attached slip"
-                            aria-label={`View attached slip for ${appr.ifmisSlipNumber}`}
-                          >
-                            <Paperclip className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Date:</span>
-                      <span className="text-slate-800">{appr.ifmisSlipDateEc} E.C.</span>
-                    </div>
-                    {appr.purposeOrRemarks && (
-                      <p className="text-[11px] text-slate-600 italic pt-1 border-t border-slate-200 line-clamp-2">
-                        "{appr.purposeOrRemarks}"
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between gap-2">
-                  <span className="text-[10px] text-slate-400">
-                    {appr.createdAtEc} E.C.
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setViewingApproval(appr)}
-                    className={btn.row}
-                    title="View the voucher"
-                  >
-                    <FileSearch className={btn.rowIcon} />
-                    View
-                  </button>
-                  {isActionableForMe && (
-                  <button
-                    onClick={() => {
-                      setSelectedApproval(appr);
-                      setReviewRemarks('');
-                    }}
-                    className={`px-3 py-1.5 rounded-[4px] text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs ${
-                      isActionableForMe
-                        ? 'bg-emerald-800 hover:bg-emerald-900 text-white'
-                        : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-                    }`}
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>{stage === 1 ? 'Endorse' : 'Authorize'}</span>
-                  </button>
-                  )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
         </div>
       )}
 
