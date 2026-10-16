@@ -25,17 +25,17 @@ const ACCENT = {
 /** Text input / select styling. Pass `mono` for codes and numbers, `invalid` for error states. */
 export const inputClass = (accent: FormAccent, opts: { mono?: boolean; align?: 'left' | 'right' | 'center'; invalid?: boolean } = {}) =>
   [
-    'w-full h-10 px-3 bg-white rounded-[4px] text-[13px] text-slate-900 placeholder:text-slate-400',
-    'focus:outline-none transition-colors disabled:bg-slate-50 disabled:text-slate-500',
+    'w-full h-11 px-3.5 bg-white rounded-lg text-sm text-slate-900 placeholder:text-slate-400',
+    'focus:outline-none transition-all disabled:bg-slate-50 disabled:text-slate-500 shadow-xs',
     opts.invalid
-      ? 'border border-rose-500 focus:border-rose-600 focus:ring-1 focus:ring-rose-600 text-slate-900'
-      : `border border-slate-300 hover:border-slate-500 ${ACCENT[accent].focus}`,
+      ? 'border border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20 text-slate-900'
+      : `border border-slate-300 hover:border-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20`,
     opts.mono ? 'font-mono' : '',
     opts.align === 'right' ? 'text-right' : opts.align === 'center' ? 'text-center' : '',
   ].filter(Boolean).join(' ');
 
 export const textareaClass = (accent: FormAccent) =>
-  `w-full min-h-[72px] px-3 py-2.5 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none transition-colors ${ACCENT[accent].focus}`;
+  `w-full min-h-[96px] px-3.5 py-3 bg-white border border-slate-300 hover:border-slate-400 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-xs`;
 
 // ─── Quantity input ─────────────────────────────────────────────────────────
 
@@ -282,8 +282,8 @@ export const Field: React.FC<FieldProps> = ({ label, required, optional, hint, s
   <div className={`group relative ${span}`}>
     <label
       htmlFor={htmlFor}
-      className={`pointer-events-none absolute left-2 top-0 z-[2] max-w-[calc(100%-1rem)] -translate-y-1/2 truncate px-1 text-[11px] font-medium leading-4 transition-colors bg-[linear-gradient(to_bottom,#fff_55%,transparent_55%)] ${
-        error ? 'text-rose-700' : 'text-slate-500 group-focus-within:text-emerald-800'
+      className={`pointer-events-none absolute left-2.5 top-0 z-[2] max-w-[calc(100%-1rem)] -translate-y-1/2 truncate px-1.5 text-xs font-semibold leading-4 transition-colors bg-[linear-gradient(to_bottom,#fff_60%,transparent_60%)] ${
+        error ? 'text-rose-700' : 'text-slate-600 group-focus-within:text-emerald-700'
       }`}
     >
       {label}
@@ -515,8 +515,8 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
   return (
   <div
     ref={footer}
-    className={`flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white/95 py-3 backdrop-blur ${
-      sticky ? 'sticky -bottom-5 z-10 -mx-6 -mb-5 px-6 shadow-[0_-6px_12px_-8px_rgba(15,23,42,0.18)]' : 'pt-4'
+    className={`flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white/95 py-2.5 backdrop-blur ${
+      sticky ? 'sticky -bottom-4 z-10 -mx-6 -mb-4 px-6 shadow-[0_-6px_12px_-8px_rgba(15,23,42,0.18)]' : 'pt-3'
     }`}
   >
     {onReset ? (
