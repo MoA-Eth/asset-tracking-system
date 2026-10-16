@@ -40,13 +40,6 @@ vi.mock('../api/client', async () => {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  Object.defineProperty(navigator, 'clipboard', {
-    value: {
-      writeText: vi.fn().mockImplementation(() => Promise.resolve()),
-    },
-    writable: true,
-    configurable: true,
-  });
 });
 
 describe('LoginPage', () => {
@@ -90,9 +83,9 @@ describe('LoginPage', () => {
     await user.click(forgotBtn);
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Change or Reset Password')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Change Password' })).toBeInTheDocument();
 
-    // Fill in Change Password tab
+    // Fill in Change Password fields
     const idInput = screen.getByPlaceholderText(/e.g. name@moa.gov.et/i);
     const currPwInput = screen.getByPlaceholderText('Current password');
     const newPwInput = screen.getByPlaceholderText('Min. 8 characters');
@@ -115,27 +108,5 @@ describe('LoginPage', () => {
     const proceedBtn = screen.getByRole('button', { name: /Proceed to Sign In/i });
     await user.click(proceedBtn);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  });
-
-  it('displays IT assistance option in modal for helpdesk support', async () => {
-    const user = userEvent.setup();
-    render(<LoginPage />);
-
-    const forgotBtn = screen.getByRole('button', { name: /Forgot password?/i });
-    await user.click(forgotBtn);
-
-    const helpTab = screen.getByRole('button', { name: /IT Assistance/i });
-    await user.click(helpTab);
-
-    const requestInput = screen.getByPlaceholderText(/e.g. hana@moa.gov.et/i);
-    const requestBtn = screen.getByRole('button', { name: /Request Reset Assistance/i });
-
-    await user.type(requestInput, '00123456');
-    await user.click(requestBtn);
-
-    expect(await screen.findByText('Assistance Request Recorded')).toBeInTheDocument();
-    expect(screen.getByText(/00123456/)).toBeInTheDocument();
-    expect(screen.getByText('+251 11 646 0111')).toBeInTheDocument();
-    expect(screen.getByText('it.support@moa.gov.et')).toBeInTheDocument();
   });
 });

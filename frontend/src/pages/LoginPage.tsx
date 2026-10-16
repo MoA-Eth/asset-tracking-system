@@ -9,16 +9,10 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
-  HelpCircle,
   X,
-  Phone,
   CheckCircle2,
-  Copy,
-  Check,
   KeyRound,
   RefreshCw,
-  Send,
-  UserCheck,
 } from "lucide-react";
 import { MoaLogo } from "../components/ui/MoaLogo";
 
@@ -31,26 +25,17 @@ export const LoginPage: React.FC = () => {
   const [signingIn, setSigningIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(sessionNotice);
 
-  // Forgot / Change Password Modal State
+  // Change Password Modal State
   const [showForgotModal, setShowForgotModal] = useState(false);
-  const [modalTab, setModalTab] = useState<"change" | "reset" | "help">("change");
-
-  // Change / Reset form fields
   const [resetIdentifier, setResetIdentifier] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
-  const [resetPayrollId, setResetPayrollId] = useState("");
-  const [resetEmail, setResetEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
-
-  // IT Assistance Tab fields
-  const [helpIdentifier, setHelpIdentifier] = useState("");
-  const [helpSubmitted, setHelpSubmitted] = useState(false);
-  const [copiedEmail, setCopiedEmail] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -93,13 +78,21 @@ export const LoginPage: React.FC = () => {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
-    setHelpSubmitted(false);
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetError(null);
 
+    const identifier = (resetIdentifier || usernameOrEmail).trim();
+    if (!identifier) {
+      setResetError("Enter your registered email or employee ID.");
+      return;
+    }
+    if (!currentPassword) {
+      setResetError("Enter your current or temporary password.");
+      return;
+    }
     if (newPassword.length < 8) {
       setResetError("New password must be at least 8 characters with a letter and a number.");
       return;
@@ -115,52 +108,20 @@ export const LoginPage: React.FC = () => {
 
     setResetLoading(true);
     try {
-      if (modalTab === "change") {
-        if (!currentPassword) {
-          setResetError("Enter your current or temporary password.");
-          setResetLoading(false);
-          return;
-        }
-        const res = await api.resetOrChangePassword({
-          usernameOrEmail: resetIdentifier || usernameOrEmail,
-          currentPassword,
-          newPassword,
-        });
-        setResetSuccessMessage(res.message || "Password changed successfully.");
-        if (res.username) setUsernameOrEmail(res.username);
-        setPassword(newPassword);
-        toast.success("Password Updated", "You can now sign in with your new password.");
-      } else if (modalTab === "reset") {
-        if (!resetPayrollId.trim() || !resetEmail.trim()) {
-          setResetError("Enter both your Employee ID and registered official Email.");
-          setResetLoading(false);
-          return;
-        }
-        const res = await api.resetOrChangePassword({
-          payrollId: resetPayrollId.trim(),
-          email: resetEmail.trim(),
-          newPassword,
-        });
-        setResetSuccessMessage(res.message || "Password reset successfully.");
-        if (res.username) setUsernameOrEmail(res.username);
-        setPassword(newPassword);
-        toast.success("Password Reset", "Your password has been reset. You can now sign in.");
-      }
+      const res = await api.resetOrChangePassword({
+        usernameOrEmail: identifier,
+        currentPassword,
+        newPassword,
+      });
+      setResetSuccessMessage(res.message || "Password changed successfully.");
+      if (res.username) setUsernameOrEmail(res.username);
+      setPassword(newPassword);
+      toast.success("Password Updated", "You can now sign in with your new password.");
     } catch (err: any) {
-      setResetError(err.message || "Failed to update password. Please check your information.");
+      setResetError(err.message || "Failed to update password. Please check your credentials.");
     } finally {
       setResetLoading(false);
     }
-  };
-
-  const handleHelpSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!helpIdentifier.trim()) return;
-    setHelpSubmitted(true);
-    toast.success(
-      "Request Logged",
-      "Your password reset request has been routed to the MoA IT Support Desk."
-    );
   };
 
   return (
@@ -188,7 +149,7 @@ export const LoginPage: React.FC = () => {
         }}
       />
 
-      {/* Main Login Arena - Perfectly Centered in Viewport */}
+      {/* Main Login Arena - Centered in Viewport */}
       <main className="w-full max-w-[440px] z-10 animate-fadeIn">
         {/* Error Banner */}
         {errorMsg && (
@@ -274,10 +235,8 @@ export const LoginPage: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setResetIdentifier(usernameOrEmail);
-                    setHelpIdentifier(usernameOrEmail);
                     setResetError(null);
                     setResetSuccessMessage(null);
-                    setModalTab("change");
                     setShowForgotModal(true);
                   }}
                   className="text-xs font-medium text-emerald-400 hover:text-amber-300 transition-colors cursor-pointer inline-flex items-center gap-1 group"
@@ -347,44 +306,44 @@ export const LoginPage: React.FC = () => {
         </form>
       </main>
 
-      {/* ─── Change / Reset Password Dialog Modal ─── */}
+      {/* ─── Change Password Dialog Modal with Deep Black Backdrop ─── */}
       {showForgotModal && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-labelledby="forgot-pw-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn"
+          aria-labelledby="change-pw-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn"
           onClick={(e) => {
             if (e.target === e.currentTarget) resetForgotDialog();
           }}
         >
           <div
-            className="w-full max-w-lg rounded-2xl border border-emerald-500/30 text-white shadow-2xl relative overflow-hidden animate-scaleIn p-6 sm:p-7 ring-1 ring-white/10"
+            className="w-full max-w-md rounded-2xl border border-emerald-500/35 text-white shadow-2xl relative overflow-hidden animate-scaleIn p-6 sm:p-7 ring-1 ring-white/10"
             style={{
               background:
-                "linear-gradient(165deg, rgba(13, 48, 29, 0.98) 0%, rgba(7, 26, 16, 0.99) 100%)",
+                "linear-gradient(168deg, #0e2e1d 0%, #091f14 50%, #04120a 100%)",
               boxShadow:
-                "0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 40px rgba(16, 185, 129, 0.2)",
+                "0 35px 80px -15px rgba(0, 0, 0, 0.95), 0 0 50px -10px rgba(16, 185, 129, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.15)",
             }}
           >
             {/* Top gold accent line */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-[#FCDD09] to-emerald-500 shadow-[0_1px_6px_rgba(252,221,9,0.4)]" />
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-600 via-[#FCDD09] to-emerald-600 shadow-[0_1px_8px_rgba(252,221,9,0.5)]" />
 
             {/* Header & Close */}
-            <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="flex items-start justify-between gap-3 mb-5">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-amber-300 flex items-center justify-center shrink-0 shadow-inner">
+                <div className="size-10 rounded-xl bg-emerald-500/20 border border-emerald-400/35 text-amber-300 flex items-center justify-center shrink-0 shadow-inner">
                   <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
                   <h2
-                    id="forgot-pw-title"
-                    className="text-base font-bold text-white tracking-tight"
+                    id="change-pw-title"
+                    className="text-base sm:text-lg font-bold text-white tracking-tight"
                   >
-                    Change or Reset Password
+                    Change Password
                   </h2>
                   <p className="text-xs text-emerald-300/70 font-sans">
-                    የይለፍ ቃል መቀየር እና ማደስ
+                    የይለፍ ቃል መቀየር
                   </p>
                 </div>
               </div>
@@ -429,404 +388,148 @@ export const LoginPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <>
-                {/* Navigation Tabs */}
-                <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-black/40 border border-emerald-500/20 mb-4 text-xs font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setModalTab("change");
-                      setResetError(null);
-                    }}
-                    className={`py-2 px-2.5 rounded-lg text-center transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                      modalTab === "change"
-                        ? "bg-emerald-700/80 text-white shadow-md border border-emerald-400/30"
-                        : "text-emerald-300/70 hover:text-white hover:bg-white/5"
-                    }`}
-                  >
-                    <KeyRound className="w-3.5 h-3.5" />
-                    <span>Change Password</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setModalTab("reset");
-                      setResetError(null);
-                    }}
-                    className={`py-2 px-2.5 rounded-lg text-center transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                      modalTab === "reset"
-                        ? "bg-emerald-700/80 text-white shadow-md border border-emerald-400/30"
-                        : "text-emerald-300/70 hover:text-white hover:bg-white/5"
-                    }`}
-                  >
-                    <UserCheck className="w-3.5 h-3.5" />
-                    <span>Reset by ID</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setModalTab("help");
-                      setResetError(null);
-                    }}
-                    className={`py-2 px-2.5 rounded-lg text-center transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                      modalTab === "help"
-                        ? "bg-emerald-700/80 text-white shadow-md border border-emerald-400/30"
-                        : "text-emerald-300/70 hover:text-white hover:bg-white/5"
-                    }`}
-                  >
-                    <HelpCircle className="w-3.5 h-3.5" />
-                    <span>IT Assistance</span>
-                  </button>
-                </div>
-
+              <form onSubmit={handlePasswordSubmit} className="space-y-4">
                 {/* Error Banner inside modal */}
                 {resetError && (
-                  <div className="mb-4 p-3 rounded-xl bg-red-950/80 border border-red-500/40 text-red-200 text-xs flex items-center gap-2">
+                  <div className="p-3 rounded-xl bg-red-950/90 border border-red-500/40 text-red-200 text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
                     <span>{resetError}</span>
                   </div>
                 )}
 
-                {/* TAB 1: Change Password with Current/Temporary Password */}
-                {modalTab === "change" && (
-                  <form onSubmit={handlePasswordSubmit} className="space-y-3.5">
-                    <p className="text-xs text-emerald-200/80">
-                      Enter your current or temporary password to set your permanent password.
-                    </p>
+                <p className="text-xs text-emerald-200/80 leading-relaxed">
+                  Enter your employee credentials and current/temporary password to choose your new password.
+                </p>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-emerald-300/90 mb-1">
-                        Email or Payroll ID
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={resetIdentifier}
-                        onChange={(e) => setResetIdentifier(e.target.value)}
-                        placeholder="e.g. name@moa.gov.et or payroll ID"
-                        className="w-full h-10 px-3.5 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 bg-black/40 focus:ring-2 focus:ring-amber-400/40"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-emerald-300/90 mb-1">
-                        Current or Temporary Password
-                      </label>
-                      <input
-                        type="password"
-                        required
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        placeholder="Current password"
-                        className="w-full h-10 px-3.5 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 bg-black/40 focus:ring-2 focus:ring-amber-400/40"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-xs font-semibold text-emerald-300/90 mb-1">
-                          New Password
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showNewPassword ? "text" : "password"}
-                            required
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="Min. 8 characters"
-                            className="w-full h-10 pl-3.5 pr-8 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 bg-black/40 focus:ring-2 focus:ring-amber-400/40"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-500 hover:text-emerald-300 p-1 cursor-pointer"
-                          >
-                            {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-emerald-300/90 mb-1">
-                          Confirm New Password
-                        </label>
-                        <input
-                          type={showNewPassword ? "text" : "password"}
-                          required
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="Re-type new password"
-                          className="w-full h-10 px-3.5 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 bg-black/40 focus:ring-2 focus:ring-amber-400/40"
-                        />
-                      </div>
-                    </div>
-
-                    <p className="text-[11px] text-emerald-300/60 font-sans">
-                      * Must be at least 8 characters and contain both letters and numbers.
-                    </p>
-
-                    <div className="flex items-center justify-end gap-2.5 pt-2">
-                      <button
-                        type="button"
-                        onClick={resetForgotDialog}
-                        className="px-4 py-2 rounded-lg text-xs font-medium text-emerald-200/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={resetLoading}
-                        className="px-5 py-2.5 rounded-xl text-xs font-bold text-emerald-950 bg-amber-400 hover:bg-amber-300 transition-all cursor-pointer shadow-md flex items-center gap-2 disabled:opacity-75"
-                      >
-                        {resetLoading ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            <span>Updating...</span>
-                          </>
-                        ) : (
-                          <>
-                            <KeyRound className="w-3.5 h-3.5" />
-                            <span>Update Password (ይለፍ ቃል ቀይር)</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {/* TAB 2: Reset by Employee ID & Email */}
-                {modalTab === "reset" && (
-                  <form onSubmit={handlePasswordSubmit} className="space-y-3.5">
-                    <p className="text-xs text-emerald-200/80">
-                      Forgot your password? Verify your registered civil service credentials to set a new password.
-                    </p>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-xs font-semibold text-emerald-300/90 mb-1">
-                          Employee / Payroll ID
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={resetPayrollId}
-                          onChange={(e) => setResetPayrollId(e.target.value)}
-                          placeholder="e.g. 00123456"
-                          className="w-full h-10 px-3.5 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 bg-black/40 focus:ring-2 focus:ring-amber-400/40"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-emerald-300/90 mb-1">
-                          Registered MoA Email
-                        </label>
-                        <input
-                          type="email"
-                          required
-                          value={resetEmail}
-                          onChange={(e) => setResetEmail(e.target.value)}
-                          placeholder="e.g. name@moa.gov.et"
-                          className="w-full h-10 px-3.5 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 bg-black/40 focus:ring-2 focus:ring-amber-400/40"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-xs font-semibold text-emerald-300/90 mb-1">
-                          New Password
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showNewPassword ? "text" : "password"}
-                            required
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="Min. 8 characters"
-                            className="w-full h-10 pl-3.5 pr-8 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 bg-black/40 focus:ring-2 focus:ring-amber-400/40"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-500 hover:text-emerald-300 p-1 cursor-pointer"
-                          >
-                            {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-emerald-300/90 mb-1">
-                          Confirm New Password
-                        </label>
-                        <input
-                          type={showNewPassword ? "text" : "password"}
-                          required
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="Re-type new password"
-                          className="w-full h-10 px-3.5 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 bg-black/40 focus:ring-2 focus:ring-amber-400/40"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-2.5 pt-2">
-                      <button
-                        type="button"
-                        onClick={resetForgotDialog}
-                        className="px-4 py-2 rounded-lg text-xs font-medium text-emerald-200/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={resetLoading}
-                        className="px-5 py-2.5 rounded-xl text-xs font-bold text-emerald-950 bg-amber-400 hover:bg-amber-300 transition-all cursor-pointer shadow-md flex items-center gap-2 disabled:opacity-75"
-                      >
-                        {resetLoading ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            <span>Verifying...</span>
-                          </>
-                        ) : (
-                          <>
-                            <UserCheck className="w-3.5 h-3.5" />
-                            <span>Verify & Reset (አረጋግጥና አድስ)</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {/* TAB 3: IT Assistance */}
-                {modalTab === "help" && (
-                  <div>
-                    {!helpSubmitted ? (
-                      <form onSubmit={handleHelpSubmit} className="space-y-3.5">
-                        <div className="p-3.5 rounded-xl bg-black/40 border border-emerald-500/20 text-xs space-y-2 shadow-inner">
-                          <div className="text-amber-300 font-semibold flex items-center gap-1.5 text-[11px]">
-                            <HelpCircle className="w-3.5 h-3.5" />
-                            <span>Password Reset Assistance:</span>
-                          </div>
-                          <ul className="text-emerald-200/80 text-[11px] space-y-1 list-disc list-inside">
-                            <li>Contact your Directorate System Administrator</li>
-                            <li>Or submit your registered email / ID below for helpdesk priority</li>
-                            <li>Present your FDRE Employee ID card to verify identity</li>
-                          </ul>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-emerald-300/90 mb-1">
-                            Your Registered Email or Payroll ID
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={helpIdentifier}
-                            onChange={(e) => setHelpIdentifier(e.target.value)}
-                            placeholder="e.g. hana@moa.gov.et or 00123456"
-                            className="w-full h-10 px-3.5 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 bg-black/40 focus:ring-2 focus:ring-amber-400/40"
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2.5 pt-2">
-                          <button
-                            type="button"
-                            onClick={resetForgotDialog}
-                            className="px-4 py-2 rounded-lg text-xs font-medium text-emerald-200/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="submit"
-                            className="px-4 py-2.5 rounded-xl text-xs font-bold text-emerald-950 bg-amber-400 hover:bg-amber-300 transition-all cursor-pointer shadow-md flex items-center gap-1.5"
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                            <span>Request Reset Assistance</span>
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <div className="space-y-4 animate-fadeIn">
-                        <div className="p-4 rounded-xl bg-emerald-900/40 border border-emerald-400/40 flex items-start gap-3 shadow-inner">
-                          <CheckCircle2 className="w-5 h-5 text-emerald-300 shrink-0 mt-0.5" />
-                          <div>
-                            <h3 className="text-xs font-bold text-white">
-                              Assistance Request Recorded
-                            </h3>
-                            <p className="text-[11px] text-emerald-200/90 mt-1 leading-relaxed">
-                              Your reset request for{" "}
-                              <span className="font-mono text-amber-300 font-semibold">
-                                {helpIdentifier}
-                              </span>{" "}
-                              has been logged. Please contact IT Help Desk or your Directorate Administrator to receive your one-time temporary password.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-                          <div className="p-3 rounded-lg bg-black/30 border border-emerald-500/20 shadow-inner">
-                            <div className="flex items-center gap-1.5 text-emerald-400 text-[11px] font-medium">
-                              <Phone className="w-3.5 h-3.5 text-amber-300" />
-                              <span>IT Help Desk Phone</span>
-                            </div>
-                            <div className="mt-1 font-mono font-semibold text-xs text-white">
-                              +251 11 646 0111
-                            </div>
-                            <div className="text-[10px] text-emerald-300/60 mt-0.5">
-                              Ext: 4210 / 4212
-                            </div>
-                          </div>
-
-                          <div className="p-3 rounded-lg bg-black/30 border border-emerald-500/20 shadow-inner">
-                            <div className="flex items-center justify-between text-emerald-400 text-[11px] font-medium">
-                              <span className="flex items-center gap-1.5">
-                                <Mail className="w-3.5 h-3.5 text-amber-300" />
-                                <span>Support Email</span>
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText("it.support@moa.gov.et");
-                                  setCopiedEmail(true);
-                                  setTimeout(() => setCopiedEmail(false), 2000);
-                                }}
-                                className="text-emerald-400 hover:text-white p-1 transition cursor-pointer"
-                                title="Copy email"
-                              >
-                                {copiedEmail ? (
-                                  <Check className="w-3 h-3 text-emerald-300" />
-                                ) : (
-                                  <Copy className="w-3 h-3" />
-                                )}
-                              </button>
-                            </div>
-                            <div className="mt-1 font-mono text-xs text-white">
-                              it.support@moa.gov.et
-                            </div>
-                            <div className="text-[10px] text-emerald-300/60 mt-0.5">
-                              MoA ICT Directorate
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end pt-2">
-                          <button
-                            type="button"
-                            onClick={resetForgotDialog}
-                            className="px-4 py-2 rounded-xl text-xs font-semibold text-emerald-950 bg-amber-400 hover:bg-amber-300 transition cursor-pointer"
-                          >
-                            Back to Sign In
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                {/* Email or Payroll ID */}
+                <div>
+                  <label className="block text-xs font-semibold text-emerald-300/90 mb-1.5">
+                    Email or Employee ID (ኢሜይል ወይም መለያ)
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      value={resetIdentifier}
+                      onChange={(e) => setResetIdentifier(e.target.value)}
+                      placeholder="e.g. name@moa.gov.et or payroll ID"
+                      className="w-full h-10 pl-10 pr-3.5 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                      style={{
+                        background: "rgba(3, 15, 10, 0.92)",
+                      }}
+                    />
                   </div>
-                )}
-              </>
+                </div>
+
+                {/* Current / Temporary Password */}
+                <div>
+                  <label className="block text-xs font-semibold text-emerald-300/90 mb-1.5">
+                    Current or Temporary Password (የነበረው / ጊዜያዊ ይለፍ ቃል)
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      required
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Current password"
+                      className="w-full h-10 pl-10 pr-10 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                      style={{
+                        background: "rgba(3, 15, 10, 0.92)",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-500 hover:text-emerald-300 p-1 cursor-pointer"
+                      title={showCurrentPassword ? "Hide" : "Show"}
+                    >
+                      {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* New Password & Confirm Password */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-emerald-300/90 mb-1.5">
+                      New Password (አዲስ ይለፍ ቃል)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Min. 8 characters"
+                        className="w-full h-10 pl-3.5 pr-9 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                        style={{
+                          background: "rgba(3, 15, 10, 0.92)",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-500 hover:text-emerald-300 p-1 cursor-pointer"
+                        title={showNewPassword ? "Hide" : "Show"}
+                      >
+                        {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-emerald-300/90 mb-1.5">
+                      Confirm New Password (አረጋግጥ)
+                    </label>
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Re-type new password"
+                      className="w-full h-10 px-3.5 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border border-emerald-500/30 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                      style={{
+                        background: "rgba(3, 15, 10, 0.92)",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-emerald-300/60 font-sans">
+                  * Must be at least 8 characters and contain both letters and numbers.
+                </p>
+
+                {/* Form Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={resetForgotDialog}
+                    className="px-4 py-2.5 rounded-xl text-xs font-medium text-emerald-200/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-emerald-950 bg-amber-400 hover:bg-amber-300 transition-all cursor-pointer shadow-md flex items-center gap-2 disabled:opacity-75"
+                  >
+                    {resetLoading ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Updating Password...</span>
+                      </>
+                    ) : (
+                      <>
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>Update Password (ይለፍ ቃል ቀይር)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         </div>
