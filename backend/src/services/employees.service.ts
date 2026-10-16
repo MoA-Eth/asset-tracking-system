@@ -188,7 +188,7 @@ async function assertAdminRemains(tx: any, previous: any) {
 }
 
 /** Roles a department has only one active holder of */
-const ONE_PER_DEPARTMENT: UserRole[] = [UserRole.TEAM_LEADER, UserRole.DEPARTMENT_HEAD, UserRole.MANAGER];
+const ONE_PER_DEPARTMENT: UserRole[] = [UserRole.TEAM_LEADER, UserRole.DEPARTMENT_HEAD, UserRole.CHIEF_DIRECTOR, UserRole.MANAGER];
 
 /**
  * Refuses to give a Team Leader, Department Head or Manager role that another active employee

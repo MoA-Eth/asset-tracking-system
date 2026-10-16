@@ -88,7 +88,7 @@ const AuthenticatedPortal: React.FC = () => {
       const pending = data.filter((a) => a.status === 'PENDING');
       let count = 0;
       const canEndorse = user?.permissions?.includes('approvals.endorse') ?? (role === UserRole.TEAM_LEADER);
-      const canAuthorize = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD);
+      const canAuthorize = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD || role === UserRole.CHIEF_DIRECTOR);
       if (canEndorse && !canAuthorize) {
         count = pending.filter((a) => (a.currentStage ?? 1) === 1).length;
       } else if (canAuthorize && !canEndorse) {

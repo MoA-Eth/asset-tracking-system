@@ -62,9 +62,11 @@ type TabFilter = 'MY_QUEUE' | 'STAGE_1' | 'STAGE_2' | 'APPROVED' | 'REJECTED' | 
  * Queue tabs shown to a role. Stage approvers only get their own queue
  * ("Pending my action"); the other stage's queue is one they cannot act on.
  */
+export const HIGH_VALUE_THRESHOLD = 10_000_000;
+
 export function getVisibleQueueTabs(role: UserRole, permissions?: string[]): TabFilter[] {
   const canEndorse = permissions ? permissions.includes('approvals.endorse') : (role === UserRole.TEAM_LEADER);
-  const canAuthorize = permissions ? permissions.includes('approvals.authorize') : (role === UserRole.DEPARTMENT_HEAD);
+  const canAuthorize = permissions ? permissions.includes('approvals.authorize') : (role === UserRole.DEPARTMENT_HEAD || role === UserRole.CHIEF_DIRECTOR);
   const isSingleStageApprover = (canEndorse && !canAuthorize) || (!canEndorse && canAuthorize);
   return isSingleStageApprover
     ? ['MY_QUEUE', 'APPROVED', 'REJECTED', 'ALL']
@@ -103,8 +105,10 @@ const approvalUnits = (a: TransactionApproval): string | null => {
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefreshPendingCount }) => {
   const { user, role } = useAuth();
   const toast = useToast();
+  const isChiefDirector = role === UserRole.CHIEF_DIRECTOR;
+  const isDeptHead = role === UserRole.DEPARTMENT_HEAD;
   const canEndorse = user?.permissions?.includes('approvals.endorse') ?? (role === UserRole.TEAM_LEADER);
-  const canApprove = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD);
+  const canApprove = user?.permissions?.includes('approvals.authorize') ?? (isDeptHead || isChiefDirector);
   const canReview = canEndorse || canApprove;
 
   const [approvals, setApprovals] = useState<TransactionApproval[]>([]);
@@ -164,9 +168,17 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     const rejected = approvals.filter((a) => a.status === ApprovalStatus.REJECTED);
 
     let myQueueCount = 0;
-    if (canEndorse) myQueueCount = stage1.length;
-    else if (canApprove) myQueueCount = stage2.length;
-    else myQueueCount = pending.length;
+    if (canEndorse) {
+      myQueueCount = stage1.length;
+    } else if (isChiefDirector) {
+      myQueueCount = stage2.filter((a) => (a.totalAmount || 0) > HIGH_VALUE_THRESHOLD).length;
+    } else if (isDeptHead) {
+      myQueueCount = stage2.filter((a) => (a.totalAmount || 0) <= HIGH_VALUE_THRESHOLD).length;
+    } else if (canApprove) {
+      myQueueCount = stage2.length;
+    } else {
+      myQueueCount = pending.length;
+    }
 
     return {
       myQueueCount,
@@ -185,7 +197,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       if (activeTab === 'MY_QUEUE') {
         if (item.status !== ApprovalStatus.PENDING) return false;
         if (canEndorse && (item.currentStage ?? 1) !== 1) return false;
-        if (canApprove && item.currentStage !== 2) return false;
+        if (canApprove) {
+          if (item.currentStage !== 2) return false;
+          const isHigh = (item.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
+          if (isChiefDirector && !isHigh) return false;
+          if (isDeptHead && isHigh) return false;
+        }
       } else if (activeTab === 'STAGE_1') {
         if (item.status !== ApprovalStatus.PENDING || (item.currentStage ?? 1) !== 1) return false;
       } else if (activeTab === 'STAGE_2') {
@@ -495,6 +512,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     }
 
     const stage = appr.currentStage ?? 1;
+    const isHighValue = (appr.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
     return (
       <div className="flex items-center gap-1.5">
         <span
@@ -515,8 +533,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               : 'bg-transparent text-slate-400 border-transparent'
           }`}
         >
-          <span className={`w-1.5 h-1.5 rounded-full ${stage === 2 ? 'bg-emerald-600' : 'bg-slate-300'}`} />
-          2. Authorize
+          <span className={`w-1.5 h-1.5 rounded-full ${stage === 2 ? (isHighValue ? 'bg-purple-600' : 'bg-emerald-600') : 'bg-slate-300'}`} />
+          {stage === 2 && isHighValue ? '2. Chief Director (>10M)' : '2. Authorize'}
         </span>
       </div>
     );
@@ -541,9 +559,19 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 You are authorized to review and record <strong>Stage 1 Technical Endorsements</strong>.
               </span>
             )}
-            {canApprove && !canEndorse && (
+            {isChiefDirector && (
               <span className="ml-1 text-slate-700 font-medium">
-                You hold final signing authority to grant <strong>Stage 2 Store Issue Authorizations</strong>.
+                You hold final signing authority as <strong>Chief Director</strong> to authorize high-value transactions exceeding <strong>10,000,000 ETB</strong>.
+              </span>
+            )}
+            {isDeptHead && (
+              <span className="ml-1 text-slate-700 font-medium">
+                You hold final signing authority to grant <strong>Stage 2 Store Issue Authorizations</strong> (up to 10,000,000 ETB).
+              </span>
+            )}
+            {canApprove && !isChiefDirector && !isDeptHead && (
+              <span className="ml-1 text-slate-700 font-medium">
+                You hold final signing authority to grant <strong>Stage 2 Authorizations</strong>.
               </span>
             )}
             {!canReview && (
@@ -709,10 +737,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   const isSelected = selectedIds.includes(appr.id);
                   const isPending = appr.status === ApprovalStatus.PENDING;
                   const stage = appr.currentStage ?? 1;
-                  const isActionableForMe =
-                    isPending &&
-                    ((canEndorse && stage === 1) ||
-                      (canApprove && stage === 2));
+                  const isHighValue = (appr.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
+                  const canAuthorizeThis =
+                    canApprove &&
+                    stage === 2 &&
+                    ((isChiefDirector && isHighValue) ||
+                      (isDeptHead && !isHighValue) ||
+                      (!isChiefDirector && !isDeptHead));
+                  const isActionableForMe = isPending && ((canEndorse && stage === 1) || canAuthorizeThis);
 
                   return (
                     <tr
@@ -815,7 +847,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                             }`}
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            <span>{stage === 1 ? 'Endorse' : 'Authorize'}</span>
+                            <span>{stage === 1 ? 'Endorse' : isHighValue ? 'Authorize (> 10M)' : 'Authorize'}</span>
                           </button>
                           )}
                         </div>
@@ -899,7 +931,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 <FileCheck2 className="w-4 h-4 text-emerald-800" />
                 {selectedApproval.currentStage === 1
                   ? 'Stage 1: Team Leader Endorsement'
-                  : 'Stage 2: Directorate Head Final Authorization'}
+                  : (selectedApproval.totalAmount || 0) > HIGH_VALUE_THRESHOLD
+                    ? 'Stage 2: Chief Director Final Authorization (> 10M ETB)'
+                    : 'Stage 2: Directorate Head Final Authorization'}
               </h3>
               <button
                 onClick={() => setSelectedApproval(null)}

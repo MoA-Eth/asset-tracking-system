@@ -127,6 +127,11 @@ async function main() {
       create: { id: 'EMP-HEAD-00', payrollId: 'MOA/DIR-000', fullNameEn: 'Department Head (Approver)', fullNameAm: 'የዳይሬክቶሬት ኃላፊ', departmentId: 'DEP-03', email: 'depthead@moa.gov.et', phone: '+251922000000', role: UserRole.DEPARTMENT_HEAD, password: seedPassword },
     }),
     prisma.employee.upsert({
+      where: { id: 'EMP-CHIEF-01' },
+      update: { email: 'chiefdirector@moa.gov.et', password: seedPassword, role: UserRole.CHIEF_DIRECTOR },
+      create: { id: 'EMP-CHIEF-01', payrollId: 'MOA/CDIR-001', fullNameEn: 'Abebe Bikila (Chief Director)', fullNameAm: 'አቶ አበበ ቢቂላ (ዋና ዳይሬክተር)', departmentId: 'DEP-03', email: 'chiefdirector@moa.gov.et', phone: '+251911000000', role: UserRole.CHIEF_DIRECTOR, password: seedPassword },
+    }),
+    prisma.employee.upsert({
       where: { id: 'EMP-HEAD-01' },
       update: { password: seedPassword },
       create: { id: 'EMP-HEAD-01', payrollId: 'MOA/DIR-012', fullNameEn: 'Tigist Haile (Extension Director)', fullNameAm: 'ትዕግስት ኃይሌ (ዳይሬክተር)', departmentId: 'DEP-01', email: 'tigist.h@moa.gov.et', phone: '+251922334455', role: UserRole.DEPARTMENT_HEAD, password: seedPassword },

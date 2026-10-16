@@ -13,6 +13,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.DATA_ENCODER]: 'Data Encoder',
   [UserRole.TEAM_LEADER]: 'Team Leader',
   [UserRole.DEPARTMENT_HEAD]: 'Department Head',
+  [UserRole.CHIEF_DIRECTOR]: 'Chief Director',
   [UserRole.MANAGER]: 'Manager',
   [UserRole.EMPLOYEE]: 'Employee',
 };

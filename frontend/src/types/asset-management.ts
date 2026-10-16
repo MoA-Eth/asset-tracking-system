@@ -3,6 +3,7 @@ export enum UserRole {
   DATA_ENCODER = 'DATA_ENCODER',
   TEAM_LEADER = 'TEAM_LEADER',
   DEPARTMENT_HEAD = 'DEPARTMENT_HEAD',
+  CHIEF_DIRECTOR = 'CHIEF_DIRECTOR',
   MANAGER = 'MANAGER', // General Manager
   EMPLOYEE = 'EMPLOYEE', // Sees only the assets assigned to them
 }
@@ -494,6 +495,10 @@ export interface TransactionApproval {
   /** Units currently on the request's item record, and their unit of measure */
   itemUnits?: number;
   itemUom?: string;
+  /** Total transaction value in ETB */
+  totalAmount?: number;
+  /** Required role for Stage 2 authorization */
+  requiredRole?: "DEPARTMENT_HEAD" | "CHIEF_DIRECTOR";
   
   // Multi-Stage Workflow Status
   status: ApprovalStatus;

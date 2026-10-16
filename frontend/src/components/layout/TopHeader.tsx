@@ -53,6 +53,7 @@ const ROLE_TITLES: Partial<Record<UserRole, string>> = {
   [UserRole.MANAGER]: 'Manager',
   [UserRole.EMPLOYEE]: 'Employee',
   [UserRole.DEPARTMENT_HEAD]: 'Directorate Head',
+  [UserRole.CHIEF_DIRECTOR]: 'Chief Director',
   [UserRole.TEAM_LEADER]: 'Team Leader',
   [UserRole.DATA_ENCODER]: 'Data Encoder',
   [UserRole.SYSTEM_ADMIN]: 'System Administrator',
@@ -118,7 +119,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const dateInfo = getTodayGcAndEc();
 
   const canEndorse = user?.permissions?.includes('approvals.endorse') ?? (role === UserRole.TEAM_LEADER);
-  const canAuthorize = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD);
+  const canAuthorize = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD || role === UserRole.CHIEF_DIRECTOR);
   const isApprover = canEndorse || canAuthorize;
 
   const fetchNotificationItems = async () => {

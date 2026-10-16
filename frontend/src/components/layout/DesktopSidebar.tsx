@@ -20,6 +20,7 @@ const ROLE_TITLES: Partial<Record<UserRole, string>> = {
   [UserRole.MANAGER]: 'Manager',
   [UserRole.EMPLOYEE]: 'Employee',
   [UserRole.DEPARTMENT_HEAD]: 'Directorate Head',
+  [UserRole.CHIEF_DIRECTOR]: 'Chief Director',
   [UserRole.TEAM_LEADER]: 'Team Leader',
   [UserRole.DATA_ENCODER]: 'Data Encoder',
   [UserRole.SYSTEM_ADMIN]: 'System Administrator',

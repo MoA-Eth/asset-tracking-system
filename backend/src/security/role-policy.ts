@@ -65,6 +65,12 @@ export const ROLE_POLICY: Record<UserRole, {
     permissions: [...readPermissions, 'approvals.read', 'approvals.authorize', 'reports.read', 'audit.read'],
     allowedTabs: ['approvals', 'assets', 'reports', 'audit', ...referenceTabs], landingTab: 'approvals',
   },
+  CHIEF_DIRECTOR: {
+    name: 'Chief Director', description: 'Authorizes high-value asset transactions exceeding 10,000,000 ETB and oversees ministry asset portfolio.',
+    approvalResponsibility: 'Stage 2 (High-Value > 10M ETB) — authorize or reject',
+    permissions: [...readPermissions, 'approvals.read', 'approvals.authorize', 'dashboard.read', 'reports.read', 'audit.read'],
+    allowedTabs: ['approvals', 'dashboard', 'assets', 'reports', 'audit', ...referenceTabs], landingTab: 'approvals',
+  },
   MANAGER: {
     name: 'Manager', description: 'Monitors the asset portfolio through the executive dashboard and reports.',
     approvalResponsibility: 'No approval authority',

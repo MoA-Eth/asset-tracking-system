@@ -121,14 +121,30 @@ function mapItem(raw: any): ItemWithRelations {
   };
 }
 
+export const HIGH_VALUE_APPROVAL_THRESHOLD = 10_000_000;
+
+export function calculateApprovalTotalAmount(raw: any, itemObj?: any): number {
+  const req = raw?.requestDetails;
+  if (req?.totalAmount && Number(req.totalAmount) > 0) {
+    return Number(req.totalAmount);
+  }
+  if (req?.bookValue && Number(req.bookValue) > 0) {
+    return Number(req.bookValue);
+  }
+  const item = itemObj ?? raw?.item;
+  const unitCost = Number(item?.unitCostETB) || 0;
+  const qty = Number(req?.quantity) || (item ? quantityOf(item) : 1);
+  return unitCost * qty;
+}
+
 const APPROVAL_INCLUDES = {
   requestedBy: true,
   endorsedBy: true,
   reviewedBy: true,
   recipientEmployee: true,
   targetDepartment: true,
-  // Quantity lives in the item's Model 19 details
-  item: { select: { notes: true } },
+  // Quantity lives in notes; unitCostETB enables threshold calculation
+  item: { select: { notes: true, unitCostETB: true } },
 };
 
 function mapApproval(raw: any): TransactionApproval {
@@ -150,6 +166,8 @@ function mapApproval(raw: any): TransactionApproval {
     requestDetails: requestDetailsOf(raw),
     itemUnits: raw.item ? quantityOf(raw.item) : undefined,
     itemUom: raw.item ? uomOf(raw.item) : undefined,
+    totalAmount: calculateApprovalTotalAmount(raw),
+    requiredRole: calculateApprovalTotalAmount(raw) > HIGH_VALUE_APPROVAL_THRESHOLD ? 'CHIEF_DIRECTOR' : 'DEPARTMENT_HEAD',
     status: raw.status as ApprovalStatus,
     currentStage: raw.currentStage ?? 1,
     endorsedById: raw.endorsedById ?? undefined,
@@ -2236,6 +2254,24 @@ export class StoreService {
     const item = await db.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new NotFoundError(`Target item ${approval.itemId} not found.`);
 
+    const totalAmount = calculateApprovalTotalAmount(approval, item);
+    const isHighValue = totalAmount > HIGH_VALUE_APPROVAL_THRESHOLD;
+
+    // High-Value routing rule: Transactions > 10,000,000 ETB require Chief Director authorization at Stage 2
+    if (approval.currentStage === 2) {
+      if (isHighValue) {
+        if (reviewer?.role !== UserRole.CHIEF_DIRECTOR && reviewer?.role !== UserRole.SYSTEM_ADMIN) {
+          throw new ForbiddenError(
+            `High-value transactions exceeding 10,000,000 ETB (${totalAmount.toLocaleString()} ETB) require authorization by the Chief Director.`
+          );
+        }
+      } else {
+        if (reviewer?.role !== UserRole.DEPARTMENT_HEAD && reviewer?.role !== UserRole.CHIEF_DIRECTOR && reviewer?.role !== UserRole.SYSTEM_ADMIN) {
+          throw new ForbiddenError('Your role cannot authorize this approval stage.');
+        }
+      }
+    }
+
     const newStatus = isApprove ? 'APPROVED' : 'REJECTED';
 
     // Update approval record
@@ -2244,7 +2280,9 @@ export class StoreService {
       data: {
         status: newStatus as any,
         reviewedById: payload.reviewedById,
-        reviewRemarks: isApprove ? payload.reviewRemarks || 'Approved by Department Head (Stage 2)' : rejectionReason,
+        reviewRemarks: isApprove
+          ? payload.reviewRemarks || (isHighValue ? 'Approved by Chief Director (High-Value Stage 2)' : 'Approved by Department Head (Stage 2)')
+          : rejectionReason,
         reviewedAtGc: today.gc,
         reviewedAtEc: today.ec,
       },
