@@ -96,86 +96,102 @@ export const LoginPage: React.FC = () => {
     <div
       className="min-h-screen w-full flex flex-col justify-between selection:bg-emerald-600 selection:text-white relative overflow-hidden"
       style={{
-        background: "radial-gradient(ellipse at 50% 15%, #0e4529 0%, #092a1a 45%, #04140c 100%)",
+        background: "radial-gradient(ellipse at 50% 20%, #0d3d24 0%, #082618 45%, #03120a 100%)",
       }}
     >
-      {/* Ambient warm gold & emerald highlight behind emblem */}
+      {/* Dynamic ambient lighting behind the card */}
       <div
-        className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[720px] h-[360px] opacity-20 blur-3xl"
+        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] h-[520px] opacity-25 blur-[100px]"
         style={{
-          background: "radial-gradient(ellipse at 50% 0%, #FCDD09 0%, #10b981 45%, transparent 70%)",
+          background: "radial-gradient(ellipse at 50% 40%, #10b981 0%, #065f46 50%, transparent 75%)",
+        }}
+      />
+      <div
+        className="pointer-events-none fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[260px] opacity-15 blur-[80px]"
+        style={{
+          background: "radial-gradient(ellipse at 50% 30%, #FCDD09 0%, transparent 70%)",
         }}
       />
 
-      {/* Subtle geometric grid overlay */}
+      {/* Geometric grid pattern */}
       <div
         className="pointer-events-none fixed inset-0 opacity-[0.035]"
         style={{
           backgroundImage:
             "linear-gradient(#34d399 1px, transparent 1px), linear-gradient(90deg, #34d399 1px, transparent 1px)",
-          backgroundSize: "44px 44px",
+          backgroundSize: "40px 40px",
         }}
       />
 
       {/* Top Ministry Accent Bar */}
-      <header className="relative z-10 pt-4 px-6 flex items-center justify-between text-xs">
+      <header className="w-full pt-4 px-6 flex items-center justify-between text-xs z-10 shrink-0">
         <div className="flex items-center gap-2 text-emerald-300/80">
-          <Building2 className="w-4 h-4 text-emerald-400" />
+          <div className="size-6 rounded-md bg-emerald-950/60 border border-emerald-500/30 flex items-center justify-center">
+            <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+          </div>
           <span className="font-semibold tracking-wide">FDRE Ministry of Agriculture</span>
           <span className="text-emerald-500/60 font-sans">&bull;</span>
           <span className="font-sans text-emerald-300/60 hidden sm:inline">የኢ.ፌ.ዴ.ሪ ግብርና ሚኒስቴር</span>
         </div>
-        <div className="text-[11px] font-mono text-emerald-400/60 hidden md:block">
-          Official Government Portal
+        <div className="text-[11px] font-mono text-emerald-400/60 hidden md:flex items-center gap-1.5 bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-500/20">
+          <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Official Civil Service Portal</span>
         </div>
       </header>
 
       {/* Main Centered Login Arena */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 z-10">
-        <div className="w-full max-w-[430px] animate-fadeIn">
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 z-10 my-auto">
+        <div className="w-full max-w-[416px] animate-fadeIn">
           {/* Error Banner */}
           {errorMsg && (
-            <div className="mb-4 p-3.5 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-shake shadow-lg">
+            <div className="mb-3.5 p-3.5 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-shake shadow-lg">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               <span className="font-medium">{errorMsg}</span>
             </div>
           )}
 
-          {/* Authentic MoA Glass Card */}
+          {/* Authentic MoA Card with Rich Visual Depth */}
           <form
             onSubmit={handleFormSubmit}
-            className="rounded-2xl sm:rounded-3xl border border-emerald-500/25 backdrop-blur-xl p-7 sm:p-9 shadow-2xl relative overflow-hidden"
+            className="rounded-3xl border border-emerald-500/30 backdrop-blur-2xl p-7 sm:p-8 relative overflow-hidden ring-1 ring-white/10"
             style={{
               background:
-                "linear-gradient(165deg, rgba(13, 48, 29, 0.94) 0%, rgba(8, 32, 20, 0.96) 60%, rgba(5, 20, 12, 0.98) 100%)",
+                "linear-gradient(168deg, rgba(14, 46, 29, 0.94) 0%, rgba(9, 31, 20, 0.96) 50%, rgba(5, 18, 12, 0.98) 100%)",
               boxShadow:
-                "0 25px 50px -12px rgba(0, 0, 0, 0.65), 0 0 30px rgba(11, 61, 37, 0.35)",
+                "0 30px 65px -12px rgba(0, 0, 0, 0.85), 0 15px 35px -10px rgba(0, 0, 0, 0.75), 0 0 50px -10px rgba(16, 185, 129, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.5)",
             }}
           >
-            {/* Top gold-emerald accent strip */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-600 via-[#FCDD09] to-emerald-600" />
+            {/* Top gold-emerald accent strip with glow */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-600 via-[#FCDD09] to-emerald-600 shadow-[0_1px_8px_rgba(252,221,9,0.5)]" />
+
+            {/* Subtle inner top specular highlight */}
+            <div className="absolute top-1 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
 
             {/* Brand Header */}
-            <div className="text-center mb-7 pt-1">
-              <MoaLogo
-                className="w-20 h-20 sm:w-22 sm:h-22 mx-auto mb-3.5 drop-shadow-xl"
-                alt="Ministry of Agriculture"
-              />
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/80 mb-1">
+            <div className="text-center mb-6 pt-1">
+              <div className="relative inline-block mb-3">
+                <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-xl -z-10 scale-125" />
+                <MoaLogo
+                  className="w-18 h-18 sm:w-20 sm:h-20 mx-auto drop-shadow-[0_10px_16px_rgba(0,0,0,0.5)] transition-transform hover:scale-105"
+                  alt="Ministry of Agriculture"
+                />
+              </div>
+
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400/90 mb-1">
                 FDRE Ministry of Agriculture
               </p>
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              <h1 className="text-xl sm:text-[22px] font-bold text-white tracking-tight drop-shadow-sm">
                 MoA Asset Tracking System
               </h1>
-              <p className="text-xs text-emerald-300/80 font-sans mt-0.5">
+              <p className="text-xs text-emerald-300/85 font-sans mt-0.5">
                 የቋሚ ንብረት ቁጥጥርና አስተዳደር ሥርዓት
               </p>
-              <p className="text-[11px] text-emerald-200/50 mt-1.5">
+              <p className="text-[11px] text-emerald-200/60 mt-1.5">
                 Sign in with your civil service credentials
               </p>
             </div>
 
-            {/* Form Fields */}
+            {/* Form Inputs */}
             <div className="space-y-4">
               {/* Email / Payroll ID */}
               <div>
@@ -193,14 +209,14 @@ export const LoginPage: React.FC = () => {
                     value={usernameOrEmail}
                     onChange={(e) => setUsernameOrEmail(e.target.value)}
                     placeholder="name@moa.gov.et or payroll ID"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border focus:ring-1 focus:ring-amber-400/50"
+                    className="w-full h-11 pl-10 pr-4 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                     style={{
-                      background: "rgba(4, 18, 12, 0.85)",
-                      borderColor: "rgba(52, 211, 153, 0.22)",
+                      background: "rgba(3, 15, 10, 0.88)",
+                      borderColor: "rgba(52, 211, 153, 0.25)",
                     }}
                     onFocus={(e) => (e.target.style.borderColor = "#FCDD09")}
                     onBlur={(e) =>
-                      (e.target.style.borderColor = "rgba(52, 211, 153, 0.22)")
+                      (e.target.style.borderColor = "rgba(52, 211, 153, 0.25)")
                     }
                   />
                 </div>
@@ -237,14 +253,14 @@ export const LoginPage: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full h-11 pl-10 pr-10 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border focus:ring-1 focus:ring-amber-400/50"
+                    className="w-full h-11 pl-10 pr-10 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                     style={{
-                      background: "rgba(4, 18, 12, 0.85)",
-                      borderColor: "rgba(52, 211, 153, 0.22)",
+                      background: "rgba(3, 15, 10, 0.88)",
+                      borderColor: "rgba(52, 211, 153, 0.25)",
                     }}
                     onFocus={(e) => (e.target.style.borderColor = "#FCDD09")}
                     onBlur={(e) =>
-                      (e.target.style.borderColor = "rgba(52, 211, 153, 0.22)")
+                      (e.target.style.borderColor = "rgba(52, 211, 153, 0.25)")
                     }
                   />
                   <button
@@ -262,17 +278,18 @@ export const LoginPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Submit Button */}
+              {/* Submit Button with Rich Elevation */}
               <div className="pt-2">
                 <button
                   type="submit"
                   disabled={signingIn}
-                  className="w-full h-11 rounded-[4px] text-white text-xs font-bold shadow-xl cursor-pointer border border-amber-400/30 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed"
+                  className="w-full h-11 rounded-lg text-white text-xs font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden"
                   style={{
                     background:
-                      "linear-gradient(135deg, #12633C 0%, #0B3D25 100%)",
+                      "linear-gradient(135deg, #136a41 0%, #0c4228 100%)",
                   }}
                 >
+                  <div className="absolute inset-0 bg-white/[0.06] opacity-0 group-hover:opacity-100 transition-opacity" />
                   {signingIn ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin text-amber-300" />
@@ -281,15 +298,15 @@ export const LoginPage: React.FC = () => {
                   ) : (
                     <>
                       <span>Sign In to MoA Asset Tracking System</span>
-                      <ArrowRight className="w-4 h-4 text-amber-300" />
+                      <ArrowRight className="w-4 h-4 text-amber-300 group-hover:translate-x-0.5 transition-transform" />
                     </>
                   )}
                 </button>
               </div>
 
               {/* Security Badges */}
-              <div className="pt-2 flex items-center justify-center gap-1.5 text-[10px] text-emerald-400/60">
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-400/80 shrink-0" />
+              <div className="pt-2 flex items-center justify-center gap-1.5 text-[10px] text-emerald-400/70">
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400/90 shrink-0" />
                 <span>Protected Civil Service Network &bull; IFMIS Mirror &bull; TLS 1.3</span>
               </div>
             </div>
@@ -303,26 +320,26 @@ export const LoginPage: React.FC = () => {
           role="dialog"
           aria-modal="true"
           aria-labelledby="forgot-pw-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn"
           onClick={(e) => {
             if (e.target === e.currentTarget) resetForgotDialog();
           }}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-emerald-500/30 text-white shadow-2xl relative overflow-hidden animate-scaleIn p-6 sm:p-7"
+            className="w-full max-w-md rounded-2xl border border-emerald-500/30 text-white shadow-2xl relative overflow-hidden animate-scaleIn p-6 sm:p-7 ring-1 ring-white/10"
             style={{
               background:
                 "linear-gradient(165deg, rgba(13, 48, 29, 0.98) 0%, rgba(7, 26, 16, 0.99) 100%)",
-              boxShadow: "0 25px 60px -15px rgba(0, 0, 0, 0.8)",
+              boxShadow: "0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 40px rgba(16, 185, 129, 0.2)",
             }}
           >
             {/* Top gold accent line */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-[#FCDD09] to-emerald-500" />
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-[#FCDD09] to-emerald-500 shadow-[0_1px_6px_rgba(252,221,9,0.4)]" />
 
             {/* Header & Close */}
             <div className="flex items-start justify-between gap-3 mb-5">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-amber-300 flex items-center justify-center shrink-0">
+                <div className="size-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-amber-300 flex items-center justify-center shrink-0 shadow-inner">
                   <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
@@ -357,7 +374,7 @@ export const LoginPage: React.FC = () => {
                   or the IT Directorate Support Desk.
                 </p>
 
-                <div className="p-3 rounded-xl bg-black/30 border border-emerald-500/20 text-xs space-y-2">
+                <div className="p-3.5 rounded-xl bg-black/40 border border-emerald-500/20 text-xs space-y-2 shadow-inner">
                   <div className="text-amber-300 font-semibold flex items-center gap-1.5 text-[11px]">
                     <HelpCircle className="w-3.5 h-3.5" />
                     <span>How to get your temporary password:</span>
@@ -381,7 +398,7 @@ export const LoginPage: React.FC = () => {
                       value={forgotIdentifier}
                       onChange={(e) => setForgotIdentifier(e.target.value)}
                       placeholder="e.g. hana@moa.gov.et or 00123456"
-                      className="w-full h-10 pl-10 pr-4 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border focus:ring-1 focus:ring-amber-400/50"
+                      className="w-full h-10 pl-10 pr-4 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-inner focus:ring-2 focus:ring-amber-400/40"
                       style={{
                         background: "rgba(4, 18, 12, 0.85)",
                         borderColor: "rgba(52, 211, 153, 0.3)",
@@ -409,7 +426,7 @@ export const LoginPage: React.FC = () => {
               </form>
             ) : (
               <div className="space-y-4 animate-fadeIn">
-                <div className="p-4 rounded-xl bg-emerald-900/40 border border-emerald-400/40 flex items-start gap-3">
+                <div className="p-4 rounded-xl bg-emerald-900/40 border border-emerald-400/40 flex items-start gap-3 shadow-inner">
                   <CheckCircle2 className="w-5 h-5 text-emerald-300 shrink-0 mt-0.5" />
                   <div>
                     <h3 className="text-xs font-bold text-white">
@@ -427,7 +444,7 @@ export const LoginPage: React.FC = () => {
 
                 {/* Direct Contacts Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-                  <div className="p-3 rounded-lg bg-black/30 border border-emerald-500/20">
+                  <div className="p-3 rounded-lg bg-black/30 border border-emerald-500/20 shadow-inner">
                     <div className="flex items-center gap-1.5 text-emerald-400 text-[11px] font-medium">
                       <Phone className="w-3.5 h-3.5 text-amber-300" />
                       <span>IT Help Desk Phone</span>
@@ -440,7 +457,7 @@ export const LoginPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="p-3 rounded-lg bg-black/30 border border-emerald-500/20">
+                  <div className="p-3 rounded-lg bg-black/30 border border-emerald-500/20 shadow-inner">
                     <div className="flex items-center justify-between text-emerald-400 text-[11px] font-medium">
                       <span className="flex items-center gap-1.5">
                         <Mail className="w-3.5 h-3.5 text-amber-300" />
@@ -492,7 +509,7 @@ export const LoginPage: React.FC = () => {
       )}
 
       {/* Page Footer */}
-      <footer className="py-4 px-4 text-center text-[11px] text-emerald-400/50 shrink-0 border-t border-white/[0.04]">
+      <footer className="py-3 px-4 text-center text-[10px] sm:text-[11px] text-emerald-400/50 shrink-0 border-t border-white/[0.04]">
         Federal Democratic Republic of Ethiopia &bull; Ministry of Agriculture &bull; Version {APP_VERSION}
       </footer>
     </div>
