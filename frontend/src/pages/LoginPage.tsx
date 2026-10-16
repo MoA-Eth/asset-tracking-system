@@ -101,13 +101,13 @@ export const LoginPage: React.FC = () => {
     >
       {/* Dynamic ambient lighting behind the card */}
       <div
-        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[480px] opacity-25 blur-[100px]"
+        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[540px] opacity-25 blur-[100px]"
         style={{
           background: "radial-gradient(ellipse at 50% 40%, #10b981 0%, #065f46 50%, transparent 75%)",
         }}
       />
       <div
-        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[380px] h-[220px] opacity-15 blur-[80px]"
+        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[260px] opacity-15 blur-[80px]"
         style={{
           background: "radial-gradient(ellipse at 50% 30%, #FCDD09 0%, transparent 70%)",
         }}
@@ -123,8 +123,8 @@ export const LoginPage: React.FC = () => {
         }}
       />
 
-      {/* Top Ministry Accent Bar (Absolute so it never displaces center alignment) */}
-      <header className="absolute top-0 left-0 right-0 pt-3.5 px-4 sm:px-6 flex items-center justify-between text-xs z-20 pointer-events-none">
+      {/* Top Ministry Accent Bar */}
+      <header className="absolute top-0 left-0 right-0 pt-4 px-4 sm:px-6 flex items-center justify-between text-xs z-20 pointer-events-none">
         <div className="flex items-center gap-2 text-emerald-300/80 pointer-events-auto">
           <div className="size-5 rounded bg-emerald-950/60 border border-emerald-500/30 flex items-center justify-center">
             <Building2 className="w-3 h-3 text-emerald-400" />
@@ -139,21 +139,21 @@ export const LoginPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Login Arena - Perfectly Centered in Viewport */}
-      <main className="min-h-screen w-full flex items-center justify-center p-4 z-10">
-        <div className="w-full max-w-[406px] animate-fadeIn">
+      {/* Main Login Arena - Centered with Enhanced Height and Prominence */}
+      <main className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 z-10">
+        <div className="w-full max-w-[420px] animate-fadeIn">
           {/* Error Banner */}
           {errorMsg && (
-            <div className="mb-3 p-3 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-shake shadow-lg">
+            <div className="mb-3.5 p-3.5 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-shake shadow-lg">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               <span className="font-medium">{errorMsg}</span>
             </div>
           )}
 
-          {/* Authentic MoA Card with Rich Visual Depth and True Centered Alignment */}
+          {/* Authentic MoA Card with Rich Height, Depth, and Prominence */}
           <form
             onSubmit={handleFormSubmit}
-            className="rounded-2xl sm:rounded-3xl border border-emerald-500/30 backdrop-blur-2xl p-6 sm:p-7 relative overflow-hidden ring-1 ring-white/10"
+            className="rounded-3xl border border-emerald-500/30 backdrop-blur-2xl p-7 sm:p-8 relative overflow-hidden ring-1 ring-white/10"
             style={{
               background:
                 "linear-gradient(168deg, rgba(14, 46, 29, 0.94) 0%, rgba(9, 31, 20, 0.96) 50%, rgba(5, 18, 12, 0.98) 100%)",
@@ -168,36 +168,36 @@ export const LoginPage: React.FC = () => {
             <div className="absolute top-1 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
 
             {/* Brand Header */}
-            <div className="text-center mb-4 pt-0.5">
-              <div className="relative inline-block mb-2">
+            <div className="text-center mb-6 pt-1">
+              <div className="relative inline-block mb-3">
                 <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-xl -z-10 scale-125" />
                 <MoaLogo
-                  className="w-15 h-15 sm:w-16 sm:h-16 mx-auto drop-shadow-[0_8px_14px_rgba(0,0,0,0.5)] transition-transform hover:scale-105"
+                  className="w-18 h-18 sm:w-20 sm:h-20 mx-auto drop-shadow-[0_10px_16px_rgba(0,0,0,0.5)] transition-transform hover:scale-105"
                   alt="Ministry of Agriculture"
                 />
               </div>
 
-              <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-emerald-400/90 mb-0.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400/90 mb-1">
                 FDRE Ministry of Agriculture
               </p>
-              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight drop-shadow-sm">
+              <h1 className="text-xl sm:text-[22px] font-bold text-white tracking-tight drop-shadow-sm">
                 MoA Asset Tracking System
               </h1>
-              <p className="text-[11px] text-emerald-300/85 font-sans mt-0.5">
+              <p className="text-xs text-emerald-300/85 font-sans mt-0.5">
                 የቋሚ ንብረት ቁጥጥርና አስተዳደር ሥርዓት
               </p>
-              <p className="text-[10px] text-emerald-200/60 mt-1">
+              <p className="text-[11px] text-emerald-200/60 mt-1.5">
                 Sign in with your civil service credentials
               </p>
             </div>
 
             {/* Form Inputs */}
-            <div className="space-y-3.5">
+            <div className="space-y-4">
               {/* Email / Payroll ID */}
               <div>
-                <label className="flex items-center justify-between text-xs font-semibold text-emerald-300/90 mb-1">
+                <label className="flex items-center justify-between text-xs font-semibold text-emerald-300/90 mb-1.5">
                   <span>Email or Employee ID</span>
-                  <span className="text-[10px] text-emerald-400/60 font-sans font-normal">
+                  <span className="text-[11px] text-emerald-400/60 font-sans font-normal">
                     ኢሜይል ወይም መለያ
                   </span>
                 </label>
@@ -209,7 +209,7 @@ export const LoginPage: React.FC = () => {
                     value={usernameOrEmail}
                     onChange={(e) => setUsernameOrEmail(e.target.value)}
                     placeholder="name@moa.gov.et or payroll ID"
-                    className="w-full h-10 pl-10 pr-4 rounded-lg text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                    className="w-full h-11 pl-10 pr-4 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                     style={{
                       background: "rgba(3, 15, 10, 0.88)",
                       borderColor: "rgba(52, 211, 153, 0.25)",
@@ -224,10 +224,10 @@ export const LoginPage: React.FC = () => {
 
               {/* Password & Forgot Password Link */}
               <div>
-                <div className="flex items-center justify-between text-xs font-semibold text-emerald-300/90 mb-1">
+                <div className="flex items-center justify-between text-xs font-semibold text-emerald-300/90 mb-1.5">
                   <span className="flex items-center gap-1.5">
                     <span>Password</span>
-                    <span className="text-[10px] text-emerald-400/60 font-sans font-normal">
+                    <span className="text-[11px] text-emerald-400/60 font-sans font-normal">
                       የይለፍ ቃል
                     </span>
                   </span>
@@ -253,7 +253,7 @@ export const LoginPage: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full h-10 pl-10 pr-10 rounded-lg text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                    className="w-full h-11 pl-10 pr-10 rounded-xl text-xs text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                     style={{
                       background: "rgba(3, 15, 10, 0.88)",
                       borderColor: "rgba(52, 211, 153, 0.25)",
@@ -279,11 +279,11 @@ export const LoginPage: React.FC = () => {
               </div>
 
               {/* Submit Button with Rich Elevation */}
-              <div className="pt-1.5">
+              <div className="pt-2">
                 <button
                   type="submit"
                   disabled={signingIn}
-                  className="w-full h-10 rounded-lg text-white text-xs font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden"
+                  className="w-full h-11 rounded-lg text-white text-xs font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden"
                   style={{
                     background:
                       "linear-gradient(135deg, #136a41 0%, #0c4228 100%)",
@@ -305,7 +305,7 @@ export const LoginPage: React.FC = () => {
               </div>
 
               {/* Security Badges */}
-              <div className="pt-1 flex items-center justify-center gap-1.5 text-[10px] text-emerald-400/70">
+              <div className="pt-2 flex items-center justify-center gap-1.5 text-[10px] text-emerald-400/70">
                 <ShieldCheck className="w-3.5 h-3.5 text-amber-400/90 shrink-0" />
                 <span>Protected Civil Service Network &bull; IFMIS Mirror &bull; TLS 1.3</span>
               </div>
@@ -508,7 +508,7 @@ export const LoginPage: React.FC = () => {
         </div>
       )}
 
-      {/* Page Footer (Absolute so it never displaces center alignment) */}
+      {/* Page Footer */}
       <footer className="absolute bottom-0 left-0 right-0 py-2.5 px-4 text-center text-[10px] sm:text-[11px] text-emerald-400/50 z-20 pointer-events-none">
         <span className="pointer-events-auto">
           Federal Democratic Republic of Ethiopia &bull; Ministry of Agriculture &bull; Version {APP_VERSION}
