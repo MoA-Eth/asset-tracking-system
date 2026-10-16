@@ -289,14 +289,24 @@ table,
   }
 }
 
-/* Dark theme input autofill overrides to maintain dark emerald appearance */
+/* Form fields autofill: clean white appearance with dark text for all institutional forms */
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus, 
 input:-webkit-autofill:active {
+  -webkit-text-fill-color: #0f172a !important;
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+  box-shadow: 0 0 0px 1000px #ffffff inset !important;
+}
+
+/* Dark theme login / auth portal autofill only */
+.auth-dark-bg input:-webkit-autofill,
+.auth-dark-bg input:-webkit-autofill:hover, 
+.auth-dark-bg input:-webkit-autofill:focus, 
+.auth-dark-bg input:-webkit-autofill:active {
   -webkit-text-fill-color: #ffffff !important;
-  -webkit-box-shadow: 0 0 0px 1000px #04120a inset !important;
-  box-shadow: 0 0 0px 1000px #04120a inset !important;
+  -webkit-box-shadow: 0 0 0px 1000px #030f0a inset !important;
+  box-shadow: 0 0 0px 1000px #030f0a inset !important;
   transition: background-color 5000s ease-in-out 0s;
 }
 

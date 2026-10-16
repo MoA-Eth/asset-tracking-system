@@ -52,7 +52,7 @@ export const ChangePasswordPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen w-screen flex items-center justify-center relative overflow-x-hidden selection:bg-amber-400 selection:text-emerald-950 font-sans p-4 sm:p-6"
+      className="auth-dark-bg min-h-screen w-screen flex items-center justify-center relative overflow-x-hidden selection:bg-amber-400 selection:text-emerald-950 font-sans p-4 sm:p-6"
       style={{
         background:
           'radial-gradient(ellipse at 50% 20%, #0d3d24 0%, #082618 45%, #03120a 100%)',
