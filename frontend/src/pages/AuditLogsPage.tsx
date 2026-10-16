@@ -409,7 +409,7 @@ export const AuditLogsPage: React.FC = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={handleSort}
-                      thClassName="w-40 px-3 py-2.5 whitespace-nowrap"
+                      thClassName="w-40 px-3 py-1.5 whitespace-nowrap"
                     />
                     <SortableHeader
                       label="Who"
@@ -417,7 +417,7 @@ export const AuditLogsPage: React.FC = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={handleSort}
-                      thClassName="w-48 px-3 py-2.5"
+                      thClassName="w-48 px-3 py-1.5"
                     />
                     <SortableHeader
                       label="Action"
@@ -425,7 +425,7 @@ export const AuditLogsPage: React.FC = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={handleSort}
-                      thClassName="w-44 px-3 py-2.5"
+                      thClassName="w-44 px-3 py-1.5"
                     />
                     <SortableHeader
                       label="Slip no."
@@ -433,9 +433,9 @@ export const AuditLogsPage: React.FC = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={handleSort}
-                      thClassName="w-36 px-3 py-2.5 whitespace-nowrap"
+                      thClassName="w-36 px-3 py-1.5 whitespace-nowrap"
                     />
-                    <th scope="col" className="px-3 py-2.5 font-normal">What happened</th>
+                    <th scope="col" className="px-3 py-1.5 font-normal">What happened</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">

@@ -514,7 +514,7 @@ export const EmployeesPage: React.FC = () => {
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="px-4 py-2.5"
+                    thClassName="px-4 py-1.5"
                   />
                   <SortableHeader
                     label="Employee ID"
@@ -522,7 +522,7 @@ export const EmployeesPage: React.FC = () => {
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="px-3 py-2.5 whitespace-nowrap"
+                    thClassName="px-3 py-1.5 whitespace-nowrap"
                   />
                   <SortableHeader
                     label="Department / Unit"
@@ -530,16 +530,16 @@ export const EmployeesPage: React.FC = () => {
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="px-3 py-2.5"
+                    thClassName="px-3 py-1.5"
                   />
-                  {canManage && <th className="px-3 py-2.5 font-semibold text-slate-700">Contact</th>}
+                  {canManage && <th className="px-3 py-1.5 font-semibold text-slate-700">Contact</th>}
                   <SortableHeader
                     label="Sign-in"
                     columnKey="role"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="px-3 py-2.5 whitespace-nowrap"
+                    thClassName="px-3 py-1.5 whitespace-nowrap"
                   />
                   {canManage && (
                     <SortableHeader
@@ -549,7 +549,7 @@ export const EmployeesPage: React.FC = () => {
                       currentSortDirection={sortDirection}
                       onSort={handleSort}
                       align="right"
-                      thClassName="px-3 py-2.5 text-right whitespace-nowrap"
+                      thClassName="px-3 py-1.5 text-right whitespace-nowrap"
                     />
                   )}
                   <SortableHeader
@@ -558,10 +558,10 @@ export const EmployeesPage: React.FC = () => {
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="px-3 py-2.5"
+                    thClassName="px-3 py-1.5"
                   />
                   {canManage && (
-                    <th className={`px-3 py-2.5 ${table.actionsHead}`}>
+                    <th className={`px-3 py-1.5 ${table.actionsHead}`}>
                       <span className="sr-only">Actions</span>
                     </th>
                   )}

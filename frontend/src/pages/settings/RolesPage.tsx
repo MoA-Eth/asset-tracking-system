@@ -305,7 +305,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
               <table className="w-full text-left text-[13px] min-w-[760px] border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200">
-                    <th scope="col" className="w-[260px] px-5 py-3 text-[13px] font-normal text-slate-600 align-bottom">
+                    <th scope="col" className="w-[260px] px-5 py-1.5 text-[13px] font-normal text-slate-600 align-bottom">
                       Permission
                     </th>
                     {filtered.map((role) => {

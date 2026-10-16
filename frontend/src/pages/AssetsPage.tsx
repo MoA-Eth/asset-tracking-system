@@ -1490,7 +1490,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="pl-5 pr-3 py-2.5 min-w-[230px]"
+                      thClassName="pl-5 pr-3 py-1.5 min-w-[230px]"
                     />
                     <SortableHeader
                       label="Status"
@@ -1498,7 +1498,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-3 py-2.5 w-36"
+                      thClassName="px-3 py-1.5 w-36"
                     />
                     <SortableHeader
                       label="Qty"
@@ -1507,7 +1507,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
                       align="right"
-                      thClassName="px-3 py-2.5 w-20 text-right"
+                      thClassName="px-3 py-1.5 w-20 text-right"
                     />
                     <SortableHeader
                       label="Held by / where"
@@ -1515,7 +1515,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-3 py-2.5 min-w-[170px]"
+                      thClassName="px-3 py-1.5 min-w-[170px]"
                     />
                     <SortableHeader
                       label="IFMIS Slip"
@@ -1523,7 +1523,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-3 py-2.5 w-36 whitespace-nowrap"
+                      thClassName="px-3 py-1.5 w-36 whitespace-nowrap"
                     />
                     <SortableHeader
                       label="Unit cost"
@@ -1532,9 +1532,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
                       align="right"
-                      thClassName="px-3 py-2.5 w-28 text-right whitespace-nowrap"
+                      thClassName="px-3 py-1.5 w-28 text-right whitespace-nowrap"
                     />
-                    <th className={`px-3 py-2.5 ${table.actionsHead}`}>
+                    <th className={`px-3 py-1.5 ${table.actionsHead}`}>
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>

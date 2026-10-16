@@ -172,13 +172,13 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
               <table className="w-full text-left text-xs border-collapse min-w-[560px]">
                 <thead className="bg-slate-100 text-slate-800 font-bold uppercase text-[10px] border-b border-slate-300">
                   <tr>
-                    <th className="py-2.5 px-3 w-32 whitespace-nowrap">Item Tag Code</th>
-                    <th className="py-2.5 px-3 min-w-[140px]">Item Description</th>
-                    <th className="py-2.5 px-3 w-28 whitespace-nowrap">Category</th>
-                    <th className="py-2.5 px-3 w-28 whitespace-nowrap">Serial No</th>
-                    <th className="py-2.5 px-3 w-20 text-right whitespace-nowrap">Qty</th>
-                    <th className="py-2.5 px-3 w-28 text-right whitespace-nowrap">Unit Cost (ETB)</th>
-                    <th className="py-2.5 px-3 w-28 text-right whitespace-nowrap">Total (ETB)</th>
+                    <th className="py-1.5 px-3 w-32 whitespace-nowrap">Item Tag Code</th>
+                    <th className="py-1.5 px-3 min-w-[140px]">Item Description</th>
+                    <th className="py-1.5 px-3 w-28 whitespace-nowrap">Category</th>
+                    <th className="py-1.5 px-3 w-28 whitespace-nowrap">Serial No</th>
+                    <th className="py-1.5 px-3 w-20 text-right whitespace-nowrap">Qty</th>
+                    <th className="py-1.5 px-3 w-28 text-right whitespace-nowrap">Unit Cost (ETB)</th>
+                    <th className="py-1.5 px-3 w-28 text-right whitespace-nowrap">Total (ETB)</th>
                   </tr>
                 </thead>
                 <tbody>

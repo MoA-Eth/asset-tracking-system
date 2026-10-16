@@ -1015,14 +1015,14 @@ export const ReportsPage: React.FC = () => {
           <table className="w-full text-left text-[13px] min-w-[1140px]">
             <thead className={table.headRow}>
               <tr>
-                <th className="py-2.5 px-3 w-10 text-center shrink-0 font-normal">#</th>
+                <th className="py-1.5 px-3 w-10 text-center shrink-0 font-normal">#</th>
                 <SortableHeader
                   label="Code"
                   columnKey="code"
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
-                  thClassName="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap"
+                  thClassName="py-1.5 px-3 w-32 shrink-0 whitespace-nowrap"
                 />
                 <SortableHeader
                   label="Asset"
@@ -1030,7 +1030,7 @@ export const ReportsPage: React.FC = () => {
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
-                  thClassName="py-2.5 px-3 min-w-[180px] max-w-[260px]"
+                  thClassName="py-1.5 px-3 min-w-[180px] max-w-[260px]"
                 />
                 <SortableHeader
                   label="Category"
@@ -1038,7 +1038,7 @@ export const ReportsPage: React.FC = () => {
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
-                  thClassName="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap"
+                  thClassName="py-1.5 px-3 w-28 shrink-0 whitespace-nowrap"
                 />
                 <SortableHeader
                   label="Status"
@@ -1046,7 +1046,7 @@ export const ReportsPage: React.FC = () => {
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
-                  thClassName="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap"
+                  thClassName="py-1.5 px-3 w-28 shrink-0 whitespace-nowrap"
                 />
                 <SortableHeader
                   label="Received"
@@ -1056,7 +1056,7 @@ export const ReportsPage: React.FC = () => {
                   onSort={handleSort}
                   align="right"
                   title="Sort by All units received"
-                  thClassName="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
+                  thClassName="py-1.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
                 />
                 <SortableHeader
                   label="Issued"
@@ -1066,7 +1066,7 @@ export const ReportsPage: React.FC = () => {
                   onSort={handleSort}
                   align="right"
                   title="Sort by Units with custodians"
-                  thClassName="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
+                  thClassName="py-1.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
                 />
                 <SortableHeader
                   label="In store"
@@ -1076,7 +1076,7 @@ export const ReportsPage: React.FC = () => {
                   onSort={handleSort}
                   align="right"
                   title="Sort by Units in store"
-                  thClassName="py-2.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
+                  thClassName="py-1.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
                 />
                 <SortableHeader
                   label="IFMIS slip"
@@ -1084,7 +1084,7 @@ export const ReportsPage: React.FC = () => {
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
-                  thClassName="py-2.5 px-3 w-32 shrink-0 whitespace-nowrap"
+                  thClassName="py-1.5 px-3 w-32 shrink-0 whitespace-nowrap"
                 />
                 <SortableHeader
                   label="Date (E.C.)"
@@ -1092,7 +1092,7 @@ export const ReportsPage: React.FC = () => {
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
-                  thClassName="py-2.5 px-3 w-28 shrink-0 whitespace-nowrap"
+                  thClassName="py-1.5 px-3 w-28 shrink-0 whitespace-nowrap"
                 />
                 <SortableHeader
                   label="Custodian / location"
@@ -1100,7 +1100,7 @@ export const ReportsPage: React.FC = () => {
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
-                  thClassName="py-2.5 px-3 min-w-[150px] max-w-[220px]"
+                  thClassName="py-1.5 px-3 min-w-[150px] max-w-[220px]"
                 />
                 <SortableHeader
                   label="Unit cost"
@@ -1109,7 +1109,7 @@ export const ReportsPage: React.FC = () => {
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
                   align="right"
-                  thClassName="py-2.5 px-3 w-28 shrink-0 text-right whitespace-nowrap"
+                  thClassName="py-1.5 px-3 w-28 shrink-0 text-right whitespace-nowrap"
                 />
               </tr>
             </thead>

@@ -106,11 +106,11 @@ export const MyAssetsPage: React.FC = () => {
             <table className="w-full text-[13px]">
               <thead>
                 <tr className={table.headRow}>
-                  <th className="px-3 py-2.5">Asset</th>
-                  <th className="px-3 py-2.5">Serial no.</th>
-                  <th className="px-3 py-2.5 text-right">Quantity</th>
-                  <th className="px-3 py-2.5">Assigned on</th>
-                  <th className="px-3 py-2.5">Status</th>
+                  <th className="px-3 py-1.5">Asset</th>
+                  <th className="px-3 py-1.5">Serial no.</th>
+                  <th className="px-3 py-1.5 text-right">Quantity</th>
+                  <th className="px-3 py-1.5">Assigned on</th>
+                  <th className="px-3 py-1.5">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">

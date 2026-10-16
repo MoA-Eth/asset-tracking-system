@@ -197,10 +197,10 @@ export const OrganizationsPage: React.FC = () => {
           <table className="w-full text-left text-[13px]">
             <thead>
               <tr className={table.headRow}>
-                <th className="px-4 py-2.5">Organization</th>
-                <th className="px-4 py-2.5">Usual contact person</th>
-                <th className="px-4 py-2.5">Status</th>
-                {canManage && <th className="px-4 py-2.5 w-12" />}
+                <th className="px-4 py-1.5">Organization</th>
+                <th className="px-4 py-1.5">Usual contact person</th>
+                <th className="px-4 py-1.5">Status</th>
+                {canManage && <th className="px-4 py-1.5 w-12" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">

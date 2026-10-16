@@ -808,7 +808,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               <thead>
                 <tr className={table.headRow}>
                   {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
-                    <th className="py-2.5 px-3 w-10 text-center shrink-0">
+                    <th className="py-1.5 px-3 w-10 text-center shrink-0">
                       <input
                         type="checkbox"
                         checked={isAllSelected}
@@ -824,7 +824,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2.5 px-3 w-32 whitespace-nowrap shrink-0"
+                    thClassName="py-1.5 px-3 w-32 whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
                     label="Asset"
@@ -832,7 +832,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2.5 px-3 min-w-[190px]"
+                    thClassName="py-1.5 px-3 min-w-[190px]"
                   />
                   <SortableHeader
                     label="IFMIS slip"
@@ -840,7 +840,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2.5 px-3 w-36 whitespace-nowrap shrink-0"
+                    thClassName="py-1.5 px-3 w-36 whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
                     label="Stage"
@@ -848,7 +848,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2.5 px-3 w-36 whitespace-nowrap shrink-0"
+                    thClassName="py-1.5 px-3 w-36 whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
                     label="Requested by"
@@ -856,9 +856,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2.5 px-3 min-w-[170px]"
+                    thClassName="py-1.5 px-3 min-w-[170px]"
                   />
-                  <th className="sticky right-0 z-[1] bg-slate-100 py-2.5 px-3 text-right w-36 whitespace-nowrap shrink-0 font-normal">Review</th>
+                  <th className="sticky right-0 z-[1] bg-slate-100 py-1.5 px-3 text-right w-36 whitespace-nowrap shrink-0 font-normal">Review</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">

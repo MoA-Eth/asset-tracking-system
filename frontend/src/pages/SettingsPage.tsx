@@ -312,7 +312,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-3 px-4"
+                    thClassName="py-1.5 px-4"
                   />
                   <SortableHeader
                     label="Employee ID"
@@ -320,7 +320,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-3 px-3 whitespace-nowrap"
+                    thClassName="py-1.5 px-3 whitespace-nowrap"
                   />
                   <SortableHeader
                     label="Email"
@@ -328,7 +328,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="hidden md:table-cell py-3 px-3"
+                    thClassName="hidden md:table-cell py-1.5 px-3"
                   />
                   <SortableHeader
                     label="Directorate"
@@ -336,7 +336,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="hidden lg:table-cell py-3 px-3"
+                    thClassName="hidden lg:table-cell py-1.5 px-3"
                   />
                   <SortableHeader
                     label="Role"
@@ -344,7 +344,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-3 px-3"
+                    thClassName="py-1.5 px-3"
                   />
                   <th className={`py-3 px-3 ${table.actionsHead}`}>
                     <span className="sr-only">Actions</span>
