@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, RefreshCw, ShieldCheck, AlertCircle, Download, Printer, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Search, RefreshCw, ShieldCheck, AlertCircle, Download, Printer, ChevronRight, MoreVertical } from 'lucide-react';
 import { api } from '../api/client';
 import { AuditLogEntry } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
@@ -100,6 +100,28 @@ export const AuditLogsPage: React.FC = () => {
   const [selectedKind, setSelectedKind] = useState<ActivityKind | 'ALL'>('ALL');
   const [dateFilter, setDateFilter] = useState<string>('ALL_TIME');
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+
+  // 3-Dot Actions Menu
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isActionsMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+        setIsActionsMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsActionsMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isActionsMenuOpen]);
 
   const activeFilterCount = (selectedKind !== 'ALL' ? 1 : 0) + (dateFilter !== 'ALL_TIME' ? 1 : 0);
 
@@ -231,78 +253,13 @@ export const AuditLogsPage: React.FC = () => {
     );
   }
 
-  const headButton = 'px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-md transition shadow-2xs flex items-center gap-1.5 cursor-pointer';
-
   return (
     <div className="space-y-2.5 animate-fadeIn pb-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
-        <p className="text-xs text-slate-500">Who did what, and when. Entries are written by the system and can't be edited or deleted.</p>
-
-        <div className="no-print flex items-center gap-2 shrink-0">
-          <FilterPopover
-            label="Filter"
-            ariaLabel="Filter audit logs"
-            title="Filters"
-            resetLabel="Reset"
-            activeCount={activeFilterCount}
-            onReset={() => {
-              setSelectedKind('ALL');
-              setDateFilter('ALL_TIME');
-            }}
-            resultCountText={`${filteredLogs.length} ${filteredLogs.length === 1 ? 'entry' : 'entries'}`}
-          >
-            {/* Activity Type */}
-            <FilterSection label="Activity Type">
-              <div role="group" aria-label="Kind of activity" className="flex flex-wrap gap-1.5 pt-0.5">
-                {KIND_FILTERS.map((tab) => (
-                  <FilterPill
-                    key={tab.value}
-                    label={tab.label}
-                    active={selectedKind === tab.value}
-                    onClick={() => setSelectedKind(tab.value)}
-                  />
-                ))}
-              </div>
-            </FilterSection>
-
-            {/* Time Period */}
-            <FilterSection label="Time Period" htmlFor="filter-time-period">
-              <FilterSelect
-                id="filter-time-period"
-                ariaLabel="Period"
-                value={dateFilter}
-                onChange={setDateFilter}
-                options={[
-                  { label: 'All time', value: 'ALL_TIME' },
-                  { label: 'Today', value: 'TODAY' },
-                  { label: 'Past 7 days', value: 'THIS_WEEK' },
-                  { label: 'This month', value: 'THIS_MONTH' },
-                ]}
-              />
-            </FilterSection>
-          </FilterPopover>
-
-          <button onClick={handleExportCSV} className={headButton} title="Save the entries shown as a CSV file">
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span className="hidden sm:inline">Export CSV</span>
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="p-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium rounded-[4px] transition shadow-2xs flex items-center justify-center cursor-pointer h-8 w-8"
-            title="Print, or save as PDF"
-            aria-label="Print, or save as PDF"
-          >
-            <Printer className="w-3.5 h-3.5 text-slate-600" />
-          </button>
-        </div>
-      </div>
-
       <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-        {/* Search */}
-        <div className="no-print border-b border-slate-200 px-3.5 py-2.5">
-          <div className="relative w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        {/* Search & Actions Bar */}
+        <div className="no-print border-b border-slate-200 px-3.5 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+          <div className="relative flex-1 w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               aria-label="Search the audit log"
@@ -311,6 +268,112 @@ export const AuditLogsPage: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
             />
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+            <FilterPopover
+              label="Filter"
+              ariaLabel="Filter audit logs"
+              title="Filters"
+              resetLabel="Reset"
+              activeCount={activeFilterCount}
+              onReset={() => {
+                setSelectedKind('ALL');
+                setDateFilter('ALL_TIME');
+              }}
+              onClear={() => {
+                setSearchTerm('');
+                setSelectedKind('ALL');
+                setDateFilter('ALL_TIME');
+              }}
+              showClear={activeFilterCount > 0 || !!searchTerm.trim()}
+              resultCountText={`${filteredLogs.length} ${filteredLogs.length === 1 ? 'entry' : 'entries'}`}
+            >
+              {/* Activity Type */}
+              <FilterSection label="Activity Type">
+                <div role="group" aria-label="Kind of activity" className="flex flex-wrap gap-1.5 pt-0.5">
+                  {KIND_FILTERS.map((tab) => (
+                    <FilterPill
+                      key={tab.value}
+                      label={tab.label}
+                      active={selectedKind === tab.value}
+                      onClick={() => setSelectedKind(tab.value)}
+                    />
+                  ))}
+                </div>
+              </FilterSection>
+
+              {/* Time Period */}
+              <FilterSection label="Time Period" htmlFor="filter-time-period">
+                <FilterSelect
+                  id="filter-time-period"
+                  ariaLabel="Period"
+                  value={dateFilter}
+                  onChange={setDateFilter}
+                  options={[
+                    { label: 'All time', value: 'ALL_TIME' },
+                    { label: 'Today', value: 'TODAY' },
+                    { label: 'Past 7 days', value: 'THIS_WEEK' },
+                    { label: 'This month', value: 'THIS_MONTH' },
+                  ]}
+                />
+              </FilterSection>
+            </FilterPopover>
+
+            {/* 3-Dot Actions Menu for Export & Print */}
+            <div className="relative inline-flex" ref={actionsMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsActionsMenuOpen((prev) => !prev)}
+                aria-haspopup="menu"
+                aria-expanded={isActionsMenuOpen}
+                aria-label="Audit log export and print actions"
+                title="Export and print options"
+                className={`inline-flex items-center justify-center h-8 w-8 rounded-[4px] border transition cursor-pointer select-none shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                  isActionsMenuOpen
+                    ? 'border-emerald-700/60 bg-emerald-50/80 text-emerald-950 shadow-xs'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900'
+                }`}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+
+              {isActionsMenuOpen && (
+                <div
+                  role="menu"
+                  aria-label="Audit log export options"
+                  className="absolute right-0 top-full mt-1.5 w-48 z-50 rounded-md border border-slate-200 bg-white p-1 shadow-lg animate-fadeIn text-xs"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      handleExportCSV();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Export CSV</span>
+                  </button>
+
+                  <div className="my-1 border-t border-slate-100" />
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      window.print();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Print Log</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
