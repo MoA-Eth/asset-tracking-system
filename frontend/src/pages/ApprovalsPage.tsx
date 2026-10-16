@@ -8,7 +8,7 @@ import {
   Clock,
   RefreshCw,
   Search,
-  Filter,
+  X,
   Eye,
   FileSearch,
   AlertTriangle,
@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { table, btn } from '../components/ui/theme';
+import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../components/ui/FilterPopover';
 import { ApprovalVoucherModal } from '../components/ui/ApprovalVoucherModal';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
@@ -119,6 +120,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const [activeTab, setActiveTab] = useState<TabFilter>('MY_QUEUE');
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | TransactionType>('ALL');
+  const [valueFilter, setValueFilter] = useState<'ALL' | 'HIGH_VALUE' | 'STANDARD'>('ALL');
 
   // Multi-Selection State for Batch Processing
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -218,7 +220,15 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         return false;
       }
 
-      // 3. Search Filter
+      // 3. Value Filter
+      if (valueFilter === 'HIGH_VALUE' && (item.totalAmount || 0) <= HIGH_VALUE_THRESHOLD) {
+        return false;
+      }
+      if (valueFilter === 'STANDARD' && (item.totalAmount || 0) > HIGH_VALUE_THRESHOLD) {
+        return false;
+      }
+
+      // 4. Search Filter
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
         const matches =
@@ -233,7 +243,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
       return true;
     });
-  }, [approvals, activeTab, typeFilter, searchTerm, canEndorse, canApprove]);
+  }, [approvals, activeTab, typeFilter, valueFilter, searchTerm, canEndorse, canApprove]);
 
   type ApprovalSortColumn = 'type' | 'item' | 'slip' | 'stage' | 'requester';
   const [sortColumn, setSortColumn] = useState<ApprovalSortColumn>('type');
@@ -273,7 +283,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     });
   }, [filteredApprovals, sortColumn, sortDirection]);
 
-  const pager = usePagination(sortedApprovals, { resetKey: `${activeTab}|${typeFilter}|${searchTerm}|${sortColumn}|${sortDirection}` });
+  const pager = usePagination(sortedApprovals, { resetKey: `${activeTab}|${typeFilter}|${valueFilter}|${searchTerm}|${sortColumn}|${sortDirection}` });
 
   // Checkbox selection. "Select all" covers the page on screen, so nothing out of sight is approved in bulk.
   const actionablePendingItems = useMemo(() => {
@@ -540,6 +550,39 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     );
   };
 
+  const visibleQueueTabsList = useMemo(() => {
+    return [
+      { id: 'MY_QUEUE' as TabFilter, label: 'Pending My Action', count: metrics.myQueueCount },
+      { id: 'STAGE_1' as TabFilter, label: 'Stage 1 (Team Leader)', count: metrics.stage1Count },
+      { id: 'STAGE_2' as TabFilter, label: 'Stage 2 (Dept Head)', count: metrics.stage2Count },
+      { id: 'APPROVED' as TabFilter, label: 'Approved History', count: metrics.approvedCount },
+      { id: 'REJECTED' as TabFilter, label: 'Rejected', count: metrics.rejectedCount },
+      { id: 'ALL' as TabFilter, label: 'All Records', count: metrics.totalCount },
+    ].filter((tab) => getVisibleQueueTabs(role, user?.permissions).includes(tab.id));
+  }, [role, user?.permissions, metrics]);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (typeFilter !== 'ALL') count++;
+    if (valueFilter !== 'ALL') count++;
+    if (activeTab !== 'MY_QUEUE') count++;
+    return count;
+  }, [typeFilter, valueFilter, activeTab]);
+
+  const viewChanged = activeFilterCount > 0 || !!searchTerm.trim();
+
+  const handleResetFilters = () => {
+    setTypeFilter('ALL');
+    setValueFilter('ALL');
+    setActiveTab('MY_QUEUE');
+    setSelectedIds([]);
+  };
+
+  const handleClearAll = () => {
+    handleResetFilters();
+    setSearchTerm('');
+  };
+
   return (
     <div className="space-y-2.5 animate-fadeIn pb-8">
 
@@ -586,12 +629,13 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
       {/* ── 2. Filters & Search Control Bar ── */}
       <div className="rounded-md p-3.5 bg-white space-y-3 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-        {/* Row 1: Search + Transaction Type Dropdown */}
-        <div className="flex flex-col sm:flex-row items-center gap-2.5">
+        {/* Row 1: Search + Unified FilterPopover matching Assets & System pages */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
+              aria-label="Search requests"
               placeholder="Search by tracking code, item name, slip #, or staff..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -599,39 +643,79 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-            <Filter className="w-3.5 h-3.5 text-slate-500" />
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as any)}
-              className="px-3 py-2 bg-white border border-slate-300 rounded-[4px] text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-700 cursor-pointer w-full sm:w-auto"
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+            <FilterPopover
+              label="Filter"
+              ariaLabel="Filter approval requests"
+              title="Filters"
+              resetLabel="Reset all"
+              activeCount={activeFilterCount}
+              onReset={handleResetFilters}
+              onClear={handleClearAll}
+              showClear={viewChanged}
+              resultCountText={`${sortedApprovals.length} ${sortedApprovals.length === 1 ? 'request' : 'requests'}`}
             >
-              <option value="ALL">All Statutory Forms</option>
-              <option value={TransactionType.STOCK_IN}>Receiving (Model 19)</option>
-              <option value={TransactionType.STOCK_OUT}>Issuing (Model 22)</option>
-              <option value={TransactionType.RETURN}>Model 21 (Return to Store)</option>
-              <option value={TransactionType.TRANSFER}>Model 21 (Asset Transfer)</option>
-              <option value={TransactionType.DISPOSAL}>Disposal</option>
-            </select>
+              {/* Statutory Forms */}
+              <FilterSection label="Statutory Form" htmlFor="filter-statutory-form">
+                <FilterSelect
+                  id="filter-statutory-form"
+                  ariaLabel="Filter by statutory form"
+                  placeholder="All Statutory Forms"
+                  value={typeFilter}
+                  onChange={(val) => setTypeFilter(val as any)}
+                  options={[
+                    { value: TransactionType.STOCK_IN, label: 'Receiving (Model 19)' },
+                    { value: TransactionType.STOCK_OUT, label: 'Issuing (Model 22)' },
+                    { value: TransactionType.RETURN, label: 'Model 21 (Return to Store)' },
+                    { value: TransactionType.TRANSFER, label: 'Model 21 (Asset Transfer)' },
+                    { value: TransactionType.DISPOSAL, label: 'Disposal' },
+                  ]}
+                />
+              </FilterSection>
+
+              {/* Review Queue / Stage */}
+              <FilterSection label="Review Queue">
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {visibleQueueTabsList.map((tab) => (
+                    <FilterPill
+                      key={tab.id}
+                      label={tab.label}
+                      count={tab.count}
+                      active={activeTab === tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        setSelectedIds([]);
+                      }}
+                    />
+                  ))}
+                </div>
+              </FilterSection>
+
+              {/* Transaction Value */}
+              <FilterSection label="Transaction Value" htmlFor="filter-approval-value">
+                <FilterSelect
+                  id="filter-approval-value"
+                  ariaLabel="Filter by transaction value"
+                  placeholder="All Transaction Values"
+                  value={valueFilter}
+                  onChange={(val) => setValueFilter(val as any)}
+                  options={[
+                    { value: 'HIGH_VALUE', label: 'High Value (> 10M ETB · Chief Director)' },
+                    { value: 'STANDARD', label: 'Standard (≤ 10M ETB)' },
+                  ]}
+                />
+              </FilterSection>
+            </FilterPopover>
           </div>
         </div>
 
-        {/* Row 2: Queue Tabs (Clean & Understated) */}
+        {/* Row 2: Queue Tabs (Quick Access Segmented Navigation) */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-100">
-          {[
-            { id: 'MY_QUEUE', label: 'Pending My Action', count: metrics.myQueueCount },
-            { id: 'STAGE_1', label: 'Stage 1 (Team Leader)', count: metrics.stage1Count },
-            { id: 'STAGE_2', label: 'Stage 2 (Dept Head)', count: metrics.stage2Count },
-            { id: 'APPROVED', label: 'Approved History', count: metrics.approvedCount },
-            { id: 'REJECTED', label: 'Rejected', count: metrics.rejectedCount },
-            { id: 'ALL', label: 'All Records', count: metrics.totalCount },
-          ]
-            .filter((tab) => getVisibleQueueTabs(role, user?.permissions).includes(tab.id as TabFilter))
-            .map((tab) => (
+          {visibleQueueTabsList.map((tab) => (
             <button
               key={tab.id}
               onClick={() => {
-                setActiveTab(tab.id as TabFilter);
+                setActiveTab(tab.id);
                 setSelectedIds([]);
               }}
               className={`px-3 py-1.5 rounded-[4px] text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
@@ -653,6 +737,51 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             </button>
           ))}
         </div>
+
+        {/* Active Filter Chips */}
+        {(typeFilter !== 'ALL' || valueFilter !== 'ALL') && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100 text-xs">
+            <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
+            {typeFilter !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-900 text-[11px] font-medium border border-emerald-200">
+                <span>
+                  {typeFilter === TransactionType.STOCK_IN
+                    ? 'Model 19 (Receipt)'
+                    : typeFilter === TransactionType.STOCK_OUT
+                    ? 'Model 22 (Issue)'
+                    : typeFilter === TransactionType.RETURN
+                    ? 'Model 21 (Return)'
+                    : typeFilter === TransactionType.TRANSFER
+                    ? 'Model 21 (Transfer)'
+                    : 'Disposal'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setTypeFilter('ALL')}
+                  title="Remove statutory form filter"
+                  aria-label="Remove statutory form filter"
+                  className="hover:text-emerald-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {valueFilter !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-900 text-[11px] font-medium border border-purple-200">
+                <span>{valueFilter === 'HIGH_VALUE' ? 'High Value (> 10M ETB)' : 'Standard (≤ 10M ETB)'}</span>
+                <button
+                  type="button"
+                  onClick={() => setValueFilter('ALL')}
+                  title="Remove value filter"
+                  aria-label="Remove value filter"
+                  className="hover:text-purple-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── 4. Main Approvals Display Area ── */}
