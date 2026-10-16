@@ -9,7 +9,6 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
-  ShieldCheck,
   HelpCircle,
   X,
   Phone,
@@ -138,9 +137,9 @@ export const LoginPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Login Arena - Centered with Prominence */}
+      {/* Main Login Arena - Centered with Clean Prominence */}
       <main className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 z-10">
-        <div className="w-full max-w-[420px] animate-fadeIn">
+        <div className="w-full max-w-[416px] animate-fadeIn">
           {/* Error Banner */}
           {errorMsg && (
             <div className="mb-3.5 p-3.5 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-shake shadow-lg">
@@ -149,7 +148,7 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {/* Authentic MoA Card with Rich Height, Depth, and Prominence */}
+          {/* Authentic MoA Card with Rich Depth and Minimalist Header */}
           <form
             onSubmit={handleFormSubmit}
             className="rounded-3xl border border-emerald-500/30 backdrop-blur-2xl p-7 sm:p-8 relative overflow-hidden ring-1 ring-white/10"
@@ -176,16 +175,10 @@ export const LoginPage: React.FC = () => {
                 />
               </div>
 
-              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400/90 mb-1">
-                FDRE Ministry of Agriculture
-              </p>
-              <h1 className="text-xl sm:text-[22px] font-bold text-white tracking-tight drop-shadow-sm">
+              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight drop-shadow-sm">
                 MoA Asset Tracking System
               </h1>
-              <p className="text-xs text-emerald-300/85 font-sans mt-0.5">
-                የቋሚ ንብረት ቁጥጥርና አስተዳደር ሥርዓት
-              </p>
-              <p className="text-[11px] text-emerald-200/60 mt-1.5">
+              <p className="text-xs text-emerald-200/70 mt-1.5">
                 Sign in with your credentials
               </p>
             </div>
@@ -301,12 +294,6 @@ export const LoginPage: React.FC = () => {
                     </>
                   )}
                 </button>
-              </div>
-
-              {/* Security Badges */}
-              <div className="pt-2 flex items-center justify-center gap-1.5 text-[10px] text-emerald-400/70">
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-400/90 shrink-0" />
-                <span>Protected Civil Service Network &bull; IFMIS Mirror &bull; TLS 1.3</span>
               </div>
             </div>
           </form>
