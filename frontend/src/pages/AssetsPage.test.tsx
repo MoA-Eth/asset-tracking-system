@@ -1310,7 +1310,8 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
 
-    await user.click(screen.getByRole('button', { name: /Export CSV/i }));
+    await user.click(screen.getByRole('button', { name: /asset export and print actions/i }));
+    await user.click(screen.getByRole('menuitem', { name: /Export CSV/i }));
 
     expect(toast.success).toHaveBeenCalledWith(
       'CSV Exported',

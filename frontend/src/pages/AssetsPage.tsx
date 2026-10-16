@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
   Boxes,
   Plus,
@@ -14,6 +14,8 @@ import {
   Download,
   Trash2,
   Copy,
+  MoreVertical,
+  Printer,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -153,6 +155,28 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     }
   }, [user?.id, filter, locationFilter, categoryFilter, staleOnly, sortColumn, sortDirection]);
   const [lastTouchedId, setLastTouchedId] = useState<string | null>(null);
+
+  // 3-Dot Actions Menu
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isActionsMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+        setIsActionsMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsActionsMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isActionsMenuOpen]);
 
   const handleSort = (col: SortColumn) => {
     if (sortColumn === col) {
@@ -1059,103 +1083,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   return (
     <div className="space-y-2.5 animate-fadeIn pb-1">
-      {/* ── Page header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
-        <p className="text-xs text-slate-500">
-          Every asset from receipt to custody. Receive on Model 19, issue on Model 22, then transfer or return on Model 21.
-        </p>
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Reusable Filter Popover */}
-          <FilterPopover
-            label="Filter"
-            ariaLabel="Filter assets"
-            title="Filters"
-            resetLabel="Reset"
-            activeCount={activeFilterCount}
-            onReset={resetFilters}
-            onClear={resetView}
-            showClear={viewChanged}
-            resultCountText={`${sortedShown.length} ${sortedShown.length === 1 ? 'group' : 'groups'}`}
-          >
-            {/* Status Filter */}
-            <FilterSection label="Lifecycle Status">
-              <div className="flex flex-wrap gap-1.5 pt-0.5">
-                {FILTERS.map((f) => (
-                  <FilterPill
-                    key={f.value}
-                    label={f.label}
-                    count={groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length}
-                    active={filter === f.value}
-                    onClick={() => setFilter(f.value)}
-                  />
-                ))}
-              </div>
-            </FilterSection>
-
-            {/* Store & Location */}
-            <FilterSection label="Store & Custody Location" htmlFor="filter-store-location">
-              <FilterSelect
-                id="filter-store-location"
-                ariaLabel="Filter by store location"
-                placeholder="All Stores & Locations"
-                value={locationFilter}
-                onChange={setLocationFilter}
-                options={locations.map((loc) => ({
-                  value: loc.id,
-                  label: storeLocationLabel(loc),
-                }))}
-              />
-            </FilterSection>
-
-            {/* Asset Category */}
-            <FilterSection label="Asset Category" htmlFor="filter-asset-category">
-              <FilterSelect
-                id="filter-asset-category"
-                ariaLabel="Filter by asset category"
-                placeholder="All Categories"
-                value={categoryFilter}
-                onChange={setCategoryFilter}
-                options={CATEGORY_OPTIONS}
-              />
-            </FilterSection>
-
-            {/* Fixed asset or consumable item */}
-            <FilterSection label="Item Type" htmlFor="filter-item-type">
-              <FilterSelect
-                id="filter-item-type"
-                ariaLabel="Filter by item type"
-                placeholder="All Types"
-                value={typeFilter}
-                onChange={setTypeFilter}
-                options={ITEM_TYPE_OPTIONS.map((t) => ({ value: t.value, label: `${t.label} (${t.amharic})` }))}
-              />
-            </FilterSection>
-
-            {/* Stock waiting too long to be issued */}
-            <FilterSection label="Time in Store">
-              <div className="flex flex-wrap gap-1.5 pt-0.5">
-                <FilterPill
-                  label={`Over ${STALE_IN_STORE_DAYS} days`}
-                  count={staleCount}
-                  active={staleOnly}
-                  onClick={() => setStaleOnly((v) => !v)}
-                />
-              </div>
-            </FilterSection>
-          </FilterPopover>
-
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            title="Export filtered assets to CSV"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[4px] border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs shrink-0"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Export CSV</span>
-          </button>
-        </div>
-      </div>
-
       {selectedRow || receipt ? (
         /* ── The open record or registration, using the whole page; closing it (×, Esc) returns to the list as it was ── */
         <div className="grid items-start gap-3">
@@ -1248,7 +1175,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 aria-label="Search assets"
@@ -1258,16 +1185,153 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 className={table.search.replace('pr-8', 'pr-3')}
               />
             </div>
-            {canReceive && (
-              <button
-                type="button"
-                onClick={() => openReceipt()}
-                className={`${btn.primary} shrink-0`}
+
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Reusable Filter Popover */}
+              <FilterPopover
+                label="Filter"
+                ariaLabel="Filter assets"
+                title="Filters"
+                resetLabel="Reset"
+                activeCount={activeFilterCount}
+                onReset={resetFilters}
+                onClear={resetView}
+                showClear={viewChanged}
+                resultCountText={`${sortedShown.length} ${sortedShown.length === 1 ? 'group' : 'groups'}`}
               >
-                <Plus className="w-4 h-4" />
-                <span>Receive items (Model 19)</span>
-              </button>
-            )}
+                {/* Status Filter */}
+                <FilterSection label="Lifecycle Status">
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {FILTERS.map((f) => (
+                      <FilterPill
+                        key={f.value}
+                        label={f.label}
+                        count={groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length}
+                        active={filter === f.value}
+                        onClick={() => setFilter(f.value)}
+                      />
+                    ))}
+                  </div>
+                </FilterSection>
+
+                {/* Store & Location */}
+                <FilterSection label="Store & Custody Location" htmlFor="filter-store-location">
+                  <FilterSelect
+                    id="filter-store-location"
+                    ariaLabel="Filter by store location"
+                    placeholder="All Stores & Locations"
+                    value={locationFilter}
+                    onChange={setLocationFilter}
+                    options={locations.map((loc) => ({
+                      value: loc.id,
+                      label: storeLocationLabel(loc),
+                    }))}
+                  />
+                </FilterSection>
+
+                {/* Asset Category */}
+                <FilterSection label="Asset Category" htmlFor="filter-asset-category">
+                  <FilterSelect
+                    id="filter-asset-category"
+                    ariaLabel="Filter by asset category"
+                    placeholder="All Categories"
+                    value={categoryFilter}
+                    onChange={setCategoryFilter}
+                    options={CATEGORY_OPTIONS}
+                  />
+                </FilterSection>
+
+                {/* Fixed asset or consumable item */}
+                <FilterSection label="Item Type" htmlFor="filter-item-type">
+                  <FilterSelect
+                    id="filter-item-type"
+                    ariaLabel="Filter by item type"
+                    placeholder="All Types"
+                    value={typeFilter}
+                    onChange={setTypeFilter}
+                    options={ITEM_TYPE_OPTIONS.map((t) => ({ value: t.value, label: `${t.label} (${t.amharic})` }))}
+                  />
+                </FilterSection>
+
+                {/* Stock waiting too long to be issued */}
+                <FilterSection label="Time in Store">
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    <FilterPill
+                      label={`Over ${STALE_IN_STORE_DAYS} days`}
+                      count={staleCount}
+                      active={staleOnly}
+                      onClick={() => setStaleOnly((v) => !v)}
+                    />
+                  </div>
+                </FilterSection>
+              </FilterPopover>
+
+              {canReceive && (
+                <button
+                  type="button"
+                  onClick={() => openReceipt()}
+                  className={`${btn.primary} shrink-0`}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Receive items (Model 19)</span>
+                </button>
+              )}
+
+              {/* 3-Dot Actions Menu for Export & Print (at the right end) */}
+              <div className="relative inline-flex" ref={actionsMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsActionsMenuOpen((prev) => !prev)}
+                  aria-haspopup="menu"
+                  aria-expanded={isActionsMenuOpen}
+                  aria-label="Asset export and print actions"
+                  title="Export and print options"
+                  className={`inline-flex items-center justify-center h-8 w-8 rounded-[4px] border transition cursor-pointer select-none shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                    isActionsMenuOpen
+                      ? 'border-emerald-700/60 bg-emerald-50/80 text-emerald-950 shadow-xs'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900'
+                  }`}
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+
+                {isActionsMenuOpen && (
+                  <div
+                    role="menu"
+                    aria-label="Asset export options"
+                    className="absolute right-0 top-full mt-1.5 w-48 z-50 rounded-md border border-slate-200 bg-white p-1 shadow-lg animate-fadeIn text-xs"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsActionsMenuOpen(false);
+                        handleExportCSV();
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Export CSV</span>
+                    </button>
+
+                    <div className="my-1 border-t border-slate-100" />
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsActionsMenuOpen(false);
+                        window.print();
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Print Register</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Active Filter Chips (if any filter, search, or sort is active) */}
