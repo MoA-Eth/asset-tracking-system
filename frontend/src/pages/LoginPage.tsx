@@ -48,6 +48,7 @@ export const LoginPage: React.FC = () => {
   }, [showForgotModal]);
 
   const handleFormSubmit = async (e: React.FormEvent) => {
+    
     e.preventDefault();
     if (!usernameOrEmail.trim()) {
       const msg = "Enter your email or employee ID.";
@@ -72,6 +73,7 @@ export const LoginPage: React.FC = () => {
   };
 
   const resetForgotDialog = () => {
+    
     setShowForgotModal(false);
     setResetError(null);
     setResetSuccessMessage(null);
@@ -81,6 +83,7 @@ export const LoginPage: React.FC = () => {
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
+    
     e.preventDefault();
     setResetError(null);
 
@@ -129,23 +132,32 @@ export const LoginPage: React.FC = () => {
       className="min-h-screen w-screen flex items-center justify-center relative overflow-x-hidden selection:bg-amber-400 selection:text-emerald-950 font-sans p-4 sm:p-6"
       style={{
         background:
-          "radial-gradient(ellipse 90% 80% at 50% -10%, #0c331f 0%, #061910 50%, #030d08 100%)",
+          "radial-gradient(ellipse at 50% 20%, #0d3d24 0%, #082618 45%, #03120a 100%)",
       }}
     >
-      {/* Background Decorative Rings */}
+      {/* Background Ambient Glows */}
       <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full pointer-events-none opacity-[0.06]"
+        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[540px] opacity-25 blur-[100px]"
         style={{
           background:
-            "radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, rgba(5, 150, 105, 0.1) 40%, transparent 70%)",
+            "radial-gradient(ellipse at 50% 40%, #10b981 0%, #065f46 50%, transparent 75%)",
         }}
       />
       <div
-        className="absolute inset-0 opacity-[0.025] pointer-events-none"
+        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[260px] opacity-15 blur-[80px]"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 30%, #FCDD09 0%, transparent 70%)",
+        }}
+      />
+
+      {/* Geometric grid pattern */}
+      <div
+        className="pointer-events-none fixed inset-0 opacity-[0.035]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
+            "linear-gradient(#34d399 1px, transparent 1px), linear-gradient(90deg, #34d399 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
         }}
       />
 
@@ -198,11 +210,8 @@ export const LoginPage: React.FC = () => {
           <div className="space-y-5 sm:space-y-6">
             {/* Email / Payroll ID */}
             <div>
-              <label className="flex items-center justify-between text-xs sm:text-[13px] font-semibold text-emerald-300/90 mb-2">
-                <span>Email or Employee ID</span>
-                <span className="text-[11px] text-emerald-400/60 font-sans font-normal">
-                  ኢሜይል ወይም መለያ
-                </span>
+              <label className="block text-xs sm:text-[13px] font-semibold text-emerald-300/90 mb-2">
+                Email or Employee ID
               </label>
               <div className="relative group">
                 <Mail className="w-4.5 h-4.5 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
@@ -224,12 +233,7 @@ export const LoginPage: React.FC = () => {
             {/* Password & Forgot Password Link */}
             <div>
               <div className="flex items-center justify-between text-xs sm:text-[13px] font-semibold text-emerald-300/90 mb-2">
-                <span className="flex items-center gap-1.5">
-                  <span>Password</span>
-                  <span className="text-[11px] text-emerald-400/60 font-sans font-normal">
-                    ይለፍ ቃል
-                  </span>
-                </span>
+                <span>Password</span>
 
                 <button
                   type="button"
@@ -239,13 +243,10 @@ export const LoginPage: React.FC = () => {
                     setResetSuccessMessage(null);
                     setShowForgotModal(true);
                   }}
-                  className="text-xs font-medium text-emerald-400 hover:text-amber-300 transition-colors cursor-pointer inline-flex items-center gap-1 group"
+                  className="text-xs font-medium text-emerald-400 hover:text-amber-300 transition-colors cursor-pointer inline-flex items-center gap-1.5 group"
                 >
                   <KeyRound className="w-3.5 h-3.5 text-emerald-400 group-hover:text-amber-300 transition-colors" />
                   <span>Forgot password?</span>
-                  <span className="font-sans text-[11px] text-emerald-400/70">
-                    (ረሱ / ቀይር)
-                  </span>
                 </button>
               </div>
 
@@ -292,11 +293,11 @@ export const LoginPage: React.FC = () => {
                 {signingIn ? (
                   <>
                     <RefreshCw className="w-4.5 h-4.5 animate-spin text-amber-300" />
-                    <span>Verifying Credentials...</span>
+                    <span>Logging in...</span>
                   </>
                 ) : (
                   <>
-                    <span>Sign In to MoA Asset Tracking System</span>
+                    <span>Login</span>
                     <ArrowRight className="w-4.5 h-4.5 text-amber-300 group-hover:translate-x-0.5 transition-transform" />
                   </>
                 )}
@@ -306,38 +307,51 @@ export const LoginPage: React.FC = () => {
         </form>
       </main>
 
-      {/* ─── Change Password Dialog Modal: Clean White Card & Translucent Page Backdrop ─── */}
+      {/* ─── Change Password Dialog Modal: Matching Login Card Styling & Atmosphere ─── */}
       {showForgotModal && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="change-pw-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) resetForgotDialog();
-          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn"
         >
+          {/* Translucent backdrop - allows radiant green background to shine through without blacking out */}
           <div
-            className="w-full max-w-md rounded-2xl bg-white border border-slate-200/90 text-slate-800 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6),0_0_30px_rgba(0,0,0,0.3)] relative overflow-hidden animate-scaleIn p-6 sm:p-7"
+            className="absolute inset-0 bg-[#072417]/45 backdrop-blur-[2px]"
+            onClick={resetForgotDialog}
+            aria-hidden="true"
+          />
+
+          <div
+            className="w-full max-w-md rounded-3xl border border-emerald-500/30 backdrop-blur-2xl py-8 sm:py-9 px-7 sm:px-9 relative z-10 overflow-hidden ring-1 ring-white/10 text-white animate-scaleIn"
+            style={{
+              background:
+                "linear-gradient(168deg, rgba(14, 46, 29, 0.96) 0%, rgba(9, 31, 20, 0.98) 50%, rgba(5, 18, 12, 0.99) 100%)",
+              boxShadow:
+                "0 32px 70px -12px rgba(0, 0, 0, 0.88), 0 16px 36px -10px rgba(0, 0, 0, 0.75), 0 0 55px -10px rgba(16, 185, 129, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.5)",
+            }}
           >
-            {/* Top gold-emerald accent strip */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-600 via-[#FCDD09] to-emerald-600 shadow-sm" />
+            {/* Top gold-emerald accent strip with glow */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-600 via-[#FCDD09] to-emerald-600 shadow-[0_1px_10px_rgba(252,221,9,0.55)]" />
+
+            {/* Subtle inner top specular highlight */}
+            <div className="absolute top-1.5 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
 
             {/* Header & Close */}
-            <div className="flex items-start justify-between gap-3 mb-5 pt-1">
+            <div className="flex items-start justify-between gap-3 mb-6 pt-1">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center shrink-0 shadow-xs">
-                  <KeyRound className="w-5 h-5 text-emerald-700" />
+                <div className="size-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-amber-300 flex items-center justify-center shrink-0 shadow-inner">
+                  <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
                   <h2
                     id="change-pw-title"
-                    className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight"
+                    className="text-xl font-bold text-white tracking-tight"
                   >
                     Change Password
                   </h2>
-                  <p className="text-xs text-slate-500 font-sans">
-                    የይለፍ ቃል መቀየር
+                  <p className="text-xs text-emerald-200/75 mt-0.5">
+                    Update your account credentials
                   </p>
                 </div>
               </div>
@@ -345,27 +359,24 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={resetForgotDialog}
-                className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors p-1.5 rounded-lg cursor-pointer"
+                className="text-emerald-400/70 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
                 title="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Success State */}
+            {/* Confirmation / Success State */}
             {resetSuccessMessage ? (
-              <div className="space-y-5 py-2 animate-fadeIn">
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 flex items-start gap-3 shadow-xs">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="space-y-6 py-2 animate-fadeIn">
+                <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-500/30 flex items-start gap-3 shadow-inner">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="text-sm font-bold text-emerald-950">
-                      Password Successfully Updated!
+                    <h3 className="text-sm font-bold text-white">
+                      Password Successfully Updated
                     </h3>
-                    <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
+                    <p className="text-xs text-emerald-200/80 mt-1 leading-relaxed">
                       {resetSuccessMessage}
-                    </p>
-                    <p className="text-xs text-emerald-700 font-sans mt-0.5">
-                      የይለፍ ቃልዎ በተሳካ ሁኔታ ተቀይሯል። አሁን በአዲሱ ይለፍ ቃል መግባት ይችላሉ።
                     </p>
                   </div>
                 </div>
@@ -374,70 +385,76 @@ export const LoginPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={resetForgotDialog}
-                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition-all cursor-pointer shadow-md flex items-center justify-center gap-2"
+                    className="w-full h-11 sm:h-12 rounded-xl text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99]"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #136a41 0%, #0c4228 100%)",
+                    }}
                   >
-                    <span>Proceed to Sign In (ወደ መግቢያ ቀጥል)</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <span>Proceed to Sign In</span>
+                    <ArrowRight className="w-4.5 h-4.5 text-amber-300" />
                   </button>
                 </div>
               </div>
             ) : (
               <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                {/* Error Banner inside modal */}
+                {/* Error Banner */}
                 {resetError && (
-                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <div className="p-3 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
                     <span>{resetError}</span>
                   </div>
                 )}
 
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Enter your employee credentials and current/temporary password to choose your new password.
+                <p className="text-xs text-emerald-200/75 leading-relaxed">
+                  Enter your employee credentials and current password to set your new password.
                 </p>
 
                 {/* Email or Payroll ID */}
                 <div>
-                  <label className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
-                    <span>Email or Employee ID</span>
-                    <span className="text-[11px] text-slate-500 font-sans font-normal">
-                      ኢሜይል ወይም መለያ
-                    </span>
+                  <label className="block text-xs font-semibold text-emerald-300/90 mb-1.5">
+                    Email or Employee ID
                   </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <div className="relative group">
+                    <Mail className="w-4.5 h-4.5 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
                     <input
                       type="text"
                       required
                       value={resetIdentifier}
                       onChange={(e) => setResetIdentifier(e.target.value)}
-                      placeholder="e.g. name@moa.gov.et or payroll ID"
-                      className="w-full h-10 pl-10 pr-3.5 rounded-xl text-xs text-slate-900 bg-slate-50 border border-slate-300 placeholder-slate-400 font-mono transition-all outline-none focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+              placeholder="e.g. name@moa.gov.et or payroll ID"
+                      className="w-full h-11 pl-10 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                      style={{
+                        background: "rgba(3, 15, 10, 0.88)",
+                        borderColor: "rgba(52, 211, 153, 0.25)",
+                      }}
                     />
                   </div>
                 </div>
 
                 {/* Current / Temporary Password */}
                 <div>
-                  <label className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
-                    <span>Current / Temporary Password</span>
-                    <span className="text-[11px] text-slate-500 font-sans font-normal">
-                      የነበረው ወይም ጊዜያዊ ይለፍ ቃል
-                    </span>
+                  <label className="block text-xs font-semibold text-emerald-300/90 mb-1.5">
+                    Current or Temporary Password
                   </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <div className="relative group">
+                    <Lock className="w-4.5 h-4.5 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
                     <input
                       type={showCurrentPassword ? "text" : "password"}
                       required
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       placeholder="Current password"
-                      className="w-full h-10 pl-10 pr-10 rounded-xl text-xs text-slate-900 bg-slate-50 border border-slate-300 placeholder-slate-400 font-mono transition-all outline-none focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                      className="w-full h-11 pl-10 pr-10 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                      style={{
+                        background: "rgba(3, 15, 10, 0.88)",
+                        borderColor: "rgba(52, 211, 153, 0.25)",
+                      }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-600 hover:text-emerald-300 transition-colors cursor-pointer p-1"
                       title={showCurrentPassword ? "Hide" : "Show"}
                     >
                       {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -448,25 +465,26 @@ export const LoginPage: React.FC = () => {
                 {/* New Password & Confirm Password */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
-                      <span>New Password</span>
-                      <span className="text-[11px] text-slate-500 font-sans font-normal">
-                        አዲስ ይለፍ ቃል
-                      </span>
+                    <label className="block text-xs font-semibold text-emerald-300/90 mb-1.5">
+                      New Password
                     </label>
-                    <div className="relative">
+                    <div className="relative group">
                       <input
                         type={showNewPassword ? "text" : "password"}
                         required
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Min. 8 characters"
-                        className="w-full h-10 pl-3.5 pr-9 rounded-xl text-xs text-slate-900 bg-slate-50 border border-slate-300 placeholder-slate-400 font-mono transition-all outline-none focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                        className="w-full h-11 pl-3.5 pr-9 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                        style={{
+                          background: "rgba(3, 15, 10, 0.88)",
+                          borderColor: "rgba(52, 211, 153, 0.25)",
+                        }}
                       />
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-600 hover:text-emerald-300 transition-colors p-1 cursor-pointer"
                         title={showNewPassword ? "Hide" : "Show"}
                       >
                         {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -475,11 +493,8 @@ export const LoginPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
-                      <span>Confirm New Password</span>
-                      <span className="text-[11px] text-slate-500 font-sans font-normal">
-                        አረጋግጥ
-                      </span>
+                    <label className="block text-xs font-semibold text-emerald-300/90 mb-1.5">
+                      Confirm New Password
                     </label>
                     <input
                       type={showNewPassword ? "text" : "password"}
@@ -487,12 +502,16 @@ export const LoginPage: React.FC = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-type new password"
-                      className="w-full h-10 px-3.5 rounded-xl text-xs text-slate-900 bg-slate-50 border border-slate-300 placeholder-slate-400 font-mono transition-all outline-none focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                      className="w-full h-11 px-3.5 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                      style={{
+                        background: "rgba(3, 15, 10, 0.88)",
+                        borderColor: "rgba(52, 211, 153, 0.25)",
+                      }}
                     />
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-500 font-sans">
+                <p className="text-[11px] text-emerald-300/60">
                   * Must be at least 8 characters and contain both letters and numbers.
                 </p>
 
@@ -501,24 +520,28 @@ export const LoginPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={resetForgotDialog}
-                    className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl text-xs font-medium text-emerald-200/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={resetLoading}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition-all cursor-pointer shadow-md flex items-center gap-2 disabled:opacity-75"
+                    className="h-11 px-5 rounded-xl text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #136a41 0%, #0c4228 100%)",
+                    }}
                   >
                     {resetLoading ? (
                       <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Updating Password...</span>
+                        <RefreshCw className="w-4 h-4 animate-spin text-amber-300" />
+                        <span>Updating...</span>
                       </>
                     ) : (
                       <>
-                        <KeyRound className="w-3.5 h-3.5" />
-                        <span>Update Password (ይለፍ ቃል ቀይር)</span>
+                        <KeyRound className="w-4 h-4 text-amber-300" />
+                        <span>Update Password</span>
                       </>
                     )}
                   </button>

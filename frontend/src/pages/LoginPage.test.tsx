@@ -49,7 +49,7 @@ describe('LoginPage', () => {
     expect(screen.getByTestId('moa-logo')).toBeInTheDocument();
     expect(screen.getByText('MoA Asset Tracking System')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/name@moa.gov.et/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Sign In to MoA Asset Tracking System/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Login/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Forgot password?/i })).toBeInTheDocument();
   });
 
@@ -61,7 +61,7 @@ describe('LoginPage', () => {
 
     const idInput = screen.getByPlaceholderText(/name@moa.gov.et/i);
     const pwInput = screen.getByPlaceholderText('••••••••••••');
-    const submitBtn = screen.getByRole('button', { name: /Sign In to MoA Asset Tracking System/i });
+    const submitBtn = screen.getByRole('button', { name: /Login/i });
 
     await user.type(idInput, 'admin@moa.gov.et');
     await user.type(pwInput, 'Secret1234');
@@ -104,7 +104,7 @@ describe('LoginPage', () => {
       newPassword: 'NewPass123',
     });
 
-    expect(await screen.findByText(/Password Successfully Updated!/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Password Successfully Updated/i })).toBeInTheDocument();
     const proceedBtn = screen.getByRole('button', { name: /Proceed to Sign In/i });
     await user.click(proceedBtn);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
