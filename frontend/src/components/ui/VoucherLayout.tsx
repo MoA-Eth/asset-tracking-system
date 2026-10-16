@@ -180,60 +180,107 @@ export interface Signatory {
   stampAmharicUrl?: string;
 }
 
+const SignatoryCard: React.FC<{ signatory: Signatory; idx: number }> = ({ signatory: s, idx }) => (
+  <div
+    key={`${s.label}-${idx}`}
+    className="space-y-2.5 border border-slate-300 rounded-lg p-3.5 bg-slate-50/50 print:bg-transparent print:border-black/30 print:p-2 min-w-0 shadow-2xs print:shadow-none"
+  >
+    <div>
+      <p className="font-bold text-slate-900 text-[11px]">{s.label}</p>
+      {s.title && (
+        <p className="text-[10px] text-slate-600 font-semibold truncate mt-0.5" title={s.title}>
+          {s.title}
+        </p>
+      )}
+    </div>
+    {/* Name line: generous width so full name and title never overflow */}
+    <div className="flex items-end gap-2 min-h-6 text-[11px]">
+      <span className="font-semibold whitespace-nowrap text-slate-800">Name :</span>
+      <span className="font-medium flex-1 border-b border-slate-500 print:border-black text-slate-950 pb-0.5" title={s.name}>
+        {s.name || ' '}
+      </span>
+    </div>
+    {/* Signature and official stamp line: wide flex container preventing any right-border overflow */}
+    <div className="flex items-end gap-2 min-h-12 text-[11px]">
+      <span className="font-semibold whitespace-nowrap pb-1 text-slate-800">Signature :</span>
+      <div className="flex-1 border-b border-slate-500 print:border-black relative min-h-11 flex items-end justify-between px-2 gap-2 min-w-0">
+        {s.signatureUrl && (
+          <img
+            src={s.signatureUrl}
+            alt={`${s.label} signature`}
+            className="max-h-10 max-w-[105px] shrink-0 object-contain mix-blend-multiply select-none"
+          />
+        )}
+        {s.stampUrl && (
+          <img
+            src={s.stampUrl}
+            alt={`${s.label} stamp`}
+            className="max-h-10 max-w-[125px] shrink-0 object-contain mix-blend-multiply select-none mb-0.5"
+          />
+        )}
+        {!s.signatureUrl && !s.stampUrl && (
+          <span className="w-full text-transparent select-none">{' '}</span>
+        )}
+      </div>
+    </div>
+    {/* Date line */}
+    <div className="flex items-end gap-2 h-5 text-[10px]">
+      <span className="font-semibold whitespace-nowrap text-slate-800">Date :</span>
+      <span className="font-mono text-slate-800 flex-1 border-b border-slate-400 print:border-black pb-0.5">
+        {s.date || ' '}
+      </span>
+    </div>
+  </div>
+);
+
 /** One column per signatory: role, title, name, digital signature & official stamp (or blank line), and date */
 export const VoucherSignatures: React.FC<{ signatories: Signatory[]; columns?: 2 | 3 | 4 | 5 }> = ({ signatories, columns }) => {
-  const colCount = columns ?? (signatories.length === 3 ? 3 : signatories.length >= 4 ? 4 : 2);
-  const gridClass = {
-    2: 'sm:grid-cols-2',
-    3: 'sm:grid-cols-3',
-    4: 'sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4',
-    5: 'sm:grid-cols-3 lg:grid-cols-5 print:grid-cols-5',
-  }[colCount];
+  const isApprover = (s: Signatory) =>
+    s.label.toLowerCase().includes('endorsed by') ||
+    s.label.toLowerCase().includes('approved by') ||
+    (!!s.signatureUrl && !!s.stampUrl);
+
+  const approvers = signatories.filter(isApprover);
+  const operational = signatories.filter((s) => !isApprover(s));
+
+  // If there are official approvers alongside operational signatories (e.g. Model 21, Model 22, Model 19)
+  // Give the official approvers (Endorsed By & Approved By) their own spacious 2-column row so nothing ever overflows
+  if (approvers.length > 0 && operational.length > 0) {
+    const opGrid = operational.length <= 2
+      ? 'grid-cols-1 sm:grid-cols-2 print:grid-cols-2'
+      : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-3';
+    const appGrid = approvers.length === 1
+      ? 'grid-cols-1 max-w-md print:max-w-none'
+      : 'grid-cols-1 sm:grid-cols-2 print:grid-cols-2';
+
+    return (
+      <div className="pt-6 space-y-4">
+        {/* Handover / Operational Signatures */}
+        <div className={`grid gap-4 text-[11px] text-slate-900 ${opGrid}`}>
+          {operational.map((s, idx) => (
+            <SignatoryCard key={`${s.label}-${idx}`} signatory={s} idx={idx} />
+          ))}
+        </div>
+
+        {/* Official Endorsement & Approval Signatures (Generous 2-column width preventing any overflow of name or stamp) */}
+        <div className={`grid gap-4 text-[11px] text-slate-900 ${appGrid}`}>
+          {approvers.map((s, idx) => (
+            <SignatoryCard key={`${s.label}-${idx}`} signatory={s} idx={operational.length + idx} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Default layout: max 2 or 3 wide columns (never cramped 4 or 5 columns)
+  const gridClass = (columns === 2 || signatories.length <= 2)
+    ? 'grid-cols-1 sm:grid-cols-2 print:grid-cols-2'
+    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-3';
 
   return (
-    <div className={`pt-6 grid grid-cols-1 gap-6 text-[11px] text-slate-900 ${gridClass}`}>
+    <div className={`pt-6 grid gap-4 text-[11px] text-slate-900 ${gridClass}`}>
       {signatories.map((s, idx) => (
-        <div key={`${s.label}-${idx}`} className="space-y-2 border border-slate-200/80 rounded-lg p-2.5 bg-slate-50/40 print:bg-transparent print:border-none print:p-0">
-          <div>
-            <p className="font-bold text-slate-900">{s.label}</p>
-            {s.title && (
-              <p className="text-[10px] text-slate-600 font-semibold truncate mt-0.5" title={s.title}>
-                {s.title}
-              </p>
-            )}
-          </div>
-          {/* Fixed-height rows aligned to the line, so a blank name sits level with a filled one */}
-          <div className="flex items-end gap-2 h-6">
-            <span className="font-semibold whitespace-nowrap">Name :</span>
-            <span className="font-medium flex-1 truncate border-b border-slate-500 print:border-black">{s.name || ' '}</span>
-          </div>
-          <div className="flex items-end gap-2 min-h-12">
-            <span className="font-semibold whitespace-nowrap pb-1">Signature :</span>
-            <div className="flex-1 border-b border-slate-500 print:border-black relative min-h-11 flex items-end justify-between px-1">
-              {s.signatureUrl && (
-                <img
-                  src={s.signatureUrl}
-                  alt={`${s.label} signature`}
-                  className="max-h-10 max-w-[100px] object-contain mix-blend-multiply select-none"
-                />
-              )}
-              {s.stampUrl && (
-                <img
-                  src={s.stampUrl}
-                  alt={`${s.label} stamp`}
-                  className="max-h-9 max-w-[110px] object-contain mix-blend-multiply select-none mb-0.5"
-                />
-              )}
-              {!s.signatureUrl && !s.stampUrl && (
-                <span className="w-full text-transparent select-none">{' '}</span>
-              )}
-            </div>
-          </div>
-          <div className="flex items-end gap-2 h-5 text-[10px]">
-            <span className="font-semibold whitespace-nowrap">Date :</span>
-            <span className="font-mono text-slate-800 flex-1 truncate border-b border-slate-400 print:border-black">{s.date || ' '}</span>
-          </div>
-        </div>
+        <SignatoryCard key={`${s.label}-${idx}`} signatory={s} idx={idx} />
       ))}
     </div>
   );

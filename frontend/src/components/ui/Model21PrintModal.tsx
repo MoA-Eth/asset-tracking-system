@@ -1,5 +1,6 @@
 import React from 'react';
 import { Model21Voucher } from '../../types/asset-management';
+import { formatVoucherRemark } from '../../utils/voucher-remark';
 import {
   VoucherShell, VoucherDetails, VoucherSignatures, formatVoucherAmount, orDash,
   VOUCHER_TABLE_WRAP, VOUCHER_TABLE, VOUCHER_HEAD_ROW, VOUCHER_TH, VOUCHER_BODY, VOUCHER_TD,
@@ -16,7 +17,8 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
 
   // Vehicle particulars are recorded once per request, on its first line
   const first = voucher.items[0];
-  const hasParticulars = !!first && !!(first.plateNo || first.engineNo || first.accessories?.length || first.tireNos?.length || first.remark);
+  const cleanRemark = formatVoucherRemark(first?.remark);
+  const hasParticulars = !!first && !!(first.plateNo || first.engineNo || first.accessories?.length || first.tireNos?.length || cleanRemark);
 
   return (
     <VoucherShell
@@ -130,10 +132,10 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
             )}
           </div>
           <div>
-            {first.remark && (
+            {cleanRemark && (
               <>
                 <span className="font-bold text-slate-800 block mb-1">Remark</span>
-                <div className="text-slate-900 leading-relaxed whitespace-pre-line">{first.remark}</div>
+                <div className="text-slate-900 leading-relaxed whitespace-pre-line">{cleanRemark}</div>
               </>
             )}
           </div>
@@ -145,7 +147,6 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
       </p>
 
       <VoucherSignatures
-        columns={voucher.signatories ? (voucher.signatories.length === 3 ? 3 : voucher.signatories.length >= 4 ? 4 : 2) : (voucher.storeManName ? 4 : undefined)}
         signatories={
           voucher.signatories || [
             { label: 'Transferor', name: voucher.fromEmployeeName },

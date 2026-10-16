@@ -100,7 +100,6 @@ export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, 
       </p>
 
       <VoucherSignatures
-        columns={voucher.signatories ? (voucher.signatories.length === 3 ? 3 : voucher.signatories.length >= 4 ? 4 : 2) : 3}
         signatories={
           voucher.signatories || [
             { label: 'Storekeeper', name: voucher.storekeeperName || voucher.requestedByName },

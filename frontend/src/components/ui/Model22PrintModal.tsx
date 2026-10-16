@@ -1,5 +1,6 @@
 import React from 'react';
 import { Model22Voucher } from '../../types/asset-management';
+import { formatVoucherRemark } from '../../utils/voucher-remark';
 import {
   VoucherShell, VoucherDetails, VoucherTotals, VoucherSignatures, formatVoucherAmount, orDash,
   VOUCHER_TABLE_WRAP, VOUCHER_TABLE, VOUCHER_HEAD_ROW, VOUCHER_TH, VOUCHER_BODY, VOUCHER_TD,
@@ -84,7 +85,7 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, on
                 <td className={`${VOUCHER_TD} text-right font-mono font-bold`}>{item.quantity}</td>
                 <td className={`${VOUCHER_TD} text-right font-mono`}>{formatVoucherAmount(item.unitPrice)}</td>
                 <td className={`${VOUCHER_TD} text-right font-mono font-bold`}>{formatVoucherAmount(item.totalAmount)}</td>
-                <td className={`${VOUCHER_TD} text-slate-700`}>{orDash(item.remark)}</td>
+                <td className={`${VOUCHER_TD} text-slate-700`}>{orDash(formatVoucherRemark(item.remark))}</td>
               </tr>
             ))}
           </tbody>

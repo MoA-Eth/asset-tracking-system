@@ -41,6 +41,30 @@ import { isSlipRequired, SLIP_REQUIRED_MESSAGE } from './settings.service';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+
+export function formatVoucherRemark(remark?: string | null): string | undefined {
+  if (!remark) return undefined;
+  const trimmed = String(remark).trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const obj = JSON.parse(trimmed);
+      if (typeof obj === 'object' && obj !== null) {
+        if (obj.userNotes) return String(obj.userNotes).trim();
+        if (obj.remark) return String(obj.remark).trim();
+        if (obj.notes) return String(obj.notes).trim();
+        if (obj.defectRemark) return String(obj.defectRemark).trim();
+        if (obj.description) return String(obj.description).trim();
+        if (obj.programName) return `Program: ${String(obj.programName).trim()}`;
+        if (obj.source) return `Source: ${String(obj.source).trim()}`;
+        return undefined;
+      }
+    } catch {
+      return trimmed;
+    }
+  }
+  return trimmed;
+}
+
 function mapItem(raw: any): ItemWithRelations {
   let model19Meta: any = {};
   if (raw.notes) {
@@ -73,7 +97,7 @@ function mapItem(raw: any): ItemWithRelations {
     ifmisSlipAttachmentUrl: raw.ifmisSlipAttachmentUrl ?? undefined,
     isHistoricalData: raw.isHistoricalData,
     parentItemId: raw.parentItemId ?? undefined,
-    notes: (model19Meta.userNotes || (typeof model19Meta === 'object' && Object.keys(model19Meta).length > 0 ? (model19Meta.remark || raw.notes) : raw.notes)) || undefined,
+    notes: (model19Meta.userNotes || model19Meta.remark || (model19Meta.programName ? `Program: ${model19Meta.programName}` : undefined)) || undefined,
     registeredById: raw.registeredById,
     approvedById: raw.approvedById ?? undefined,
     createdAtGc: raw.createdAtGc,
@@ -396,8 +420,17 @@ function parseLegacyModel21Notes(type: string, text: string): Model21RequestDeta
   const details: Record<string, string> = {};
   body.split(' | ').forEach((part, index) => {
     const match = prefixes.find(([prefix]) => part.startsWith(prefix));
-    if (match) details[match[1]] = part.slice(match[0].length);
-    else if (index === 0 && type === 'TRANSFER' && !part.startsWith('[Model/21 #')) details.reason = part;
+    if (match) {
+      const val = part.slice(match[0].length).trim();
+      if (match[1] === 'remark') {
+        const clean = formatVoucherRemark(val);
+        if (clean) details.remark = clean;
+      } else {
+        details[match[1]] = val;
+      }
+    } else if (index === 0 && type === 'TRANSFER' && !part.startsWith('[Model/21 #')) {
+      details.reason = part;
+    }
   });
   return details as Model21RequestDetails;
 }

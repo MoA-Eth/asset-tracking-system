@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, FileText, Car } from 'lucide-react';
 import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
+import { formatVoucherRemark } from '../../utils/voucher-remark';
 import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, FormNotice, QuantityInput, MoneyInput, inputClass, textareaClass, submitOnCtrlEnter } from '../ui/FormKit';
 import { readPdfRows, rowsToText, isModel19, isModel21, parseModel21, parseModel21Particulars, sameEmployeeId, Model21SlipFields, Model21SlipLine, Model21Particulars } from '../../utils/slip-reader';
 import { Part, SlipPreview } from './FormParts';
@@ -96,7 +97,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [keyQty, setKeyQty] = useState(qtyOf('key'));
   const [reserveTyreQty, setReserveTyreQty] = useState(qtyOf('reserve tyre'));
   const [tireSerials, setTireSerials] = useState(details.tireNos?.join(', ') ?? '');
-  const [defectRemark, setDefectRemark] = useState(details.remark ?? '');
+  const [defectRemark, setDefectRemark] = useState(formatVoucherRemark(details.remark) ?? '');
   const [submitting, setSubmitting] = useState(false);
 
   // "Return to store": the store the asset goes back to. Empty means an ordinary transfer to an employee.
@@ -263,7 +264,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         vehicle.engineNo && (setEngineNo(vehicle.engineNo), 'engine'),
         vehicle.accessories.length > 0 && (setJackQty(qty('jack with handle') ?? 0), setTireWrenchQty(qty('tire wrench') ?? 0), setKeyQty(qty('key') ?? 0), setReserveTyreQty(qty('reserve tyre') ?? 0), 'accessories'),
         vehicle.tireNos.length > 0 && (setTireSerials(vehicle.tireNos.join(', ')), `${vehicle.tireNos.length} tire numbers`),
-        vehicle.remark && (setDefectRemark(vehicle.remark), 'remark'),
+        vehicle.remark && (setDefectRemark(formatVoucherRemark(vehicle.remark) ?? ''), 'remark'),
       ].filter(Boolean) as string[];
       if (got.length) {
         setShowVehicle(true);
@@ -1081,7 +1082,7 @@ export const buildModel21Voucher = async (
         engineNo: d.engineNo || undefined,
         accessories: d.accessories && d.accessories.length > 0 ? d.accessories : undefined,
         tireNos: d.tireNos && d.tireNos.length > 0 ? d.tireNos : undefined,
-        remark: d.remark || undefined,
+        remark: formatVoucherRemark(d.remark) || undefined,
       },
     ],
     printedBy: context.printedBy,
