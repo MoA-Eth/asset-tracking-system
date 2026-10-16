@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ApprovalStatus,
   UserRole,
@@ -9,6 +9,24 @@ import {
   StoreService,
 } from './store.service';
 import { ForbiddenError } from '../errors/app-error';
+
+// In-memory mock for the Prisma client used by StoreService so tests run without an external DB in CI
+const db = vi.hoisted(() => ({
+  employee: { findUnique: vi.fn() },
+  location: { findUnique: vi.fn() },
+  department: { findUnique: vi.fn() },
+  item: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+  transactionApproval: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+  auditLog: { create: vi.fn() },
+  $transaction: vi.fn(async (cb: (tx: any) => Promise<any>) => cb(db)),
+}));
+
+vi.mock('../lib/prisma', () => ({ prisma: db }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  db.$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => cb(db));
+});
 
 describe('Chief Director & 10M High-Value Approval Workflow', () => {
   it('defines the statutory high-value threshold at 10,000,000 ETB', () => {
@@ -43,33 +61,25 @@ describe('Chief Director & 10M High-Value Approval Workflow', () => {
   });
 
   it('refuses Department Head authorization when transaction exceeds 10,000,000 ETB', async () => {
-    const db: any = {
-      transactionApproval: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'appr-high-1',
-          status: 'PENDING',
-          currentStage: 2,
-          itemId: 'item-machinery-1',
-          itemCode: 'MOA-MACH-001',
-          ifmisSlipNumber: 'M22-HIGH-01',
-        }),
-      },
-      employee: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'EMP-HEAD',
-          fullNameEn: 'Abebe Head',
-          role: UserRole.DEPARTMENT_HEAD,
-        }),
-      },
-      item: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'item-machinery-1',
-          itemCode: 'MOA-MACH-001',
-          unitCostETB: 12_000_000,
-          notes: JSON.stringify({ quantity: 1, uom: 'UNIT' }),
-        }),
-      },
-    };
+    db.transactionApproval.findUnique.mockResolvedValue({
+      id: 'appr-high-1',
+      status: 'PENDING',
+      currentStage: 2,
+      itemId: 'item-machinery-1',
+      itemCode: 'MOA-MACH-001',
+      ifmisSlipNumber: 'M22-HIGH-01',
+    });
+    db.employee.findUnique.mockResolvedValue({
+      id: 'EMP-HEAD',
+      fullNameEn: 'Abebe Head',
+      role: UserRole.DEPARTMENT_HEAD,
+    });
+    db.item.findUnique.mockResolvedValue({
+      id: 'item-machinery-1',
+      itemCode: 'MOA-MACH-001',
+      unitCostETB: 12_000_000,
+      notes: JSON.stringify({ quantity: 1, uom: 'UNIT' }),
+    });
 
     const store = new (StoreService as any)();
     await expect(
@@ -106,32 +116,22 @@ describe('Chief Director & 10M High-Value Approval Workflow', () => {
       assignedDepartmentId: null,
     };
 
-    const db: any = {
-      transactionApproval: {
-        findUnique: vi.fn().mockResolvedValue(approval),
-        update: vi.fn().mockResolvedValue({
-          ...approval,
-          status: 'APPROVED',
-          reviewedById: 'EMP-CHIEF',
-          reviewRemarks: 'Chief Director statutory approval granted',
-          item,
-        }),
-      },
-      employee: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'EMP-CHIEF',
-          fullNameEn: 'Dr. Girma Chief',
-          role: UserRole.CHIEF_DIRECTOR,
-        }),
-      },
-      item: {
-        findUnique: vi.fn().mockResolvedValue(item),
-        update: vi.fn().mockResolvedValue(item),
-      },
-      auditLog: {
-        create: vi.fn().mockResolvedValue({}),
-      },
-    };
+    db.transactionApproval.findUnique.mockResolvedValue(approval);
+    db.transactionApproval.update.mockResolvedValue({
+      ...approval,
+      status: 'APPROVED',
+      reviewedById: 'EMP-CHIEF',
+      reviewRemarks: 'Chief Director statutory approval granted',
+      item,
+    });
+    db.employee.findUnique.mockResolvedValue({
+      id: 'EMP-CHIEF',
+      fullNameEn: 'Dr. Girma Chief',
+      role: UserRole.CHIEF_DIRECTOR,
+    });
+    db.item.findUnique.mockResolvedValue(item);
+    db.item.update.mockResolvedValue(item);
+    db.auditLog.create.mockResolvedValue({});
 
     const store = new (StoreService as any)();
     const result = await (store as any).applyDecision(
@@ -169,32 +169,22 @@ describe('Chief Director & 10M High-Value Approval Workflow', () => {
       assignedDepartmentId: null,
     };
 
-    const db: any = {
-      transactionApproval: {
-        findUnique: vi.fn().mockResolvedValue(approval),
-        update: vi.fn().mockResolvedValue({
-          ...approval,
-          status: 'APPROVED',
-          reviewedById: 'EMP-HEAD',
-          reviewRemarks: 'Standard approval by Dept Head',
-          item,
-        }),
-      },
-      employee: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'EMP-HEAD',
-          fullNameEn: 'Abebe Head',
-          role: UserRole.DEPARTMENT_HEAD,
-        }),
-      },
-      item: {
-        findUnique: vi.fn().mockResolvedValue(item),
-        update: vi.fn().mockResolvedValue(item),
-      },
-      auditLog: {
-        create: vi.fn().mockResolvedValue({}),
-      },
-    };
+    db.transactionApproval.findUnique.mockResolvedValue(approval);
+    db.transactionApproval.update.mockResolvedValue({
+      ...approval,
+      status: 'APPROVED',
+      reviewedById: 'EMP-HEAD',
+      reviewRemarks: 'Standard approval by Dept Head',
+      item,
+    });
+    db.employee.findUnique.mockResolvedValue({
+      id: 'EMP-HEAD',
+      fullNameEn: 'Abebe Head',
+      role: UserRole.DEPARTMENT_HEAD,
+    });
+    db.item.findUnique.mockResolvedValue(item);
+    db.item.update.mockResolvedValue(item);
+    db.auditLog.create.mockResolvedValue({});
 
     const store = new (StoreService as any)();
     const result = await (store as any).applyDecision(

@@ -498,7 +498,7 @@ async function addAuditLog(
   /** Pass the transaction when the entry belongs to one, so it is saved or dropped with it */
   client: any = prisma,
 ) {
-  const user = userId ? await prisma.employee.findUnique({ where: { id: userId } }) : null;
+  const user = userId ? await (client?.employee || prisma.employee).findUnique({ where: { id: userId } }) : null;
   const dateInfo = getTodayGcAndEc();
   await client.auditLog.create({
     data: {
