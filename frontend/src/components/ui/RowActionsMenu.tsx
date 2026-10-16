@@ -128,7 +128,7 @@ export const RowActionsMenu: React.FC<RowActionsMenuProps> = ({ actions, label }
             aria-label={`Actions for ${label}`}
             onKeyDown={onMenuKey}
             style={{ top: pos.top, left: pos.left, width: MENU_WIDTH }}
-            className="fixed z-[60] overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-[0_16px_40px_-12px_rgba(15,23,42,0.35)] animate-fadeIn"
+            className="fixed z-[60] overflow-hidden rounded-md border border-slate-200 bg-white text-left shadow-[0_16px_40px_-12px_rgba(15,23,42,0.35)] animate-fadeIn"
           >
             <div role="presentation" className="border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               Actions · <span className="font-mono normal-case tracking-normal text-slate-700">{label}</span>
@@ -150,7 +150,7 @@ export const RowActionsMenu: React.FC<RowActionsMenuProps> = ({ actions, label }
                         close(false);
                         a.onClick?.();
                       }}
-                      className={`group flex w-full items-start gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13px] font-medium transition focus:outline-none disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent cursor-pointer ${
+                      className={`group flex w-full items-start gap-2.5 rounded-[4px] px-2 py-1.5 text-left text-[13px] font-medium transition focus:outline-none disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent cursor-pointer ${
                         kind === 'danger'
                           ? 'text-rose-700 hover:bg-rose-50 focus:bg-rose-50'
                           : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900'

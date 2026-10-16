@@ -42,7 +42,7 @@ export const SystemSettingsPage: React.FC = () => {
       onClick={() => handlePolicyChange(policy)}
       disabled={!canEdit || saving}
       aria-pressed={slipAttachmentPolicy === policy}
-      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+      className={`px-3.5 py-1.5 rounded-[4px] text-xs font-bold transition ${
         slipAttachmentPolicy === policy ? `${activeClass} text-white shadow-xs` : 'text-slate-600 enabled:hover:text-slate-900 enabled:hover:bg-slate-100'
       } ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed'} disabled:opacity-80`}
     >
@@ -70,7 +70,7 @@ export const SystemSettingsPage: React.FC = () => {
           )}
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-md border border-slate-200">
           <div className="space-y-1 max-w-2xl">
             <div className="flex items-center gap-2">
               <FileCheck className="w-4 h-4 text-emerald-700 shrink-0" />
@@ -82,7 +82,7 @@ export const SystemSettingsPage: React.FC = () => {
             </p>
           </div>
 
-          <div role="group" aria-label="Scanned slip rule" className="flex items-center gap-2 shrink-0 bg-white p-1 rounded-xl border border-slate-300">
+          <div role="group" aria-label="Scanned slip rule" className="flex items-center gap-2 shrink-0 bg-white p-1 rounded-md border border-slate-300">
             {option('OPTIONAL', 'Optional (ተመራጭ)', 'bg-emerald-800')}
             {option('REQUIRED', 'Required (ግዴታ)', 'bg-amber-700')}
           </div>

@@ -657,7 +657,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       </Part>
 
       <Part title={rows.length > 1 ? `Items (${rows.length})` : 'Items'} aside={<span className="text-[11px] text-slate-500">From one store. Unit and price are as received on Model 19.</span>}>
-        <div className="overflow-hidden rounded-lg border border-slate-200">
+        <div className="overflow-hidden rounded-md border border-slate-200">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-xs">
               <thead className="bg-slate-50">
@@ -737,33 +737,44 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                   );
                 })}
               </tbody>
+              {/* One row in the table's columns: the transport cost field under the Qty field, the grand total under Total */}
+              <tfoot className="border-t border-slate-200 bg-slate-50/60 text-xs text-slate-600">
+                <tr className="align-middle">
+                  <td colSpan={isEdit ? 5 : 3} className="px-2 py-1.5">
+                    {!isEdit && (
+                      <button
+                        type="button"
+                        onClick={() => setRows((rs) => [...rs, newRow()])}
+                        className="inline-flex items-center gap-1 rounded-[4px] px-2 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 cursor-pointer"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add item
+                      </button>
+                    )}
+                  </td>
+                  {!isEdit && (
+                    <>
+                      <td className="px-2 py-1.5 text-right whitespace-nowrap">
+                        <label htmlFor="issue-transport-cost">Transport cost</label>
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <MoneyInput id="issue-transport-cost" aria-label="Transport cost (ETB)" suffix="" value={transportationCost} onChange={setTransportationCost} inputClassName="!px-2.5" />
+                      </td>
+                    </>
+                  )}
+                  <td className="px-2 py-1.5 text-right font-medium text-slate-800 whitespace-nowrap">Grand total</td>
+                  <td className="px-2 py-1.5 text-right whitespace-nowrap">
+                    <span className="block font-mono text-sm font-semibold tabular-nums text-slate-900">{money(grandTotal)} ETB</span>
+                    {transportationCost > 0 && (
+                      <span className="block text-[11px] text-slate-500">
+                        items {money(totalAmount)} + transport {money(transportationCost)}
+                      </span>
+                    )}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
             </table>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/60 px-3 py-2">
-            {!isEdit ? (
-              <button
-                type="button"
-                onClick={() => setRows((rs) => [...rs, newRow()])}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 cursor-pointer"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Add item
-              </button>
-            ) : (
-              <span />
-            )}
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
-              <span>Total <span className="ml-1 font-mono font-semibold tabular-nums text-slate-900">{money(totalAmount)}</span></span>
-              {!isEdit && (
-                <label className="inline-flex items-center gap-1.5">
-                  Transport cost
-                  <span className="w-28">
-                    <MoneyInput aria-label="Transport cost (ETB)" suffix="" value={transportationCost} onChange={setTransportationCost} inputClassName="!h-8 !px-2 !text-xs" />
-                  </span>
-                </label>
-              )}
-              <span>Grand total <span className="ml-1 font-mono text-sm font-semibold tabular-nums text-slate-900">{money(grandTotal)} ETB</span></span>
-            </div>
           </div>
         </div>
         {mixedStores && <p role="alert" className="text-[11px] font-medium text-rose-700">These items are in different stores. One Model 22 issues from one store: issue each store's items on its own.</p>}

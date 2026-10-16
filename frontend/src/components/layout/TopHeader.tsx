@@ -262,7 +262,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       <div className="flex items-center gap-3 min-w-0 md:shrink-0 flex-1 md:flex-none">
         <button
           onClick={onToggleSidebar}
-          className="hidden lg:flex items-center justify-center p-2 shrink-0 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+          className="hidden lg:flex items-center justify-center p-2 shrink-0 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-[4px] transition cursor-pointer"
           title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
           {sidebarCollapsed ? (
@@ -310,7 +310,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         </button>
 
         {/* Store scope selector: hidden until pages filter by the selected store. Its options come from Settings → Stores. */}
-        {/* <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200">
+        {/* <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-50 border border-slate-200">
           <Building2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
           <select
             value={selectedCenter}
@@ -333,7 +333,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               onClick={() => {
                 setShowNotifications((prev) => !prev);
               }}
-              className={`relative p-2 rounded-lg transition cursor-pointer ${
+              className={`relative p-2 rounded-[4px] transition cursor-pointer ${
                 showNotifications
                   ? 'bg-amber-100/70 text-slate-900 border border-amber-300 shadow-xs'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
@@ -342,7 +342,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             >
               <Bell className="w-4 h-4" />
               {displayBadgeCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-amber-400 text-slate-950 font-extrabold text-[10px] flex items-center justify-center animate-bounce shadow-xs">
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-amber-400 text-slate-950 font-extrabold text-[10px] flex items-center justify-center shadow-xs">
                   {displayBadgeCount}
                 </span>
               )}
@@ -350,7 +350,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
             {/* Floating Notification Popover (Responsive mobile-friendly popover) */}
             {showNotifications && (
-              <div className="fixed sm:absolute top-14 sm:top-full left-2 right-2 sm:left-auto sm:right-0 mt-0 sm:mt-2 sm:w-96 max-w-sm sm:max-w-none bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800">
+              <div className="fixed sm:absolute top-14 sm:top-full left-2 right-2 sm:left-auto sm:right-0 mt-0 sm:mt-2 sm:w-96 max-w-sm sm:max-w-none bg-white rounded-md border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800">
                 {/* Header */}
                 <div className="px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -369,7 +369,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                     {unreadCount > 0 && (
                       <button
                         onClick={markAllAsRead}
-                        className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-800 hover:bg-slate-100 rounded-lg transition cursor-pointer flex items-center gap-1"
+                        className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-800 hover:bg-slate-100 rounded-[4px] transition cursor-pointer flex items-center gap-1"
                         title="Mark all notifications as read"
                       >
                         <CheckCheck className="w-3.5 h-3.5 text-slate-400" />
@@ -508,7 +508,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               <div
                 role="menu"
                 aria-label="User Account Menu"
-                className="absolute right-0 mt-2 w-64 bg-white rounded-xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800"
+                className="absolute right-0 mt-2 w-64 bg-white rounded-md border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800"
               >
                 {/* Identity Header Card */}
                 <div className="p-3.5 bg-slate-50/80 border-b border-slate-100 flex items-start gap-2.5">
@@ -547,7 +547,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       setShowUserMenu(false);
                       onNavigate('settings-profile');
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900 focus:outline-none rounded-lg transition cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900 focus:outline-none rounded-[4px] transition cursor-pointer"
                   >
                     <User className="w-4 h-4 text-emerald-700 shrink-0" />
                     <span>Profile</span>
@@ -560,7 +560,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       setShowUserMenu(false);
                       onNavigate('docs');
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900 focus:outline-none rounded-lg transition cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900 focus:outline-none rounded-[4px] transition cursor-pointer"
                   >
                     <CircleHelp className="w-4 h-4 text-emerald-700 shrink-0" />
                     <span>Help</span>
@@ -574,7 +574,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                         setShowUserMenu(false);
                         onNavigate('settings-users');
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900 focus:outline-none rounded-lg transition cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 focus:bg-emerald-50 focus:text-emerald-900 focus:outline-none rounded-[4px] transition cursor-pointer"
                     >
                       <Users className="w-4 h-4 text-emerald-700 shrink-0" />
                       <span>Users</span>
@@ -591,7 +591,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       setShowUserMenu(false);
                       logout();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-semibold text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left font-semibold text-rose-700 hover:bg-rose-50 rounded-[4px] transition cursor-pointer"
                   >
                     <LogOut className="w-4 h-4 text-rose-600 shrink-0" />
                     <span>Sign out</span>

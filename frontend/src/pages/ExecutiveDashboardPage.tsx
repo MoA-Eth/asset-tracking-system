@@ -185,7 +185,7 @@ const WorkTile: React.FC<{
       </span>
     </>
   );
-  const cls = 'flex items-center gap-3 rounded-xl border border-b-2 border-slate-200 border-b-slate-300 bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),0_4px_12px_-4px_rgba(15,23,42,0.10)]';
+  const cls = 'flex items-center gap-3 rounded-md border border-b-2 border-slate-200 border-b-slate-300 bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),0_4px_12px_-4px_rgba(15,23,42,0.10)]';
   return onClick ? (
     <button onClick={onClick} className={`${cls} transition duration-200 hover:border-emerald-300 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_10px_20px_-6px_rgba(15,23,42,0.16)] cursor-pointer`}>
       {content}
@@ -349,7 +349,7 @@ const StockMovementChart: React.FC<{ months: MovementMonth[] }> = ({ months }) =
 
         {hovered && hover !== null && (
           <div
-            className="pointer-events-none absolute top-0 z-10 w-40 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg"
+            className="pointer-events-none absolute top-0 z-10 w-40 -translate-x-1/2 rounded-md border border-slate-200 bg-white px-3 py-2 shadow-lg"
             style={{ left: `${((left + groupW * hover + groupW / 2) / W) * 100}%` }}
           >
             <p className="mb-1 text-[11px] font-semibold text-slate-900">{monthLabel(hovered.month, true)}</p>
@@ -439,7 +439,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
         <AlertCircle className="w-8 h-8 text-rose-600 mx-auto" />
         <h3 className="text-sm font-semibold text-slate-900">Couldn't load the dashboard</h3>
         <p className="text-xs text-slate-600">{error}</p>
-        <button onClick={fetchDashboard} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg transition cursor-pointer inline-flex items-center gap-1.5">
+        <button onClick={fetchDashboard} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-[4px] transition cursor-pointer inline-flex items-center gap-1.5">
           <RefreshCw className="w-3.5 h-3.5" /> Retry
         </button>
       </div>
@@ -573,7 +573,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
           ) : (
             <div className="space-y-4">
               {/* Summary: what is overdue in total */}
-              <div className="flex flex-col gap-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-4 rounded-md border border-amber-200 bg-amber-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
                     <AlertTriangle className="h-4 w-4" />
@@ -772,7 +772,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
               const topCats = (loc.categoryBreakdown || []).slice(0, 3);
 
               return (
-                <div key={loc.id} className="rounded-xl border border-slate-200 p-4">
+                <div key={loc.id} className="rounded-md border border-slate-200 p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">

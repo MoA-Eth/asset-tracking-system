@@ -34,7 +34,7 @@ const compactETB = (value: number): string =>
   value >= 1_000_000 ? `ETB ${(value / 1_000_000).toFixed(value >= 10_000_000 ? 1 : 2)}M` : value >= 10_000 ? `ETB ${Math.round(value / 1000)}K` : formatETB(value);
 
 const Card: React.FC<{ title: string; subtitle: string; children: React.ReactNode }> = ({ title, subtitle, children }) => (
-  <section className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4">
+  <section className="flex min-w-0 flex-col rounded-md border border-slate-200 bg-white p-4">
     <h4 className="text-xs font-bold text-slate-900">{title}</h4>
     <p className="mb-3 text-[11px] text-slate-500">{subtitle}</p>
     <div className="flex flex-1 flex-col justify-center">{children}</div>

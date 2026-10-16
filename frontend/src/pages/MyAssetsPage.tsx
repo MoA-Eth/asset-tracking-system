@@ -80,7 +80,7 @@ export const MyAssetsPage: React.FC = () => {
       </div>
 
       {error && (
-        <div role="alert" className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800">
+        <div role="alert" className="flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800">
           <AlertCircle className="mt-px h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -204,7 +204,7 @@ export const MyAssetsPage: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
+                <dl className="divide-y divide-slate-100 rounded-md border border-slate-200 px-4">
                   <Detail label="Item code" mono>{selected.itemCode}</Detail>
                   <Detail label="Serial no." mono>{selected.serialNumber}</Detail>
                   <Detail label="Category">{CATEGORY_LABELS[selected.category] ?? selected.category}</Detail>

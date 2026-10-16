@@ -454,7 +454,7 @@ export const EmployeesPage: React.FC = () => {
               type="button"
               onClick={() => setImportOpen(true)}
               title="Import employees from Excel"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs shrink-0"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[4px] border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs shrink-0"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
               <span>Import from Excel</span>

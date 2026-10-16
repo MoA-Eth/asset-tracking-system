@@ -269,7 +269,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
 
       {/* Success Notification */}
       {successMsg && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center gap-2 animate-fadeIn shadow-xs">
+        <div className="p-3.5 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center gap-2 animate-fadeIn shadow-xs">
           <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
           <span className="font-semibold">{successMsg}</span>
         </div>
@@ -393,7 +393,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                             disabled={updatingId !== null || !canAssign}
                             aria-label={`Role for ${emp.fullNameEn}`}
                             onChange={(e) => handleRoleChange(emp.id, e.target.value as UserRole)}
-                            className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-emerald-600 disabled:opacity-50 cursor-pointer"
+                            className="px-2.5 py-1 bg-white border border-slate-300 rounded-[4px] text-xs font-semibold text-slate-800 focus:outline-none focus:border-emerald-600 disabled:opacity-50 cursor-pointer"
                           >
                             {Object.values(UserRole).map((r) => (
                               <option key={r} value={r}>

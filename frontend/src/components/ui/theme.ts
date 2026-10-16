@@ -7,17 +7,17 @@
 export const btn = {
   /** Main action of a page, e.g. "Register goods received", "Issue asset" */
   primary:
-    'inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs rounded-[3px] shadow-xs transition active:scale-95 cursor-pointer shrink-0',
+    'inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-[13px] rounded-[4px] shadow-[0_1px_2px_rgba(16,24,40,0.12)] transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1',
   /** Second action next to the main one, e.g. "Return to store" beside "New transfer" */
   secondary:
-    'inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-emerald-50 text-slate-800 hover:text-emerald-900 border border-slate-300 hover:border-emerald-300 font-bold text-xs rounded-[3px] shadow-xs transition active:scale-95 cursor-pointer shrink-0',
+    'inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 hover:border-slate-400 font-semibold text-[13px] rounded-[4px] transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1',
   /** Small action inside a table row: Edit, Print, Return… */
-  row: 'inline-flex items-center justify-center gap-1 px-2 py-1 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-300 hover:border-emerald-300 rounded-[3px] text-[11px] font-bold transition cursor-pointer whitespace-nowrap',
+  row: 'inline-flex items-center justify-center gap-1 px-2 py-1 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap',
   /** Icon inside a row action */
   rowIcon: 'w-3.5 h-3.5 text-emerald-700',
   /** Row action that isn't available right now (the reason goes in its title) */
   rowLocked:
-    'inline-flex items-center justify-center gap-1 px-2 py-1 bg-slate-50 text-slate-400 border border-slate-200 rounded-[3px] text-[11px] font-bold cursor-not-allowed whitespace-nowrap',
+    'inline-flex items-center justify-center gap-1 px-2 py-1 bg-slate-50 text-slate-400 border border-slate-200 rounded-[4px] text-xs font-semibold cursor-not-allowed whitespace-nowrap',
   /** Active tab in a page's tab switcher */
   tabActive: 'bg-emerald-700 text-white shadow-xs',
 } as const;

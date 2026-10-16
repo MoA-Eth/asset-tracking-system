@@ -56,7 +56,7 @@ export const Row: React.FC<{ label: string; children?: React.ReactNode; mono?: b
 );
 
 export const Section: React.FC<{ title: string; icon: React.ElementType; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
-  <section className="rounded-xl border border-slate-200 bg-white">
+  <section className="rounded-md border border-slate-200 bg-white">
     <h4 className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 bg-slate-50 rounded-t-xl text-[11px] font-bold uppercase tracking-wider text-slate-600">
       <Icon className="w-3.5 h-3.5 text-emerald-700" />
       {title}
@@ -143,7 +143,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
         size="xl"
       >
         {error ? (
-          <div className="flex items-center gap-2 p-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800">
+          <div className="flex items-center gap-2 p-4 rounded-md bg-red-50 border border-red-200 text-xs text-red-800">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
           </div>

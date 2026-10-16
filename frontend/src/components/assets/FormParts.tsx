@@ -59,7 +59,7 @@ export const SlipPreview: React.FC<{ ifmisFile: File | null; signedFile: File | 
       }
     >
       {open ? (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+        <div className="overflow-hidden rounded-md border border-slate-200 bg-slate-100">
           <SlipContent state={state} fileName={fileName} heightClass="h-[75vh]" />
         </div>
       ) : (

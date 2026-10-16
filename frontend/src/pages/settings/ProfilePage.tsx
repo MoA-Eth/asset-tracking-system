@@ -59,7 +59,7 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {/* Card 1: Profile Details */}
-      <section className="rounded-xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs border-l-4 border-l-emerald-600">
+      <section className="rounded-md border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs border-l-4 border-l-emerald-600">
         <header className="flex items-center gap-2 mb-1">
           <User className="h-4 w-4 text-emerald-700" />
           <h2 className="text-sm font-semibold text-slate-900">Profile</h2>
@@ -91,28 +91,28 @@ export const ProfilePage: React.FC = () => {
 
         {/* Details Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="bg-slate-50/70 rounded-lg p-2.5 border border-slate-200/70">
+          <div className="bg-slate-50/70 rounded-md p-2.5 border border-slate-200/70">
             <span className="text-slate-400 block text-[11px] font-medium">Full Name (EN / AM)</span>
             <span className="text-slate-800 font-semibold mt-0.5 block truncate">
               {user?.fullNameEn || '—'} {user?.fullNameAm ? `(${user.fullNameAm})` : ''}
             </span>
           </div>
 
-          <div className="bg-slate-50/70 rounded-lg p-2.5 border border-slate-200/70">
+          <div className="bg-slate-50/70 rounded-md p-2.5 border border-slate-200/70">
             <span className="text-slate-400 block text-[11px] font-medium">Sign-in Email</span>
             <span className="text-slate-800 font-mono font-medium mt-0.5 block truncate">
               {user?.email || '—'}
             </span>
           </div>
 
-          <div className="bg-slate-50/70 rounded-lg p-2.5 border border-slate-200/70">
+          <div className="bg-slate-50/70 rounded-md p-2.5 border border-slate-200/70">
             <span className="text-slate-400 block text-[11px] font-medium">Payroll / Employee ID</span>
             <span className="text-slate-800 font-mono font-medium mt-0.5 block">
               {user?.payrollId || '—'}
             </span>
           </div>
 
-          <div className="bg-slate-50/70 rounded-lg p-2.5 border border-slate-200/70">
+          <div className="bg-slate-50/70 rounded-md p-2.5 border border-slate-200/70">
             <span className="text-slate-400 block text-[11px] font-medium">Organization</span>
             <span className="text-slate-800 font-medium mt-0.5 block">
               Ministry of Agriculture (FDRE)
@@ -122,7 +122,7 @@ export const ProfilePage: React.FC = () => {
       </section>
 
       {/* Card 2: Change Password */}
-      <section className="rounded-xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs border-l-4 border-l-emerald-600">
+      <section className="rounded-md border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs border-l-4 border-l-emerald-600">
         <header className="flex items-center gap-2 mb-1">
           <KeyRound className="h-4 w-4 text-emerald-700" />
           <h2 className="text-sm font-semibold text-slate-900">Change password</h2>
@@ -141,7 +141,7 @@ export const ProfilePage: React.FC = () => {
       </section>
 
       {/* Card 3: Active Session */}
-      <section className="rounded-xl border border-slate-200/90 bg-white p-3.5 sm:p-4 shadow-xs border-l-4 border-l-slate-400">
+      <section className="rounded-md border border-slate-200/90 bg-white p-3.5 sm:p-4 shadow-xs border-l-4 border-l-slate-400">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2.5">
             <div className="size-7 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
@@ -160,7 +160,7 @@ export const ProfilePage: React.FC = () => {
           <button
             type="button"
             onClick={logout}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100/80 border border-rose-200 transition cursor-pointer shrink-0"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100/80 border border-rose-200 transition cursor-pointer shrink-0"
           >
             <LogOut className="w-3.5 h-3.5 text-rose-600" />
             <span>Sign out</span>

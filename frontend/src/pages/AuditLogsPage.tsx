@@ -72,7 +72,7 @@ const fieldValue = (value: unknown): string => {
 const StateList: React.FC<{ title: string; state?: Record<string, unknown> | null; other?: Record<string, unknown> | null }> = ({ title, state, other }) => {
   if (!state || typeof state !== 'object' || Object.keys(state).length === 0) return null;
   return (
-    <div className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white p-3">
+    <div className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white p-3">
       <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">{title}</p>
       <dl className="space-y-1">
         {Object.entries(state).map(([key, value]) => {
@@ -231,7 +231,7 @@ export const AuditLogsPage: React.FC = () => {
     );
   }
 
-  const headButton = 'px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer';
+  const headButton = 'px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-md transition shadow-2xs flex items-center gap-1.5 cursor-pointer';
 
   return (
     <div className="space-y-2.5 animate-fadeIn pb-8">
@@ -289,7 +289,7 @@ export const AuditLogsPage: React.FC = () => {
           </button>
           <button
             onClick={() => window.print()}
-            className="p-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium rounded-xl transition shadow-2xs flex items-center justify-center cursor-pointer h-8 w-8"
+            className="p-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium rounded-[4px] transition shadow-2xs flex items-center justify-center cursor-pointer h-8 w-8"
             title="Print, or save as PDF"
             aria-label="Print, or save as PDF"
           >
@@ -327,7 +327,7 @@ export const AuditLogsPage: React.FC = () => {
                   setSelectedKind('ALL');
                   setDateFilter('ALL_TIME');
                 }}
-                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition cursor-pointer"
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-[4px] transition cursor-pointer"
               >
                 Clear all filters
               </button>

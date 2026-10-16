@@ -235,7 +235,7 @@ export const FormSection: React.FC<FormSectionProps> = ({
   );
 
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)]">
+    <section className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)]">
       {collapsible ? (
         <button
           type="button"
@@ -288,7 +288,6 @@ export const Field: React.FC<FieldProps> = ({ label, required, optional, hint, s
     >
       {label}
       {required && <span className="ml-0.5 text-rose-600">*</span>}
-      {optional && <span className="ml-1 font-normal text-slate-400">(optional)</span>}
     </label>
     {children}
     {error && (
@@ -337,7 +336,7 @@ export const TotalValue: React.FC<{ accent: FormAccent; children: React.ReactNod
 
 /** Labelled read-only facts shown as a compact summary row. */
 export const SummaryGrid: React.FC<{ items: { label: string; value: React.ReactNode; mono?: boolean }[] }> = ({ items }) => (
-  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-slate-50/70 p-3 sm:grid-cols-4">
+  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border border-slate-200 bg-slate-50/70 p-3 sm:grid-cols-4">
     {items.map((it) => (
       <div key={it.label} className="min-w-0">
         <dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{it.label}</dt>
@@ -356,7 +355,7 @@ export const FormError: React.FC<{ message: string | null }> = ({ message }) => 
     if (message) ref.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
   }, [message]);
   return message ? (
-    <div ref={ref} role="alert" className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 animate-fadeIn">
+    <div ref={ref} role="alert" className="flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 animate-fadeIn">
       <AlertCircle className="mt-px h-4 w-4 shrink-0 text-rose-600" />
       <span>{message}</span>
     </div>
@@ -369,7 +368,7 @@ export const FormNotice: React.FC<{ icon: LucideIcon; tone?: 'info' | 'warn'; ch
   children,
 }) => (
   <div
-    className={`flex items-start gap-2.5 rounded-lg border p-3 text-xs leading-relaxed ${
+    className={`flex items-start gap-2.5 rounded-md border p-3 text-xs leading-relaxed ${
       tone === 'warn' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-slate-200 bg-slate-50 text-slate-700'
     }`}
   >
@@ -405,14 +404,14 @@ export const FileDropField: React.FC<FileDropFieldProps> = ({ label, accent, req
     <div className="relative">
       <span className="mb-1 block text-xs font-medium text-slate-700">
         {label}
-        {required ? <span className="ml-0.5 text-rose-600">*</span> : <span className="ml-1 font-normal text-slate-400">(optional)</span>}
+        {required && <span className="ml-0.5 text-rose-600">*</span>}
       </span>
       <label
-        className={`flex cursor-pointer items-center gap-3 rounded-lg border border-dashed px-3 py-2.5 transition ${
+        className={`group flex cursor-pointer items-center gap-3 rounded-[4px] border border-dashed px-3 py-2.5 transition-colors ${
           missing ? 'border-amber-400 bg-amber-50/40' : `border-slate-300 bg-white ${ACCENT[accent].dropHover}`
         }`}
       >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] bg-slate-100">
           {fileName ? <Paperclip className={`h-4 w-4 ${ACCENT[accent].icon}`} /> : <Upload className="h-4 w-4 text-slate-500" />}
         </span>
         <span className="min-w-0 flex-1">
@@ -421,11 +420,11 @@ export const FileDropField: React.FC<FileDropFieldProps> = ({ label, accent, req
           </span>
           <span className="block text-[11px] text-slate-400">{hint || 'PDF, PNG, JPEG or WEBP · up to 10 MB'}</span>
         </span>
-        <span className="shrink-0 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+        <span className="shrink-0 rounded-[4px] border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors group-hover:border-slate-400 group-hover:bg-slate-50">
           {fileName ? 'Change' : 'Browse'}
         </span>
         {/* Room for View, which sits beside Change but outside the label so it doesn't open the file picker */}
-        {viewable && <span className="w-14 shrink-0" aria-hidden="true" />}
+        {viewable && <span className="w-16 shrink-0" aria-hidden="true" />}
         <input type="file" onChange={onChange} className="hidden" accept={accept} />
       </label>
       {viewable && (
@@ -433,7 +432,7 @@ export const FileDropField: React.FC<FileDropFieldProps> = ({ label, accent, req
           type="button"
           onClick={() => setViewing(true)}
           title="Check the attached copy against the fields"
-          className="absolute bottom-[14px] right-3 inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-800 cursor-pointer"
+          className="absolute bottom-[13px] right-3 inline-flex items-center gap-1 rounded-[4px] border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer"
         >
           <Eye className="h-3 w-3" />
           View
@@ -524,7 +523,7 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
       <button
         type="button"
         onClick={onReset}
-        className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+        className="flex items-center gap-1.5 rounded-[4px] px-3 py-2 text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
       >
         <RotateCcw className="h-3.5 w-3.5" />
         Reset
@@ -563,7 +562,7 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
       <button
         type="button"
         onClick={onCancel}
-        className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+        className="flex items-center gap-1.5 rounded-[4px] border border-slate-300 bg-white px-4 py-2 text-[13px] font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer"
       >
         <X className="h-3.5 w-3.5" />
         Cancel
@@ -572,7 +571,7 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
         type="submit"
         disabled={submitting || submitDisabled || incomplete}
         aria-describedby={note ? 'form-footer-note' : undefined}
-        className={`flex items-center gap-2 rounded-lg px-5 py-2 text-xs font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 focus:outline-none focus-visible:ring-2 cursor-pointer ${ACCENT[accent].button}`}
+        className={`flex items-center gap-2 rounded-[4px] px-5 py-2 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(16,24,40,0.12)] transition-colors disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none focus:outline-none focus-visible:ring-2 cursor-pointer ${ACCENT[accent].button}`}
       >
         {submitting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
         {submitLabel}

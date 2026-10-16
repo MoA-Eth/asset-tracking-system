@@ -17,7 +17,7 @@ export const StatusTabs: React.FC<{ value: StatusFilter; onChange: (v: StatusFil
   active,
   inactive,
 }) => (
-  <div role="group" aria-label="Filter by status" className="flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 text-xs font-semibold">
+  <div role="group" aria-label="Filter by status" className="flex rounded-md border border-slate-200 bg-slate-50 p-0.5 text-xs font-semibold">
     {(
       [
         ['ACTIVE', `Active (${active})`],
@@ -30,7 +30,7 @@ export const StatusTabs: React.FC<{ value: StatusFilter; onChange: (v: StatusFil
         type="button"
         aria-pressed={value === key}
         onClick={() => onChange(key)}
-        className={`rounded-lg px-3 py-1.5 transition cursor-pointer ${value === key ? btn.tabActive : 'text-slate-600 hover:text-slate-900'}`}
+        className={`rounded-[4px] px-3 py-1.5 transition cursor-pointer ${value === key ? btn.tabActive : 'text-slate-600 hover:text-slate-900'}`}
       >
         {label}
       </button>

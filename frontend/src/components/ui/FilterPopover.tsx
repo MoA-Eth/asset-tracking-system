@@ -92,7 +92,7 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
         onClick={() => setIsOpen((prev) => !prev)}
         className={`inline-flex items-center justify-center gap-1.5 ${
           showText ? 'px-3.5 py-1.5 text-xs' : 'px-2.5 py-1.5 h-8'
-        } rounded-xl border font-semibold transition cursor-pointer select-none shadow-2xs ${
+        } rounded-[4px] border font-semibold transition cursor-pointer select-none shadow-2xs ${
           hasActive || isOpen
             ? 'border-emerald-700/60 bg-emerald-50/80 text-emerald-950 shadow-xs ring-1 ring-emerald-600/20'
             : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900'
@@ -114,7 +114,7 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
           onClick={clear}
           aria-label="Clear filters"
           title="Clear all filters"
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition cursor-pointer select-none"
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[4px] text-xs font-semibold text-slate-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition cursor-pointer select-none"
         >
           <X className="w-3.5 h-3.5" />
           <span>Clear</span>
@@ -124,7 +124,7 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
       {/* Popover card: just the controls. Filters apply as you change them, so there is nothing to confirm;
           Escape or a click outside closes it. */}
       <div
-        className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-2 w-[min(22rem,calc(100vw-2rem))] z-50 rounded-xl border border-slate-200 bg-white p-4 shadow-lg animate-fadeIn ${
+        className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-2 w-[min(22rem,calc(100vw-2rem))] z-50 rounded-md border border-slate-200 bg-white p-4 shadow-lg animate-fadeIn ${
           isOpen ? '' : 'hidden'
         }`}
         aria-label={title}
@@ -189,7 +189,7 @@ export const FilterSelect: React.FC<{
       aria-label={ariaLabel || placeholder || 'Select option'}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/70 py-2 pl-3 pr-8 text-xs text-slate-800 transition hover:bg-slate-50 focus:border-[#0B3D25] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0B3D25]/20 cursor-pointer"
+      className="w-full appearance-none rounded-[4px] border border-slate-200 bg-slate-50/70 py-2 pl-3 pr-8 text-xs text-slate-800 transition hover:bg-slate-50 focus:border-[#0B3D25] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0B3D25]/20 cursor-pointer"
     >
       {placeholder && <option value="ALL">{placeholder}</option>}
       {options.map((opt) => (
@@ -215,7 +215,7 @@ export const FilterPill: React.FC<{
     type="button"
     onClick={onClick}
     aria-pressed={active}
-    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer select-none ${
+    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] text-xs font-semibold transition cursor-pointer select-none ${
       active
         ? 'bg-[#0B3D25] text-white shadow-xs'
         : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80 hover:text-slate-900'

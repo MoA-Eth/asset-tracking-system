@@ -53,6 +53,17 @@ html {
   text-rendering: optimizeLegibility;
 }
 
+/* The browser's own dropdowns look like the searchable ones: no native arrow, the same chevron and padding */
+select:not([multiple]):not([size]) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 1rem;
+  padding-right: 2rem;
+}
+
 /* Digits line up in columns of amounts and quantities, and in codes */
 table,
 .font-mono {

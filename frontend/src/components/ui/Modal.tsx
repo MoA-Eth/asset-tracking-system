@@ -86,7 +86,7 @@ export const Modal: React.FC<ModalProps> = ({
         onChange={() => { edited.current = true; }}
         className={`
           relative w-full ${SIZE_CLASS[size]} max-h-[90vh] flex flex-col
-          bg-white rounded-2xl shadow-2xl
+          bg-white rounded-md shadow-2xl
           overflow-hidden
         `}
       >
@@ -111,7 +111,7 @@ export const Modal: React.FC<ModalProps> = ({
 
         {confirmingClose && (
           <div role="alertdialog" aria-label="Discard what you entered?" className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 p-6 backdrop-blur-[2px]">
-            <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="w-full max-w-sm rounded-md border border-slate-200 bg-white p-5 shadow-xl">
               <h3 className="text-sm font-extrabold text-slate-900">Discard what you entered?</h3>
               <p className="mt-1 text-xs text-slate-600">Nothing has been saved yet. If you close this window, what you typed is lost.</p>
               <div className="mt-4 flex justify-end gap-2">
@@ -119,14 +119,14 @@ export const Modal: React.FC<ModalProps> = ({
                   type="button"
                   autoFocus
                   onClick={() => setConfirmingClose(false)}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  className="rounded-[4px] border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   Keep editing
                 </button>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-800 cursor-pointer"
+                  className="rounded-[4px] bg-rose-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-800 cursor-pointer"
                 >
                   Discard
                 </button>

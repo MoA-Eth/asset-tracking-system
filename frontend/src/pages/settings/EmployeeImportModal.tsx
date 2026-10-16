@@ -149,7 +149,7 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
 
             <label
               htmlFor="employee-import-file"
-              className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/60 px-6 py-10 text-center transition hover:border-emerald-400 hover:bg-emerald-50/40"
+              className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[4px] border-2 border-dashed border-slate-300 bg-slate-50/60 px-6 py-10 text-center transition hover:border-emerald-400 hover:bg-emerald-50/40"
             >
               {busy === 'checking' ? (
                 <RefreshCw className="h-7 w-7 animate-spin text-emerald-700" />
@@ -183,7 +183,7 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
         <FormError message={error} />
 
         {imported && (
-          <div role="status" className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+          <div role="status" className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
             <AlertTriangle className="mt-px h-4 w-4 shrink-0 text-amber-600" />
             <span>
               <b>{imported.added} added and {imported.updated} updated.</b> {imported.skipped} {imported.skipped === 1 ? 'row was' : 'rows were'} skipped and{' '}
@@ -211,7 +211,7 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
                       aria-pressed={filter === a}
                       onClick={() => setFilter(a)}
                       disabled={count === 0 && a !== 'ALL'}
-                      className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition cursor-pointer disabled:cursor-default disabled:opacity-40 ${
+                      className={`rounded-[4px] border px-2.5 py-1 text-[11px] font-semibold transition cursor-pointer disabled:cursor-default disabled:opacity-40 ${
                         filter === a ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
                       }`}
                     >
@@ -232,7 +232,7 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
               </FormNotice>
             )}
 
-            <div className="max-h-[22rem] overflow-auto rounded-xl border border-slate-200">
+            <div className="max-h-[22rem] overflow-auto rounded-md border border-slate-200">
               <table className="w-full text-left text-[13px]">
                 <thead className="sticky top-0 z-[1]">
                   <tr className={table.headRow}>
@@ -280,7 +280,7 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
                   type="button"
                   onClick={reset}
                   disabled={busy !== null}
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+                  className="flex items-center gap-1.5 rounded-[4px] border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
                 >
                   <Upload className="h-3.5 w-3.5" />
                   Choose another file

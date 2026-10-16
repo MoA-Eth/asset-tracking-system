@@ -96,7 +96,7 @@ export const Toast: React.FC<ToastProps> = ({
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
-      className={`relative w-full overflow-hidden rounded-xl border border-slate-200 bg-white/95 backdrop-blur-sm shadow-lg shadow-slate-900/10 ${
+      className={`relative w-full overflow-hidden rounded-md border border-slate-200 bg-white/95 backdrop-blur-sm shadow-lg shadow-slate-900/10 ${
         leaving ? 'animate-toastOut' : 'animate-toastIn'
       }`}
     >

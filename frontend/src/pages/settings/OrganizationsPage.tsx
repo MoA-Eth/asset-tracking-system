@@ -178,7 +178,7 @@ export const OrganizationsPage: React.FC = () => {
       </div>
 
       {error ? (
-        <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+        <div className="flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>

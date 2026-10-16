@@ -937,7 +937,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         <button
           type="button"
           onClick={() => setShowVehicle(true)}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-[4px] px-2 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 cursor-pointer"
         >
           <Car className="h-3.5 w-3.5" />
           Add vehicle details (chassis, plate, engine, accessories, tires)

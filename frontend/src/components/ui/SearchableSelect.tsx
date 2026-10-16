@@ -136,7 +136,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       </button>
 
       {open && (
-        <div className="mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_16px_40px_-12px_rgba(15,23,42,0.35)]">
+        <div className="mt-1 overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_16px_40px_-12px_rgba(15,23,42,0.35)]">
           <div className="relative border-b border-slate-200 p-2">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <input
@@ -149,7 +149,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               aria-label="Search the list"
               aria-controls={`${id}-list`}
               autoComplete="off"
-              className="h-8 w-full rounded-md border border-slate-200 bg-slate-50 pl-7 pr-2 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none"
+              className="h-8 w-full rounded-[4px] border border-slate-200 bg-white pl-7 pr-2 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none"
             />
           </div>
           <ul id={`${id}-list`} ref={listRef} role="listbox" className="max-h-60 overflow-auto p-1 text-[13px]">

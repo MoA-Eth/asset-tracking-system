@@ -54,7 +54,7 @@ const TemporaryPasswordField: React.FC<{ value: string; onChange: (v: string) =>
         <button
           type="button"
           onClick={() => onChange(makeTemporaryPassword())}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+          className="flex shrink-0 items-center gap-1.5 rounded-[4px] border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
         >
           <Wand2 className="h-3.5 w-3.5 text-emerald-700" />
           Generate
@@ -65,7 +65,7 @@ const TemporaryPasswordField: React.FC<{ value: string; onChange: (v: string) =>
           onClick={() => navigator.clipboard?.writeText(value).then(() => toast.success('Copied', 'The temporary password is on your clipboard.'))}
           aria-label="Copy the temporary password"
           title="Copy"
-          className="flex shrink-0 items-center rounded-lg border border-slate-300 bg-white px-2.5 text-slate-600 transition hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+          className="flex shrink-0 items-center rounded-[4px] border border-slate-300 bg-white px-2.5 text-slate-600 transition hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
         >
           <Copy className="h-3.5 w-3.5" />
         </button>

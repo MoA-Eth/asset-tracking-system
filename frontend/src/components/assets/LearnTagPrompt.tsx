@@ -64,7 +64,7 @@ export const LearnTagPrompt: React.FC<LearnTagPromptProps> = ({ tags, candidates
   };
 
   return (
-    <div role="group" aria-label="Unknown IFMIS tag numbers" className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+    <div role="group" aria-label="Unknown IFMIS tag numbers" className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
       {tags.map((tag) => {
         const id = chosen[tag] ?? suggested;
         return (

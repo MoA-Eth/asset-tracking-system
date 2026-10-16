@@ -70,7 +70,7 @@ export const ItemTypeTag: React.FC<{ type: ItemType | ''; code?: string; label?:
 };
 
 /** A compact input for a table cell */
-export const cellClass = (opts?: { align?: 'right'; invalid?: boolean; mono?: boolean }) => `${inputClass('emerald', opts)} !h-9 !px-2 !text-xs`;
+export const cellClass = (opts?: { align?: 'right'; invalid?: boolean; mono?: boolean }) => `${inputClass('emerald', opts)} !px-2.5`;
 
 export const money = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
@@ -103,7 +103,7 @@ export const ReceiptItems: React.FC<{
     );
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200">
+    <div className="overflow-hidden rounded-md border border-slate-200">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[880px] text-left text-xs">
           <thead className="bg-slate-50">
@@ -202,7 +202,7 @@ export const ReceiptItems: React.FC<{
           <button
             type="button"
             onClick={onAdd}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-[4px] px-2 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
             Add item

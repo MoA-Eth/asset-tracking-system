@@ -611,7 +611,7 @@ export const ReportsPage: React.FC = () => {
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleExportCSV}
-            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-[4px] transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
             title="Export filtered records to CSV"
           >
             <Download className="w-3.5 h-3.5 text-slate-500" />
@@ -619,7 +619,7 @@ export const ReportsPage: React.FC = () => {
           </button>
           <button
             onClick={handleExportPDF}
-            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-xl transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium text-xs rounded-[4px] transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
             title="Export filtered records to official PDF"
           >
             <FileDown className="w-3.5 h-3.5 text-slate-500" />
@@ -627,7 +627,7 @@ export const ReportsPage: React.FC = () => {
           </button>
           <button
             onClick={() => window.print()}
-            className="p-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium rounded-xl transition shadow-2xs flex items-center justify-center cursor-pointer h-8 w-8"
+            className="p-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 hover:border-slate-400 font-medium rounded-[4px] transition shadow-2xs flex items-center justify-center cursor-pointer h-8 w-8"
             title="Print report"
             aria-label="Print report"
           >
@@ -658,7 +658,7 @@ export const ReportsPage: React.FC = () => {
             <select
               value={timeframe}
               onChange={(e) => setTimeframe(e.target.value as TimeframePreset)}
-              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
+              className="px-3 py-2 bg-white border border-slate-300 rounded-[4px] text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
             >
               <option value="ALL_TIME">All Time</option>
               <option value="TODAY">Today</option>
@@ -677,7 +677,7 @@ export const ReportsPage: React.FC = () => {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer w-full sm:w-auto"
+            className="px-3 py-2 bg-white border border-slate-300 rounded-[4px] text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer w-full sm:w-auto"
           >
             <option value="ALL">All Categories</option>
             {Object.values(AssetCategory).map((cat) => (
@@ -691,7 +691,7 @@ export const ReportsPage: React.FC = () => {
           <select
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer w-full sm:w-auto"
+            className="px-3 py-2 bg-white border border-slate-300 rounded-[4px] text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer w-full sm:w-auto"
           >
             <option value="ALL">All Locations</option>
             {locations.map((loc) => (
@@ -713,7 +713,7 @@ export const ReportsPage: React.FC = () => {
                   type="date"
                   value={customFrom}
                   onChange={(e) => setCustomFrom(e.target.value)}
-                  className="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
+                  className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-[4px] text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
                 />
               </div>
               <div className="flex items-center gap-1.5">
@@ -722,7 +722,7 @@ export const ReportsPage: React.FC = () => {
                   type="date"
                   value={customTo}
                   onChange={(e) => setCustomTo(e.target.value)}
-                  className="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
+                  className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-[4px] text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
                 />
               </div>
               {(customFrom || customTo) && (
@@ -748,7 +748,7 @@ export const ReportsPage: React.FC = () => {
                   setCustomFrom(startOfMonthStr);
                   setCustomTo(endOfMonthStr);
                 }}
-                className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
+                className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
               >
                 This Month
               </button>
@@ -758,7 +758,7 @@ export const ReportsPage: React.FC = () => {
                   setCustomFrom(startOfLastMonthStr);
                   setCustomTo(endOfLastMonthStr);
                 }}
-                className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
+                className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
               >
                 Last Month
               </button>
@@ -768,7 +768,7 @@ export const ReportsPage: React.FC = () => {
                   setCustomFrom(startOfQuarterStr);
                   setCustomTo(endOfQuarterStr);
                 }}
-                className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
+                className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
               >
                 This Quarter
               </button>
@@ -778,7 +778,7 @@ export const ReportsPage: React.FC = () => {
                   setCustomFrom(startOfLastQuarterStr);
                   setCustomTo(endOfLastQuarterStr);
                 }}
-                className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
+                className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
               >
                 Last Quarter
               </button>
@@ -788,7 +788,7 @@ export const ReportsPage: React.FC = () => {
                   setCustomFrom(startOfYearStr);
                   setCustomTo(endOfYearStr);
                 }}
-                className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
+                className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
               >
                 This Year
               </button>
@@ -805,7 +805,7 @@ export const ReportsPage: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setReportType(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-semibold transition cursor-pointer ${
                   isActive
                     ? 'bg-emerald-800 text-white shadow-xs font-bold'
                     : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'

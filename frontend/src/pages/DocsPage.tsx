@@ -21,7 +21,7 @@ const MARKDOWN: Components = {
     <blockquote className="mt-4 rounded-r-lg border-l-4 border-emerald-500 bg-emerald-50/70 px-4 py-2.5 text-sm text-emerald-950 [&>p]:mt-0" {...props} />
   ),
   table: (props) => (
-    <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+    <div className="mt-4 overflow-x-auto rounded-md border border-slate-200">
       <table className="w-full text-left text-xs" {...props} />
     </div>
   ),
@@ -90,7 +90,7 @@ export const DocsPage: React.FC = () => {
           aria-label="Choose a guide"
           value={guide.id}
           onChange={(e) => open(e.target.value)}
-          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 md:hidden"
+          className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 md:hidden"
         >
           {matches.map((g) => (
             <option key={g.id} value={g.id}>{g.title}</option>
@@ -109,7 +109,7 @@ export const DocsPage: React.FC = () => {
                       type="button"
                       onClick={() => open(g.id)}
                       aria-current={g.id === guide.id ? 'page' : undefined}
-                      className={`w-full rounded-lg px-2.5 py-1.5 text-left transition cursor-pointer ${
+                      className={`w-full rounded-[4px] px-2.5 py-1.5 text-left transition cursor-pointer ${
                         g.id === guide.id ? 'bg-emerald-50 text-emerald-900' : 'text-slate-700 hover:bg-slate-100'
                       }`}
                     >

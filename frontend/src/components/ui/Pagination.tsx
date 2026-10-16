@@ -71,7 +71,7 @@ export function pageWindow(page: number, pageCount: number): (number | 'gap')[] 
 }
 
 const navButton =
-  'flex h-8 min-w-8 items-center justify-center rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-300 cursor-pointer';
+  'flex h-8 min-w-8 items-center justify-center rounded-md border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-300 cursor-pointer';
 
 interface PaginationProps {
   pager: Pager<unknown>;
@@ -102,7 +102,7 @@ export const Pagination: React.FC<PaginationProps> = ({ pager, label = 'rows', c
             <select
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
-              className="h-8 rounded-lg border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-emerald-600 focus:outline-none cursor-pointer"
+              className="h-8 rounded-[4px] border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-emerald-600 focus:outline-none cursor-pointer"
             >
               {PAGE_SIZES.map((size) => (
                 <option key={size} value={size}>
@@ -133,7 +133,7 @@ export const Pagination: React.FC<PaginationProps> = ({ pager, label = 'rows', c
                   aria-current={p === page ? 'page' : undefined}
                   className={
                     p === page
-                      ? 'flex h-8 min-w-8 items-center justify-center rounded-lg border border-emerald-700 bg-emerald-700 px-2 text-xs font-bold tabular-nums text-white'
+                      ? 'flex h-8 min-w-8 items-center justify-center rounded-[4px] border border-emerald-700 bg-emerald-700 px-2 text-xs font-bold tabular-nums text-white'
                       : `${navButton} tabular-nums`
                   }
                 >

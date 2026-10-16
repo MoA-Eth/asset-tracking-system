@@ -259,7 +259,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
         <>
           {/* Unsaved changes: the only place to save or discard, kept in view while scrolling */}
           {totalUnsavedChanges > 0 && (
-            <div role="status" className="sticky top-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 shadow-sm animate-fadeIn">
+            <div role="status" className="sticky top-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-2.5 shadow-sm animate-fadeIn">
               <span className="flex items-center gap-2 text-xs font-semibold text-amber-950">
                 <span className="h-2 w-2 rounded-full bg-amber-500" />
                 {totalUnsavedChanges} unsaved {totalUnsavedChanges === 1 ? 'change' : 'changes'} in {diffSummary.length} {diffSummary.length === 1 ? 'role' : 'roles'}
@@ -581,7 +581,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
                 ))}
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 flex items-start gap-2">
+              <div className="p-3 bg-slate-50 rounded-md border border-slate-200 text-xs text-slate-600 flex items-start gap-2">
                 <LockKeyhole className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
                 <span>
                   Action will be authorized by <strong>{user?.fullNameEn || 'System Administrator'}</strong> and recorded with Ethiopian and Gregorian calendar timestamps.

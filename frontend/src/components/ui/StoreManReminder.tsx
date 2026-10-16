@@ -41,7 +41,7 @@ export const StoreManReminder: React.FC<Props> = ({ onAssign, stores: given }) =
 
   const names = without.slice(0, 3).map((s) => s.name).join(', ') + (without.length > 3 ? ` and ${without.length - 3} more` : '');
   return (
-    <div role="status" className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+    <div role="status" className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between">
       <p className="flex items-start gap-2">
         <AlertTriangle className="mt-px h-4 w-4 shrink-0 text-amber-600" />
         <span>
@@ -55,7 +55,7 @@ export const StoreManReminder: React.FC<Props> = ({ onAssign, stores: given }) =
         <button
           type="button"
           onClick={onAssign}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-semibold text-amber-900 transition hover:bg-amber-100 cursor-pointer"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-[4px] border border-amber-300 bg-white px-3 py-1.5 font-semibold text-amber-900 transition hover:bg-amber-100 cursor-pointer"
         >
           <UserCheck className="h-3.5 w-3.5" />
           Assign store men

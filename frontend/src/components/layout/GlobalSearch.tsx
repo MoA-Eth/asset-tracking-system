@@ -194,7 +194,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onNavigate }) => {
       {open && (
         <div
           id="global-search-results"
-          className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white py-1.5 text-[13px] shadow-[0_18px_40px_-12px_rgba(15,23,42,0.3)] animate-fadeIn"
+          className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto rounded-md border border-slate-200 bg-white py-1.5 text-[13px] shadow-[0_18px_40px_-12px_rgba(15,23,42,0.3)] animate-fadeIn"
         >
           <ul role="listbox" aria-label="Search results">
             {canSearchItems && term.length >= 2 && (

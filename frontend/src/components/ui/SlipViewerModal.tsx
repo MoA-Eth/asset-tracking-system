@@ -140,7 +140,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, file, onC
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="bg-white rounded-md w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <FileText className="w-4 h-4 text-emerald-700 shrink-0" />
@@ -155,7 +155,7 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, file, onC
                 href={state.objectUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 flex items-center gap-1.5"
+                className="px-2.5 py-1.5 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 flex items-center gap-1.5"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 Open in new tab

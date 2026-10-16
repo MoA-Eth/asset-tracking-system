@@ -121,7 +121,7 @@ const IfmisTagField: React.FC<{ tag?: string; onSave?: (tag: string) => Promise<
           <div className="absolute right-1.5 flex items-center gap-1">
             {tag && <CopyButton text={tag} label="Copy IFMIS tag number" />}
             {onSave && (
-              <button type="button" onClick={() => setDraft(tag ?? '')} className="rounded px-1.5 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 cursor-pointer">
+              <button type="button" onClick={() => setDraft(tag ?? '')} className="rounded px-1.5 py-0.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 cursor-pointer">
                 {tag ? 'Change' : 'Add'}
               </button>
             )}
@@ -199,7 +199,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 disabled={!onPrevious}
                 aria-label="Previous asset"
                 title="Previous asset (↑)"
-                className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                className="flex h-6 w-6 items-center justify-center rounded-[4px] border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
@@ -210,7 +210,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 disabled={!onNext}
                 aria-label="Next asset"
                 title="Next asset (↓)"
-                className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                className="flex h-6 w-6 items-center justify-center rounded-[4px] border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
@@ -541,7 +541,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               )}
               {item.ifmisSlipAttachmentUrl && (
                 <FormKitField label="Scanned IFMIS Model 19 slip" span="sm:col-span-2">
-                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+                  <div className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
                     <span className="font-mono text-slate-700 truncate">{item.ifmisSlipNumber}_slip.pdf</span>
                     <button
                       type="button"
@@ -598,7 +598,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 )}
               </div>
               {pending && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 text-xs">
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 text-xs">
                   <p className="font-semibold">
                     {requestLabel(pending.transactionType, pending.requestDetails).pending} · {STAGE_LABELS[pending.currentStage] ?? 'waiting'}
                   </p>
@@ -606,14 +606,14 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 </div>
               )}
               {row.rejected && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs">
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs">
                   <RejectionNote request={row.rejected} />
                 </div>
               )}
               {units.length > 0 && (
                 <div>
                   <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Issued from this batch</p>
-                  <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 text-xs">
+                  <ul className="divide-y divide-slate-100 rounded-md border border-slate-200 text-xs">
                     {units.map((u) => (
                       <li key={u.item.id}>
                         <button

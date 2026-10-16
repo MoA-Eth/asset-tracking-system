@@ -539,10 +539,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
         <div className="flex items-center gap-2 shrink-0">
           {/* View Mode Toggle Button Group */}
-          <div className="bg-slate-100 p-0.5 rounded-xl border border-slate-200 flex items-center">
+          <div className="bg-slate-100 p-0.5 rounded-md border border-slate-200 flex items-center">
             <button
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs font-semibold ${
+              className={`p-1.5 rounded-[4px] transition cursor-pointer flex items-center gap-1 text-xs font-semibold ${
                 viewMode === 'table'
                   ? 'bg-white text-slate-900 shadow-2xs font-bold'
                   : 'text-slate-500 hover:text-slate-800'
@@ -554,7 +554,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             </button>
             <button
               onClick={() => setViewMode('cards')}
-              className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs font-semibold ${
+              className={`p-1.5 rounded-[4px] transition cursor-pointer flex items-center gap-1 text-xs font-semibold ${
                 viewMode === 'cards'
                   ? 'bg-white text-slate-900 shadow-2xs font-bold'
                   : 'text-slate-500 hover:text-slate-800'
@@ -569,7 +569,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       </div>
 
       {/* Role Permission Context Banner (Light & Simple) */}
-      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-600 shadow-2xs">
+      <div className="p-3 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-600 shadow-2xs">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
           <span>
@@ -621,7 +621,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as any)}
-              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-700 cursor-pointer w-full sm:w-auto"
+              className="px-3 py-2 bg-white border border-slate-300 rounded-[4px] text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-700 cursor-pointer w-full sm:w-auto"
             >
               <option value="ALL">All Statutory Forms</option>
               <option value={TransactionType.STOCK_IN}>Receiving (Model 19)</option>
@@ -651,7 +651,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 setActiveTab(tab.id as TabFilter);
                 setSelectedIds([]);
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-3 py-1.5 rounded-[4px] text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
                 activeTab === tab.id
                   ? 'bg-emerald-800 text-white font-bold shadow-xs'
                   : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
@@ -853,7 +853,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                               setSelectedApproval(appr);
                               setReviewRemarks('');
                             }}
-                            className={`px-3 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                            className={`px-3 py-1.5 rounded-[4px] font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-2xs ${
                               isActionableForMe
                                 ? 'bg-emerald-800 hover:bg-emerald-900 text-white'
                                 : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
@@ -889,7 +889,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             return (
               <div
                 key={appr.id}
-                className={`p-4 rounded-xl border transition-all flex flex-col justify-between bg-white ${
+                className={`p-4 rounded-md border transition-all flex flex-col justify-between bg-white ${
                   isSelected
                     ? 'border-emerald-700 ring-1 ring-emerald-700/30 shadow-xs'
                     : 'border-slate-200 hover:border-slate-300 shadow-2xs hover:shadow-xs'
@@ -917,7 +917,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     <p className="text-[11px] font-mono font-semibold text-sky-800">{approvalUnits(appr)}</p>
                   )}
 
-                  <div className="mt-2.5 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-1 text-xs">
+                  <div className="mt-2.5 p-2.5 rounded-md bg-slate-50/80 border border-slate-200/80 space-y-1 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">IFMIS Slip:</span>
                       <span className="flex items-center gap-1">
@@ -969,7 +969,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       setSelectedApproval(appr);
                       setReviewRemarks('');
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs ${
+                    className={`px-3 py-1.5 rounded-[4px] text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs ${
                       isActionableForMe
                         ? 'bg-emerald-800 hover:bg-emerald-900 text-white'
                         : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
@@ -989,7 +989,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
       {/* ── 5. Sticky Floating Batch Action Bar ── */}
       {selectedIds.length > 0 && canReview && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl border border-slate-800 flex items-center gap-4 animate-slideUp">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-4 py-2.5 rounded-md shadow-xl border border-slate-800 flex items-center gap-4 animate-slideUp">
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">
               {selectedIds.length}
@@ -1051,7 +1051,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
       {selectedApproval && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl text-slate-900 my-auto">
+          <div className="bg-white border border-slate-200 rounded-md w-full max-w-lg p-5 space-y-4 shadow-2xl text-slate-900 my-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <FileCheck2 className="w-4 h-4 text-emerald-800" />
@@ -1061,14 +1061,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               </h3>
               <button
                 onClick={() => setSelectedApproval(null)}
-                className="text-slate-400 hover:text-slate-700 font-bold p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-700 font-bold p-1 rounded-[4px]"
               >
                 ✕
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+              <div className="p-3.5 rounded-md bg-slate-50 border border-slate-200 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-900 text-sm">{selectedApproval.itemName}</span>
                   {getTypeBadge(selectedApproval.transactionType, selectedApproval.requestDetails)}
@@ -1101,7 +1101,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
               {/* Endorsement Audit Trail Banner if Stage 2 */}
               {selectedApproval.currentStage === 2 && selectedApproval.endorsedBy && (
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 space-y-1">
+                <div className="p-3 rounded-md bg-slate-50 border border-slate-200 text-slate-800 space-y-1">
                   <div className="font-bold flex items-center justify-between text-[11px]">
                     <span className="flex items-center gap-1 text-slate-900">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
@@ -1123,7 +1123,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
               {/* Scanned IFMIS Slip Attachment */}
               {selectedApproval.ifmisSlipAttachmentUrl ? (
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs">
+                <div className="p-3 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs">
                   <div className="flex items-center gap-2 min-w-0">
                     <FileText className="w-5 h-5 text-emerald-700 shrink-0" />
                     <div className="min-w-0">
@@ -1138,14 +1138,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   <button
                     type="button"
                     onClick={() => setViewingSlipUrl(selectedApproval.ifmisSlipAttachmentUrl ?? null)}
-                    className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                    className="px-3 py-1.5 rounded-[4px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     View Slip
                   </button>
                 </div>
               ) : (
-                <div className="p-3 rounded-xl bg-slate-50 border border-dashed border-slate-300 flex items-center gap-2 text-xs">
+                <div className="p-3 rounded-md bg-slate-50 border border-dashed border-slate-300 flex items-center gap-2 text-xs">
                   <FileText className="w-5 h-5 text-slate-400 shrink-0" />
                   <div>
                     <p className="font-bold text-slate-700">No scanned slip attached</p>
@@ -1157,7 +1157,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               )}
 
               {actionError && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 animate-fadeIn">
+                <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 animate-fadeIn">
                   <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
                   <span>{actionError}</span>
                 </div>
@@ -1179,7 +1179,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   value={reviewRemarks}
                   maxLength={500}
                   onChange={(e) => setReviewRemarks(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-700 text-xs"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-[4px] text-slate-900 focus:outline-none focus:border-emerald-700 text-xs"
                 />
               </div>
             </div>
@@ -1246,7 +1246,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       {/* ── 7. Multi-Item Batch Confirmation Modal ── */}
       {isBatchModalOpen && batchActionType && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl text-slate-900">
+          <div className="bg-white border border-slate-200 rounded-md w-full max-w-md p-5 space-y-4 shadow-2xl text-slate-900">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Layers className="w-4 h-4 text-emerald-800" />
@@ -1261,7 +1261,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700">
+              <div className="p-3 rounded-md bg-slate-50 border border-slate-200 text-slate-700">
                 You are about to batch {batchActionType.toLowerCase()}{' '}
                 <strong className="font-extrabold text-slate-900">{selectedIds.length}</strong> selected transaction requests in a single action.
               </div>
@@ -1276,7 +1276,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   value={batchRemarks}
                   maxLength={500}
                   onChange={(e) => setBatchRemarks(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-700 text-xs"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-[4px] text-slate-900 focus:outline-none focus:border-emerald-700 text-xs"
                 />
               </div>
             </div>

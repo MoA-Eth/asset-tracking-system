@@ -14,7 +14,7 @@ export const ChangePasswordPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen w-screen items-center justify-center bg-[#071911] p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-md bg-white p-6 shadow-2xl">
         <div className="mb-5 flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white">
             <KeyRound className="h-5 w-5" />
