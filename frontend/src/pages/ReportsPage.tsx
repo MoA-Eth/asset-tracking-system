@@ -32,6 +32,7 @@ import { useToast } from '../context/ToastContext';
 import { RefreshButton } from '../components/ui/RefreshButton';
 import { ReportCharts } from '../components/reports/ReportCharts';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
+import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../components/ui/FilterPopover';
 import { CATEGORY_OPTIONS } from '../components/assets/asset-state';
 
 export type ReportType = 'all' | 'registered' | 'available' | 'issued' | 'transferred';
@@ -574,6 +575,31 @@ export const ReportsPage: React.FC = () => {
   // Exports still use every filtered row; only the table on screen is paged
   const pager = usePagination(sortedItems, { resetKey: `${searchTerm}|${timeframe}|${reportType}|${selectedCategory}|${selectedLocation}|${sortColumn}|${sortDirection}` });
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (timeframe !== 'ALL_TIME') count++;
+    if (selectedCategory !== 'ALL') count++;
+    if (selectedLocation !== 'ALL') count++;
+    if (reportType !== 'all') count++;
+    return count;
+  }, [timeframe, selectedCategory, selectedLocation, reportType]);
+
+  const viewChanged = activeFilterCount > 0 || !!searchTerm.trim();
+
+  const handleResetFilters = () => {
+    setTimeframe('ALL_TIME');
+    setCustomFrom('');
+    setCustomTo('');
+    setSelectedCategory('ALL');
+    setSelectedLocation('ALL');
+    setReportType('all');
+  };
+
+  const handleClearAll = () => {
+    handleResetFilters();
+    setSearchTerm('');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24 text-xs text-slate-400">
@@ -636,15 +662,16 @@ export const ReportsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Simple, Unified Filter & Search Bar */}
+      {/* 2. Unified Filter & Search Bar matching Assets, Approvals & Settings */}
       <div className="rounded-md p-3.5 bg-white space-y-3 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-        {/* Row 1: Search + Timeframe + Category + Location */}
-        <div className="flex flex-col lg:flex-row items-center gap-2.5">
+        {/* Row 1: Search + Unified FilterPopover */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
           {/* Search Box */}
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
+              aria-label="Search reports"
               placeholder="Search by code, item name, serial #, slip #, or custodian..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -652,56 +679,87 @@ export const ReportsPage: React.FC = () => {
             />
           </div>
 
-          {/* Timeframe Dropdown */}
-          <div className="flex items-center gap-1.5 w-full sm:w-auto shrink-0">
-            <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
-            <select
-              value={timeframe}
-              onChange={(e) => setTimeframe(e.target.value as TimeframePreset)}
-              className="px-3 py-2 bg-white border border-slate-300 rounded-[4px] text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
+          {/* Unified Filter Popover */}
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+            <FilterPopover
+              label="Filter"
+              ariaLabel="Filter report records"
+              title="Filters"
+              resetLabel="Reset all"
+              activeCount={activeFilterCount}
+              onReset={handleResetFilters}
+              onClear={handleClearAll}
+              showClear={viewChanged}
+              resultCountText={`${sortedItems.length} ${sortedItems.length === 1 ? 'record' : 'records'}`}
             >
-              <option value="ALL_TIME">All Time</option>
-              <option value="TODAY">Today</option>
-              <option value="THIS_WEEK">This Week</option>
-              <option value="PAST_7_DAYS">Past 7 Days</option>
-              <option value="THIS_MONTH">This Month</option>
-              <option value="LAST_MONTH">Last Month</option>
-              <option value="THIS_QUARTER">This Quarter (Q{currentQuarter + 1})</option>
-              <option value="LAST_QUARTER">Last Quarter (Q{lastQuarterIndex + 1})</option>
-              <option value="THIS_YEAR">This Year ({currentYear})</option>
-              <option value="CUSTOM">Custom Date Range...</option>
-            </select>
+              {/* Report Scope */}
+              <FilterSection label="Report Scope">
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {reportTabs.map((tab) => (
+                    <FilterPill
+                      key={tab.id}
+                      label={tab.label}
+                      active={reportType === tab.id}
+                      onClick={() => setReportType(tab.id)}
+                    />
+                  ))}
+                </div>
+              </FilterSection>
+
+              {/* Timeframe */}
+              <FilterSection label="Time Period" htmlFor="report-filter-timeframe">
+                <FilterSelect
+                  id="report-filter-timeframe"
+                  ariaLabel="Filter by time period"
+                  value={timeframe}
+                  onChange={(val) => setTimeframe(val as TimeframePreset)}
+                  options={[
+                    { value: 'ALL_TIME', label: 'All Time' },
+                    { value: 'TODAY', label: 'Today' },
+                    { value: 'THIS_WEEK', label: 'This Week' },
+                    { value: 'PAST_7_DAYS', label: 'Past 7 Days' },
+                    { value: 'THIS_MONTH', label: 'This Month' },
+                    { value: 'LAST_MONTH', label: 'Last Month' },
+                    { value: 'THIS_QUARTER', label: `This Quarter (Q${currentQuarter + 1})` },
+                    { value: 'LAST_QUARTER', label: `Last Quarter (Q${lastQuarterIndex + 1})` },
+                    { value: 'THIS_YEAR', label: `This Year (${currentYear})` },
+                    { value: 'CUSTOM', label: 'Custom Date Range...' },
+                  ]}
+                />
+              </FilterSection>
+
+              {/* Asset Category */}
+              <FilterSection label="Asset Category" htmlFor="report-filter-category">
+                <FilterSelect
+                  id="report-filter-category"
+                  ariaLabel="Filter by asset category"
+                  placeholder="All Categories"
+                  value={selectedCategory}
+                  onChange={setSelectedCategory}
+                  options={Object.values(AssetCategory).map((cat) => ({
+                    value: cat,
+                    label: cat.replace(/_/g, ' '),
+                  }))}
+                />
+              </FilterSection>
+
+              {/* Store & Location */}
+              <FilterSection label="Store & Custody Location" htmlFor="report-filter-location">
+                <FilterSelect
+                  id="report-filter-location"
+                  ariaLabel="Filter by store location"
+                  placeholder="All Locations"
+                  value={selectedLocation}
+                  onChange={setSelectedLocation}
+                  options={locations.map((loc) => ({
+                    value: loc.id,
+                    label: storeLocationLabel(loc),
+                  }))}
+                />
+              </FilterSection>
+            </FilterPopover>
           </div>
-
-          {/* Category Dropdown */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 bg-white border border-slate-300 rounded-[4px] text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer w-full sm:w-auto"
-          >
-            <option value="ALL">All Categories</option>
-            {Object.values(AssetCategory).map((cat) => (
-              <option key={cat} value={cat}>
-                {cat.replace(/_/g, ' ')}
-              </option>
-            ))}
-          </select>
-
-          {/* Store Location Dropdown */}
-          <select
-            value={selectedLocation}
-            onChange={(e) => setSelectedLocation(e.target.value)}
-            className="px-3 py-2 bg-white border border-slate-300 rounded-[4px] text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer w-full sm:w-auto"
-          >
-            <option value="ALL">All Locations</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.siteName}
-              </option>
-            ))}
-          </select>
         </div>
-
         {/* Custom Date Pickers (only when Custom Range is active) */}
         {timeframe === 'CUSTOM' && (
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-slate-100 text-xs animate-fadeIn">
@@ -817,8 +875,60 @@ export const ReportsPage: React.FC = () => {
             );
           })}
         </div>
-      </div>
 
+        {/* Active Filter Chips */}
+        {(timeframe !== 'ALL_TIME' || selectedCategory !== 'ALL' || selectedLocation !== 'ALL') && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100 text-xs">
+            <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
+            {timeframe !== 'ALL_TIME' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-900 text-[11px] font-medium border border-emerald-200">
+                <span>Period: {getTimeframeLabel()}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTimeframe('ALL_TIME');
+                    setCustomFrom('');
+                    setCustomTo('');
+                  }}
+                  title="Reset timeframe"
+                  aria-label="Reset timeframe"
+                  className="hover:text-emerald-950 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+            {selectedCategory !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-900 text-[11px] font-medium border border-blue-200">
+                <span>Category: {selectedCategory.replace(/_/g, ' ')}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('ALL')}
+                  title="Reset category filter"
+                  aria-label="Reset category filter"
+                  className="hover:text-blue-950 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+            {selectedLocation !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-900 text-[11px] font-medium border border-purple-200">
+                <span>Location: {locations.find((l) => l.id === selectedLocation)?.siteName || 'Store'}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedLocation('ALL')}
+                  title="Reset location filter"
+                  aria-label="Reset location filter"
+                  className="hover:text-purple-950 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
       {/* 3. Charts of the same filtered rows */}
       <ReportCharts items={filteredItems} splitsByRoot={splitsByRoot} departments={departments} unitsOf={reportUnits} />
 
