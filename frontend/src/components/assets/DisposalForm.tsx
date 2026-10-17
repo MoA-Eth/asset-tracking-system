@@ -94,6 +94,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     editApproval?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editApproval.ifmisSlipAttachmentUrl) : ''
   );
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [readFile, setReadFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   // The storekeeper named on the form: a store man of the store the item is in
   const keepers = useStoreKeepers();
@@ -102,7 +103,8 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
 
   const bookValue = bookValueEdited ? amountOrUndefined(bookValueText) ?? 0 : unitPrice * quantity;
   const ethDate = formatGcToEc(dateGc);
-  const isAttachmentReq = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
+  const { slipAttachmentPolicy, showScannedSlipField } = useSystemSettings();
+  const isAttachmentReq = slipAttachmentPolicy === 'REQUIRED';
 
   // Required fields still empty; the request can only be submitted once this is empty
   const missingFields = [
@@ -111,7 +113,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     !disposalNo.trim() && 'disposal form no.',
     !dateGc && 'date',
     !reason.trim() && 'disposal type',
-    isAttachmentReq && !attachmentFileName && 'signed copy',
+    isAttachmentReq && (showScannedSlipField ? !attachmentFileName : !(readFile || attachmentFileName || editApproval?.ifmisSlipAttachmentUrl)) && (showScannedSlipField ? 'signed copy' : 'IFMIS disposal form PDF'),
   ].filter(Boolean) as string[];
 
   // A field shows what is wrong with it once the user has been in it
@@ -208,8 +210,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     else setSlipNote({ tone: 'info', text: `The form was read, but every field it covers is already filled in.${more}` });
   };
 
-  // The IFMIS PDF the form was read from, shown in the box at the top
-  const [readFile, setReadFile] = useState<File | null>(null);
+  // The IFMIS PDF the form was read from
   /** Only a disposal form is read here; another IFMIS form is named, so it can be taken to its own form */
   const readSlip = (file: File) => {
     if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return void setSlipNote({ tone: 'warn', text: 'Choose the disposal form as a PDF saved from IFMIS.' });
@@ -258,8 +259,16 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
       return fail('Check quantity', `Quantity must be a whole number from 1 to ${inStore} (${uom} in store).`);
     }
-    if (getSystemSettings().slipAttachmentPolicy === 'REQUIRED' && !attachmentFileName) {
-      return fail('Signed copy required', 'System policy requires the signed disposal form, scanned.');
+    const hasAttachment = showScannedSlipField
+      ? !!attachmentFileName
+      : (!!readFile || !!attachmentFile || !!editApproval?.ifmisSlipAttachmentUrl);
+    if (isAttachmentReq && !hasAttachment) {
+      return fail(
+        'Attachment required',
+        showScannedSlipField
+          ? 'System policy requires the signed disposal form, scanned.'
+          : 'System policy requires the disposal form PDF attached.'
+      );
     }
 
     const payload = {
@@ -330,13 +339,13 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   return (
     <form id="disposal-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
       <FormError message={formError} />
-      {/* The IFMIS PDF first: it fills in the form */}
-      {!isEdit && (
+      {/* The IFMIS PDF: it fills in the form and acts as the attached slip */}
+      {(!isEdit || !showScannedSlipField) && (
         <FileDropField
           label="IFMIS disposal form PDF (Model 22/B)"
           accent="emerald"
-          required={false}
-          fileName={readFile?.name ?? ''}
+          required={!showScannedSlipField && isAttachmentReq}
+          fileName={readFile?.name ?? (!showScannedSlipField && editApproval?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editApproval.ifmisSlipAttachmentUrl) : '')}
           accept=".pdf,application/pdf"
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -344,8 +353,13 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
             if (file) readSlip(file);
           }}
           file={readFile}
+          savedUrl={!showScannedSlipField ? editApproval?.ifmisSlipAttachmentUrl : undefined}
           emptyText="Click to choose the disposal form PDF saved from IFMIS"
-          hint="The form fills itself in from it; a scanned PDF can't be read."
+          hint={
+            showScannedSlipField
+              ? "The form fills itself in from it; a scanned PDF can't be read."
+              : "Autofills form fields and attaches this PDF directly to the disposal request."
+          }
         />
       )}
       {slipNote && (
@@ -481,20 +495,22 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
           required={!isEdit}
         />
         {/* The signed disposal form, scanned: kept as the request's copy (the IFMIS PDF until it is added) */}
-        <div id="disposal-signed-copy">
-          <FileDropField
-            label="Signed copy"
-            accent="emerald"
-            required={isAttachmentReq}
-            fileName={attachmentFileName}
-            accept={SLIP_ACCEPT_ATTR}
-            onChange={handleFile}
-            file={attachmentFile}
-            savedUrl={editApproval?.ifmisSlipAttachmentUrl}
-            emptyText="Click to attach the signed disposal form, scanned"
-            hint="The IFMIS printout with its signatures, as a scan or photo. Until it is added, the IFMIS PDF is kept as the copy."
-          />
-        </div>
+        {showScannedSlipField && (
+          <div id="disposal-signed-copy">
+            <FileDropField
+              label="Signed copy"
+              accent="emerald"
+              required={isAttachmentReq}
+              fileName={attachmentFileName}
+              accept={SLIP_ACCEPT_ATTR}
+              onChange={handleFile}
+              file={attachmentFile}
+              savedUrl={editApproval?.ifmisSlipAttachmentUrl}
+              emptyText="Click to attach the signed disposal form, scanned"
+              hint="The IFMIS printout with its signatures, as a scan or photo. Until it is added, the IFMIS PDF is kept as the copy."
+            />
+          </div>
+        )}
       </Part>
 
       {/* The slip itself, open under the form, to check what was filled in against it */}

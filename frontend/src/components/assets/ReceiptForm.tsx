@@ -170,8 +170,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const copyFile = signedFile ?? ifmisFile;
   const [formError, setFormError] = useState<string | null>(null);
 
-  const policy = useSystemSettings().slipAttachmentPolicy;
-  const isAttachmentRequired = policy === 'REQUIRED';
+  const { slipAttachmentPolicy, showScannedSlipField } = useSystemSettings();
+  const isAttachmentRequired = slipAttachmentPolicy === 'REQUIRED';
 
   // A fixed asset is one item: its quantity is 1 and can't be changed. A record from before this rule keeps its own.
   const fixedOne = itemType === ItemType.FIXED && !(isEdit && Number(editItem?.quantity) > 1);
@@ -200,7 +200,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !(quantity >= 1) && 'quantity',
     !uom.trim() && 'unit of measure',
     !donation && !(unitCostETB > 0) && 'unit price',
-    isAttachmentRequired && !signedFileName && 'signed copy',
+    isAttachmentRequired && (showScannedSlipField ? !signedFileName : !(ifmisFile || signedFileName || editItem?.ifmisSlipAttachmentUrl)) && (showScannedSlipField ? 'signed copy' : 'IFMIS Model 19 PDF'),
     // A line needing one thing says what; a line needing more is just named, its empty cells are marked in the table
     ...extraLines.map((l, i) => {
       const missing = lineMissing(l, donation);
@@ -964,18 +964,22 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             />
           </Field>
         </FieldGrid>
-        <FileDropField
-          label="Signed copy"
-          accent="emerald"
-          required={isAttachmentRequired}
-          fileName={signedFileName}
-          accept={SLIP_ACCEPT_ATTR}
-          onChange={handleSignedSelected}
-          file={signedFile}
-          savedUrl={editItem?.ifmisSlipAttachmentUrl}
-          emptyText="Click to attach the signed Model 19, scanned"
-          hint={`The IFMIS printout with its signatures, as a scan or photo (PDF, PNG, JPEG or WEBP, up to 10 MB).${isAttachmentRequired ? '' : ' Until it is added, the IFMIS PDF is kept as the copy.'}`}
-        />
+        {showScannedSlipField && (
+
+          <FileDropField
+            label="Signed copy"
+            accent="emerald"
+            required={isAttachmentRequired}
+            fileName={signedFileName}
+            accept={SLIP_ACCEPT_ATTR}
+            onChange={handleSignedSelected}
+            file={signedFile}
+            savedUrl={editItem?.ifmisSlipAttachmentUrl}
+            emptyText="Click to attach the signed Model 19, scanned"
+            hint={`The IFMIS printout with its signatures, as a scan or photo (PDF, PNG, JPEG or WEBP, up to 10 MB).${isAttachmentRequired ? '' : ' Until it is added, the IFMIS PDF is kept as the copy.'}`}
+          />
+
+        )}
       </Part>
 
       {/* The slip itself, open under the form, to check what was filled in against it */}

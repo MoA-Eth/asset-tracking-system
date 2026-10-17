@@ -6,10 +6,13 @@ export type AttachmentPolicy = 'REQUIRED' | 'OPTIONAL';
 export interface SystemSettings {
   /** Whether a scanned slip must be attached to Stock-In, Stock-Out and Return requests */
   slipAttachmentPolicy: AttachmentPolicy;
+  /** Whether the separate scanned slip field is shown on forms (true) or merged into a single uploader (false) */
+  showScannedSlipField: boolean;
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
   slipAttachmentPolicy: 'OPTIONAL',
+  showScannedSlipField: false,
 };
 
 const CHANGED_EVENT = 'system-settings-changed';

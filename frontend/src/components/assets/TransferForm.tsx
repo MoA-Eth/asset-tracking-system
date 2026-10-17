@@ -110,7 +110,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [storeReceiverId, setStoreReceiverId] = useState(isReturnEdit ? details.storeRecipientId ?? '' : '');
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentFileName, setAttachmentFileName] = useState(editTransfer?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editTransfer.ifmisSlipAttachmentUrl) : '');
-  const isAttachmentReq = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
+  const { slipAttachmentPolicy, showScannedSlipField } = useSystemSettings();
+  const isAttachmentReq = slipAttachmentPolicy === 'REQUIRED';
   const todayGc = new Date().toISOString().split('T')[0];
   // Today unless changed; a correction keeps the date it was requested with
   const [transferDateGc, setTransferDateGc] = useState(editTransfer?.ifmisSlipDateGc || todayGc);
@@ -367,7 +368,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     !isReturn && !editTransfer && storeMen.length > 1 && !transferrerId && 'store man',
     isReturn && !returnReason.trim() && 'reason for return',
     isReturn && !editTransfer && returnStoreMen.length > 1 && !receiverId && 'received by (store man)',
-    isReturn && isAttachmentReq && !attachmentFileName && 'signed copy',
+    isReturn && isAttachmentReq && (showScannedSlipField ? !attachmentFileName : !(readFile || attachmentFileName || editTransfer?.ifmisSlipAttachmentUrl)) && (showScannedSlipField ? 'signed copy' : 'IFMIS Model 21 PDF'),
   ].filter(Boolean) as string[];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -376,7 +377,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     if (!isReturn && !targetEmployeeId) return void toast.warning('Recipient required', 'Choose the employee who receives the asset.');
     if (!model21No.trim()) return void toast.warning('Model 21 number required', 'Enter the number on the Model 21 form.');
     if (isReturn && !returnReason.trim()) return void toast.warning('Reason required', 'Enter the reason for returning the asset to store.');
-    if (isReturn && isAttachmentReq && !attachmentFileName) return void toast.warning('Signed copy required', 'The signed Model 21, scanned, is required by the system setting.');
+    const hasAttachment = showScannedSlipField ? !!attachmentFileName : (!!readFile || !!attachmentFile || !!editTransfer?.ifmisSlipAttachmentUrl);
+    if (isReturn && isAttachmentReq && !hasAttachment) return void toast.warning('Attachment required', showScannedSlipField ? 'The signed Model 21, scanned, is required by the system setting.' : 'The Model 21 PDF is required by the system setting.');
 
     const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty, reserveTyreQty);
     const tireList = tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
@@ -628,12 +630,12 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   return (
     <form id="transfer-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
       {/* The IFMIS PDF first: it fills in the form */}
-      {!editTransfer && (
+      {(!editTransfer || !showScannedSlipField) && (
         <FileDropField
           label="IFMIS Model 21 PDF"
           accent="emerald"
-          required={false}
-          fileName={readFile?.name ?? ''}
+          required={!showScannedSlipField && isReturn && isAttachmentReq}
+          fileName={readFile?.name ?? (!showScannedSlipField && editTransfer?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editTransfer.ifmisSlipAttachmentUrl) : '')}
           accept=".pdf,application/pdf"
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -641,8 +643,13 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             if (file) readSlip(file);
           }}
           file={readFile}
+          savedUrl={!showScannedSlipField ? editTransfer?.ifmisSlipAttachmentUrl : undefined}
           emptyText="Click to choose the Model 21 PDF saved from IFMIS"
-          hint="The form fills itself in from it; a scanned PDF can't be read."
+          hint={
+            showScannedSlipField
+              ? "The form fills itself in from it; a scanned PDF can't be read."
+              : "Autofills form fields and attaches this PDF directly to the transfer request."
+          }
         />
       )}
       {slipNote && (
@@ -989,20 +996,22 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       )}
 
       {/* The signed Model 21, scanned: kept as the request's copy (the IFMIS PDF until it is added) */}
-      <div id="transfer-signed-copy">
-        <FileDropField
-          label="Signed copy"
-          accent="emerald"
-          required={isReturn && isAttachmentReq}
-          fileName={attachmentFileName}
-          accept={SLIP_ACCEPT_ATTR}
-          onChange={handleSlipSelected}
-          file={attachmentFile}
-          savedUrl={editTransfer?.ifmisSlipAttachmentUrl}
-          emptyText="Click to attach the signed Model 21, scanned"
-          hint="The IFMIS printout with its signatures, as a scan or photo. Until it is added, the IFMIS PDF is kept as the copy."
-        />
-      </div>
+      {showScannedSlipField && (
+        <div id="transfer-signed-copy">
+          <FileDropField
+            label="Signed copy"
+            accent="emerald"
+            required={isReturn && isAttachmentReq}
+            fileName={attachmentFileName}
+            accept={SLIP_ACCEPT_ATTR}
+            onChange={handleSlipSelected}
+            file={attachmentFile}
+            savedUrl={editTransfer?.ifmisSlipAttachmentUrl}
+            emptyText="Click to attach the signed Model 21, scanned"
+            hint="The IFMIS printout with its signatures, as a scan or photo. Until it is added, the IFMIS PDF is kept as the copy."
+          />
+        </div>
+      )}
 
       {/* The slip itself, open under the form, to check what was filled in against it */}
       <SlipPreview ifmisFile={readFile} signedFile={attachmentFile} savedUrl={editTransfer?.ifmisSlipAttachmentUrl} />

@@ -49,7 +49,8 @@ Receiving needs at least one active store.
 
 ## System Settings
 
-**Scanned slip:** choose **Optional** or **Required**. When it is **Required**, a receipt, issue, return or disposal cannot be submitted without a scan of its slip. It saves at once.
+- **Scanned slip field in forms (የተቃኘ ሰነድ መስክ):** Choose **Off (Single Uploader)** or **On (Separate Field)**. When set to **Off**, all asset forms (Model 19, 22, 21, and Disposal) feature only one file uploader for the IFMIS PDF, which performs both automated form autofill and slip attachment in a single action. When set to **On**, forms display a second "Signed copy" field for scanned paper copies.
+- **Slip attachment policy (የሰነድ አባሪ ግዴታ):** Choose **Optional** or **Required**. When set to **Required**, a receipt, issue, return or disposal cannot be submitted without an attached slip. Changes apply immediately and are recorded in the audit trail.
 
 ## Password help
 

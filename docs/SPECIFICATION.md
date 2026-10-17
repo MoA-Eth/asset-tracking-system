@@ -100,7 +100,8 @@ All dates are kept in both the Gregorian (G.C.) and Ethiopian (E.C.) calendars.
 - Every asset keeps a chronological history of receipts, issues, transfers, returns, disposals and decisions.
 
 ### 3.6 System Settings
-- The System Administrator decides whether a scanned slip is required on every voucher or optional.
+- **Scanned slip field in forms:** The System Administrator can toggle between single file uploader mode (default: Off) where one IFMIS PDF uploader is used for both autofilling and attaching the slip, and dual uploader mode (On) where a separate "Signed copy" field is displayed for paper scans.
+- **Slip attachment policy:** The System Administrator decides whether attaching a slip is required on every voucher or optional.
 
 ---
 

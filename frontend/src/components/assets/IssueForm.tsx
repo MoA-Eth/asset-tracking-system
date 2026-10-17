@@ -214,7 +214,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const copyFile = signedFile ?? ifmisFile;
   const [slipNote, setSlipNote] = useState<{ tone: 'info' | 'warn'; text: string } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const isAttachmentReq = useSystemSettings().slipAttachmentPolicy === 'REQUIRED';
+  const { slipAttachmentPolicy, showScannedSlipField } = useSystemSettings();
+  const isAttachmentReq = slipAttachmentPolicy === 'REQUIRED';
 
   const totalAmount = rows.reduce((sum, r) => sum + (Number(r.quantity) || 0) * (itemOf(r)?.unitCostETB || 0), 0);
   const grandTotal = totalAmount + transportationCost;
@@ -242,7 +243,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     isDisposal && !purpose.trim() && 'reason for disposal',
     !isDisposal && !isExternal && !destinationDepartmentId && 'destination directorate',
     !isDisposal && !(isExternal ? organizationName.trim() : recipientEmployeeId) && 'recipient',
-    isAttachmentReq && !signedFileName && 'signed copy',
+    isAttachmentReq && (showScannedSlipField ? !signedFileName : !(ifmisFile || signedFileName || editApproval?.ifmisSlipAttachmentUrl)) && (showScannedSlipField ? 'signed copy' : 'IFMIS Model 22 PDF'),
   ].filter(Boolean) as string[];
 
   // A field shows what is wrong with it once the user has been in it
@@ -580,19 +581,24 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     <form id="stock-out-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-6">
       <FormError message={formError} />
 
-      {/* The Model 22 PDF first: it fills in most of what follows */}
-      {!isEdit && (
+      {/* The Model 22 PDF: it fills in most of what follows and acts as the attached slip */}
+      {(!isEdit || !showScannedSlipField) && (
         <div className="space-y-2">
           <FileDropField
             label="IFMIS Model 22 PDF"
             accent="emerald"
-            required={false}
-            fileName={ifmisFile?.name ?? ''}
+            required={!showScannedSlipField && isAttachmentReq}
+            fileName={ifmisFile?.name ?? (!showScannedSlipField && editApproval?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editApproval.ifmisSlipAttachmentUrl) : '')}
             accept={SLIP_ACCEPT_ATTR}
             onChange={fileChosen(takeSlip)}
             file={ifmisFile}
+            savedUrl={!showScannedSlipField ? editApproval?.ifmisSlipAttachmentUrl : undefined}
             emptyText="Click to choose the Model 22 PDF saved from IFMIS"
-            hint="The form fills itself in from it. The signed, scanned copy goes under Recipient and signatures."
+            hint={
+              showScannedSlipField
+                ? 'The form fills itself in from it. The signed, scanned copy goes under Recipient and signatures.'
+                : 'The form fills itself in from it and attaches this PDF directly to the issue request.'
+            }
           />
           {slipNote && (
             <FormNotice icon={FileText} tone={slipNote.tone}>
@@ -876,18 +882,20 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           />
         </FieldGrid>
 
-        <FileDropField
-          label="Signed copy"
-          accent="emerald"
-          required={isAttachmentReq}
-          fileName={signedFileName}
-          accept={SLIP_ACCEPT_ATTR}
-          onChange={fileChosen(takeSigned)}
-          file={signedFile}
-          savedUrl={editApproval?.ifmisSlipAttachmentUrl}
-          emptyText="Click to attach the signed Model 22, scanned"
-          hint={`The IFMIS printout with its signatures, as a scan or photo (PDF, PNG, JPEG or WEBP, up to 10 MB).${isAttachmentReq ? '' : ' Until it is added, the IFMIS PDF is kept as the copy.'}`}
-        />
+        {showScannedSlipField && (
+          <FileDropField
+            label="Signed copy"
+            accent="emerald"
+            required={isAttachmentReq}
+            fileName={signedFileName}
+            accept={SLIP_ACCEPT_ATTR}
+            onChange={fileChosen(takeSigned)}
+            file={signedFile}
+            savedUrl={editApproval?.ifmisSlipAttachmentUrl}
+            emptyText="Click to attach the signed Model 22, scanned"
+            hint={`The IFMIS printout with its signatures, as a scan or photo (PDF, PNG, JPEG or WEBP, up to 10 MB).${isAttachmentReq ? '' : ' Until it is added, the IFMIS PDF is kept as the copy.'}`}
+          />
+        )}
       </Part>
 
       {/* The slip itself, open under the form, to check what was filled in against it */}
