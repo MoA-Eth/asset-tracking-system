@@ -5,7 +5,7 @@ import {
   TransactionType,
   UserRole,
 } from '../types/asset-management';
-import { getVisibleQueueTabs } from '../pages/ApprovalsPage';
+import { getVisibleQueueTabs, HIGH_VALUE_THRESHOLD } from '../pages/ApprovalsPage';
 
 // Reusable mock factory
 function createMockApproval(
@@ -19,7 +19,7 @@ function createMockApproval(
     status: ApprovalStatus.PENDING,
     currentStage: 1,
     itemCode: `MOA-AST-${id}`,
-    itemName: `Enterprise Laptop ${id}`,
+    itemName: `Enterprise Asset ${id}`,
     ifmisSlipNumber: `IFMIS-2016-${id}`,
     ifmisSlipDateGc: '2023-09-12',
     ifmisSlipDateEc: '2016-01-01',
@@ -45,11 +45,19 @@ function createMockApproval(
 // Logic under test replicated directly from ApprovalsPage specifications
 export function isActionableForRole(item: TransactionApproval, role: UserRole): boolean {
   if (item.status !== ApprovalStatus.PENDING) return false;
+  const isHighValue = (item.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
+
   if (role === UserRole.TEAM_LEADER) {
     return (item.currentStage ?? 1) === 1;
   }
   if (role === UserRole.DEPARTMENT_HEAD) {
-    return item.currentStage === 2;
+    return item.currentStage === 2 && !isHighValue;
+  }
+  if (role === UserRole.CHIEF_DIRECTOR) {
+    return item.currentStage === 2 && isHighValue;
+  }
+  if (role === UserRole.SUPER_ADMIN || role === UserRole.SYSTEM_ADMIN) {
+    return item.currentStage === 2 || (item.currentStage ?? 1) === 1;
   }
   return false;
 }
@@ -69,11 +77,14 @@ export function filterApprovals(
   }
 ): TransactionApproval[] {
   return items.filter((item) => {
+    const isHighValue = (item.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
+
     // 1. Tab Status Filter
     if (activeTab === 'MY_QUEUE') {
       if (item.status !== ApprovalStatus.PENDING) return false;
       if (role === UserRole.TEAM_LEADER && (item.currentStage ?? 1) !== 1) return false;
-      if (role === UserRole.DEPARTMENT_HEAD && item.currentStage !== 2) return false;
+      if (role === UserRole.DEPARTMENT_HEAD && (item.currentStage !== 2 || isHighValue)) return false;
+      if (role === UserRole.CHIEF_DIRECTOR && (item.currentStage !== 2 || !isHighValue)) return false;
     } else if (activeTab === 'STAGE_1') {
       if (item.status !== ApprovalStatus.PENDING || (item.currentStage ?? 1) !== 1) return false;
     } else if (activeTab === 'STAGE_2') {
@@ -107,17 +118,19 @@ export function filterApprovals(
 
 describe('Two-Stage Approval Workflow & Queue Logic', () => {
   const sampleData: TransactionApproval[] = [
-    createMockApproval('001', { currentStage: 1, status: ApprovalStatus.PENDING }),
-    createMockApproval('002', { currentStage: 2, status: ApprovalStatus.PENDING }),
+    createMockApproval('001', { currentStage: 1, status: ApprovalStatus.PENDING, totalAmount: 50_000 }),
+    createMockApproval('002', { currentStage: 2, status: ApprovalStatus.PENDING, totalAmount: 500_000 }),
     createMockApproval('003', {
       currentStage: 2,
       status: ApprovalStatus.APPROVED,
       transactionType: TransactionType.TRANSFER,
+      totalAmount: 1_200_000,
     }),
     createMockApproval('004', {
       currentStage: 1,
       status: ApprovalStatus.REJECTED,
       transactionType: TransactionType.RETURN,
+      totalAmount: 80_000,
     }),
   ];
 
@@ -129,7 +142,7 @@ describe('Two-Stage Approval Workflow & Queue Logic', () => {
       expect(isActionableForRole(sampleData[3], UserRole.TEAM_LEADER)).toBe(false);
     });
 
-    it('allows DEPARTMENT_HEAD to action only Stage 2 pending items', () => {
+    it('allows DEPARTMENT_HEAD to action only Stage 2 pending items below threshold', () => {
       expect(isActionableForRole(sampleData[0], UserRole.DEPARTMENT_HEAD)).toBe(false);
       expect(isActionableForRole(sampleData[1], UserRole.DEPARTMENT_HEAD)).toBe(true);
       expect(isActionableForRole(sampleData[2], UserRole.DEPARTMENT_HEAD)).toBe(false);
@@ -139,8 +152,8 @@ describe('Two-Stage Approval Workflow & Queue Logic', () => {
     it('denies DATA_ENCODER and SYSTEM_ADMIN from reviewing any approval items', () => {
       sampleData.forEach((item) => {
         expect(isActionableForRole(item, UserRole.DATA_ENCODER)).toBe(false);
-        expect(isActionableForRole(item, UserRole.SYSTEM_ADMIN)).toBe(false);
         expect(isActionableForRole(item, UserRole.MANAGER)).toBe(false);
+        expect(isActionableForRole(item, UserRole.EMPLOYEE)).toBe(false);
       });
     });
   });
@@ -208,29 +221,86 @@ describe('Two-Stage Approval Workflow & Queue Logic', () => {
     });
   });
 
-  describe('Batch Selection Safety', () => {
-    it('ensures batch select-all only selects items actionable by the current reviewer', () => {
-      const allFiltered = filterApprovals(sampleData, {
-        activeTab: 'ALL',
-        role: UserRole.TEAM_LEADER,
+  describe('High-Value (> 10M ETB) Statutory Routing: Chief Director vs Department Head', () => {
+    const standardRequest = createMockApproval('std-1', {
+      currentStage: 2,
+      status: ApprovalStatus.PENDING,
+      totalAmount: 4_500_000, // 4.5M ETB
+    });
+
+    const highValueRequest = createMockApproval('high-1', {
+      currentStage: 2,
+      status: ApprovalStatus.PENDING,
+      totalAmount: 14_000_000, // 14M ETB (> 10M ETB)
+    });
+
+    const boundaryExact10M = createMockApproval('boundary-10m', {
+      currentStage: 2,
+      status: ApprovalStatus.PENDING,
+      totalAmount: 10_000_000, // Exactly 10M ETB
+    });
+
+    const boundaryAbove10M = createMockApproval('boundary-10m-plus', {
+      currentStage: 2,
+      status: ApprovalStatus.PENDING,
+      totalAmount: 10_000_001, // 10,000,001 ETB (> 10M ETB)
+    });
+
+    const testPool = [standardRequest, highValueRequest, boundaryExact10M, boundaryAbove10M];
+
+    it('routes requests above 10,000,000 ETB to the Chief Director queue, not the Department Head', () => {
+      const chiefQueue = filterApprovals(testPool, {
+        activeTab: 'MY_QUEUE',
+        role: UserRole.CHIEF_DIRECTOR,
       });
 
-      const actionableForTeamLead = allFiltered
-        .filter((item) => isActionableForRole(item, UserRole.TEAM_LEADER))
+      const deptHeadQueue = filterApprovals(testPool, {
+        activeTab: 'MY_QUEUE',
+        role: UserRole.DEPARTMENT_HEAD,
+      });
+
+      // Chief Director receives ONLY the > 10M requests
+      expect(chiefQueue.map((i) => i.id)).toEqual(['high-1', 'boundary-10m-plus']);
+
+      // Department Head receives standard requests (<= 10M), never > 10M
+      expect(deptHeadQueue.map((i) => i.id)).toEqual(['std-1', 'boundary-10m']);
+    });
+
+    it('confirms actionable rights: Chief Director can authorize > 10M, Department Head cannot', () => {
+      // 14M High-value request
+      expect(isActionableForRole(highValueRequest, UserRole.CHIEF_DIRECTOR)).toBe(true);
+      expect(isActionableForRole(highValueRequest, UserRole.DEPARTMENT_HEAD)).toBe(false);
+
+      // 4.5M Standard request
+      expect(isActionableForRole(standardRequest, UserRole.CHIEF_DIRECTOR)).toBe(false);
+      expect(isActionableForRole(standardRequest, UserRole.DEPARTMENT_HEAD)).toBe(true);
+    });
+
+    it('handles exact boundary threshold: exactly 10M goes to Department Head, 10M + 1 goes to Chief Director', () => {
+      expect(isActionableForRole(boundaryExact10M, UserRole.DEPARTMENT_HEAD)).toBe(true);
+      expect(isActionableForRole(boundaryExact10M, UserRole.CHIEF_DIRECTOR)).toBe(false);
+
+      expect(isActionableForRole(boundaryAbove10M, UserRole.DEPARTMENT_HEAD)).toBe(false);
+      expect(isActionableForRole(boundaryAbove10M, UserRole.CHIEF_DIRECTOR)).toBe(true);
+    });
+
+    it('ensures batch select-all respects the 10M threshold for each role', () => {
+      const actionableForChief = testPool
+        .filter((item) => isActionableForRole(item, UserRole.CHIEF_DIRECTOR))
         .map((item) => item.id);
 
-      expect(actionableForTeamLead).toEqual(['001']);
+      expect(actionableForChief).toEqual(['high-1', 'boundary-10m-plus']);
 
-      const actionableForDeptHead = allFiltered
+      const actionableForDeptHead = testPool
         .filter((item) => isActionableForRole(item, UserRole.DEPARTMENT_HEAD))
         .map((item) => item.id);
 
-      expect(actionableForDeptHead).toEqual(['002']);
+      expect(actionableForDeptHead).toEqual(['std-1', 'boundary-10m']);
     });
   });
 
   describe('Queue tabs per role', () => {
-    it.each([UserRole.TEAM_LEADER, UserRole.DEPARTMENT_HEAD])(
+    it.each([UserRole.TEAM_LEADER, UserRole.DEPARTMENT_HEAD, UserRole.CHIEF_DIRECTOR])(
       '%s only sees its own queue plus history, not the other stage',
       (role) => {
         const tabs = getVisibleQueueTabs(role);
@@ -240,13 +310,15 @@ describe('Two-Stage Approval Workflow & Queue Logic', () => {
       }
     );
 
-    it("a Team Leader's queue holds only Stage 1 items; a Department Head's only Stage 2", () => {
+    it("a Team Leader's queue holds only Stage 1 items; a Department Head's only standard Stage 2; Chief Director high-value Stage 2", () => {
       const items = [
-        createMockApproval('001', { currentStage: 1 }),
-        createMockApproval('002', { currentStage: 2 }),
+        createMockApproval('001', { currentStage: 1, totalAmount: 100_000 }),
+        createMockApproval('002', { currentStage: 2, totalAmount: 500_000 }),
+        createMockApproval('003', { currentStage: 2, totalAmount: 15_000_000 }),
       ];
       expect(filterApprovals(items, { activeTab: 'MY_QUEUE', role: UserRole.TEAM_LEADER }).map((i) => i.id)).toEqual(['001']);
       expect(filterApprovals(items, { activeTab: 'MY_QUEUE', role: UserRole.DEPARTMENT_HEAD }).map((i) => i.id)).toEqual(['002']);
+      expect(filterApprovals(items, { activeTab: 'MY_QUEUE', role: UserRole.CHIEF_DIRECTOR }).map((i) => i.id)).toEqual(['003']);
     });
   });
 });

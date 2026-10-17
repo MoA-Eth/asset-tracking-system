@@ -16,7 +16,7 @@ const db = vi.hoisted(() => ({
   location: { findUnique: vi.fn() },
   department: { findUnique: vi.fn() },
   item: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
-  transactionApproval: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+  transactionApproval: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   auditLog: { create: vi.fn() },
   $transaction: vi.fn(async (cb: (tx: any) => Promise<any>) => cb(db)),
 }));
@@ -58,6 +58,52 @@ describe('Chief Director & 10M High-Value Approval Workflow', () => {
       item: { notes: JSON.stringify({ quantity: 2, uom: 'EA' }), unitCostETB: 500_000 },
     };
     expect(calculateApprovalTotalAmount(raw4)).toBe(1_000_000);
+  });
+
+  it('routes statutory requiredRole as CHIEF_DIRECTOR when amount > 10M, and DEPARTMENT_HEAD when <= 10M', async () => {
+    const rawHigh = {
+      id: 'appr-high',
+      transactionType: 'STOCK_OUT',
+      itemId: 'i-1',
+      itemCode: 'MOA-001',
+      itemName: 'Combine Harvester',
+      ifmisSlipNumber: 'M22-001',
+      requestedById: 'emp-1',
+      createdAtGc: '2026-10-17',
+      createdAtEc: '2019-02-07',
+      purposeOrRemarks: 'Deploy harvester',
+      status: 'PENDING',
+      currentStage: 2,
+      item: { unitCostETB: 18_000_000, notes: JSON.stringify({ quantity: 1, uom: 'UNIT' }) },
+    };
+
+    const rawStd = {
+      id: 'appr-std',
+      transactionType: 'STOCK_OUT',
+      itemId: 'i-2',
+      itemCode: 'MOA-002',
+      itemName: 'Desktop PC',
+      ifmisSlipNumber: 'M22-002',
+      requestedById: 'emp-1',
+      createdAtGc: '2026-10-17',
+      createdAtEc: '2019-02-07',
+      purposeOrRemarks: 'Deploy PC',
+      status: 'PENDING',
+      currentStage: 2,
+      item: { unitCostETB: 45_000, notes: JSON.stringify({ quantity: 1, uom: 'UNIT' }) },
+    };
+
+    db.transactionApproval.findMany.mockResolvedValue([rawHigh, rawStd]);
+
+    const store = new (StoreService as any)();
+    const approvals = await store.getApprovals();
+
+    expect(approvals).toHaveLength(2);
+    expect(approvals[0].totalAmount).toBe(18_000_000);
+    expect(approvals[0].requiredRole).toBe('CHIEF_DIRECTOR');
+
+    expect(approvals[1].totalAmount).toBe(45_000);
+    expect(approvals[1].requiredRole).toBe('DEPARTMENT_HEAD');
   });
 
   it('refuses Department Head authorization when transaction exceeds 10,000,000 ETB', async () => {
@@ -148,7 +194,7 @@ describe('Chief Director & 10M High-Value Approval Workflow', () => {
     expect(db.transactionApproval.update).toHaveBeenCalled();
   });
 
-  it('allows Department Head authorization for standard amounts below 10,000,000 ETB', async () => {
+  it('allows Department Head authorization for standard amounts below or equal to 10,000,000 ETB', async () => {
     const approval = {
       id: 'appr-std-1',
       status: 'PENDING',

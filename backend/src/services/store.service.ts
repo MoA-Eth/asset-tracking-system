@@ -148,7 +148,14 @@ function mapItem(raw: any): ItemWithRelations {
 export const HIGH_VALUE_APPROVAL_THRESHOLD = 10_000_000;
 
 export function calculateApprovalTotalAmount(raw: any, itemObj?: any): number {
-  const req = raw?.requestDetails;
+  let req = raw?.requestDetails;
+  if (typeof req === 'string') {
+    try {
+      req = JSON.parse(req);
+    } catch {
+      req = null;
+    }
+  }
   if (req?.totalAmount && Number(req.totalAmount) > 0) {
     return Number(req.totalAmount);
   }

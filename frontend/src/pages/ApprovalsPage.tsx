@@ -1247,24 +1247,39 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               )}
 
               {selectedApproval.currentStage === 2 && canApprove && (
-                <>
-                  <button
-                    type="button"
-                    disabled={actionLoading}
-                    onClick={() => handleAction(selectedApproval.id, 'REJECT')}
-                    className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                  >
-                    <XCircle className="w-4 h-4" /> Reject
-                  </button>
-                  <button
-                    type="button"
-                    disabled={actionLoading}
-                    onClick={() => handleAction(selectedApproval.id, 'APPROVE')}
-                    className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-4 h-4" /> Authorize & Sign-Off
-                  </button>
-                </>
+                (() => {
+                  const isHighVal = (selectedApproval.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
+                  const canAuthorize = (isChiefDirector && isHighVal) || (isDeptHead && !isHighVal) || (!isChiefDirector && !isDeptHead);
+                  if (!canAuthorize) {
+                    return (
+                      <span className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-3 py-1.5 rounded-[4px]">
+                        {isHighVal
+                          ? 'High-Value (> 10M ETB): Reserved for Chief Director'
+                          : 'Standard (≤ 10M ETB): Handled by Directorate Head'}
+                      </span>
+                    );
+                  }
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => handleAction(selectedApproval.id, 'REJECT')}
+                        className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                      >
+                        <XCircle className="w-4 h-4" /> Reject
+                      </button>
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => handleAction(selectedApproval.id, 'APPROVE')}
+                        className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-4 h-4" /> Authorize & Sign-Off
+                      </button>
+                    </>
+                  );
+                })()
               )}
             </div>
           </div>
