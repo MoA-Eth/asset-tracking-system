@@ -150,21 +150,16 @@ const Meter: React.FC<{ pct: number }> = ({ pct }) => (
 const StatTile: React.FC<{
   label: string;
   labelAm: string;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   value: React.ReactNode;
   footer: React.ReactNode;
   meterPct?: number;
   splitBar?: { primaryPct: number };
-}> = ({ label, labelAm, icon: Icon, value, footer, meterPct, splitBar }) => (
+}> = ({ label, labelAm, value, footer, meterPct, splitBar }) => (
   <div className="rounded-md flex flex-col border-b-2 border-b-slate-300 bg-white p-5 transition duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_14px_28px_-8px_rgba(15,23,42,0.18)] shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-    <div className="flex items-start justify-between gap-2">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold text-slate-700">{label}</p>
-        <p className="text-[10px] text-slate-400">{labelAm}</p>
-      </div>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm">
-        <Icon className="h-4 w-4" />
-      </span>
+    <div className="min-w-0">
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="text-[10px] text-slate-400">{labelAm}</p>
     </div>
     <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
     <div className="mt-auto space-y-1.5 pt-3">
@@ -192,32 +187,33 @@ const StatTile: React.FC<{
 const WorkTile: React.FC<{
   label: string;
   count: number;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   onClick?: () => void;
   tone?: 'neutral' | 'warning' | 'critical';
   note?: string;
-}> = ({ label, count, icon: Icon, onClick, tone = 'neutral', note }) => {
-  const iconTone =
-    tone === 'warning' ? 'bg-amber-100 text-amber-700' : tone === 'critical' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700';
+}> = ({ label, count, onClick, tone = 'neutral', note }) => {
+  const badgeTone =
+    tone === 'critical'
+      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+      : tone === 'warning'
+      ? 'bg-amber-50 text-amber-800 border border-amber-200'
+      : 'bg-slate-100 text-slate-700 border border-slate-200';
   const content = (
-    <>
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconTone}`}>
-        <Icon className="h-5 w-5" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-xl font-bold leading-tight text-slate-900">{count}</span>
-        <span className="block text-xs font-medium text-slate-700">{label}</span>
-        {note && <span className={`block text-[10px] font-medium ${tone === 'critical' ? 'text-rose-700' : 'text-amber-700'}`}>{note}</span>}
-      </span>
-    </>
+    <div className="min-w-0 w-full">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-xl font-bold font-mono leading-tight text-slate-900">{count}</span>
+        {note && <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] ${badgeTone}`}>{note}</span>}
+      </div>
+      <span className="block text-xs font-semibold text-slate-700 mt-1">{label}</span>
+    </div>
   );
   const cls = 'flex items-center gap-3 rounded-md border border-b-2 border-slate-200 border-b-slate-300 bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),0_4px_12px_-4px_rgba(15,23,42,0.10)]';
   return onClick ? (
-    <button onClick={onClick} className={`${cls} transition duration-200 hover:border-emerald-300 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_10px_20px_-6px_rgba(15,23,42,0.16)] cursor-pointer`}>
+    <button onClick={onClick} className={`${cls} transition duration-200 hover:border-emerald-300 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_10px_20px_-6px_rgba(15,23,42,0.16)] cursor-pointer w-full`}>
       {content}
     </button>
   ) : (
-    <div className={cls}>{content}</div>
+    <div className={`${cls} w-full`}>{content}</div>
   );
 };
 
@@ -1039,12 +1035,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div className="rounded-md border border-slate-200 bg-slate-50/70 p-2.5">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="flex h-6 w-6 items-center justify-center rounded bg-blue-100 text-blue-700">
-                          <Truck className="h-3.5 w-3.5" />
-                        </span>
-                        <span className="text-xs font-semibold text-slate-900">Vehicles</span>
-                      </div>
+                      <span className="text-xs font-semibold text-slate-900">Vehicles</span>
                       <span className="font-mono text-xs font-bold text-slate-900">{fleetStats.totalVehicles}</span>
                     </div>
                     <p className="mt-1.5 text-xs font-bold text-slate-900">{formatETB(fleetStats.vehicleValuationETB)}</p>
@@ -1055,12 +1046,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
 
                   <div className="rounded-md border border-slate-200 bg-slate-50/70 p-2.5">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="flex h-6 w-6 items-center justify-center rounded bg-amber-100 text-amber-700">
-                          <Tractor className="h-3.5 w-3.5" />
-                        </span>
-                        <span className="text-xs font-semibold text-slate-900">Agri Machinery</span>
-                      </div>
+                      <span className="text-xs font-semibold text-slate-900">Agri Machinery</span>
                       <span className="font-mono text-xs font-bold text-slate-900">{fleetStats.totalMachinery}</span>
                     </div>
                     <p className="mt-1.5 text-xs font-bold text-slate-900">{formatETB(fleetStats.machineryValuationETB)}</p>

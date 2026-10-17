@@ -15,10 +15,6 @@ import {
   AlertCircle,
   FileSpreadsheet,
   MoreVertical,
-  Landmark,
-  Warehouse,
-  Users,
-  Boxes,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { storeLocationLabel } from '../utils/location';
@@ -35,7 +31,6 @@ import { formatETB, getTodayGcAndEc } from '../utils/eth-date';
 import { downloadCsv } from '../utils/csv';
 import { useToast } from '../context/ToastContext';
 import { RefreshButton } from '../components/ui/RefreshButton';
-import { ReportCharts } from '../components/reports/ReportCharts';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../components/ui/FilterPopover';
 import { CATEGORY_OPTIONS } from '../components/assets/asset-state';
@@ -1026,16 +1021,11 @@ export const ReportsPage: React.FC = () => {
           </div>
         )}
       </div>
-      {/* 2. Executive Statutory KPI Metric Cards */}
+      {/* 2. Statutory Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 no-print">
         {/* Card 1: Total Valuation */}
         <div className="rounded-md border border-slate-200 bg-white p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08),0_1px_2px_rgba(16,24,40,0.04)] flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Valuation</span>
-            <div className="p-1.5 rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200">
-              <Landmark className="w-4 h-4" />
-            </div>
-          </div>
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Valuation</span>
           <div className="mt-2">
             <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
               {formatETB(totalValuation)}
@@ -1050,19 +1040,14 @@ export const ReportsPage: React.FC = () => {
         <div className="rounded-md border border-slate-200 bg-white p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08),0_1px_2px_rgba(16,24,40,0.04)] flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">In Store (Available)</span>
-            <div className="p-1.5 rounded-[4px] bg-teal-50 text-teal-800 border border-teal-200">
-              <Warehouse className="w-4 h-4" />
-            </div>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[3px] bg-slate-100 text-slate-700 border border-slate-200">
+              {unitTotals.total > 0 ? Math.round((unitTotals.available / unitTotals.total) * 100) : 0}%
+            </span>
           </div>
           <div className="mt-2">
-            <div className="flex items-baseline gap-2">
-              <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
-                {unitTotals.available.toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
-              </p>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
-                {unitTotals.total > 0 ? Math.round((unitTotals.available / unitTotals.total) * 100) : 0}%
-              </span>
-            </div>
+            <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
+              {unitTotals.available.toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
+            </p>
             <p className="mt-1 text-xs text-slate-500 truncate" title={"Valuation: " + formatETB(inStoreValuation)}>
               Stock value: <span className="font-mono font-semibold text-slate-700">{formatETB(inStoreValuation)}</span>
             </p>
@@ -1073,19 +1058,14 @@ export const ReportsPage: React.FC = () => {
         <div className="rounded-md border border-slate-200 bg-white p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08),0_1px_2px_rgba(16,24,40,0.04)] flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">In Custody (Issued)</span>
-            <div className="p-1.5 rounded-[4px] bg-blue-50 text-blue-800 border border-blue-200">
-              <Users className="w-4 h-4" />
-            </div>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[3px] bg-slate-100 text-slate-700 border border-slate-200">
+              {unitTotals.total > 0 ? Math.round((unitTotals.issued / unitTotals.total) * 100) : 0}%
+            </span>
           </div>
           <div className="mt-2">
-            <div className="flex items-baseline gap-2">
-              <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
-                {unitTotals.issued.toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
-              </p>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                {unitTotals.total > 0 ? Math.round((unitTotals.issued / unitTotals.total) * 100) : 0}%
-              </span>
-            </div>
+            <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
+              {unitTotals.issued.toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
+            </p>
             <p className="mt-1 text-xs text-slate-500 truncate" title={"Valuation: " + formatETB(issuedValuation)}>
               Field value: <span className="font-mono font-semibold text-slate-700">{formatETB(issuedValuation)}</span>
             </p>
@@ -1094,12 +1074,7 @@ export const ReportsPage: React.FC = () => {
 
         {/* Card 4: Total Units Received */}
         <div className="rounded-md border border-slate-200 bg-white p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08),0_1px_2px_rgba(16,24,40,0.04)] flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Received Units</span>
-            <div className="p-1.5 rounded-[4px] bg-amber-50 text-amber-800 border border-amber-200">
-              <Boxes className="w-4 h-4" />
-            </div>
-          </div>
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Received Units</span>
           <div className="mt-2">
             <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
               {unitTotals.total.toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
@@ -1111,10 +1086,7 @@ export const ReportsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Charts of the same filtered rows */}
-      <ReportCharts items={filteredItems} splitsByRoot={splitsByRoot} departments={departments} unitsOf={reportUnits} />
-
-      {/* 4. The rows themselves */}
+      {/* 3. The rows themselves */}
       <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         {/* Table Subheader showing active count and valuation */}
         <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">

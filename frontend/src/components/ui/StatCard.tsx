@@ -14,7 +14,6 @@ export const StatCard: React.FC<StatCardProps> = ({
   label,
   value,
   subtitle,
-  icon,
   valueColor = 'text-slate-900',
   className,
 }) => {
@@ -27,11 +26,6 @@ export const StatCard: React.FC<StatCardProps> = ({
         </span>
         {subtitle && <p className="text-[10px] text-slate-400 mt-0.5 truncate">{subtitle}</p>}
       </div>
-      {icon && (
-        <div className="p-2 rounded-md bg-slate-50 border border-slate-100 text-slate-600 shrink-0">
-          {icon}
-        </div>
-      )}
     </div>
   );
 };
