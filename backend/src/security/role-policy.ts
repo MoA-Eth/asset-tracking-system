@@ -41,6 +41,13 @@ export const ROLE_POLICY: Record<UserRole, {
   name: string; description: string; approvalResponsibility: string;
   permissions: Permission[]; allowedTabs: string[]; landingTab: string;
 }> = {
+  SUPER_ADMIN: {
+    name: 'Super Administrator', description: 'Master access across all store operations, dual-stage approvals, executive dashboards, reports, audit log, and system administration.',
+    approvalResponsibility: 'Full approval authority (Stage 1 & Stage 2)',
+    permissions: PERMISSION_GROUPS.flatMap((g) => g.permissions.map((p) => p.key as Permission)),
+    allowedTabs: ['dashboard', 'assets', 'approvals', 'reports', 'audit', 'my-assets', ...referenceTabs, 'settings-users', 'settings-roles'],
+    landingTab: 'dashboard',
+  },
   SYSTEM_ADMIN: {
     name: 'System Administrator', description: 'Administers user access and platform governance.',
     approvalResponsibility: 'No approval authority',
@@ -93,6 +100,7 @@ export function isUserRole(value: unknown): value is UserRole {
 const dynamicPermissions: Partial<Record<UserRole, Permission[]>> = {};
 
 export const PROTECTED_ROLE_PERMISSIONS: Partial<Record<UserRole, Permission[]>> = {
+  SUPER_ADMIN: PERMISSION_GROUPS.flatMap((g) => g.permissions.map((p) => p.key as Permission)),
   SYSTEM_ADMIN: ['roles.assign', 'roles.read', 'employees.manage', 'references.manage'],
 };
 
@@ -107,6 +115,7 @@ export const DECISION_PERMISSIONS: Permission[] = ['approvals.endorse', 'approva
  * - Assigning roles or managing employees can't be combined with store or approval work.
  */
 export function segregationViolations(role: UserRole, permissions: readonly string[]): string[] {
+  if (role === UserRole.SUPER_ADMIN) return [];
   const has = (p: Permission) => permissions.includes(p);
   const violations: string[] = [];
   if (role === UserRole.SYSTEM_ADMIN) {
@@ -169,10 +178,17 @@ export function resetAllRolePermissions(): void {
 }
 
 export function hasPermission(role: unknown, permission: Permission): boolean {
+  if (role === UserRole.SUPER_ADMIN) return true;
   return isUserRole(role) && getEffectiveRolePermissions(role).includes(permission);
 }
 
 export function computeAllowedTabs(role: UserRole, permissions: Permission[]): { allowedTabs: string[]; landingTab: string } {
+  if (role === UserRole.SUPER_ADMIN) {
+    return {
+      allowedTabs: ['dashboard', 'assets', 'approvals', 'reports', 'audit', 'my-assets', ...referenceTabs, 'settings-users', 'settings-roles'],
+      landingTab: 'dashboard',
+    };
+  }
   const policy = ROLE_POLICY[role];
   if (!policy) return { allowedTabs: [], landingTab: '' };
 

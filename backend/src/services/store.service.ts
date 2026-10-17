@@ -2201,7 +2201,7 @@ export class StoreService {
     const permission = approval.currentStage === 1 ? 'approvals.endorse' : 'approvals.authorize';
     if (!hasPermission(reviewer?.role, permission)) throw new ForbiddenError('Your role cannot review this approval stage.');
     // Segregation of duties: whoever submitted a request can't endorse, approve or reject it
-    if (approval.requestedById && approval.requestedById === payload.reviewedById) {
+    if (reviewer?.role !== UserRole.SUPER_ADMIN && approval.requestedById && approval.requestedById === payload.reviewedById) {
       throw new ForbiddenError("You can't endorse, approve or reject a request you submitted.");
     }
     if ((payload.action === 'ENDORSE' && approval.currentStage !== 1) ||
@@ -2293,13 +2293,13 @@ export class StoreService {
     // High-Value routing rule: Transactions > 10,000,000 ETB require Chief Director authorization at Stage 2
     if (approval.currentStage === 2) {
       if (isHighValue) {
-        if (reviewer?.role !== UserRole.CHIEF_DIRECTOR && reviewer?.role !== UserRole.SYSTEM_ADMIN) {
+        if (reviewer?.role !== UserRole.CHIEF_DIRECTOR && reviewer?.role !== UserRole.SYSTEM_ADMIN && reviewer?.role !== UserRole.SUPER_ADMIN) {
           throw new ForbiddenError(
             `High-value transactions exceeding 10,000,000 ETB (${totalAmount.toLocaleString()} ETB) require authorization by the Chief Director.`
           );
         }
       } else {
-        if (reviewer?.role !== UserRole.DEPARTMENT_HEAD && reviewer?.role !== UserRole.CHIEF_DIRECTOR && reviewer?.role !== UserRole.SYSTEM_ADMIN) {
+        if (reviewer?.role !== UserRole.DEPARTMENT_HEAD && reviewer?.role !== UserRole.CHIEF_DIRECTOR && reviewer?.role !== UserRole.SYSTEM_ADMIN && reviewer?.role !== UserRole.SUPER_ADMIN) {
           throw new ForbiddenError('Your role cannot authorize this approval stage.');
         }
       }

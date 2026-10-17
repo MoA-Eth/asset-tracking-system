@@ -66,6 +66,9 @@ type TabFilter = 'MY_QUEUE' | 'STAGE_1' | 'STAGE_2' | 'APPROVED' | 'REJECTED' | 
 export const HIGH_VALUE_THRESHOLD = 10_000_000;
 
 export function getVisibleQueueTabs(role: UserRole, permissions?: string[]): TabFilter[] {
+  if (role === UserRole.SUPER_ADMIN) {
+    return ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'REJECTED', 'ALL'];
+  }
   const canEndorse = permissions ? permissions.includes('approvals.endorse') : (role === UserRole.TEAM_LEADER);
   const canAuthorize = permissions ? permissions.includes('approvals.authorize') : (role === UserRole.DEPARTMENT_HEAD || role === UserRole.CHIEF_DIRECTOR);
   const isSingleStageApprover = (canEndorse && !canAuthorize) || (!canEndorse && canAuthorize);
@@ -170,7 +173,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     const rejected = approvals.filter((a) => a.status === ApprovalStatus.REJECTED);
 
     let myQueueCount = 0;
-    if (canEndorse) {
+    if (canEndorse && canApprove) {
+      myQueueCount = stage1.length + stage2.length;
+    } else if (canEndorse) {
       myQueueCount = stage1.length;
     } else if (isChiefDirector) {
       myQueueCount = stage2.filter((a) => (a.totalAmount || 0) > HIGH_VALUE_THRESHOLD).length;
@@ -198,7 +203,11 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       // 1. Tab Status Filter
       if (activeTab === 'MY_QUEUE') {
         if (item.status !== ApprovalStatus.PENDING) return false;
-        if (canEndorse && (item.currentStage ?? 1) !== 1) return false;
+        if (canEndorse && canApprove) {
+          if ((item.currentStage ?? 1) !== 1 && item.currentStage !== 2) return false;
+        } else if (canEndorse && (item.currentStage ?? 1) !== 1) {
+          return false;
+        }
         if (canApprove) {
           if (item.currentStage !== 2) return false;
           const isHigh = (item.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
@@ -289,7 +298,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const actionablePendingItems = useMemo(() => {
     return pager.pageItems.filter((a) => {
       if (a.status !== ApprovalStatus.PENDING) return false;
-      if (canEndorse) return (a.currentStage ?? 1) === 1;
+      if (canEndorse && canApprove) return (a.currentStage ?? 1) === 1 || a.currentStage === 2;
+    if (canEndorse) return (a.currentStage ?? 1) === 1;
       if (canApprove) return a.currentStage === 2;
       return canReview;
     });
@@ -1005,7 +1015,24 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           <div className="h-5 w-px bg-slate-200" />
 
           <div className="flex items-center gap-2">
-            {canEndorse ? (
+            {canEndorse && canApprove ? (
+              <>
+                <button
+                  onClick={() => handleOpenBatchModal('ENDORSE')}
+                  className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-[4px] text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Batch Endorse ({selectedIds.length})</span>
+                </button>
+                <button
+                  onClick={() => handleOpenBatchModal('APPROVE')}
+                  className="px-3.5 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-[4px] text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Batch Authorize ({selectedIds.length})</span>
+                </button>
+              </>
+            ) : canEndorse ? (
               <button
                 onClick={() => handleOpenBatchModal('ENDORSE')}
                 className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-[4px] text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"

@@ -53,6 +53,10 @@ async function loadAdmin(tx: any, actorId: string) {
 }
 
 async function assertAdminRemains(tx: any, previous: any) {
+  if (previous.role === UserRole.SUPER_ADMIN && previous.isActive !== false) {
+    const superAdmins = await tx.employee.count({ where: { role: UserRole.SUPER_ADMIN, isActive: true } });
+    if (superAdmins <= 1) throw new ConflictError('This is the last active Super Administrator. Give another employee that role first.');
+  }
   if (previous.role !== UserRole.SYSTEM_ADMIN || previous.isActive === false) return;
   const admins = await tx.employee.count({ where: { role: UserRole.SYSTEM_ADMIN, isActive: true } });
   if (admins <= 1) throw new ConflictError('This is the last active System Administrator. Give another employee that role first.');
@@ -93,7 +97,7 @@ export async function grantAccess(id: string, input: { role?: unknown; password?
 
     if (previous.role && previous.role !== role) {
       if (id === actor.id) throw new ConflictError("You can't change your own role.");
-      if (role !== UserRole.SYSTEM_ADMIN) await assertAdminRemains(tx, previous);
+      if (role !== UserRole.SYSTEM_ADMIN && role !== UserRole.SUPER_ADMIN) await assertAdminRemains(tx, previous);
     }
 
     const updated = await tx.employee.update({

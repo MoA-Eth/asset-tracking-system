@@ -60,11 +60,13 @@ export const requireRole = (...allowedRoles: UserRole[]) => {
       throw new UnauthorizedError('User authentication required before role evaluation.');
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
-      throw new ForbiddenError(
-        `Access denied. Role "${req.user.role}" does not have statutory clearance for this action. Allowed: ${allowedRoles.join(', ')}`
-      );
+    if (req.user.role === UserRole.SUPER_ADMIN || allowedRoles.includes(req.user.role)) {
+      return next();
     }
+
+    throw new ForbiddenError(
+      `Access denied. Role "${req.user.role}" does not have statutory clearance for this action. Allowed: ${allowedRoles.join(', ')}`
+    );
 
     next();
   };

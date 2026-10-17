@@ -50,6 +50,7 @@ interface TopHeaderProps {
 }
 
 const ROLE_TITLES: Partial<Record<UserRole, string>> = {
+  [UserRole.SUPER_ADMIN]: 'Super Administrator',
   [UserRole.MANAGER]: 'Manager',
   [UserRole.EMPLOYEE]: 'Employee',
   [UserRole.DEPARTMENT_HEAD]: 'Directorate Head',

@@ -59,7 +59,7 @@ npm run db:setup
 npm run dev
 ```
 
-Open **http://localhost:3001** (the API is at http://localhost:3000/api, health check at `/api/health`). Sign in with a demo account from [Roles, Credentials & Access Matrix](#-roles-credentials--access-matrix), all with password `moaams2024`, for example `sysadmin@moa.gov.et` or `encoder@moa.gov.et`.
+Open **http://localhost:3001** (the API is at http://localhost:3000/api, health check at `/api/health`). Sign in with a demo account from [Roles, Credentials & Access Matrix](#-roles-credentials--access-matrix), all with password `moaams2024`, for example `admin@moa.gov.et` or `encoder@moa.gov.et`.
 
 | Command (from the repository root) | What it does |
 |---|---|
@@ -263,20 +263,22 @@ All test accounts use uniform password **`moaams2024`**.
 
 > **5 statutory roles** (plus the **Employee** role, which only sees the assets assigned to the person) implement strict Segregation of Duties (SOD) — operational entry, technical endorsement, statutory authorization, and platform governance are strictly decoupled.
 
-| # | Role | Email Login | Title | Default View | Accessible Tabs | Access Scope & Responsibilities |
+| # | Role | Email / Payroll ID | Title | Default View | Accessible Tabs | Access Scope & Responsibilities |
 | :- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 1 | **`DATA_ENCODER`** | `encoder@moa.gov.et` | Store Custodian / Encoder | Stock-In | `Stock-In`, `Stock-Out`, `Asset Transfer`, other `Settings` (excluding Users/Roles) | **Operational Ingestion & Requisition**: Registers Model 19 (GRN), submits Model 20 (Issue), initiates inter-store transfers & Model 22 Returns. *(Strict SOD: Forbidden from approving vouchers).* |
-| 2 | **`TEAM_LEADER`** | `teamleader@moa.gov.et` | Team Leader | Approvals | `Approvals`, `Reports`, `Audit Log` | **Stage 1 Endorsement**: Verifies technical specs and endorses pending vouchers before forwarding to Stage 2. Full read access to operational reports and audit trail. |
-| 3 | **`DEPARTMENT_HEAD`** | `depthead@moa.gov.et` | Directorate Head | Approvals | `Approvals`, `Reports`, `Audit Log`, other `Settings` (excluding Users/Roles) | **Stage 2 Final Authorization**: Final statutory sign-off that commits stock transitions (`AVAILABLE`, `ISSUED`). Full access to reports, audit trail, and department settings. |
-| 4 | **`MANAGER`** | `manager@moa.gov.et` | Manager | Dashboard | `Dashboard`, `Reports` | **Executive Oversight**: Read-only executive view over total ministry portfolio valuation, directorate allocations, custodian ratios, and store capacities, plus read-only operational reports. Isolated from operations. |
-| 5 | **`SYSTEM_ADMIN`** | `sysadmin@moa.gov.et` | System Administrator | Dashboard | `Dashboard`, `Reports`, `Audit Log`, `Settings` | **IT & Security Governance**: Manages user accounts, assigns the five fixed roles and configures system settings. *(Strict SOD: Blocked from store operations & approvals).* |
-| 6 | **`EMPLOYEE`** | `almaz.a@moa.gov.et` | Employee | My assets | `My assets` | **Self-service, read-only**: sees only the assets issued to them (serial number, when and on which slip, pending transfer or return). Nothing about anyone else; none of the staff-wide pages. |
+| 0 | **`SUPER_ADMIN`** | `superadmin@moa.gov.et` / `00000001` | Super Administrator (ዋና አስተዳዳሪ) | Dashboard | All Tabs (`Dashboard`, `Assets`, `Approvals`, `Reports`, `Audit Log`, `My assets`, all `Settings`) | **Break-Glass Master Operator**: Full administrative and operational clearance across all store workflows (Model 19/22/21/Disposal), dual-stage approvals (Stage 1 technical endorsement & Stage 2 final authorization up to and exceeding 10M ETB), reports, audit log, and system configuration. |
+| 1 | **`DATA_ENCODER`** | `encoder@moa.gov.et` | Store Custodian / Encoder | Assets | `Assets`, `Reports`, reference `Settings` (excluding Users/Roles/System) | **Operational Ingestion & Requisition**: Registers Model 19 (GRN), submits Model 22 (Issue), initiates inter-store transfers & Model 21 Returns, and requests disposals. *(Strict SOD: Forbidden from approving vouchers).* |
+| 2 | **`TEAM_LEADER`** | `teamleader@moa.gov.et` | Team Leader | Approvals | `Approvals`, `Assets` (read-only), `Reports`, `Audit Log`, reference `Settings` | **Stage 1 Endorsement**: Verifies technical specifications and records Stage 1 Endorsements before advancing to Stage 2. Full read access to operational reports and audit trail. |
+| 3 | **`DEPARTMENT_HEAD`** | `depthead@moa.gov.et` | Directorate Head | Approvals | `Approvals`, `Assets` (read-only), `Reports`, `Audit Log`, reference `Settings` | **Stage 2 Final Authorization**: Final statutory sign-off that commits stock transitions (`AVAILABLE`, `ISSUED`, `DISPOSED`) for requests up to 10M ETB. |
+| 4 | **`CHIEF_DIRECTOR`** | `chiefdirector@moa.gov.et` | Chief Director | Approvals | `Approvals`, `Dashboard`, `Assets` (read-only), `Reports`, `Audit Log`, reference `Settings` | **High-Value Stage 2 Authorization**: Authorizes high-value transactions exceeding 10,000,000 ETB, with executive overview across the ministry portfolio. |
+| 5 | **`MANAGER`** | `manager@moa.gov.et` | Manager | Dashboard | `Dashboard`, `Reports` | **Executive Oversight**: Read-only executive view over total ministry portfolio valuation, directorate allocations, custodian ratios, and store capacities, plus read-only operational reports. Isolated from store operations. |
+| 6 | **`SYSTEM_ADMIN`** | `admin@moa.gov.et` | System Administrator | Dashboard | `Dashboard`, `Reports`, `Audit Log`, `Settings` | **IT & Security Governance**: Manages user accounts, assigns system roles, configures stores and system parameters. *(Strict SOD: Blocked from store operations & approving vouchers).* |
+| 7 | **`EMPLOYEE`** | `almaz.a@moa.gov.et` | Employee | My assets | `My assets` | **Self-service, read-only**: sees only the assets issued to them (serial number, when and on which slip, pending transfer or return). Nothing about anyone else; isolated from staff-wide pages. |
 
 ---
 
 ## Roles administration
 
-The implemented **Settings → Roles** directory shows the six system roles, permissions, live member counts, and links to filtered user assignments. Users and Roles are restricted to System Administrators. See [Roles setup and behavior](docs/ROLES.md) for the database upgrade and session changes.
+The implemented **Settings → Roles** directory shows the system roles (including Super Administrator and System Administrator), permissions, live member counts, and links to filtered user assignments. Users and Roles are restricted to System Administrators. See [Roles setup and behavior](docs/ROLES.md) for the database upgrade and session changes.
 
 ## 🛡️ Core Business Invariants
 1. **Asset Prefixing**: Asset Tag Codes follow statutory formatting (`MOA-VEH-001`, `MOA-IT-042`).

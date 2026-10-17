@@ -122,16 +122,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hasRole = (...roles: UserRole[]): boolean => {
     if (!user) return false;
     const current = normalizeRole(user.role);
+    if (current === UserRole.SUPER_ADMIN) return true;
     return roles.map(normalizeRole).includes(current);
   };
 
   const hasPermission = useCallback((permission: string): boolean => {
+    if (user?.role === UserRole.SUPER_ADMIN) return true;
     return !!user?.permissions?.includes(permission);
-  }, [user?.permissions]);
+  }, [user?.permissions, user?.role]);
 
   const canAccessTab = useCallback((tabId: string): boolean => {
+    if (user?.role === UserRole.SUPER_ADMIN) return true;
     return !!user?.allowedTabs?.includes(tabId);
-  }, [user?.allowedTabs]);
+  }, [user?.allowedTabs, user?.role]);
 
   const value: AuthContextType = {
     user,

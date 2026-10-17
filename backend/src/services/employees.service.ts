@@ -180,6 +180,12 @@ const auditView = (e: any) => ({
 
 /** Keeps at least one active System Administrator */
 async function assertAdminRemains(tx: any, previous: any) {
+  if (previous.role === UserRole.SUPER_ADMIN && previous.isActive !== false) {
+    const superAdmins = await tx.employee.count({ where: { role: UserRole.SUPER_ADMIN, isActive: true } });
+    if (superAdmins <= 1) {
+      throw new ConflictError('This is the last active Super Administrator. Give another employee that role first.');
+    }
+  }
   if (previous.role !== UserRole.SYSTEM_ADMIN || previous.isActive === false) return;
   const admins = await tx.employee.count({ where: { role: UserRole.SYSTEM_ADMIN, isActive: true } });
   if (admins <= 1) {

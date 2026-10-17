@@ -23,6 +23,7 @@ import { api } from '../../api/client';
 import { departmentLabel } from '../../utils/department';
 
 const ROLE_TITLES: Record<UserRole, string> = {
+  [UserRole.SUPER_ADMIN]: 'Super Administrator',
   [UserRole.MANAGER]: 'Manager',
   [UserRole.EMPLOYEE]: 'Employee',
   [UserRole.DEPARTMENT_HEAD]: 'Directorate Head',
@@ -33,6 +34,7 @@ const ROLE_TITLES: Record<UserRole, string> = {
 };
 
 const ROLE_TITLES_AM: Record<UserRole, string> = {
+  [UserRole.SUPER_ADMIN]: 'ዋና አስተዳዳሪ',
   [UserRole.MANAGER]: 'ሥራ አስኪያጅ',
   [UserRole.EMPLOYEE]: 'ሠራተኛ',
   [UserRole.DEPARTMENT_HEAD]: 'የዳይሬክቶሬት ኃላፊ',
@@ -43,6 +45,7 @@ const ROLE_TITLES_AM: Record<UserRole, string> = {
 };
 
 const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
+  [UserRole.SUPER_ADMIN]: 'Master administrator with full access to all store operations, approvals, reports, and settings.',
   [UserRole.SYSTEM_ADMIN]: 'Full administrative control over users, roles, stores, references, and system settings.',
   [UserRole.CHIEF_DIRECTOR]: 'Final executive approval authority for property clearance and major asset write-offs.',
   [UserRole.DEPARTMENT_HEAD]: 'Department-level approval authority for issue, transfer, and disposal requests.',

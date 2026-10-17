@@ -80,11 +80,17 @@ async function main() {
 
   // ── Employees & Demo Accounts ─────────────────────────────────────────────
   const employees = await Promise.all([
+    // Super Administrator (SUPER_ADMIN)
+    prisma.employee.upsert({
+      where: { id: 'EMP-SUPER-01' },
+      update: { role: UserRole.SUPER_ADMIN, email: 'superadmin@moa.gov.et', password: seedPassword, payrollId: '00000001' },
+      create: { id: 'EMP-SUPER-01', payrollId: '00000001', fullNameEn: 'Super Administrator', fullNameAm: 'ዋና አስተዳዳሪ', departmentId: 'DEP-04', email: 'superadmin@moa.gov.et', phone: '+251911000001', role: UserRole.SUPER_ADMIN, password: seedPassword },
+    }),
     // System Administrator (SYSTEM_ADMIN)
     prisma.employee.upsert({
       where: { id: 'EMP-ADMIN-01' },
-      update: { role: UserRole.SYSTEM_ADMIN, email: 'sysadmin@moa.gov.et', password: seedPassword },
-      create: { id: 'EMP-ADMIN-01', payrollId: 'MOA/ADMIN-001', fullNameEn: 'System Administrator', fullNameAm: 'ሲስተም አድሚኒስትሬተር', departmentId: 'DEP-04', email: 'sysadmin@moa.gov.et', phone: '+251911000000', role: UserRole.SYSTEM_ADMIN, password: seedPassword },
+      update: { role: UserRole.SYSTEM_ADMIN, email: 'admin@moa.gov.et', password: seedPassword },
+      create: { id: 'EMP-ADMIN-01', payrollId: 'MOA/ADMIN-001', fullNameEn: 'System Administrator', fullNameAm: 'ሲስተም አድሚኒስትሬተር', departmentId: 'DEP-04', email: 'admin@moa.gov.et', phone: '+251911000000', role: UserRole.SYSTEM_ADMIN, password: seedPassword },
     }),
     // General Manager (MANAGER)
     prisma.employee.upsert({
@@ -341,7 +347,8 @@ async function main() {
   console.log('  ✅ Sample items, history, approvals & audit logs seeded');
   console.log('\n🎉 Database seeding complete!\n');
   console.log('  Uniform Password for All Accounts: moaams2024');
-  console.log('  System Administrator       → sysadmin@moa.gov.et   (SYSTEM_ADMIN)');
+  console.log('  Super Administrator        → superadmin@moa.gov.et / 00000001 (SUPER_ADMIN)');
+  console.log('  System Administrator       → admin@moa.gov.et   (SYSTEM_ADMIN)');
   console.log('  Store Custodian / Encoder  → encoder@moa.gov.et    (DATA_ENCODER)');
   console.log('  Team Leader (Endorser)     → teamleader@moa.gov.et (TEAM_LEADER)');
   console.log('  Directorate Head / Approver→ depthead@moa.gov.et   (DEPARTMENT_HEAD)');

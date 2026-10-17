@@ -120,7 +120,7 @@ interface AssetsPageProps {
 export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const { user } = useAuth();
   const toast = useToast();
-  const can = (permission: string) => user?.permissions?.includes(permission) ?? false;
+  const can = (permission: string) => user?.role === UserRole.SUPER_ADMIN || (user?.permissions?.includes(permission) ?? false);
   const canReceive = can('stock-in.write');
   const canIssue = can('stock-out.write');
   const canTransfer = can('transfers.write');

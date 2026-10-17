@@ -1,6 +1,6 @@
 # Roles and permissions
 
-Settings → Roles is available to System Administrators. It lists the six built-in
+Settings → Roles is available to System Administrators and Super Administrators. It lists the six built-in
 roles, live member counts, action permissions, approval responsibilities, and
 assigned users. “Manage assignments” opens Users with that role selected.
 Role definitions are fixed; creating custom roles or editing permissions is not
@@ -11,6 +11,7 @@ part of this release. Other existing Settings sections retain their previous acc
 Desktop navigation, mobile settings links, and page selection consume those tabs.
 The backend independently enforces action permissions on every protected route.
 
+- Super Administrator (`SUPER_ADMIN`) acts as the break-glass master operator with full authority across all store operations (Model 19/22/21/Disposal), dual-stage approvals (Stage 1 Endorsement & Stage 2 Authorization for all value thresholds), executive dashboards, audit trail, and system configuration.
 - Data Encoder records stock movements and requests transfers, returns and disposals (permission "Request disposals", `disposals.write`). Like the other request permissions, it can't be combined with endorsing or authorizing.
 - Team Leader endorses or rejects Stage 1.
 - Department Head authorizes or rejects Stage 2.

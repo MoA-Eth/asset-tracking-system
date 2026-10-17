@@ -13,7 +13,7 @@ import {
   PROTECTED_ROLE_PERMISSIONS,
   segregationViolations,
 } from './role-policy';
-import { requirePermission } from '../middleware/auth.middleware';
+import { requirePermission, requireRole } from '../middleware/auth.middleware';
 import { UserRole, AuthUser } from '../types/asset-management';
 import { Request, Response } from 'express';
 

@@ -21,11 +21,11 @@ These pages are under **Settings**. Only the **System Administrator** can change
 4. **Remove sign-in:** signs the person out and stops them signing in. They stay on the staff list and keep their assets.
 5. **Deactivate user:** signs the person out and stops them signing in or receiving assets. Their history is kept. It is refused while they hold assets.
 
-Safeguards: you cannot change your own role, remove your own sign-in or deactivate yourself; the last System Administrator cannot be removed; a directorate can have only one active Team Leader, one Department Head and one Manager.
+Safeguards: you cannot change your own role, remove your own sign-in or deactivate yourself; neither the last System Administrator nor the last Super Administrator can be removed; a directorate can have only one active Team Leader, one Department Head and one Manager.
 
 ## Roles
 
-**Settings → Roles** shows what each role may do. Switch a permission on or off, press **Save changes**, and confirm. Every change is recorded in the audit log, and **Reset to defaults** restores a role. Some rules cannot be broken: the administrator cannot work with the stock or approve, and a role that makes requests cannot also approve them.
+**Settings → Roles** shows what each role may do. Switch a permission on or off, press **Save changes**, and confirm. Every change is recorded in the audit log, and **Reset to defaults** restores a role. Some rules cannot be broken: standard System Administrators cannot work with stock or approve requests (strict segregation of duties), and a role that makes requests cannot also approve them. The Super Administrator holds break-glass master clearance across all areas.
 
 ## Stores
 

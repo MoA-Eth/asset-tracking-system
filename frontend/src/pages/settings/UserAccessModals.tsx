@@ -9,6 +9,7 @@ import { useToast } from '../../context/ToastContext';
 import { Employee, UserRole } from '../../types/asset-management';
 
 export const ROLE_LABELS: Record<UserRole, string> = {
+  [UserRole.SUPER_ADMIN]: 'Super Administrator',
   [UserRole.SYSTEM_ADMIN]: 'System Administrator',
   [UserRole.DATA_ENCODER]: 'Data Encoder',
   [UserRole.TEAM_LEADER]: 'Team Leader',

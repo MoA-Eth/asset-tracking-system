@@ -41,7 +41,7 @@ export async function getRoleDirectory() {
 }
 
 export async function assignEmployeeRole(id: string, role: unknown, actorId: string) {
-  if (!isUserRole(role)) throw new BadRequestError('Choose one of the five system roles.');
+  if (!isUserRole(role)) throw new BadRequestError('Choose a valid system role.');
   if (!actorId) throw new ForbiddenError('Only System Administrators may assign roles.');
 
   // Serializable isolation prevents two concurrent demotions removing the last administrators.
@@ -57,6 +57,10 @@ export async function assignEmployeeRole(id: string, role: unknown, actorId: str
         if (previous.role === UserRole.SYSTEM_ADMIN && role !== UserRole.SYSTEM_ADMIN) {
           const admins = await tx.employee.count({ where: { role: UserRole.SYSTEM_ADMIN, isActive: true } });
           if (admins <= 1) throw new ConflictError('The last System Administrator cannot be reassigned. Assign another administrator first.');
+        }
+        if (previous.role === UserRole.SUPER_ADMIN && role !== UserRole.SUPER_ADMIN) {
+          const superAdmins = await tx.employee.count({ where: { role: UserRole.SUPER_ADMIN, isActive: true } });
+          if (superAdmins <= 1) throw new ConflictError('The last Super Administrator cannot be reassigned. Assign another super administrator first.');
         }
         await assertRoleSeatFree(tx, id, role, previous.departmentId);
         const updated = await tx.employee.update({ where: { id }, data: { role } });
@@ -97,6 +101,15 @@ export async function updateRolePermissions(
   for (const perm of permissions) {
     if (typeof perm !== 'string' || !allKnownPermissions.has(perm)) {
       throw new BadRequestError(`Unknown permission: ${perm}`);
+    }
+  }
+
+  if (role === UserRole.SUPER_ADMIN) {
+    const missing = PROTECTED_ROLE_PERMISSIONS.SUPER_ADMIN?.filter((p) => !permissions.includes(p)) ?? [];
+    if (missing.length > 0) {
+      throw new BadRequestError(
+        `Cannot revoke permissions (${missing.join(', ')}) from Super Administrator.`
+      );
     }
   }
 
