@@ -204,6 +204,9 @@ model Employee {
   recipientApprovals  TransactionApproval[] @relation("RecipientEmployee")
   auditLogs           AuditLog[]
 
+  @@index([departmentId])
+  @@index([isActive])
+  @@index([role])
   @@map("employees")
 }
 
@@ -263,6 +266,13 @@ model Item {
   history             ItemHistory[]
   approvals           TransactionApproval[]
 
+  @@index([status])
+  @@index([storeLocationId])
+  @@index([currentCustodianId])
+  @@index([category])
+  @@index([itemType])
+  @@index([ifmisTagNumber])
+  @@index([parentItemId])
   @@map("items")
 }
 
@@ -283,6 +293,7 @@ model ItemHistory {
 
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
+  @@index([itemId])
   @@map("item_history")
 }
 
@@ -338,6 +349,10 @@ model TransactionApproval {
   endorsedBy         Employee?   @relation("EndorsedBy", fields: [endorsedById], references: [id])
   reviewedBy         Employee?   @relation("ReviewedBy", fields: [reviewedById], references: [id])
 
+  @@index([status, currentStage])
+  @@index([itemId])
+  @@index([requestedById])
+  @@index([recipientEmployeeId])
   @@map("transaction_approvals")
 }
 

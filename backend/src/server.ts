@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import compression from 'compression';
 import itemRoutes from './routes/item.routes';
 import referenceRoutes from './routes/reference.routes';
 import authRoutes from './routes/auth.routes';
@@ -15,6 +16,11 @@ import { errorHandler } from './middleware/error-handler';
 import { sendError } from './utils/api-response';
 import { prisma } from './lib/prisma';
 import { requireAuth, requirePermission } from './middleware/auth.middleware';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerDocument } from './docs/swagger';
+import { apiRateLimiter, authRateLimiter } from './middleware/rate-limiter';
+import { requestLogger } from './middleware/request-logger';
+import path from 'path';
 
 dotenv.config();
 
@@ -25,12 +31,25 @@ const PORT = process.env.PORT || 3000;
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 app.disable('x-powered-by');
 
+// Response compression (gzip/brotli/deflate) for payloads above 1KB
+app.use(
+  compression({
+    threshold: 1024,
+    filter: (req, res) => {
+      if (req.headers['x-no-compression']) return false;
+      return compression.filter(req, res);
+    },
+  })
+);
+
 // Security headers
 app.use((_req: Request, res: Response, next: NextFunction) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   // Slips are previewed in a frame on our own pages only
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
   if (process.env.NODE_ENV === 'production') res.setHeader('Strict-Transport-Security', 'max-age=31536000');
   next();
 });
@@ -46,20 +65,42 @@ if (allowedOrigins.length > 0) {
       allowedHeaders: ['Content-Type', 'Authorization'],
     })
   );
+} else if (process.env.NODE_ENV !== 'production') {
+  // Allow local frontend dev server during development
+  app.use(
+    cors({
+      origin: ['http://localhost:3001', 'http://127.0.0.1:3001'],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    })
+  );
 }
+
 // The staff import parses its own larger body (see reference.routes.ts)
 const jsonBody = express.json();
 app.use((req, res, next) => (req.path === '/api/reference/employees/import' ? next() : jsonBody(req, res, next)));
 
-// Request logging in development
-if (process.env.NODE_ENV !== 'test') {
-  app.use((req: Request, _res: Response, next: NextFunction) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-    next();
-  });
-}
+// Structured HTTP request and latency logging
+app.use(requestLogger);
 
-// Health check endpoint (also confirms the database answers)
+// Health check endpoints (Liveness, Readiness, and combined)
+app.get('/api/health/live', (_req: Request, res: Response) => {
+  res.json({ status: 'alive', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+app.get('/api/health/ready', async (_req: Request, res: Response) => {
+  try {
+    await prisma.employee.count();
+    res.json({ status: 'ready', database: 'connected', timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({
+      status: 'not_ready',
+      database: 'unavailable',
+      message: 'The application database is unavailable or has not been initialized.',
+    });
+  }
+});
+
 app.get('/api/health', async (_req: Request, res: Response) => {
   try {
     await prisma.employee.count();
@@ -77,23 +118,21 @@ app.get('/api/health', async (_req: Request, res: Response) => {
     system: 'MoA Fixed Asset & Store Management (IFMIS Mirror)',
     scope: 'Store-level processing, tracking, and executive management dashboard',
     environment: process.env.APP_ENV || (process.env.NODE_ENV === 'production' ? 'prod' : 'dev'),
-    // Release tag ("v2.1.0") or branch ("main") and Git commit the running image was built from,
-    // both set by the Jenkins build; "dev" when run from source
     version: process.env.APP_VERSION || 'dev',
     commit: process.env.APP_COMMIT || 'dev',
     timestamp: new Date().toISOString(),
   });
 });
 
-import path from 'path';
-
-// Serve client static dist files (built web app & PWA)
+// Serve client static dist files (built web app & PWA) with immutable caching for hashed assets
 const clientDistPath = path.join(__dirname, '../../frontend/dist');
 app.use(
   express.static(clientDistPath, {
     setHeaders: (res, filePath) => {
       if (filePath.endsWith('.html')) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      } else if (filePath.includes(path.sep + 'assets' + path.sep) || filePath.includes('/assets/')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       }
     },
   })
@@ -112,8 +151,19 @@ app.use(
   })
 );
 
+// Global API rate limiting
+app.use('/api', apiRateLimiter);
+
+// Swagger API Documentation & raw JSON specification
+app.get('/api/docs/json', (_req: Request, res: Response) => {
+  res.json(swaggerDocument);
+});
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+  customSiteTitle: 'MoA Asset Tracking API Documentation',
+}));
+
 // Primary API Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRateLimiter, authRoutes);
 app.use('/api/roles', rolesRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/reference', referenceRoutes);
@@ -137,17 +187,61 @@ app.use((req: Request, res: Response) => {
 // Centralized error handling middleware
 app.use(errorHandler);
 
+// Global unhandled error diagnostics
+process.on('unhandledRejection', (reason) => {
+  console.error('[Process Unhandled Rejection]:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[Process Uncaught Exception]:', err);
+});
+
 // Start server once release data changes have run and the saved permission matrix is loaded
-// (the upgrades may change saved role permissions, so they run first)
+let server: ReturnType<typeof app.listen> | undefined;
+
 void runStartupUpgrades()
   .then(() => Promise.all([initRolePermissions(), initSystemSettings()]))
-  .then(() => app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(` Federal Democratic Republic of Ethiopia - MoA ATS `);
-  console.log(` IFMIS Store-Level Tracking & Executive Visibility API `);
-  console.log(` REST API running on: http://localhost:${PORT}`);
-  console.log(` Health check: http://localhost:${PORT}/api/health`);
-  console.log(`=======================================================`);
-}));
+  .then(() => {
+    server = app.listen(PORT, () => {
+      console.log(`=======================================================`);
+      console.log(` Federal Democratic Republic of Ethiopia - MoA ATS `);
+      console.log(` IFMIS Store-Level Tracking & Executive Visibility API `);
+      console.log(` REST API running on: http://localhost:${PORT}`);
+      console.log(` Health check: http://localhost:${PORT}/api/health`);
+      console.log(` API Docs: http://localhost:${PORT}/api/docs`);
+      console.log(`=======================================================`);
+    });
+  });
+
+// Graceful shutdown handling
+let isShuttingDown = false;
+const gracefulShutdown = async (signal: string) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`\nReceived ${signal}. Shutting down MoA ATS gracefully...`);
+
+  if (server) {
+    server.close(async () => {
+      try {
+        await prisma.$disconnect();
+        console.log('Database connection closed cleanly.');
+      } catch (err) {
+        console.error('Error during database disconnect:', err);
+      }
+      process.exit(0);
+    });
+  } else {
+    await prisma.$disconnect();
+    process.exit(0);
+  }
+
+  // Force close after 10s if connections linger
+  setTimeout(() => {
+    console.error('Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000).unref();
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 export default app;

@@ -69,7 +69,8 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
       throw new Error(
         controller.signal.aborted
           ? 'The ATS server took too long to respond. Check your connection and try again.'
-          : 'Cannot reach the ATS server. Check your connection and that the app is running.'
+          : 'Cannot reach the ATS server. Check your connection and that the app is running.',
+        { cause: error }
       );
     }
 

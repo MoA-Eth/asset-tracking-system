@@ -751,19 +751,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     }
   };
 
-  if (error) {
-    return (
-      <div className="p-8 rounded-2xl bg-red-50 border border-red-200 text-center space-y-3 max-w-md mx-auto my-12 animate-fadeIn">
-        <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
-        <h3 className="text-sm font-bold text-red-900">The assets could not be loaded</h3>
-        <p className="text-xs text-red-700">{error}</p>
-        <button onClick={() => fetchData()} className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-[3px] transition cursor-pointer inline-flex items-center gap-1.5">
-          <RefreshCw className="w-3.5 h-3.5" />
-          Try again
-        </button>
-      </div>
-    );
-  }
+// Note: error UI is rendered before main return below to keep hook execution order unconditional
 
   /** Units of a whole batch, from the registration's balance (it covers the records issued from it) */
   const batchSummary = (row: AssetRow, children: AssetRow[]) => {
@@ -1080,6 +1068,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
   const availableItems = items.filter((i) => i.status === ItemStatus.AVAILABLE && !pendingByItem.has(i.id));
+
+  if (error) {
+    return (
+      <div className="p-8 rounded-2xl bg-red-50 border border-red-200 text-center space-y-3 max-w-md mx-auto my-12 animate-fadeIn">
+        <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
+        <h3 className="text-sm font-bold text-red-900">The assets could not be loaded</h3>
+        <p className="text-xs text-red-700">{error}</p>
+        <button onClick={() => fetchData()} className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-[3px] transition cursor-pointer inline-flex items-center gap-1.5">
+          <RefreshCw className="w-3.5 h-3.5" />
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2.5 animate-fadeIn pb-1">
