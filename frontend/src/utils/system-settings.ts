@@ -18,15 +18,24 @@ const DEFAULT_SETTINGS: SystemSettings = {
 const CHANGED_EVENT = 'system-settings-changed';
 
 // The settings live on the server and are the same for everyone; this is the copy last fetched
-let current: SystemSettings = DEFAULT_SETTINGS;
+let current: SystemSettings = { ...DEFAULT_SETTINGS };
 
 const apply = (settings: Partial<SystemSettings>): SystemSettings => {
-  current = { ...DEFAULT_SETTINGS, ...settings };
+  current = { ...current, ...settings };
   window.dispatchEvent(new Event(CHANGED_EVENT));
   return current;
 };
 
 export const getSystemSettings = (): SystemSettings => current;
+
+/** For tests and startup only */
+export const applySystemSettings = (settings: Partial<SystemSettings>): SystemSettings => apply(settings);
+
+export const resetSystemSettings = (): SystemSettings => {
+  current = { ...DEFAULT_SETTINGS };
+  window.dispatchEvent(new Event(CHANGED_EVENT));
+  return current;
+};
 
 /** Fetch the settings from the server; called after sign-in and when the settings page opens */
 export const loadSystemSettings = async (): Promise<SystemSettings> => apply(await api.getSystemSettings());

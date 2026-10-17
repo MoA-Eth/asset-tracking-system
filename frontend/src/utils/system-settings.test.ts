@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { getSystemSettings, loadSystemSettings, saveSystemSettings } from './system-settings';
+import { getSystemSettings, loadSystemSettings, saveSystemSettings, resetSystemSettings } from './system-settings';
 import { api } from '../api/client';
 
 vi.mock('../api/client', () => ({ api: { getSystemSettings: vi.fn(), updateSystemSettings: vi.fn() } }));
@@ -8,6 +8,7 @@ describe('system settings', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     localStorage.clear();
+    resetSystemSettings();
   });
 
   it('starts with the slip optional and single uploader default until the server answers', () => {

@@ -1,8 +1,9 @@
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AssetsPage } from './AssetsPage';
+import { applySystemSettings, resetSystemSettings } from '../utils/system-settings';
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
 import { readPdfRows, readPdfPages, PdfRow } from '../utils/slip-reader';
@@ -86,6 +87,7 @@ const menuFor = async (user: ReturnType<typeof userEvent.setup>, code: string) =
 beforeEach(() => {
   window.localStorage.clear();
   vi.resetAllMocks();
+  applySystemSettings({ showScannedSlipField: true });
   if (!window.URL.createObjectURL) {
     window.URL.createObjectURL = vi.fn(() => 'blob:mock');
     window.URL.revokeObjectURL = vi.fn();
@@ -105,6 +107,10 @@ beforeEach(() => {
     },
   ] as any);
   vi.mocked(api.getApprovals).mockResolvedValue(approvals as any);
+});
+
+afterAll(() => {
+  resetSystemSettings();
 });
 
 /** A form's own Submit / Save changes button, at the bottom of the form, and its Cancel */
@@ -1929,5 +1935,15 @@ describe('Receiving form: the uploaded slip is shown open under the form', () =>
     expect(within(preview).queryByRole('img')).toBeNull();
     await user.click(within(preview).getByRole('button', { name: 'Show' }));
     expect(within(preview).getByRole('img', { name: 'IFMIS slip signed.jpg' })).toBeInTheDocument();
+  });
+  it('shows only one file uploader for the IFMIS PDF when showScannedSlipField is false', async () => {
+    applySystemSettings({ showScannedSlipField: false });
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    expect(within(panel).getByText('Click to choose the Model 19 PDF saved from IFMIS')).toBeInTheDocument();
+    expect(within(panel).queryByText('Click to attach the signed Model 19, scanned')).toBeNull();
   });
 });
