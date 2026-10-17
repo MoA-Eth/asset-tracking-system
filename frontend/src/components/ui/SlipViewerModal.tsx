@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ExternalLink, FileText, FileX, RefreshCw } from 'lucide-react';
 import { CloseButton } from './CloseButton';
+import { DocumentSkeleton } from './Skeleton';
 import { getSlipDisplayName, fetchSlip } from '../../utils/slip-upload';
 
 interface SlipViewerModalProps {
@@ -90,10 +91,7 @@ const PDF_OPEN = '#pagemode=none&navpanes=0&zoom=page-width&view=FitH';
 export const SlipContent: React.FC<{ state: SlipState; fileName: string; heightClass?: string }> = ({ state, fileName, heightClass = 'h-[78vh]' }) => (
   <>
     {state.status === 'loading' && (
-      <div className="flex items-center justify-center py-24 text-xs text-slate-500">
-        <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
-        Loading slip...
-      </div>
+      <DocumentSkeleton heightClass={heightClass} />
     )}
 
     {state.status === 'ready' && state.kind === 'image' && (

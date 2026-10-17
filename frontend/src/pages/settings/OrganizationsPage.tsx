@@ -10,6 +10,7 @@ import { useToast } from '../../context/ToastContext';
 import { Organization } from '../../types/asset-management';
 import { ActivePill, ConfirmDialog, StatusFilter, matchesStatus } from './reference-ui';
 import { FilterPopover, FilterSection, FilterPill } from '../../components/ui/FilterPopover';
+import { Skeleton, OrganizationsTableRowsSkeleton } from '../../components/ui/Skeleton';
 
 // ─── Add / edit an organization ─────────────────────────────────────────────
 
@@ -210,9 +211,20 @@ export const OrganizationsPage: React.FC = () => {
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-12 text-xs text-slate-500">
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin text-emerald-700" />
-              Loading organizations…
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className={table.headRow}>
+                    <th className="px-4 py-1.5"><Skeleton className="h-3 w-28" /></th>
+                    <th className="px-4 py-1.5"><Skeleton className="h-3 w-36" /></th>
+                    <th className="px-4 py-1.5"><Skeleton className="h-3 w-16" /></th>
+                    {canManage && <th className="px-4 py-1.5 w-12" />}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  <OrganizationsTableRowsSkeleton rows={5} />
+                </tbody>
+              </table>
             </div>
           ) : shown.length === 0 ? (
             <div className="py-12 text-center text-xs text-slate-500">

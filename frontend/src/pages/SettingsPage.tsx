@@ -24,6 +24,7 @@ import { ConfirmDialog } from './settings/reference-ui';
 import { AddUserModal, ResetPasswordModal, ROLE_LABELS } from './settings/UserAccessModals';
 import { FilterPopover, FilterSection, FilterSelect } from '../components/ui/FilterPopover';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
+import { UsersTableSkeleton } from '../components/ui/Skeleton';
 
 interface SettingsPageProps {
   currentRole: UserRole;
@@ -190,12 +191,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
   if (!canAssign) return <p role="alert" className="text-sm text-slate-600">Only System Administrators can manage user roles.</p>;
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-xs text-slate-400">
-        <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
-        Loading settings & directorate parameters...
-      </div>
-    );
+    return <UsersTableSkeleton />;
   }
 
   if (error) {

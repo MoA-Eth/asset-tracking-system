@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { DashboardSkeleton } from '../components/ui/Skeleton';
 import {
   Layers,
   CheckCircle2,
@@ -508,14 +509,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({ 
   }, [request.storeId, request.category, request.itemType, request.from, request.to]);
 
   if (loading && !data) {
-    return (
-      <div className="flex items-center justify-center min-h-[65vh]">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin" />
-          <p className="text-xs font-medium text-slate-600">Loading dashboard…</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error) {

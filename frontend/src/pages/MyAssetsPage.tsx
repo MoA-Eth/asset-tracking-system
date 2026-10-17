@@ -3,6 +3,7 @@ import { PackageCheck, RefreshCw, AlertCircle, Clock } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { Modal } from '../components/ui/Modal';
+import { MyAssetsSkeleton } from '../components/ui/Skeleton';
 import { MyAsset } from '../types/asset-management';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -85,6 +86,8 @@ export const MyAssetsPage: React.FC = () => {
           <span>{error}</span>
         </div>
       )}
+
+      {assets === null && !error && <MyAssetsSkeleton />}
 
       {assets !== null && count === 0 && !error && (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">

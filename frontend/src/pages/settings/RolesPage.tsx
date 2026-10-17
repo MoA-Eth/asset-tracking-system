@@ -18,6 +18,7 @@ import {
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
+import { RolesSkeleton } from '../../components/ui/Skeleton';
 import { Modal } from '../../components/ui/Modal';
 import { useToast } from '../../context/ToastContext';
 import { RefreshButton } from '../../components/ui/RefreshButton';
@@ -233,10 +234,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
   return (
     <div className="space-y-3 animate-fadeIn pb-12">
       {loading ? (
-        <div role="status" className="flex justify-center items-center gap-2 py-24 text-sm text-slate-500">
-          <RefreshCw className="w-5 h-5 animate-spin text-emerald-700" />
-          Loading roles and permission matrix…
-        </div>
+        <RolesSkeleton />
       ) : error ? (
         <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-6 space-y-3">
           <p className="font-semibold text-red-900 flex items-center gap-2">

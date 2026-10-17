@@ -20,6 +20,7 @@ import {
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { CloseButton } from '../components/ui/CloseButton';
+import { AssetsTableSkeleton } from '../components/ui/Skeleton';
 import { FilterPopover, FilterSection, FilterPill, FilterSelect } from '../components/ui/FilterPopover';
 import { SortableHeader } from '../components/ui/SortableHeader';
 import { Pagination, usePagination } from '../components/ui/Pagination';
@@ -1446,10 +1447,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         </div>
 
         {loading && rows.length === 0 ? (
-          <div className="flex items-center justify-center py-16 text-xs text-slate-400">
-            <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
-            Loading assets…
-          </div>
+          <AssetsTableSkeleton />
         ) : sortedShown.length === 0 ? (
           <div className="py-16 text-center space-y-1">
             <Boxes className="w-8 h-8 text-slate-300 mx-auto" />

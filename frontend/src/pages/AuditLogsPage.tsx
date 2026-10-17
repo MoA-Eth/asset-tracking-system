@@ -9,6 +9,7 @@ import { actionText, roleName, withRoleNames } from '../utils/roles';
 import { downloadCsv } from '../utils/csv';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../components/ui/FilterPopover';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
+import { AuditLogSkeleton } from '../components/ui/Skeleton';
 
 /** What kind of activity an entry is, for the filter and the colour of its label */
 type ActivityKind = 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'DISPOSAL' | 'APPROVAL' | 'REJECTION' | 'ADMIN' | 'OTHER';
@@ -228,12 +229,7 @@ export const AuditLogsPage: React.FC = () => {
   const pager = usePagination(sortedLogs, { pageSize: 25, resetKey: `${searchTerm}|${dateFilter}|${selectedKind}|${sortColumn}|${sortDirection}` });
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-xs text-slate-400">
-        <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
-        Loading the audit log…
-      </div>
-    );
+    return <AuditLogSkeleton />;
   }
 
   if (error) {

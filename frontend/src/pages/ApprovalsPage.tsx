@@ -32,6 +32,7 @@ import {
   ArrowRightLeft,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { ApprovalsSkeleton } from '../components/ui/Skeleton';
 import { table, btn } from '../components/ui/theme';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../components/ui/FilterPopover';
 import { ApprovalVoucherModal } from '../components/ui/ApprovalVoucherModal';
@@ -796,10 +797,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
       {/* ── 4. Main Approvals Display Area ── */}
       {loading && approvals.length === 0 ? (
-        <div className="py-20 text-center text-slate-500 text-xs">
-          <RefreshCw className="w-5 h-5 text-emerald-700 animate-spin mx-auto mb-2" />
-          Loading approval requests registry...
-        </div>
+        <ApprovalsSkeleton />
       ) : filteredApprovals.length === 0 ? (
         <div className="py-16 text-center rounded-2xl bg-white border border-dashed border-slate-300 space-y-2 shadow-xs">
           <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />

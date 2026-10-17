@@ -26,6 +26,7 @@ import { Department, Employee, EmployeeInput, UserRole } from '../../types/asset
 import { EMPLOYEE_FIELDS, EMPLOYEE_ID_FORMAT, EMPLOYEE_ID_PATTERN, EmployeeField } from '../../utils/employee-import';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../../components/ui/FilterPopover';
 import { SortableHeader, SortDirection } from '../../components/ui/SortableHeader';
+import { EmployeesTableRowsSkeleton } from '../../components/ui/Skeleton';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.SUPER_ADMIN]: 'Super Administrator',
@@ -604,12 +605,7 @@ export const EmployeesPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {loading && employees.length === 0 ? (
-                  <tr>
-                    <td colSpan={colCount} className="p-10 text-center text-slate-400">
-                      <RefreshCw className="mx-auto mb-2 h-5 w-5 animate-spin text-emerald-700" />
-                      Loading staff…
-                    </td>
-                  </tr>
+                  <EmployeesTableRowsSkeleton rows={7} colCount={colCount} />
                 ) : rows.length === 0 ? (
                   <tr>
                     <td colSpan={colCount} className="p-10 text-center text-slate-500">

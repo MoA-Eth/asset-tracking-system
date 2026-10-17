@@ -13,6 +13,7 @@ import { StoreManReminder } from '../../components/ui/StoreManReminder';
 import { ActivePill, ConfirmDialog, StatusFilter, matchesStatus } from './reference-ui';
 import { FilterPopover, FilterSection, FilterPill } from '../../components/ui/FilterPopover';
 import { SortableHeader, SortDirection } from '../../components/ui/SortableHeader';
+import { StoresSkeleton } from '../../components/ui/Skeleton';
 
 /** What the add / edit window is working on */
 type Editing =
@@ -405,10 +406,7 @@ export const StoresPage: React.FC = () => {
           </button>
         </div>
       ) : loading && stores.length === 0 ? (
-        <div className="rounded-md bg-white p-10 text-center text-xs text-slate-400 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-          <RefreshCw className="mx-auto mb-2 h-5 w-5 animate-spin text-emerald-700" />
-          Loading stores…
-        </div>
+        <StoresSkeleton count={4} />
       ) : shown.length === 0 ? (
         <div className="rounded-md bg-white p-10 text-center text-xs text-slate-500 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
           {stores.length === 0 ? (

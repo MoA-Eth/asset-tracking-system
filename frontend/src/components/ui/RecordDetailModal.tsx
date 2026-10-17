@@ -3,6 +3,7 @@ import { actionText, withRoleNames } from '../../utils/roles';
 import { FileText, History, Package, Paperclip, RefreshCw, AlertCircle } from 'lucide-react';
 import { Modal } from './Modal';
 import { SlipViewerModal } from './SlipViewerModal';
+import { RecordDetailSkeleton } from './Skeleton';
 import { statusTone, pill } from './theme';
 import { api } from '../../api/client';
 import { formatETB } from '../../utils/eth-date';
@@ -148,9 +149,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
             {error}
           </div>
         ) : !item ? (
-          <div className="flex items-center justify-center py-16 text-xs text-slate-400">
-            <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Loading record…
-          </div>
+          <RecordDetailSkeleton />
         ) : (
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">

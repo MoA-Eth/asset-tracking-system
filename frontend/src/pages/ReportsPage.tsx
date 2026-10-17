@@ -17,6 +17,7 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { ReportsSkeleton } from '../components/ui/Skeleton';
 import { storeLocationLabel } from '../utils/location';
 import { table, statusTone } from '../components/ui/theme';
 import { Pagination, usePagination } from '../components/ui/Pagination';
@@ -629,12 +630,7 @@ export const ReportsPage: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24 text-xs text-slate-400">
-        <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-700" />
-        Loading asset reports...
-      </div>
-    );
+    return <ReportsSkeleton />;
   }
 
   if (error) {
