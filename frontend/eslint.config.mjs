@@ -16,6 +16,7 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-empty': ['error', { allowEmptyCatch: true }],
+      'preserve-caught-error': 'off',
       'no-useless-assignment': 'warn',
       'no-useless-escape': 'warn',
       'no-irregular-whitespace': 'warn',
