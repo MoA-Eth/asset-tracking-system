@@ -45,7 +45,7 @@ export const ROLE_POLICY: Record<UserRole, {
     name: 'Super Administrator', description: 'Master access across all store operations, dual-stage approvals, executive dashboards, reports, audit log, and system administration.',
     approvalResponsibility: 'Full approval authority (Stage 1 & Stage 2)',
     permissions: PERMISSION_GROUPS.flatMap((g) => g.permissions.map((p) => p.key as Permission)),
-    allowedTabs: ['dashboard', 'assets', 'approvals', 'reports', 'audit', 'my-assets', ...referenceTabs, 'settings-users', 'settings-roles'],
+    allowedTabs: ['dashboard', 'assets', 'approvals', 'reports', 'audit', ...referenceTabs, 'settings-users', 'settings-roles'],
     landingTab: 'dashboard',
   },
   SYSTEM_ADMIN: {
@@ -185,7 +185,7 @@ export function hasPermission(role: unknown, permission: Permission): boolean {
 export function computeAllowedTabs(role: UserRole, permissions: Permission[]): { allowedTabs: string[]; landingTab: string } {
   if (role === UserRole.SUPER_ADMIN) {
     return {
-      allowedTabs: ['dashboard', 'assets', 'approvals', 'reports', 'audit', 'my-assets', ...referenceTabs, 'settings-users', 'settings-roles'],
+      allowedTabs: ['dashboard', 'assets', 'approvals', 'reports', 'audit', ...referenceTabs, 'settings-users', 'settings-roles'],
       landingTab: 'dashboard',
     };
   }

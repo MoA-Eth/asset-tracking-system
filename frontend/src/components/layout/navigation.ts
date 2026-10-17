@@ -37,13 +37,6 @@ export interface NavSection {
 
 export const NAV_SECTIONS: NavSection[] = [
   {
-    id: 'mine',
-    label: 'My assets',
-    items: [
-      { id: 'my-assets', label: 'My assets', icon: PackageCheck, hint: 'The assets assigned to you' },
-    ],
-  },
-  {
     id: 'overview',
     label: 'Overview',
     items: [
@@ -70,6 +63,13 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
       { id: 'audit', label: 'Audit Log', icon: ShieldCheck },
+    ],
+  },
+  {
+    id: 'mine',
+    label: 'My assets',
+    items: [
+      { id: 'my-assets', label: 'My assets', icon: PackageCheck, hint: 'The assets assigned to you' },
     ],
   },
 ];

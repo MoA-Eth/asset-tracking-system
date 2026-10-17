@@ -48,7 +48,7 @@ describe('Navigation consumes the server policy', () => {
     expect(getValidTab(access, 'my-assets')).toBe('my-assets');
   });
   it('keeps My assets away from every other role', () => {
-    for (const role of ['SYSTEM_ADMIN', 'DATA_ENCODER', 'TEAM_LEADER', 'DEPARTMENT_HEAD', 'MANAGER']) {
+    for (const role of ['SUPER_ADMIN', 'SYSTEM_ADMIN', 'DATA_ENCODER', 'TEAM_LEADER', 'DEPARTMENT_HEAD', 'MANAGER']) {
       expect(getValidTab(getRoleAccess(role), 'my-assets')).not.toBe('my-assets');
     }
   });
