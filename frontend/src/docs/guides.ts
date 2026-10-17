@@ -28,6 +28,7 @@ export const DOC_GUIDES: ReadonlyArray<DocGuide> = [
   { id: 'reports', title: 'Dashboard, reports and audit log', category: 'Review', audience: 'Managers, approvers and administrators', body: text('reports.md') },
   { id: 'my-assets', title: 'My assets', category: 'Employees', audience: 'Employees', body: text('my-assets.md') },
   { id: 'administration', title: 'Users, employees, stores and settings', category: 'Administration', audience: 'System Administrator', body: text('administration.md') },
+  { id: 'api-integration', title: 'API & system integration (Swagger)', category: 'Administration', audience: 'IT administrators and developers', body: text('api-integration.md') },
   { id: 'troubleshooting', title: 'Questions and problems', category: 'Help', audience: 'Everyone', body: text('troubleshooting.md') },
 ];
 

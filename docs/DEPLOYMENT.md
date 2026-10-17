@@ -181,6 +181,9 @@ All commands run on the server, in `/opt/moa-ams`.
 |---|---|
 | Status / logs | `docker compose ps` · `docker compose logs -f backend` (or `nginx`) |
 | Running version | `curl -sk https://localhost/api/health` → `version`, `commit` (also shown in the app's sidebar) |
+| Liveness probe | `curl -sk https://localhost/api/health/live` → `{"status":"alive"}` |
+| Readiness probe | `curl -sk https://localhost/api/health/ready` → `{"status":"ready","database":"connected"}` |
+| API Docs (Swagger) | `https://<server>/api/docs` (OpenAPI 3.0 interactive explorer) |
 | Restart | `docker compose restart` |
 | Deploy a new version | Jenkins ([CI-CD.md](CI-CD.md)) |
 | Stop | `docker compose down`, **never** with `-v` (it deletes the database and scanned slips) |

@@ -53,7 +53,18 @@ Receiving needs at least one active store.
 
 ## Password help
 
-Staff who forget their password ask you for a reset. There is no self-service reset. Use **Reset password** on their row, and give them the new temporary password.
+Staff who forget their password have two options:
+1. **Self-service reset:** On the sign-in portal, staff can click "Forgot or need to change password?" and enter their Payroll ID and matching email address.
+2. **Administrator reset:** In **Settings → Users**, click **Reset password** on the employee's row to issue a new temporary password that must be changed on first login.
+
+## API documentation and system diagnostics
+
+The ATS platform includes built-in OpenAPI 3.0 documentation and monitoring endpoints:
+- **API Portal (Swagger UI):** `http://<server-address>:3000/api/docs`
+- **OpenAPI 3.0 JSON specification:** `http://<server-address>:3000/api/docs/json`
+- **Liveness probe:** `http://<server-address>:3000/api/health/live`
+- **Readiness probe:** `http://<server-address>:3000/api/health/ready`
+- **Combined health status:** `http://<server-address>:3000/api/health`
 
 ## Organizations
 

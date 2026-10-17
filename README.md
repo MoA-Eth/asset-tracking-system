@@ -95,26 +95,54 @@ This runs over plain HTTP on port 8080 (`LOCAL_PORT` in `.env` changes it) using
 
 The system utilizes **[Vitest](https://vitest.dev/)** as the unified, high-performance unit test runner for both the frontend and backend, structured in alignment with the **Livescan** test architecture standard.
 
-### Test Suites Overview (114 Unit Tests + 87 Integration Assertions)
+### Test Suites Overview (882 Automated Unit Tests + 87 Integration Assertions)
 
-- **Backend Unit Tests (`backend/src/**/*.test.ts`)** — *36 Tests / 5 Suites (~400ms)*:
-  - **Store Service Invariants** (`store-rules.test.ts`): Model 19 mandatory IFMIS slip validation, 2-stage sequential approval transitions (Stage 1 Team Leader endorsement, Stage 2 Dept Head sign-off), and atomic status transitions (`AVAILABLE`, `ISSUED`, `PENDING_DISPOSAL`, `DISPOSED`, `REJECTED`).
-  - **Auth Middleware & SOD** (`auth.middleware.test.ts`): Strict Segregation of Duties guards blocking Data Encoders from approvals and System Admins from operational transactions.
-  - **Authentication Service** (`auth.service.test.ts`): Singleton lifecycle, token decoding, and malformed token rejection.
+The platform features an automated test suite comprising **882 tests across 98 suites**, covering statutory workflows, dual-calendar calculations, authorization matrix gating, and API contracts.
+
+- **Backend Unit & Integration Tests (`backend/src/**/*.test.ts`)** — *424 Tests / 37 Suites*:
+  - **Statutory Workflow Engines**: Model 19 (GRN), Model 20 (Issue), Model 21 (Transfer), and Model 22 (Return).
+  - **Multi-Stage Approvals**: Two-tier endorsement and approval segregation.
+  - **Security & Authorization**: Granular RBAC matrix evaluation, password lifecycle, account lockout, rate limiting, and request logging.
+  - **API Documentation**: OpenAPI 3.0 / Swagger schema specification validation.
   - **Ethiopian Date Engine** (`eth-date.test.ts`): Julian Day Number calculations, Pagume leap year rules, and GC ↔ EC conversions.
 
-- **Frontend Unit Tests (`frontend/src/**/*.{test,spec}.{ts,tsx}`)** — *78 Tests / 9 Suites (~4s)*:
+- **Frontend Unit Tests (`frontend/src/**/*.{test,spec}.{ts,tsx}`)** — *458 Tests / 61 Suites*:
   - **Dual Calendar Engine** (`eth-date.test.ts`): Bidirectional Gregorian ↔ Ethiopian calendar transformations, Meskerem 1 New Year boundary, Pagume 5 vs 6 days, and ETB currency formatting.
-  - **System Settings** (`system-settings.test.ts`): Attachment policy persistence (`localStorage`) and custom event broadcasting.
-  - **Role-Based Access & SOD** (`role-guards.test.ts`): Role tab navigation, landing tab resolution, and privilege restrictions.
+  - **Role-Based Access & SOD** (`role-guards.test.ts` & `rbac-matrix-enforcement.test.tsx`): Role tab navigation, landing tab resolution, and privilege restrictions.
   - **Approvals & Queue Logic** (`approvals-workflow.test.ts`): Stage 1 vs Stage 2 queue filtering, batch selection safety, and multi-field search.
-  - **Statutory Vouchers** (`CustodyVoucherModal.test.tsx`): Model 19 (GRN), Model 20 (Issue Voucher), and Model 22 (Return Voucher) dual-calendar certificate rendering.
-  - **Toast Notifications** (`ToastContext.test.tsx` & `Toast.test.tsx`): Context hook, auto-dismiss countdown, and UI presentation.
-  - **Status & Condition Badges** (`Badge.test.tsx`): Ethiopian MoA asset status and condition badge mappings.
+  - **Statutory Vouchers** (`CustodyVoucherModal.test.tsx`, `Model19PrintModal.test.tsx`, `Model21PrintModal.test.tsx`, `Model22PrintModal.test.tsx`, `DisposalPrintModal.test.tsx`): Certificate rendering and printing.
+  - **Executive Dashboard** (`ExecutiveDashboardPage.test.tsx`): Store filters, fiscal periods, category breakdowns, and analytics chips.
+  - **In-App Staff User Manual** (`DocsPage.test.tsx`): 12 topic guides, live search, and categorization.
 
 - **Backend Integration Tests (`backend/test-*.js`)** — *87 Assertions*:
   - `test-critical-flows.js`: End-to-end 2-stage inbound stock-in, outbound stock-out, custody transfer, and SOD enforcement.
   - `test-status-consistency.js`: Atomic status lifecycle, stage sequencing, concurrency locks, and audit trail permanence.
+
+---
+
+### 📚 Interactive API Documentation (Swagger / OpenAPI 3.0)
+
+The system includes built-in interactive OpenAPI 3.0 documentation:
+- **Interactive Portal**: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
+- **Raw OpenAPI JSON Spec**: [http://localhost:3000/api/docs/json](http://localhost:3000/api/docs/json)
+
+Documents all endpoint parameters, request schemas, Bearer JWT authentication, and response models.
+
+---
+
+### 🛡️ Security, Reliability & Quality Architecture
+
+- **Two-Tier Rate Limiting**: Global API limiter (300 req/min per IP) and strict authentication limiter (30 req/15min per IP) via `express-rate-limit`.
+- **Structured Latency Logging**: Real-time request logging recording timestamp, HTTP method, URL, status code, client IP, and latency via `process.hrtime.bigint()`.
+- **HTTP Response Compression**: Gzip/Brotli compression middleware (`compression`) reducing payload sizes by 60–80%.
+- **Database Query Indexing**: Full composite and targeted indexes across PostgreSQL tables (`items`, `transaction_approvals`, `item_history`, `employees`).
+- **Enhanced HTTP Security Headers**: `Permissions-Policy: camera=(), microphone=(), geolocation=()`, `X-Permitted-Cross-Domain-Policies: none`, `X-Frame-Options: SAMEORIGIN`, `nosniff`, and HSTS.
+- **Production Health Probes**:
+  - `GET /api/health/live`: Container liveness check (`{ status: "alive" }`).
+  - `GET /api/health/ready`: Database connectivity readiness probe (`{ status: "ready" }`).
+  - `GET /api/health`: Comprehensive system diagnostic.
+- **Graceful Shutdown**: Intercepts `SIGTERM` and `SIGINT` to drain in-flight requests and cleanly close database connections.
+- **ESLint & Husky Pre-Commit Enforcers**: Modern ESLint flat configs and Git hooks executing `npm run lint` and `npm run test:backend` before any commit.
 
 ---
 
