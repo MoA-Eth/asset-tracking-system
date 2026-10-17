@@ -1553,7 +1553,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               </table>
             </div>
             <div
-              className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 border-t border-slate-100 px-3 py-2 text-xs text-slate-600"
+              className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 border-t border-slate-100 bg-slate-50/40 px-3.5 py-1.5 text-xs text-slate-600"
               title="Approved records only: receipts waiting for approval and rejected receipts are not counted"
               role="group"
               aria-label="Totals of listed assets"

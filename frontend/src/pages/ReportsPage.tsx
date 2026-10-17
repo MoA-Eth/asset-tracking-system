@@ -15,6 +15,10 @@ import {
   AlertCircle,
   FileSpreadsheet,
   MoreVertical,
+  Landmark,
+  Warehouse,
+  Users,
+  Boxes,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { storeLocationLabel } from '../utils/location';
@@ -321,6 +325,14 @@ export const ReportsPage: React.FC = () => {
     [filteredItems]
   );
 
+  const inStoreValuation = useMemo(() => { return filteredItems.reduce((sum, item) => sum + item.unitCostETB * balanceOf(item).available, 0); }, [filteredItems]);
+
+  const issuedValuation = useMemo(() => { return filteredItems.reduce((sum, item) => sum + item.unitCostETB * balanceOf(item).issued, 0); }, [filteredItems]);
+
+  const avgCost = useMemo(() => { return unitTotals.total > 0 ? totalValuation / (unitTotals.total || 1) : 0; }, [totalValuation, unitTotals.total]);
+
+  const tabCounts = useMemo(() => ({ all: recordedItems.length, registered: recordedItems.length, available: recordedItems.filter((i) => balanceOf(i).available > 0).length, issued: recordedItems.filter((i) => balanceOf(i).issued > 0).length, transferred: recordedItems.filter((i) => i.status === ItemStatus.UNDER_TRANSFER || (splitsByRoot.get(i.id) || []).some((sp) => sp.status === ItemStatus.UNDER_TRANSFER || (sp.history || []).some((h) => /TRANSFER|RETURN/i.test(h.action))) || (i.history || []).some((h) => /TRANSFER|RETURN/i.test(h.action))).length }), [recordedItems, splitsByRoot]);
+
   const getTimeframeLabel = () => {
     switch (timeframe) {
       case 'TODAY':
@@ -537,12 +549,12 @@ export const ReportsPage: React.FC = () => {
     }
   };
 
-  const reportTabs: { id: ReportType; label: string; icon: any }[] = [
-    { id: 'all', label: 'All Assets', icon: Layers },
-    { id: 'registered', label: 'Received', icon: PackagePlus },
-    { id: 'available', label: 'Available (In Store)', icon: CheckCircle2 },
-    { id: 'issued', label: 'Issued (In Custody)', icon: FileCheck2 },
-    { id: 'transferred', label: 'Transferred & Returned', icon: ArrowRightLeft },
+  const reportTabs: { id: ReportType; label: string; icon: any; count: number }[] = [
+    { id: 'all', label: 'All Assets', icon: Layers, count: tabCounts.all },
+    { id: 'registered', label: 'Received', icon: PackagePlus, count: tabCounts.registered },
+    { id: 'available', label: 'Available (In Store)', icon: CheckCircle2, count: tabCounts.available },
+    { id: 'issued', label: 'Issued (In Custody)', icon: FileCheck2, count: tabCounts.issued },
+    { id: 'transferred', label: 'Transferred & Returned', icon: ArrowRightLeft, count: tabCounts.transferred },
   ];
 
   type ReportSortColumn = 'code' | 'name' | 'category' | 'status' | 'received' | 'issued' | 'available' | 'slip' | 'date' | 'custodian' | 'cost';
@@ -648,9 +660,38 @@ export const ReportsPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4 animate-fadeIn pb-16">
+    <div className="space-y-3.5 animate-fadeIn pb-3">
+      {/* ── Official Government Print Header (Visible ONLY on print) ── */}
+      <div className="hidden print:block pb-4 mb-4 border-b-2 border-slate-900 text-slate-900">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[10px] uppercase font-bold tracking-widest text-slate-700">Federal Democratic Republic of Ethiopia</p>
+            <h1 className="text-lg font-black uppercase text-slate-950">Ministry of Agriculture (MoA)</h1>
+            <p className="text-xs font-semibold text-slate-700">Fixed Asset & Store Management — Statutory Inventory Report</p>
+          </div>
+          <div className="text-right text-[11px] font-mono space-y-0.5">
+            <p><span className="font-bold">Report Type:</span> {getReportTypeLabel()}</p>
+            <p><span className="font-bold">Period:</span> {getTimeframeLabel()}</p>
+            <p><span className="font-bold">Date (G.C.):</span> {dateInfo.gc}</p>
+            <p><span className="font-bold">Date (E.C.):</span> {dateInfo.ecFormattedAm}</p>
+          </div>
+        </div>
+
+        <div className="mt-3 pt-2 border-t border-slate-300 flex items-center justify-between text-[11px]">
+          <div>
+            <span><strong>Scope:</strong> {selectedCategory === "ALL" ? "All Categories" : selectedCategory.replace(/_/g, " ")} · </span>
+            <span><strong>Location:</strong> {selectedLocation === "ALL" ? "All Stores" : locations.find(l => l.id === selectedLocation)?.siteName || "Store"} · </span>
+            <span><strong>Registrations:</strong> {filteredItems.length} · </span>
+            <span><strong>Units:</strong> {unitTotals.total} (Store: {unitTotals.available}, Custody: {unitTotals.issued})</span>
+          </div>
+          <div className="font-mono font-bold">
+            Total Valuation: {formatETB(totalValuation)}
+          </div>
+        </div>
+      </div>
+
       {/* 1. Unified Control Bar with Search, Filters, and Export/Print Actions */}
-      <div className="rounded-md p-3.5 bg-white space-y-3 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
+      <div className="no-print rounded-md p-3.5 bg-white space-y-3 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         {/* Row 1: Search + FilterPopover + Export & Print Actions */}
         <div className="flex flex-col lg:flex-row items-center justify-between gap-2.5">
           {/* Search Box */}
@@ -926,6 +967,7 @@ export const ReportsPage: React.FC = () => {
               >
                 <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-amber-300' : 'text-slate-500'}`} />
                 <span>{tab.label}</span>
+                <span className={"text-[10px] px-1.5 py-0.5 rounded-full tabular-nums font-bold " + (isActive ? "bg-emerald-950/60 text-emerald-100" : "bg-slate-200 text-slate-600")}>{tab.count}</span>
               </button>
             );
           })}
@@ -984,6 +1026,91 @@ export const ReportsPage: React.FC = () => {
           </div>
         )}
       </div>
+      {/* 2. Executive Statutory KPI Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 no-print">
+        {/* Card 1: Total Valuation */}
+        <div className="rounded-md border border-slate-200 bg-white p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08),0_1px_2px_rgba(16,24,40,0.04)] flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Valuation</span>
+            <div className="p-1.5 rounded-[4px] bg-emerald-50 text-emerald-800 border border-emerald-200">
+              <Landmark className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
+              {formatETB(totalValuation)}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Avg cost: <span className="font-mono font-semibold text-slate-700">{formatETB(avgCost)}</span> · {filteredItems.length} records
+            </p>
+          </div>
+        </div>
+
+        {/* Card 2: In Store */}
+        <div className="rounded-md border border-slate-200 bg-white p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08),0_1px_2px_rgba(16,24,40,0.04)] flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">In Store (Available)</span>
+            <div className="p-1.5 rounded-[4px] bg-teal-50 text-teal-800 border border-teal-200">
+              <Warehouse className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <div className="flex items-baseline gap-2">
+              <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
+                {unitTotals.available.toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
+              </p>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+                {unitTotals.total > 0 ? Math.round((unitTotals.available / unitTotals.total) * 100) : 0}%
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-500 truncate" title={"Valuation: " + formatETB(inStoreValuation)}>
+              Stock value: <span className="font-mono font-semibold text-slate-700">{formatETB(inStoreValuation)}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Card 3: In Custody (Issued) */}
+        <div className="rounded-md border border-slate-200 bg-white p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08),0_1px_2px_rgba(16,24,40,0.04)] flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">In Custody (Issued)</span>
+            <div className="p-1.5 rounded-[4px] bg-blue-50 text-blue-800 border border-blue-200">
+              <Users className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <div className="flex items-baseline gap-2">
+              <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
+                {unitTotals.issued.toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
+              </p>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                {unitTotals.total > 0 ? Math.round((unitTotals.issued / unitTotals.total) * 100) : 0}%
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-500 truncate" title={"Valuation: " + formatETB(issuedValuation)}>
+              Field value: <span className="font-mono font-semibold text-slate-700">{formatETB(issuedValuation)}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Card 4: Total Units Received */}
+        <div className="rounded-md border border-slate-200 bg-white p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08),0_1px_2px_rgba(16,24,40,0.04)] flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Received Units</span>
+            <div className="p-1.5 rounded-[4px] bg-amber-50 text-amber-800 border border-amber-200">
+              <Boxes className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
+              {unitTotals.total.toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Filtered: <span className="font-semibold text-slate-700">{getTimeframeLabel()}</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* 3. Charts of the same filtered rows */}
       <ReportCharts items={filteredItems} splitsByRoot={splitsByRoot} departments={departments} unitsOf={reportUnits} />
 
@@ -1103,7 +1230,7 @@ export const ReportsPage: React.FC = () => {
                   thClassName="py-1.5 px-3 min-w-[150px] max-w-[220px]"
                 />
                 <SortableHeader
-                  label="Unit cost"
+                  label="Unit cost & value"
                   columnKey="cost"
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
@@ -1224,8 +1351,13 @@ export const ReportsPage: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-slate-900 whitespace-nowrap w-28 shrink-0">
-                        {formatETB(item.unitCostETB)}
+                      <td className="py-2 px-3 text-right tabular-nums text-slate-900 whitespace-nowrap w-32 shrink-0">
+                        <div className="font-mono font-bold text-slate-900 text-xs">
+                          {formatETB(item.unitCostETB * reportUnits(item))}
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono">
+                          {formatETB(item.unitCostETB)} <span className="text-slate-400">/ {item.uom || "EA"}</span>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1234,19 +1366,51 @@ export const ReportsPage: React.FC = () => {
             </tbody>
           </table>
         </div>
-        <Pagination pager={pager} label="assets" />
 
-        {/* Table Footer */}
+        {/* Table Summary Bar - Placed above pagination to close the table neatly */}
         {filteredItems.length > 0 && (
-          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-mono">
+          <div className="px-4 py-2 bg-slate-50/80 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 font-mono">
             <div>
               Showing {filteredItems.length} of {recordedItems.length} registrations · Units: {unitTotals.total} received, {unitTotals.issued} issued, {unitTotals.available} in store
             </div>
             <div className="font-bold text-slate-800">
-              Total: <span className="text-emerald-800">{formatETB(totalValuation)}</span>
+              Total Valuation: <span className="text-emerald-800 font-mono">{formatETB(totalValuation)}</span>
             </div>
           </div>
         )}
+
+        <Pagination pager={pager} label="assets" />
+
+      </div>
+
+      {/* ── Official MoA Statutory Signature & Verification Block (Visible ONLY on print) ── */}
+      <div className="hidden print:block pt-8 mt-6 border-t border-slate-300 text-xs">
+        <div className="grid grid-cols-3 gap-6 text-center">
+          <div className="space-y-12">
+            <p className="font-bold text-slate-800">Prepared By (Property Admin Officer)</p>
+            <div className="border-t border-slate-400 pt-1">
+              <p className="text-slate-600">Name & Signature</p>
+              <p className="text-[10px] text-slate-500">Date: ____________________</p>
+            </div>
+          </div>
+          <div className="space-y-12">
+            <p className="font-bold text-slate-800">Verified By (Store Controller)</p>
+            <div className="border-t border-slate-400 pt-1">
+              <p className="text-slate-600">Name & Signature</p>
+              <p className="text-[10px] text-slate-500">Date: ____________________</p>
+            </div>
+          </div>
+          <div className="space-y-12">
+            <p className="font-bold text-slate-800">Approved By (Director, Property Admin)</p>
+            <div className="border-t border-slate-400 pt-1">
+              <p className="text-slate-600">Name & Signature / Stamp</p>
+              <p className="text-[10px] text-slate-500">Date: ____________________</p>
+            </div>
+          </div>
+        </div>
+        <p className="mt-6 text-[10px] text-center text-slate-500 italic">
+          Official statutory asset register report generated from the Ministry of Agriculture Asset Tracking System.
+        </p>
       </div>
 
     </div>

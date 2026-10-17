@@ -88,7 +88,7 @@ export const Pagination: React.FC<PaginationProps> = ({ pager, label = 'rows', c
   return (
     <nav
       aria-label={`Pages of ${label}`}
-      className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-600 ${className}`}
+      className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-200 bg-white px-3.5 py-1.5 sm:py-2 text-xs text-slate-600 ${className}`}
     >
       <p aria-live="polite">
         Showing <span className="font-semibold tabular-nums text-slate-900">{from}–{to}</span> of{' '}
