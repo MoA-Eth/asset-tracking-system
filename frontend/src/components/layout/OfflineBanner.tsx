@@ -15,14 +15,14 @@ export const OfflineBanner: React.FC = () => {
       )}
 
       {isInstallable && (
-        <div className="bg-emerald-800/90 text-emerald-100 px-4 py-2 text-xs md:text-sm flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-2">
+        <div className="bg-emerald-800/90 text-emerald-100 px-4 py-2 text-xs md:text-sm flex items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-2 min-w-0">
             <DownloadCloud className="w-4 h-4 text-emerald-300" />
-            <span>Install MoA-ATS on your mobile or desktop for full offline field access</span>
+            <span className="truncate sm:whitespace-normal">Install MoA-ATS on your mobile or desktop for full offline field access</span>
           </div>
           <button
             onClick={installPWA}
-            className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold rounded text-xs transition"
+            className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold rounded text-xs transition shrink-0 cursor-pointer"
           >
             Install
           </button>

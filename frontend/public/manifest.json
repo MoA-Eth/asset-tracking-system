@@ -29,5 +29,36 @@
   "theme_color": "#0B3D25",
   "display": "standalone",
   "orientation": "any",
-  "categories": ["business", "productivity", "utilities"]
+  "categories": [
+    "business",
+    "productivity",
+    "utilities"
+  ],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Assets",
+      "short_name": "Assets",
+      "description": "View and manage institutional assets",
+      "url": "/?tab=assets",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "My Assets",
+      "short_name": "My Assets",
+      "description": "View assigned custody assets",
+      "url": "/?tab=my-assets",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
 }

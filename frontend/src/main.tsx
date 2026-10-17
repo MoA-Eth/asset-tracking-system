@@ -13,23 +13,14 @@ import '@fontsource/noto-sans-ethiopic/600.css';
 import '@fontsource/noto-sans-ethiopic/700.css';
 import './index.css';
 
-// Service Worker Registration for PWA support (active in production)
+// Service Worker Registration for PWA support
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    if (import.meta.env.PROD || window.location.search.includes('pwa=true')) {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .catch((err) => {
-          console.warn('MoA-ATS PWA ServiceWorker registration failed: ', err);
-        });
-    } else {
-      // In development mode, unregister any active service worker to avoid stale HMR / dev cache
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (const registration of registrations) {
-          registration.unregister();
-        }
+    navigator.serviceWorker
+      .register('/sw.js')
+      .catch((err) => {
+        console.warn('MoA-ATS PWA ServiceWorker registration failed: ', err);
       });
-    }
   });
 }
 

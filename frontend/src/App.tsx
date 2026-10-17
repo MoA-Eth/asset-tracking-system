@@ -178,7 +178,7 @@ const AuthenticatedPortal: React.FC = () => {
         />
 
         {/* Page Content - Strictly Gated to Authorized Role */}
-        <main ref={mainRef} className="flex-1 overflow-y-auto p-3 sm:p-3.5 lg:px-3.5 lg:pt-3 lg:pb-3 w-full pb-14">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-3 sm:p-3.5 lg:px-3.5 lg:pt-3 lg:pb-3 w-full pb-20 sm:pb-24 lg:pb-3 pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
           <ErrorBoundary fallbackTitle="Page Content Notice">
             {!activeTab && <p className="text-sm text-slate-600">No pages are available for this account. Contact your System Administrator.</p>}
             {activeTab.startsWith('settings-') && activeTab !== 'settings-profile' && (

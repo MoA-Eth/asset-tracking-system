@@ -47,7 +47,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   // 1. Never intercept or cache API calls or backend routes
-  if (url.pathname.startsWith('/api/')) {
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/@') || url.pathname.startsWith('/src/') || url.pathname.includes('node_modules')) {
     return;
   }
 

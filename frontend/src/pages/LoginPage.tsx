@@ -174,7 +174,7 @@ export const LoginPage: React.FC = () => {
         {/* Authentic MoA Card with Rich Height and Balanced Depth */}
         <form
           onSubmit={handleFormSubmit}
-          className="rounded-3xl border border-emerald-500/30 backdrop-blur-2xl py-9 sm:py-11 px-8 sm:px-10 relative overflow-hidden ring-1 ring-white/10"
+          className="rounded-3xl border border-emerald-500/30 backdrop-blur-2xl py-8 sm:py-11 px-6 sm:px-10 relative overflow-hidden ring-1 ring-white/10"
           style={{
             background:
               "linear-gradient(168deg, rgba(14, 46, 29, 0.95) 0%, rgba(9, 31, 20, 0.97) 50%, rgba(5, 18, 12, 0.98) 100%)",
@@ -323,7 +323,7 @@ export const LoginPage: React.FC = () => {
           />
 
           <div
-            className="w-full max-w-md rounded-3xl border border-emerald-500/30 backdrop-blur-2xl py-8 sm:py-9 px-7 sm:px-9 relative z-10 overflow-hidden ring-1 ring-white/10 text-white animate-scaleIn"
+            className="w-full max-w-md rounded-3xl border border-emerald-500/30 backdrop-blur-2xl py-7 sm:py-9 px-5 sm:px-9 relative z-10 overflow-hidden ring-1 ring-white/10 text-white animate-scaleIn"
             style={{
               background:
                 "linear-gradient(168deg, rgba(14, 46, 29, 0.96) 0%, rgba(9, 31, 20, 0.98) 50%, rgba(5, 18, 12, 0.99) 100%)",
