@@ -52,7 +52,7 @@ export const ChangePasswordPage: React.FC = () => {
 
   return (
     <div
-      className="auth-dark-bg min-h-screen w-screen flex items-center justify-center relative overflow-x-hidden selection:bg-amber-400 selection:text-emerald-950 font-sans p-4 sm:p-6"
+      className="auth-dark-bg h-screen w-screen overflow-y-auto overflow-x-hidden flex flex-col items-center relative selection:bg-amber-400 selection:text-emerald-950 font-sans p-4 sm:p-6 py-6 sm:py-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       style={{
         background:
           'radial-gradient(ellipse at 50% 20%, #0d3d24 0%, #082618 45%, #03120a 100%)',
@@ -84,12 +84,12 @@ export const ChangePasswordPage: React.FC = () => {
         }}
       />
 
-      {/* Main Container - Centered */}
-      <main className="w-full max-w-[440px] z-10 animate-fadeIn">
+      {/* Main Container - Centered with safe vertical auto-margins */}
+      <main className="w-full max-w-[440px] z-10 animate-fadeIn my-auto">
         {/* Authentic MoA Card matching Login Page */}
         <form
           onSubmit={handleSubmit}
-          className="rounded-3xl border border-emerald-500/30 backdrop-blur-2xl py-8 sm:py-10 px-8 sm:px-10 relative overflow-hidden ring-1 ring-white/10 text-white"
+          className="rounded-3xl border border-emerald-500/30 backdrop-blur-2xl py-6 sm:py-7 px-6 sm:px-8 relative overflow-hidden ring-1 ring-white/10 text-white"
           style={{
             background:
               'linear-gradient(168deg, rgba(14, 46, 29, 0.95) 0%, rgba(9, 31, 20, 0.97) 50%, rgba(5, 18, 12, 0.98) 100%)',
@@ -104,11 +104,11 @@ export const ChangePasswordPage: React.FC = () => {
           <div className="absolute top-1.5 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
 
           {/* Brand Header */}
-          <div className="text-center mb-6 pt-1">
-            <div className="relative inline-block mb-3.5">
+          <div className="text-center mb-4 sm:mb-5 pt-0.5">
+            <div className="relative inline-block mb-2 sm:mb-2.5">
               <div className="absolute inset-0 rounded-full bg-emerald-500/25 blur-2xl -z-10 scale-125" />
               <MoaLogo
-                className="w-18 h-18 sm:w-20 sm:h-20 mx-auto drop-shadow-[0_12px_20px_rgba(0,0,0,0.55)] transition-transform hover:scale-105"
+                className="w-14 h-14 sm:w-16 sm:h-16 mx-auto drop-shadow-[0_12px_20px_rgba(0,0,0,0.55)] transition-transform hover:scale-105"
                 alt="Ministry of Agriculture"
               />
             </div>
@@ -116,24 +116,24 @@ export const ChangePasswordPage: React.FC = () => {
             <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight drop-shadow-sm">
               Choose a New Password
             </h1>
-            <p className="text-xs sm:text-sm text-emerald-200/80 mt-1 leading-relaxed">
+            <p className="text-xs sm:text-[13px] text-emerald-200/80 mt-1 leading-relaxed">
               {user?.fullNameEn ? user.fullNameEn + ', your' : 'Your'} password is temporary. Choose your own before continuing.
             </p>
           </div>
 
           {/* Error Banner */}
           {error && (
-            <div className="mb-4 p-3 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2">
+            <div className="mb-3.5 p-3 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2">
               <KeyRound className="w-4 h-4 text-red-400 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {/* Inputs */}
-          <div className="space-y-4 sm:space-y-5">
+          <div className="space-y-3 sm:space-y-3.5">
             {/* Temporary / Current Password */}
             <div>
-              <label className="block text-xs sm:text-[13px] font-semibold text-emerald-300/90 mb-1.5">
+              <label className="block text-xs sm:text-[13px] font-semibold text-emerald-300/90 mb-1">
                 Current Temporary Password
               </label>
               <div className="relative group">
@@ -145,7 +145,7 @@ export const ChangePasswordPage: React.FC = () => {
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Enter temporary password"
                   autoFocus
-                  className="w-full h-11 pl-10 pr-10 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                  className="w-full h-10 sm:h-11 pl-10 pr-10 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                   style={{
                     background: 'rgba(3, 15, 10, 0.88)',
                     borderColor: 'rgba(52, 211, 153, 0.25)',
@@ -163,7 +163,7 @@ export const ChangePasswordPage: React.FC = () => {
 
             {/* New Password */}
             <div>
-              <label className="block text-xs sm:text-[13px] font-semibold text-emerald-300/90 mb-1.5">
+              <label className="block text-xs sm:text-[13px] font-semibold text-emerald-300/90 mb-1">
                 New Password
               </label>
               <div className="relative group">
@@ -174,7 +174,7 @@ export const ChangePasswordPage: React.FC = () => {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Min. 8 characters"
-                  className="w-full h-11 pl-10 pr-10 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                  className="w-full h-10 sm:h-11 pl-10 pr-10 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                   style={{
                     background: 'rgba(3, 15, 10, 0.88)',
                     borderColor: 'rgba(52, 211, 153, 0.25)',
@@ -192,7 +192,7 @@ export const ChangePasswordPage: React.FC = () => {
 
             {/* Confirm New Password */}
             <div>
-              <label className="block text-xs sm:text-[13px] font-semibold text-emerald-300/90 mb-1.5">
+              <label className="block text-xs sm:text-[13px] font-semibold text-emerald-300/90 mb-1">
                 Confirm New Password
               </label>
               <div className="relative group">
@@ -203,7 +203,7 @@ export const ChangePasswordPage: React.FC = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-type new password"
-                  className="w-full h-11 pl-10 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                  className="w-full h-10 sm:h-11 pl-10 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                   style={{
                     background: 'rgba(3, 15, 10, 0.88)',
                     borderColor: 'rgba(52, 211, 153, 0.25)',
@@ -212,16 +212,16 @@ export const ChangePasswordPage: React.FC = () => {
               </div>
             </div>
 
-            <p className="text-[11px] text-emerald-300/65 font-sans">
+            <p className="text-[11px] text-emerald-300/70 font-sans leading-tight">
               * Must be at least 8 characters with at least one letter and one number.
             </p>
 
             {/* Submit Button */}
-            <div className="pt-2">
+            <div className="pt-1.5 sm:pt-2">
               <button
                 type="submit"
                 disabled={submitting || !currentPassword || !newPassword || !confirmPassword}
-                className="w-full h-11 sm:h-12 rounded-xl text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden"
+                className="w-full h-11 sm:h-11 rounded-xl text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed group relative overflow-hidden"
                 style={{
                   background: 'linear-gradient(135deg, #136a41 0%, #0c4228 100%)',
                 }}
@@ -242,7 +242,7 @@ export const ChangePasswordPage: React.FC = () => {
           </div>
 
           {/* Sign Out link */}
-          <div className="mt-6 pt-4 border-t border-emerald-500/15 flex justify-center">
+          <div className="mt-4 pt-3 border-t border-emerald-500/15 flex justify-center">
             <button
               type="button"
               onClick={logout}
