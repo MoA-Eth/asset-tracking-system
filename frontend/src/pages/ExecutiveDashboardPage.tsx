@@ -77,7 +77,7 @@ const Panel: React.FC<{
   className?: string;
   children: React.ReactNode;
 }> = ({ title, subtitle, action, className = '', children }) => (
-  <section className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-xs ${className}`}>
+  <section className={`rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_4px_16px_-4px_rgba(15,23,42,0.08),0_2px_4px_-1px_rgba(15,23,42,0.04)] ${className}`}>
     <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
       <div className="min-w-0">
         <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
@@ -111,6 +111,16 @@ const Meter: React.FC<{ pct: number }> = ({ pct }) => (
   </div>
 );
 
+const formatAssetPct = (count: number, total: number): string => {
+  if (total <= 0) return '0%';
+  const pct = (count / total) * 100;
+  if (count > 0 && pct < 0.05) return '<0.1%';
+  if (count > 0 && pct < 1) return `${pct.toFixed(1)}%`;
+  if (count < total && pct > 99.95) return '>99.9%';
+  if (count < total && pct > 99) return `${pct.toFixed(1)}%`;
+  return `${Math.round(pct)}%`;
+};
+
 const StatTile: React.FC<{
   label: string;
   labelAm: string;
@@ -125,12 +135,12 @@ const StatTile: React.FC<{
     secondaryLabel?: string;
   };
 }> = ({ label, labelAm, value, footer, meterPct, splitBar }) => (
-  <div className="rounded-md flex flex-col border-b-2 border-b-slate-300 bg-white p-5 transition duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_14px_28px_-8px_rgba(15,23,42,0.18)] shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
+  <div className="rounded-md flex flex-col border border-slate-200/90 border-b-2 border-b-slate-300 bg-white p-5 transition duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_4px_6px_rgba(15,23,42,0.06),0_16px_32px_-8px_rgba(15,23,42,0.18)] shadow-[0_3px_12px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.05)]">
     <div className="min-w-0">
       <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
       <p className="text-[10px] text-slate-400">{labelAm}</p>
     </div>
-    <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
+    <div className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{value}</div>
     <div className="mt-auto space-y-1.5 pt-3">
       {meterPct !== undefined && <Meter pct={meterPct} />}
       {splitBar && (
@@ -179,7 +189,7 @@ const WorkTile: React.FC<{
       <span className="block text-xs font-semibold text-slate-700 mt-1">{label}</span>
     </div>
   );
-  const cls = 'flex items-center gap-3 rounded-md border border-b-2 border-slate-200 border-b-slate-300 bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),0_4px_12px_-4px_rgba(15,23,42,0.10)]';
+  const cls = 'flex items-center gap-3 rounded-md border border-slate-200/90 border-b-2 border-b-slate-300 bg-white p-3.5 text-left shadow-[0_2px_8px_-2px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.05)]';
   return onClick ? (
     <button onClick={onClick} className={`${cls} transition duration-200 hover:border-emerald-300 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_10px_20px_-6px_rgba(15,23,42,0.16)] cursor-pointer w-full`}>
       {content}
@@ -612,50 +622,83 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="በመዝገብ ላይ ያለ ጠቅላላ ንብረት"
           value={<>{totalItems.toLocaleString()}<span className="ml-1 text-sm font-normal text-slate-400">units</span></>}
           splitBar={{
-            primaryPct: issuedPct,
+            primaryPct: totalItems > 0 && issuedCount > 0 ? Math.max(2, Math.round((issuedCount / totalItems) * 100)) : 0,
             primaryColor: 'bg-emerald-600',
             secondaryColor: 'bg-slate-300',
-            primaryLabel: 'With Staff',
-            secondaryLabel: 'In Store',
+            primaryLabel: `With Staff (${formatAssetPct(issuedCount, totalItems)})`,
+            secondaryLabel: `In Store (${formatAssetPct(availableCount, totalItems)})`,
           }}
           footer={
-            <div className="flex items-center justify-between font-medium text-[11px]">
-              <span className="inline-flex items-center gap-1.5 text-emerald-800" title="Issued to employees on Model 22">
-                <span className="h-2 w-2 rounded-full bg-emerald-600 shrink-0" />
-                With Staff: <strong>{issuedCount.toLocaleString()}</strong> ({issuedPct}%)
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-slate-600" title="Available in storehouse / warehouse">
-                <span className="h-2 w-2 rounded-full bg-slate-400 shrink-0" />
-                In Store: <strong>{availableCount.toLocaleString()}</strong> ({availablePct}%)
-              </span>
+            <div className="space-y-1 pt-0.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 text-[11px]" title="Available in storehouse / warehouse">
+                  In Store:
+                </span>
+                <span className="tabular-nums font-semibold text-slate-900 text-[11px]">
+                  {availableCount.toLocaleString()}{' '}
+                  <span className="text-[10px] text-slate-400 font-normal">
+                    ({formatAssetPct(availableCount, totalItems)})
+                  </span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-emerald-800 text-[11px]" title="Issued to employees on Model 22">
+                  With Staff:
+                </span>
+                <span className="tabular-nums font-semibold text-slate-900 text-[11px]">
+                  {issuedCount.toLocaleString()}{' '}
+                  <span className="text-[10px] text-slate-400 font-normal">
+                    ({formatAssetPct(issuedCount, totalItems)})
+                  </span>
+                </span>
+              </div>
             </div>
           }
         />
         <StatTile
           label="Approvals in pipeline"
           labelAm="ውሳኔ የሚጠብቁ ጥያቄዎች"
-          value={<>{pendingApprovals}<span className="ml-1 text-sm font-normal text-slate-400">pending</span></>}
-          footer={
-            <div className="flex flex-wrap items-center justify-between gap-1 text-[11px]">
-              <span className="flex items-center gap-1 font-mono text-[10px]">
-                <span className="rounded bg-amber-50 px-1.5 py-0.5 font-semibold text-amber-800 border border-amber-200" title="Stage 1: Team Leader Endorsement">TL:{pendingStageCounts.stage1}</span>
-                <span className="rounded bg-blue-50 px-1.5 py-0.5 font-semibold text-blue-800 border border-blue-200" title="Stage 2: Department Head Authorization">Dept:{pendingStageCounts.stage2}</span>
-                {pendingStageCounts.stage3 > 0 && (
-                  <span className="rounded bg-purple-50 px-1.5 py-0.5 font-semibold text-purple-800 border border-purple-200" title="Stage 3: Director Sign-off">Dir:{pendingStageCounts.stage3}</span>
-                )}
-              </span>
-              {pendingApprovals > 0 ? (
+          value={
+            <div className="flex items-baseline justify-between">
+              <span>{pendingApprovals}<span className="ml-1 text-sm font-normal text-slate-400">pending</span></span>
+              {pendingApprovals > 0 && (
                 <button
                   type="button"
                   onClick={() => onNavigate('approvals')}
-                  className="font-semibold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer inline-flex items-center gap-0.5"
+                  className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer"
                 >
                   Review &rarr;
                 </button>
-              ) : (
-                <span className="text-emerald-700 font-medium">All queues clear</span>
               )}
             </div>
+          }
+          footer={
+            pendingApprovals > 0 ? (
+              <div className="space-y-1 pt-0.5 text-xs">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-600">Team Lead:</span>
+                  <span className="font-semibold text-amber-800 tabular-nums">
+                    {pendingStageCounts.stage1}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-600">Dept Head:</span>
+                  <span className="font-semibold text-blue-800 tabular-nums">
+                    {pendingStageCounts.stage2}
+                  </span>
+                </div>
+                {pendingStageCounts.stage3 > 0 && (
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-600">Executive:</span>
+                    <span className="font-semibold text-purple-800 tabular-nums">
+                      {pendingStageCounts.stage3}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <span className="text-emerald-700 font-medium text-[11px]">All queues clear</span>
+            )
           }
         />
         <StatTile
@@ -685,7 +728,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
 
       {/* ── Row 2: Workflow counts ──────────────────────────────────────────── */}
       {(pendingApprovals > 0 || pendingStockIn > 0 || pendingStockOut > 0 || pendingTransfer > 0 || pendingDisposal > 0 || stale.itemCount > 0) && (
-        <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-xs">
+        <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
           <h2 className="mb-3 flex items-baseline gap-2 text-sm font-bold text-slate-800">
             Needs attention
             <span className="text-[10px] font-normal text-slate-400">ትኩረት የሚሹ</span>
