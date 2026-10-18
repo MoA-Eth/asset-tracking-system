@@ -270,7 +270,12 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<DashboardFilters>(recallFilters);
   const [stores, setStores] = useState<Store[]>([]);
-  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(() => {
+    if (typeof document !== 'undefined') {
+      return document.getElementById('page-header-actions');
+    }
+    return null;
+  });
   const [isStaleExpanded, setIsStaleExpanded] = useState(false);
   const [locationsViewMode, setLocationsViewMode] = useState<'table' | 'grid'>('table');
 
@@ -290,8 +295,11 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
     }
   }, [selectedCenter]);
   useEffect(() => {
-    setHeaderSlot(document.getElementById('page-header-actions'));
-  }, []);
+    const el = document.getElementById('page-header-actions');
+    if (el && el !== headerSlot) {
+      setHeaderSlot(el);
+    }
+  }, [headerSlot]);
 
   // The stores to choose from; the dashboard works without them
   useEffect(() => {
@@ -534,25 +542,39 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
     </FilterPopover>
   );
 
+  const headerContent = (
+    <div className="flex items-center gap-2">
+      {loading && data && (
+        <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-600" aria-label="Updating" />
+      )}
+      {filterPopoverElement}
+    </div>
+  );
+
   return (
     <div className="space-y-4 animate-fadeIn pb-16">
       <StoreManReminder onAssign={() => onNavigate('settings-stores')} />
 
-      {/* Unified Scope & Filters Toolbar Card: Responsive across Mobile PWA, Tablet & Desktop */}
-      <div className="rounded-md bg-white p-3 sm:px-4 sm:py-3 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)] border border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-          <span className="text-xs font-bold text-slate-700 tracking-tight mr-1">Scope:</span>
-          {activeFilterCount > 0 ? (
-            filterChips
-          ) : (
-            <span className="text-xs text-slate-500 font-medium">All ministry records</span>
-          )}
-          {loading && data && <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-600 ml-1" aria-label="Updating" />}
+      {headerSlot ? (
+        createPortal(headerContent, headerSlot)
+      ) : (
+        <div className="flex justify-end">{headerContent}</div>
+      )}
+
+      {/* Active filter chips: minimal chip row only shown when filters are active */}
+      {activeFilterCount > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <span className="text-xs font-semibold text-slate-500 mr-1">Filtered by:</span>
+          {filterChips}
+          <button
+            type="button"
+            onClick={() => changeFilters(NO_FILTERS)}
+            className="text-xs text-rose-700 hover:text-rose-800 hover:underline font-medium ml-1.5 cursor-pointer"
+          >
+            Clear all
+          </button>
         </div>
-        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
-          {filterPopoverElement}
-        </div>
-      </div>
+      )}
 
       {/* ── Row 1: KPI tiles ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
