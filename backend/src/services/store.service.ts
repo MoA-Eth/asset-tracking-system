@@ -3089,9 +3089,12 @@ export class StoreService {
     return {
       // Approved units only; pending receipts are in pendingStockInCount
       totalItems: units(onRecord),
+      totalRecords: onRecord.length,
       availableCount: units(available),
+      availableRecords: available.length,
       availableValuationETB: sum(available),
       issuedCount: units(issued),
+      issuedRecords: issued.length,
       issuedValuationETB: sum(issued),
       pendingStockInCount: pendingIn.length,
       pendingStockOutCount: pendingOut.length,

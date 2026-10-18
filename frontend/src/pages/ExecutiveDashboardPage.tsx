@@ -387,6 +387,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
 
   // ── Derived KPIs ──────────────────────────────────────────────────────────
   const totalItems        = data?.totalItems          || 0;
+  const totalRecords      = data?.totalRecords        || 0;
   const availableCount    = data?.availableCount       || 0;
   const issuedCount       = data?.issuedCount          || 0;
   const pendingApprovals  = data?.pendingApprovalsCount || 0;
@@ -604,23 +605,50 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               : undefined
           }
           footer={
-            fixedAssetsValuationETB > 0 || consumableValuationETB > 0 ? (
-              <div className="flex flex-wrap items-center justify-between gap-1 text-[11px]">
-                <span className="text-emerald-800">Fixed: <strong>{formatETB(fixedAssetsValuationETB)}</strong></span>
-                <span className="text-violet-800">Consumables: <strong>{formatETB(consumableValuationETB)}</strong></span>
-              </div>
-            ) : (
+            <div className="space-y-1 pt-0.5 text-xs">
               <div className="flex items-center justify-between text-[11px]">
-                <span>Issued: <strong>{formatETB(issuedValuation)}</strong></span>
-                <span>In store: <strong>{formatETB(availableValuation)}</strong></span>
+                <span className="text-slate-600">Fixed Assets:</span>
+                <span className="tabular-nums font-semibold text-emerald-800 text-[11px]">
+                  {formatETB(fixedAssetsValuationETB)}{' '}
+                  {totalValuation > 0 && (
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      ({formatAssetPct(fixedAssetsValuationETB, totalValuation)})
+                    </span>
+                  )}
+                </span>
               </div>
-            )
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-600">Consumables:</span>
+                <span className="tabular-nums font-semibold text-violet-800 text-[11px]">
+                  {formatETB(consumableValuationETB)}{' '}
+                  {totalValuation > 0 && (
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      ({formatAssetPct(consumableValuationETB, totalValuation)})
+                    </span>
+                  )}
+                </span>
+              </div>
+            </div>
           }
         />
         <StatTile
           label="Total assets"
           labelAm="በመዝገብ ላይ ያለ ጠቅላላ ንብረት"
-          value={<>{totalItems.toLocaleString()}<span className="ml-1 text-sm font-normal text-slate-400">units</span></>}
+          value={
+            <div className="flex items-baseline justify-between">
+              <span>
+                {totalItems.toLocaleString()}
+                <span className="ml-1 text-sm font-normal text-slate-400">
+                  {totalItems === 1 ? 'unit' : 'units'}
+                </span>
+              </span>
+              {totalRecords > 0 && (
+                <span className="text-xs font-medium text-slate-500 bg-slate-100/90 px-2 py-0.5 rounded-full border border-slate-200">
+                  {totalRecords.toLocaleString()} {totalRecords === 1 ? 'item' : 'items'}
+                </span>
+              )}
+            </div>
+          }
           splitBar={{
             primaryPct: totalItems > 0 && issuedCount > 0 ? Math.max(2, Math.round((issuedCount / totalItems) * 100)) : 0,
             primaryColor: 'bg-emerald-600',
@@ -635,7 +663,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   In Store:
                 </span>
                 <span className="tabular-nums font-semibold text-slate-900 text-[11px]">
-                  {availableCount.toLocaleString()}{' '}
+                  {availableCount.toLocaleString()} {availableCount === 1 ? 'unit' : 'units'}{' '}
                   <span className="text-[10px] text-slate-400 font-normal">
                     ({formatAssetPct(availableCount, totalItems)})
                   </span>
@@ -646,7 +674,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   With Staff:
                 </span>
                 <span className="tabular-nums font-semibold text-slate-900 text-[11px]">
-                  {issuedCount.toLocaleString()}{' '}
+                  {issuedCount.toLocaleString()} {issuedCount === 1 ? 'unit' : 'units'}{' '}
                   <span className="text-[10px] text-slate-400 font-normal">
                     ({formatAssetPct(issuedCount, totalItems)})
                   </span>
@@ -687,14 +715,12 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                     {pendingStageCounts.stage2}
                   </span>
                 </div>
-                {pendingStageCounts.stage3 > 0 && (
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-slate-600">Executive:</span>
-                    <span className="font-semibold text-purple-800 tabular-nums">
-                      {pendingStageCounts.stage3}
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-600">Executive:</span>
+                  <span className="font-semibold text-purple-800 tabular-nums">
+                    {pendingStageCounts.stage3}
+                  </span>
+                </div>
               </div>
             ) : (
               <span className="text-emerald-700 font-medium text-[11px]">All queues clear</span>
@@ -704,23 +730,38 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Idle capital (>30 days)"
           labelAm="ከ30 ቀን በላይ በመጋዘን የቆየ"
-          value={formatETB(stale.valueETB)}
-          footer={
-            stale.itemCount > 0 ? (
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-amber-800 font-medium">
-                  {stale.units.toLocaleString()} units overdue ({stale.itemCount} items)
-                </span>
+          value={
+            <div className="flex items-baseline justify-between">
+              <span>{formatETB(stale.valueETB)}</span>
+              {stale.itemCount > 0 && (
                 <button
                   type="button"
-                  onClick={() => setIsStaleExpanded(true)}
-                  className="font-semibold text-amber-700 hover:underline cursor-pointer"
+                  onClick={showStale}
+                  className="text-xs font-semibold text-amber-700 hover:underline cursor-pointer"
                 >
                   View &rarr;
                 </button>
+              )}
+            </div>
+          }
+          footer={
+            stale.itemCount > 0 ? (
+              <div className="space-y-1 pt-0.5 text-xs">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-600">Stale Stock:</span>
+                  <span className="tabular-nums font-semibold text-amber-800 text-[11px]">
+                    {stale.units.toLocaleString()} {stale.units === 1 ? 'unit' : 'units'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-600">Affected Items:</span>
+                  <span className="tabular-nums font-semibold text-slate-700 text-[11px]">
+                    {stale.itemCount.toLocaleString()} {stale.itemCount === 1 ? 'item' : 'items'}
+                  </span>
+                </div>
               </div>
             ) : (
-              <span className="text-emerald-700 font-medium">Zero stagnant inventory in stores</span>
+              <span className="text-emerald-700 font-medium text-[11px]">Zero stagnant inventory in stores</span>
             )
           }
         />
@@ -766,7 +807,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               label={`In store over ${stale.thresholdDays} days`}
               count={stale.itemCount}
               tone="warning"
-              note={`${formatETB(stale.valueETB)} · ${stale.units} units`}
+              note={`${formatETB(stale.valueETB)} · ${stale.units.toLocaleString()} ${stale.units === 1 ? 'unit' : 'units'}`}
               onClick={showStale}
             />
           )}
@@ -798,7 +839,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                 <dl className="grid grid-cols-3 gap-4 sm:gap-6 text-right">
                   {[
                     { label: stale.itemCount === 1 ? 'Item' : 'Items', value: stale.itemCount.toLocaleString() },
-                    { label: 'Units', value: stale.units.toLocaleString() },
+                    { label: stale.units === 1 ? 'Unit' : 'Units', value: stale.units.toLocaleString() },
                     { label: 'Value', value: formatETB(stale.valueETB) },
                   ].map((s) => (
                     <div key={s.label}>
@@ -912,7 +953,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                       </div>
                       <div className="shrink-0 text-right">
                         <span className="block font-semibold text-slate-900">{formatETB(dept.totalValueETB)}</span>
-                        <span className="text-[10px] text-slate-500">{dept.itemCount} units · {dept.issuedCount} issued</span>
+                        <span className="text-[10px] text-slate-500">{dept.itemCount.toLocaleString()} {dept.itemCount === 1 ? 'unit' : 'units'} · {dept.issuedCount.toLocaleString()} issued</span>
                       </div>
                     </div>
                     <Meter pct={pct} />
@@ -951,22 +992,26 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   <div className="rounded-md border border-slate-200 bg-slate-50/70 p-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-slate-900">Vehicles</span>
-                      <span className="font-mono text-xs font-bold text-slate-900">{fleetStats.totalVehicles}</span>
+                      <span className="font-mono text-xs font-bold text-slate-900">
+                        {fleetStats.totalVehicles.toLocaleString()} {fleetStats.totalVehicles === 1 ? 'unit' : 'units'}
+                      </span>
                     </div>
                     <p className="mt-1.5 text-xs font-bold text-slate-900">{formatETB(fleetStats.vehicleValuationETB)}</p>
                     <p className="text-[10px] text-slate-500">
-                      {fleetStats.activeVehicles} active · {fleetStats.inStoreVehicles} in store
+                      {fleetStats.activeVehicles.toLocaleString()} active · {fleetStats.inStoreVehicles.toLocaleString()} in store
                     </p>
                   </div>
 
                   <div className="rounded-md border border-slate-200 bg-slate-50/70 p-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-slate-900">Agri Machinery</span>
-                      <span className="font-mono text-xs font-bold text-slate-900">{fleetStats.totalMachinery}</span>
+                      <span className="font-mono text-xs font-bold text-slate-900">
+                        {fleetStats.totalMachinery.toLocaleString()} {fleetStats.totalMachinery === 1 ? 'unit' : 'units'}
+                      </span>
                     </div>
                     <p className="mt-1.5 text-xs font-bold text-slate-900">{formatETB(fleetStats.machineryValuationETB)}</p>
                     <p className="text-[10px] text-slate-500">
-                      {fleetStats.activeMachinery} deployed · {fleetStats.inStoreMachinery} in store
+                      {fleetStats.activeMachinery.toLocaleString()} deployed · {fleetStats.inStoreMachinery.toLocaleString()} in store
                     </p>
                   </div>
                 </div>
@@ -1013,7 +1058,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                 <tr>
                   <th className="px-3.5 py-1.5">Facility / Site</th>
                   <th className="px-3.5 py-1.5">Building & Room</th>
-                  <th className="px-3.5 py-1.5 text-right">Items & Units</th>
+                  <th className="px-3.5 py-1.5 text-right">Total Units</th>
                   <th className="px-3.5 py-1.5">Status Allocation</th>
                   <th className="px-3.5 py-1.5 text-right">Valuation (ETB)</th>
                   <th className="px-3.5 py-1.5">Key Categories</th>
@@ -1116,8 +1161,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                       <p className="mt-0.5 truncate text-[11px] text-slate-500">{loc.building} — {loc.roomNumber}</p>
                     </div>
                     <div className="shrink-0 text-right leading-tight">
-                      <span className="block text-xl font-semibold text-slate-900">{total}</span>
-                      <span className="text-[10px] text-slate-500">{total === 1 ? 'item' : 'items'}</span>
+                      <span className="block text-xl font-semibold text-slate-900">{total.toLocaleString()}</span>
+                      <span className="text-[10px] text-slate-500">{total === 1 ? 'unit' : 'units'}</span>
                     </div>
                   </div>
 
