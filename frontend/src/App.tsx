@@ -1,25 +1,66 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { TopHeader } from './components/layout/TopHeader';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { DesktopSidebar } from './components/layout/DesktopSidebar';
 import { OfflineBanner } from './components/layout/OfflineBanner';
-import { ExecutiveDashboardPage } from './pages/ExecutiveDashboardPage';
-import { AssetsPage } from './pages/AssetsPage';
-import { MyAssetsPage } from './pages/MyAssetsPage';
-import { DocsPage } from './pages/DocsPage';
-import { ApprovalsPage } from './pages/ApprovalsPage';
-import { AuditLogsPage } from './pages/AuditLogsPage';
-import { ReportsPage } from './pages/ReportsPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { SystemSettingsPage } from './pages/SystemSettingsPage';
+import { Skeleton, SkeletonCard } from './components/ui/Skeleton';
 import { loadSystemSettings } from './utils/system-settings';
-import { RolesPage } from './pages/settings/RolesPage';
-import { EmployeesPage } from './pages/settings/EmployeesPage';
-import { StoresPage } from './pages/settings/StoresPage';
-import { OrganizationsPage } from './pages/settings/OrganizationsPage';
-import { ProfilePage } from './pages/settings/ProfilePage';
-import { LoginPage } from './pages/LoginPage';
-import { ChangePasswordPage } from './pages/ChangePasswordPage';
+
+// Route-level code-splitting with dynamic imports
+const ExecutiveDashboardPage = lazy(() => import('./pages/ExecutiveDashboardPage').then(m => ({ default: m.ExecutiveDashboardPage })));
+const AssetsPage = lazy(() => import('./pages/AssetsPage').then(m => ({ default: m.AssetsPage })));
+const MyAssetsPage = lazy(() => import('./pages/MyAssetsPage').then(m => ({ default: m.MyAssetsPage })));
+const DocsPage = lazy(() => import('./pages/DocsPage').then(m => ({ default: m.DocsPage })));
+const ApprovalsPage = lazy(() => import('./pages/ApprovalsPage').then(m => ({ default: m.ApprovalsPage })));
+const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage').then(m => ({ default: m.AuditLogsPage })));
+const ReportsPage = lazy(() => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const SystemSettingsPage = lazy(() => import('./pages/SystemSettingsPage').then(m => ({ default: m.SystemSettingsPage })));
+const RolesPage = lazy(() => import('./pages/settings/RolesPage').then(m => ({ default: m.RolesPage })));
+const EmployeesPage = lazy(() => import('./pages/settings/EmployeesPage').then(m => ({ default: m.EmployeesPage })));
+const StoresPage = lazy(() => import('./pages/settings/StoresPage').then(m => ({ default: m.StoresPage })));
+const OrganizationsPage = lazy(() => import('./pages/settings/OrganizationsPage').then(m => ({ default: m.OrganizationsPage })));
+const ProfilePage = lazy(() => import('./pages/settings/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
+const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage').then(m => ({ default: m.ChangePasswordPage })));
+
+const PageLoadingFallback: React.FC = () => (
+  <div className="p-4 space-y-4 animate-fadeIn" role="status" aria-busy="true">
+    <span className="sr-only">Loading content…</span>
+    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+      <div className="space-y-1.5">
+        <Skeleton className="h-5 w-48" />
+        <Skeleton className="h-3.5 w-72" />
+      </div>
+      <Skeleton className="h-8 w-28 rounded-[4px]" />
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-2">
+      <SkeletonCard className="h-28" />
+      <SkeletonCard className="h-28" />
+      <SkeletonCard className="h-28" />
+      <SkeletonCard className="h-28" />
+    </div>
+    <SkeletonCard className="h-72 mt-4" />
+  </div>
+);
+
+const AuthLoadingFallback: React.FC = () => (
+  <div className="h-screen w-screen bg-[#071911] text-white flex flex-col items-center justify-center p-4">
+    <div className="flex flex-col items-center gap-4 text-center max-w-sm animate-pulse">
+      <div className="w-18 h-18 flex items-center justify-center">
+        <MoaLogo className="w-full h-full drop-shadow-xl" alt="Ministry of Agriculture" />
+      </div>
+      <div>
+        <h2 className="text-lg font-bold text-white tracking-tight">
+          MoA<span className="text-[#FCDD09]">-ATS</span>
+        </h2>
+        <p className="text-xs text-emerald-200/80">
+          Loading portal…
+        </p>
+      </div>
+    </div>
+  </div>
+);
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { UserRole } from './types/asset-management';
@@ -141,12 +182,20 @@ const AuthenticatedPortal: React.FC = () => {
 
   // Unauthenticated view: Render institutional login
   if (!isAuthenticated) {
-    return <LoginPage />;
+    return (
+      <Suspense fallback={<AuthLoadingFallback />}>
+        <LoginPage />
+      </Suspense>
+    );
   }
 
   // A temporary password must be replaced before anything else
   if (user?.mustChangePassword) {
-    return <ChangePasswordPage />;
+    return (
+      <Suspense fallback={<AuthLoadingFallback />}>
+        <ChangePasswordPage />
+      </Suspense>
+    );
   }
 
   return (
@@ -180,6 +229,7 @@ const AuthenticatedPortal: React.FC = () => {
         {/* Page Content - Strictly Gated to Authorized Role */}
         <main ref={mainRef} className="flex-1 overflow-y-auto p-3 sm:p-3.5 lg:px-3.5 lg:pt-3 lg:pb-3 w-full pb-20 sm:pb-24 lg:pb-3 pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
           <ErrorBoundary fallbackTitle="Page Content Notice">
+            <Suspense fallback={<PageLoadingFallback />}>
             {!activeTab && <p className="text-sm text-slate-600">No pages are available for this account. Contact your System Administrator.</p>}
             {activeTab.startsWith('settings-') && activeTab !== 'settings-profile' && (
               <nav aria-label="Settings pages" className="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-4 border-b border-slate-200">
@@ -232,6 +282,7 @@ const AuthenticatedPortal: React.FC = () => {
             {activeTab === 'settings-system' && (
               <SystemSettingsPage />
             )}
+                      </Suspense>
           </ErrorBoundary>
         </main>
 

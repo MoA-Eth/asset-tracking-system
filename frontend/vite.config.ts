@@ -24,8 +24,24 @@ export default defineConfig({
     cssMinify: 'lightningcss',
     rollupOptions: {
       output: {
-        // React changes far less often than the app, so browsers keep it cached across releases
-        manualChunks: { react: ['react', 'react-dom'] },
+        // Smart vendor chunk splitting for optimal cache retention and minimal initial bundle payload
+        manualChunks: (id) => {
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/scheduler/')) {
+            return 'vendor-react';
+          }
+          if (
+            id.includes('node_modules/jspdf') ||
+            id.includes('node_modules/html2canvas') ||
+            id.includes('node_modules/jspdf-autotable') ||
+            id.includes('node_modules/dompurify') ||
+            id.includes('node_modules/purify')
+          ) {
+            return 'vendor-pdf';
+          }
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-icons';
+          }
+        },
         // The PDF reader's worker ships as .mjs, which nginx doesn't know and serves as a download;
         // saved as .js it is served as JavaScript, which a module worker requires
         assetFileNames: (asset) =>
