@@ -124,7 +124,8 @@ const formatAssetPct = (count: number, total: number): string => {
 const StatTile: React.FC<{
   label: string;
   labelAm: string;
-    value: React.ReactNode;
+  action?: React.ReactNode;
+  value: React.ReactNode;
   footer: React.ReactNode;
   meterPct?: number;
   splitBar?: {
@@ -134,13 +135,16 @@ const StatTile: React.FC<{
     primaryLabel?: string;
     secondaryLabel?: string;
   };
-}> = ({ label, labelAm, value, footer, meterPct, splitBar }) => (
+}> = ({ label, labelAm, action, value, footer, meterPct, splitBar }) => (
   <div className="rounded-md flex flex-col border border-slate-200/90 border-b-2 border-b-slate-300 bg-white p-5 transition duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_4px_6px_rgba(15,23,42,0.06),0_16px_32px_-8px_rgba(15,23,42,0.18)] shadow-[0_3px_12px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.05)]">
-    <div className="min-w-0">
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="text-[10px] text-slate-400">{labelAm}</p>
+    <div className="flex items-start justify-between gap-2 min-w-0">
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
+        <p className="text-[10px] text-slate-400">{labelAm}</p>
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
     </div>
-    <div className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{value}</div>
+    <div className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 truncate">{value}</div>
     <div className="mt-auto space-y-1.5 pt-3">
       {meterPct !== undefined && <Meter pct={meterPct} />}
       {splitBar && (
@@ -634,20 +638,20 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Total assets"
           labelAm="በመዝገብ ላይ ያለ ጠቅላላ ንብረት"
-          value={
-            <div className="flex items-baseline justify-between">
-              <span>
-                {totalItems.toLocaleString()}
-                <span className="ml-1 text-sm font-normal text-slate-400">
-                  {totalItems === 1 ? 'unit' : 'units'}
-                </span>
+          action={
+            totalRecords > 0 ? (
+              <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                {totalRecords.toLocaleString()} {totalRecords === 1 ? 'item' : 'items'}
               </span>
-              {totalRecords > 0 && (
-                <span className="text-xs font-medium text-slate-500 bg-slate-100/90 px-2 py-0.5 rounded-full border border-slate-200">
-                  {totalRecords.toLocaleString()} {totalRecords === 1 ? 'item' : 'items'}
-                </span>
-              )}
-            </div>
+            ) : undefined
+          }
+          value={
+            <span>
+              {totalItems.toLocaleString()}
+              <span className="ml-1 text-sm font-normal text-slate-400">
+                {totalItems === 1 ? 'unit' : 'units'}
+              </span>
+            </span>
           }
           splitBar={{
             primaryPct: totalItems > 0 && issuedCount > 0 ? Math.max(2, Math.round((issuedCount / totalItems) * 100)) : 0,
@@ -686,19 +690,22 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Approvals in pipeline"
           labelAm="ውሳኔ የሚጠብቁ ጥያቄዎች"
+          action={
+            pendingApprovals > 0 ? (
+              <button
+                type="button"
+                onClick={() => onNavigate('approvals')}
+                className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer"
+              >
+                Review &rarr;
+              </button>
+            ) : undefined
+          }
           value={
-            <div className="flex items-baseline justify-between">
-              <span>{pendingApprovals}<span className="ml-1 text-sm font-normal text-slate-400">pending</span></span>
-              {pendingApprovals > 0 && (
-                <button
-                  type="button"
-                  onClick={() => onNavigate('approvals')}
-                  className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer"
-                >
-                  Review &rarr;
-                </button>
-              )}
-            </div>
+            <span>
+              {pendingApprovals}
+              <span className="ml-1 text-sm font-normal text-slate-400">pending</span>
+            </span>
           }
           footer={
             pendingApprovals > 0 ? (
@@ -730,20 +737,18 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Idle capital (>30 days)"
           labelAm="ከ30 ቀን በላይ በመጋዘን የቆየ"
-          value={
-            <div className="flex items-baseline justify-between">
-              <span>{formatETB(stale.valueETB)}</span>
-              {stale.itemCount > 0 && (
-                <button
-                  type="button"
-                  onClick={showStale}
-                  className="text-xs font-semibold text-amber-700 hover:underline cursor-pointer"
-                >
-                  View &rarr;
-                </button>
-              )}
-            </div>
+          action={
+            stale.itemCount > 0 ? (
+              <button
+                type="button"
+                onClick={showStale}
+                className="text-xs font-semibold text-amber-700 hover:text-amber-900 hover:underline cursor-pointer"
+              >
+                View &rarr;
+              </button>
+            ) : undefined
           }
+          value={formatETB(stale.valueETB)}
           footer={
             stale.itemCount > 0 ? (
               <div className="space-y-1 pt-0.5 text-xs">
