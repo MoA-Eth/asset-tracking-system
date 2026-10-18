@@ -1,20 +1,14 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search,
+  FileText,
+  Eye,
   RefreshCw,
   Download,
-  Printer,
   FileDown,
-  Calendar,
-  Layers,
-  PackagePlus,
-  CheckCircle2,
-  FileCheck2,
-  ArrowRightLeft,
   X,
   AlertCircle,
   FileSpreadsheet,
-  MoreVertical,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { ReportsSkeleton } from '../components/ui/Skeleton';
@@ -25,15 +19,15 @@ import {
   ItemWithRelations,
   Department,
   Location,
-  AssetCategory,
   ItemStatus,
 } from '../types/asset-management';
 import { formatETB, getTodayGcAndEc } from '../utils/eth-date';
 import { downloadCsv } from '../utils/csv';
 import { useToast } from '../context/ToastContext';
-import { RefreshButton } from '../components/ui/RefreshButton';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../components/ui/FilterPopover';
+import { RecordDetailModal } from '../components/ui/RecordDetailModal';
+import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { CATEGORY_OPTIONS } from '../components/assets/asset-state';
 
 export type ReportType = 'all' | 'registered' | 'available' | 'issued' | 'transferred';
@@ -66,6 +60,8 @@ export const ReportsPage: React.FC = () => {
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [viewerSlipUrl, setViewerSlipUrl] = useState<string | null>(null);
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,26 +71,7 @@ export const ReportsPage: React.FC = () => {
   const [customTo, setCustomTo] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedLocation, setSelectedLocation] = useState<string>('ALL');
-  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
-  const actionsMenuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!isActionsMenuOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
-        setIsActionsMenuOpen(false);
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsActionsMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isActionsMenuOpen]);
 
   const dateInfo = getTodayGcAndEc();
 
@@ -321,12 +298,6 @@ export const ReportsPage: React.FC = () => {
     [filteredItems]
   );
 
-  const inStoreValuation = useMemo(() => { return filteredItems.reduce((sum, item) => sum + item.unitCostETB * balanceOf(item).available, 0); }, [filteredItems]);
-
-  const issuedValuation = useMemo(() => { return filteredItems.reduce((sum, item) => sum + item.unitCostETB * balanceOf(item).issued, 0); }, [filteredItems]);
-
-  const avgCost = useMemo(() => { return unitTotals.total > 0 ? totalValuation / (unitTotals.total || 1) : 0; }, [totalValuation, unitTotals.total]);
-
   const tabCounts = useMemo(() => ({ all: recordedItems.length, registered: recordedItems.length, available: recordedItems.filter((i) => balanceOf(i).available > 0).length, issued: recordedItems.filter((i) => balanceOf(i).issued > 0).length, transferred: recordedItems.filter((i) => i.status === ItemStatus.UNDER_TRANSFER || (splitsByRoot.get(i.id) || []).some((sp) => sp.status === ItemStatus.UNDER_TRANSFER || (sp.history || []).some((h) => /TRANSFER|RETURN/i.test(h.action))) || (i.history || []).some((h) => /TRANSFER|RETURN/i.test(h.action))).length }), [recordedItems, splitsByRoot]);
 
   const getTimeframeLabel = () => {
@@ -474,7 +445,7 @@ export const ReportsPage: React.FC = () => {
       doc.text('FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA', 24, 18);
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text('MINISTRY OF AGRICULTURE (MoA) • FIXED ASSET TRACKING SYSTEM', 24, 32);
+      doc.text('MINISTRY OF AGRICULTURE (MoA) • ASSET TRACKING SYSTEM', 24, 32);
 
       doc.setFontSize(8);
       doc.text(`Generated: ${dateInfo.gc} (G.C.) / ${dateInfo.ecFormattedAm}`, pw - 24, 25, { align: 'right' });
@@ -545,12 +516,12 @@ export const ReportsPage: React.FC = () => {
     }
   };
 
-  const reportTabs: { id: ReportType; label: string; icon: any; count: number }[] = [
-    { id: 'all', label: 'All Assets', icon: Layers, count: tabCounts.all },
-    { id: 'registered', label: 'Received', icon: PackagePlus, count: tabCounts.registered },
-    { id: 'available', label: 'Available (In Store)', icon: CheckCircle2, count: tabCounts.available },
-    { id: 'issued', label: 'Issued (In Custody)', icon: FileCheck2, count: tabCounts.issued },
-    { id: 'transferred', label: 'Transferred & Returned', icon: ArrowRightLeft, count: tabCounts.transferred },
+  const reportTabs: { id: ReportType; label: string; count: number }[] = [
+    { id: 'all', label: 'All Assets', count: tabCounts.all },
+    { id: 'registered', label: 'Received', count: tabCounts.registered },
+    { id: 'available', label: 'In Store', count: tabCounts.available },
+    { id: 'issued', label: 'In Custody', count: tabCounts.issued },
+    { id: 'transferred', label: 'Transferred & Returned', count: tabCounts.transferred },
   ];
 
   type ReportSortColumn = 'code' | 'name' | 'category' | 'status' | 'received' | 'issued' | 'available' | 'slip' | 'date' | 'custodian' | 'cost';
@@ -603,6 +574,52 @@ export const ReportsPage: React.FC = () => {
 
   // Exports still use every filtered row; only the table on screen is paged
   const pager = usePagination(sortedItems, { resetKey: `${searchTerm}|${timeframe}|${reportType}|${selectedCategory}|${selectedLocation}|${sortColumn}|${sortDirection}` });
+
+  // ── Statutory Report Types ──
+  const statutoryReports = useMemo(() => [
+    {
+      id: 'all' as ReportType,
+      title: 'All Assets',
+      tag: 'General Ledger',
+      fullName: 'Asset Register',
+      nameAm: 'የንብረት መዝገብ',
+      count: tabCounts.all,
+    },
+    {
+      id: 'registered' as ReportType,
+      title: 'Received',
+      tag: 'Model 19',
+      fullName: 'Receipts (Model 19)',
+      nameAm: 'ሞዴል 19 ገቢ',
+      count: tabCounts.registered,
+    },
+    {
+      id: 'available' as ReportType,
+      title: 'In Store',
+      tag: 'Stock Balance',
+      fullName: 'Store Inventory',
+      nameAm: 'ስቶር ክምችት',
+      count: tabCounts.available,
+    },
+    {
+      id: 'issued' as ReportType,
+      title: 'In Custody',
+      tag: 'Model 22',
+      fullName: 'Staff Custody (Model 22)',
+      nameAm: 'ሞዴል 22 ወጪ',
+      count: tabCounts.issued,
+    },
+    {
+      id: 'transferred' as ReportType,
+      title: 'Transferred & Returned',
+      tag: 'Model 21',
+      fullName: 'Transfers (Model 21)',
+      nameAm: 'ሞዴል 21 ዝውውር',
+      count: tabCounts.transferred,
+    },
+  ], [tabCounts]);
+
+  const activeReportDef = statutoryReports.find((r) => r.id === reportType) || statutoryReports[0];
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -658,7 +675,7 @@ export const ReportsPage: React.FC = () => {
           <div>
             <p className="text-[10px] uppercase font-bold tracking-widest text-slate-700">Federal Democratic Republic of Ethiopia</p>
             <h1 className="text-lg font-black uppercase text-slate-950">Ministry of Agriculture (MoA)</h1>
-            <p className="text-xs font-semibold text-slate-700">Fixed Asset & Store Management — Statutory Inventory Report</p>
+            <p className="text-xs font-semibold text-slate-700">Asset & Store Management — Statutory Inventory Report</p>
           </div>
           <div className="text-right text-[11px] font-mono space-y-0.5">
             <p><span className="font-bold">Report Type:</span> {getReportTypeLabel()}</p>
@@ -681,433 +698,385 @@ export const ReportsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 1. Unified Control Bar with Search, Filters, and Export/Print Actions */}
-      <div className="no-print rounded-md p-3.5 bg-white space-y-3 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-        {/* Row 1: Search + FilterPopover + Export & Print Actions */}
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-2.5">
-          {/* Search Box */}
-          <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              aria-label="Search reports"
-              placeholder="Search by code, item name, serial #, slip #, or custodian..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
-            />
-          </div>
-
-          {/* Action Group: Filter + Export CSV + Export PDF + Print */}
-          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto shrink-0 justify-between sm:justify-end">
-            <FilterPopover
-              label="Filter"
-              ariaLabel="Filter report records"
-              title="Filters"
-              resetLabel="Reset all"
-              activeCount={activeFilterCount}
-              onReset={handleResetFilters}
-              onClear={handleClearAll}
-              showClear={viewChanged}
-              resultCountText={`${sortedItems.length} ${sortedItems.length === 1 ? 'record' : 'records'}`}
-            >
-              {/* Report Scope */}
-              <FilterSection label="Report Scope">
-                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  {reportTabs.map((tab) => (
-                    <FilterPill
-                      key={tab.id}
-                      label={tab.label}
-                      active={reportType === tab.id}
-                      onClick={() => setReportType(tab.id)}
-                    />
-                  ))}
-                </div>
-              </FilterSection>
-
-              {/* Timeframe */}
-              <FilterSection label="Time Period" htmlFor="report-filter-timeframe">
-                <FilterSelect
-                  id="report-filter-timeframe"
-                  ariaLabel="Filter by time period"
-                  value={timeframe}
-                  onChange={(val) => setTimeframe(val as TimeframePreset)}
-                  options={[
-                    { value: 'ALL_TIME', label: 'All Time' },
-                    { value: 'TODAY', label: 'Today' },
-                    { value: 'THIS_WEEK', label: 'This Week' },
-                    { value: 'PAST_7_DAYS', label: 'Past 7 Days' },
-                    { value: 'THIS_MONTH', label: 'This Month' },
-                    { value: 'LAST_MONTH', label: 'Last Month' },
-                    { value: 'THIS_QUARTER', label: `This Quarter (Q${currentQuarter + 1})` },
-                    { value: 'LAST_QUARTER', label: `Last Quarter (Q${lastQuarterIndex + 1})` },
-                    { value: 'THIS_YEAR', label: `This Year (${currentYear})` },
-                    { value: 'CUSTOM', label: 'Custom Date Range...' },
-                  ]}
-                />
-              </FilterSection>
-
-              {/* Asset Category */}
-              <FilterSection label="Asset Category" htmlFor="report-filter-category">
-                <FilterSelect
-                  id="report-filter-category"
-                  ariaLabel="Filter by asset category"
-                  placeholder="All Categories"
-                  value={selectedCategory}
-                  onChange={setSelectedCategory}
-                  options={Object.values(AssetCategory).map((cat) => ({
-                    value: cat,
-                    label: cat.replace(/_/g, ' '),
-                  }))}
-                />
-              </FilterSection>
-
-              {/* Store & Location */}
-              <FilterSection label="Store & Custody Location" htmlFor="report-filter-location">
-                <FilterSelect
-                  id="report-filter-location"
-                  ariaLabel="Filter by store location"
-                  placeholder="All Locations"
-                  value={selectedLocation}
-                  onChange={setSelectedLocation}
-                  options={locations.map((loc) => ({
-                    value: loc.id,
-                    label: storeLocationLabel(loc),
-                  }))}
-                />
-              </FilterSection>
-            </FilterPopover>
-
-            {/* 3-Dot Actions Menu for Export & Print */}
-            <div className="relative inline-flex" ref={actionsMenuRef}>
-              <button
-                type="button"
-                onClick={() => setIsActionsMenuOpen((prev) => !prev)}
-                aria-haspopup="menu"
-                aria-expanded={isActionsMenuOpen}
-                aria-label="Report export and print actions"
-                title="Export and print options"
-                className={`inline-flex items-center justify-center h-8 w-8 rounded-[4px] border transition cursor-pointer select-none shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-                  isActionsMenuOpen
-                    ? 'border-emerald-700/60 bg-emerald-50/80 text-emerald-950 shadow-xs'
-                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900'
-                }`}
-              >
-                <MoreVertical className="w-4 h-4" />
-              </button>
-
-              {isActionsMenuOpen && (
-                <div
-                  role="menu"
-                  aria-label="Report export options"
-                  className="absolute right-0 top-full mt-1.5 w-48 z-50 rounded-md border border-slate-200 bg-white p-1 shadow-lg animate-fadeIn text-xs"
-                >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setIsActionsMenuOpen(false);
-                      handleExportCSV();
-                    }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
-                  >
-                    <Download className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Export CSV</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setIsActionsMenuOpen(false);
-                      handleExportPDF();
-                    }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
-                  >
-                    <FileDown className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Export PDF</span>
-                  </button>
-
-                  <div className="my-1 border-t border-slate-100" />
-
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setIsActionsMenuOpen(false);
-                      window.print();
-                    }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Print Report</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        {/* Custom Date Pickers (only when Custom Range is active) */}
-        {timeframe === 'CUSTOM' && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2.5 border-t border-slate-100 text-xs animate-fadeIn">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
-              <span className="font-semibold text-slate-600">Date Range:</span>
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-                <div className="flex items-center gap-1.5">
-                  <label className="text-slate-500 font-medium text-[11px] shrink-0">From:</label>
-                  <input
-                    type="date"
-                    value={customFrom}
-                    onChange={(e) => setCustomFrom(e.target.value)}
-                    className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-[4px] text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
-                  />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <label className="text-slate-500 font-medium text-[11px] shrink-0">To:</label>
-                  <input
-                    type="date"
-                    value={customTo}
-                    onChange={(e) => setCustomTo(e.target.value)}
-                    className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-[4px] text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
-                  />
-                </div>
-              </div>
-              {(customFrom || customTo) && (
-                <button
-                  onClick={() => {
-                    setCustomFrom('');
-                    setCustomTo('');
-                  }}
-                  className="text-slate-400 hover:text-slate-600 p-1 text-xs cursor-pointer"
-                  title="Clear date inputs"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Quick Preset Buttons inside Custom Range */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] text-slate-400 font-medium mr-0.5">Quick Fill:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setCustomFrom(startOfMonthStr);
-                  setCustomTo(endOfMonthStr);
-                }}
-                className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
-              >
-                This Month
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCustomFrom(startOfLastMonthStr);
-                  setCustomTo(endOfLastMonthStr);
-                }}
-                className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
-              >
-                Last Month
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCustomFrom(startOfQuarterStr);
-                  setCustomTo(endOfQuarterStr);
-                }}
-                className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
-              >
-                This Quarter
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCustomFrom(startOfLastQuarterStr);
-                  setCustomTo(endOfLastQuarterStr);
-                }}
-                className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
-              >
-                Last Quarter
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCustomFrom(startOfYearStr);
-                  setCustomTo(endOfYearStr);
-                }}
-                className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
-              >
-                This Year
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Row 2: Report Type Filter Pills */}
-        <div className="flex items-center sm:flex-wrap gap-1.5 pt-2 border-t border-slate-100 overflow-x-auto pb-1 no-scrollbar touch-pan-x -mx-1 px-1">
-          {reportTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = reportType === tab.id;
+      {/* ── Executive Statutory Report Catalog (Top Grid) ── */}
+      <div className="no-print space-y-3">
+        {/* 5 Statutory Report Selector Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+          {statutoryReports.map((report) => {
+            const isSelected = reportType === report.id;
             return (
               <button
-                key={tab.id}
-                onClick={() => setReportType(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-semibold transition cursor-pointer ${
-                  isActive
-                    ? 'bg-emerald-800 text-white shadow-xs font-bold'
-                    : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
+                key={report.id}
+                type="button"
+                role="button"
+                onClick={() => setReportType(report.id)}
+                className={`p-3 rounded-md text-left transition cursor-pointer select-none border bg-white ${
+                  isSelected
+                    ? 'border-slate-300 border-t-2 border-t-slate-900 shadow-xs'
+                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50 text-slate-600 shadow-2xs'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-amber-300' : 'text-slate-500'}`} />
-                <span>{tab.label}</span>
-                <span className={"text-[10px] px-1.5 py-0.5 rounded-full tabular-nums font-bold " + (isActive ? "bg-emerald-950/60 text-emerald-100" : "bg-slate-200 text-slate-600")}>{tab.count}</span>
+                <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                  <span
+                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded-[3px] uppercase tracking-wider ${
+                      isSelected
+                        ? 'bg-slate-100 text-slate-900 font-bold'
+                        : 'bg-slate-100/70 text-slate-500 font-medium'
+                    }`}
+                  >
+                    {report.tag}
+                  </span>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full tabular-nums font-mono font-bold ${
+                      isSelected
+                        ? 'bg-slate-100 text-slate-900'
+                        : 'bg-slate-100/70 text-slate-500'
+                    }`}
+                  >
+                    {report.count}
+                  </span>
+                </div>
+                <div className={`text-[13px] leading-tight ${isSelected ? 'font-bold text-slate-950' : 'font-semibold text-slate-700'}`}>
+                  {report.title}
+                </div>
+                <div className="text-[11px] text-slate-400 font-medium mt-0.5">
+                  {report.nameAm}
+                </div>
               </button>
             );
           })}
         </div>
 
-        {/* Active Filter Chips */}
-        {(timeframe !== 'ALL_TIME' || selectedCategory !== 'ALL' || selectedLocation !== 'ALL') && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100 text-xs">
-            <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
-            {timeframe !== 'ALL_TIME' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-900 text-[11px] font-medium border border-emerald-200">
-                <span>Period: {getTimeframeLabel()}</span>
+        {/* Dedicated Report Generator Toolbar */}
+        <div className="rounded-md p-3 sm:p-3.5 bg-white border border-slate-200 shadow-2xs space-y-3">
+          <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
+            {/* Active Ledger Identity */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="text-[11px] font-bold font-mono px-2 py-0.5 rounded-[3px] uppercase tracking-wider bg-slate-100 text-slate-800 border border-slate-200 shrink-0">
+                {activeReportDef.tag}
+              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-sm font-bold text-slate-900 truncate">{activeReportDef.fullName}</h2>
+                  <span className="text-[11px] text-slate-500 font-medium hidden md:inline truncate">({activeReportDef.nameAm})</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Quick Search + Filter Popover + CSV & PDF Export */}
+            <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto shrink-0 justify-between sm:justify-end">
+              {/* Search Box */}
+              <div className="relative flex-1 sm:w-60 md:w-64 sm:flex-initial">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  aria-label="Search reports"
+                  placeholder={`Search in ${activeReportDef.title.toLowerCase()}...`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-8 pr-7 py-1.5 h-8 bg-white border border-slate-300 hover:border-slate-400 focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 rounded-[4px] text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-colors"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    aria-label="Clear search"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filter Popover */}
+              <FilterPopover
+                label="Filter"
+                ariaLabel="Filter report records"
+                title="Filters"
+                resetLabel="Reset all"
+                activeCount={activeFilterCount}
+                onReset={handleResetFilters}
+                onClear={handleClearAll}
+                showClear={viewChanged}
+                resultCountText={`${sortedItems.length} ${sortedItems.length === 1 ? 'record' : 'records'}`}
+              >
+                {/* Report Scope */}
+                <FilterSection label="Report Scope">
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {statutoryReports.map((report) => (
+                      <FilterPill
+                        key={report.id}
+                        label={report.title}
+                        active={reportType === report.id}
+                        onClick={() => setReportType(report.id)}
+                      />
+                    ))}
+                  </div>
+                </FilterSection>
+
+                {/* Timeframe */}
+                <FilterSection label="Time Period" htmlFor="report-filter-timeframe">
+                  <FilterSelect
+                    id="report-filter-timeframe"
+                    ariaLabel="Filter by time period"
+                    value={timeframe}
+                    onChange={(val) => setTimeframe(val as TimeframePreset)}
+                    options={[
+                      { value: 'ALL_TIME', label: 'All Time' },
+                      { value: 'TODAY', label: 'Today' },
+                      { value: 'THIS_WEEK', label: 'This Week' },
+                      { value: 'PAST_7_DAYS', label: 'Past 7 Days' },
+                      { value: 'THIS_MONTH', label: 'This Month' },
+                      { value: 'LAST_MONTH', label: 'Last Month' },
+                      { value: 'THIS_QUARTER', label: `This Quarter (Q${currentQuarter + 1})` },
+                      { value: 'LAST_QUARTER', label: `Last Quarter (Q${lastQuarterIndex + 1})` },
+                      { value: 'THIS_YEAR', label: `This Year (${currentYear})` },
+                      { value: 'CUSTOM', label: 'Custom Date Range...' },
+                    ]}
+                  />
+                </FilterSection>
+
+                {/* Asset Category */}
+                <FilterSection label="Asset Category" htmlFor="report-filter-category">
+                  <FilterSelect
+                    id="report-filter-category"
+                    ariaLabel="Filter by asset category"
+                    placeholder="All Categories"
+                    value={selectedCategory}
+                    onChange={setSelectedCategory}
+                    options={CATEGORY_OPTIONS}
+                  />
+                </FilterSection>
+
+                {/* Store & Location */}
+                <FilterSection label="Store & Custody Location" htmlFor="report-filter-location">
+                  <FilterSelect
+                    id="report-filter-location"
+                    ariaLabel="Filter by store location"
+                    placeholder="All Locations"
+                    value={selectedLocation}
+                    onChange={setSelectedLocation}
+                    options={locations.map((loc) => ({
+                      value: loc.id,
+                      label: storeLocationLabel(loc),
+                    }))}
+                  />
+                </FilterSection>
+              </FilterPopover>
+
+              {/* Direct Statutory Export Actions */}
+              <div className="flex items-center gap-1.5 border-l border-slate-200 pl-2">
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  title="Export tabular dataset to CSV spreadsheet"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-[4px] border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-semibold shadow-2xs transition cursor-pointer select-none"
+                >
+                  <Download className="w-3.5 h-3.5 text-slate-500" />
+                  <span>CSV</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportPDF}
+                  title="Generate official statutory PDF report"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-[4px] border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-semibold shadow-2xs transition cursor-pointer select-none"
+                >
+                  <FileDown className="w-3.5 h-3.5 text-slate-500" />
+                  <span>PDF</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Custom Date Pickers (only when Custom Range is active) */}
+          {timeframe === 'CUSTOM' && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2.5 border-t border-slate-100 text-xs animate-fadeIn">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+                <span className="font-semibold text-slate-600">Date Range:</span>
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-slate-500 font-medium text-[11px] shrink-0">From:</label>
+                    <input
+                      type="date"
+                      value={customFrom}
+                      onChange={(e) => setCustomFrom(e.target.value)}
+                      className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-[4px] text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-slate-500 font-medium text-[11px] shrink-0">To:</label>
+                    <input
+                      type="date"
+                      value={customTo}
+                      onChange={(e) => setCustomTo(e.target.value)}
+                      className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-[4px] text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                </div>
+                {(customFrom || customTo) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomFrom('');
+                      setCustomTo('');
+                    }}
+                    className="text-slate-400 hover:text-slate-600 p-1 text-xs cursor-pointer"
+                    title="Clear date inputs"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Quick Preset Buttons inside Custom Range */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] text-slate-400 font-medium mr-0.5">Quick Fill:</span>
                 <button
                   type="button"
                   onClick={() => {
-                    setTimeframe('ALL_TIME');
-                    setCustomFrom('');
-                    setCustomTo('');
+                    setCustomFrom(startOfMonthStr);
+                    setCustomTo(endOfMonthStr);
                   }}
-                  title="Reset timeframe"
-                  aria-label="Reset timeframe"
-                  className="hover:text-emerald-950 cursor-pointer"
+                  className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  This Month
                 </button>
-              </span>
-            )}
-            {selectedCategory !== 'ALL' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-900 text-[11px] font-medium border border-blue-200">
-                <span>Category: {selectedCategory.replace(/_/g, ' ')}</span>
                 <button
                   type="button"
-                  onClick={() => setSelectedCategory('ALL')}
-                  title="Reset category filter"
-                  aria-label="Reset category filter"
-                  className="hover:text-blue-950 cursor-pointer"
+                  onClick={() => {
+                    setCustomFrom(startOfLastMonthStr);
+                    setCustomTo(endOfLastMonthStr);
+                  }}
+                  className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  Last Month
                 </button>
-              </span>
-            )}
-            {selectedLocation !== 'ALL' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-900 text-[11px] font-medium border border-purple-200">
-                <span>Location: {locations.find((l) => l.id === selectedLocation)?.siteName || 'Store'}</span>
                 <button
                   type="button"
-                  onClick={() => setSelectedLocation('ALL')}
-                  title="Reset location filter"
-                  aria-label="Reset location filter"
-                  className="hover:text-purple-950 cursor-pointer"
+                  onClick={() => {
+                    setCustomFrom(startOfQuarterStr);
+                    setCustomTo(endOfQuarterStr);
+                  }}
+                  className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  This Quarter
                 </button>
-              </span>
-            )}
-          </div>
-        )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomFrom(startOfLastQuarterStr);
+                    setCustomTo(endOfLastQuarterStr);
+                  }}
+                  className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
+                >
+                  Last Quarter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomFrom(startOfYearStr);
+                    setCustomTo(endOfYearStr);
+                  }}
+                  className="px-2 py-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition cursor-pointer"
+                >
+                  This Year
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Active Filter Chips */}
+          {(timeframe !== 'ALL_TIME' || selectedCategory !== 'ALL' || selectedLocation !== 'ALL') && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
+              <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
+              {timeframe !== 'ALL_TIME' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-900 text-[11px] font-medium border border-emerald-200">
+                  <span>Period: {getTimeframeLabel()}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTimeframe('ALL_TIME');
+                      setCustomFrom('');
+                      setCustomTo('');
+                    }}
+                    title="Reset timeframe"
+                    aria-label="Reset timeframe"
+                    className="hover:text-emerald-950 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+              {selectedCategory !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-900 text-[11px] font-medium border border-blue-200">
+                  <span>Category: {selectedCategory.replace(/_/g, ' ')}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory('ALL')}
+                    title="Reset category filter"
+                    aria-label="Reset category filter"
+                    className="hover:text-blue-950 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+              {selectedLocation !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-900 text-[11px] font-medium border border-purple-200">
+                  <span>Location: {locations.find((l) => l.id === selectedLocation)?.siteName || 'Store'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedLocation('ALL')}
+                    title="Reset location filter"
+                    aria-label="Reset location filter"
+                    className="hover:text-purple-950 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-      {/* 2. Statutory Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 no-print">
-        {/* Card 1: Total Valuation */}
-        <div className="rounded-md border border-slate-200 bg-white p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08),0_1px_2px_rgba(16,24,40,0.04)] flex flex-col justify-between">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Valuation</span>
-          <div className="mt-2">
-            <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
-              {formatETB(totalValuation)}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Avg cost: <span className="font-mono font-semibold text-slate-700">{formatETB(avgCost)}</span> · {filteredItems.length} records
-            </p>
-          </div>
-        </div>
 
-        {/* Card 2: In Store */}
-        <div className="rounded-md border border-slate-200 bg-white p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08),0_1px_2px_rgba(16,24,40,0.04)] flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">In Store (Available)</span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[3px] bg-slate-100 text-slate-700 border border-slate-200">
-              {unitTotals.total > 0 ? Math.round((unitTotals.available / unitTotals.total) * 100) : 0}%
-            </span>
-          </div>
-          <div className="mt-2">
-            <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
-              {unitTotals.available.toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
-            </p>
-            <p className="mt-1 text-xs text-slate-500 truncate" title={"Valuation: " + formatETB(inStoreValuation)}>
-              Stock value: <span className="font-mono font-semibold text-slate-700">{formatETB(inStoreValuation)}</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Card 3: In Custody (Issued) */}
-        <div className="rounded-md border border-slate-200 bg-white p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08),0_1px_2px_rgba(16,24,40,0.04)] flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">In Custody (Issued)</span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[3px] bg-slate-100 text-slate-700 border border-slate-200">
-              {unitTotals.total > 0 ? Math.round((unitTotals.issued / unitTotals.total) * 100) : 0}%
-            </span>
-          </div>
-          <div className="mt-2">
-            <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
-              {unitTotals.issued.toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
-            </p>
-            <p className="mt-1 text-xs text-slate-500 truncate" title={"Valuation: " + formatETB(issuedValuation)}>
-              Field value: <span className="font-mono font-semibold text-slate-700">{formatETB(issuedValuation)}</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Card 4: Total Units Received */}
-        <div className="rounded-md border border-slate-200 bg-white p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08),0_1px_2px_rgba(16,24,40,0.04)] flex flex-col justify-between">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Received Units</span>
-          <div className="mt-2">
-            <p className="text-xl font-mono font-extrabold text-slate-900 tracking-tight">
-              {unitTotals.total.toLocaleString()} <span className="text-xs font-normal text-slate-500">units</span>
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Filtered: <span className="font-semibold text-slate-700">{getTimeframeLabel()}</span>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. The rows themselves */}
-      <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-        {/* Table Subheader showing active count and valuation */}
-        <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-800">{getReportTypeLabel()}</span>
-            <span className="text-slate-400">•</span>
-            <span className="text-slate-500">{getTimeframeLabel()}</span>
-            <span className="text-slate-400">•</span>
+      {/* ── Statutory Ledger Data Table Card ── */}
+      <div className="rounded-md bg-white border border-slate-200 overflow-hidden shadow-2xs">
+        {/* Authoritative Ledger Summary Subheader */}
+        <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-bold text-slate-900">{activeReportDef.fullName}</span>
+            <span className="text-slate-300">•</span>
+            <span className="text-slate-600 font-medium">{getTimeframeLabel()}</span>
+            <span className="text-slate-300">•</span>
             <span className="font-semibold text-emerald-800">
-              {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
+              {filteredItems.length} {filteredItems.length === 1 ? 'record' : 'records'}
+            </span>
+            <span className="text-slate-500 font-mono text-[11px]">
+              ({unitTotals.total} units: {unitTotals.available} in store, {unitTotals.issued} in custody)
             </span>
           </div>
+
           <div className="flex items-center gap-3">
-            <span className="text-[11px] text-slate-400 hidden sm:inline-flex items-center gap-1 font-mono">
-              ↔ Scrollable table
-            </span>
-            <div className="font-mono font-bold text-slate-800">
-              Total Value: <span className="text-emerald-700">{formatETB(totalValuation)}</span>
+            {viewChanged && (
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="text-xs font-semibold text-slate-500 hover:text-rose-700 transition cursor-pointer"
+              >
+                Clear all
+              </button>
+            )}
+            <div className="flex items-center gap-1.5 font-mono text-xs">
+              <span className="text-slate-500 text-[11px]">Total Valuation:</span>
+              <span className="font-bold text-slate-900 bg-white px-2.5 py-0.5 rounded border border-slate-200 shadow-2xs font-mono text-xs font-bold">
+                {formatETB(totalValuation)}
+              </span>
             </div>
           </div>
         </div>
-
-        {/* Data Table */}
+{/* Data Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px] min-w-[1140px]">
             <thead className={table.headRow}>
@@ -1208,12 +1177,13 @@ export const ReportsPage: React.FC = () => {
                   align="right"
                   thClassName="py-1.5 px-3 w-28 shrink-0 text-right whitespace-nowrap"
                 />
+                <th className="py-1.5 px-2 w-12 text-center shrink-0 font-normal no-print">Inspect</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-16 text-center text-slate-400 space-y-1">
+                  <td colSpan={13} className="py-16 text-center text-slate-400 space-y-1">
                     <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto" />
                     <p className="font-bold text-slate-700 text-sm">No Assets Found</p>
                     <p className="text-xs text-slate-400">
@@ -1228,7 +1198,12 @@ export const ReportsPage: React.FC = () => {
                   const isIssued = item.status === ItemStatus.ISSUED;
 
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition">
+                    <tr
+                      key={item.id}
+                      onClick={() => setSelectedItemId(item.id)}
+                      title="Click to view complete asset details and voucher history"
+                      className="hover:bg-slate-50/80 transition cursor-pointer select-none group"
+                    >
                       <td className="py-2 px-3 text-center text-slate-400 tabular-nums text-xs w-10 shrink-0">
                         {pager.from + idx}
                       </td>
@@ -1276,7 +1251,22 @@ export const ReportsPage: React.FC = () => {
                         {balanceOf(item).available}
                       </td>
                       <td className="py-2 px-3 tabular-nums text-slate-700 whitespace-nowrap w-32 shrink-0">
-                        {item.ifmisSlipNumber}
+                        {item.ifmisSlipAttachmentUrl ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewerSlipUrl(item.ifmisSlipAttachmentUrl!);
+                            }}
+                            title={`Preview or download attached voucher for slip ${item.ifmisSlipNumber}`}
+                            className="inline-flex items-center gap-1 font-mono text-emerald-800 hover:text-emerald-950 hover:underline cursor-pointer"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                            <span>{item.ifmisSlipNumber}</span>
+                          </button>
+                        ) : (
+                          <span className="font-mono">{item.ifmisSlipNumber}</span>
+                        )}
                       </td>
                       <td className="py-2 px-3 tabular-nums text-slate-600 whitespace-nowrap w-28 shrink-0">
                         {item.ifmisSlipDateEc || item.createdAtEc}
@@ -1328,6 +1318,20 @@ export const ReportsPage: React.FC = () => {
                         <div className="text-[11px] text-slate-500 font-mono">
                           {formatETB(item.unitCostETB)} <span className="text-slate-400">/ {item.uom || "EA"}</span>
                         </div>
+                      </td>
+                      <td className="py-2 px-2 text-center whitespace-nowrap w-12 shrink-0 no-print">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedItemId(item.id);
+                          }}
+                          title="View complete record and vouchers"
+                          className="p-1 rounded hover:bg-slate-200/80 text-slate-400 hover:text-slate-800 transition cursor-pointer"
+                          aria-label={`View details for ${item.itemCode}`}
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -1383,6 +1387,22 @@ export const ReportsPage: React.FC = () => {
         </p>
       </div>
 
+
+      {/* ── Asset Detail Modal (Full specs, approval timeline, custody and vouchers) ── */}
+      {selectedItemId && (
+        <RecordDetailModal
+          itemId={selectedItemId}
+          onClose={() => setSelectedItemId(null)}
+        />
+      )}
+
+      {/* ── Slip Document Viewer Modal (Preview and direct download of PDF/image) ── */}
+      {viewerSlipUrl && (
+        <SlipViewerModal
+          url={viewerSlipUrl}
+          onClose={() => setViewerSlipUrl(null)}
+        />
+      )}
     </div>
   );
 };
