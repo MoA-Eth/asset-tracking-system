@@ -144,7 +144,7 @@ const StatTile: React.FC<{
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
-    <div className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 truncate">{value}</div>
+    <div className="mt-3 text-xl sm:text-2xl xl:text-3xl font-bold tracking-tight text-slate-900">{value}</div>
     <div className="mt-auto space-y-1.5 pt-3">
       {meterPct !== undefined && <Meter pct={meterPct} />}
       {splitBar && (
