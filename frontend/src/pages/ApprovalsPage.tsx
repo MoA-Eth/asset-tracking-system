@@ -654,7 +654,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-between sm:justify-end">
             <FilterPopover
               label="Filter"
               ariaLabel="Filter approval requests"
@@ -721,7 +721,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         </div>
 
         {/* Row 2: Queue Tabs (Quick Access Segmented Navigation) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-100">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-100 no-scrollbar touch-pan-x -mx-1 px-1">
           {visibleQueueTabsList.map((tab) => (
             <button
               key={tab.id}

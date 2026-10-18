@@ -1177,7 +1177,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1 max-w-md">
+            <div className="relative flex-1 w-full sm:max-w-md">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
@@ -1189,7 +1189,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               />
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
               {/* Reusable Filter Popover */}
               <FilterPopover
                 label="Filter"

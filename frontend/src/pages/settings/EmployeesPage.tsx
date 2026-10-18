@@ -409,19 +409,19 @@ export const EmployeesPage: React.FC = () => {
           {/* Table Card Header: Search + Filter on left, Action buttons on right */}
           <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-1 items-center gap-2 max-w-lg min-w-0">
-                <div className="relative flex-1 min-w-0">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    id="employee-search"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search by name, employee ID, unit or job title…"
-                    aria-label="Search employees"
-                    className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
-                  />
-                </div>
+              <div className="relative flex-1 w-full sm:max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  id="employee-search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by name, employee ID, unit or job title…"
+                  aria-label="Search employees"
+                  className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
+                />
+              </div>
 
+              <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
                 {/* Reusable Filter Popover */}
                 <FilterPopover
                   label="Filter"
@@ -470,9 +470,7 @@ export const EmployeesPage: React.FC = () => {
                     />
                   </FilterSection>
                 </FilterPopover>
-              </div>
 
-              <div className="flex items-center gap-2 shrink-0">
                 {canManage && (
                   <>
                     <button

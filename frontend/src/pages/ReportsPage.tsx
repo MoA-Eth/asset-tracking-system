@@ -699,7 +699,7 @@ export const ReportsPage: React.FC = () => {
           </div>
 
           {/* Action Group: Filter + Export CSV + Export PDF + Print */}
-          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto shrink-0 justify-end">
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto shrink-0 justify-between sm:justify-end">
             <FilterPopover
               label="Filter"
               ariaLabel="Filter report records"
@@ -849,26 +849,28 @@ export const ReportsPage: React.FC = () => {
         </div>
         {/* Custom Date Pickers (only when Custom Range is active) */}
         {timeframe === 'CUSTOM' && (
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-slate-100 text-xs animate-fadeIn">
-            <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2.5 border-t border-slate-100 text-xs animate-fadeIn">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
               <span className="font-semibold text-slate-600">Date Range:</span>
-              <div className="flex items-center gap-1.5">
-                <label className="text-slate-500 font-medium">From:</label>
-                <input
-                  type="date"
-                  value={customFrom}
-                  onChange={(e) => setCustomFrom(e.target.value)}
-                  className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-[4px] text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
-                />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <label className="text-slate-500 font-medium">To:</label>
-                <input
-                  type="date"
-                  value={customTo}
-                  onChange={(e) => setCustomTo(e.target.value)}
-                  className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-[4px] text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
-                />
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-slate-500 font-medium text-[11px] shrink-0">From:</label>
+                  <input
+                    type="date"
+                    value={customFrom}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-[4px] text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-slate-500 font-medium text-[11px] shrink-0">To:</label>
+                  <input
+                    type="date"
+                    value={customTo}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-[4px] text-xs font-mono text-slate-800 focus:outline-none focus:bg-white"
+                  />
+                </div>
               </div>
               {(customFrom || customTo) && (
                 <button
@@ -942,7 +944,7 @@ export const ReportsPage: React.FC = () => {
         )}
 
         {/* Row 2: Report Type Filter Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
+        <div className="flex items-center sm:flex-wrap gap-1.5 pt-2 border-t border-slate-100 overflow-x-auto pb-1 no-scrollbar touch-pan-x -mx-1 px-1">
           {reportTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = reportType === tab.id;

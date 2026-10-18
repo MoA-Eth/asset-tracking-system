@@ -226,8 +226,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
         {/* Table Card Header: Search + Filter on left, Action buttons on right */}
         <div className="border-b border-slate-200 px-3.5 py-2.5">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-1 items-center gap-2 max-w-lg min-w-0">
-              <div className="relative flex-1 min-w-0">
+            <div className="relative flex-1 w-full sm:max-w-md">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
@@ -237,8 +236,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
                 />
-              </div>
+            </div>
 
+            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
               <FilterPopover
                 label="Filter"
                 ariaLabel="Filter users"
@@ -278,9 +278,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                   />
                 </FilterSection>
               </FilterPopover>
-            </div>
 
-            <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setAdding(true)}
