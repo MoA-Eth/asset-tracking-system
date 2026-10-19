@@ -9,7 +9,7 @@ import { AssetCategory, ProvisionType, ItemType, ItemStatus, ItemCondition, Item
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
 import { recallForm, rememberForm } from '../../utils/form-memory';
-import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
+import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
 import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
 import { ReceiptItems, SlipLine, ItemTypeTag, lineMissing, blankLine, cellClass, money } from './SlipLines';
@@ -802,7 +802,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           accent="emerald"
           required={false}
           fileName={ifmisFile?.name ?? ''}
-          accept={SLIP_ACCEPT_ATTR}
+          accept={SLIP_PDF_ACCEPT_ATTR}
           onChange={handleSlipSelected}
           file={ifmisFile}
           emptyText="Click to choose the Model 19 PDF saved from IFMIS"

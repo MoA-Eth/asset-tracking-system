@@ -10,6 +10,13 @@ describe('slip-upload helpers', () => {
       expect(validateSlipFile(makeFile('slip', type))).toBeNull();
     });
 
+    it('accepts files with extension when mobile browsers omit or vary MIME type', () => {
+      expect(validateSlipFile(makeFile('model19.pdf', ''))).toBeNull();
+      expect(validateSlipFile(makeFile('model19.pdf', 'application/x-pdf'))).toBeNull();
+      expect(validateSlipFile(makeFile('scan.jpg', ''))).toBeNull();
+      expect(validateSlipFile(makeFile('scan.png', 'application/octet-stream'))).toBeNull();
+    });
+
     it('rejects unsupported types', () => {
       expect(validateSlipFile(makeFile('slip.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'))).toMatch(/Only PDF/);
       expect(validateSlipFile(makeFile('slip.svg', 'image/svg+xml'))).toMatch(/Only PDF/);
