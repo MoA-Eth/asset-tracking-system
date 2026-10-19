@@ -15,4 +15,13 @@ describe('rate-limiter middleware', () => {
     await apiRateLimiter(req, res, next);
     expect(next).toHaveBeenCalled();
   });
+
+  it('passes authentication requests through without network IP lockout', async () => {
+    const req: any = { path: '/api/auth/login', headers: {}, ip: '127.0.0.1' };
+    const res: any = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() };
+    const next = vi.fn();
+
+    await authRateLimiter(req, res, next);
+    expect(next).toHaveBeenCalled();
+  });
 });

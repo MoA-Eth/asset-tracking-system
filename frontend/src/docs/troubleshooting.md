@@ -7,7 +7,6 @@
 | **The email / employee ID or password is not correct.** | Check both. You can type your employee ID instead of an email. Ask your administrator if you are not sure of your password. |
 | **Too many failed sign-in attempts. Try again in N minutes.** | Five wrong tries on one account block it for 15 minutes. Wait, then try again with the right password. |
 | **Too many requests from this network address. Please slow down...** | Global network rate limiter (300 requests/minute). Wait 60 seconds before making further requests. |
-| **Too many authentication attempts from this network address.** | Authentication rate limiter (30 attempts/15 minutes). Wait 15 minutes before attempting to sign in or reset passwords again. |
 | **Forgot password / self-service reset** | On the login screen, click "Forgot or need to change password?" and provide your Payroll ID and official email address to securely reset your password. |
 | **This employee has no system access.** | You are on the staff register but have no role. Ask your System Administrator for one. |
 | **This account has been deactivated.** | Contact your System Administrator. |
