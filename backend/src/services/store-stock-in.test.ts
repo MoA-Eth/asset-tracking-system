@@ -288,7 +288,7 @@ describe('StoreService.registerStockIn approval gate', () => {
     const call1Meta = JSON.parse(db.item.create.mock.calls[0][0].data.notes);
     expect(call1Meta.vatApplicable).toBe(true);
     expect(call1Meta.additionalCharges).toBe(0);
-    expect(call1Meta.totalAmount).toBe(10000); // 5000 * 2 + 0
+    expect(call1Meta.totalAmount).toBe(11500); // 5000 * 2 * 1.15 = 11,500
 
     db.item.create.mockClear();
 

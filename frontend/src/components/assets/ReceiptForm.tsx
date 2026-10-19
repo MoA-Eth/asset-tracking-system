@@ -182,10 +182,16 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   }, [fixedOne, quantity]);
   // What the slip's first line said, to warn when it lists several of a fixed asset
   const [slipQuantity, setSlipQuantity] = useState(0);
-  const totalAmount = donation ? 0 : ((Number(quantity) || 0) * (Number(unitCostETB) || 0)) + (vatApplicable ? 0 : (Number(additionalCharges) || 0));
+  const base1 = (Number(quantity) || 0) * (Number(unitCostETB) || 0);
+  const vat1 = vatApplicable ? Math.round(base1 * 0.15 * 100) / 100 : 0;
+  const totalAmount = donation ? 0 : base1 + (vatApplicable ? vat1 : (Number(additionalCharges) || 0));
   // The other item lines of a Model 19 read from its PDF: each is registered as its own record on submit
   const [extraLines, setExtraLines] = useState<SlipLine[]>([]);
-  const extraTotal = donation ? 0 : extraLines.reduce((sum, l) => sum + ((l.quantity || 0) * (l.unitPrice || 0)) + (l.vatApplicable ? 0 : (Number(l.additionalCharges) || 0)), 0);
+  const extraTotal = donation ? 0 : extraLines.reduce((sum, l) => {
+    const base = (l.quantity || 0) * (l.unitPrice || 0);
+    const vat = l.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+    return sum + base + (l.vatApplicable ? vat : (Number(l.additionalCharges) || 0));
+  }, 0);
 
   // Required fields still empty; the receipt can only be submitted once this is empty
   const missingFields = [
@@ -582,7 +588,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         printedPadFrom: printedPadFrom.trim() || undefined,
         printedPadTo: printedPadTo.trim() || undefined,
         quantity: effectiveQty,
-        totalAmount: donation ? 0 : (effectiveQty * effectiveUnitCost) + (vatApplicable ? 0 : Number(additionalCharges) || 0),
+        totalAmount: donation ? 0 : (() => {
+          const base = effectiveQty * effectiveUnitCost;
+          const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+          return base + (vatApplicable ? vat : Number(additionalCharges) || 0);
+        })(),
         vatApplicable,
         additionalCharges: vatApplicable ? 0 : Number(additionalCharges) || 0,
         remark: remark.trim() || undefined,
@@ -597,7 +607,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
         subInventory: l.subInventory?.trim() || undefined,
         quantity: l.quantity,
-        totalAmount: donation ? 0 : (l.quantity * l.unitPrice) + (l.vatApplicable ? 0 : Number(l.additionalCharges) || 0),
+        totalAmount: donation ? 0 : (() => {
+          const base = l.quantity * l.unitPrice;
+          const vat = l.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+          return base + (l.vatApplicable ? vat : Number(l.additionalCharges) || 0);
+        })(),
         vatApplicable: Boolean(l.vatApplicable),
         additionalCharges: l.vatApplicable ? 0 : Number(l.additionalCharges) || 0,
       }))];

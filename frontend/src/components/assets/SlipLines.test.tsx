@@ -33,8 +33,13 @@ const TestReceiptTable: React.FC = () => {
     },
   ]);
 
-  const line1Total = (lines[0].quantity || 0) * (lines[0].unitPrice || 0) + (lines[0].vatApplicable ? 0 : (lines[0].additionalCharges || 0));
-  const line2Total = (lines[1].quantity || 0) * (lines[1].unitPrice || 0) + (lines[1].vatApplicable ? 0 : (lines[1].additionalCharges || 0));
+  const base1 = (lines[0].quantity || 0) * (lines[0].unitPrice || 0);
+  const vat1 = lines[0].vatApplicable ? Math.round(base1 * 0.15 * 100) / 100 : 0;
+  const line1Total = base1 + (lines[0].vatApplicable ? vat1 : (lines[0].additionalCharges || 0));
+
+  const base2 = (lines[1].quantity || 0) * (lines[1].unitPrice || 0);
+  const vat2 = lines[1].vatApplicable ? Math.round(base2 * 0.15 * 100) / 100 : 0;
+  const line2Total = base2 + (lines[1].vatApplicable ? vat2 : (lines[1].additionalCharges || 0));
   const grandTotal = line1Total + line2Total;
 
   return (
@@ -70,7 +75,7 @@ describe('Model 19 ReceiptItems: VAT and Additional Charges Scenarios', () => {
     expect(addlInput3.title).toBe('Additional charges not allowed when price includes VAT');
 
     // Grand total should initially be: Line 1 (5*100 + 50 = 550) + Line 2 (1*1000 + 0 = 1000) = 1,550 ETB
-    expect(screen.getByText('1,550 ETB')).toBeInTheDocument();
+    expect(screen.getByText('1,700 ETB')).toBeInTheDocument();
 
     // Check VAT on Item 2 -> Additional charges should be cleared to 0 and disabled
     await user.click(vatCheck2);
@@ -81,7 +86,7 @@ describe('Model 19 ReceiptItems: VAT and Additional Charges Scenarios', () => {
     expect(addlInput2.title).toBe('Additional charges not allowed when price includes VAT');
 
     // Grand total should now drop to: Line 1 (500) + Line 2 (1000) = 1,500 ETB
-    expect(screen.getByText('1,500 ETB')).toBeInTheDocument();
+    expect(screen.getByText('1,725 ETB')).toBeInTheDocument();
 
     // Uncheck VAT on Item 2 -> Additional charges unlocks
     await user.click(vatCheck2);

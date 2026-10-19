@@ -856,7 +856,11 @@ export class StoreService {
           printedPadFrom: payload.printedPadFrom,
           printedPadTo: payload.printedPadTo,
           quantity: payload.quantity ?? 1,
-          totalAmount: payload.totalAmount || ((payload.unitCostETB * (payload.quantity || 1)) + (payload.vatApplicable ? 0 : (Number(payload.additionalCharges) || 0))),
+          totalAmount: payload.totalAmount || (() => {
+            const base = (payload.unitCostETB || 0) * (payload.quantity || 1);
+            const vat = payload.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+            return base + (payload.vatApplicable ? vat : (Number(payload.additionalCharges) || 0));
+          })(),
           vatApplicable: Boolean(payload.vatApplicable),
           additionalCharges: payload.vatApplicable ? 0 : (Number(payload.additionalCharges) || 0),
           remark: payload.remark,
@@ -916,8 +920,10 @@ export class StoreService {
       const serialNumber = String(lineItem.serialNumber ?? '').trim() || (rawItems.length > 1 ? `SN-${Date.now()}-${i + 1}` : `SN-${Date.now()}`);
       const unitCost = Number(lineItem.unitCostETB) || 0;
       const quantity = Number(lineItem.quantity) || 1;
+      const baseAmount = unitCost * quantity;
+      const vatAmount = lineItem.vatApplicable ? Math.round(baseAmount * 0.15 * 100) / 100 : 0;
       const addlCharges = lineItem.vatApplicable ? 0 : (Number(lineItem.additionalCharges) || 0);
-      const totalAmount = Number(lineItem.totalAmount) || ((unitCost * quantity) + addlCharges);
+      const totalAmount = Number(lineItem.totalAmount) || (baseAmount + (lineItem.vatApplicable ? vatAmount : addlCharges));
 
       const model19Meta = {
         provisionType: donation ? 'DONATION' : 'PURCHASE',
@@ -1080,7 +1086,9 @@ export class StoreService {
     const remark = payload.remark?.trim() || undefined;
     const vatApplicable = donation ? false : (payload.vatApplicable !== undefined ? Boolean(payload.vatApplicable) : Boolean(previousMeta.vatApplicable));
     const addlCharges = donation || vatApplicable ? 0 : (payload.additionalCharges !== undefined ? (Number(payload.additionalCharges) || 0) : (Number(previousMeta.additionalCharges) || 0));
-    const totalAmount = donation ? 0 : ((unitCost * quantity) + addlCharges);
+    const baseAmount = unitCost * quantity;
+    const vatAmount = vatApplicable ? Math.round(baseAmount * 0.15 * 100) / 100 : 0;
+    const totalAmount = donation ? 0 : (baseAmount + (vatApplicable ? vatAmount : addlCharges));
     const meta = {
       ...previousMeta,
       provisionType: donation ? 'DONATION' : 'PURCHASE',

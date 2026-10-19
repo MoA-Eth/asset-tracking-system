@@ -129,6 +129,9 @@ export const ReceiptItems: React.FC<{
             {first}
             {lines.map((l, i) => {
               const n = i + 2;
+              const lineBase = (l.quantity || 0) * (l.unitPrice || 0);
+              const lineVat = l.vatApplicable ? Math.round(lineBase * 0.15 * 100) / 100 : 0;
+              const lineTotal = donation ? 0 : lineBase + (l.vatApplicable ? lineVat : (l.additionalCharges || 0));
               return (
                 <tr key={l.key} className="align-top">
                   <td className="px-2 py-1.5 pt-3.5 font-mono text-slate-500">{n}</td>
@@ -220,7 +223,7 @@ export const ReceiptItems: React.FC<{
                   )}
                   {!donation && (
                     <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">
-                      {money((l.quantity || 0) * (l.unitPrice || 0) + (l.vatApplicable ? 0 : (l.additionalCharges || 0)))}
+                      {money(lineTotal)}
                     </td>
                   )}
                   <td className="px-1 py-1.5 pt-3">
