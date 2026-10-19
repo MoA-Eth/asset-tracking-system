@@ -508,7 +508,7 @@ export function findField(form: HTMLElement, field: string, given: Record<string
   return named.find(([name]) => name.endsWith(` ${want}`))?.[1] ?? null;
 }
 
-export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, missingFields = [], note: customNote, fieldTargets: _fieldTargets, allowIncomplete = true }) => {
+export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, missingFields = [], note: customNote, fieldTargets, allowIncomplete = true }) => {
   const note = customNote;
   const shown: string[] = [];
   const footer = useRef<HTMLDivElement>(null);
