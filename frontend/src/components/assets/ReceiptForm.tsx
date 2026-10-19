@@ -789,7 +789,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           value={uom}
           onChange={(e) => setUom(e.target.value.toUpperCase())}
           onBlur={fieldErrors.touch('uom')}
-          className={`${cellClass({ mono: true, invalid: !!fieldErrors.error('uom') })} uppercase`}
+          className={`${cellClass({ align: 'center', mono: true, invalid: !!fieldErrors.error('uom') })} uppercase`}
         />
       </td>
       <td className="px-3 py-2.5">
@@ -801,7 +801,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           onChange={setQuantity}
           disabled={fixedOne}
           title={fixedOne ? 'A fixed asset is one item' : undefined}
-          className={cellClass({ align: 'right', mono: true })}
+          className={cellClass({ align: 'center', mono: true })}
         />
       </td>
       {!donation && (
@@ -815,7 +815,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             onBlur={fieldErrors.touch('unitCost')}
             invalid={!!fieldErrors.error('unitCost')}
             placeholder="0.00"
-            inputClassName="!h-9 !px-2.5 !text-xs font-medium"
+            inputClassName="!h-9 !px-2.5 !text-xs font-medium !rounded-md"
           />
         </td>
       )}
@@ -860,7 +860,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             onChange={setAdditionalCharges}
             placeholder="0.00"
             title={vatApplicable ? 'Additional charges not allowed when price includes VAT' : undefined}
-            inputClassName={`!h-9 !px-2.5 !text-xs ${vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
+            inputClassName={`!h-9 !px-2.5 !text-xs !rounded-md ${vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
           />
         </td>
       )}
@@ -869,7 +869,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           {money(totalAmount)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
         </td>
       )}
-      <td />
+      <td className="px-2 py-2.5 text-center" />
     </tr>
   );
 

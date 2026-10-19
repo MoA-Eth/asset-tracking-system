@@ -139,7 +139,7 @@ export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, onBlur,
   const [text, setText] = useState('');
   const shown = focused ? text : value ? formatMoneyValue(value) : '';
   return (
-    <div className="relative" title={title}>
+    <div className="relative w-full" title={title}>
       <input
         id={id}
         type="text"

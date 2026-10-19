@@ -98,7 +98,7 @@ export const ItemTypeTag: React.FC<{
 };
 
 /** A compact input for a table cell */
-export const cellClass = (opts?: { align?: 'right'; invalid?: boolean; mono?: boolean }) => `${inputClass('emerald', opts)} !px-2.5`;
+export const cellClass = (opts?: { align?: 'left' | 'right' | 'center'; invalid?: boolean; mono?: boolean }) => `${inputClass('emerald', opts)} !h-9 !px-2.5 !text-xs !rounded-md`;
 
 export const money = (n: number) => {
   const decimals = (String(n).split('.')[1] || '').length;
@@ -139,20 +139,33 @@ export const ReceiptItems: React.FC<{
   return (
     <div className="overflow-hidden rounded-md border border-slate-200">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1340px] text-left text-xs">
+        <table className="w-full min-w-[1260px] text-xs table-fixed">
+          <colgroup>
+            <col style={{ width: '44px' }} />
+            <col style={{ width: 'auto' }} />
+            <col style={{ width: '220px' }} />
+            <col style={{ width: '160px' }} />
+            <col style={{ width: '80px' }} />
+            <col style={{ width: '80px' }} />
+            {!donation && <col style={{ width: '120px' }} />}
+            {!donation && <col style={{ width: '90px' }} />}
+            {!donation && <col style={{ width: '120px' }} />}
+            {!donation && <col style={{ width: '120px' }} />}
+            <col style={{ width: '40px' }} />
+          </colgroup>
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr className="text-xs font-semibold text-slate-600">
-              <th className="px-3 py-2.5 w-10 text-center">#</th>
-              <th className="px-3 py-2.5 min-w-[240px]">Item description</th>
-              <th className="px-3 py-2.5 w-56">IFMIS code</th>
-              <th className="px-3 py-2.5 w-44">Category</th>
-              <th className="px-3 py-2.5 w-24">Unit</th>
-              <th className="px-3 py-2.5 w-24 text-right">Qty</th>
-              {!donation && <th className="px-3 py-2.5 w-32 text-right">Unit price</th>}
-              {!donation && <th className="px-3 py-2.5 w-28 text-center" title="15% VAT auto-calculated">VAT (15%)</th>}
-              {!donation && <th className="px-3 py-2.5 w-32 text-right">Addl charges</th>}
-              {!donation && <th className="px-3 py-2.5 w-36 text-right">Total</th>}
-              <th className="px-2 py-2.5 w-10" />
+              <th className="px-2 py-2.5 text-center">#</th>
+              <th className="px-3 py-2.5 text-left">Item description</th>
+              <th className="px-3 py-2.5 text-left">IFMIS code</th>
+              <th className="px-3 py-2.5 text-left">Category</th>
+              <th className="px-2 py-2.5 text-center">Unit</th>
+              <th className="px-2 py-2.5 text-center">Qty</th>
+              {!donation && <th className="pl-3 pr-8 py-2.5 text-right">Unit price</th>}
+              {!donation && <th className="px-2 py-2.5 text-center" title="15% VAT auto-calculated">VAT (15%)</th>}
+              {!donation && <th className="px-3 py-2.5 text-right">Addl charges</th>}
+              {!donation && <th className="px-3 py-2.5 text-right">Total</th>}
+              <th className="px-2 py-2.5 text-center" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -219,7 +232,7 @@ export const ReceiptItems: React.FC<{
                       placeholder="EA"
                       value={l.uom}
                       onChange={(e) => set(l.key, { uom: e.target.value.toUpperCase() })}
-                      className={`${cellClass({ mono: true, invalid: !l.uom.trim() })} uppercase`}
+                      className={`${cellClass({ align: 'center', mono: true, invalid: !l.uom.trim() })} uppercase`}
                     />
                   </td>
                   <td className="px-3 py-2.5">
@@ -235,7 +248,7 @@ export const ReceiptItems: React.FC<{
                         if (parts.length > 2) clean = parts[0] + '.' + parts.slice(1).join('');
                         set(l.key, { quantity: clean === '' ? 0 : parseFloat(clean) || 0 });
                       }}
-                      className={cellClass({ align: 'right', mono: true, invalid: !(l.quantity > 0) })}
+                      className={cellClass({ align: 'center', mono: true, invalid: !(l.quantity > 0) })}
                     />
                   </td>
                   {!donation && (
@@ -247,7 +260,7 @@ export const ReceiptItems: React.FC<{
                         onChange={(v) => set(l.key, { unitPrice: v })}
                         invalid={!(l.unitPrice > 0)}
                         placeholder="0.00"
-                        inputClassName="!h-9 !px-2.5 !text-xs font-medium"
+                        inputClassName="!h-9 !px-2.5 !text-xs font-medium !rounded-md"
                       />
                     </td>
                   )}
@@ -291,7 +304,7 @@ export const ReceiptItems: React.FC<{
                         onChange={(v) => set(l.key, { additionalCharges: v })}
                         placeholder="0.00"
                         title={l.vatApplicable ? 'Additional charges not allowed when price includes VAT' : undefined}
-                        inputClassName={`!h-9 !px-2.5 !text-xs ${l.vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
+                        inputClassName={`!h-9 !px-2.5 !text-xs !rounded-md ${l.vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
                       />
                     </td>
                   )}
