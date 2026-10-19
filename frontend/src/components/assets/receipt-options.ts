@@ -23,12 +23,13 @@ export const CATEGORY_FROM_IFMIS: [RegExp, AssetCategory][] = [
  * Any other code gives no type, so nothing is registered with a guessed one.
  */
 export function itemTypeFromIfmisCode(code?: string): ItemType | undefined {
-  const first = code?.trim()[0];
-  return first === '1' ? ItemType.CONSUMABLE : first === '0' ? ItemType.FIXED : undefined;
+  const trimmed = code?.trim();
+  if (!trimmed) return undefined;
+  return trimmed.startsWith('1') ? ItemType.CONSUMABLE : ItemType.FIXED;
 }
 
-/** What a code that gives no item type should say */
-export const ITEM_CODE_RULE = 'An IFMIS item code starts with 1 (consumable) or 0 (fixed asset).';
+/** What a code gives as default item type */
+export const ITEM_CODE_RULE = 'Codes starting with 1 default to consumable; other codes default to fixed asset.';
 
 export const COMMON_UOMS = ['EA', 'PKT', 'SET', 'ROLL', 'PCS', 'BOX', 'BAG', 'KG', 'LTR', 'CAN', 'BOTTLE'];
 export const COMMON_CATEGORIES = [

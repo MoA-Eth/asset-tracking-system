@@ -137,7 +137,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   // The IFMIS item code decides fixed asset or consumable (1… consumable, 0… fixed); nobody picks it by hand
   const changeIfmisCode = (value: string) => {
     setIfmisItemCode(value);
-    setItemType(itemTypeFromIfmisCode(value) ?? '');
+    setItemType(itemTypeFromIfmisCode(value) ?? (value.trim() ? ItemType.FIXED : ''));
   };
   const changeBuyer = (value: string) => {
     setBuyer(value);
@@ -204,7 +204,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !name.trim() && 'item description',
     !ifmisItemCode.trim() && !(isEdit && itemType) && 'IFMIS item code',
     !category && 'category',
-    !!ifmisItemCode.trim() && !itemType && 'item code starting with 0 or 1',
+    !itemType && 'item type',
     !(quantity > 0) && 'quantity',
     !uom.trim() && 'unit of measure',
     !donation && !(unitCostETB > 0) && 'unit price',
@@ -223,7 +223,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     source: !donation && !source.trim() && 'Enter the supplier or vendor.',
     itemName: !name.trim() && 'Describe the item received.',
     category: !category && 'Choose the category.',
-    itemType: !itemType && (ifmisItemCode.trim() ? ITEM_CODE_RULE : 'Enter the IFMIS item code from the Model 19.'),
+    itemType: !itemType && 'Enter the IFMIS item code from the Model 19.',
     uom: !uom.trim() && 'Enter the unit of measure, e.g. EA or KG.',
     unitCost: !donation && !(unitCostETB > 0) && 'Enter the unit price.',
   });
@@ -763,7 +763,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             onBlur={fieldErrors.touch('itemType')}
             className={cellClass({ mono: true, invalid: !!fieldErrors.error('itemType') })}
           />
-          <ItemTypeTag type={itemType} code={ifmisItemCode} label="Item type" />
+          <ItemTypeTag
+            type={itemType}
+            code={ifmisItemCode}
+            label="Item type"
+            onToggle={() =>
+              setItemType(itemType === ItemType.CONSUMABLE ? ItemType.FIXED : ItemType.CONSUMABLE)
+            }
+          />
         </div>
       </td>
       <td className="px-3 py-2.5">
@@ -967,7 +974,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
       <Part
         title={`Items (${extraLines.length + 1})`}
-        aside={<span className="text-[11px] text-slate-500">{ITEM_CODE_RULE} A fixed asset is one item.</span>}
+        aside={<span className="text-[11px] text-slate-500">{ITEM_CODE_RULE} A fixed asset is one item. Click the badge to toggle type if needed.</span>}
       >
         <ReceiptItems
           first={firstRow}

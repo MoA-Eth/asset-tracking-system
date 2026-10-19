@@ -49,25 +49,49 @@ export const lineMissing = (l: SlipLine, donation = false): string[] =>
     !l.name.trim() && 'description',
     !l.category && 'category',
     !l.ifmisCode?.trim() && 'item code',
-    !!l.ifmisCode?.trim() && !l.itemType && 'item code starting with 0 or 1',
+    !l.itemType && 'item type',
     !l.uom.trim() && 'unit',
     !(Number.isFinite(l.quantity) && l.quantity > 0) && 'quantity',
     !donation && !(l.unitPrice > 0) && 'unit price',
   ].filter(Boolean) as string[];
 
-/** Fixed asset or consumable, as the item code says: shown, never chosen */
-export const ItemTypeTag: React.FC<{ type: ItemType | ''; code?: string; label?: string }> = ({ type, code, label }) => {
-  // Nothing to say until a code is typed: no empty badge taking room in the row
+/** Fixed asset or consumable, as the item code says: shown as a badge, clickable to toggle */
+export const ItemTypeTag: React.FC<{
+  type: ItemType | '';
+  code?: string;
+  label?: string;
+  onToggle?: () => void;
+}> = ({ type, code, label, onToggle }) => {
+  // Nothing to say until a code is typed or type is set
   if (!type && !code?.trim()) return null;
-  const text = type === ItemType.FIXED ? 'Fixed asset' : type === ItemType.CONSUMABLE ? 'Consumable' : 'Check the code';
+  const text = type === ItemType.FIXED ? 'Fixed asset' : type === ItemType.CONSUMABLE ? 'Consumable' : 'Fixed asset';
   const tone =
     type === ItemType.FIXED
-      ? 'border-sky-200 bg-sky-50 text-sky-800'
+      ? 'border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100/80'
       : type === ItemType.CONSUMABLE
-        ? 'border-violet-200 bg-violet-50 text-violet-800'
-        : 'border-rose-200 bg-rose-50 text-rose-700';
+        ? 'border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100/80'
+        : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100/80';
+
+  const title = onToggle
+    ? `${text} · Click to switch to ${type === ItemType.FIXED ? 'consumable' : 'fixed asset'}`
+    : ITEM_CODE_RULE;
+
+  if (onToggle) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={label}
+        title={title}
+        className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-semibold transition-all active:scale-95 cursor-pointer select-none ${tone}`}
+      >
+        {text}
+      </button>
+    );
+  }
+
   return (
-    <span aria-label={label} title={ITEM_CODE_RULE} className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${tone}`}>
+    <span aria-label={label} title={title} className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${tone}`}>
       {text}
     </span>
   );
@@ -104,8 +128,10 @@ export const ReceiptItems: React.FC<{
       lines.map((l) => {
         if (l.key !== key) return l;
         const next = { ...l, ...patch };
-        // The item code decides fixed asset or consumable
-        if ('ifmisCode' in patch) next.itemType = itemTypeFromIfmisCode(next.ifmisCode) ?? '';
+        // The item code decides fixed asset or consumable if itemType was not explicitly provided
+        if ('ifmisCode' in patch && !('itemType' in patch)) {
+          next.itemType = itemTypeFromIfmisCode(next.ifmisCode) ?? (next.ifmisCode?.trim() ? ItemType.FIXED : '');
+        }
         return oneIfFixed(next);
       }),
     );
@@ -161,7 +187,16 @@ export const ReceiptItems: React.FC<{
                         onChange={(e) => set(l.key, { ifmisCode: e.target.value })}
                         className={cellClass({ mono: true, invalid: !l.ifmisCode?.trim() || !l.itemType })}
                       />
-                      <ItemTypeTag type={l.itemType} code={l.ifmisCode} label={`Item ${n} item type`} />
+                      <ItemTypeTag
+                        type={l.itemType}
+                        code={l.ifmisCode}
+                        label={`Item ${n} item type`}
+                        onToggle={() =>
+                          set(l.key, {
+                            itemType: l.itemType === ItemType.CONSUMABLE ? ItemType.FIXED : ItemType.CONSUMABLE,
+                          })
+                        }
+                      />
                     </div>
                   </td>
                   <td className="px-3 py-2.5">

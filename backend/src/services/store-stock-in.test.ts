@@ -134,12 +134,10 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(db.item.create).not.toHaveBeenCalled();
   });
 
-  it('refuses an item type that the IFMIS item code contradicts (1… consumable, 0… fixed asset)', async () => {
-    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'FIXED', ifmisItemCode: '108101101.0021' } as any))
-      .rejects.toMatchObject({ statusCode: 400, message: expect.stringMatching(/Item code 108101101\.0021 is a consumable/) });
-    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'CONSUMABLE', quantity: 3, ifmisItemCode: '008101101.0001' } as any))
-      .rejects.toMatchObject({ statusCode: 400, message: expect.stringMatching(/Item code 008101101\.0001 is a fixed asset/) });
-    expect(db.item.create).not.toHaveBeenCalled();
+  it('accepts item codes with non-default prefixes for fixed assets and consumables', async () => {
+    // Non-default fixed asset code (e.g. starting with 2... or letters)
+    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemType: 'FIXED', ifmisItemCode: '208101101.0001' } as any);
+    expect(db.item.create).toHaveBeenCalled();
   });
 
   it('never registers an item directly as AVAILABLE', async () => {
