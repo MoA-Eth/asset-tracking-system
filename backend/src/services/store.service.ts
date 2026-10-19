@@ -856,7 +856,9 @@ export class StoreService {
           printedPadFrom: payload.printedPadFrom,
           printedPadTo: payload.printedPadTo,
           quantity: payload.quantity ?? 1,
-          totalAmount: payload.totalAmount || (payload.unitCostETB * (payload.quantity || 1)),
+          totalAmount: payload.totalAmount || ((payload.unitCostETB * (payload.quantity || 1)) + (payload.vatApplicable ? 0 : (Number(payload.additionalCharges) || 0))),
+          vatApplicable: Boolean(payload.vatApplicable),
+          additionalCharges: payload.vatApplicable ? 0 : (Number(payload.additionalCharges) || 0),
           remark: payload.remark,
         }];
     if (payload.provisionType && !PROVISION_TYPES.includes(payload.provisionType)) throw new BadRequestError('Choose Purchase or Donation as the type of provision.');
@@ -914,7 +916,8 @@ export class StoreService {
       const serialNumber = String(lineItem.serialNumber ?? '').trim() || (rawItems.length > 1 ? `SN-${Date.now()}-${i + 1}` : `SN-${Date.now()}`);
       const unitCost = Number(lineItem.unitCostETB) || 0;
       const quantity = Number(lineItem.quantity) || 1;
-      const totalAmount = Number(lineItem.totalAmount) || (unitCost * quantity);
+      const addlCharges = lineItem.vatApplicable ? 0 : (Number(lineItem.additionalCharges) || 0);
+      const totalAmount = Number(lineItem.totalAmount) || ((unitCost * quantity) + addlCharges);
 
       const model19Meta = {
         provisionType: donation ? 'DONATION' : 'PURCHASE',
@@ -932,6 +935,8 @@ export class StoreService {
         printedPadTo: lineItem.printedPadTo || payload.printedPadTo,
         quantity,
         totalAmount,
+        vatApplicable: Boolean(lineItem.vatApplicable),
+        additionalCharges: addlCharges,
         deliveredBy: payload.deliveredBy,
         receivedBy: payload.receivedBy?.trim() || undefined,
         remark: lineItem.remark || payload.remark,
@@ -1073,6 +1078,9 @@ export class StoreService {
       previousMeta = {};
     }
     const remark = payload.remark?.trim() || undefined;
+    const vatApplicable = donation ? false : (payload.vatApplicable !== undefined ? Boolean(payload.vatApplicable) : Boolean(previousMeta.vatApplicable));
+    const addlCharges = donation || vatApplicable ? 0 : (payload.additionalCharges !== undefined ? (Number(payload.additionalCharges) || 0) : (Number(previousMeta.additionalCharges) || 0));
+    const totalAmount = donation ? 0 : ((unitCost * quantity) + addlCharges);
     const meta = {
       ...previousMeta,
       provisionType: donation ? 'DONATION' : 'PURCHASE',
@@ -1089,7 +1097,9 @@ export class StoreService {
       printedPadFrom: payload.printedPadFrom?.trim() || undefined,
       printedPadTo: payload.printedPadTo?.trim() || undefined,
       quantity,
-      totalAmount: unitCost * quantity,
+      totalAmount,
+      vatApplicable,
+      additionalCharges: addlCharges,
       deliveredBy: payload.deliveredBy?.trim() || undefined,
       receivedBy: payload.receivedBy?.trim() || previousMeta.receivedBy || undefined,
       remark,

@@ -259,6 +259,8 @@ export interface Item {
   printedPadTo?: string;
   quantity?: number;
   totalAmount?: number;
+  vatApplicable?: boolean;
+  additionalCharges?: number;
   deliveredBy?: string;
   receivedBy?: string;
   remark?: string;
@@ -279,6 +281,8 @@ export interface Model19LineItem {
   printedPadTo?: string;
   quantity: number;
   unitPrice: number;
+  vatApplicable?: boolean;
+  additionalCharges?: number;
   totalAmount: number;
   remark?: string;
 }
@@ -592,6 +596,8 @@ export interface CreateStockInRequest {
   printedPadTo?: string;
   quantity?: number;
   totalAmount?: number;
+  vatApplicable?: boolean;
+  additionalCharges?: number;
   deliveredBy?: string;
   receivedBy?: string;
   remark?: string;
@@ -614,6 +620,8 @@ export interface CreateStockInRequest {
     printedPadTo?: string;
     quantity: number;
     totalAmount?: number;
+    vatApplicable?: boolean;
+    additionalCharges?: number;
     remark?: string;
   }>;
 }
@@ -628,6 +636,8 @@ export interface UpdateStockInRequest {
   itemType?: ItemType;
   serialNumber?: string;
   unitCostETB: number;
+  vatApplicable?: boolean;
+  additionalCharges?: number;
   condition?: ItemCondition;
   storeLocationId: string;
   ifmisSlipNumber: string;

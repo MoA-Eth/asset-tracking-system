@@ -14,6 +14,8 @@ export interface SlipLine {
   uom: string;
   quantity: number;
   unitPrice: number;
+  vatApplicable?: boolean;
+  additionalCharges?: number;
   /** A consumable's IFMIS inventory code, read from the slip */
   ifmisCode?: string;
   /** The IFMIS sub inventory the slip printed for this line, kept for the voucher */
@@ -34,6 +36,8 @@ export const blankLine = (): SlipLine => ({
   uom: 'EA',
   quantity: 0,
   unitPrice: 0,
+  vatApplicable: false,
+  additionalCharges: 0,
 });
 
 /** A fixed asset is one item, so its line is always quantity 1 */
@@ -105,7 +109,7 @@ export const ReceiptItems: React.FC<{
   return (
     <div className="overflow-hidden rounded-md border border-slate-200">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[880px] text-left text-xs">
+        <table className="w-full min-w-[1020px] text-left text-xs">
           <thead className="bg-slate-50">
             <tr className="text-xs font-medium text-slate-600">
               <th className="px-2 py-2 w-8">#</th>
@@ -115,6 +119,8 @@ export const ReceiptItems: React.FC<{
               <th className="px-2 py-2 w-16">Unit</th>
               <th className="px-2 py-2 w-16 text-right">Qty</th>
               {!donation && <th className="px-2 py-2 w-28 text-right">Unit price</th>}
+              {!donation && <th className="px-2 py-2 w-16 text-center" title="Price includes VAT (no additional charges allowed)">VAT</th>}
+              {!donation && <th className="px-2 py-2 w-28 text-right">Addl charges</th>}
               {!donation && <th className="px-2 py-2 w-24 text-right">Total</th>}
               <th className="px-2 py-2 w-8" />
             </tr>
@@ -179,7 +185,44 @@ export const ReceiptItems: React.FC<{
                       />
                     </td>
                   )}
-                  {!donation && <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{money((l.quantity || 0) * (l.unitPrice || 0))}</td>}
+                  {!donation && (
+                    <td className="px-2 py-1.5 text-center align-middle">
+                      <label className="inline-flex items-center justify-center cursor-pointer" title="Price includes VAT (no additional charges allowed)">
+                        <input
+                          aria-label={`Item ${n} VAT applicable`}
+                          type="checkbox"
+                          checked={!!l.vatApplicable}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            set(l.key, {
+                              vatApplicable: checked,
+                              additionalCharges: checked ? 0 : l.additionalCharges,
+                            });
+                          }}
+                          className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                        />
+                      </label>
+                    </td>
+                  )}
+                  {!donation && (
+                    <td className="px-2 py-1.5">
+                      <MoneyInput
+                        aria-label={`Item ${n} additional charges`}
+                        suffix=""
+                        disabled={!!l.vatApplicable}
+                        value={l.vatApplicable ? 0 : (l.additionalCharges || 0)}
+                        onChange={(v) => set(l.key, { additionalCharges: v })}
+                        placeholder="0.00"
+                        title={l.vatApplicable ? 'Additional charges not allowed when price includes VAT' : undefined}
+                        inputClassName={`!h-9 !px-2 !text-xs ${l.vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
+                      />
+                    </td>
+                  )}
+                  {!donation && (
+                    <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">
+                      {money((l.quantity || 0) * (l.unitPrice || 0) + (l.vatApplicable ? 0 : (l.additionalCharges || 0)))}
+                    </td>
+                  )}
                   <td className="px-1 py-1.5 pt-3">
                     <button
                       type="button"

@@ -114,6 +114,7 @@ interface MoneyInputProps {
   suffix?: string;
   placeholder?: string;
   disabled?: boolean;
+  title?: string;
   /** Extra classes for the input, e.g. a smaller one in a table */
   inputClassName?: string;
   'aria-label'?: string;
@@ -125,12 +126,12 @@ const MONEY_FORMAT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, 
  * An amount that is easy to read: 1,250,000.50 when you are not typing, the plain number while you are.
  * Anything that is not a digit or one decimal point is dropped as it is typed.
  */
-export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, onBlur, id, accent = 'emerald', invalid, suffix = 'ETB', placeholder = '0.00', disabled, inputClassName = '', 'aria-label': ariaLabel }) => {
+export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, onBlur, id, accent = 'emerald', invalid, suffix = 'ETB', placeholder = '0.00', disabled, title, inputClassName = '', 'aria-label': ariaLabel }) => {
   const [focused, setFocused] = useState(false);
   const [text, setText] = useState('');
   const shown = focused ? text : value ? MONEY_FORMAT.format(value) : '';
   return (
-    <div className="relative">
+    <div className="relative" title={title}>
       <input
         id={id}
         type="text"
@@ -138,6 +139,7 @@ export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, onBlur,
         autoComplete="off"
         disabled={disabled}
         placeholder={placeholder}
+        title={title}
         aria-invalid={invalid || undefined}
         aria-label={ariaLabel}
         value={shown}

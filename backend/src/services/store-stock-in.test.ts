@@ -272,4 +272,41 @@ describe('StoreService.registerStockIn approval gate', () => {
     });
     expect(db.item.create).not.toHaveBeenCalled();
   });
+  it('calculates totalAmount correctly for VAT applicable vs additional charges', async () => {
+    // 1. VAT applicable: additional charges must be locked to 0 and totalAmount = unitCost * quantity
+    await StoreService.getInstance().registerStockIn({
+      ...basePayload,
+      isHistoricalData: true,
+      unitCostETB: 5000,
+      quantity: 2,
+      vatApplicable: true,
+      additionalCharges: 300, // Should be ignored / locked to 0
+      itemType: 'CONSUMABLE',
+      ifmisItemCode: '108101101.0021',
+    } as any);
+
+    const call1Meta = JSON.parse(db.item.create.mock.calls[0][0].data.notes);
+    expect(call1Meta.vatApplicable).toBe(true);
+    expect(call1Meta.additionalCharges).toBe(0);
+    expect(call1Meta.totalAmount).toBe(10000); // 5000 * 2 + 0
+
+    db.item.create.mockClear();
+
+    // 2. VAT not applicable: additional charges must be included: totalAmount = (unitCost * quantity) + additionalCharges
+    await StoreService.getInstance().registerStockIn({
+      ...basePayload,
+      isHistoricalData: true,
+      unitCostETB: 5000,
+      quantity: 2,
+      vatApplicable: false,
+      additionalCharges: 350,
+      itemType: 'CONSUMABLE',
+      ifmisItemCode: '108101101.0022',
+    } as any);
+
+    const call2Meta = JSON.parse(db.item.create.mock.calls[0][0].data.notes);
+    expect(call2Meta.vatApplicable).toBe(false);
+    expect(call2Meta.additionalCharges).toBe(350);
+    expect(call2Meta.totalAmount).toBe(10350); // (5000 * 2) + 350
+  });
 });

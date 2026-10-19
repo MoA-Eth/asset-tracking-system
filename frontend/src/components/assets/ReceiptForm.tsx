@@ -122,6 +122,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   // A new receipt starts empty (the field shows 0), so the number is always typed on purpose
   const [quantity, setQuantity] = useState<number>(editItem ? Number(editItem.quantity) || 1 : 0);
   const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? start?.unitCostETB ?? 0);
+  const [vatApplicable, setVatApplicable] = useState<boolean>(editItem?.vatApplicable ?? false);
+  const [additionalCharges, setAdditionalCharges] = useState<number>(editItem?.additionalCharges ?? 0);
   const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? start?.condition ?? ItemCondition.NEW);
   // Remark is no longer asked; a correction keeps what an older record has
   const remark = editItem?.remark ?? '';
@@ -180,10 +182,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   }, [fixedOne, quantity]);
   // What the slip's first line said, to warn when it lists several of a fixed asset
   const [slipQuantity, setSlipQuantity] = useState(0);
-  const totalAmount = donation ? 0 : (Number(quantity) || 0) * (Number(unitCostETB) || 0);
+  const totalAmount = donation ? 0 : ((Number(quantity) || 0) * (Number(unitCostETB) || 0)) + (vatApplicable ? 0 : (Number(additionalCharges) || 0));
   // The other item lines of a Model 19 read from its PDF: each is registered as its own record on submit
   const [extraLines, setExtraLines] = useState<SlipLine[]>([]);
-  const extraTotal = donation ? 0 : extraLines.reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0);
+  const extraTotal = donation ? 0 : extraLines.reduce((sum, l) => sum + ((l.quantity || 0) * (l.unitPrice || 0)) + (l.vatApplicable ? 0 : (Number(l.additionalCharges) || 0)), 0);
 
   // Required fields still empty; the receipt can only be submitted once this is empty
   const missingFields = [
@@ -239,6 +241,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setPrintedPadTo('');
     setQuantity(0);
     setUnitCostETB(0);
+    setVatApplicable(false);
+    setAdditionalCharges(0);
     setCondition(ItemCondition.NEW);
     setIfmisItemCode('');
     setExtraLines([]);
@@ -578,7 +582,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         printedPadFrom: printedPadFrom.trim() || undefined,
         printedPadTo: printedPadTo.trim() || undefined,
         quantity: effectiveQty,
-        totalAmount: donation ? 0 : effectiveQty * effectiveUnitCost,
+        totalAmount: donation ? 0 : (effectiveQty * effectiveUnitCost) + (vatApplicable ? 0 : Number(additionalCharges) || 0),
+        vatApplicable,
+        additionalCharges: vatApplicable ? 0 : Number(additionalCharges) || 0,
         remark: remark.trim() || undefined,
       }, ...extraLines.map((l) => ({
         ifmisItemCode: l.ifmisCode?.trim() || undefined,
@@ -591,7 +597,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
         subInventory: l.subInventory?.trim() || undefined,
         quantity: l.quantity,
-        totalAmount: donation ? 0 : l.quantity * l.unitPrice,
+        totalAmount: donation ? 0 : (l.quantity * l.unitPrice) + (l.vatApplicable ? 0 : Number(l.additionalCharges) || 0),
+        vatApplicable: Boolean(l.vatApplicable),
+        additionalCharges: l.vatApplicable ? 0 : Number(l.additionalCharges) || 0,
       }))];
 
       const slipUrl = copyFile ? (await api.uploadSlip(copyFile)).url : undefined;
@@ -637,6 +645,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         printedPadTo: printedPadTo.trim() || '',
         quantity: Number(quantity) || 1,
         unitPrice: donation ? 0 : Number(unitCostETB) || 0,
+        vatApplicable,
+        additionalCharges: vatApplicable ? 0 : Number(additionalCharges) || 0,
         totalAmount,
         remark: remark.trim() || '',
       }, ...extraLines.map((l, i): Model19LineItem => ({
@@ -653,7 +663,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         printedPadTo: '',
         quantity: l.quantity,
         unitPrice: donation ? 0 : l.unitPrice,
-        totalAmount: donation ? 0 : l.quantity * l.unitPrice,
+        totalAmount: donation ? 0 : (l.quantity * l.unitPrice) + (l.vatApplicable ? 0 : Number(l.additionalCharges) || 0),
+        vatApplicable: Boolean(l.vatApplicable),
+        additionalCharges: l.vatApplicable ? 0 : Number(l.additionalCharges) || 0,
         remark: '',
       }))];
 
@@ -775,6 +787,40 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             onBlur={fieldErrors.touch('unitCost')}
             invalid={!!fieldErrors.error('unitCost')}
             inputClassName="!h-9 !px-2 !text-xs"
+          />
+        </td>
+      )}
+      {!donation && (
+        <td className="px-2 py-1.5 text-center align-middle">
+          <label className="inline-flex items-center justify-center cursor-pointer" title="Price includes VAT (no additional charges allowed)">
+            <input
+              id="stock-in-vat"
+              aria-label="Item 1 VAT applicable"
+              type="checkbox"
+              checked={vatApplicable}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setVatApplicable(checked);
+                if (checked) setAdditionalCharges(0);
+              }}
+              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+            />
+          </label>
+        </td>
+      )}
+      {!donation && (
+        <td className="px-2 py-1.5">
+          <label htmlFor="stock-in-addl-charges" className="sr-only">Additional charges (ETB)</label>
+          <MoneyInput
+            id="stock-in-addl-charges"
+            aria-label="Item 1 additional charges"
+            suffix=""
+            disabled={vatApplicable}
+            value={vatApplicable ? 0 : additionalCharges}
+            onChange={setAdditionalCharges}
+            placeholder="0.00"
+            title={vatApplicable ? 'Additional charges not allowed when price includes VAT' : undefined}
+            inputClassName={`!h-9 !px-2 !text-xs ${vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
           />
         </td>
       )}
