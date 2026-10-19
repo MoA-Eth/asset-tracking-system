@@ -1405,9 +1405,11 @@ describe('Asset record', () => {
     // With a PO number: a purchase, with its supplier, buyer and price
     await user.type(po, '186');
     for (const label of [/Source/i, /Buyer/i, /Unit price/i]) expect(within(panel).getByLabelText(label)).toBeInTheDocument();
-    // Without one: a donation, which has none of them
+    // Clearing PO number: item fields like Unit price remain displayed without requiring PO Number
     await user.clear(po);
-    for (const label of [/Source/i, /Buyer/i, /Unit price/i]) expect(within(panel).queryByLabelText(label)).toBeNull();
+    expect(within(panel).getByLabelText(/Unit price/i)).toBeInTheDocument();
+    await user.selectOptions(within(panel).getByLabelText(/Transaction type/i), 'Donation / Grant Receipt');
+    for (const label of [/Source/i, /Buyer/i]) expect(within(panel).queryByLabelText(label)).toBeNull();
     await user.selectOptions(within(panel).getByLabelText(/Transaction type/i), 'Donation / Grant Receipt');
 
     await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000777');
@@ -1894,9 +1896,9 @@ describe('Receiving form: provision from the PO number on the Model 19', () => {
     expect(within(panel).queryByLabelText(/Unit price/i)).toBeNull();
   });
 
-  it('goes by the PO number alone: a slip with no PO number is a donation whatever its transaction type', async () => {
+  it('displays pricing columns without requiring a PO number for non-donation transaction types', async () => {
     const panel = await readSlip([r(193, [677, 'Transaction Type :'], [812, 'Petty Cash Purchase Receipt'])]);
-    expect(within(panel).queryByLabelText(/Unit price/i)).toBeNull();
+    expect(within(panel).getByLabelText(/Unit price/i)).toBeInTheDocument();
     expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('Petty Cash Purchase Receipt');
   });
 });

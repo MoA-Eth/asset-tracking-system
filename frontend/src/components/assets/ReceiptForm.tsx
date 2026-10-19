@@ -84,13 +84,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   // Section 1: Document Voucher Header Metadata
   const [ifmisSlipNumber, setIfmisSlipNumber] = useState(editItem?.ifmisSlipNumber ?? '');
   const [poNumber, setPoNumber] = useState(editItem?.poNumber ?? '');
-  // Bought or donated, as on the Model 19: a PO number means a purchase, none a donation (with no supplier, buyer or
-  // price). Nobody picks it. A purchase registered before this rule without a PO number stays one when corrected.
-  const olderPurchase = isEdit && editItem?.provisionType !== 'DONATION' && !editItem?.poNumber?.trim();
-  const provisionType: ProvisionType = poNumber.trim() || olderPurchase ? 'PURCHASE' : 'DONATION';
-  const donation = provisionType === 'DONATION';
   const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(editItem?.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
   const [transactionType, setTransactionType] = useState(editItem?.transactionType || start?.transactionType || memory.transactionType || '');
+  // PO number is optional: purchases and receipts display pricing and item columns without requiring a PO number.
+  // A receipt is recorded as a donation only if explicitly selected as 'Donation / Grant Receipt' or existing donation.
+  const isDonationTransaction = transactionType === 'Donation / Grant Receipt';
+  const provisionType: ProvisionType = editItem?.provisionType === 'DONATION' || isDonationTransaction ? 'DONATION' : 'PURCHASE';
+  const donation = provisionType === 'DONATION';
   const [source, setSource] = useState(editItem?.source ?? start?.source ?? '');
   const [buyer, setBuyer] = useState(editItem?.buyer ?? start?.buyer ?? '');
   const [programName, setProgramName] = useState(editItem?.programName ?? start?.programName ?? '');
@@ -912,8 +912,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             />
           </Field>
 
-          <Field label="PO number" optional htmlFor="stock-in-po" hint={donation ? (olderPurchase ? undefined : 'None: received as a donation, with no price.') : 'Bought: received as a purchase.'}>
-            <input id="stock-in-po" type="text" placeholder="Empty for a donation" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className={input({ mono: true })} />
+          <Field label="PO number" optional htmlFor="stock-in-po" hint="Optional IFMIS purchase order number.">
+            <input id="stock-in-po" type="text" placeholder="e.g. PO-2024-001" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className={input({ mono: true })} />
           </Field>
 
           <Field label="Received date (G.C.)" optional hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
