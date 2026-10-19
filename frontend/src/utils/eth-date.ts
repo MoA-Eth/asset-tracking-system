@@ -98,9 +98,13 @@ export function getTodayGcAndEc(): { gc: string; ec: string; ecFormattedAm: stri
 }
 
 export function formatETB(amount: number): string {
+  const num = Number(amount) || 0;
+  const decimals = (String(num).split('.')[1] || '').length;
+  const maxDigits = Math.min(Math.max(decimals, 2), 6);
   return new Intl.NumberFormat('en-ET', {
     style: 'currency',
     currency: 'ETB',
-    maximumFractionDigits: 0
-  }).format(amount);
+    minimumFractionDigits: 2,
+    maximumFractionDigits: maxDigits,
+  }).format(num);
 }

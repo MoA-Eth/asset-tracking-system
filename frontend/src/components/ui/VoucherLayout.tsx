@@ -11,8 +11,12 @@ import { VoucherStatusBanner, VoucherApprovalState } from './VoucherStatusBanner
  */
 
 /** Amounts on every voucher: thousands separators and two decimals */
-export const formatVoucherAmount = (value: number | string | undefined): string =>
-  (Number(value) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const formatVoucherAmount = (value: number | string | undefined): string => {
+  const num = Number(value) || 0;
+  const decimals = (String(num).split('.')[1] || '').length;
+  const maxDigits = Math.min(Math.max(decimals, 2), 6);
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: maxDigits });
+};
 
 /** The value to print, or a dash when nothing was recorded */
 export const orDash = (value: React.ReactNode): React.ReactNode =>

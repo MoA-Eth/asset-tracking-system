@@ -120,7 +120,11 @@ interface MoneyInputProps {
   'aria-label'?: string;
 }
 
-const MONEY_FORMAT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const formatMoneyValue = (value: number): string => {
+  const decimals = (String(value).split('.')[1] || '').length;
+  const maxDigits = Math.min(Math.max(decimals, 2), 6);
+  return value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: maxDigits });
+};
 
 /**
  * An amount that is easy to read: 1,250,000.50 when you are not typing, the plain number while you are.
@@ -129,7 +133,7 @@ const MONEY_FORMAT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, 
 export const MoneyInput: React.FC<MoneyInputProps> = ({ value, onChange, onBlur, id, accent = 'emerald', invalid, suffix = 'ETB', placeholder = '0.00', disabled, title, inputClassName = '', 'aria-label': ariaLabel }) => {
   const [focused, setFocused] = useState(false);
   const [text, setText] = useState('');
-  const shown = focused ? text : value ? MONEY_FORMAT.format(value) : '';
+  const shown = focused ? text : value ? formatMoneyValue(value) : '';
   return (
     <div className="relative" title={title}>
       <input

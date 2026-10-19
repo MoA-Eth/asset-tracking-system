@@ -128,5 +128,12 @@ describe('eth-date engine', () => {
       const formatted = formatETB(2500000);
       expect(formatted).toMatch(/2,500,000/);
     });
+
+    it('does not round unit prices and preserves decimals and santim', () => {
+      expect(formatETB(12.5)).toMatch(/12\.50/);
+      expect(formatETB(124.75)).toMatch(/124\.75/);
+      expect(formatETB(0.45)).toMatch(/0\.45/);
+      expect(formatETB(12.3456)).toMatch(/12\.3456/);
+    });
   });
 });

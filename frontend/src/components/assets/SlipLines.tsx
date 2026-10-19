@@ -76,7 +76,11 @@ export const ItemTypeTag: React.FC<{ type: ItemType | ''; code?: string; label?:
 /** A compact input for a table cell */
 export const cellClass = (opts?: { align?: 'right'; invalid?: boolean; mono?: boolean }) => `${inputClass('emerald', opts)} !px-2.5`;
 
-export const money = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+export const money = (n: number) => {
+  const decimals = (String(n).split('.')[1] || '').length;
+  const maxDigits = Math.min(Math.max(decimals, 2), 6);
+  return n.toLocaleString(undefined, { maximumFractionDigits: maxDigits });
+};
 
 /**
  * Every item on the receipt, one row each, as on the Model 19 itself. The first row is the receipt's own item
