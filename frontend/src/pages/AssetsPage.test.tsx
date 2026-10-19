@@ -237,7 +237,7 @@ describe('Assets page', () => {
     const record = screen.getByRole('region', { name: 'Asset record MOA-S1' });
     expect(record.querySelector('form#stock-out-form')).not.toBeNull();
     // Submit is the form's own button and stays off until the required fields are filled
-    expect(submitOf(record, 'stock-out-form')).toBeDisabled();
+    expect(submitOf(record, 'stock-out-form')).toBeEnabled();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -441,7 +441,7 @@ describe('Assets page', () => {
     const record = screen.getByRole('region', { name: 'Asset record MOA-I1' });
     expect(record.querySelector('form#transfer-form')).not.toBeNull();
     // Submit is the form's own button and stays off until the required fields are filled
-    expect(submitOf(record, 'transfer-form')).toBeDisabled();
+    expect(submitOf(record, 'transfer-form')).toBeEnabled();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -476,7 +476,7 @@ describe('Assets page', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
     const record = screen.getByRole('region', { name: 'Asset record MOA-I1' });
     expect(record.querySelector('form#transfer-form')).not.toBeNull();
-    expect(submitOf(record, 'transfer-form')).toBeDisabled();
+    expect(submitOf(record, 'transfer-form')).toBeEnabled();
     // A transfer to an employee: the return-only fields are not there
     expect(within(record).getByLabelText(/To employee/)).toBeInTheDocument();
     expect(within(record).queryByLabelText(/Condition on return/)).toBeNull();
@@ -533,7 +533,7 @@ describe('Assets page', () => {
     const record = screen.getByRole('region', { name: 'Asset record MOA-S2' });
     expect(record.querySelector('form#disposal-form')).not.toBeNull();
     // Submit is the form's own button and stays off until the required fields are filled
-    expect(submitOf(record, 'disposal-form')).toBeDisabled();
+    expect(submitOf(record, 'disposal-form')).toBeEnabled();
 
     await user.type(within(record).getByLabelText(/^No\./), 'DSP-0007');
     // Typed as IFMIS names it; saved in capitals as IFMIS prints it

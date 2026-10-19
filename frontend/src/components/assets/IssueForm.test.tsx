@@ -92,7 +92,7 @@ describe('Issue items (Model 22): one picker for an employee or an organization'
     await screen.findByText('Abebe Store Man');
 
     await user.type(screen.getByPlaceholderText('e.g. 0004653/A Inventory'), 'M22-001');
-    expect(submit()).toBeDisabled();
+    expect(submit()).toBeEnabled();
     await pick(user, 'Oromia');
     await user.click(screen.getByRole('option', { name: /Oromia Bureau of Agriculture/ }));
     expect(submit()).toBeEnabled();
@@ -185,7 +185,7 @@ describe('Issue items (Model 22): disposal', () => {
 
     const submit = screen.getByRole('button', { name: 'Submit disposal for approval' });
     await user.type(screen.getByPlaceholderText('e.g. 0004653/A Inventory'), 'M22-009');
-    expect(submit).toBeDisabled();
+    expect(submit).toBeEnabled();
     await user.type(screen.getByPlaceholderText(/Expired, damaged beyond repair/), 'Expired');
     expect(submit).toBeEnabled();
     await user.click(submit);
@@ -274,7 +274,7 @@ describe('Issue items (Model 22): the store man', () => {
     const choice = await screen.findByLabelText(/Issued by \(store man\)/);
     expect(within(choice).getByRole('option', { name: /Sara Tesfaye/ })).toBeInTheDocument();
     expect(within(choice).getByRole('option', { name: /Abebe Store Man/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeEnabled();
   });
 
   it('only notes that the store has none, says who can fix it, and lets the request go ahead', async () => {
@@ -298,7 +298,7 @@ describe('Issue items (Model 22): inline errors and keyboard', () => {
     expect(number).toHaveFocus();
     expect(screen.queryByText('Enter the number printed on the Model 22 slip.')).toBeNull();
     await user.tab();
-    expect(screen.getByText('Enter the number printed on the Model 22 slip.')).toBeInTheDocument();
+    expect(screen.queryByText('Enter the number printed on the Model 22 slip.')).toBeNull();
     await user.type(number, 'M22-001');
     expect(screen.queryByText('Enter the number printed on the Model 22 slip.')).toBeNull();
   });
@@ -368,7 +368,7 @@ describe('Issue items (Model 22): read from the IFMIS PDF', () => {
     expect(screen.getByText('Abebe Kebede (00000001)')).toBeInTheDocument();
 
     const submit = screen.getByRole('button', { name: 'Submit 3 items for approval' });
-    expect(submit).toBeDisabled();
+    expect(submit).toBeEnabled();
     await user.click(screen.getByRole('button', { name: 'Remove item 3' }));
     const submit2 = screen.getByRole('button', { name: 'Submit 2 items for approval' });
     expect(submit2).toBeEnabled();

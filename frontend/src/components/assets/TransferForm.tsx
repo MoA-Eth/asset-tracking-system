@@ -1,6 +1,6 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, FileText, Car, Info } from 'lucide-react';
+import { Search, FileText, Car } from 'lucide-react';
 import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
 import { formatVoucherRemark } from '../../utils/voucher-remark';
@@ -626,14 +626,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   };
 
   return (
-    <form id="transfer-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
-      <div className="rounded-lg border border-sky-200 bg-sky-50/70 p-3 text-[12px] text-sky-800 flex items-center justify-between gap-2 shadow-xs">
-        <div className="flex items-center gap-2">
-          <Info className="h-4 w-4 text-sky-600 shrink-0" />
-          <span><strong>Flexible Onboarding Active:</strong> All fields are optional. Register with available details now and update full data later.</span>
-        </div>
-        <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700 whitespace-nowrap">Partial Data Allowed</span>
-      </div>
+    <form id="transfer-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(!submitting)} className="space-y-4">
 
       {/* The IFMIS PDF first: it fills in the form */}
       {(!editTransfer || !showScannedSlipField) && (

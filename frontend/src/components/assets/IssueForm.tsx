@@ -1,6 +1,6 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Plus, X, Info } from 'lucide-react';
+import { FileText, Plus, X } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers, nameKey } from '../../hooks/useStoreKeepers';
@@ -247,10 +247,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   ].filter(Boolean) as string[];
 
   // A field shows what is wrong with it once the user has been in it
-  const fieldErrors = useFieldErrors({
-    model22No: !model22No.trim() && 'Enter the number printed on the Model 22 slip.',
-    purpose: isDisposal && !purpose.trim() && 'Say why the units are being written off.',
-  });
+  const fieldErrors = useFieldErrors({});
 
   const recipientFields = isDisposal
     ? { disposal: true as const }
@@ -599,13 +596,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
   return (
     <form id="stock-out-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(!submitting)} className="space-y-6">
-      <div className="rounded-lg border border-sky-200 bg-sky-50/70 p-3 text-[12px] text-sky-800 flex items-center justify-between gap-2 shadow-xs">
-        <div className="flex items-center gap-2">
-          <Info className="h-4 w-4 text-sky-600 shrink-0" />
-          <span><strong>Flexible Onboarding Active:</strong> All fields are optional. Register with available details now and update full data later.</span>
-        </div>
-        <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700 whitespace-nowrap">Partial Data Allowed</span>
-      </div>
 
       <FormError message={formError} />
 
@@ -659,7 +649,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         }
       >
         <FieldGrid>
-          <Field label="Model 22 No." required htmlFor="stock-out-model22" error={fieldErrors.error('model22No')} warning={usedNo ? usedMessage(model22No, usedNo) : undefined}>
+          <Field label="Model 22 No." optional htmlFor="stock-out-model22" error={fieldErrors.error('model22No')} warning={usedNo ? usedMessage(model22No, usedNo) : undefined}>
             <input
               id="stock-out-model22"
               type="text"
@@ -673,12 +663,12 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             />
           </Field>
 
-          <Field label="Issued date (G.C.)" required hint={`${ethDate} E.C.`} htmlFor="stock-out-date">
+          <Field label="Issued date (G.C.)" optional hint={`${ethDate} E.C.`} htmlFor="stock-out-date">
             <input id="stock-out-date" type="date" value={issuedDateGc} onChange={(e) => setIssuedDateGc(e.target.value)} className={input()} />
           </Field>
 
           {!isEdit && !isDisposal && (
-            <Field label="Transaction type" required htmlFor="stock-out-transaction-type">
+            <Field label="Transaction type" optional htmlFor="stock-out-transaction-type">
               <select id="stock-out-transaction-type" value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
                 <option value="" disabled>Select…</option>
                 {typeOptions.map((t) => (

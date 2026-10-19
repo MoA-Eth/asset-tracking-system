@@ -1,6 +1,6 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useEffect, useRef, useState } from 'react';
-import { FileText, Info } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
@@ -117,11 +117,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   ].filter(Boolean) as string[];
 
   // A field shows what is wrong with it once the user has been in it
-  const fieldErrors = useFieldErrors({
-    disposalNo: !disposalNo.trim() && 'Enter the No. printed on the disposal form.',
-    date: !dateGc && 'Enter the date of the disposal.',
-    reason: !reason.trim() && 'Choose the disposal type, as on the IFMIS form.',
-  });
+  const fieldErrors = useFieldErrors({});
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -328,13 +324,6 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
 
   return (
     <form id="disposal-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(!submitting)} className="space-y-4">
-      <div className="rounded-lg border border-sky-200 bg-sky-50/70 p-3 text-[12px] text-sky-800 flex items-center justify-between gap-2 shadow-xs">
-        <div className="flex items-center gap-2">
-          <Info className="h-4 w-4 text-sky-600 shrink-0" />
-          <span><strong>Flexible Onboarding Active:</strong> All fields are optional. Register with available details now and update full data later.</span>
-        </div>
-        <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700 whitespace-nowrap">Partial Data Allowed</span>
-      </div>
 
       <FormError message={formError} />
       {/* The IFMIS PDF: it fills in the form and acts as the attached slip */}
@@ -381,7 +370,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
 
       <Part title="Voucher">
         <FieldGrid>
-          <Field label="No." required htmlFor="disposal-no" error={fieldErrors.error('disposalNo')} hint="As printed at the top right of the IFMIS form">
+          <Field label="No." optional htmlFor="disposal-no" error={fieldErrors.error('disposalNo')} hint="As printed at the top right of the IFMIS form">
             <input
               id="disposal-no"
               type="text"
@@ -393,10 +382,10 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
               className={`${input({ mono: true, invalid: !!fieldErrors.error('disposalNo') })} font-semibold`}
             />
           </Field>
-          <Field label="Date (G.C.)" required hint={`${ethDate} E.C.`} error={fieldErrors.error('date')}>
+          <Field label="Date (G.C.)" optional hint={`${ethDate} E.C.`} error={fieldErrors.error('date')}>
             <input type="date" value={dateGc} onChange={(e) => setDateGc(e.target.value)} onBlur={fieldErrors.touch('date')} className={input({ invalid: !!fieldErrors.error('date') })} />
           </Field>
-          <Field label="Disposal type" required htmlFor="disposal-reason" error={fieldErrors.error('reason')} hint="As IFMIS prints it; pick one or type another">
+          <Field label="Disposal type" optional htmlFor="disposal-reason" error={fieldErrors.error('reason')} hint="As IFMIS prints it; pick one or type another">
             <input
               id="disposal-reason"
               type="text"

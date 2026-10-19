@@ -7,6 +7,10 @@
 # staging and production, so nothing here reaches the servers.
 
 services:
+  db:
+    ports: !override
+      - "5432:5432"
+
   backend:
     environment:
       APP_ENV: dev

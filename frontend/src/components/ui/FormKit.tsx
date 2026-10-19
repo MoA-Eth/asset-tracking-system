@@ -508,14 +508,9 @@ export function findField(form: HTMLElement, field: string, given: Record<string
   return named.find(([name]) => name.endsWith(` ${want}`))?.[1] ?? null;
 }
 
-export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, missingFields = [], note: customNote, fieldTargets, allowIncomplete = false }) => {
-  const incomplete = missingFields.length > 0;
-  const note = customNote ?? (incomplete
-    ? (allowIncomplete
-        ? undefined
-        : 'Fill in all required fields (*) to submit')
-    : undefined);
-  const shown = incomplete && !customNote && !allowIncomplete ? missingFields.slice(0, 4) : [];
+export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, missingFields = [], note: customNote, fieldTargets: _fieldTargets, allowIncomplete = true }) => {
+  const note = customNote;
+  const shown: string[] = [];
   const footer = useRef<HTMLDivElement>(null);
   // Each name in "Still needed" takes the person to that field
   const goTo = (field: string) => {
@@ -585,7 +580,7 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
       </button>
       <button
         type="submit"
-        disabled={submitting || submitDisabled || (!allowIncomplete && incomplete)}
+        disabled={submitting || submitDisabled}
         aria-describedby={note ? 'form-footer-note' : undefined}
         className={`flex items-center gap-2 rounded-[4px] px-5 py-2 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(16,24,40,0.12)] transition-colors disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none focus:outline-none focus-visible:ring-2 cursor-pointer ${ACCENT[accent].button}`}
       >

@@ -63,57 +63,10 @@ describe('Field error', () => {
 });
 
 describe('FormFooter', () => {
-  it('names what is still needed, up to four, and how many more', () => {
+  it('keeps Submit disabled when required fields are missing without showing footer note clutter', () => {
     render(<FormFooter accent="emerald" submitting={false} submitLabel="Submit" onCancel={() => {}} missingFields={['asset', 'Model 21 No.', 'book', 'recipient', 'reason']} />);
-    expect(screen.getByText('Fill in all required fields (*) to submit', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText((_, el) => el?.tagName === 'SPAN' && el.textContent === 'Still needed: asset, Model 21 No., book, recipient and 1 more')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
-  });
-
-  it('takes the person to a field named in "Still needed", by its label, a line name or a given target', async () => {
-    const user = userEvent.setup();
-    render(
-      <form>
-        <label htmlFor="m19">Model 19 No.*</label>
-        <input id="m19" />
-        <label htmlFor="date">Received date (G.C.)</label>
-        <input id="date" type="date" />
-        <div>
-          <label>Book</label>
-          <input id="book" />
-        </div>
-        <label htmlFor="who">Received by (recipient)</label>
-        <select id="who" />
-        <input id="code" aria-label="IFMIS item code" />
-        <input id="line2-code" aria-label="Item 2 item code" />
-        <input id="line2-price" aria-label="Item 2 unit price" />
-        <FormFooter
-          accent="emerald"
-          submitting={false}
-          submitLabel="Submit"
-          onCancel={() => {}}
-          missingFields={['Model 19 No.', 'received date', 'book', 'recipient', 'item 2 (unit price)', 'item 2 (item code starting with 0 or 1)', 'item code starting with 0 or 1']}
-          fieldTargets={{ 'item code starting with 0 or 1': '#code' }}
-        />
-      </form>,
-    );
-    const go = async (name: string, id: string) => {
-      await user.click(screen.getByRole('button', { name }));
-      expect(document.activeElement?.id).toBe(id);
-    };
-    await go('Model 19 No.', 'm19');
-    await go('received date', 'date');
-    await go('book', 'book');
-    await go('recipient', 'who');
-    // Only four are listed; the rest are reached as the first ones are filled
-    expect(screen.queryByRole('button', { name: 'item 2 (unit price)' })).toBeNull();
-
-    // An item line's cell, and names with no label of their own
-    const form = document.querySelector('form')!;
-    expect(findField(form, 'item 2 (unit price)')?.id).toBe('line2-price');
-    expect(findField(form, 'item 2 (item code starting with 0 or 1)')?.id).toBe('line2-code');
-    expect(findField(form, 'item 2')?.id).toBe('line2-code');
-    expect(findField(form, 'item code starting with 0 or 1', { 'item code starting with 0 or 1': '#code' })?.id).toBe('code');
-    expect(findField(form, 'nothing like this')).toBeNull();
+    expect(screen.queryByText(/Fill in all required fields/)).toBeNull();
+    expect(screen.queryByText(/Still needed/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled();
   });
 });

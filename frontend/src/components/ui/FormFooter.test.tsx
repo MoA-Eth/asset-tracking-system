@@ -17,10 +17,11 @@ describe('FormFooter', () => {
     expect(screen.queryByText(/Fill in all required fields/)).toBeNull();
   });
 
-  it('keeps Submit off and says why while a required field is missing', () => {
+  it('keeps Submit enabled without footer note clutter while fields are missing', () => {
     footer({ missingFields: ['Model 22 No.', 'recipient'] });
-    expect(screen.getByRole('button', { name: 'Submit for approval' })).toBeDisabled();
-    expect(screen.getByText('Fill in all required fields (*) to submit')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Submit for approval' })).toBeEnabled();
+    expect(screen.queryByText(/Fill in all required fields/)).toBeNull();
+    expect(screen.queryByText(/Still needed/)).toBeNull();
   });
 
   it('keeps Submit off while saving, and Cancel stays available', () => {

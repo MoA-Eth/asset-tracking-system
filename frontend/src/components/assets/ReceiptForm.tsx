@@ -217,16 +217,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   ].filter(Boolean) as string[];
 
   // A field shows what is wrong with it once the user has been in it
-  const fieldErrors = useFieldErrors({
-    model19No: !ifmisSlipNumber.trim() && 'Enter the number printed on the Model 19 slip.',
-    transactionType: !transactionType && 'Choose the transaction type.',
-    source: !donation && !source.trim() && 'Enter the supplier or vendor.',
-    itemName: !name.trim() && 'Describe the item received.',
-    category: !category && 'Choose the category.',
-    itemType: !itemType && 'Enter the IFMIS item code from the Model 19.',
-    uom: !uom.trim() && 'Enter the unit of measure, e.g. EA or KG.',
-    unitCost: !donation && !(unitCostETB > 0) && 'Enter the unit price.',
-  });
+  const fieldErrors = useFieldErrors({});
 
   const handleReset = () => {
     setIfmisSlipNumber('');
