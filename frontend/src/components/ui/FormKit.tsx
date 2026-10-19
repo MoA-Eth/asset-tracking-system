@@ -461,6 +461,8 @@ interface FormFooterProps {
   note?: React.ReactNode;
   /** Where a "Still needed" name leads when no field label matches it: name → CSS selector */
   fieldTargets?: Record<string, string>;
+  /** When true, allows form submission even with partial/unfulfilled fields */
+  allowIncomplete?: boolean;
 }
 
 const fieldKey = (s: string) => s.toLowerCase().replace(/\(optional\)/g, '').replace(/[*():]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -496,9 +498,13 @@ export function findField(form: HTMLElement, field: string, given: Record<string
   return named.find(([name]) => name.endsWith(` ${want}`))?.[1] ?? null;
 }
 
-export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, missingFields = [], note: customNote, fieldTargets }) => {
+export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, missingFields = [], note: customNote, fieldTargets, allowIncomplete = false }) => {
   const incomplete = missingFields.length > 0;
-  const note = customNote ?? (incomplete ? 'Fill in all required fields (*) to submit' : undefined);
+  const note = customNote ?? (incomplete
+    ? (allowIncomplete
+        ? 'Unfulfilled fields are optional for now — you may submit with partial data'
+        : 'Fill in all required fields (*) to submit')
+    : undefined);
   const shown = incomplete && !customNote ? missingFields.slice(0, 4) : [];
   const footer = useRef<HTMLDivElement>(null);
   // Each name in "Still needed" takes the person to that field
@@ -569,7 +575,7 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
       </button>
       <button
         type="submit"
-        disabled={submitting || submitDisabled || incomplete}
+        disabled={submitting || submitDisabled || (!allowIncomplete && incomplete)}
         aria-describedby={note ? 'form-footer-note' : undefined}
         className={`flex items-center gap-2 rounded-[4px] px-5 py-2 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(16,24,40,0.12)] transition-colors disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none focus:outline-none focus-visible:ring-2 cursor-pointer ${ACCENT[accent].button}`}
       >

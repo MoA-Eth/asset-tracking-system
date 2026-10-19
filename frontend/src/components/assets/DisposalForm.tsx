@@ -1,6 +1,6 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useEffect, useRef, useState } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, Info } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
@@ -254,28 +254,18 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (!disposalNo.trim()) return fail('No. required', 'Enter the No. printed on the disposal form.');
-    if (!reason.trim()) return fail('Disposal type required', 'Choose the disposal type, as on the IFMIS form (e.g. TRANSFER).');
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
-      return fail('Check quantity', `Quantity must be a whole number from 1 to ${inStore} (${uom} in store).`);
-    }
-    const hasAttachment = showScannedSlipField
-      ? !!attachmentFileName
-      : (!!readFile || !!attachmentFile || !!editApproval?.ifmisSlipAttachmentUrl);
-    if (isAttachmentReq && !hasAttachment) {
-      return fail(
-        'Attachment required',
-        showScannedSlipField
-          ? 'System policy requires the signed disposal form, scanned.'
-          : 'System policy requires the disposal form PDF attached.'
-      );
-    }
+    if (!item && !editApproval) return fail('Asset required', 'Choose the asset to dispose of.');
+    const effectiveDisposalNo = disposalNo.trim() || `PENDING-DISP-${Date.now()}`;
+    const effectiveReason = (reason.trim() || 'Disposal').toUpperCase();
+    const effectiveQty = Number.isInteger(quantity) && quantity >= 1
+      ? (inStore && quantity > inStore ? inStore : quantity)
+      : 1;
 
     const payload = {
-      quantity,
-      disposalNo: disposalNo.trim(),
+      quantity: effectiveQty,
+      disposalNo: effectiveDisposalNo,
       disposalDateGc: dateGc,
-      reason: reason.trim().toUpperCase(),
+      reason: effectiveReason,
       description: description.trim() || undefined,
       condition: condition as ItemCondition | undefined,
       bookValue,
@@ -337,14 +327,22 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center'; invalid?: boolean }) => inputClass('emerald', opts);
 
   return (
-    <form id="disposal-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
+    <form id="disposal-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(!submitting)} className="space-y-4">
+      <div className="rounded-lg border border-sky-200 bg-sky-50/70 p-3 text-[12px] text-sky-800 flex items-center justify-between gap-2 shadow-xs">
+        <div className="flex items-center gap-2">
+          <Info className="h-4 w-4 text-sky-600 shrink-0" />
+          <span><strong>Flexible Onboarding Active:</strong> All fields are optional. Register with available details now and update full data later.</span>
+        </div>
+        <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700 whitespace-nowrap">Partial Data Allowed</span>
+      </div>
+
       <FormError message={formError} />
       {/* The IFMIS PDF: it fills in the form and acts as the attached slip */}
       {(!isEdit || !showScannedSlipField) && (
         <FileDropField
           label="IFMIS disposal form PDF (Model 22/B)"
           accent="emerald"
-          required={!showScannedSlipField && isAttachmentReq}
+          required={false}
           fileName={readFile?.name ?? (!showScannedSlipField && editApproval?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editApproval.ifmisSlipAttachmentUrl) : '')}
           accept=".pdf,application/pdf"
           onChange={(e) => {
@@ -396,7 +394,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
             />
           </Field>
           <Field label="Date (G.C.)" required hint={`${ethDate} E.C.`} error={fieldErrors.error('date')}>
-            <input type="date" required value={dateGc} onChange={(e) => setDateGc(e.target.value)} onBlur={fieldErrors.touch('date')} className={input({ invalid: !!fieldErrors.error('date') })} />
+            <input type="date" value={dateGc} onChange={(e) => setDateGc(e.target.value)} onBlur={fieldErrors.touch('date')} className={input({ invalid: !!fieldErrors.error('date') })} />
           </Field>
           <Field label="Disposal type" required htmlFor="disposal-reason" error={fieldErrors.error('reason')} hint="As IFMIS prints it; pick one or type another">
             <input
@@ -492,7 +490,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
           value={keeperId}
           onChange={setKeeperId}
           current={isEdit ? editApproval?.requestDetails?.storekeeperName : undefined}
-          required={!isEdit}
+          required={false}
         />
         {/* The signed disposal form, scanned: kept as the request's copy (the IFMIS PDF until it is added) */}
         {showScannedSlipField && (
@@ -500,7 +498,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
             <FileDropField
               label="Signed copy"
               accent="emerald"
-              required={isAttachmentReq}
+              required={false}
               fileName={attachmentFileName}
               accept={SLIP_ACCEPT_ATTR}
               onChange={handleFile}

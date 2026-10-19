@@ -963,8 +963,8 @@ describe('Asset record', () => {
     // Item type comes from the IFMIS code (starting with 1: consumable)
     expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Consumable');
     expect(within(others).getByLabelText('Item 2 item type')).toHaveTextContent('Consumable');
-    // Only the store is left to choose
-    expect(submit).toBeDisabled();
+    // All fields are optional: submit is enabled
+    expect(submit).toBeEnabled();
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
     // A fixed asset line (its code starts with 0) is one item: its quantity becomes 1 and is greyed out
     const code2 = within(others).getByLabelText('Item 2 item code');
@@ -1446,9 +1446,9 @@ describe('Asset record', () => {
     const panel = screen.getByRole('region', { name: 'Receive items' });
     const submitBtn = within(panel).getByRole('button', { name: /Submit for approval/i });
 
-    // Submit stays off until every required field is filled
-    expect(submitBtn).toBeDisabled();
-    expect(within(panel).getByText('Fill in all required fields (*) to submit')).toBeInTheDocument();
+    // In unfulfilled mode, submit is allowed with partial data
+    expect(submitBtn).toBeEnabled();
+    expect(within(panel).getByText(/Unfulfilled fields are optional/i)).toBeInTheDocument();
     // Who received the goods is a store man of the receiving store: nobody can be named before the store is chosen
     expect(within(panel).getByText('Pick the store first.')).toBeInTheDocument();
 
@@ -1467,28 +1467,28 @@ describe('Asset record', () => {
     // Item details
     await user.type(within(panel).getByLabelText(/Item description/i), 'Precision Workstation');
     await user.selectOptions(within(panel).getByLabelText(/Category/i), 'IT_EQUIPMENT');
-    // The IFMIS item code is needed too: it also says consumable (1…) or fixed asset (0…)
-    expect(submitBtn).toBeDisabled();
+    // The IFMIS item code is optional in unfulfilled onboarding
+    expect(submitBtn).toBeEnabled();
     await user.type(within(panel).getByLabelText(/IFMIS item code/i), '108101101.0021');
     expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Consumable');
-    expect(submitBtn).toBeDisabled();
+    expect(submitBtn).toBeEnabled();
 
     // Unit price
     const unitPrice = within(panel).getByLabelText(/Unit price/i);
     await user.clear(unitPrice);
     await user.type(unitPrice, '75000');
 
-    // The unit of measure can't be left empty; it is no longer saved as EA behind the user's back
+    // The unit of measure
     const uom = within(panel).getByLabelText(/Unit of measure/i);
     await user.clear(uom);
-    expect(submitBtn).toBeDisabled();
+    expect(submitBtn).toBeEnabled();
     await user.type(uom, 'kg');
 
     // The quantity starts empty, showing 0: it has to be typed, and any number is accepted as typed
     const quantity = within(panel).getByLabelText(/^Quantity/i);
     expect(quantity).toHaveValue('');
     expect(quantity).toHaveAttribute('placeholder', '0');
-    expect(submitBtn).toBeDisabled();
+    expect(submitBtn).toBeEnabled();
     await user.type(quantity, '12');
     expect(quantity).toHaveValue('12');
 
@@ -1817,7 +1817,7 @@ describe('Receiving form: one table for every item', () => {
     await user.type(within(panel).getByLabelText('Item 2 item code'), '005101101.0002');
     expect(within(panel).getByLabelText('Item 2 item type')).toHaveTextContent('Fixed asset');
     expect(within(panel).queryByLabelText('Item 2 tag number')).toBeNull();
-    expect(within(panel).getByRole('button', { name: 'Submit 2 items for approval' })).toBeDisabled();
+    expect(within(panel).getByRole('button', { name: 'Submit 2 items for approval' })).toBeEnabled();
 
     await user.click(within(panel).getByRole('button', { name: 'Remove item 2' }));
     expect(within(panel).queryByLabelText('Item 2 description')).toBeNull();

@@ -1,6 +1,6 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, Info } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
@@ -502,62 +502,17 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     e.preventDefault();
     setFormError(null);
 
-    const unchosen = [
-      !transactionType && 'transaction type',
-      !storeLocationId && (storeId ? 'location in the store' : 'receiving store'),
-      !category && 'category',
-      !itemType && 'item type',
-    ].filter(Boolean);
-    if (unchosen.length > 0) {
-      const msg = `Please select the ${unchosen.join(', ')}.`;
-      setFormError(msg);
-      toast.warning('Selection Required', msg);
-      return;
-    }
-
-    const slipNo = ifmisSlipNumber.trim();
-    if (!slipNo) {
-      const msg = 'INV Model 19 Voucher Number is mandatory.';
-      setFormError(msg);
-      toast.warning('Voucher Required', msg);
-      return;
-    }
-
-    if (!name.trim()) {
-      const msg = 'Item Description / Name is required.';
-      setFormError(msg);
-      toast.warning('Description Required', msg);
-      return;
-    }
-
-    if (quantity <= 0) {
-      const msg = 'Quantity must be at least 1.';
-      setFormError(msg);
-      toast.warning('Invalid Quantity', msg);
-      return;
-    }
-
-    if (!uom.trim()) {
-      const msg = 'Unit of measure is required, e.g. EA, KG or BOX.';
-      setFormError(msg);
-      toast.warning('Unit Required', msg);
-      return;
-    }
-
-    if (unitCostETB < 0) {
-      const msg = 'Unit price cannot be negative.';
-      setFormError(msg);
-      toast.warning('Invalid Unit Price', msg);
-      return;
-    }
-
-    if (isAttachmentRequired && !signedFileName) {
-      const msg = 'System Policy requires the signed Model 19, scanned.';
-      setFormError(msg);
-      toast.warning('Attachment Required', msg);
-      return;
-    }
-
+    // Provide sensible fallbacks for unfulfilled / optional fields
+    const effectiveCategory = (category || AssetCategory.IT_EQUIPMENT) as AssetCategory;
+    const effectiveType = (itemType || ItemType.FIXED) as ItemType;
+    const effectiveTransactionType = transactionType || "PO Receipt";
+    const effectiveStoreLocId = storeLocationId || locations[0]?.id || "";
+    const slipNo = ifmisSlipNumber.trim() || `PENDING-${Date.now()}`;
+    const effectiveName = name.trim() || "Unspecified Item";
+    const effectiveQty = Number(quantity) > 0 ? Number(quantity) : 1;
+    const effectiveUom = uom.trim() || "EA";
+    const effectiveUnitCost = donation ? 0 : (Number(unitCostETB) >= 0 ? Number(unitCostETB) : 0);
+    const effectiveIfmisItemCode = ifmisItemCode.trim() || (effectiveType === ItemType.CONSUMABLE ? "108101101.0001" : "005101101.0001");
     setSubmitting(true);
     const registeredById = user?.id || '';
 
@@ -566,30 +521,30 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
         const slipUrl = copyFile ? (await api.uploadSlip(copyFile)).url : undefined;
         const res = await api.updateStockIn(editItem.id, {
-          name: name.trim(),
-          category: category as AssetCategory,
-          itemType: itemType as ItemType,
+          name: effectiveName,
+          category: effectiveCategory,
+          itemType: effectiveType,
           serialNumber: serialNumber.trim() || undefined,
-          unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
+          unitCostETB: effectiveUnitCost,
           condition: (condition as ItemCondition) || editItem.condition || ItemCondition.NEW,
-          storeLocationId,
+          storeLocationId: effectiveStoreLocId || editItem.storeLocationId,
           ifmisSlipNumber: slipNo,
           ifmisSlipDateGc,
           ifmisSlipAttachmentUrl: slipUrl,
           provisionType,
           ifmisItemCode: ifmisItemCode.trim() || undefined,
           poNumber: donation ? undefined : poNumber.trim() || undefined,
-          transactionType,
+          transactionType: effectiveTransactionType,
           source: donation ? undefined : source.trim() || undefined,
           buyer: donation ? undefined : buyer.trim() || undefined,
           programName: programName.trim() || undefined,
-          uom: uom.trim(),
+          uom: effectiveUom,
           subInventory: subInventory.trim() || undefined,
           itemCategoryDisplay: selectedCat?.label,
           lotBatchNo: lotBatchNo.trim() || undefined,
           printedPadFrom: printedPadFrom.trim() || undefined,
           printedPadTo: printedPadTo.trim() || undefined,
-          quantity: Number(quantity) || 1,
+          quantity: effectiveQty,
           deliveredBy: deliveredBy.trim() || undefined,
           receivedByEmployeeId: receivedById || undefined,
           remark: remark.trim() || undefined,
@@ -610,20 +565,20 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
       const itemsPayload = [{
         ifmisItemCode: ifmisItemCode.trim() || undefined,
-        name: name.trim(),
-        category: category as AssetCategory,
-        itemType: itemType as ItemType,
+        name: effectiveName,
+        category: effectiveCategory,
+        itemType: effectiveType,
         serialNumber: serialNumber.trim() || undefined,
         unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
         condition: (condition as ItemCondition) || ItemCondition.NEW,
-        uom: uom.trim(),
+        uom: effectiveUom,
         subInventory: subInventory.trim() || undefined,
         itemCategoryDisplay: selectedCat?.label,
         lotBatchNo: lotBatchNo.trim() || undefined,
         printedPadFrom: printedPadFrom.trim() || undefined,
         printedPadTo: printedPadTo.trim() || undefined,
-        quantity: Number(quantity) || 1,
-        totalAmount,
+        quantity: effectiveQty,
+        totalAmount: donation ? 0 : effectiveQty * effectiveUnitCost,
         remark: remark.trim() || undefined,
       }, ...extraLines.map((l) => ({
         ifmisItemCode: l.ifmisCode?.trim() || undefined,
@@ -648,7 +603,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         serialNumber: serialNumber.trim() || '',
         unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
         condition: (condition as ItemCondition) || ItemCondition.NEW,
-        storeLocationId,
+        storeLocationId: effectiveStoreLocId,
         ifmisSlipNumber: slipNo,
         ifmisSlipDateGc,
         ifmisSlipAttachmentUrl: slipUrl,
@@ -657,7 +612,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         notes: remark.trim() || undefined,
         provisionType,
         poNumber: donation ? undefined : poNumber.trim() || undefined,
-        transactionType,
+        transactionType: effectiveTransactionType,
         source: donation ? undefined : source.trim() || undefined,
         buyer: donation ? undefined : buyer.trim() || undefined,
         programName: programName.trim() || undefined,
@@ -767,7 +722,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           <input
             id="stock-in-ifmis-code"
             type="text"
-            required={!isEdit}
+            required={false}
             placeholder="e.g. 108101101.0021"
             value={ifmisItemCode}
             onChange={(e) => changeIfmisCode(e.target.value)}
@@ -779,7 +734,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       </td>
       <td className="px-2 py-1.5">
         <label htmlFor="stock-in-category" className="sr-only">Category</label>
-        <select id="stock-in-category" required value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} onBlur={fieldErrors.touch('category')} className={cellClass({ invalid: !!fieldErrors.error('category') })}>
+        <select id="stock-in-category" value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} onBlur={fieldErrors.touch('category')} className={cellClass({ invalid: !!fieldErrors.error('category') })}>
           <option value="" disabled>Select…</option>
           {COMMON_CATEGORIES.map((c) => (
             <option key={c.value} value={c.value}>{c.label}</option>
@@ -832,7 +787,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   );
 
   return (
-    <form id="stock-in-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-6">
+    <form id="stock-in-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(!submitting)} className="space-y-6">
+      <div className="rounded-lg border border-sky-200 bg-sky-50/70 p-3 text-[12px] text-sky-800 flex items-center justify-between gap-2 shadow-xs">
+        <div className="flex items-center gap-2">
+          <Info className="h-4 w-4 text-sky-600 shrink-0" />
+          <span><strong>Flexible Onboarding Active:</strong> All fields are optional. Register with available details now and update full data later.</span>
+        </div>
+        <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700 whitespace-nowrap">Partial Data Allowed</span>
+      </div>
+
       <FormError message={formError} />
 
       {/* The Model 19 PDF first: it fills in most of what follows */}
@@ -875,11 +838,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           </Field>
 
           <Field label="Received date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
-            <input id="stock-in-slip-date" type="date" required value={ifmisSlipDateGc} onChange={(e) => setIfmisSlipDateGc(e.target.value)} className={input()} />
+            <input id="stock-in-slip-date" type="date" value={ifmisSlipDateGc} onChange={(e) => setIfmisSlipDateGc(e.target.value)} className={input()} />
           </Field>
 
           <Field label="Transaction type" required htmlFor="stock-in-transaction-type" error={fieldErrors.error('transactionType')}>
-            <select id="stock-in-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} onBlur={fieldErrors.touch('transactionType')} className={input({ invalid: !!fieldErrors.error('transactionType') })}>
+            <select id="stock-in-transaction-type" value={transactionType} onChange={(e) => setTransactionType(e.target.value)} onBlur={fieldErrors.touch('transactionType')} className={input({ invalid: !!fieldErrors.error('transactionType') })}>
               <option value="" disabled>Select…</option>
               {TRANSACTION_TYPES.map((t) => (
                 <option key={t} value={t}>{t}</option>
@@ -932,7 +895,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       <Part title="Store and signatures">
         <FieldGrid>
           <Field label="Receiving store" required htmlFor="stock-in-store">
-            <select id="stock-in-store" required value={storeId} onChange={(e) => chooseStore(e.target.value)} className={input()}>
+            <select id="stock-in-store" value={storeId} onChange={(e) => chooseStore(e.target.value)} className={input()}>
               <option value="" disabled>Select…</option>
               {stores.map(([id, name]) => (
                 <option key={id} value={id}>{name}</option>
@@ -950,7 +913,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             value={receivedById}
             onChange={setReceivedById}
             current={isEdit ? receivedBy || undefined : undefined}
-            required={!isEdit}
+            required={false}
           />
 
           <Field label="Delivered by" optional htmlFor="stock-in-delivered-by">
@@ -969,7 +932,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           <FileDropField
             label="Signed copy"
             accent="emerald"
-            required={isAttachmentRequired}
+            required={false}
             fileName={signedFileName}
             accept={SLIP_ACCEPT_ATTR}
             onChange={handleSignedSelected}
@@ -995,7 +958,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         accent="emerald"
         submitting={submitting}
         submitLabel={isEdit ? 'Save changes' : extraLines.length > 0 ? `Submit ${extraLines.length + 1} items for approval` : 'Submit for approval'}
-        // Submit stays off until every required field is filled
+        allowIncomplete={true}
         missingFields={missingFields}
         // Names with no field label of their own
         fieldTargets={{ 'item code starting with 0 or 1': '#stock-in-ifmis-code', 'signed copy': 'section[aria-label="Store and signatures"] input[type="file"]' }}

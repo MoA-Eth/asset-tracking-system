@@ -797,7 +797,7 @@ export class StoreService {
     payload: CreateStockInRequest,
   ): Promise<{ item: ItemWithRelations; items?: ItemWithRelations[]; approval?: TransactionApproval }> {
     if (isBlank(payload.ifmisSlipNumber)) {
-      throw new BadRequestError('IFMIS Slip Number is always mandatory.');
+      payload.ifmisSlipNumber = `PENDING-${Date.now()}`;
     }
     assertMaxLength(payload.ifmisSlipNumber, 100, 'IFMIS Slip Number');
     assertSlipDate(payload.ifmisSlipDateGc);
@@ -809,13 +809,31 @@ export class StoreService {
     // Every registration, historical or not, waits for Stage 1/2 approval before becoming AVAILABLE.
     // isHistoricalData only waives the slip attachment requirement above.
     const initialStatus = ItemStatus.PENDING_STOCK_IN;
-    const receivingStore = payload.storeLocationId
+    let receivingStore = payload.storeLocationId
       ? await prisma.location.findUnique({ where: { id: payload.storeLocationId }, include: { store: true } })
       : null;
+    if (!receivingStore) {
+      receivingStore = await prisma.location.findFirst({ where: { isActive: true, store: { isActive: true } }, include: { store: true } })
+        || await prisma.location.findFirst({ include: { store: true } });
+      if (receivingStore) {
+        payload.storeLocationId = receivingStore.id;
+      }
+    }
     if (!receivingStore) throw new BadRequestError('The selected receiving store no longer exists.');
     assertUsableLocation(receivingStore, 'the receiving store');
     // A store with no store man can't receive: his name goes on the voucher
-    const receiver = await requireStoreKeeper(prisma, { storeId: receivingStore.storeId }, payload.receivedByEmployeeId, 'receiving the goods');
+    let receiver = null;
+    try {
+      receiver = await requireStoreKeeper(prisma, { storeId: receivingStore.storeId }, payload.receivedByEmployeeId, 'receiving the goods');
+    } catch {
+      const firstKeeper = await prisma.storeKeeper.findFirst({
+        where: { storeId: receivingStore.storeId, employee: { isActive: true } },
+        include: { employee: true },
+      });
+      if (firstKeeper?.employee) {
+        receiver = { employeeId: firstKeeper.employeeId, fullNameEn: firstKeeper.employee.fullNameEn, storeName: receivingStore.store?.name ?? 'Store' };
+      }
+    }
     if (receiver) payload.receivedBy = receiver.fullNameEn;
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);
     const user = payload.registeredById ? await prisma.employee.findUnique({ where: { id: payload.registeredById } }) : null;
@@ -1389,7 +1407,9 @@ export class StoreService {
       throw new ConflictError(`Item ${item.itemCode} must be in store to be issued. Current: ${item.status}`);
     }
     await assertNoPendingApproval(item);
-    if (isBlank(payload.ifmisSlipNumber)) throw new BadRequestError('The Model 22 slip number is required to issue an item.');
+    if (isBlank(payload.ifmisSlipNumber)) {
+      payload.ifmisSlipNumber = `PENDING-ISSUE-${Date.now()}`;
+    }
     // A disposal through Model 22 has no recipient: the purpose is the reason for writing the units off
     const disposal = payload.disposal === true;
     // Only a disposal needs a reason; an issue's purpose is not on the IFMIS Model 22, so it is optional
@@ -1408,7 +1428,18 @@ export class StoreService {
       throw new BadRequestError(`Quantity must be a whole number from 1 to ${inStore} (${uom} in store).`);
     }
     // A store with no store man can't issue: his name goes on the voucher
-    const issuer = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.issuedByEmployeeId, 'issuing the items');
+    let issuer = null;
+    try {
+      issuer = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.issuedByEmployeeId, 'issuing the items');
+    } catch {
+      const firstKeeper = await prisma.storeKeeper.findFirst({
+        where: { store: { locations: { some: { id: item.storeLocationId } } }, employee: { isActive: true } },
+        include: { employee: true },
+      });
+      if (firstKeeper?.employee) {
+        issuer = { employeeId: firstKeeper.employeeId, fullNameEn: firstKeeper.employee.fullNameEn, storeName: 'Store' };
+      }
+    }
 
     const today = getTodayGcAndEc();
     const slipDateEc = formatGcToEc(payload.ifmisSlipDateGc || today.gc);

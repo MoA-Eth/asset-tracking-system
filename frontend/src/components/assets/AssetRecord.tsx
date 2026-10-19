@@ -353,7 +353,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
             accent="emerald"
           >
             <FieldGrid>
-              <FormKitField label="Model 19 No." required>
+              <FormKitField label="Model 19 No." optional>
                 <div className="relative flex items-center w-full">
                   <ReadOnlyValue mono className={item.ifmisSlipNumber ? (item.ifmisSlipAttachmentUrl ? 'pr-16' : 'pr-9') : ''}>
                     {item.ifmisSlipNumber || '—'}
@@ -398,13 +398,13 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <ReadOnlyValue mono>{item.ifmisSlipDateGc || '—'}</ReadOnlyValue>
               </FormKitField>
 
-              <FormKitField label="Transaction type" required>
+              <FormKitField label="Transaction type" optional>
                 <ReadOnlyValue>{item.transactionType || '—'}</ReadOnlyValue>
               </FormKitField>
 
               {item.provisionType !== 'DONATION' && (
                 <>
-                  <FormKitField label="Source (supplier / vendor)" required>
+                  <FormKitField label="Source (supplier / vendor)" optional>
                     <ReadOnlyValue>{item.source || '—'}</ReadOnlyValue>
                   </FormKitField>
 
@@ -418,7 +418,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <ReadOnlyValue>{item.programName || '—'}</ReadOnlyValue>
               </FormKitField>
 
-              <FormKitField label="Receiving store" required>
+              <FormKitField label="Receiving store" optional>
                 <ReadOnlyValue>
                   {item.storeLocation?.siteName || (item.storeLocation ? storeLocationLabel(item.storeLocation).split(' · ')[0] : '—')}
                 </ReadOnlyValue>
@@ -435,15 +435,15 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
             accent="emerald"
           >
             <FieldGrid>
-              <FormKitField label="Item description / Name" required span="sm:col-span-2">
+              <FormKitField label="Item description / Name" optional span="sm:col-span-2">
                 <ReadOnlyValue>{item.name}</ReadOnlyValue>
               </FormKitField>
 
-              <FormKitField label="Category" required>
+              <FormKitField label="Category" optional>
                 <ReadOnlyValue>{item.itemCategoryDisplay || item.category?.replace(/_/g, ' ')}</ReadOnlyValue>
               </FormKitField>
 
-              <FormKitField label="Record code" required>
+              <FormKitField label="Record code" optional>
                 <ReadOnlyValue mono>{item.itemCode}</ReadOnlyValue>
               </FormKitField>
 
@@ -468,7 +468,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 </div>
               </FormKitField>
 
-              <FormKitField label="Quantity" required>
+              <FormKitField label="Quantity" optional>
                 <ReadOnlyValue mono>
                   {totals ? `${totals.total} ${uom} received` : `${row.units} ${uom}`}
                 </ReadOnlyValue>
@@ -476,7 +476,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
 
               {item.provisionType !== 'DONATION' && (
               <>
-              <FormKitField label="Unit price" required>
+              <FormKitField label="Unit price" optional>
                 <ReadOnlyValue mono>{formatETB(item.unitCostETB)}</ReadOnlyValue>
               </FormKitField>
 

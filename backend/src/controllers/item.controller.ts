@@ -98,11 +98,11 @@ export class ItemController {
       if (!payload.category) payload.category = payload.items[0].category || AssetCategory.IT_EQUIPMENT;
       if (payload.unitCostETB === undefined) payload.unitCostETB = payload.items[0].unitCostETB || 0;
     }
-    if (!payload.name || !payload.category) {
-      throw new BadRequestError('Item name and asset category are mandatory fields.');
-    }
-    if (!payload.isHistoricalData && !payload.ifmisSlipNumber) {
-      throw new BadRequestError('IFMIS receiving voucher slip number is required for new stock-in.');
+    // Allow partial / unfulfilled data: provide sensible fallbacks for optional fields
+    if (!payload.name) payload.name = 'Unspecified Item';
+    if (!payload.category) payload.category = AssetCategory.IT_EQUIPMENT;
+    if (!payload.ifmisSlipNumber) {
+      payload.ifmisSlipNumber = `PENDING-${Date.now()}`;
     }
     if (!payload.registeredById) {
       throw new BadRequestError('User identity is required to register stock-in.');
@@ -144,15 +144,12 @@ export class ItemController {
       payload.registeredById = req.user.id;
     }
     const external = payload.recipientType === 'EXTERNAL';
-    // Several lines of one Model 22 name their items per line
     const batch = Array.isArray(payload.lines);
-    const recipientGiven = payload.disposal === true || (external ? !!payload.organizationName?.trim() : !!payload.recipientEmployeeId);
-    if ((!batch && !payload.itemId) || !payload.ifmisSlipNumber || !recipientGiven) {
-      throw new BadRequestError(
-        external
-          ? 'Asset Item, Organization, and IFMIS Issue Voucher are required.'
-          : 'Asset Item, Recipient Staff, and IFMIS Issue Voucher are required.',
-      );
+    if (!payload.ifmisSlipNumber) {
+      payload.ifmisSlipNumber = `PENDING-ISSUE-${Date.now()}`;
+    }
+    if (!batch && !payload.itemId) {
+      throw new BadRequestError('Asset Item is required.');
     }
     if (!payload.registeredById) {
       throw new BadRequestError('User identity is required to register stock-out.');

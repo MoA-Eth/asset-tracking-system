@@ -1,6 +1,6 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Plus, X } from 'lucide-react';
+import { FileText, Plus, X, Info } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers, nameKey } from '../../hooks/useStoreKeepers';
@@ -445,23 +445,43 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (missingFields.length > 0) {
-      const msg = `Still needed: ${missingFields.join(', ')}.`;
-      setFormError(msg);
-      toast.warning('Not complete', msg);
-      return;
-    }
+    const effectiveModel22No = model22No.trim() || `PENDING-ISSUE-${Date.now()}`;
+    const effectiveIssuedDate = issuedDateGc || today;
+    const effectiveTransactionType = transactionType || DEFAULT_TRANSACTION_TYPE;
+    const effectiveRecipientFields = isDisposal
+      ? { disposal: true as const }
+      : isExternal
+      ? {
+          recipientType: 'EXTERNAL' as const,
+          ...(organizationId ? { organizationId } : {}),
+          organizationName: organizationName.trim() || 'Pending Organization',
+          contactPerson: contactPerson.trim() || undefined,
+        }
+      : {
+          recipientType: 'INTERNAL' as const,
+          recipientEmployeeId: recipientEmployeeId || undefined,
+          targetDepartmentId: destinationDepartmentId || undefined,
+        };
+    const effectiveRows = rows.map((r) => {
+      const it = itemOf(r);
+      const inStore = it ? unitsOf(it) : 1;
+      const q = Number(r.quantity);
+      return {
+        ...r,
+        quantity: Number.isInteger(q) && q >= 1 ? (inStore && q > inStore ? inStore : q) : 1,
+      };
+    });
     setSubmitting(true);
 
     if (editApproval) {
       try {
         const slipUrl = signedFile ? (await api.uploadSlip(signedFile)).url : ifmisFile ? (await api.uploadSlip(ifmisFile)).url : undefined;
         const res = await api.updateStockOut(editApproval.id, {
-          quantity: rows[0].quantity,
+          quantity: effectiveRows[0]?.quantity || 1,
           issuedByEmployeeId: issuedById || undefined,
-          ...recipientFields,
-          ifmisSlipNumber: model22No.trim(),
-          ifmisSlipDateGc: issuedDateGc,
+          ...effectiveRecipientFields,
+          ifmisSlipNumber: effectiveModel22No,
+          ifmisSlipDateGc: effectiveIssuedDate,
           ifmisSlipAttachmentUrl: slipUrl,
           purpose: purpose.trim() || undefined,
           remark: remark.trim() || undefined,
@@ -485,13 +505,13 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       const slipUrl = copyFile ? (await api.uploadSlip(copyFile)).url : undefined;
       const shared = {
         issuedByEmployeeId: issuerId || undefined,
-        ...recipientFields,
-        ifmisSlipNumber: model22No.trim(),
-        ifmisSlipDateGc: issuedDateGc,
+        ...effectiveRecipientFields,
+        ifmisSlipNumber: effectiveModel22No,
+        ifmisSlipDateGc: effectiveIssuedDate,
         ifmisSlipAttachmentUrl: slipUrl,
         purpose: purpose.trim() || undefined,
         registeredById: user?.id || '',
-        transactionType,
+        transactionType: effectiveTransactionType,
         destination,
         transportationCost,
       };
@@ -501,13 +521,13 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       const result: any = one
         ? await api.registerStockOut({
             ...shared,
-            itemId: rows[0].itemId,
+            itemId: effectiveRows[0].itemId,
             subInventory,
-            quantity: rows[0].quantity,
+            quantity: effectiveRows[0].quantity,
             unitPrice: single?.unitCostETB || 0,
             totalAmount,
           })
-        : await api.registerStockOut({ ...shared, itemId: rows[0].itemId, lines: rows.map((r) => ({ itemId: r.itemId, quantity: r.quantity })) });
+        : await api.registerStockOut({ ...shared, itemId: rows[0].itemId, lines: effectiveRows.map((r) => ({ itemId: r.itemId, quantity: r.quantity })) });
 
       const voucher: Model22Voucher = {
         approvalState: 'PENDING',
@@ -578,7 +598,15 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   ];
 
   return (
-    <form id="stock-out-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-6">
+    <form id="stock-out-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(!submitting)} className="space-y-6">
+      <div className="rounded-lg border border-sky-200 bg-sky-50/70 p-3 text-[12px] text-sky-800 flex items-center justify-between gap-2 shadow-xs">
+        <div className="flex items-center gap-2">
+          <Info className="h-4 w-4 text-sky-600 shrink-0" />
+          <span><strong>Flexible Onboarding Active:</strong> All fields are optional. Register with available details now and update full data later.</span>
+        </div>
+        <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700 whitespace-nowrap">Partial Data Allowed</span>
+      </div>
+
       <FormError message={formError} />
 
       {/* The Model 22 PDF: it fills in most of what follows and acts as the attached slip */}
@@ -587,7 +615,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           <FileDropField
             label="IFMIS Model 22 PDF"
             accent="emerald"
-            required={!showScannedSlipField && isAttachmentReq}
+            required={false}
             fileName={ifmisFile?.name ?? (!showScannedSlipField && editApproval?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editApproval.ifmisSlipAttachmentUrl) : '')}
             accept={SLIP_ACCEPT_ATTR}
             onChange={fileChosen(takeSlip)}
@@ -646,12 +674,12 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           </Field>
 
           <Field label="Issued date (G.C.)" required hint={`${ethDate} E.C.`} htmlFor="stock-out-date">
-            <input id="stock-out-date" type="date" required value={issuedDateGc} onChange={(e) => setIssuedDateGc(e.target.value)} className={input()} />
+            <input id="stock-out-date" type="date" value={issuedDateGc} onChange={(e) => setIssuedDateGc(e.target.value)} className={input()} />
           </Field>
 
           {!isEdit && !isDisposal && (
             <Field label="Transaction type" required htmlFor="stock-out-transaction-type">
-              <select id="stock-out-transaction-type" required value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
+              <select id="stock-out-transaction-type" value={transactionType} onChange={(e) => setTransactionType(e.target.value)} className={input()}>
                 <option value="" disabled>Select…</option>
                 {typeOptions.map((t) => (
                   <option key={t} value={t}>{t}</option>
@@ -841,7 +869,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                 </Field>
               ) : (
                 <Field label="Destination directorate" required htmlFor="stock-out-directorate">
-                  <select id="stock-out-directorate" value={destinationDepartmentId} onChange={(e) => setDestinationDepartmentId(e.target.value)} className={input()} required>
+                  <select id="stock-out-directorate" value={destinationDepartmentId} onChange={(e) => setDestinationDepartmentId(e.target.value)} className={input()}>
                     <option value="" disabled>Select…</option>
                     {departments.map((dept) => (
                       <option key={dept.id} value={dept.id}>{departmentLabel(dept)}</option>
@@ -878,7 +906,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             value={issuedById}
             onChange={setIssuedById}
             current={isEdit ? editApproval?.requestDetails?.issuedByName : undefined}
-            required={!isEdit}
+            required={false}
           />
         </FieldGrid>
 
@@ -886,7 +914,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           <FileDropField
             label="Signed copy"
             accent="emerald"
-            required={isAttachmentReq}
+            required={false}
             fileName={signedFileName}
             accept={SLIP_ACCEPT_ATTR}
             onChange={fileChosen(takeSigned)}

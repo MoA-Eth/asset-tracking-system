@@ -1,6 +1,6 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, FileText, Car } from 'lucide-react';
+import { Search, FileText, Car, Info } from 'lucide-react';
 import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
 import { formatVoucherRemark } from '../../utils/voucher-remark';
@@ -374,11 +374,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItemId) return void toast.warning('Asset required', 'Choose the asset to transfer.');
-    if (!isReturn && !targetEmployeeId) return void toast.warning('Recipient required', 'Choose the employee who receives the asset.');
-    if (!model21No.trim()) return void toast.warning('Model 21 number required', 'Enter the number on the Model 21 form.');
-    if (isReturn && !returnReason.trim()) return void toast.warning('Reason required', 'Enter the reason for returning the asset to store.');
-    const hasAttachment = showScannedSlipField ? !!attachmentFileName : (!!readFile || !!attachmentFile || !!editTransfer?.ifmisSlipAttachmentUrl);
-    if (isReturn && isAttachmentReq && !hasAttachment) return void toast.warning('Attachment required', showScannedSlipField ? 'The signed Model 21, scanned, is required by the system setting.' : 'The Model 21 PDF is required by the system setting.');
+    const effectiveModel21No = model21No.trim() || `PENDING-TRF-${Date.now()}`;
+    const effectiveReason = isReturn ? (returnReason.trim() || 'Return to store') : undefined;
+    const effectiveTargetEmployeeId = targetEmployeeId || (isReturn ? undefined : employees[0]?.id);
 
     const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty, reserveTyreQty);
     const tireList = tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
@@ -392,10 +390,10 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         const item = selectedItemObj;
         if (editTransfer) {
           await api.updateReturn(editTransfer.id, {
-            model21No: model21No.trim(),
+            model21No: effectiveModel21No,
             ifmisSlipDateGc: transferDateGc,
             ifmisSlipAttachmentUrl: slipUrl,
-            returnReason: returnReason.trim(),
+            returnReason: effectiveReason,
             condition,
             book: book.trim() || undefined,
             chassisNumber: chassisNumber.trim() || undefined,
@@ -416,10 +414,10 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         const origCost = (item?.unitCostETB || 0) * (Number(item?.quantity) || 1);
         await api.registerReturn({
           itemId: selectedItemId,
-          ifmisSlipNumber: model21No.trim(),
+          ifmisSlipNumber: effectiveModel21No,
           ifmisSlipDateGc: transferDateGc,
           ifmisSlipAttachmentUrl: slipUrl,
-          returnReason: returnReason.trim(),
+          returnReason: effectiveReason,
           condition,
           returningEmployeeId: item?.currentCustodianId || undefined,
           registeredById: user?.id || '',
@@ -629,12 +627,20 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
   return (
     <form id="transfer-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(missingFields.length === 0 && !submitting)} className="space-y-4">
+      <div className="rounded-lg border border-sky-200 bg-sky-50/70 p-3 text-[12px] text-sky-800 flex items-center justify-between gap-2 shadow-xs">
+        <div className="flex items-center gap-2">
+          <Info className="h-4 w-4 text-sky-600 shrink-0" />
+          <span><strong>Flexible Onboarding Active:</strong> All fields are optional. Register with available details now and update full data later.</span>
+        </div>
+        <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700 whitespace-nowrap">Partial Data Allowed</span>
+      </div>
+
       {/* The IFMIS PDF first: it fills in the form */}
       {(!editTransfer || !showScannedSlipField) && (
         <FileDropField
           label="IFMIS Model 21 PDF"
           accent="emerald"
-          required={!showScannedSlipField && isReturn && isAttachmentReq}
+          required={false}
           fileName={readFile?.name ?? (!showScannedSlipField && editTransfer?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editTransfer.ifmisSlipAttachmentUrl) : '')}
           accept=".pdf,application/pdf"
           onChange={(e) => {
@@ -680,13 +686,11 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         <FieldGrid>
           <Field
             label="Model 21 No."
-            required
             error={errorOf('model21No')}
             warning={usedNo ? usedMessage(model21No, usedNo) : undefined}
           >
             <input
               type="text"
-              required
               value={model21No}
               onChange={(e) => setModel21No(e.target.value)}
               onBlur={touch('model21No')}
@@ -696,10 +700,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             />
           </Field>
 
-          <Field label="Book" required error={errorOf('book')}>
+          <Field label="Book" optional error={errorOf('book')}>
             <input
               type="text"
-              required
               value={book}
               onChange={(e) => setBook(e.target.value)}
               onBlur={touch('book')}
@@ -710,7 +713,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
           <Field
             label="Transfer date (G.C.)"
-            required
             htmlFor="transfer-date"
             error={errorOf('date')}
             hint={transferDateGc ? `${formatGcToEc(transferDateGc)} E.C. · today unless you change it` : undefined}
@@ -718,7 +720,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             <input
               id="transfer-date"
               type="date"
-              required
               max={todayGc}
               value={transferDateGc}
               onChange={(e) => setTransferDateGc(e.target.value)}
@@ -738,7 +739,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               </ReadOnlyValue>
             </Field>
           ) : (
-            <Field label="Asset" required htmlFor="transfer-item" hint="Fixed assets in store and assets issued to a custodian are listed. Consumables are issued, not transferred. Type a name, code or custodian to find one.">
+            <Field label="Asset" optional htmlFor="transfer-item" hint="Fixed assets in store and assets issued to a custodian are listed. Consumables are issued, not transferred. Type a name, code or custodian to find one.">
               <SearchableSelect
                 id="transfer-item"
                 value={selectedItemId}
@@ -825,8 +826,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             {!fromStore && (!editTransfer || isReturnEdit) && (
               <Field
                 label="Return to store"
-                optional={!isReturnEdit}
-                required={isReturnEdit}
+                
                 htmlFor="transfer-return-to-store"
                 hint={isReturn ? undefined : 'Leave empty to transfer to an employee. Choose a store to take the asset back to it.'}
               >
@@ -847,7 +847,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             )}
 
             {!isReturn && (
-            <Field label="To employee" required htmlFor="transfer-recipient" hint="Type a name or employee ID.">
+            <Field label="To employee" optional htmlFor="transfer-recipient" hint="Type a name or employee ID.">
               <SearchableSelect
                 id="transfer-recipient"
                 value={targetEmployeeId}
@@ -897,15 +897,14 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                   value={storeReceiverId}
                   onChange={setStoreReceiverId}
                   current={editTransfer ? editTransfer.requestDetails?.storeRecipientName : undefined}
-                  required={!editTransfer}
+                  
                 />
               </FieldGrid>
 
-              <Field label="Reason for return" required htmlFor="transfer-return-reason" error={errorOf('reason')}>
+              <Field label="Reason for return" optional htmlFor="transfer-return-reason" error={errorOf('reason')}>
                 <input
                   id="transfer-return-reason"
                   type="text"
-                  required
                   placeholder="e.g. Project field work completed, returning asset to store"
                   value={returnReason}
                   onChange={(e) => setReturnReason(e.target.value)}
@@ -925,7 +924,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             value={transferredById}
             onChange={setTransferredById}
             current={editTransfer ? editTransfer.requestDetails?.transferredByName : undefined}
-            required={!editTransfer}
+            
           />
           )}
 
@@ -1001,7 +1000,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           <FileDropField
             label="Signed copy"
             accent="emerald"
-            required={isReturn && isAttachmentReq}
+            required={false}
             fileName={attachmentFileName}
             accept={SLIP_ACCEPT_ATTR}
             onChange={handleSlipSelected}
