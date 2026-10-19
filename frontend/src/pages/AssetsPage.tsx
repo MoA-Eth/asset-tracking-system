@@ -1125,11 +1125,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                         {receipt.edit ? 'Correction' : 'New Delivery'}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {receipt.edit
-                        ? 'Corrections are allowed until the Team Leader endorses it. Every change is recorded in the item history and audit log.'
-                        : 'The items are held as pending until the Team Leader endorses and the Department Head approves the receipt.'}
-                    </p>
+                    {receipt.edit && (
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Corrections are allowed until the Team Leader endorses it. Every change is recorded in the item history and audit log.
+                      </p>
+                    )}
                   </div>
                 </div>
               </header>
