@@ -29,6 +29,7 @@ import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../compo
 import { RecordDetailModal } from '../components/ui/RecordDetailModal';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { CATEGORY_OPTIONS } from '../components/assets/asset-state';
+import { isGeneratedSerialNumber, displaySerialNumber } from '../utils/asset-tag';
 
 export type ReportType = 'all' | 'registered' | 'available' | 'issued' | 'transferred';
 export type TimeframePreset =
