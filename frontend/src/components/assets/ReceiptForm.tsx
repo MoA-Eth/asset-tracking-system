@@ -677,7 +677,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         printedPadTo: '',
         quantity: l.quantity,
         unitPrice: donation ? 0 : l.unitPrice,
-        totalAmount: donation ? 0 : (l.quantity * l.unitPrice) + (l.vatApplicable ? 0 : Number(l.additionalCharges) || 0),
+        totalAmount: donation ? 0 : (() => {
+          const base = l.quantity * l.unitPrice;
+          const vat = l.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+          return base + (l.vatApplicable ? vat : Number(l.additionalCharges) || 0);
+        })(),
         vatApplicable: Boolean(l.vatApplicable),
         additionalCharges: l.vatApplicable ? 0 : Number(l.additionalCharges) || 0,
         remark: '',
@@ -1058,25 +1062,40 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
   const siblingItems = registrations.filter((i) => i.ifmisSlipNumber && i.ifmisSlipNumber === item.ifmisSlipNumber);
   const targetItems = siblingItems.length > 0 ? siblingItems : [item];
 
-  const voucherItems: Model19LineItem[] = targetItems.map((it, idx) => ({
-    id: it.id,
-    sNo: idx + 1,
-    itemCode: it.itemType === ItemType.CONSUMABLE && it.ifmisItemCode ? it.ifmisItemCode : it.itemCode,
-    itemDescription: it.name,
-    uom: it.uom || 'EA',
-    subInventory: it.subInventory || item.storeLocation?.roomNumber || '—',
-    itemCategory: it.itemCategoryDisplay || it.category.replace(/_/g, ' '),
-    itemType: it.itemType,
-    lotBatchNo: it.lotBatchNo || '',
-    serialNo: it.serialNumber || '',
-    printedPadFrom: it.printedPadFrom || '',
-    printedPadTo: it.printedPadTo || '',
-    quantity: it.balance?.total || Number(it.quantity) || 1,
-    unitPrice: Number(it.unitCostETB) || 0,
-    totalAmount: (Number(it.unitCostETB) || 0) * (it.balance?.total || Number(it.quantity) || 1),
-    // Notes hold the saved form data for newer items: only plain-text notes belong on the slip
-    remark: it.remark || (it.notes && !it.notes.trim().startsWith('{') ? it.notes : ''),
-  }));
+  const isDonation = item.provisionType === 'DONATION';
+  const voucherItems: Model19LineItem[] = targetItems.map((it, idx) => {
+    const lineDonation = isDonation || it.provisionType === 'DONATION';
+    const qty = it.balance?.total || Number(it.quantity) || 1;
+    const base = (Number(it.unitCostETB) || 0) * qty;
+    const lineTotal = lineDonation ? 0 : (it.totalAmount !== undefined && it.totalAmount !== null && Number(it.totalAmount) > 0
+      ? Number(it.totalAmount)
+      : (() => {
+          const vat = it.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+          return base + (it.vatApplicable ? vat : Number(it.additionalCharges) || 0);
+        })());
+
+    return {
+      id: it.id,
+      sNo: idx + 1,
+      itemCode: it.itemType === ItemType.CONSUMABLE && it.ifmisItemCode ? it.ifmisItemCode : it.itemCode,
+      itemDescription: it.name,
+      uom: it.uom || 'EA',
+      subInventory: it.subInventory || item.storeLocation?.roomNumber || '—',
+      itemCategory: it.itemCategoryDisplay || it.category.replace(/_/g, ' '),
+      itemType: it.itemType,
+      lotBatchNo: it.lotBatchNo || '',
+      serialNo: it.serialNumber || '',
+      printedPadFrom: it.printedPadFrom || '',
+      printedPadTo: it.printedPadTo || '',
+      quantity: qty,
+      unitPrice: lineDonation ? 0 : Number(it.unitCostETB) || 0,
+      vatApplicable: it.vatApplicable,
+      additionalCharges: it.additionalCharges,
+      totalAmount: lineTotal,
+      // Notes hold the saved form data for newer items: only plain-text notes belong on the slip
+      remark: it.remark || (it.notes && !it.notes.trim().startsWith('{') ? it.notes : ''),
+    };
+  });
 
   return {
     approvalState: item.status === ItemStatus.PENDING_STOCK_IN ? 'PENDING' : item.status === ItemStatus.REJECTED ? 'REJECTED' : undefined,

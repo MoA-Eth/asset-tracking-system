@@ -234,7 +234,30 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                     {b.total} received · {b.issued} issued · {b.available} in store ({item.uom || 'EA'})
                   </Row>
                 )}
-                <Row label="Unit price">{formatETB(item.unitCostETB)}</Row>
+                {item.provisionType !== 'DONATION' && (
+                  <>
+                    <Row label="Unit price">{formatETB(item.unitCostETB)}</Row>
+                    {item.vatApplicable && (
+                      <Row label="VAT (15%)">
+                        {formatETB(Math.round(((item.unitCostETB || 0) * (b?.total || item.quantity || 1)) * 0.15 * 100) / 100)}
+                      </Row>
+                    )}
+                    {!item.vatApplicable && Number(item.additionalCharges) > 0 && (
+                      <Row label="Addl charges">{formatETB(Number(item.additionalCharges))}</Row>
+                    )}
+                    <Row label="Total valuation">
+                      {formatETB(
+                        item.totalAmount && Number(item.totalAmount) > 0
+                          ? Number(item.totalAmount)
+                          : (() => {
+                              const base = (item.unitCostETB || 0) * (b?.total || item.quantity || 1);
+                              const vat = item.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+                              return base + (item.vatApplicable ? vat : Number(item.additionalCharges) || 0);
+                            })()
+                      )}
+                    </Row>
+                  </>
+                )}
                 <Row label="Serial number" mono>{item.serialNumber}</Row>
                 <Row label="Store">{item.storeLocation?.siteName}</Row>
                 <Row label="Custodian">{item.currentCustodian?.fullNameEn || item.heldByOrganization}</Row>

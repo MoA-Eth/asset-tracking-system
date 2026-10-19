@@ -807,7 +807,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         const children = group.children ?? [];
         const { isBatch, totalUnits, inStoreUnits, issuedUnits, holders } = batchSummary(group.row, children);
         const uom = item.uom || 'EA';
-        const totalValue = (item.unitCostETB || 0) * (isBatch ? totalUnits : group.row.units);
+        const units = isBatch ? totalUnits : group.row.units;
+        const baseCost = (item.unitCostETB || 0) * units;
+        const isVat = Boolean(item.vatApplicable);
+        const vat = isVat ? Math.round(baseCost * 0.15 * 100) / 100 : 0;
+        const addl = isVat ? 0 : Number(item.additionalCharges) || 0;
+        const totalValue = item.totalAmount && !isBatch ? Number(item.totalAmount) : (baseCost + (isVat ? vat : addl));
         const whereText = isBatch && group.row.state !== 'ISSUED' && inStoreUnits === 0
           ? '—'
           : group.row.where || '';
@@ -1059,9 +1064,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       const { row } = group;
       if (row.state === 'REJECTED' || row.state === 'RECEIPT_PENDING' || row.state === 'DISPOSED') return acc;
       const { isBatch, totalUnits, inStoreUnits } = batchSummary(row, group.children ?? []);
-      const cost = row.item.unitCostETB || 0;
-      acc.value += cost * (isBatch ? totalUnits : row.units);
-      acc.inStore += cost * (isBatch ? inStoreUnits : row.state === 'IN_STORE' ? row.units : 0);
+      const units = isBatch ? totalUnits : row.units;
+      const baseCost = (row.item.unitCostETB || 0) * units;
+      const isVat = Boolean(row.item.vatApplicable);
+      const vat = isVat ? Math.round(baseCost * 0.15 * 100) / 100 : 0;
+      const addl = isVat ? 0 : Number(row.item.additionalCharges) || 0;
+      const lineTotal = row.item.totalAmount && !isBatch ? Number(row.item.totalAmount) : (baseCost + (isVat ? vat : addl));
+      const inStoreRatio = units > 0 ? (isBatch ? inStoreUnits : row.state === 'IN_STORE' ? row.units : 0) / units : 0;
+      acc.value += lineTotal;
+      acc.inStore += lineTotal * inStoreRatio;
       return acc;
     },
     { value: 0, inStore: 0 }

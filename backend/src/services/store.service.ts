@@ -125,6 +125,8 @@ function mapItem(raw: any): ItemWithRelations {
     printedPadTo: model19Meta.printedPadTo || raw.printedPadTo || undefined,
     quantity: model19Meta.quantity || raw.quantity || 1,
     totalAmount: model19Meta.totalAmount || raw.totalAmount || (raw.unitCostETB * (model19Meta.quantity || 1)),
+    vatApplicable: Boolean(model19Meta.vatApplicable),
+    additionalCharges: Number(model19Meta.additionalCharges) || 0,
     deliveredBy: model19Meta.deliveredBy || raw.deliveredBy || undefined,
     receivedBy: model19Meta.receivedBy || raw.receivedBy || undefined,
     remark: model19Meta.remark || raw.remark || undefined,
@@ -163,6 +165,12 @@ export function calculateApprovalTotalAmount(raw: any, itemObj?: any): number {
     return Number(req.bookValue);
   }
   const item = itemObj ?? raw?.item;
+  if (item?.notes) {
+    const meta = readItemMeta(item.notes);
+    if (meta?.totalAmount && Number(meta.totalAmount) > 0) {
+      return Number(meta.totalAmount);
+    }
+  }
   const unitCost = Number(item?.unitCostETB) || 0;
   const qty = Number(req?.quantity) || (item ? quantityOf(item) : 1);
   return unitCost * qty;
@@ -584,7 +592,11 @@ function uomOf(item: { notes?: string | null }): string {
 
 /** item.notes with a new quantity (and the matching line total) */
 function notesWithQuantity(notes: string | null | undefined, quantity: number, unitCost: number): string {
-  return JSON.stringify({ ...readItemMeta(notes), quantity, totalAmount: unitCost * quantity });
+  const meta = readItemMeta(notes);
+  const base = unitCost * quantity;
+  const vat = meta.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+  const totalAmount = base + (meta.vatApplicable ? vat : (Number(meta.additionalCharges) || 0));
+  return JSON.stringify({ ...meta, quantity, totalAmount });
 }
 
 /** Units still in store: available, or requested by a Stock-Out or disposal that isn't approved yet */

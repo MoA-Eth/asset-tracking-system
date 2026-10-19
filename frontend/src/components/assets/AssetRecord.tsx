@@ -474,26 +474,65 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 </ReadOnlyValue>
               </FormKitField>
 
-              {item.provisionType !== 'DONATION' && (
-              <>
-              <FormKitField label="Unit price" optional>
-                <ReadOnlyValue mono>{formatETB(item.unitCostETB)}</ReadOnlyValue>
-              </FormKitField>
+              {item.provisionType !== 'DONATION' && (() => {
+                const totalUnits = totals ? totals.total : row.units;
+                const baseTotal = (item.unitCostETB || 0) * (totalUnits || 1);
+                const isVat = Boolean(item.vatApplicable) || (!!item.totalAmount && Math.abs(Number(item.totalAmount) - Math.round(baseTotal * 1.15 * 100) / 100) < 0.05);
+                const vatAmount = isVat ? Math.round(baseTotal * 0.15 * 100) / 100 : 0;
+                const addlCharges = isVat ? 0 : Number(item.additionalCharges) || 0;
+                const computedTotal = baseTotal + (isVat ? vatAmount : addlCharges);
+                const displayTotal = (item.totalAmount !== undefined && Number(item.totalAmount) > 0 && !totals)
+                  ? Number(item.totalAmount)
+                  : computedTotal;
 
-              <FormKitField
-                label="Total valuation"
-                hint={
-                  totals && totals.issued > 0
-                    ? `${formatETB((item.unitCostETB || 0) * totals.inStore)} in store · ${formatETB((item.unitCostETB || 0) * totals.issued)} issued`
-                    : undefined
-                }
-              >
-                <TotalValue accent="emerald">
-                  {formatETB((item.unitCostETB || 0) * (totals?.total ?? row.units))}
-                </TotalValue>
-              </FormKitField>
-              </>
-              )}
+                const inStoreRatio = totalUnits > 0 ? (totals ? totals.inStore : (row.state === 'IN_STORE' ? row.units : 0)) / totalUnits : 1;
+                const inStoreValuation = displayTotal * inStoreRatio;
+                const issuedValuation = displayTotal * (1 - inStoreRatio);
+
+                const totalValuationHint = totals && totals.issued > 0
+                  ? `${formatETB(inStoreValuation)} in store · ${formatETB(issuedValuation)} issued${isVat ? ' · includes 15% VAT' : ''}`
+                  : isVat
+                    ? `Includes 15% VAT (${formatETB(vatAmount)})`
+                    : addlCharges > 0
+                      ? `Includes additional charges (${formatETB(addlCharges)})`
+                      : undefined;
+
+                return (
+                  <>
+                    <FormKitField label="Unit price" optional>
+                      <ReadOnlyValue mono>{formatETB(item.unitCostETB)}</ReadOnlyValue>
+                    </FormKitField>
+
+                    {isVat && (
+                      <FormKitField label="VAT (15%)" optional>
+                        <ReadOnlyValue mono>
+                          <span className="inline-flex items-center gap-1.5">
+                            <span>{formatETB(vatAmount)}</span>
+                            <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              15% applied
+                            </span>
+                          </span>
+                        </ReadOnlyValue>
+                      </FormKitField>
+                    )}
+
+                    {!isVat && addlCharges > 0 && (
+                      <FormKitField label="Additional charges" optional>
+                        <ReadOnlyValue mono>{formatETB(addlCharges)}</ReadOnlyValue>
+                      </FormKitField>
+                    )}
+
+                    <FormKitField
+                      label="Total valuation"
+                      hint={totalValuationHint}
+                    >
+                      <TotalValue accent="emerald">
+                        {formatETB(displayTotal)}
+                      </TotalValue>
+                    </FormKitField>
+                  </>
+                );
+              })()}
 
               {item.lotBatchNo && (
                 <FormKitField label="Lot / batch no." optional>
