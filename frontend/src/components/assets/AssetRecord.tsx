@@ -7,7 +7,7 @@ import { SlipViewerModal } from '../ui/SlipViewerModal';
 import { RowAction } from '../ui/RowActionsMenu';
 import { HeaderActionButton } from '../ui/HeaderActionButton';
 import { FormSection, FieldGrid, Field as FormKitField, ReadOnlyValue, TotalValue, FormNotice } from '../ui/FormKit';
-import { ApprovalStatus, TransactionApproval } from '../../types/asset-management';
+import { ApprovalStatus, ItemStatus, TransactionApproval } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
 import { storeLocationLabel } from '../../utils/location';
 import { departmentLabel } from '../../utils/department';
@@ -316,7 +316,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <FormNotice icon={Lock} tone="warn">
                   <span className="font-bold">Rejected record · Archived</span>
                   <p className="mt-0.5 text-[11px] text-slate-500">
-                    This receipt was rejected and is kept for the record.
+                    This record was rejected and is kept for audit history. Rejected batches and records cannot be edited.
                   </p>
                 </FormNotice>
               );
@@ -447,7 +447,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <ReadOnlyValue mono>{item.itemCode}</ReadOnlyValue>
               </FormKitField>
 
-              {item.itemType !== 'CONSUMABLE' && <IfmisTagField key={item.id} tag={item.ifmisTagNumber} onSave={editing ? undefined : onSaveIfmisTag} />}
+              {item.itemType !== 'CONSUMABLE' && <IfmisTagField key={item.id} tag={item.ifmisTagNumber} onSave={editing || row.state === 'REJECTED' || item.status === ItemStatus.REJECTED ? undefined : onSaveIfmisTag} />}
 
               {item.ifmisItemCode && (
                 <FormKitField label="Item code">

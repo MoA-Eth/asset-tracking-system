@@ -723,6 +723,22 @@ describe('Asset record', () => {
     expect(rowOf('MOA-S2')).toBeInTheDocument();
   });
 
+  it('does not allow editing a rejected batch or record and locks all modification actions', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-X1');
+
+    // No action toolbar or edit buttons
+    expect(within(record).queryByRole('toolbar', { name: 'Asset actions' })).not.toBeInTheDocument();
+    expect(within(record).queryByRole('button', { name: /Edit/i })).not.toBeInTheDocument();
+    expect(within(record).queryByRole('button', { name: /Add|Change/i })).not.toBeInTheDocument();
+
+    // Clear archived lock banner
+    expect(within(record).getByText('Rejected record · Archived')).toBeInTheDocument();
+    expect(within(record).getByText(/Rejected batches and records cannot be edited/i)).toBeInTheDocument();
+  });
+
   it('goes back to the list as it was left, and steps to the previous and next asset', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);

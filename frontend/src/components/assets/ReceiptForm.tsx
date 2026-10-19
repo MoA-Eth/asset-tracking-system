@@ -527,6 +527,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const registeredById = user?.id || '';
 
     if (editItem) {
+      if (editItem.status === ItemStatus.REJECTED) {
+        toast.error('Rejected batch cannot be edited', 'This record was rejected and is archived. It cannot be modified.');
+        setSubmitting(false);
+        return;
+      }
       try {
         const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
         const slipUrl = copyFile ? (await api.uploadSlip(copyFile)).url : undefined;

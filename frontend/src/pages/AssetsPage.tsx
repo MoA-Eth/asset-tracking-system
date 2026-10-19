@@ -524,6 +524,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   /** Open a record straight into correcting what it has pending (its receipt or its request) */
   const editInRecord = (itemId: string) => {
+    const target = rows.find((r) => r.item.id === itemId);
+    if (target?.state === 'REJECTED' || target?.item.status === ItemStatus.REJECTED) return;
     setSelectedId(itemId);
     setEditing(true);
   };
@@ -668,6 +670,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   const actionsFor = (row: AssetRow): RowAction[] => {
     const { item, request } = row;
+    if (row.state === 'REJECTED' || item.status === ItemStatus.REJECTED) {
+      return [];
+    }
     // Viewing is clicking the row; printing is from the record's list of requests
     switch (row.state) {
       case 'RECEIPT_PENDING':
@@ -1176,7 +1181,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               onPrevious={previousId ? () => openRecord(previousId) : undefined}
               onNext={nextId ? () => openRecord(nextId) : undefined}
               onSaveIfmisTag={
-                selectedRow.item.itemType !== 'CONSUMABLE' && (canReceive || canTransfer || canDispose)
+                selectedRow.item.itemType !== 'CONSUMABLE' &&
+                selectedRow.state !== 'REJECTED' &&
+                selectedRow.item.status !== ItemStatus.REJECTED &&
+                (canReceive || canTransfer || canDispose)
                   ? (tag) => saveIfmisTag(selectedRow.item, tag)
                   : undefined
               }
