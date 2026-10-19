@@ -70,23 +70,43 @@ Open **http://localhost:3001** (the API is at http://localhost:3000/api, health 
 
 ### B. Docker (database, API and nginx)
 
-**You need:** Docker with Compose. No Node or PostgreSQL install.
+**You need:** Docker with Docker Compose (e.g. Docker Desktop). Node.js and PostgreSQL are not required on your host machine.
 
 ```bash
-cp .env.example .env        # then set POSTGRES_PASSWORD and JWT_SECRET (see the comments inside)
-npm run docker:local        # build and start; open http://localhost:8080
-npm run docker:local:down   # stop (keeps the local database)
+# 1. Create your local environment configuration file
+# macOS / Linux:
+cp .env.example .env
+
+# Windows PowerShell:
+copy .env.example .env
 ```
 
-This runs over plain HTTP on port 8080 (`LOCAL_PORT` in `.env` changes it) using `docker-compose.local.yml` and `nginx/nginx.local.conf`. These two files exist only for local runs: staging and production use `docker-compose.yml` and `nginx/nginx.conf` with the certificate, and Jenkins ships only those. The database starts empty, so the first System Administrator comes from `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`. To get the demo accounts instead, use option A.
+2. Open `.env` and configure your local settings:
+   - `POSTGRES_PASSWORD`: Set a database password (letters and numbers only).
+   - `JWT_SECRET`: A random string of at least 32 characters (e.g. generated via `openssl rand -hex 32`).
+   - `ADMIN_EMAIL` & `ADMIN_PASSWORD`: Your initial System Administrator credentials (password must be at least 12 characters with letters and numbers).
+   - *(Optional)* `LOCAL_PORT`: Defaults to `3000`. Change if port 3000 is already in use on your machine.
+
+```bash
+# 3. Build images and start all containers in the background
+npm run docker:local
+
+# (Or directly with Docker Compose if npm is not installed):
+docker compose -p moa-ams-local -f docker-compose.yml -f docker-compose.local.yml up -d --build
+
+# 4. Stop when finished (preserves your local database volume)
+npm run docker:local:down
+```
+
+Open **http://localhost:3000** (API health check at `http://localhost:3000/api/health`). Sign in with the `ADMIN_EMAIL` and `ADMIN_PASSWORD` you configured in `.env`.
 
 ### Troubleshooting
 
 | Problem | Fix |
 |---|---|
 | `npm run db:setup` can't connect | PostgreSQL isn't running, or `DATABASE_URL` in `backend/.env` has the wrong user, password or port. |
-| Browser shows a certificate warning, or a redirect to `https://` | You opened a server address. Use `http://localhost:3001` (option A) or `http://localhost:8080` (option B). If the browser remembered HTTPS for localhost, open `chrome://net-internals/#hsts` and delete `localhost`. |
-| Port 3000, 3001 or 8080 is in use | Stop what uses it; for option B set `LOCAL_PORT` in `.env`. |
+| Browser shows a certificate warning, or a redirect to `https://` | You opened a server address. Use `http://localhost:3001` (option A) or `http://localhost:3000` (option B). If the browser remembered HTTPS for localhost, open `chrome://net-internals/#hsts` and delete `localhost`. |
+| Port 3000 or 3001 is in use | Stop what uses it; for option B set `LOCAL_PORT` in `.env`. |
 | Signed out after every backend restart | Set `JWT_SECRET` in `backend/.env`. |
 
 ---
