@@ -724,14 +724,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   // Item 1 is a row of the items table like every other line
   const firstRow = (
-    <tr className="align-top">
-      <td className="px-2 py-1.5 pt-3.5 font-mono text-slate-500">1</td>
-      <td className="px-2 py-1.5">
+    <tr className="align-middle hover:bg-slate-50/50 transition-colors">
+      <td className="px-3 py-2.5 font-mono text-slate-400 text-center text-xs">1</td>
+      <td className="px-3 py-2.5">
         <label htmlFor="stock-in-item-name" className="sr-only">Item description</label>
         <input
           id="stock-in-item-name"
           type="text"
-                    placeholder="e.g. Dell Latitude 5440 Laptop"
+          placeholder="e.g. Dell Latitude 5440 Laptop"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={fieldErrors.touch('itemName')}
@@ -741,7 +741,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           <p role="status" className="mt-0.5 text-[10px] text-amber-700">The slip lists {slipQuantity}: a fixed asset is one item, so register the others as their own receipts.</p>
         )}
       </td>
-      <td className="px-2 py-1.5">
+      <td className="px-3 py-2.5">
         <div className="flex items-center gap-1.5">
           <label htmlFor="stock-in-ifmis-code" className="sr-only">IFMIS item code</label>
           <input
@@ -757,33 +757,40 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           <ItemTypeTag type={itemType} code={ifmisItemCode} label="Item type" />
         </div>
       </td>
-      <td className="px-2 py-1.5">
+      <td className="px-3 py-2.5">
         <label htmlFor="stock-in-category" className="sr-only">Category</label>
-        <select id="stock-in-category" value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)} onBlur={fieldErrors.touch('category')} className={cellClass({ invalid: !!fieldErrors.error('category') })}>
+        <select
+          id="stock-in-category"
+          value={category}
+          onChange={(e) => setCategory(e.target.value as AssetCategory)}
+          onBlur={fieldErrors.touch('category')}
+          className={cellClass({ invalid: !!fieldErrors.error('category') })}
+        >
           <option value="" disabled>Select…</option>
           {COMMON_CATEGORIES.map((c) => (
             <option key={c.value} value={c.value}>{c.label}</option>
           ))}
         </select>
       </td>
-      <td className="px-2 py-1.5">
+      <td className="px-3 py-2.5">
         <label htmlFor="stock-in-uom" className="sr-only">Unit of measure</label>
         <input
           id="stock-in-uom"
           type="text"
           list="uom-options"
-                    value={uom}
+          placeholder="EA"
+          value={uom}
           onChange={(e) => setUom(e.target.value.toUpperCase())}
           onBlur={fieldErrors.touch('uom')}
           className={`${cellClass({ mono: true, invalid: !!fieldErrors.error('uom') })} uppercase`}
         />
       </td>
-      <td className="px-2 py-1.5">
+      <td className="px-3 py-2.5">
         <label htmlFor="receipt-quantity" className="sr-only">Quantity</label>
         <QuantityInput
           id="receipt-quantity"
           min={1}
-                    value={quantity}
+          value={quantity}
           onChange={setQuantity}
           disabled={fixedOne}
           title={fixedOne ? 'A fixed asset is one item' : undefined}
@@ -791,7 +798,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         />
       </td>
       {!donation && (
-        <td className="px-2 py-1.5">
+        <td className="px-3 py-2.5">
           <label htmlFor="stock-in-unit-cost" className="sr-only">Unit price (ETB)</label>
           <MoneyInput
             id="stock-in-unit-cost"
@@ -800,30 +807,42 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             onChange={setUnitCostETB}
             onBlur={fieldErrors.touch('unitCost')}
             invalid={!!fieldErrors.error('unitCost')}
-            inputClassName="!h-9 !px-2 !text-xs"
+            placeholder="0.00"
+            inputClassName="!h-9 !px-2.5 !text-xs font-medium"
           />
         </td>
       )}
       {!donation && (
-        <td className="px-2 py-1.5 text-center align-middle">
-          <label className="inline-flex items-center justify-center cursor-pointer" title="Price includes VAT (no additional charges allowed)">
-            <input
-              id="stock-in-vat"
-              aria-label="Item 1 VAT applicable"
-              type="checkbox"
-              checked={vatApplicable}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setVatApplicable(checked);
-                if (checked) setAdditionalCharges(0);
-              }}
-              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
-            />
-          </label>
+        <td className="px-3 py-2.5 text-center">
+          <div className="flex flex-col items-center justify-center gap-1">
+            <label
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 cursor-pointer select-none"
+              title="15% VAT auto-calculated (no additional charges allowed)"
+            >
+              <input
+                id="stock-in-vat"
+                aria-label="Item 1 VAT applicable"
+                type="checkbox"
+                checked={vatApplicable}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setVatApplicable(checked);
+                  if (checked) setAdditionalCharges(0);
+                }}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+              />
+              <span className="text-[11px] font-semibold text-slate-700">15%</span>
+            </label>
+            {vatApplicable && vat1 > 0 && (
+              <span className="text-[10px] font-mono font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 whitespace-nowrap" title="15% VAT auto-calculated">
+                +{money(vat1)}
+              </span>
+            )}
+          </div>
         </td>
       )}
       {!donation && (
-        <td className="px-2 py-1.5">
+        <td className="px-3 py-2.5">
           <label htmlFor="stock-in-addl-charges" className="sr-only">Additional charges (ETB)</label>
           <MoneyInput
             id="stock-in-addl-charges"
@@ -834,11 +853,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             onChange={setAdditionalCharges}
             placeholder="0.00"
             title={vatApplicable ? 'Additional charges not allowed when price includes VAT' : undefined}
-            inputClassName={`!h-9 !px-2 !text-xs ${vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
+            inputClassName={`!h-9 !px-2.5 !text-xs ${vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
           />
         </td>
       )}
-      {!donation && <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{money(totalAmount)}</td>}
+      {!donation && (
+        <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap">
+          {money(totalAmount)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
+        </td>
+      )}
       <td />
     </tr>
   );

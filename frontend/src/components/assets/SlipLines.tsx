@@ -93,7 +93,7 @@ export const ReceiptItems: React.FC<{
   /** Adds an empty line; left out when correcting a receipt, which is one item */
   onAdd?: () => void;
   /** Grand total of all rows */
-  total: number;
+  total?: number;
 }> = ({ first, lines, donation, onChange, onAdd, total }) => {
   const set = (key: number, patch: Partial<SlipLine>) =>
     onChange(
@@ -109,20 +109,20 @@ export const ReceiptItems: React.FC<{
   return (
     <div className="overflow-hidden rounded-md border border-slate-200">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1020px] text-left text-xs">
-          <thead className="bg-slate-50">
-            <tr className="text-xs font-medium text-slate-600">
-              <th className="px-2 py-2 w-8">#</th>
-              <th className="px-2 py-2 min-w-[170px]">Description</th>
-              <th className="px-2 py-2 w-52">IFMIS item code</th>
-              <th className="px-2 py-2 w-36">Category</th>
-              <th className="px-2 py-2 w-16">Unit</th>
-              <th className="px-2 py-2 w-16 text-right">Qty</th>
-              {!donation && <th className="px-2 py-2 w-28 text-right">Unit price</th>}
-              {!donation && <th className="px-2 py-2 w-16 text-center" title="Price includes VAT (no additional charges allowed)">VAT</th>}
-              {!donation && <th className="px-2 py-2 w-28 text-right">Addl charges</th>}
-              {!donation && <th className="px-2 py-2 w-24 text-right">Total</th>}
-              <th className="px-2 py-2 w-8" />
+        <table className="w-full min-w-[1340px] text-left text-xs">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr className="text-xs font-semibold text-slate-600">
+              <th className="px-3 py-2.5 w-10 text-center">#</th>
+              <th className="px-3 py-2.5 min-w-[240px]">Item description</th>
+              <th className="px-3 py-2.5 w-56">IFMIS code</th>
+              <th className="px-3 py-2.5 w-44">Category</th>
+              <th className="px-3 py-2.5 w-24">Unit</th>
+              <th className="px-3 py-2.5 w-24 text-right">Qty</th>
+              {!donation && <th className="px-3 py-2.5 w-32 text-right">Unit price</th>}
+              {!donation && <th className="px-3 py-2.5 w-28 text-center" title="15% VAT auto-calculated">VAT (15%)</th>}
+              {!donation && <th className="px-3 py-2.5 w-32 text-right">Addl charges</th>}
+              {!donation && <th className="px-3 py-2.5 w-36 text-right">Total</th>}
+              <th className="px-2 py-2.5 w-10" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -133,16 +133,22 @@ export const ReceiptItems: React.FC<{
               const lineVat = l.vatApplicable ? Math.round(lineBase * 0.15 * 100) / 100 : 0;
               const lineTotal = donation ? 0 : lineBase + (l.vatApplicable ? lineVat : (l.additionalCharges || 0));
               return (
-                <tr key={l.key} className="align-top">
-                  <td className="px-2 py-1.5 pt-3.5 font-mono text-slate-500">{n}</td>
-                  <td className="px-2 py-1.5">
-                    <input aria-label={`Item ${n} description`} value={l.name} onChange={(e) => set(l.key, { name: e.target.value })} className={cellClass({ invalid: !l.name.trim() })} />
+                <tr key={l.key} className="align-middle hover:bg-slate-50/50 transition-colors">
+                  <td className="px-3 py-2.5 font-mono text-slate-400 text-center text-xs">{n}</td>
+                  <td className="px-3 py-2.5">
+                    <input
+                      aria-label={`Item ${n} description`}
+                      placeholder="Item description *"
+                      value={l.name}
+                      onChange={(e) => set(l.key, { name: e.target.value })}
+                      className={cellClass({ invalid: !l.name.trim() })}
+                    />
                     {l.alreadyAs && <p className="mt-0.5 text-[10px] text-amber-700">Already received as {l.alreadyAs}; remove it unless this is a second delivery.</p>}
                     {l.itemType === ItemType.FIXED && (l.slipQuantity ?? 0) > 1 && (
                       <p className="mt-0.5 text-[10px] text-amber-700">The slip lists {l.slipQuantity}: a fixed asset is one item, so register the others as their own receipts.</p>
                     )}
                   </td>
-                  <td className="px-2 py-1.5">
+                  <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1.5">
                       <input
                         aria-label={`Item ${n} item code`}
@@ -154,18 +160,30 @@ export const ReceiptItems: React.FC<{
                       <ItemTypeTag type={l.itemType} code={l.ifmisCode} label={`Item ${n} item type`} />
                     </div>
                   </td>
-                  <td className="px-2 py-1.5">
-                    <select aria-label={`Item ${n} category`} value={l.category} onChange={(e) => set(l.key, { category: e.target.value as AssetCategory })} className={cellClass({ invalid: !l.category })}>
-                      <option value="">Select…</option>
+                  <td className="px-3 py-2.5">
+                    <select
+                      aria-label={`Item ${n} category`}
+                      value={l.category}
+                      onChange={(e) => set(l.key, { category: e.target.value as AssetCategory })}
+                      className={cellClass({ invalid: !l.category })}
+                    >
+                      <option value="">Select category…</option>
                       {COMMON_CATEGORIES.map((c) => (
                         <option key={c.value} value={c.value}>{c.label}</option>
                       ))}
                     </select>
                   </td>
-                  <td className="px-2 py-1.5">
-                    <input aria-label={`Item ${n} unit`} list="uom-options" value={l.uom} onChange={(e) => set(l.key, { uom: e.target.value.toUpperCase() })} className={cellClass({ mono: true, invalid: !l.uom.trim() })} />
+                  <td className="px-3 py-2.5">
+                    <input
+                      aria-label={`Item ${n} unit`}
+                      list="uom-options"
+                      placeholder="EA"
+                      value={l.uom}
+                      onChange={(e) => set(l.key, { uom: e.target.value.toUpperCase() })}
+                      className={`${cellClass({ mono: true, invalid: !l.uom.trim() })} uppercase`}
+                    />
                   </td>
-                  <td className="px-2 py-1.5">
+                  <td className="px-3 py-2.5">
                     <input
                       aria-label={`Item ${n} quantity`}
                       inputMode="numeric"
@@ -177,38 +195,50 @@ export const ReceiptItems: React.FC<{
                     />
                   </td>
                   {!donation && (
-                    <td className="px-2 py-1.5">
+                    <td className="px-3 py-2.5">
                       <MoneyInput
                         aria-label={`Item ${n} unit price`}
                         suffix=""
                         value={l.unitPrice}
                         onChange={(v) => set(l.key, { unitPrice: v })}
                         invalid={!(l.unitPrice > 0)}
-                        inputClassName="!h-9 !px-2 !text-xs"
+                        placeholder="0.00"
+                        inputClassName="!h-9 !px-2.5 !text-xs font-medium"
                       />
                     </td>
                   )}
                   {!donation && (
-                    <td className="px-2 py-1.5 text-center align-middle">
-                      <label className="inline-flex items-center justify-center cursor-pointer" title="Price includes VAT (no additional charges allowed)">
-                        <input
-                          aria-label={`Item ${n} VAT applicable`}
-                          type="checkbox"
-                          checked={!!l.vatApplicable}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            set(l.key, {
-                              vatApplicable: checked,
-                              additionalCharges: checked ? 0 : l.additionalCharges,
-                            });
-                          }}
-                          className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
-                        />
-                      </label>
+                    <td className="px-3 py-2.5 text-center">
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <label
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 cursor-pointer select-none"
+                          title="15% VAT auto-calculated (no additional charges allowed)"
+                        >
+                          <input
+                            aria-label={`Item ${n} VAT applicable`}
+                            type="checkbox"
+                            checked={!!l.vatApplicable}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              set(l.key, {
+                                vatApplicable: checked,
+                                additionalCharges: checked ? 0 : l.additionalCharges,
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                          />
+                          <span className="text-[11px] font-semibold text-slate-700">15%</span>
+                        </label>
+                        {l.vatApplicable && lineVat > 0 && (
+                          <span className="text-[10px] font-mono font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 whitespace-nowrap" title="15% VAT auto-calculated">
+                            +{money(lineVat)}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   )}
                   {!donation && (
-                    <td className="px-2 py-1.5">
+                    <td className="px-3 py-2.5">
                       <MoneyInput
                         aria-label={`Item ${n} additional charges`}
                         suffix=""
@@ -217,16 +247,16 @@ export const ReceiptItems: React.FC<{
                         onChange={(v) => set(l.key, { additionalCharges: v })}
                         placeholder="0.00"
                         title={l.vatApplicable ? 'Additional charges not allowed when price includes VAT' : undefined}
-                        inputClassName={`!h-9 !px-2 !text-xs ${l.vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
+                        inputClassName={`!h-9 !px-2.5 !text-xs ${l.vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
                       />
                     </td>
                   )}
                   {!donation && (
-                    <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">
-                      {money(lineTotal)}
+                    <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap">
+                      {money(lineTotal)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
                     </td>
                   )}
-                  <td className="px-1 py-1.5 pt-3">
+                  <td className="px-2 py-2.5 text-center">
                     <button
                       type="button"
                       onClick={() => onChange(lines.filter((x) => x.key !== l.key))}
