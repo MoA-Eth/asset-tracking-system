@@ -1,6 +1,6 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Info } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
@@ -884,14 +884,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   return (
     <form id="stock-in-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(!submitting)} className="space-y-6">
-      <div className="rounded-lg border border-sky-200 bg-sky-50/70 p-3 text-[12px] text-sky-800 flex items-center justify-between gap-2 shadow-xs">
-        <div className="flex items-center gap-2">
-          <Info className="h-4 w-4 text-sky-600 shrink-0" />
-          <span><strong>Flexible Onboarding Active:</strong> All fields are optional. Register with available details now and update full data later.</span>
-        </div>
-        <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700 whitespace-nowrap">Partial Data Allowed</span>
-      </div>
-
       <FormError message={formError} />
 
       {/* The Model 19 PDF first: it fills in most of what follows */}
@@ -1053,9 +1045,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         submitting={submitting}
         submitLabel={isEdit ? 'Save changes' : extraLines.length > 0 ? `Submit ${extraLines.length + 1} items for approval` : 'Submit for approval'}
         allowIncomplete={true}
-        missingFields={missingFields}
-        // Names with no field label of their own
-        fieldTargets={{ 'item code starting with 0 or 1': '#stock-in-ifmis-code', 'signed copy': 'section[aria-label="Store and signatures"] input[type="file"]' }}
         onCancel={onCancel}
         onReset={isEdit ? undefined : handleReset}
       />

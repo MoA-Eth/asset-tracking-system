@@ -1466,7 +1466,7 @@ describe('Asset record', () => {
 
     // In unfulfilled mode, submit is allowed with partial data
     expect(submitBtn).toBeEnabled();
-    expect(within(panel).getByText(/Unfulfilled fields are optional/i)).toBeInTheDocument();
+    expect(within(panel).queryByText(/Unfulfilled fields are optional/i)).toBeNull();
     // Who received the goods is a store man of the receiving store: nobody can be named before the store is chosen
     expect(within(panel).getByText('Pick the store first.')).toBeInTheDocument();
 
@@ -1843,32 +1843,21 @@ describe('Receiving form: one table for every item', () => {
   });
 });
 
-describe('Receiving form: "Still needed" leads to the field', () => {
+describe('Receiving form: footer notes', () => {
   beforeEach(() => {
     auth.user.permissions = ENCODER;
   });
 
-  it('jumps to the field when its name in the footer is clicked', async () => {
-    const user = userEvent.setup();
+  it('does not display Still needed or unfulfilled note in receive form', async () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
+    const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
 
-    await user.click(within(panel).getByRole('button', { name: 'Model 19 No.' }));
-    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveFocus();
-    await user.click(within(panel).getByRole('button', { name: 'transaction type' }));
-    expect(within(panel).getByLabelText(/Transaction type/i)).toHaveFocus();
-
-    // Filled in, a name leaves the list and the next one comes up
-    await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000123');
-    expect(within(panel).queryByRole('button', { name: 'Model 19 No.' })).toBeNull();
-    await user.selectOptions(within(panel).getByLabelText(/Transaction type/i), 'PO Receipt');
-    // A purchase: it has a PO number
-    await user.type(within(panel).getByLabelText(/PO number/i), '186');
-    await user.type(within(panel).getByLabelText(/Source/i), 'Supplier');
-    await user.click(within(panel).getByRole('button', { name: 'item description' }));
-    expect(within(panel).getByLabelText(/Item description/i)).toHaveFocus();
+    expect(within(panel).queryByText(/Still needed/i)).toBeNull();
+    expect(within(panel).queryByText(/Unfulfilled fields are optional/i)).toBeNull();
+    expect(within(panel).getByRole('button', { name: /Submit for approval/i })).toBeEnabled();
   });
 });
 

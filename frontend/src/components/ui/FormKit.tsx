@@ -512,10 +512,10 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
   const incomplete = missingFields.length > 0;
   const note = customNote ?? (incomplete
     ? (allowIncomplete
-        ? 'Unfulfilled fields are optional for now — you may submit with partial data'
+        ? undefined
         : 'Fill in all required fields (*) to submit')
     : undefined);
-  const shown = incomplete && !customNote ? missingFields.slice(0, 4) : [];
+  const shown = incomplete && !customNote && !allowIncomplete ? missingFields.slice(0, 4) : [];
   const footer = useRef<HTMLDivElement>(null);
   // Each name in "Still needed" takes the person to that field
   const goTo = (field: string) => {
