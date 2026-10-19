@@ -725,13 +725,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   // Item 1 is a row of the items table like every other line
   const firstRow = (
     <tr className="align-middle hover:bg-slate-50/50 transition-colors">
-      <td className="px-3 py-2.5 font-mono text-slate-400 text-center text-xs">1</td>
+      <td className="px-2 py-2.5 font-mono text-slate-400 text-center text-xs">1</td>
       <td className="px-3 py-2.5">
         <label htmlFor="stock-in-item-name" className="sr-only">Item description</label>
         <input
           id="stock-in-item-name"
           type="text"
-          placeholder="e.g. Dell Latitude 5440 Laptop"
+          placeholder="Item description * (e.g. Dell Latitude 5440 Laptop)"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={fieldErrors.touch('itemName')}
@@ -779,7 +779,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           ))}
         </select>
       </td>
-      <td className="px-3 py-2.5">
+      <td className="px-2 py-2.5">
         <label htmlFor="stock-in-uom" className="sr-only">Unit of measure</label>
         <input
           id="stock-in-uom"
@@ -792,7 +792,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           className={`${cellClass({ align: 'center', mono: true, invalid: !!fieldErrors.error('uom') })} uppercase`}
         />
       </td>
-      <td className="px-3 py-2.5">
+      <td className="px-2 py-2.5">
         <label htmlFor="receipt-quantity" className="sr-only">Quantity</label>
         <QuantityInput
           id="receipt-quantity"
@@ -820,7 +820,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         </td>
       )}
       {!donation && (
-        <td className="px-3 py-2.5 text-center">
+        <td className="px-2 py-2.5 text-center">
           <div className="flex flex-col items-center justify-center gap-1">
             <label
               className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 cursor-pointer select-none"

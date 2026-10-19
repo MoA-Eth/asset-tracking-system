@@ -153,7 +153,7 @@ export const ReceiptItems: React.FC<{
             {!donation && <col style={{ width: '120px' }} />}
             <col style={{ width: '40px' }} />
           </colgroup>
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead className="bg-slate-50/90 border-b border-slate-200/90 shadow-2xs">
             <tr className="text-xs font-semibold text-slate-600">
               <th className="px-2 py-2.5 text-center">#</th>
               <th className="px-3 py-2.5 text-left">Item description</th>
@@ -163,7 +163,7 @@ export const ReceiptItems: React.FC<{
               <th className="px-2 py-2.5 text-center">Qty</th>
               {!donation && <th className="pl-3 pr-8 py-2.5 text-right">Unit price</th>}
               {!donation && <th className="px-2 py-2.5 text-center" title="15% VAT auto-calculated">VAT (15%)</th>}
-              {!donation && <th className="px-3 py-2.5 text-right">Addl charges</th>}
+              {!donation && <th className="pl-3 pr-8 py-2.5 text-right">Addl charges</th>}
               {!donation && <th className="px-3 py-2.5 text-right">Total</th>}
               <th className="px-2 py-2.5 text-center" />
             </tr>
@@ -177,7 +177,7 @@ export const ReceiptItems: React.FC<{
               const lineTotal = donation ? 0 : lineBase + (l.vatApplicable ? lineVat : (l.additionalCharges || 0));
               return (
                 <tr key={l.key} className="align-middle hover:bg-slate-50/50 transition-colors">
-                  <td className="px-3 py-2.5 font-mono text-slate-400 text-center text-xs">{n}</td>
+                  <td className="px-2 py-2.5 font-mono text-slate-400 text-center text-xs">{n}</td>
                   <td className="px-3 py-2.5">
                     <input
                       aria-label={`Item ${n} description`}
@@ -225,7 +225,7 @@ export const ReceiptItems: React.FC<{
                       ))}
                     </select>
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-2 py-2.5">
                     <input
                       aria-label={`Item ${n} unit`}
                       list="uom-options"
@@ -235,7 +235,7 @@ export const ReceiptItems: React.FC<{
                       className={`${cellClass({ align: 'center', mono: true, invalid: !l.uom.trim() })} uppercase`}
                     />
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-2 py-2.5">
                     <input
                       aria-label={`Item ${n} quantity`}
                       inputMode="numeric"
@@ -265,7 +265,7 @@ export const ReceiptItems: React.FC<{
                     </td>
                   )}
                   {!donation && (
-                    <td className="px-3 py-2.5 text-center">
+                    <td className="px-2 py-2.5 text-center">
                       <div className="flex flex-col items-center justify-center gap-1">
                         <label
                           className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 cursor-pointer select-none"
