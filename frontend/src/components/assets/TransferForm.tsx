@@ -350,12 +350,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   // A field shows what is wrong with it once the user has been in it
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const touch = (key: string) => () => setTouched((t) => (t[key] ? t : { ...t, [key]: true }));
-  const problems: Record<string, string | false> = {
-    model21No: !model21No.trim() && 'Enter the number printed on the Model 21 form.',
-    book: !book.trim() && 'Enter the book this form comes from.',
-    date: !transferDateGc && 'Enter the date of the transfer.',
-    reason: isReturn && !returnReason.trim() && 'Say why the asset is coming back to store.',
-  };
+  const problems: Record<string, string | false> = {};
   const errorOf = (key: string) => (touched[key] && problems[key] ? (problems[key] as string) : undefined);
 
   // Required fields still empty; the request can only be submitted once this is empty
@@ -678,7 +673,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       <Part title="Voucher">
         <FieldGrid>
           <Field
-            label="Model 21 No."
+            label="Model 21 No." optional
             error={errorOf('model21No')}
             warning={usedNo ? usedMessage(model21No, usedNo) : undefined}
           >
@@ -705,7 +700,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           </Field>
 
           <Field
-            label="Transfer date (G.C.)"
+            label="Transfer date (G.C.)" optional
             htmlFor="transfer-date"
             error={errorOf('date')}
             hint={transferDateGc ? `${formatGcToEc(transferDateGc)} E.C. · today unless you change it` : undefined}

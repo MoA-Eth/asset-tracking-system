@@ -653,7 +653,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             <input
               id="stock-out-model22"
               type="text"
-              required
               placeholder="e.g. 0004653/A Inventory"
               value={model22No}
               onChange={(e) => setModel22No(e.target.value)}
@@ -740,7 +739,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                       <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? `${inStore} ${uomOf(item)} in store` : '—'}</td>
                       <td className="px-2 py-1.5">
                         <label htmlFor={qtyId} className="sr-only">{n === 1 ? 'Quantity to issue' : `Item ${n} quantity`}</label>
-                        <QuantityInput id={qtyId} min={0.0001} max={item ? inStore : undefined} required value={row.quantity} onChange={(q) => setRow(row.key, { quantity: q })} className={cellClass({ align: 'right', mono: true, invalid: overStock })} />
+                        <QuantityInput id={qtyId} min={0.0001} max={item ? inStore : undefined} value={row.quantity} onChange={(q) => setRow(row.key, { quantity: q })} className={cellClass({ align: 'right', mono: true, invalid: overStock })} />
                         {overStock && <p className="mt-0.5 text-right text-[10px] text-rose-700">Only {inStore} {uomOf(item)} in store</p>}
                       </td>
                       <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? money(item.unitCostETB || 0) : '—'}</td>
@@ -858,7 +857,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                   />
                 </Field>
               ) : (
-                <Field label="Destination directorate" required htmlFor="stock-out-directorate">
+                <Field label="Destination directorate" optional htmlFor="stock-out-directorate">
                   <select id="stock-out-directorate" value={destinationDepartmentId} onChange={(e) => setDestinationDepartmentId(e.target.value)} className={input()}>
                     <option value="" disabled>Select…</option>
                     {departments.map((dept) => (
@@ -872,11 +871,10 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
           {/* Only a disposal asks why; an issue has no purpose field, as on the IFMIS Model 22 */}
           {isDisposal && (
-            <Field label="Reason for disposal" required htmlFor="stock-out-purpose" error={fieldErrors.error('purpose')}>
+            <Field label="Reason for disposal" optional htmlFor="stock-out-purpose" error={fieldErrors.error('purpose')}>
               <input
                 id="stock-out-purpose"
                 type="text"
-                required
                 placeholder="e.g. Expired, damaged beyond repair, used up"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}

@@ -373,8 +373,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
           <Field label="No." optional htmlFor="disposal-no" error={fieldErrors.error('disposalNo')} hint="As printed at the top right of the IFMIS form">
             <input
               id="disposal-no"
-              type="text"
-              required
+            type="text"
               placeholder="e.g. 0001765/2018"
               value={disposalNo}
               onChange={(e) => setDisposalNo(e.target.value)}
@@ -435,8 +434,8 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
           </Field>
           {/* A batch in store can be disposed of in part; a fixed asset is always one */}
           {inStore > 1 && (
-            <Field label="Quantity to dispose of" required htmlFor="disposal-quantity" hint={quantity > inStore ? `Only ${inStore} ${uom} in store` : `${inStore} ${uom} in store`}>
-              <QuantityInput id="disposal-quantity" min={1} max={inStore} required value={quantity} onChange={setQuantity} />
+            <Field label="Quantity to dispose of" optional htmlFor="disposal-quantity" hint={quantity > inStore ? `Only ${inStore} ${uom} in store` : `${inStore} ${uom} in store`}>
+              <QuantityInput id="disposal-quantity" min={1} max={inStore} value={quantity} onChange={setQuantity} />
             </Field>
           )}
           <Field label="Original cost (ETB)">

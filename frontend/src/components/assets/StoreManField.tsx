@@ -39,7 +39,7 @@ export const StoreManField: React.FC<StoreManFieldProps> = ({
   onChange,
   hasStore = true,
   current,
-  required = true,
+  required = false,
   hint,
 }) => {
   // The only store man is chosen for you; a choice that no longer belongs to this store is dropped
@@ -70,7 +70,7 @@ export const StoreManField: React.FC<StoreManFieldProps> = ({
 
   if (keepers.length === 1) {
     return (
-      <Field label={label} required={required} hint={hint}>
+      <Field label={label} optional={!required} hint={hint}>
         <ReadOnlyValue>{keepers[0].fullNameEn}</ReadOnlyValue>
       </Field>
     );
