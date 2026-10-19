@@ -94,11 +94,16 @@ npm run docker:local
 # (Or directly with Docker Compose if npm is not installed):
 docker compose -p moa-ams-local -f docker-compose.yml -f docker-compose.local.yml up -d --build
 
-# 4. Stop when finished (preserves your local database volume)
+# 4. (Optional) Seed demo accounts and test data into the Docker database
+npm run docker:local:seed
+
+# 5. Stop when finished (preserves your local database volume)
 npm run docker:local:down
 ```
 
-Open **http://localhost:3000** (API health check at `http://localhost:3000/api/health`). Sign in with the `ADMIN_EMAIL` and `ADMIN_PASSWORD` you configured in `.env`.
+Open **http://localhost:3000** (API health check at `http://localhost:3000/api/health`).
+- If you ran `npm run docker:local:seed`, you can sign in using demo accounts (e.g. `superadmin@moa.gov.et`, `admin@moa.gov.et`, `encoder@moa.gov.et`) with uniform password `moaams2024`.
+- Or sign in with the `ADMIN_EMAIL` and `ADMIN_PASSWORD` you configured in `.env`.
 
 ### Troubleshooting
 

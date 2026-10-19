@@ -24,7 +24,8 @@
     "lint:backend": "npm run lint --prefix backend",
     "lint:frontend": "npm run lint --prefix frontend",
     "lint:fix": "npm run lint:fix --prefix backend && npm run lint:fix --prefix frontend",
-    "prepare": "husky"
+    "prepare": "husky",
+    "docker:local:seed": "docker compose -p moa-ams-local -f docker-compose.yml -f docker-compose.local.yml exec -e NODE_ENV=development backend npx tsx prisma/seed.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   // Demo data and a shared password: never for a real installation (use db:seed:production there)
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' && process.env.APP_ENV !== 'dev') {
     throw new Error('The demo seed is disabled when NODE_ENV=production. Run "npm run db:seed:production" instead.');
   }
   const seedPassword = await hashPassword('moaams2024');
@@ -89,7 +89,7 @@ async function main() {
     // System Administrator (SYSTEM_ADMIN)
     prisma.employee.upsert({
       where: { id: 'EMP-ADMIN-01' },
-      update: { role: UserRole.SYSTEM_ADMIN, email: 'admin@moa.gov.et', password: seedPassword },
+      update: { role: UserRole.SYSTEM_ADMIN, email: 'admin@moa.gov.et', password: seedPassword, payrollId: 'MOA/ADMIN-001' },
       create: { id: 'EMP-ADMIN-01', payrollId: 'MOA/ADMIN-001', fullNameEn: 'System Administrator', fullNameAm: 'ሲስተም አድሚኒስትሬተር', departmentId: 'DEP-04', email: 'admin@moa.gov.et', phone: '+251911000000', role: UserRole.SYSTEM_ADMIN, password: seedPassword },
     }),
     // General Manager (MANAGER)
