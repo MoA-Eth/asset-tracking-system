@@ -705,8 +705,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         <input
           id="stock-in-item-name"
           type="text"
-          required
-          placeholder="e.g. Dell Latitude 5440 Laptop"
+                    placeholder="e.g. Dell Latitude 5440 Laptop"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={fieldErrors.touch('itemName')}
@@ -747,8 +746,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           id="stock-in-uom"
           type="text"
           list="uom-options"
-          required
-          value={uom}
+                    value={uom}
           onChange={(e) => setUom(e.target.value.toUpperCase())}
           onBlur={fieldErrors.touch('uom')}
           className={`${cellClass({ mono: true, invalid: !!fieldErrors.error('uom') })} uppercase`}
@@ -759,8 +757,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         <QuantityInput
           id="receipt-quantity"
           min={1}
-          required
-          value={quantity}
+                    value={quantity}
           onChange={setQuantity}
           disabled={fixedOne}
           title={fixedOne ? 'A fixed asset is one item' : undefined}
@@ -820,12 +817,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
       <Part title="Voucher">
         <FieldGrid cols={4}>
-          <Field label="Model 19 No." required htmlFor="stock-in-model19" error={fieldErrors.error('model19No')}>
+          <Field label="Model 19 No." optional htmlFor="stock-in-model19" error={fieldErrors.error('model19No')}>
             <input
               id="stock-in-model19"
               type="text"
-              required
-              placeholder="e.g. 0000044"
+                            placeholder="e.g. 0000044"
               value={ifmisSlipNumber}
               onChange={(e) => setIfmisSlipNumber(e.target.value)}
               onBlur={fieldErrors.touch('model19No')}
@@ -837,11 +833,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             <input id="stock-in-po" type="text" placeholder="Empty for a donation" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className={input({ mono: true })} />
           </Field>
 
-          <Field label="Received date (G.C.)" required hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
+          <Field label="Received date (G.C.)" optional hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">
             <input id="stock-in-slip-date" type="date" value={ifmisSlipDateGc} onChange={(e) => setIfmisSlipDateGc(e.target.value)} className={input()} />
           </Field>
 
-          <Field label="Transaction type" required htmlFor="stock-in-transaction-type" error={fieldErrors.error('transactionType')}>
+          <Field label="Transaction type" optional htmlFor="stock-in-transaction-type" error={fieldErrors.error('transactionType')}>
             <select id="stock-in-transaction-type" value={transactionType} onChange={(e) => setTransactionType(e.target.value)} onBlur={fieldErrors.touch('transactionType')} className={input({ invalid: !!fieldErrors.error('transactionType') })}>
               <option value="" disabled>Select…</option>
               {TRANSACTION_TYPES.map((t) => (
@@ -853,12 +849,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           {/* What it was bought from: a donation (no PO number) has none of it */}
           {!donation && (
             <>
-              <Field label="Source (supplier / vendor)" required htmlFor="stock-in-source" error={fieldErrors.error('source')}>
+              <Field label="Source (supplier / vendor)" optional htmlFor="stock-in-source" error={fieldErrors.error('source')}>
                 <input
                   id="stock-in-source"
                   type="text"
-                  required
-                  placeholder="Supplier or vendor name"
+                                    placeholder="Supplier or vendor name"
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
                   onBlur={fieldErrors.touch('source')}
@@ -894,7 +889,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
       <Part title="Store and signatures">
         <FieldGrid>
-          <Field label="Receiving store" required htmlFor="stock-in-store">
+          <Field label="Receiving store" optional htmlFor="stock-in-store">
             <select id="stock-in-store" value={storeId} onChange={(e) => chooseStore(e.target.value)} className={input()}>
               <option value="" disabled>Select…</option>
               {stores.map(([id, name]) => (
