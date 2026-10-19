@@ -4,6 +4,7 @@ import { Printer, ShieldCheck, FileCheck, Building2, UserCheck, Barcode, Externa
 import { CloseButton } from './CloseButton';
 import { TransactionApproval, ItemWithRelations } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
+import { displaySerialNumber } from '../../utils/asset-tag';
 import { useToast } from '../../context/ToastContext';
 import { openSlipInNewTab } from '../../utils/slip-upload';
 import { MoaLogo } from './MoaLogo';
@@ -32,7 +33,7 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
   const slipDateEc = approval?.ifmisSlipDateEc || item?.ifmisSlipDateEc || formatGcToEc(slipDateGc);
   const itemName = approval?.itemName || item?.name || '—';
   const itemCode = approval?.itemCode || item?.itemCode || 'MOA-ASSET-001';
-  const serialNo = item?.serialNumber || '—';
+  const serialNo = displaySerialNumber(item?.serialNumber);
   const category = item?.category?.replace(/_/g, ' ') || 'EQUIPMENT';
   const unitCost = item?.unitCostETB || 0;
   // A Stock-Out may issue part of a batch; otherwise the record's own units

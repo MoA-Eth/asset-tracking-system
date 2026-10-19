@@ -9,7 +9,7 @@ import { Part, SlipPreview } from './FormParts';
 import { readPdfRows, rowsToText, isModel19, isModel21, isDisposalForm, parseDisposalForm, DisposalSlipFields, DisposalSlipLine } from '../../utils/slip-reader';
 import { OtherAssets } from './OtherAssets';
 import { LearnTagPrompt, taggableAssets } from './LearnTagPrompt';
-import { findByTag, printedTag, tagKey } from '../../utils/asset-tag';
+import { findByTag, printedTag, tagKey, displaySerialNumber } from '../../utils/asset-tag';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { DisposalVoucher, Employee, ItemCondition, ItemStatus, ItemWithRelations, TransactionApproval } from '../../types/asset-management';
@@ -108,7 +108,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
 
   // Required fields still empty; the request can only be submitted once this is empty
   const missingFields = [
-    !(Number.isInteger(quantity) && quantity >= 1 && quantity <= inStore) && 'quantity',
+    !(Number.isFinite(quantity) && quantity > 0 && quantity <= inStore) && 'quantity',
     !isEdit && storeMen.length > 1 && !keeperId && 'storekeeper (store man)',
     !disposalNo.trim() && 'disposal form no.',
     !dateGc && 'date',
@@ -442,7 +442,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
             <ReadOnlyValue>{item.name}</ReadOnlyValue>
           </Field>
           <Field label="Serial number">
-            <ReadOnlyValue mono>{item.serialNumber || '—'}</ReadOnlyValue>
+            <ReadOnlyValue mono>{displaySerialNumber(item.serialNumber)}</ReadOnlyValue>
           </Field>
           {/* A batch in store can be disposed of in part; a fixed asset is always one */}
           {inStore > 1 && (

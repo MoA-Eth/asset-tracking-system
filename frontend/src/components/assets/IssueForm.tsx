@@ -228,7 +228,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     if (!item) return `item ${n} (store item)`;
     if (rows.some((r) => r.key !== row.key && r.itemId === row.itemId && rows.indexOf(r) < rows.indexOf(row))) return `item ${n} (already on another row)`;
     const inStore = unitsOf(item);
-    if (!(Number.isInteger(row.quantity) && row.quantity >= 1 && row.quantity <= inStore)) return rows.length === 1 ? 'quantity' : `item ${n} (quantity)`;
+    if (!(Number.isFinite(row.quantity) && row.quantity > 0 && row.quantity <= inStore)) return rows.length === 1 ? 'quantity' : `item ${n} (quantity)`;
     return false;
   };
 
@@ -468,7 +468,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       const q = Number(r.quantity);
       return {
         ...r,
-        quantity: Number.isInteger(q) && q >= 1 ? (inStore && q > inStore ? inStore : q) : 1,
+        quantity: Number.isFinite(q) && q > 0 ? (inStore && q > inStore ? inStore : q) : 1,
       };
     });
     setSubmitting(true);
@@ -750,7 +750,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                       <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? `${inStore} ${uomOf(item)} in store` : '—'}</td>
                       <td className="px-2 py-1.5">
                         <label htmlFor={qtyId} className="sr-only">{n === 1 ? 'Quantity to issue' : `Item ${n} quantity`}</label>
-                        <QuantityInput id={qtyId} min={1} max={item ? inStore : undefined} required value={row.quantity} onChange={(q) => setRow(row.key, { quantity: q })} className={cellClass({ align: 'right', mono: true, invalid: overStock })} />
+                        <QuantityInput id={qtyId} min={0.0001} max={item ? inStore : undefined} required value={row.quantity} onChange={(q) => setRow(row.key, { quantity: q })} className={cellClass({ align: 'right', mono: true, invalid: overStock })} />
                         {overStock && <p className="mt-0.5 text-right text-[10px] text-rose-700">Only {inStore} {uomOf(item)} in store</p>}
                       </td>
                       <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? money(item.unitCostETB || 0) : '—'}</td>

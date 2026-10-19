@@ -48,13 +48,22 @@ describe('QuantityInput', () => {
     expect(field).toHaveAttribute('placeholder', '0');
   });
 
-  it('ignores anything that is not a digit', async () => {
+    it('ignores anything that is not a digit or decimal point, accepting float numbers', async () => {
     render(<Demo initial={0} />);
     const field = screen.getByLabelText('Quantity');
 
     await userEvent.type(field, '1a-2.e3');
-    expect(field).toHaveValue('123');
-    expect(screen.getByTestId('saved')).toHaveTextContent('123');
+    expect(field).toHaveValue('12.3');
+    expect(screen.getByTestId('saved')).toHaveTextContent('12.3');
+  });
+
+  it('allows typing float numbers with decimals', async () => {
+    render(<Demo initial={0} />);
+    const field = screen.getByLabelText('Quantity');
+
+    await userEvent.type(field, '2.5');
+    expect(field).toHaveValue('2.5');
+    expect(screen.getByTestId('saved')).toHaveTextContent('2.5');
   });
 
   it('does not cap or rewrite a number above max: it is marked as wrong instead', async () => {

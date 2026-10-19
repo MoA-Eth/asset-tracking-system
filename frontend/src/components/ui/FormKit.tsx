@@ -72,15 +72,19 @@ export const QuantityInput: React.FC<QuantityInputProps> = ({
   }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
-    if (digits === '') {
+    let clean = e.target.value.replace(/[^0-9.]/g, '');
+    const parts = clean.split('.');
+    if (parts.length > 2) {
+      clean = parts[0] + '.' + parts.slice(1).join('');
+    }
+    if (clean === '') {
       setDraft('');
       onChange(0);
       return;
     }
-    const n = parseInt(digits, 10);
-    setDraft(String(n));
-    onChange(n);
+    setDraft(clean);
+    const n = parseFloat(clean);
+    onChange(Number.isFinite(n) ? n : 0);
   };
 
   const entered = draft === '' ? undefined : Number(draft);

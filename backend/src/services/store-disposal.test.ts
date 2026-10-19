@@ -137,9 +137,8 @@ describe('requesting a disposal', () => {
   it.each([
     [{ disposalNo: ' ' }, 'The disposal reference number is required.'],
     [{ reason: '' }, 'The reason for disposal is required.'],
-    [{ quantity: 0 }, 'Quantity must be a whole number from 1 to 10 (EA in store).'],
-    [{ quantity: 11 }, 'Quantity must be a whole number from 1 to 10 (EA in store).'],
-    [{ quantity: 2.5 }, 'Quantity must be a whole number from 1 to 10 (EA in store).'],
+    [{ quantity: 0 }, 'Quantity must be greater than 0 and at most 10 (EA in store).'],
+    [{ quantity: 11 }, 'Quantity must be greater than 0 and at most 10 (EA in store).'],
     [{ condition: 'BROKEN' }, 'Choose a valid item condition.'],
     [{ bookValue: -1 }, 'Book value must be a number, zero or more.'],
     [{ proceedsETB: 'abc' }, 'Proceeds must be a number, zero or more.'],
@@ -155,6 +154,11 @@ describe('requesting a disposal', () => {
     await expect(store().registerDisposal({ ...request, ifmisSlipAttachmentUrl: '/api/uploads/slips/a.pdf' } as any)).resolves.toBeDefined();
   });
 });
+
+it('accepts float quantity for partial disposal', async () => {
+    db.item.findUnique.mockResolvedValue({ id: 'item-1', itemCode: 'MOA-ITEM-001', name: 'Pesticide', status: 'AVAILABLE', notes: JSON.stringify({ quantity: 10 }), storeLocation: { siteName: 'Main' } } as any);
+    await expect(store().registerDisposal({ ...request, quantity: 2.5 } as any)).resolves.toBeDefined();
+  });
 
 describe('correcting a disposal request', () => {
   it('saves the corrections while it waits for Stage 1 and records what changed', async () => {

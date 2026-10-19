@@ -5,6 +5,7 @@ import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { Modal } from '../components/ui/Modal';
 import { MyAssetsSkeleton } from '../components/ui/Skeleton';
 import { MyAsset } from '../types/asset-management';
+import { displaySerialNumber } from '../utils/asset-tag';
 
 const CATEGORY_LABELS: Record<string, string> = {
   IT_EQUIPMENT: 'IT Equipment & Accessories',
@@ -135,7 +136,7 @@ export const MyAssetsPage: React.FC = () => {
                         <span className={`block ${table.code}`}>{asset.itemCode}</span>
                         <span className="block text-xs text-slate-500">{CATEGORY_LABELS[asset.category] ?? asset.category}</span>
                       </td>
-                      <td className="px-3 py-2.5 tabular-nums text-slate-700">{asset.serialNumber || '—'}</td>
+                      <td className="px-3 py-2.5 tabular-nums text-slate-700">{displaySerialNumber(asset.serialNumber)}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-slate-900">{units(asset)}</td>
                       <td className="px-3 py-2.5 text-slate-700">
                         {asset.assignedOnGc ?? '—'}
@@ -180,7 +181,7 @@ export const MyAssetsPage: React.FC = () => {
                     <span className={`${pill} ${status.tone} shrink-0`}>{status.label}</span>
                   </div>
                   <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-slate-700">
-                    <div><dt className="text-[10px] uppercase text-slate-500">Serial no.</dt><dd className="font-mono">{asset.serialNumber || '—'}</dd></div>
+                    <div><dt className="text-[10px] uppercase text-slate-500">Serial no.</dt><dd className="font-mono">{displaySerialNumber(asset.serialNumber)}</dd></div>
                     <div><dt className="text-[10px] uppercase text-slate-500">Quantity</dt><dd className="font-mono font-semibold">{units(asset)}</dd></div>
                     <div><dt className="text-[10px] uppercase text-slate-500">Assigned on</dt><dd>{asset.assignedOnGc ?? '—'}</dd></div>
                   </dl>
@@ -209,7 +210,7 @@ export const MyAssetsPage: React.FC = () => {
                 </div>
                 <dl className="divide-y divide-slate-100 rounded-md border border-slate-200 px-4">
                   <Detail label="Item code" mono>{selected.itemCode}</Detail>
-                  <Detail label="Serial no." mono>{selected.serialNumber}</Detail>
+                  <Detail label="Serial no." mono>{displaySerialNumber(selected.serialNumber)}</Detail>
                   <Detail label="Category">{CATEGORY_LABELS[selected.category] ?? selected.category}</Detail>
                   <Detail label="Quantity" mono>{units(selected)}</Detail>
                   <Detail label="Directorate">{selected.department}</Detail>

@@ -88,7 +88,7 @@ describe('issuing several lines of one Model 22', () => {
   it('checks every line before saving any: a bad line leaves nothing registered', async () => {
     // More than is in store on the second line
     await expect(store().registerStockOuts({ ...voucher, lines: [{ itemId: 'item-1', quantity: 5 }, { itemId: 'item-2', quantity: 21 }] } as any))
-      .rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('MOA-SUP-2026-0002: quantity must be a whole number from 1 to 20') });
+      .rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('MOA-SUP-2026-0002: quantity must be') });
     // The same item twice
     await expect(store().registerStockOuts({ ...voucher, lines: [{ itemId: 'item-1', quantity: 1 }, { itemId: 'item-1', quantity: 2 }] } as any))
       .rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('same store item is on two lines') });

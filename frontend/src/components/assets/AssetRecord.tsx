@@ -9,6 +9,7 @@ import { HeaderActionButton } from '../ui/HeaderActionButton';
 import { FormSection, FieldGrid, Field as FormKitField, ReadOnlyValue, TotalValue, FormNotice } from '../ui/FormKit';
 import { ApprovalStatus, ItemStatus, TransactionApproval } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
+import { isGeneratedSerialNumber, displaySerialNumber } from '../../utils/asset-tag';
 import { storeLocationLabel } from '../../utils/location';
 import { departmentLabel } from '../../utils/department';
 import { AssetRow, AssetStatus, requestLabel, RejectionNote, STAGE_LABELS, shortDate } from './asset-state';
@@ -457,10 +458,10 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
 
               <FormKitField label="Serial number" optional>
                 <div className="relative flex items-center w-full">
-                  <ReadOnlyValue mono className={item.serialNumber ? 'pr-9' : ''}>
-                    {item.serialNumber || '—'}
+                  <ReadOnlyValue mono className={item.serialNumber && !isGeneratedSerialNumber(item.serialNumber) ? 'pr-9' : ''}>
+                    {displaySerialNumber(item.serialNumber)}
                   </ReadOnlyValue>
-                  {item.serialNumber && (
+                  {item.serialNumber && !isGeneratedSerialNumber(item.serialNumber) && (
                     <div className="absolute right-1.5 flex items-center">
                       <CopyButton text={item.serialNumber} label="Copy serial number" />
                     </div>

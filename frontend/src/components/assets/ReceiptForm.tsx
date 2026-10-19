@@ -205,7 +205,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     !ifmisItemCode.trim() && !(isEdit && itemType) && 'IFMIS item code',
     !category && 'category',
     !!ifmisItemCode.trim() && !itemType && 'item code starting with 0 or 1',
-    !(quantity >= 1) && 'quantity',
+    !(quantity > 0) && 'quantity',
     !uom.trim() && 'unit of measure',
     !donation && !(unitCostETB > 0) && 'unit price',
     isAttachmentRequired && (showScannedSlipField ? !signedFileName : !(ifmisFile || signedFileName || editItem?.ifmisSlipAttachmentUrl)) && (showScannedSlipField ? 'signed copy' : 'IFMIS Model 19 PDF'),
@@ -798,7 +798,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         <label htmlFor="receipt-quantity" className="sr-only">Quantity</label>
         <QuantityInput
           id="receipt-quantity"
-          min={1}
+          min={0.0001}
           value={quantity}
           onChange={setQuantity}
           disabled={fixedOne}

@@ -7,6 +7,7 @@ import { RecordDetailSkeleton } from './Skeleton';
 import { statusTone, pill } from './theme';
 import { api } from '../../api/client';
 import { formatETB } from '../../utils/eth-date';
+import { displaySerialNumber } from '../../utils/asset-tag';
 import {
   ItemWithRelations,
   TransactionApproval,
@@ -258,7 +259,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                     </Row>
                   </>
                 )}
-                <Row label="Serial number" mono>{item.serialNumber}</Row>
+                <Row label="Serial number" mono>{displaySerialNumber(item.serialNumber)}</Row>
                 <Row label="Store">{item.storeLocation?.siteName}</Row>
                 <Row label="Custodian">{item.currentCustodian?.fullNameEn || item.heldByOrganization}</Row>
                 {item.heldByContact && <Row label="Contact person">{item.heldByContact}</Row>}

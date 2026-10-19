@@ -51,7 +51,7 @@ export const lineMissing = (l: SlipLine, donation = false): string[] =>
     !l.ifmisCode?.trim() && 'item code',
     !!l.ifmisCode?.trim() && !l.itemType && 'item code starting with 0 or 1',
     !l.uom.trim() && 'unit',
-    !(Number.isInteger(l.quantity) && l.quantity >= 1) && 'quantity',
+    !(Number.isFinite(l.quantity) && l.quantity > 0) && 'quantity',
     !donation && !(l.unitPrice > 0) && 'unit price',
   ].filter(Boolean) as string[];
 
@@ -194,8 +194,13 @@ export const ReceiptItems: React.FC<{
                       value={l.quantity || ''}
                       disabled={l.itemType === ItemType.FIXED}
                       title={l.itemType === ItemType.FIXED ? 'A fixed asset is one item' : undefined}
-                      onChange={(e) => set(l.key, { quantity: Number(e.target.value.replace(/[^\d]/g, '')) || 0 })}
-                      className={cellClass({ align: 'right', mono: true, invalid: !(l.quantity >= 1) })}
+                      onChange={(e) => {
+                        let clean = e.target.value.replace(/[^0-9.]/g, '');
+                        const parts = clean.split('.');
+                        if (parts.length > 2) clean = parts[0] + '.' + parts.slice(1).join('');
+                        set(l.key, { quantity: clean === '' ? 0 : parseFloat(clean) || 0 });
+                      }}
+                      className={cellClass({ align: 'right', mono: true, invalid: !(l.quantity > 0) })}
                     />
                   </td>
                   {!donation && (

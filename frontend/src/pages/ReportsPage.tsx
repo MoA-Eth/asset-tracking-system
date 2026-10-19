@@ -388,7 +388,7 @@ export const ReportsPage: React.FC = () => {
         item.currentCustodian?.fullNameEn || item.heldByOrganization || 'In Store',
         item.assignedDepartment?.nameEn || '',
         item.storeLocation?.siteName || '',
-        item.serialNumber || 'N/A',
+        displaySerialNumber(item.serialNumber) === '—' ? 'N/A' : item.serialNumber,
         item.uom || 'EA',
         balanceOf(item).total,
         balanceOf(item).issued,
@@ -1214,7 +1214,7 @@ export const ReportsPage: React.FC = () => {
                         <div className="text-slate-900 truncate" title={item.name}>
                           {item.name}
                         </div>
-                        {item.serialNumber && (
+                        {item.serialNumber && !isGeneratedSerialNumber(item.serialNumber) && (
                           <div
                             className="text-xs text-slate-500 truncate"
                             title={`SN: ${item.serialNumber}`}

@@ -378,7 +378,7 @@ function assertStockInLine(line: any): void {
   const unitCost = isBlank(line.unitCostETB) ? 0 : Number(line.unitCostETB);
   if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price must be a number, zero or more.');
   const quantity = isBlank(line.quantity) ? 1 : Number(line.quantity);
-  if (!Number.isInteger(quantity) || quantity < 1) throw new BadRequestError('Quantity must be a whole number, at least 1.');
+  if (!Number.isFinite(quantity) || quantity <= 0) throw new BadRequestError('Quantity must be greater than 0.');
   if (!isBlank(line.condition) && !RETURN_CONDITIONS.includes(line.condition)) throw new BadRequestError('Choose a valid item condition.');
   assertUnitOfMeasure(line.uom);
 }
@@ -515,8 +515,8 @@ function disposalDetailsOf(
     throw new BadRequestError('Choose a valid item condition.');
   }
   const quantity = isBlank(payload.quantity) ? inStore : Number(payload.quantity);
-  if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
-    throw new BadRequestError(`Quantity must be a whole number from 1 to ${inStore} (${uom} in store).`);
+  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > inStore) {
+    throw new BadRequestError(`Quantity must be greater than 0 and at most ${inStore} (${uom} in store).`);
   }
   const text = (value: unknown) => (isBlank(value) ? undefined : String(value).trim());
   const details: Model21RequestDetails = {
@@ -583,7 +583,7 @@ function readItemMeta(notes: string | null | undefined): Record<string, any> {
 /** Units held by one item record */
 function quantityOf(item: { notes?: string | null }): number {
   const quantity = Number(readItemMeta(item.notes).quantity);
-  return Number.isInteger(quantity) && quantity > 0 ? quantity : 1;
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 }
 
 function uomOf(item: { notes?: string | null }): string {
@@ -929,7 +929,7 @@ export class StoreService {
       const category = (lineItem.category || payload.category || AssetCategory.IT_EQUIPMENT) as AssetCategory;
       const itemType = (lineItem.itemType || payload.itemType || 'FIXED') as ItemType;
       const itemCode = lineItem.itemCode?.trim() || await generateItemCode(category, currentYear);
-      const serialNumber = String(lineItem.serialNumber ?? '').trim() || (rawItems.length > 1 ? `SN-${Date.now()}-${i + 1}` : `SN-${Date.now()}`);
+      const serialNumber = String(lineItem.serialNumber ?? '').trim();
       const unitCost = Number(lineItem.unitCostETB) || 0;
       const quantity = Number(lineItem.quantity) || 1;
       const baseAmount = unitCost * quantity;
@@ -944,7 +944,7 @@ export class StoreService {
         transactionType: payload.transactionType || 'PO Receipt',
         source: donation ? undefined : payload.source,
         buyer: donation ? undefined : payload.buyer,
-        programName: payload.programName || 'MoA-Program to Build Resilience for Food and Nutrition Security in the Horn of Africa',
+        programName: payload.programName?.trim() || undefined,
         uom: lineItem.uom || payload.uom || 'EA',
         subInventory: lineItem.subInventory || payload.subInventory,
         itemCategoryDisplay: lineItem.itemCategoryDisplay || payload.itemCategoryDisplay,
@@ -1060,7 +1060,7 @@ export class StoreService {
     if (!name) throw new BadRequestError('Item description is required.');
     if (!payload.storeLocationId) throw new BadRequestError('Receiving store is required.');
     if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price cannot be negative.');
-    if (!Number.isInteger(quantity) || quantity < 1) throw new BadRequestError('Quantity must be at least 1.');
+    if (!Number.isFinite(quantity) || quantity <= 0) throw new BadRequestError('Quantity must be greater than 0.');
     // A fixed asset is one item; a record from before this rule keeps its quantity unless it is changed
     let previousQuantity = 1;
     try {
@@ -1109,7 +1109,7 @@ export class StoreService {
       transactionType: payload.transactionType || previousMeta.transactionType || 'PO Receipt',
       source: donation ? undefined : payload.source?.trim() || undefined,
       buyer: donation ? undefined : payload.buyer?.trim() || undefined,
-      programName: payload.programName?.trim() || previousMeta.programName,
+      programName: payload.programName !== undefined ? payload.programName.trim() || undefined : previousMeta.programName,
       uom: payload.uom?.trim() || previousMeta.uom || 'EA',
       subInventory: payload.subInventory?.trim() || undefined,
       itemCategoryDisplay: payload.itemCategoryDisplay || previousMeta.itemCategoryDisplay,
@@ -1144,7 +1144,7 @@ export class StoreService {
       name,
       category: payload.category || item.category,
       itemType: payload.itemType || item.itemType || 'FIXED',
-      serialNumber: payload.serialNumber?.trim() || item.serialNumber,
+      serialNumber: payload.serialNumber !== undefined ? payload.serialNumber.trim() : item.serialNumber,
       unitCostETB: unitCost,
       condition: payload.condition || item.condition,
       storeLocationId: payload.storeLocationId,
@@ -1288,8 +1288,8 @@ export class StoreService {
     const previousDetails = (approval.requestDetails ?? {}) as Record<string, any>;
     const previousQuantity = Number(previousDetails.quantity) || inStore;
     const quantity = payload.quantity === undefined || payload.quantity === null ? previousQuantity : Number(payload.quantity);
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
-      throw new BadRequestError(`Quantity must be a whole number from 1 to ${inStore} (${uom} in store).`);
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > inStore) {
+      throw new BadRequestError(`Quantity must be greater than 0 and at most ${inStore} (${uom} in store).`);
     }
 
     const before = {
@@ -1454,8 +1454,8 @@ export class StoreService {
     const inStore = quantityOf(item);
     const uom = uomOf(item);
     const quantity = payload.quantity === undefined || payload.quantity === null ? inStore : Number(payload.quantity);
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
-      throw new BadRequestError(`Quantity must be a whole number from 1 to ${inStore} (${uom} in store).`);
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > inStore) {
+      throw new BadRequestError(`Quantity must be greater than 0 and at most ${inStore} (${uom} in store).`);
     }
     // A store with no store man can't issue: his name goes on the voucher
     let issuer = null;
@@ -1570,8 +1570,8 @@ export class StoreService {
       await assertNoPendingApproval(item);
       const inStore = quantityOf(item);
       const quantity = Number(line.quantity);
-      if (!Number.isInteger(quantity) || quantity < 1 || quantity > inStore) {
-        throw new BadRequestError(`${item.itemCode}: quantity must be a whole number from 1 to ${inStore} (${uomOf(item)} in store).`);
+      if (!Number.isFinite(quantity) || quantity <= 0 || quantity > inStore) {
+        throw new BadRequestError(`${item.itemCode}: quantity must be greater than 0 and at most ${inStore} (${uomOf(item)} in store).`);
       }
       stores.add(item.storeLocation?.storeId ?? item.storeLocationId);
     }
@@ -2478,13 +2478,13 @@ export class StoreService {
 
         const requested = Number(details.quantity);
         const inStore = quantityOf(item);
-        if (Number.isInteger(requested) && requested > 0 && requested < inStore) {
+        if (Number.isFinite(requested) && requested > 0 && requested < inStore) {
           // The rest stays in store on this record; the disposed units get their own record
           const uom = uomOf(item);
           const code = await nextSplitCode(db, item);
           split = {
             quantity: requested,
-            remaining: inStore - requested,
+            remaining: Math.round((inStore - requested) * 10000) / 10000,
             uom,
             code,
             status: 'DISPOSED',
@@ -2518,13 +2518,13 @@ export class StoreService {
 
         const requested = Number((approval.requestDetails as Record<string, any> | null)?.quantity);
         const inStore = quantityOf(item);
-        if (Number.isInteger(requested) && requested > 0 && requested < inStore) {
+        if (Number.isFinite(requested) && requested > 0 && requested < inStore) {
           // The rest stays in store on this record; the disposed units get their own record
           const uom = uomOf(item);
           const code = await nextSplitCode(db, item);
           split = {
             quantity: requested,
-            remaining: inStore - requested,
+            remaining: Math.round((inStore - requested) * 10000) / 10000,
             uom,
             code,
             status: 'DISPOSED',
@@ -2563,14 +2563,14 @@ export class StoreService {
 
         const requested = Number((approval.requestDetails as Record<string, any> | null)?.quantity);
         const inStore = quantityOf(item);
-        if (Number.isInteger(requested) && requested > 0 && requested < inStore) {
+        if (Number.isFinite(requested) && requested > 0 && requested < inStore) {
           // The rest stays in store on this record; the issued units get their own record
           const uom = uomOf(item);
           const code = await nextSplitCode(db, item);
           const recipientName = toEntity;
           split = {
             quantity: requested,
-            remaining: inStore - requested,
+            remaining: Math.round((inStore - requested) * 10000) / 10000,
             uom,
             code,
             status: 'ISSUED',

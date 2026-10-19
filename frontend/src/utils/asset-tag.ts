@@ -19,3 +19,11 @@ export const findByTag = <T extends ItemWithRelations>(items: T[], tag?: string 
 
 /** The tag printed on a Model 21 or disposal form: the IFMIS one when the asset has it, as IFMIS prints, else the record code */
 export const printedTag = (item?: Pick<ItemWithRelations, 'ifmisTagNumber' | 'itemCode'> | null) => item?.ifmisTagNumber || item?.itemCode || '';
+
+/** Identifies auto-generated placeholder serial numbers (e.g. SN-1729345678910 or SN-1729345678910-1) */
+export const isGeneratedSerialNumber = (sn?: string | null): boolean =>
+  Boolean(sn && /^SN-\d{10,}(-\d+)?$/i.test(sn.trim()));
+
+/** Formats serial number for display: shows '—' if empty or auto-generated dummy */
+export const displaySerialNumber = (sn?: string | null): string =>
+  sn && !isGeneratedSerialNumber(sn) ? sn : '—';
