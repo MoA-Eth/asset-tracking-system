@@ -889,17 +889,15 @@ export class StoreService {
         line.totalAmount = 0;
       }
     }
-    // A fixed asset is one item: several of them are registered as one receipt each. Every line is known by its IFMIS
-    // inventory item code; the system gives each record its own code (a tag sent with a fixed asset is used instead).
+    // A line of several fixed assets is received as it is on the slip (quantity 1 by default, any quantity allowed).
+    // Every line is known by its IFMIS inventory item code; the system gives each record its own code (a tag sent
+    // with a fixed asset is used instead).
     const tags: string[] = [];
     for (const line of rawItems) {
       const type = line.itemType || payload.itemType || 'FIXED';
       const name = line.name || payload.name || 'asset';
       // The IFMIS item code: 1… defaults to consumable, other codes to fixed asset
       const ifmisCode = String(line.ifmisItemCode ?? payload.ifmisItemCode ?? '').trim();
-      if (type === 'FIXED' && Number(line.quantity ?? 1) !== 1) {
-        throw new BadRequestError(`A fixed asset is one item, so its quantity is 1: register each ${name} as its own receipt.`);
-      }
       // A tag is no longer asked on receipt; one sent (older clients, imports) still becomes the item code
       const tag = type === 'FIXED' ? String(line.itemCode ?? '').trim() : '';
       if (tag) {
@@ -1082,17 +1080,6 @@ export class StoreService {
     if (!payload.storeLocationId) throw new BadRequestError('Receiving store is required.');
     if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price cannot be negative.');
     if (!Number.isFinite(quantity) || quantity <= 0) throw new BadRequestError('Quantity must be greater than 0.');
-    // A fixed asset is one item; a record from before this rule keeps its quantity unless it is changed
-    let previousQuantity = 1;
-    try {
-      previousQuantity = Number(JSON.parse(item.notes || '{}').quantity) || 1;
-    } catch {
-      previousQuantity = 1;
-    }
-    const nextType = payload.itemType || item.itemType || 'FIXED';
-    if (nextType === 'FIXED' && quantity !== 1 && (quantity !== previousQuantity || nextType !== (item.itemType || 'FIXED'))) {
-      throw new BadRequestError('A fixed asset is one item, so its quantity is 1: register each one as its own receipt.');
-    }
     assertUnitOfMeasure(payload.uom);
     if (payload.serialNumber?.trim() && payload.serialNumber.trim() !== item.serialNumber) await assertSerialNumberFree(payload.serialNumber, itemId);
     if (payload.storeLocationId !== item.storeLocationId) {

@@ -162,17 +162,11 @@ describe('Stock-In correction before Stage 1 endorsement', () => {
     await expect(store().updateStockIn('missing', edit as any, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it('keeps a fixed asset at quantity 1, but leaves a record from before the rule as it is', async () => {
+  it('corrects the quantity of a fixed asset to more than 1', async () => {
     db.item.findUnique.mockResolvedValue({ ...pendingItem, itemType: 'FIXED' });
-    await expect(store().updateStockIn('item-1', edit as any, 'EMP-ENC')).rejects.toMatchObject({
-      statusCode: 400,
-      message: expect.stringContaining('A fixed asset is one item'),
-    });
-    // Switching a consumable line of 2 to fixed asset is refused too
-    db.item.findUnique.mockResolvedValue({ ...pendingItem, notes: JSON.stringify({ quantity: 2 }) });
-    await expect(store().updateStockIn('item-1', { ...edit, itemType: 'FIXED' } as any, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
-    // A fixed asset of 3 recorded before the rule can still be corrected, keeping its 3
-    db.item.findUnique.mockResolvedValue({ ...pendingItem, itemType: 'FIXED', notes: JSON.stringify({ quantity: 3 }) });
     await expect(store().updateStockIn('item-1', { ...edit, quantity: 3 } as any, 'EMP-ENC')).resolves.toBeDefined();
+    // Switching a consumable line of 2 to fixed asset is fine too
+    db.item.findUnique.mockResolvedValue({ ...pendingItem, notes: JSON.stringify({ quantity: 2 }) });
+    await expect(store().updateStockIn('item-1', { ...edit, quantity: 2, itemType: 'FIXED' } as any, 'EMP-ENC')).resolves.toBeDefined();
   });
 });

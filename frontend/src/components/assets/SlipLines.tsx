@@ -206,7 +206,6 @@ export const ReceiptItems: React.FC<{
             {first}
             {lines.map((l, i) => {
               const n = i + 2;
-              const isFixed = isLineFixed(l);
               const isVat = Boolean(vatApplicable ?? l.vatApplicable);
               const lineBase = (l.quantity || 0) * (l.unitPrice || 0);
               const lineVat = isVat ? Math.round(lineBase * 0.15 * 100) / 100 : 0;
@@ -223,9 +222,6 @@ export const ReceiptItems: React.FC<{
                       className={cellClass({ invalid: !l.name.trim() })}
                     />
                     {l.alreadyAs && <p className="mt-0.5 text-[10px] font-semibold text-rose-600">Already received as {l.alreadyAs}. Duplicate entrance is not permitted.</p>}
-                    {isFixed && (l.slipQuantity ?? 0) > 1 && (
-                      <p className="mt-0.5 text-[10px] text-amber-700">The slip lists {l.slipQuantity}: a fixed asset is one item, so register the others as their own receipts.</p>
-                    )}
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1.5">

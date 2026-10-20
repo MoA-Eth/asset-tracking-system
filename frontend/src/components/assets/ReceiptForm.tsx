@@ -854,9 +854,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             Already received as {primaryDuplicateAs} (Model 19 No. {ifmisSlipNumber.trim()}). Duplicate entrance is not permitted.
           </p>
         )}
-        {fixedOne && slipQuantity > 1 && (
-          <p role="status" className="mt-0.5 text-[10px] text-amber-700">The slip lists {slipQuantity}: a fixed asset is one item, so register the others as their own receipts.</p>
-        )}
       </td>
       <td className="px-3 py-2.5">
         <div className="flex items-center gap-1.5">
@@ -1073,7 +1070,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                 <span className="text-xs font-semibold text-emerald-800">15% VAT (all items)</span>
               </label>
             )}
-            <span className="text-[11px] text-slate-500">{ITEM_CODE_RULE} A fixed asset is one item. Click the badge to toggle type if needed.</span>
+            <span className="text-[11px] text-slate-500">{ITEM_CODE_RULE} Click the badge to toggle type if needed.</span>
           </div>
         }
       >

@@ -1039,7 +1039,8 @@ describe('Asset record', () => {
     // Quantity remains editable and keeps slip quantity
     expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('50');
     expect(within(others).getByLabelText('Item 2 quantity')).not.toBeDisabled();
-    expect(within(others).getByText(/The slip lists 50: a fixed asset is one item/)).toBeInTheDocument();
+    // A fixed asset is received in the slip's quantity: no advice to split it
+    expect(within(others).queryByText(/a fixed asset is one item/)).toBeNull();
     // Back to the slip's code: a consumable again
     await user.clear(code2);
     await user.type(code2, '105101102.0415');
