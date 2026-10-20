@@ -512,6 +512,8 @@ describe('Assets page', () => {
     await menuFor(user, 'MOA-S1');
     await user.click(screen.getByRole('menuitem', { name: 'Duplicate as new receipt' }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
+    // The title says what it was copied from; the item keeps its real name
+    expect(within(panel).getByRole('heading', { name: 'Duplicate of MOA-S1 · Desk' })).toBeInTheDocument();
     // What the item is comes across
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Desk');
     // So does where it came from and who handed it over

@@ -189,7 +189,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
 
   // Pop-ups: one per form, each either new (from a row or the header) or correcting a pending request
-  const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string } | null>(null);
+  const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string; copyOf?: ItemWithRelations } | null>(null);
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [disposing, setDisposing] = useState<{ itemId: string } | null>(null);
@@ -204,13 +204,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setDisposing(null);
     setEditing(false);
   };
-  const openReceipt = (edit?: ItemWithRelations, template?: ReceiptTemplate, templateKey?: string) => {
+  const openReceipt = (edit?: ItemWithRelations, template?: ReceiptTemplate, templateKey?: string, copyOf?: ItemWithRelations) => {
     setSelectedId(null);
     setTransfer(null);
     setIssue(null);
     setDisposing(null);
     setEditing(false);
-    setReceipt({ edit, template, templateKey });
+    setReceipt({ edit, template, templateKey, copyOf });
   };
   const [voucher19, setVoucher19] = useState<Model19Voucher | null>(null);
   const [voucher22, setVoucher22] = useState<Model22Voucher | null>(null);
@@ -961,7 +961,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               {
                 label: 'Duplicate as new receipt',
                 icon: Copy,
-                onClick: () => openReceipt(undefined, templateFromItem(item), `copy-${item.id}-${Date.now()}`),
+                onClick: () => openReceipt(undefined, templateFromItem(item), `copy-${item.id}-${Date.now()}`, item),
                 // A piece split off a batch is not a receipt: duplicate the registration it came from
                 hidden: !canReceive || !!item.parentItemId,
               },
@@ -1135,7 +1135,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2.5">
                       <h3 className="text-base font-extrabold text-slate-900">
-                        {receipt.edit ? `Edit receipt · ${receipt.edit.itemCode}` : 'Receive items · Model 19'}
+                        {receipt.edit
+                          ? `Edit receipt · ${receipt.edit.itemCode}`
+                          // A copy keeps the item's real name; the title says which record it was copied from
+                          : receipt.copyOf
+                          ? `Duplicate of ${receipt.copyOf.itemCode} · ${receipt.copyOf.name}`
+                          : 'Receive items · Model 19'}
                       </h3>
                       <span className="px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         {receipt.edit ? 'Correction' : 'New Delivery'}
