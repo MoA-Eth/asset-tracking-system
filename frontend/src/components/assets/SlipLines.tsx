@@ -198,7 +198,7 @@ export const ReceiptItems: React.FC<{
                       onChange={(e) => set(l.key, { name: e.target.value })}
                       className={cellClass({ invalid: !l.name.trim() })}
                     />
-                    {l.alreadyAs && <p className="mt-0.5 text-[10px] text-amber-700">Already received as {l.alreadyAs}; remove it unless this is a second delivery.</p>}
+                    {l.alreadyAs && <p className="mt-0.5 text-[10px] font-semibold text-rose-600">Already received as {l.alreadyAs}. Duplicate entrance is not permitted.</p>}
                     {isFixed && (l.slipQuantity ?? 0) > 1 && (
                       <p className="mt-0.5 text-[10px] text-amber-700">The slip lists {l.slipQuantity}: a fixed asset is one item, so register the others as their own receipts.</p>
                     )}

@@ -553,6 +553,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             locations={locations}
             employees={employees}
             editItem={item}
+            registered={items.filter((i) => !i.parentItemId && i.id !== item.id).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
             onCancel={() => setEditing(false)}
             onSuccess={(_result, voucher) => done(voucher, setVoucher19)}
           />
@@ -1143,7 +1144,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     employees={employees}
                     editItem={receipt.edit}
                     template={receipt.template}
-                    registered={items.filter((i) => !i.parentItemId).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
+                    registered={items.filter((i) => !i.parentItemId && (!receipt.edit || i.id !== receipt.edit.id)).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
                     onCancel={() => setReceipt(null)}
                     onSuccess={(result, voucher) => {
                       setReceipt(null);

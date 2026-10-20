@@ -162,9 +162,8 @@ describe('StoreService.registerStockIn approval gate', () => {
   it('does not check items registered without a serial number', async () => {
     await StoreService.getInstance().registerStockIn({ ...basePayload, serialNumber: '', isHistoricalData: true } as any);
 
-    // The only lookup is the tag number's; no serial number is looked up
-    expect(db.item.findFirst).toHaveBeenCalledTimes(1);
-    expect(db.item.findFirst.mock.calls[0][0].where).toHaveProperty('itemCode');
+    // No serial number is looked up
+    expect(db.item.findFirst.mock.calls.some((c: any) => c[0]?.where?.serialNumber)).toBe(false);
     expect(db.item.create).toHaveBeenCalledTimes(1);
   });
 
@@ -267,6 +266,26 @@ describe('StoreService.registerStockIn approval gate', () => {
     await expect(StoreService.getInstance().registerStockIn({ ...basePayload, serialNumber: '', items, isHistoricalData: true } as any)).rejects.toMatchObject({
       statusCode: 400,
       message: 'Two lines on this slip have tag number moa-1001.',
+    });
+    expect(db.item.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses duplicate entrance when an item is already received on the same Model 19 slip', async () => {
+    db.item.findFirst.mockImplementation(async ({ where }: any) => {
+      if (where?.ifmisSlipNumber) {
+        return {
+          itemCode: 'MOA-0001',
+          name: 'Dell Latitude 5420',
+          ifmisSlipNumber: '0000044',
+        };
+      }
+      return null;
+    });
+    await expect(
+      StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any)
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('Duplicate entrance is not permitted'),
     });
     expect(db.item.create).not.toHaveBeenCalled();
   });

@@ -57,7 +57,7 @@ Choose it in **IFMIS Model 19 PDF** at the top. The form fills in what is still 
 | Usual flow: IFMIS PDF, then the signed printout | Choose the IFMIS PDF at the top (it fills the form), then attach the signed scan under **Signed copy**. |
 | Only a scan or photo, no IFMIS PDF | Attach it under **Signed copy** and fill in the fields by hand. |
 | A Model 21, Model 22 or disposal form | Refused here and not attached; the note says which form it belongs to. |
-| The slip was already received | The note warns with the existing record codes, so the goods aren't counted twice. |
+| The slip was already received | Duplicate entrance is not permitted: the note warns with the existing record codes and submission is blocked so the goods aren't counted twice. |
 | A mistake after submitting | Until the Team Leader endorses it: **Edit receipt**, fix, **Save changes**. After that: ask an approver to reject it, then register it again. |
 | Rejected | It stays on record as **Rejected** with the reason; register it again. |
 

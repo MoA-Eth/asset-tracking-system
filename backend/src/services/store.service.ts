@@ -915,6 +915,29 @@ export class StoreService {
       if (other) throw new ConflictError(`Tag number ${tag} is already registered (${other.name}). Check the tag on the asset.`);
     }
 
+    // Check if any line has already been received on this Model 19 slip
+    if (payload.ifmisSlipNumber && !payload.ifmisSlipNumber.startsWith('PENDING-')) {
+      for (const line of rawItems) {
+        const lineName = String(line.name || payload.name || '').trim();
+        if (lineName) {
+          const duplicate = await prisma.item.findFirst({
+            where: {
+              ifmisSlipNumber: { equals: payload.ifmisSlipNumber.trim(), mode: 'insensitive' },
+              name: { equals: lineName, mode: 'insensitive' },
+              status: { not: ItemStatus.REJECTED },
+              parentItemId: null,
+            },
+            select: { itemCode: true, name: true, ifmisSlipNumber: true },
+          });
+          if (duplicate) {
+            throw new ConflictError(
+              `Item "${duplicate.name}" was already received as ${duplicate.itemCode} on Model 19 No. ${duplicate.ifmisSlipNumber}. Duplicate entrance is not permitted.`
+            );
+          }
+        }
+      }
+    }
+
     const createdItems: ItemWithRelations[] = [];
     let primaryApproval: TransactionApproval | undefined;
 

@@ -1,5 +1,5 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FileText } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
@@ -219,6 +219,32 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     }),
   ].filter(Boolean) as string[];
 
+  // A receipt comes first in an item's life: the same slip line received twice would count the goods twice
+  const findDuplicateRegistered = (slipNo?: string, itemName?: string) => {
+    const s = slipNo?.trim().toLowerCase();
+    const n = itemName?.trim().toLowerCase();
+    if (!s || !n) return undefined;
+    return registered?.find(
+      (r) =>
+        r.slipNumber?.trim().toLowerCase() === s &&
+        r.name.trim().toLowerCase() === n,
+    )?.itemCode;
+  };
+
+  const primaryDuplicateAs = findDuplicateRegistered(ifmisSlipNumber, name);
+  const linesWithDuplicates = useMemo(() => extraLines.map((l) => ({
+    ...l,
+    alreadyAs: l.alreadyAs || findDuplicateRegistered(ifmisSlipNumber, l.name),
+  })), [extraLines, ifmisSlipNumber, registered]);
+
+  const duplicateLines = linesWithDuplicates.filter((l) => Boolean(l.alreadyAs));
+  const hasDuplicates = Boolean(primaryDuplicateAs || duplicateLines.length > 0);
+  const duplicateMessage = primaryDuplicateAs
+    ? `Item "${name.trim()}" was already received as ${primaryDuplicateAs} (Model 19 No. ${ifmisSlipNumber.trim()}). Duplicate entrance is not permitted.`
+    : duplicateLines.length > 0
+      ? `${duplicateLines.length === 1 ? `Item "${duplicateLines[0].name.trim()}" was` : `${duplicateLines.length} items were`} already received on Model 19 No. ${ifmisSlipNumber.trim()}. Duplicate entrance is not permitted.`
+      : undefined;
+
   // A field shows what is wrong with it once the user has been in it
   const fieldErrors = useFieldErrors({});
 
@@ -360,22 +386,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     fromSlip.current = taken;
     setSlipQuantity(line?.quantity ?? 0);
     // A receipt comes first in an item's life: the same slip line received twice would count the goods twice
-    const receivedAs = (description?: string) =>
-      slip.model19No && description
-        ? registered?.find(
-            (r) =>
-              r.slipNumber?.trim().toLowerCase() === slip.model19No!.trim().toLowerCase() &&
-              r.name.trim().toLowerCase() === description.trim().toLowerCase(),
-          )?.itemCode
-        : undefined;
-    const alreadyCode = receivedAs(line?.description);
+    const alreadyCode = findDuplicateRegistered(slip.model19No, line?.description);
     const already = alreadyCode ? { itemCode: alreadyCode } : undefined;
     // Every other line of the slip is listed under the first, to be registered as its own record
     const others = isEdit ? [] : slip.lines.slice(1);
     // Always replaced: lines of an earlier slip must not stay behind to be registered with this one
     setExtraLines(
       others.map((l, i) => {
-        const isFixed = Boolean(l.itemCode?.trim() && l.itemCode.trim().startsWith('0'));
         return {
           key: Date.now() + i,
           slipQuantity: l.quantity,
@@ -388,7 +405,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           unitPrice: l.unitPrice ?? 0,
           ifmisCode: l.itemCode,
           subInventory: l.subInventory,
-          alreadyAs: receivedAs(l.description),
+          alreadyAs: findDuplicateRegistered(slip.model19No, l.description),
         };
       }),
     );
@@ -396,7 +413,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     if (already) {
       setSlipNote({
         tone: 'warn',
-        text: `This slip's item was already received as ${already.itemCode} (Model 19 No. ${slip.model19No}). Check before registering it again.${filled.length ? ` Filled in: ${filled.join(', ')}.` : ''}`,
+        text: `This slip's item was already received as ${already.itemCode} (Model 19 No. ${slip.model19No}). Duplicate entrance is not permitted.${filled.length ? ` Filled in: ${filled.join(', ')}.` : ''}`,
       });
       return;
     }
@@ -520,6 +537,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const effectiveUom = uom.trim() || "EA";
     const effectiveUnitCost = donation ? 0 : (Number(unitCostETB) >= 0 ? Number(unitCostETB) : 0);
     const effectiveIfmisItemCode = ifmisItemCode.trim() || (effectiveType === ItemType.CONSUMABLE ? "108101101.0001" : "005101101.0001");
+    if (hasDuplicates) {
+      const msg = duplicateMessage || 'Duplicate entrance is not permitted.';
+      setFormError(msg);
+      toast.error('Duplicate entrance not permitted', msg);
+      setSubmitting(false);
+      return;
+    }
+
     setSubmitting(true);
     const registeredById = user?.id || '';
 
@@ -741,8 +766,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={fieldErrors.touch('itemName')}
-          className={cellClass({ invalid: !!fieldErrors.error('itemName') })}
+          className={cellClass({ invalid: !!fieldErrors.error('itemName') || !!primaryDuplicateAs })}
         />
+        {primaryDuplicateAs && (
+          <p role="status" className="mt-0.5 text-[10px] font-semibold text-rose-600">
+            Already received as {primaryDuplicateAs} (Model 19 No. {ifmisSlipNumber.trim()}). Duplicate entrance is not permitted.
+          </p>
+        )}
         {fixedOne && slipQuantity > 1 && (
           <p role="status" className="mt-0.5 text-[10px] text-amber-700">The slip lists {slipQuantity}: a fixed asset is one item, so register the others as their own receipts.</p>
         )}
@@ -967,7 +997,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       >
         <ReceiptItems
           first={firstRow}
-          lines={extraLines}
+          lines={linesWithDuplicates}
           donation={donation}
           onChange={setExtraLines}
           onAdd={isEdit ? undefined : () => setExtraLines((lines) => [...lines, blankLine()])}
@@ -1042,6 +1072,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         submitting={submitting}
         submitLabel={isEdit ? 'Save changes' : extraLines.length > 0 ? `Submit ${extraLines.length + 1} items for approval` : 'Submit for approval'}
         allowIncomplete={true}
+        submitDisabled={hasDuplicates}
+        note={
+          hasDuplicates ? (
+            <span className="font-semibold text-rose-600">
+              {duplicateMessage}
+            </span>
+          ) : undefined
+        }
         onCancel={onCancel}
         onReset={isEdit ? undefined : handleReset}
       />
