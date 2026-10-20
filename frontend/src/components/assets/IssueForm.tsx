@@ -14,7 +14,7 @@ import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { departmentLabel } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { useSystemSettings } from '../../utils/system-settings';
-import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
+import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
 import { readPdfPages, rowsToText, isModel19, isModel21, isModel22, isDisposalForm, parseModel22, Model22SlipFields } from '../../utils/slip-reader';
 import { Part, SlipPreview } from './FormParts';
 import { cellClass, money } from './SlipLines';
@@ -295,7 +295,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     takeSigned(file);
     setSlipNote({
       tone: 'info',
-      text: `${what} It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. To fill the form in automatically, choose the PDF saved from IFMIS.`,
+      text: `${what} It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. ${SCAN_HINT}`,
     });
   };
 

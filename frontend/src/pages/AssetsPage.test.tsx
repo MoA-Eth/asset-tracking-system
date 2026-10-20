@@ -1193,6 +1193,8 @@ describe('Asset record', () => {
     expect(await within(panel).findByText(/This PDF is a scan \(it has no text\)\. It is attached below as the signed copy/)).toBeInTheDocument();
     expect(within(within(panel).getByRole('region', { name: 'Store and signatures' })).getByText('scan.pdf')).toBeInTheDocument();
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000077');
+    // It says how to get a file that can be read
+    expect(within(panel).getByText(/ask whoever printed it from IFMIS to save it as a PDF and send you that file/)).toBeInTheDocument();
   });
 
   it('opens an endorsed stage-2 record in view mode with locked actions and accurate banner', async () => {

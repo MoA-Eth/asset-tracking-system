@@ -10,7 +10,7 @@ import { AssetCategory, ProvisionType, ItemType, ItemStatus, ItemCondition, Item
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { useSystemSettings } from '../../utils/system-settings';
 import { recallForm, rememberForm } from '../../utils/form-memory';
-import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
+import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
 import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
 import { ReceiptItems, SlipLine, ItemTypeTag, lineMissing, blankLine, cellClass, money } from './SlipLines';
@@ -502,7 +502,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     takeSigned(file);
     setSlipNote({
       tone: 'info',
-      text: `${what} It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. To fill the form in automatically, choose the PDF saved from IFMIS.`,
+      text: `${what} It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. ${SCAN_HINT}`,
     });
   };
 

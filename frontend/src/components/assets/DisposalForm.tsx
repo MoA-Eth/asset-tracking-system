@@ -15,7 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 import { DisposalVoucher, Employee, ItemCondition, ItemStatus, ItemWithRelations, TransactionApproval } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { getSystemSettings, useSystemSettings } from '../../utils/system-settings';
-import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
+import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
 
 /** Disposal types as IFMIS prints them in the Disposal Type column; another can be typed as IFMIS names it */
 export const DISPOSAL_TYPES = ['TRANSFER', 'DONATION', 'SALE', 'SCRAP'];
@@ -217,7 +217,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       setAttachmentFileName(file.name);
       return void setSlipNote({
         tone: 'info',
-        text: `This is a photo. It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. To fill the form in automatically, choose the PDF saved from IFMIS.`,
+        text: `This is a photo. It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. ${SCAN_HINT}`,
       });
     }
     if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return void setSlipNote({ tone: 'warn', text: 'Choose the disposal form as a PDF saved from IFMIS.' });
@@ -226,7 +226,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     readPdfRows(file)
       .then((rows) => {
         const text = rowsToText(rows);
-        if (!text.trim()) return setSlipNote({ tone: 'warn', text: 'This PDF has no text (it is a scanned image), so it could not be read. Fill in the fields as usual.' });
+        if (!text.trim()) return setSlipNote({ tone: 'warn', text: `This PDF is a scan, so nothing could be read from it. Fill in the fields as usual. ${SCAN_HINT}` });
         if (isDisposalForm(text)) return fillFromDisposalForm(parseDisposalForm(rows));
         setSlipNote({
           tone: 'warn',

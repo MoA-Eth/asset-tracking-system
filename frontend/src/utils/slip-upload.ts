@@ -5,6 +5,9 @@ export const SLIP_PDF_ACCEPT_ATTR = '.pdf,application/pdf';
 /** Generic file accept for signed slip scans/photos and PDFs */
 export const SLIP_ACCEPT_ATTR = '.pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp';
 export const MAX_SLIP_BYTES = 10 * 1024 * 1024;
+/** What to do when a scan or photo was chosen: only the PDF saved from IFMIS carries text the form can read */
+export const SCAN_HINT =
+  'To fill the form in automatically, ask whoever printed it from IFMIS to save it as a PDF and send you that file (by Telegram or email), then choose it here.';
 
 /** Returns true if the file is an accepted PDF or image, based on MIME type or filename extension (handles mobile file picker fallbacks). */
 export function isAcceptedSlipFile(file: File): boolean {

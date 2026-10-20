@@ -7,7 +7,7 @@ import { formatVoucherRemark } from '../../utils/voucher-remark';
 import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, FormNotice, QuantityInput, MoneyInput, inputClass, textareaClass, submitOnCtrlEnter } from '../ui/FormKit';
 import { readPdfRows, rowsToText, isModel19, isModel21, parseModel21, parseModel21Particulars, sameEmployeeId, Model21SlipFields, Model21SlipLine, Model21Particulars } from '../../utils/slip-reader';
 import { Part, SlipPreview } from './FormParts';
-import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName } from '../../utils/slip-upload';
+import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSystemSettings } from '../../utils/system-settings';
@@ -320,7 +320,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       setAttachmentFileName(file.name);
       return void setSlipNote({
         tone: 'info',
-        text: `This is a photo. It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. To fill the form in automatically, choose the PDF saved from IFMIS.`,
+        text: `This is a photo. It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. ${SCAN_HINT}`,
       });
     }
     if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
@@ -331,7 +331,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     readPdfRows(file)
       .then((rows) => {
         const text = rowsToText(rows);
-        if (!text.trim()) return setSlipNote({ tone: 'warn', text: 'This PDF has no text (it is a scanned image), so it could not be read. Fill in the fields as usual.' });
+        if (!text.trim()) return setSlipNote({ tone: 'warn', text: `This PDF is a scan, so nothing could be read from it. Fill in the fields as usual. ${SCAN_HINT}` });
         if (isModel21(text)) return fillFromModel21(parseModel21(text), parseModel21Particulars(rows));
         setSlipNote({
           tone: 'warn',
