@@ -9,10 +9,8 @@ export const ChangePasswordPage: React.FC = () => {
   const { user, refreshSession, logout } = useAuth();
   const toast = useToast();
 
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,18 +31,15 @@ export const ChangePasswordPage: React.FC = () => {
       setError('New passwords do not match.');
       return;
     }
-    if (currentPassword === newPassword) {
-      setError('New password must be different from your current temporary password.');
-      return;
-    }
 
     setSubmitting(true);
     try {
-      await api.changePassword(currentPassword, newPassword);
+      // The temporary password isn't asked again: signing in with it is enough
+      await api.changePassword(undefined, newPassword);
       toast.success('Password Updated', 'Your permanent password has been set. Welcome to the portal.');
       await refreshSession();
     } catch (err: any) {
-      setError(err.message || 'The password could not be changed. Please check your temporary password.');
+      setError(err.message || 'The password could not be changed. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -131,36 +126,6 @@ export const ChangePasswordPage: React.FC = () => {
 
           {/* Inputs */}
           <div className="space-y-2 sm:space-y-2.5">
-            {/* Temporary / Current Password */}
-            <div>
-              <label className="block text-[11px] sm:text-xs font-semibold text-emerald-300/90 mb-0.5">
-                Current Temporary Password
-              </label>
-              <div className="relative group">
-                <Lock className="w-4 h-4 text-emerald-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
-                <input
-                  type={showCurrent ? 'text' : 'password'}
-                  required
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter temporary password"
-                  autoFocus
-                  className="w-full h-9 sm:h-10 pl-9 pr-9 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
-                  style={{
-                    background: 'rgba(3, 15, 10, 0.88)',
-                    borderColor: 'rgba(52, 211, 153, 0.25)',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrent(!showCurrent)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-600 hover:text-emerald-300 transition-colors cursor-pointer p-1"
-                >
-                  {showCurrent ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
-
             {/* New Password */}
             <div>
               <label className="block text-[11px] sm:text-xs font-semibold text-emerald-300/90 mb-0.5">
@@ -174,6 +139,7 @@ export const ChangePasswordPage: React.FC = () => {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Min. 8 characters"
+                  autoFocus
                   className="w-full h-9 sm:h-10 pl-9 pr-9 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                   style={{
                     background: 'rgba(3, 15, 10, 0.88)',
@@ -220,7 +186,7 @@ export const ChangePasswordPage: React.FC = () => {
             <div className="pt-1.5 sm:pt-2">
               <button
                 type="submit"
-                disabled={submitting || !currentPassword || !newPassword || !confirmPassword}
+                disabled={submitting || !newPassword || !confirmPassword}
                 className="w-full h-9.5 sm:h-10.5 rounded-xl text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed group relative overflow-hidden"
                 style={{
                   background: 'linear-gradient(135deg, #136a41 0%, #0c4228 100%)',

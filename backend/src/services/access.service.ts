@@ -160,11 +160,16 @@ export async function changeOwnPassword(userId: string, current: unknown, next: 
   if (!employee || employee.isActive === false || !employee.role || !employee.password) {
     throw new UnauthorizedError('This account no longer has system access.');
   }
-  if (typeof current !== 'string' || !(await verifyPassword(current, employee.password))) {
+  // Right after signing in with a temporary password it isn't asked again: the session already proves it.
+  // A permanent password is always asked.
+  const temporary = employee.mustChangePassword === true && (current === undefined || current === '');
+  if (!temporary && (typeof current !== 'string' || !(await verifyPassword(current, employee.password)))) {
     throw new BadRequestError('Your current password is not correct.');
   }
   const password = checkNewPassword(next, 'Your new password');
-  if (password === current) throw new BadRequestError('Choose a password that is different from your current one.');
+  if (password === current || (temporary && (await verifyPassword(password, employee.password)))) {
+    throw new BadRequestError('Choose a password that is different from your current one.');
+  }
   await prisma.$transaction(async (tx) => {
     await tx.employee.update({ where: { id: userId }, data: { password: await hashPassword(password), mustChangePassword: false } });
     await audit(tx, employee, 'CHANGE_PASSWORD', userId, `${employee.fullNameEn} changed their password.`, undefined, { passwordChanged: true });

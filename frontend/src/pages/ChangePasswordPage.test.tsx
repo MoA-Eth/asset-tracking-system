@@ -51,7 +51,9 @@ describe('ChangePasswordPage', () => {
     expect(screen.getByTestId('moa-logo')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Choose a New Password/i })).toBeInTheDocument();
     expect(screen.getByText(/Abebe Bikila, your password is temporary/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Enter temporary password')).toBeInTheDocument();
+    // The temporary password isn't asked again
+    expect(screen.queryByPlaceholderText('Enter temporary password')).toBeNull();
+    expect(screen.queryByText(/Current Temporary Password/i)).toBeNull();
     expect(screen.getByPlaceholderText('Min. 8 characters')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Re-type new password')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Set Permanent Password/i })).toBeInTheDocument();
@@ -64,7 +66,7 @@ describe('ChangePasswordPage', () => {
 
     render(<ChangePasswordPage />);
 
-    await user.type(screen.getByPlaceholderText('Enter temporary password'), 'TempPass123');
+
     await user.type(screen.getByPlaceholderText('Min. 8 characters'), 'NewPermPassword1');
     await user.type(screen.getByPlaceholderText('Re-type new password'), 'NewPermPassword1');
 
@@ -72,7 +74,7 @@ describe('ChangePasswordPage', () => {
     expect(submitBtn).not.toBeDisabled();
     await user.click(submitBtn);
 
-    expect(api.changePassword).toHaveBeenCalledWith('TempPass123', 'NewPermPassword1');
+    expect(api.changePassword).toHaveBeenCalledWith(undefined, 'NewPermPassword1');
     expect(mockToast.success).toHaveBeenCalledWith('Password Updated', expect.any(String));
     expect(mockRefreshSession).toHaveBeenCalled();
   });
@@ -81,7 +83,7 @@ describe('ChangePasswordPage', () => {
     const user = userEvent.setup();
     render(<ChangePasswordPage />);
 
-    await user.type(screen.getByPlaceholderText('Enter temporary password'), 'TempPass123');
+
     await user.type(screen.getByPlaceholderText('Min. 8 characters'), 'NewPermPassword1');
     await user.type(screen.getByPlaceholderText('Re-type new password'), 'DifferentPassword2');
 

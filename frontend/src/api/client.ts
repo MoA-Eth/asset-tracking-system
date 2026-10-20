@@ -140,7 +140,7 @@ export const api = {
   },
 
   /** Replace your own password (also clears a temporary one) */
-  changePassword: (currentPassword: string, newPassword: string) => {
+  changePassword: (currentPassword: string | undefined, newPassword: string) => {
     return request<null>('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
   },
 

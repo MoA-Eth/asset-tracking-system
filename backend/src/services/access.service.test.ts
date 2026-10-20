@@ -98,6 +98,24 @@ describe('Changing your own password', () => {
     expect(data.mustChangePassword).toBe(false);
     expect(await verifyPassword('brand-new-1', data.password)).toBe(true);
   });
+
+  it("doesn't ask again for a temporary password the person just signed in with", async () => {
+    people.encoder.mustChangePassword = true;
+    // The temporary password can't be kept as the new one
+    await expect(changeOwnPassword('encoder', undefined, 'old-pass-1')).rejects.toThrow('different from your current one');
+    expect(db.employee.update).not.toHaveBeenCalled();
+
+    await changeOwnPassword('encoder', undefined, 'brand-new-1');
+    const data = db.employee.update.mock.calls[0][0].data;
+    expect(data.mustChangePassword).toBe(false);
+    expect(await verifyPassword('brand-new-1', data.password)).toBe(true);
+  });
+
+  it('still asks for a permanent password', async () => {
+    await expect(changeOwnPassword('encoder', undefined, 'brand-new-1')).rejects.toThrow('current password is not correct');
+    await expect(changeOwnPassword('encoder', '', 'brand-new-1')).rejects.toThrow('current password is not correct');
+    expect(db.employee.update).not.toHaveBeenCalled();
+  });
 });
 
 describe('Temporary passwords', () => {
