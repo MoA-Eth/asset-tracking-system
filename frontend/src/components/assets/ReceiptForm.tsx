@@ -535,6 +535,27 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       });
   };
 
+  // The lines added under the first one, as the server receives them
+  const extraPayload = () => extraLines.map((l) => ({
+    ifmisItemCode: l.ifmisCode?.trim() || undefined,
+    name: l.name.trim(),
+    category: l.category as AssetCategory,
+    itemType: l.itemType as ItemType,
+    unitCostETB: donation ? 0 : l.unitPrice,
+    condition: (l.condition as ItemCondition) || ItemCondition.NEW,
+    uom: l.uom.trim(),
+    itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
+    subInventory: l.subInventory?.trim() || undefined,
+    quantity: l.quantity,
+    totalAmount: donation ? 0 : (() => {
+      const base = l.quantity * l.unitPrice;
+      const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+      return base + (vatApplicable ? vat : Number(l.additionalCharges) || 0);
+    })(),
+    vatApplicable,
+    additionalCharges: vatApplicable ? 0 : Number(l.additionalCharges) || 0,
+  }));
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -599,7 +620,43 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           receivedByEmployeeId: receivedById || undefined,
           remark: remark.trim() || undefined,
         });
-        toast.success('Receipt updated', `${editItem.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
+        // Items added while correcting go on the same Model 19 slip, each as its own record waiting for approval
+        if (extraLines.length > 0) {
+          try {
+            const added = extraPayload();
+            await api.registerStockIn({
+              ...added[0],
+              serialNumber: '',
+              storeLocationId: effectiveStoreLocId || editItem.storeLocationId,
+              ifmisSlipNumber: slipNo,
+              ifmisSlipDateGc,
+              ifmisSlipAttachmentUrl: slipUrl ?? editItem.ifmisSlipAttachmentUrl ?? undefined,
+              isHistoricalData: false,
+              registeredById,
+              provisionType,
+              poNumber: donation ? undefined : poNumber.trim() || undefined,
+              transactionType: effectiveTransactionType,
+              source: donation ? undefined : source.trim() || undefined,
+              buyer: donation ? undefined : buyer.trim() || undefined,
+              programName: programName.trim() || undefined,
+              deliveredBy: deliveredBy.trim() || undefined,
+              receivedByEmployeeId: receivedById || undefined,
+              items: added,
+            });
+          } catch (err: any) {
+            // The correction is saved; the form stays open so the new items can be sent again
+            const errMsg = err.message || 'Server error';
+            setFormError(`${editItem.itemCode} was corrected, but the added items were not saved: ${errMsg}`);
+            toast.error("Added items couldn't be saved", errMsg);
+            return;
+          }
+        }
+        toast.success(
+          'Receipt updated',
+          extraLines.length > 0
+            ? `${editItem.itemCode} was corrected and ${extraLines.length} item${extraLines.length === 1 ? '' : 's'} added to Model 19 #${slipNo}. All wait for Team Leader endorsement.`
+            : `${editItem.itemCode} was corrected. It is still waiting for Team Leader endorsement.`
+        );
         onSuccess(res);
       } catch (err: any) {
         const errMsg = err.message || 'Server error';
@@ -636,25 +693,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         vatApplicable,
         additionalCharges: vatApplicable ? 0 : Number(additionalCharges) || 0,
         remark: remark.trim() || undefined,
-      }, ...extraLines.map((l) => ({
-        ifmisItemCode: l.ifmisCode?.trim() || undefined,
-        name: l.name.trim(),
-        category: l.category as AssetCategory,
-        itemType: l.itemType as ItemType,
-        unitCostETB: donation ? 0 : l.unitPrice,
-        condition: (l.condition as ItemCondition) || ItemCondition.NEW,
-        uom: l.uom.trim(),
-        itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
-        subInventory: l.subInventory?.trim() || undefined,
-        quantity: l.quantity,
-        totalAmount: donation ? 0 : (() => {
-          const base = l.quantity * l.unitPrice;
-          const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
-          return base + (vatApplicable ? vat : Number(l.additionalCharges) || 0);
-        })(),
-        vatApplicable,
-        additionalCharges: vatApplicable ? 0 : Number(l.additionalCharges) || 0,
-      }))];
+      }, ...extraPayload()];
 
       const slipUrl = copyFile ? (await api.uploadSlip(copyFile)).url : undefined;
 
@@ -1016,7 +1055,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           vatApplicable={vatApplicable}
           onToggleVat={handleToggleVat}
           onChange={setExtraLines}
-          onAdd={isEdit ? undefined : () => setExtraLines((lines) => [...lines, blankLine()])}
+          onAdd={() => setExtraLines((lines) => [...lines, blankLine()])}
           total={totalAmount + extraTotal}
         />
       </Part>
@@ -1081,7 +1120,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       <FormFooter
         accent="emerald"
         submitting={submitting}
-        submitLabel={isEdit ? 'Save changes' : extraLines.length > 0 ? `Submit ${extraLines.length + 1} items for approval` : 'Submit for approval'}
+        submitLabel={isEdit ? (extraLines.length > 0 ? `Save changes and add ${extraLines.length} item${extraLines.length === 1 ? '' : 's'}` : 'Save changes') : extraLines.length > 0 ? `Submit ${extraLines.length + 1} items for approval` : 'Submit for approval'}
         allowIncomplete={true}
         submitDisabled={hasDuplicates}
         note={

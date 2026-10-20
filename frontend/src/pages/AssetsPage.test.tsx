@@ -846,6 +846,29 @@ describe('Asset record', () => {
     expect(toolbarOf(record)).toEqual(['Edit receipt']);
   });
 
+  it('adds an item to a pending receipt while correcting it, on the same Model 19', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getApprovals).mockResolvedValue(approvals.map((a) => (a.id === 'A-R1' ? { ...a, currentStage: 1 } : a)) as any);
+    vi.mocked(api.updateStockIn).mockResolvedValue({ id: 'R1', itemCode: 'MOA-R1' } as any);
+    vi.mocked(api.registerStockIn).mockResolvedValue({ item: { id: 'N1', itemCode: 'MOA-N1' }, items: [{ id: 'N1', itemCode: 'MOA-N1' }] } as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const record = await open(user, 'MOA-R1');
+    await user.click(within(record).getByRole('button', { name: 'Edit receipt' }));
+
+    await user.click(within(record).getByRole('button', { name: 'Add item' }));
+    await user.type(within(record).getByLabelText('Item 2 item code'), '108101101.0007');
+    await user.type(within(record).getByLabelText('Item 2 description'), 'Printer toner');
+    expect(submitOf(record, 'stock-in-form')).toHaveTextContent('Save changes and add 1 item');
+    await user.click(submitOf(record, 'stock-in-form'));
+
+    await vi.waitFor(() => expect(api.registerStockIn).toHaveBeenCalled());
+    expect(api.updateStockIn).toHaveBeenCalled();
+    const sent = vi.mocked(api.registerStockIn).mock.calls[0][0];
+    expect(sent.ifmisSlipNumber).toBe(vi.mocked(api.updateStockIn).mock.calls[0][1].ifmisSlipNumber);
+    expect(sent.items).toEqual([expect.objectContaining({ name: 'Printer toner', ifmisItemCode: '108101101.0007' })]);
+  });
+
   it('opens a pending issue in view mode, and allows editing with Save and Cancel', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
