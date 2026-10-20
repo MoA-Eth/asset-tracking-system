@@ -151,7 +151,8 @@ The system includes built-in interactive OpenAPI 3.0 documentation:
 - **Interactive Portal**: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
 - **Raw OpenAPI JSON Spec**: [http://localhost:3000/api/docs/json](http://localhost:3000/api/docs/json)
 
-Documents all endpoint parameters, request schemas, Bearer JWT authentication, and response models.
+Documents all endpoint parameters, request schemas, Bearer JWT authentication, and response models — and the
+API-key endpoint other systems use to read the key figures (see [Integrations](#-integrations-reading-the-key-figures-with-an-api-key)).
 
 ---
 
@@ -304,6 +305,95 @@ All test accounts use uniform password **`moaams2024`**.
 ## Roles administration
 
 The implemented **Settings → Roles** directory shows the system roles (including Super Administrator and System Administrator), permissions, live member counts, and links to filtered user assignments. Users and Roles are restricted to System Administrators. See [Roles setup and behavior](docs/ROLES.md) for the database upgrade and session changes.
+
+## 🔌 Integrations: reading the key figures with an API key
+
+Another system's **server** (for example the Ministry KPI dashboard) can read this app's key figures with an API key,
+without anyone signing in. A key is **read-only** and opens **one endpoint only**, `GET /api/kpis`, which returns
+numbers — no item lists, no names. Every other endpoint still needs a signed-in person.
+
+### For administrators: issue a key
+
+1. Sign in as a **System Administrator** or **Super Administrator** (others don't see the page).
+2. Go to **Settings → System → API keys → New key**.
+3. Enter the **service** that will hold it (e.g. *Ministry KPI dashboard*) and, if wanted, an **expiry date**
+   (empty = works until revoked). Press **Create key**.
+4. **Copy the key now** — it looks like `ats_live_8f3k2q9a1b2c_…` and is shown **only once** (only a hash is stored).
+   Send it securely to that service's developer, with the API documentation link below.
+
+Good practice:
+
+- **One key per service**, so each can be revoked on its own and you can see which service is calling.
+- The list shows each key's start (`ats_live_8f3k…`), status (Active / Revoked / Expired) and **when it was last used**.
+- **Revoke** (⋮ → Revoke) stops a key at once; it can't be undone — create a new key to give access again.
+  A lost or leaked key: revoke it and issue a new one.
+- Creating and revoking keys are recorded in the **Audit Log**.
+
+### For the other system's developer: call the API
+
+Send the key in the `X-API-Key` header **from your server** (never from a web page or mobile app, where it could be
+copied):
+
+```bash
+curl -H "X-API-Key: ats_live_…" \
+  "https://asset.moa.gov.et/api/kpis?from=2026-07-08&to=2026-10-20"
+```
+
+```js
+// Node.js 18+ (keep the key in your server's environment, e.g. .env)
+const res = await fetch('https://asset.moa.gov.et/api/kpis?from=2026-07-08&to=2026-10-20', {
+  headers: { 'X-API-Key': process.env.ATS_API_KEY },
+});
+const { data } = await res.json();
+```
+
+**Filters** (all optional; the same as the in-app dashboard):
+
+| Parameter | Example | Meaning |
+| :--- | :--- | :--- |
+| `from`, `to` | `2026-07-08`, `2026-10-20` | Period, Gregorian `YYYY-MM-DD` (received / issued within it) |
+| `storeId` | `STR-03` | One store only |
+| `category` | `IT_EQUIPMENT` | One asset category only |
+| `itemType` | `FIXED` or `CONSUMABLE` | Fixed assets or consumables only |
+
+**Response** (`data`; amounts in ETB, `units` = quantities):
+
+```json
+{
+  "generatedAt": "2026-10-20T17:59:02.670Z",
+  "filter": { "from": "2026-07-08", "to": "2026-10-20", "storeId": null, "category": null, "itemType": null },
+  "assets": {
+    "total":       { "units": 1240, "valueETB": 48250000 },
+    "inStore":     { "units": 310,  "valueETB": 9100000 },
+    "issued":      { "units": 905,  "valueETB": 38400000 },
+    "disposed":    { "units": 25,   "valueETB": 750000 },
+    "fixedAssets": { "units": 640,  "valueETB": 45100000 },
+    "consumables": { "units": 600,  "valueETB": 3150000 }
+  },
+  "pending": { "receipts": 4, "issues": 2, "transfers": 1, "disposals": 0, "total": 7, "valueETB": 912000,
+               "withTeamLeader": 5, "withDepartmentHead": 2 },
+  "movement":    [{ "month": "2026-09", "received": 85, "issued": 60 }],
+  "byCategory":  [{ "category": "IT_EQUIPMENT", "units": 420, "valueETB": 21400000 }],
+  "byStore":     [{ "store": "Head office · Central Store", "units": 900, "valueETB": 36100000,
+                   "inStoreUnits": 210, "issuedUnits": 680, "pending": 3 }],
+  "byCondition": [{ "condition": "NEW", "units": 1100, "valueETB": 44000000 }],
+  "staleInStore": { "thresholdDays": 30, "items": 12, "units": 40, "valueETB": 640000 }
+}
+```
+
+`assets` counts **approved** records (as the in-app dashboard does); receipts and requests still waiting for approval
+are under `pending`.
+
+**Errors:**
+
+| Status | When |
+| :--- | :--- |
+| `401` | No key, or the key is wrong, revoked or expired |
+| `403` | The key isn't allowed to read the key figures |
+| `429` | More than **60 calls a minute** with this key — refreshing every few minutes is plenty |
+
+Full reference: **API documentation → "Integration (API key)"** at `https://asset.moa.gov.et/api/docs`
+(locally [http://localhost:3000/api/docs](http://localhost:3000/api/docs)).
 
 ## 🛡️ Core Business Invariants
 1. **Asset Prefixing**: Asset Tag Codes follow statutory formatting (`MOA-VEH-001`, `MOA-IT-042`).
