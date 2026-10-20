@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { API_KEY_RATE_PER_MINUTE, createApiKey, listApiKeys, resetApiKeyLimits, revokeApiKey, verifyApiKey } from './api-key.service';
+import { API_KEY_RATE_PER_MINUTE, createApiKey, ipAllowed, listApiKeys, parseAllowedIps, resetApiKeyLimits, revokeApiKey, setApiKeyAddresses, verifyApiKey } from './api-key.service';
 
 // In-memory stand-in for the database
 const db = vi.hoisted(() => ({
@@ -87,5 +87,42 @@ describe('API keys', () => {
     await expect(verifyApiKey(a.key, 'dashboard.read')).rejects.toMatchObject({ statusCode: 429 });
     // Another service's key is not affected
     await expect(verifyApiKey(b.key, 'dashboard.read')).resolves.toMatchObject({ name: 'B' });
+  });
+});
+
+describe('Holding a key to its service servers (allowed addresses)', () => {
+  it('takes single addresses and ranges, one per line or comma-separated, and refuses anything else', () => {
+    expect(parseAllowedIps('10.10.30.25\n10.10.40.0/24, 2001:db8::5')).toEqual(['10.10.30.25', '10.10.40.0/24', '2001:db8::5']);
+    expect(parseAllowedIps(['::ffff:10.10.30.25', '10.10.30.25'])).toEqual(['10.10.30.25']);
+    expect(parseAllowedIps('')).toEqual([]);
+    expect(() => parseAllowedIps('dashboard.example.org')).toThrow('not an IP address or range');
+    expect(() => parseAllowedIps('10.10.30.0/33')).toThrow('not an IP address or range');
+    expect(() => parseAllowedIps('10.10.300.1')).toThrow('not an IP address or range');
+  });
+
+  it('matches a caller against the list; an empty list allows any address', () => {
+    const allowed = ['10.10.30.25', '10.10.40.0/24'];
+    expect(ipAllowed('10.10.30.25', allowed)).toBe(true);
+    expect(ipAllowed('::ffff:10.10.40.77', allowed)).toBe(true);
+    expect(ipAllowed('10.10.41.1', allowed)).toBe(false);
+    expect(ipAllowed(undefined, allowed)).toBe(false);
+    expect(ipAllowed('203.0.113.9', [])).toBe(true);
+  });
+
+  it('refuses a genuine key from an address it does not allow, and accepts it from its server', async () => {
+    const { key, apiKey } = await createApiKey({ name: 'Dashboard', allowedIps: '10.10.30.25' }, 'admin');
+    expect(apiKey.allowedIps).toEqual(['10.10.30.25']);
+    await expect(verifyApiKey(key, 'dashboard.read', '10.10.30.25')).resolves.toMatchObject({ name: 'Dashboard' });
+    await expect(verifyApiKey(key, 'dashboard.read', '41.215.1.9')).rejects.toMatchObject({ statusCode: 403, message: expect.stringContaining('41.215.1.9') });
+  });
+
+  it('lets an administrator change the addresses later, and records it', async () => {
+    const { key, apiKey } = await createApiKey({ name: 'Dashboard', allowedIps: '10.10.30.25' }, 'admin');
+    await expect(setApiKeyAddresses(apiKey.id, '10.10.30.25', 'encoder')).rejects.toMatchObject({ statusCode: 403 });
+    const moved = await setApiKeyAddresses(apiKey.id, '10.10.50.0/24', 'admin');
+    expect(moved.allowedIps).toEqual(['10.10.50.0/24']);
+    await expect(verifyApiKey(key, 'dashboard.read', '10.10.50.8')).resolves.toBeDefined();
+    await expect(verifyApiKey(key, 'dashboard.read', '10.10.30.25')).rejects.toMatchObject({ statusCode: 403 });
+    expect(db.auditLog.create).toHaveBeenLastCalledWith({ data: expect.objectContaining({ action: 'API_KEY_ADDRESSES_CHANGED' }) });
   });
 });

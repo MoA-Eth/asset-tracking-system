@@ -4,8 +4,10 @@
  *
  * A key looks like  ats_live_<keyId>_<secret>. The key id is public (shown in the list, used to find the key); only a
  * hash of the secret is stored, so the full key is shown once, when it is created, and can't be recovered later.
+ * A key can also be held to the service's own server addresses (allowedIps): from anywhere else it is refused.
  */
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import { BlockList, isIP } from 'net';
 import { prisma } from '../lib/prisma';
 import { AppError, BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError } from '../errors/app-error';
 import { getTodayGcAndEc } from '../utils/eth-date';
@@ -26,6 +28,8 @@ export interface ApiKeyView {
   /** The start of the key, so it can be recognised: ats_live_8f3k2q9a… */
   hint: string;
   scopes: string[];
+  /** Server addresses it may be used from; empty: any */
+  allowedIps: string[];
   expiresAt: string | null;
   revokedAt: string | null;
   lastUsedAt: string | null;
@@ -49,6 +53,7 @@ const toView = (k: any, now = new Date()): ApiKeyView => ({
   name: k.name,
   hint: `${PREFIX}${k.keyId}…`,
   scopes: k.scopes ?? [],
+  allowedIps: k.allowedIps ?? [],
   expiresAt: iso(k.expiresAt),
   revokedAt: iso(k.revokedAt),
   lastUsedAt: iso(k.lastUsedAt),
@@ -56,6 +61,52 @@ const toView = (k: any, now = new Date()): ApiKeyView => ({
   createdAt: iso(k.createdAt)!,
   status: k.revokedAt ? 'REVOKED' : k.expiresAt && k.expiresAt <= now ? 'EXPIRED' : 'ACTIVE',
 });
+
+/** Most addresses one key can list */
+export const MAX_ALLOWED_IPS = 20;
+
+/** "::ffff:10.0.0.5" (an IPv4 address seen over IPv6) is 10.0.0.5 */
+const plainIp = (ip: string) => ip.trim().replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, '');
+
+/**
+ * The server addresses a key may be used from, checked: single addresses (10.10.30.25, 2001:db8::5) or ranges
+ * (10.10.30.0/24). Given as a list, or as text with one per line or comma-separated. Empty: any address.
+ */
+export function parseAllowedIps(input: unknown): string[] {
+  if (input === undefined || input === null || input === '') return [];
+  const items = (Array.isArray(input) ? input : String(input).split(/[\s,;]+/)).map((v) => String(v).trim()).filter(Boolean);
+  const out: string[] = [];
+  for (const item of items) {
+    const [address, prefix, extra] = item.split('/');
+    const ip = plainIp(address);
+    const version = isIP(ip);
+    const bits = prefix === undefined ? undefined : Number(prefix);
+    const max = version === 6 ? 128 : 32;
+    if (!version || extra !== undefined || (prefix !== undefined && (!/^\d{1,3}$/.test(prefix) || bits! > max))) {
+      throw new BadRequestError(`"${item}" is not an IP address or range. Use e.g. 10.10.30.25 or 10.10.30.0/24.`);
+    }
+    const normal = prefix === undefined ? ip : `${ip}/${bits}`;
+    if (!out.includes(normal)) out.push(normal);
+  }
+  if (out.length > MAX_ALLOWED_IPS) throw new BadRequestError(`A key can list at most ${MAX_ALLOWED_IPS} addresses or ranges.`);
+  return out;
+}
+
+/** Whether a caller's address is one a key allows (an empty list allows any) */
+export function ipAllowed(ip: string | undefined, allowed: string[]): boolean {
+  if (allowed.length === 0) return true;
+  const caller = plainIp(ip ?? '');
+  const version = isIP(caller);
+  if (!version) return false;
+  const list = new BlockList();
+  for (const entry of allowed) {
+    const [address, prefix] = entry.split('/');
+    const type = isIP(address) === 6 ? 'ipv6' : 'ipv4';
+    if (prefix === undefined) list.addAddress(address, type);
+    else list.addSubnet(address, Number(prefix), type);
+  }
+  return list.check(caller, version === 6 ? 'ipv6' : 'ipv4');
+}
 
 /** Only those who manage people's access manage keys */
 async function loadAdmin(tx: any, actorId: string) {
@@ -93,7 +144,7 @@ export async function listApiKeys(actorId: string): Promise<ApiKeyView[]> {
 
 /** Creates a key for one service. The full key is returned this once and never again. */
 export async function createApiKey(
-  input: { name?: unknown; expiresAt?: unknown; scopes?: unknown },
+  input: { name?: unknown; expiresAt?: unknown; scopes?: unknown; allowedIps?: unknown },
   actorId: string,
 ): Promise<{ key: string; apiKey: ApiKeyView }> {
   const name = typeof input.name === 'string' ? input.name.trim().replace(/\s+/g, ' ') : '';
@@ -112,17 +163,36 @@ export async function createApiKey(
     throw new BadRequestError(`A key can be allowed: ${API_KEY_SCOPES.join(', ')}.`);
   }
 
+  const allowedIps = parseAllowedIps(input.allowedIps);
+
   const keyId = randomBytes(6).toString('hex');
   const secret = randomBytes(32).toString('base64url');
   return prisma.$transaction(async (tx: any) => {
     const actor = await loadAdmin(tx, actorId);
     const created = await tx.apiKey.create({
-      data: { name, keyId, secretHash: hashSecret(secret), scopes: [...new Set(scopes as string[])], expiresAt, createdById: actor.id, createdByName: actor.fullNameEn },
+      data: { name, keyId, secretHash: hashSecret(secret), scopes: [...new Set(scopes as string[])], allowedIps, expiresAt, createdById: actor.id, createdByName: actor.fullNameEn },
     });
     await audit(tx, actor, 'API_KEY_CREATED', created.id, `${actor.fullNameEn} created API key "${name}" (${PREFIX}${keyId}…) for ${scopes.join(', ')}.`, {
-      name, keyId, scopes, expiresAt: iso(expiresAt),
+      name, keyId, scopes, allowedIps, expiresAt: iso(expiresAt),
     });
     return { key: `${PREFIX}${keyId}_${secret}`, apiKey: toView(created) };
+  });
+}
+
+/** Changes the server addresses a key may be used from (e.g. when the service moves to another server) */
+export async function setApiKeyAddresses(id: string, allowedIpsInput: unknown, actorId: string): Promise<ApiKeyView> {
+  const allowedIps = parseAllowedIps(allowedIpsInput);
+  return prisma.$transaction(async (tx: any) => {
+    const actor = await loadAdmin(tx, actorId);
+    const key = await tx.apiKey.findUnique({ where: { id } });
+    if (!key) throw new NotFoundError('This API key no longer exists.');
+    const updated = await tx.apiKey.update({ where: { id }, data: { allowedIps } });
+    await audit(
+      tx, actor, 'API_KEY_ADDRESSES_CHANGED', id,
+      `${actor.fullNameEn} set the addresses API key "${key.name}" (${PREFIX}${key.keyId}…) may be used from: ${allowedIps.length ? allowedIps.join(', ') : 'any address'}.`,
+      { allowedIps },
+    );
+    return toView(updated);
   });
 }
 
@@ -150,10 +220,10 @@ export const resetApiKeyLimits = () => {
 };
 
 /**
- * The service behind a key sent with a request, if the key is genuine, current, allowed `scope`, and within its
- * rate limit. Every refusal says only "invalid", so a caller can't learn which keys exist.
+ * The service behind a key sent with a request, if the key is genuine, current, allowed `scope`, called from an
+ * address it allows, and within its rate limit. Every refusal says only "invalid", so a caller can't learn which keys exist.
  */
-export async function verifyApiKey(header: string | undefined, scope: ApiKeyScope): Promise<ApiKeyPrincipal> {
+export async function verifyApiKey(header: string | undefined, scope: ApiKeyScope, callerIp?: string): Promise<ApiKeyPrincipal> {
   const match = /^ats_live_([0-9a-f]{12})_([A-Za-z0-9_-]{20,})$/.exec((header ?? '').trim());
   if (!match) throw new UnauthorizedError('A valid API key is required (X-API-Key header).');
   const [, keyId, secret] = match;
@@ -166,6 +236,10 @@ export async function verifyApiKey(header: string | undefined, scope: ApiKeyScop
     throw new UnauthorizedError('This API key is invalid, revoked or expired.');
   }
   if (!key!.scopes.includes(scope)) throw new ForbiddenError('This API key is not allowed to read this.');
+  // Held to the service's own servers: a copied key is of no use from anywhere else
+  if (!ipAllowed(callerIp, key!.allowedIps ?? [])) {
+    throw new ForbiddenError(`This API key can't be used from this address (${plainIp(callerIp ?? '') || 'unknown'}).`);
+  }
 
   const minute = Math.floor(now.getTime() / 60_000);
   const used = calls.get(key!.id);

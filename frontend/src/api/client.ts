@@ -320,8 +320,11 @@ export const api = {
   /** API keys other systems use to read the key figures (administrators) */
   getApiKeys: () => request<ApiKey[]>('/settings/api-keys'),
   /** The full key comes back this once; it can't be shown again */
-  createApiKey: (input: { name: string; expiresAt?: string }) =>
+  createApiKey: (input: { name: string; expiresAt?: string; allowedIps?: string }) =>
     request<{ key: string; apiKey: ApiKey }>('/settings/api-keys', { method: 'POST', body: JSON.stringify(input) }),
+  /** The server addresses a key may be used from: one per line or comma-separated; empty for any address */
+  setApiKeyAddresses: (id: string, allowedIps: string) =>
+    request<ApiKey>(`/settings/api-keys/${encodeURIComponent(id)}/addresses`, { method: 'PUT', body: JSON.stringify({ allowedIps }) }),
   revokeApiKey: (id: string) => request<ApiKey>(`/settings/api-keys/${encodeURIComponent(id)}/revoke`, { method: 'POST' }),
 
   getOrganizations: (opts: { includeInactive?: boolean } = {}) => {

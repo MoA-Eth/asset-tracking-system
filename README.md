@@ -317,13 +317,18 @@ numbers — no item lists, no names. Every other endpoint still needs a signed-i
 1. Sign in as a **System Administrator** or **Super Administrator** (others don't see the page).
 2. Go to **Settings → System → API keys → New key**.
 3. Enter the **service** that will hold it (e.g. *Ministry KPI dashboard*) and, if wanted, an **expiry date**
-   (empty = works until revoked). Press **Create key**.
-4. **Copy the key now** — it looks like `ats_live_8f3k2q9a1b2c_…` and is shown **only once** (only a hash is stored).
+   (empty = works until revoked).
+4. Under **Allowed server addresses**, enter the IP address of that service's server (ask their team), one per line,
+   or a range such as `10.10.30.0/24`. The key is then **refused from any other address**, so a copied or leaked key
+   is useless elsewhere. Leaving it empty allows any address — not recommended. Press **Create key**.
+5. **Copy the key now** — it looks like `ats_live_8f3k2q9a1b2c_…` and is shown **only once** (only a hash is stored).
    Send it securely to that service's developer, with the API documentation link below.
 
 Good practice:
 
 - **One key per service**, so each can be revoked on its own and you can see which service is calling.
+- **Always set the allowed server addresses.** The list shows them under *Allowed from* (*Any address* in amber
+  when none are set). If the service moves to another server, use ⋮ → **Edit addresses** — no new key needed.
 - The list shows each key's start (`ats_live_8f3k…`), status (Active / Revoked / Expired) and **when it was last used**.
 - **Revoke** (⋮ → Revoke) stops a key at once; it can't be undone — create a new key to give access again.
   A lost or leaked key: revoke it and issue a new one.
@@ -389,7 +394,7 @@ are under `pending`.
 | Status | When |
 | :--- | :--- |
 | `401` | No key, or the key is wrong, revoked or expired |
-| `403` | The key isn't allowed to read the key figures |
+| `403` | The key isn't allowed to read the key figures, or **is used from an address it doesn't allow** (the message names the address the call came from — give it to the administrator) |
 | `429` | More than **60 calls a minute** with this key — refreshing every few minutes is plenty |
 
 Full reference: **API documentation → "Integration (API key)"** at `https://asset.moa.gov.et/api/docs`

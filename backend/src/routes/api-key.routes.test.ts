@@ -55,7 +55,7 @@ const request = (path: string, headers: Record<string, string> = {}, method = 'G
 describe('Reading the key figures with an API key', () => {
   it('opens the key figures to a valid key only', async () => {
     expect((await request('/v1/assets-dashboard', { 'x-api-key': 'good-key' })).status).toBe(200);
-    expect(service.verifyApiKey).toHaveBeenCalledWith('good-key', 'dashboard.read');
+    expect(service.verifyApiKey).toHaveBeenCalledWith('good-key', 'dashboard.read', undefined); // the caller's address (none in this test)
     expect((await request('/v1/assets-dashboard', { 'x-api-key': 'bad-key' })).status).toBe(401);
     expect((await request('/v1/assets-dashboard')).status).toBe(401);
   });

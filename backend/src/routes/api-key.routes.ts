@@ -2,7 +2,7 @@ import { NextFunction, Request, Response, Router } from 'express';
 import { requireAuth, requirePermission } from '../middleware/auth.middleware';
 import { asyncHandler } from '../middleware/async-handler';
 import { sendSuccess } from '../utils/api-response';
-import { ApiKeyScope, createApiKey, listApiKeys, revokeApiKey, verifyApiKey } from '../services/api-key.service';
+import { ApiKeyScope, createApiKey, listApiKeys, revokeApiKey, setApiKeyAddresses, verifyApiKey } from '../services/api-key.service';
 import { getAssetsDashboard } from '../services/assets-dashboard.service';
 
 /**
@@ -11,7 +11,8 @@ import { getAssetsDashboard } from '../services/assets-dashboard.service';
  */
 export const requireApiKey = (scope: ApiKeyScope) =>
   asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
-    (req as any).apiKey = await verifyApiKey(req.header('x-api-key'), scope);
+    // The caller's address as nginx saw it (the app trusts the proxy's X-Forwarded-For; see TRUST_PROXY)
+    (req as any).apiKey = await verifyApiKey(req.header('x-api-key'), scope, req.ip);
     next();
   });
 
@@ -34,6 +35,9 @@ apiKeyAdminRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
 }));
 apiKeyAdminRoutes.post('/', asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, await createApiKey(req.body ?? {}, (req as any).user.id), 'API key created', 201);
+}));
+apiKeyAdminRoutes.put('/:id/addresses', asyncHandler(async (req: Request, res: Response) => {
+  sendSuccess(res, await setApiKeyAddresses(String(req.params.id), req.body?.allowedIps, (req as any).user.id), 'Addresses updated');
 }));
 apiKeyAdminRoutes.post('/:id/revoke', asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, await revokeApiKey(String(req.params.id), (req as any).user.id), 'API key revoked');

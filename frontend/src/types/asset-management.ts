@@ -126,6 +126,8 @@ export interface ApiKey {
   /** The start of the key, to recognise it: ats_live_8f3k2q9a… */
   hint: string;
   scopes: string[];
+  /** Server addresses it may be used from (IPs or ranges); empty: any address */
+  allowedIps: string[];
   expiresAt: string | null;
   revokedAt: string | null;
   lastUsedAt: string | null;

@@ -135,8 +135,10 @@ model ApiKey {
   /// The public part of the key, shown in the list and used to look the key up
   keyId         String    @unique
   secretHash    String
-  /// What it may read, e.g. ["kpis.read"]
+  /// What it may read, e.g. ["dashboard.read"]
   scopes        String[]
+  /// The server addresses it may be used from (IPs or ranges like 10.10.30.0/24); empty means any address
+  allowedIps    String[]  @default([])
   expiresAt     DateTime?
   revokedAt     DateTime?
   lastUsedAt    DateTime?

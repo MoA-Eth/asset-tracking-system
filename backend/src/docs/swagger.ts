@@ -434,7 +434,7 @@ export const swaggerDocument = {
               'staleInStore: { thresholdDays, items, units, valueETB } }',
           },
           401: { description: 'Missing, invalid, revoked or expired key' },
-          403: { description: 'The key is not allowed to read the key figures' },
+          403: { description: 'The key is not allowed to read the key figures, or is used from a server address it does not allow' },
           429: { description: 'More than 60 calls in a minute with this key' },
         },
       },

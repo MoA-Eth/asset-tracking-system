@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, Ban, Check, Copy, KeyRound, Plus, TriangleAlert } from 'lucide-react';
+import { AlertCircle, Ban, Check, Copy, KeyRound, Network, Plus, TriangleAlert } from 'lucide-react';
 import { api } from '../../api/client';
 import { btn, table } from '../../components/ui/theme';
 import { Modal } from '../../components/ui/Modal';
@@ -21,11 +21,64 @@ const StatusPill: React.FC<{ status: ApiKey['status'] }> = ({ status }) => {
   return <span className={`inline-flex rounded-[4px] border px-2 py-0.5 text-[11px] font-semibold ${look}`}>{status === 'ACTIVE' ? 'Active' : status === 'REVOKED' ? 'Revoked' : 'Expired'}</span>;
 };
 
+/** The server addresses a key may be used from, as the person types them */
+const AddressesField: React.FC<{ value: string; onChange: (v: string) => void; id: string }> = ({ value, onChange, id }) => (
+  <Field
+    label="Allowed server addresses"
+    optional
+    span="sm:col-span-2"
+    htmlFor={id}
+    hint="The IP address of the service's server, one per line, or a range such as 10.10.30.0/24. From any other address the key is refused. Leave empty to allow any address."
+  >
+    <textarea id={id} rows={3} value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass('emerald', { mono: true })} h-auto py-1.5`} placeholder={'e.g. 10.10.30.25'} />
+  </Field>
+);
+
+/** Which addresses a key works from, as the list shows it */
+const AllowedFrom: React.FC<{ ips: string[] }> = ({ ips }) =>
+  ips.length === 0 ? (
+    <span className="text-amber-800" title="This key works from any address. Add the service's server address to hold it there.">Any address</span>
+  ) : (
+    <span className="font-mono text-[12px] text-slate-700">{ips.join(', ')}</span>
+  );
+
+/** Changes the addresses of an existing key (e.g. the service moved to another server) */
+const AddressesForm: React.FC<{ apiKey: ApiKey; onCancel: () => void; onSaved: () => void }> = ({ apiKey, onCancel, onSaved }) => {
+  const toast = useToast();
+  const [ips, setIps] = useState(apiKey.allowedIps.join('\n'));
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await api.setApiKeyAddresses(apiKey.id, ips);
+      toast.success('Addresses updated', apiKey.name);
+      onSaved();
+    } catch (err: any) {
+      setError(err.message || 'The addresses could not be saved.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <FieldGrid cols={2}>
+        <AddressesField id="key-ips-edit" value={ips} onChange={setIps} />
+      </FieldGrid>
+      <FormError message={error} />
+      <FormFooter accent="emerald" submitting={submitting} submitLabel="Save addresses" onCancel={onCancel} sticky={false} />
+    </form>
+  );
+};
+
 // ─── New key: name it, then copy it once ────────────────────────────────────
 
 const NewKeyForm: React.FC<{ onCancel: () => void; onCreated: (key: string, apiKey: ApiKey) => void }> = ({ onCancel, onCreated }) => {
   const [name, setName] = useState('');
   const [expiresOn, setExpiresOn] = useState('');
+  const [ips, setIps] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +88,7 @@ const NewKeyForm: React.FC<{ onCancel: () => void; onCreated: (key: string, apiK
     setSubmitting(true);
     try {
       // The key works until the end of the chosen day
-      const { key, apiKey } = await api.createApiKey({ name, expiresAt: expiresOn ? `${expiresOn}T23:59:59` : undefined });
+      const { key, apiKey } = await api.createApiKey({ name, expiresAt: expiresOn ? `${expiresOn}T23:59:59` : undefined, allowedIps: ips.trim() || undefined });
       onCreated(key, apiKey);
     } catch (err: any) {
       setError(err.message || 'The key could not be created.');
@@ -56,6 +109,7 @@ const NewKeyForm: React.FC<{ onCancel: () => void; onCreated: (key: string, apiK
         <Field label="Can read" htmlFor="key-scope">
           <p id="key-scope" className="py-1.5 text-[13px] text-slate-700">The key figures only (<span className="font-mono">GET /api/v1/assets-dashboard</span>)</p>
         </Field>
+        <AddressesField id="key-ips" value={ips} onChange={setIps} />
       </FieldGrid>
       <FormError message={error} />
       <FormFooter accent="emerald" submitting={submitting} submitLabel="Create key" onCancel={onCancel} sticky={false} />
@@ -113,6 +167,7 @@ export const ApiKeysPage: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<{ secret: string; apiKey: ApiKey } | null>(null);
   const [revoking, setRevoking] = useState<ApiKey | null>(null);
+  const [addresses, setAddresses] = useState<ApiKey | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
@@ -185,6 +240,7 @@ export const ApiKeysPage: React.FC = () => {
                   <tr className={table.headRow}>
                     <th className="px-4 py-1.5">Service</th>
                     <th className="px-4 py-1.5">Status</th>
+                    <th className="px-4 py-1.5">Allowed from</th>
                     <th className="px-4 py-1.5">Last used</th>
                     <th className="px-4 py-1.5">Expires</th>
                     <th className="px-4 py-1.5">Created</th>
@@ -199,6 +255,7 @@ export const ApiKeysPage: React.FC = () => {
                         <span className="block font-mono text-[11px] text-slate-500">{k.hint}</span>
                       </td>
                       <td className="px-4 py-2.5"><StatusPill status={k.status} /></td>
+                      <td className="px-4 py-2.5"><AllowedFrom ips={k.allowedIps} /></td>
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{k.lastUsedAt ? when(k.lastUsedAt) : 'Not yet'}</td>
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{day(k.expiresAt)}</td>
                       <td className="px-4 py-2.5 text-slate-700">
@@ -208,7 +265,10 @@ export const ApiKeysPage: React.FC = () => {
                       <td className="px-4 py-2.5 text-right">
                         <RowActionsMenu
                           label={k.name}
-                          actions={[{ label: 'Revoke', icon: Ban, onClick: () => setRevoking(k), hidden: k.status !== 'ACTIVE' }]}
+                          actions={[
+                            { label: 'Edit addresses', icon: Network, onClick: () => setAddresses(k), hidden: k.status !== 'ACTIVE' },
+                            { label: 'Revoke', icon: Ban, onClick: () => setRevoking(k), hidden: k.status !== 'ACTIVE' },
+                          ]}
                         />
                       </td>
                     </tr>
@@ -250,6 +310,20 @@ export const ApiKeysPage: React.FC = () => {
               }}
             />
           )
+        )}
+      </Modal>
+
+      <Modal isOpen={!!addresses} onClose={() => setAddresses(null)} title={addresses ? `Addresses for ${addresses.name}` : ''} subtitle="Where the key may be used from." size="md">
+        {addresses && (
+          <AddressesForm
+            key={addresses.id}
+            apiKey={addresses}
+            onCancel={() => setAddresses(null)}
+            onSaved={() => {
+              setAddresses(null);
+              load();
+            }}
+          />
         )}
       </Modal>
 
