@@ -40,10 +40,10 @@ export const blankLine = (): SlipLine => ({
   additionalCharges: 0,
 });
 
-/** Fixed asset quantity is 1 and not editable if item starts with 0 only */
+/** Fixed asset quantity is 1 and not editable if item starts with 0 or 3 */
 export const isLineFixed = (l: { ifmisCode?: string; itemType?: ItemType | '' }): boolean => {
   const code = l.ifmisCode?.trim();
-  if (code) return code.startsWith('0');
+  if (code) return itemTypeFromIfmisCode(code) === ItemType.FIXED;
   return l.itemType === ItemType.FIXED;
 };
 
@@ -71,16 +71,17 @@ export const ItemTypeTag: React.FC<{
 }> = ({ type, code, label, onToggle }) => {
   // Nothing to say until a code is typed or type is set
   if (!type && !code?.trim()) return null;
-  const text = type === ItemType.FIXED ? 'Fixed asset' : type === ItemType.CONSUMABLE ? 'Consumable' : 'Fixed asset';
+  const effectiveType = type || (code ? itemTypeFromIfmisCode(code) : undefined) || ItemType.FIXED;
+  const text = effectiveType === ItemType.FIXED ? 'Fixed asset' : effectiveType === ItemType.CONSUMABLE ? 'Consumable' : 'Fixed asset';
   const tone =
-    type === ItemType.FIXED
+    effectiveType === ItemType.FIXED
       ? 'border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100/80'
-      : type === ItemType.CONSUMABLE
+      : effectiveType === ItemType.CONSUMABLE
         ? 'border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100/80'
         : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100/80';
 
   const title = onToggle
-    ? `${text} · Click to switch to ${type === ItemType.FIXED ? 'consumable' : 'fixed asset'}`
+    ? `${text} · Click to switch to ${effectiveType === ItemType.FIXED ? 'consumable' : 'fixed asset'}`
     : ITEM_CODE_RULE;
 
   if (onToggle) {
@@ -141,7 +142,7 @@ export const ReceiptItems: React.FC<{
         const next = { ...l, ...patch };
         // The item code decides fixed asset or consumable if itemType was not explicitly provided
         if ('ifmisCode' in patch && !('itemType' in patch)) {
-          next.itemType = itemTypeFromIfmisCode(next.ifmisCode) ?? (next.ifmisCode?.trim() ? (next.ifmisCode.trim().startsWith('0') ? ItemType.FIXED : ItemType.CONSUMABLE) : '');
+          next.itemType = itemTypeFromIfmisCode(next.ifmisCode) ?? '';
           // Always default to 1 if qty is unset; Qty is always editable
           if (!next.quantity || next.quantity === 0) {
             next.quantity = 1;

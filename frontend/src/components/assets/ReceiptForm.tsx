@@ -134,11 +134,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [deliveredByOwn, setDeliveredByOwn] = useState(
     !!editItem?.deliveredBy && editItem.deliveredBy !== (editItem.buyer ?? '')
   );
-  // The IFMIS item code decides fixed asset or consumable (0… fixed, other codes consumable); nobody picks it by hand
+  // The IFMIS item code decides fixed asset or consumable (0… or 3… fixed, other codes consumable); nobody picks it by hand
   const changeIfmisCode = (value: string) => {
     setIfmisItemCode(value);
     const derived = itemTypeFromIfmisCode(value);
-    setItemType(derived ?? (value.trim() ? (value.trim().startsWith('0') ? ItemType.FIXED : ItemType.CONSUMABLE) : ''));
+    setItemType(derived ?? '');
     // Always default to 1 if no quantity set; Qty is always editable regardless of code
     if (!quantity || quantity === 0) {
       setQuantity(1);
@@ -181,7 +181,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const isAttachmentRequired = slipAttachmentPolicy === 'REQUIRED';
 
   // Qty is always editable; isFixed is kept only to show the slip-quantity warning, not to lock the field
-  const isFixed = ifmisItemCode.trim() ? ifmisItemCode.trim().startsWith('0') : (isEdit && editItem?.itemType === ItemType.FIXED && !editItem?.ifmisItemCode);
+  const isFixed = ifmisItemCode.trim() ? itemTypeFromIfmisCode(ifmisItemCode) === ItemType.FIXED : (isEdit && editItem?.itemType === ItemType.FIXED && !editItem?.ifmisItemCode);
   const fixedOne = false; // Qty is never locked; kept as a const so downstream JSX that reads it still compiles
   // What the slip's first line said, to warn when it lists several of a fixed asset
   const [slipQuantity, setSlipQuantity] = useState(0);

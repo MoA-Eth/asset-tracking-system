@@ -108,4 +108,28 @@ describe('Model 19 ReceiptItems: VAT and Additional Charges Scenarios', () => {
     expect(addlInput2.disabled).toBe(false);
     expect(addlInput3.disabled).toBe(false);
   });
+
+  it('categorizes IFMIS codes starting with 3 as Fixed asset on the row badge', async () => {
+    const user = userEvent.setup();
+    render(<TestReceiptTable />);
+
+    const codeInput = screen.getByLabelText('Item 2 item code');
+
+    // Initially Item 2 is Consumable
+    expect(screen.getByLabelText('Item 2 item type')).toHaveTextContent('Consumable');
+
+    // Type a code starting with 3
+    await user.clear(codeInput);
+    await user.type(codeInput, '308101101.0001');
+
+    // Badge should now display "Fixed asset"
+    expect(screen.getByLabelText('Item 2 item type')).toHaveTextContent('Fixed asset');
+
+    // Type a code starting with 1
+    await user.clear(codeInput);
+    await user.type(codeInput, '108101101.0021');
+
+    // Badge should now display "Consumable"
+    expect(screen.getByLabelText('Item 2 item type')).toHaveTextContent('Consumable');
+  });
 });

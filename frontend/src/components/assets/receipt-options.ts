@@ -19,17 +19,17 @@ export const CATEGORY_FROM_IFMIS: [RegExp, AssetCategory][] = [
 
 /**
  * Fixed asset or consumable from the IFMIS inventory item code on a Model 19:
- * a code starting with 0 is a fixed asset (quantity 1, non-editable); other codes (e.g. starting with 1 or 3)
+ * a code starting with 0 or 3 is a fixed asset; other codes (e.g. starting with 1)
  * default to consumable with editable quantity.
  */
 export function itemTypeFromIfmisCode(code?: string): ItemType | undefined {
   const trimmed = code?.trim();
   if (!trimmed) return undefined;
-  return trimmed.startsWith('0') ? ItemType.FIXED : ItemType.CONSUMABLE;
+  return trimmed.startsWith('0') || trimmed.startsWith('3') ? ItemType.FIXED : ItemType.CONSUMABLE;
 }
 
 /** What a code gives as default item type */
-export const ITEM_CODE_RULE = 'Codes starting with 0 default to fixed asset; other codes default to consumable.';
+export const ITEM_CODE_RULE = 'Codes starting with 0 or 3 default to fixed asset; other codes default to consumable.';
 
 export const COMMON_UOMS = ['EA', 'PKT', 'SET', 'ROLL', 'PCS', 'BOX', 'BAG', 'KG', 'LTR', 'CAN', 'BOTTLE'];
 export const COMMON_CATEGORIES = [
