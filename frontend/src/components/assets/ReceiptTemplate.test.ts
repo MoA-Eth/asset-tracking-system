@@ -10,7 +10,7 @@ describe('duplicate as new receipt', () => {
     } as any);
     expect(template).toEqual({
       transactionType: 'PO Receipt', source: 'Tech Supplies', buyer: 'Meron', programName: 'Digital', storeLocationId: 'LOC-1',
-      name: 'Dell Latitude', category: 'IT_EQUIPMENT', itemType: 'FIXED', uom: 'EA', condition: 'NEW', unitCostETB: 85000,
+      name: 'Dell Latitude', category: 'IT_EQUIPMENT', itemType: 'FIXED', uom: 'EA', condition: 'NEW', unitCostETB: 85000, lotBatchNo: 'LOT-9',
     });
     expect(template).not.toHaveProperty('ifmisSlipNumber');
     expect(template).not.toHaveProperty('serialNumber');

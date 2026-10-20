@@ -54,6 +54,15 @@ export interface ReceiptTemplate {
   uom?: string;
   condition?: ItemCondition;
   unitCostETB?: number;
+  poNumber?: string;
+  subInventory?: string;
+  lotBatchNo?: string;
+  printedPadFrom?: string;
+  printedPadTo?: string;
+  vatApplicable?: boolean;
+  additionalCharges?: number;
+  deliveredBy?: string;
+  receivedBy?: string;
 }
 
 /** What a duplicate keeps from an item: what it is and where it comes from, never its number, serial, quantity or slip */
@@ -71,6 +80,15 @@ export const templateFromItem = (item: ItemWithRelations): ReceiptTemplate => ({
   uom: item.uom,
   condition: item.condition,
   unitCostETB: item.unitCostETB,
+  poNumber: item.poNumber,
+  subInventory: item.subInventory,
+  lotBatchNo: item.lotBatchNo,
+  printedPadFrom: item.printedPadFrom,
+  printedPadTo: item.printedPadTo,
+  vatApplicable: item.vatApplicable,
+  additionalCharges: item.additionalCharges,
+  deliveredBy: item.deliveredBy,
+  receivedBy: item.receivedBy,
 });
 
 export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template, initialSlip, registered }) => {
@@ -85,7 +103,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   // Section 1: Document Voucher Header Metadata
   const [ifmisSlipNumber, setIfmisSlipNumber] = useState(editItem?.ifmisSlipNumber ?? '');
-  const [poNumber, setPoNumber] = useState(editItem?.poNumber ?? '');
+  const [poNumber, setPoNumber] = useState(editItem?.poNumber ?? start?.poNumber ?? '');
   const [ifmisSlipDateGc, setIfmisSlipDateGc] = useState(editItem?.ifmisSlipDateGc || new Date().toISOString().split('T')[0]);
   const [transactionType, setTransactionType] = useState(editItem?.transactionType || start?.transactionType || memory.transactionType || '');
   // PO number is optional: purchases and receipts display pricing and item columns without requiring a PO number.
@@ -115,26 +133,29 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const itemCode = editItem?.itemCode ?? '';
   const [ifmisItemCode, setIfmisItemCode] = useState(editItem?.ifmisItemCode ?? start?.ifmisItemCode ?? '');
   const [uom, setUom] = useState(editItem?.uom || start?.uom || 'EA');
-  const [subInventory, setSubInventory] = useState(editItem?.subInventory ?? '');
-  const [lotBatchNo, setLotBatchNo] = useState(editItem?.lotBatchNo ?? '');
+  const [subInventory, setSubInventory] = useState(editItem?.subInventory ?? start?.subInventory ?? '');
+  const [lotBatchNo, setLotBatchNo] = useState(editItem?.lotBatchNo ?? start?.lotBatchNo ?? '');
   // Serial number is no longer asked on receipt; a correction keeps what an older record has
   const serialNumber = editItem?.serialNumber ?? '';
-  const [printedPadFrom, setPrintedPadFrom] = useState(editItem?.printedPadFrom ?? '');
-  const [printedPadTo, setPrintedPadTo] = useState(editItem?.printedPadTo ?? '');
+  const [printedPadFrom, setPrintedPadFrom] = useState(editItem?.printedPadFrom ?? start?.printedPadFrom ?? '');
+  const [printedPadTo, setPrintedPadTo] = useState(editItem?.printedPadTo ?? start?.printedPadTo ?? '');
   // Qty always defaults to 1 and is always editable
   const [quantity, setQuantity] = useState<number>(editItem ? Number(editItem.quantity) || 1 : 1);
   const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? start?.unitCostETB ?? 0);
-  const [vatApplicable, setVatApplicable] = useState<boolean>(editItem?.vatApplicable ?? false);
-  const [additionalCharges, setAdditionalCharges] = useState<number>(editItem?.additionalCharges ?? 0);
+  const [vatApplicable, setVatApplicable] = useState<boolean>(editItem?.vatApplicable ?? start?.vatApplicable ?? false);
+  const [additionalCharges, setAdditionalCharges] = useState<number>(editItem?.additionalCharges ?? start?.additionalCharges ?? 0);
   const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? start?.condition ?? ItemCondition.NEW);
   // Remark is no longer asked; a correction keeps what an older record has
   const remark = editItem?.remark ?? '';
 
   // Section 3: Signatures & Document Scan
-  const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? '');
+  const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? start?.deliveredBy ?? '');
   // Delivered by follows the buyer until someone types a different name; clearing it makes it follow again
   const [deliveredByOwn, setDeliveredByOwn] = useState(
-    !!editItem?.deliveredBy && editItem.deliveredBy !== (editItem.buyer ?? '')
+    (() => {
+      const from = editItem ?? start;
+      return !!from?.deliveredBy && from.deliveredBy !== (from.buyer ?? '');
+    })()
   );
   // The IFMIS item code decides fixed asset or consumable (0… or 3… fixed, other codes consumable); nobody picks it by hand
   const changeIfmisCode = (value: string) => {
@@ -155,7 +176,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setDeliveredByOwn(value.trim() !== '' && value !== buyer);
   };
   // Left empty: the person who signs for the delivery isn't necessarily the one entering it
-  const [receivedBy, setReceivedBy] = useState(editItem?.receivedBy ?? '');
+  const [receivedBy, setReceivedBy] = useState(editItem?.receivedBy ?? start?.receivedBy ?? '');
   // Who received the goods: a store man of the receiving store (a correction keeps the name it has until another is chosen)
   const [receivedById, setReceivedById] = useState('');
   const keepers = useStoreKeepers();
@@ -166,6 +187,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownStore]);
   const storeMen = keepers.ofStore(storeId);
+  // A duplicated receipt keeps its store man, found by name among the store's store men
+  useEffect(() => {
+    if (isEdit || receivedById || !start?.receivedBy) return;
+    const same = storeMen.find((k) => k.fullNameEn === start.receivedBy);
+    if (same) setReceivedById(same.employeeId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeMen]);
   const receiverId = receivedById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
   const receiverName = storeMen.find((k) => k.employeeId === receiverId)?.fullNameEn ?? receivedBy;
   // Two files. The IFMIS Model 19 PDF is read to fill in the form. The signed copy is that printout signed and

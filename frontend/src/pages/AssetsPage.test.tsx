@@ -503,6 +503,10 @@ describe('Assets page', () => {
 
   it('starts a new receipt from an existing item, without its number, quantity or serial', async () => {
     const user = userEvent.setup();
+    vi.mocked(api.getItems).mockResolvedValue(items.map((i) => (i.id === 'S1' ? {
+      ...i, transactionType: 'PO Receipt', poNumber: 'PO-2026-014', source: 'Abay Furniture', buyer: 'Kebede Alemu',
+      programName: 'Office renewal', deliveredBy: 'Abay driver', vatApplicable: true,
+    } : i)) as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await menuFor(user, 'MOA-S1');
@@ -510,6 +514,11 @@ describe('Assets page', () => {
     const panel = screen.getByRole('region', { name: 'Receive items' });
     // What the item is comes across
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Desk');
+    // So does where it came from and who handed it over
+    expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('PO-2026-014');
+    expect(within(panel).getByLabelText(/Program/i)).toHaveValue('Office renewal');
+    expect(within(panel).getByLabelText(/Delivered by/i)).toHaveValue('Abay driver');
+    expect(within(panel).getByLabelText(/VAT applicable/i)).toBeChecked();
     expect(within(panel).getByLabelText(/Category/i)).not.toHaveValue('');
     expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Fixed asset');
     // What differs every time starts empty
