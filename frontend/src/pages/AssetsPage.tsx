@@ -335,7 +335,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           units: Number(item.quantity) || 1,
           where: disposedTo ?? (withSomeone ? holder || '—' : store),
           goingTo,
-          activity: String(request?.createdAtGc || item.createdAtGc || ''),
+          activity: String(request?.createdAt || item.createdAt || request?.createdAtGc || item.createdAtGc || ''),
           lastIssue: approved.find((a) => a.transactionType === 'STOCK_OUT'),
           lastMove: approved.find((a) => a.transactionType === 'TRANSFER' || a.transactionType === 'RETURN'),
           lastDisposal,
@@ -344,7 +344,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           daysInStore: state === 'IN_STORE' ? daysInStore(item, today) : undefined,
         };
       })
-      .sort((a, b) => b.activity.localeCompare(a.activity) || a.item.itemCode.localeCompare(b.item.itemCode));
+      .sort((a, b) => {
+        if (a.item.ifmisSlipNumber && a.item.ifmisSlipNumber !== '—' && a.item.ifmisSlipNumber === b.item.ifmisSlipNumber) {
+          return a.item.itemCode.localeCompare(b.item.itemCode, undefined, { numeric: true });
+        }
+        return b.activity.localeCompare(a.activity) || a.item.itemCode.localeCompare(b.item.itemCode);
+      });
   }, [items, pendingByItem, decided, employees, locations]);
 
   const inFilter = (row: AssetRow, f: AssetFilter, locId = locationFilter, cat = categoryFilter) => {
@@ -392,7 +397,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         const activity = [row, ...children].reduce((latest, r) => (r.activity > latest ? r.activity : latest), row.activity);
         return { row, children, activity };
       })
-      .sort((a, b) => b.activity.localeCompare(a.activity) || a.row.item.itemCode.localeCompare(b.row.item.itemCode));
+      .sort((a, b) => {
+        if (a.row.item.ifmisSlipNumber && a.row.item.ifmisSlipNumber !== '—' && a.row.item.ifmisSlipNumber === b.row.item.ifmisSlipNumber) {
+          return a.row.item.itemCode.localeCompare(b.row.item.itemCode, undefined, { numeric: true });
+        }
+        return b.activity.localeCompare(a.activity) || a.row.item.itemCode.localeCompare(b.row.item.itemCode);
+      });
   }, [rows]);
 
   const q = search.trim().toLowerCase();
@@ -420,6 +430,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const list = [...shown];
     if (sortColumn === 'activity') {
       return list.sort((a, b) => {
+        if (a.row.item.ifmisSlipNumber && a.row.item.ifmisSlipNumber !== '—' && a.row.item.ifmisSlipNumber === b.row.item.ifmisSlipNumber) {
+          return a.row.item.itemCode.localeCompare(b.row.item.itemCode, undefined, { numeric: true });
+        }
         const cmp = b.activity.localeCompare(a.activity) || a.row.item.itemCode.localeCompare(b.row.item.itemCode);
         return sortDirection === 'desc' ? cmp : -cmp;
       });
@@ -472,7 +485,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     });
   }, [shown, sortColumn, sortDirection]);
 
-  const pager = usePagination(sortedShown, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}` });
+  const pager = usePagination(sortedShown, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}|${lastTouchedId}` });
   const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
   const toggleBatch = (id: string) =>
     setOpenBatches((prev) => {
@@ -501,6 +514,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   // ── After a form is saved ──
   const saved = (itemId: string | undefined) => {
     if (itemId) setLastTouchedId(itemId);
+    setSortColumn('activity');
+    setSortDirection('desc');
     fetchData(true);
     window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
   };

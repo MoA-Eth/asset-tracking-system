@@ -240,6 +240,8 @@ export interface Item {
   approvedById?: string;
   createdAtGc: string;
   createdAtEc: string;
+  createdAt?: string;
+  updatedAt?: string;
   history: ItemMovementHistory[];
 
   // Extended Model 19 (IFMIS Receiving) Fields
@@ -536,6 +538,8 @@ export interface TransactionApproval {
   reviewRemarks?: string;
   createdAtGc: string;
   createdAtEc: string;
+  createdAt?: string;
+  updatedAt?: string;
   reviewedAtGc?: string;
   reviewedAtEc?: string;
   reviewedBy?: Employee;

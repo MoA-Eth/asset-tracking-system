@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AssetsPage } from './AssetsPage';
 import { applySystemSettings, resetSystemSettings } from '../utils/system-settings';
@@ -1954,5 +1954,37 @@ describe('Receiving form: the uploaded slip is shown open under the form', () =>
     const panel = screen.getByRole('region', { name: 'Receive items' });
     expect(within(panel).getByText('Click to choose the Model 19 PDF saved from IFMIS')).toBeInTheDocument();
     expect(within(panel).queryByText('Click to attach the signed Model 19, scanned')).toBeNull();
+  });
+
+  it('places newly received items at the top of the asset table', async () => {
+    const existing = [
+      { id: 'item-old-1', itemCode: 'MOA-AG-0001', name: 'Old Tractor', createdAt: '2026-10-19T08:00:00.000Z', createdAtGc: '2026-10-19', status: 'AVAILABLE', quantity: 1, unitCostETB: 100 },
+      { id: 'item-old-2', itemCode: 'MOA-IT-0001', name: 'Old Monitor', createdAt: '2026-10-20T08:00:00.000Z', createdAtGc: '2026-10-20', status: 'AVAILABLE', quantity: 1, unitCostETB: 200 },
+    ];
+    const newlyReceived = {
+      id: 'item-new-1',
+      itemCode: 'MOA-OF-0099',
+      name: 'Newly Received Desk',
+      createdAt: '2026-10-20T12:00:00.000Z',
+      createdAtGc: '2026-10-20',
+      status: 'PENDING_STOCK_IN',
+      quantity: 1,
+      unitCostETB: 300,
+    };
+
+    vi.mocked(api.getItems).mockResolvedValueOnce([...existing] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('Old Tractor');
+
+    // Simulate after submit: newly received item is present
+    vi.mocked(api.getItems).mockResolvedValue([newlyReceived, ...existing] as any);
+    act(() => {
+      window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
+    });
+
+    await screen.findByText('Newly Received Desk');
+    const tableRows = screen.getAllByRole('row');
+    // First data row (index 1 after the thead row) is the newly received item
+    expect(within(tableRows[1]).getByText('Newly Received Desk')).toBeInTheDocument();
   });
 });

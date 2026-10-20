@@ -102,6 +102,8 @@ function mapItem(raw: any): ItemWithRelations {
     approvedById: raw.approvedById ?? undefined,
     createdAtGc: raw.createdAtGc,
     createdAtEc: raw.createdAtEc,
+    createdAt: raw.createdAt instanceof Date ? raw.createdAt.toISOString() : (raw.createdAt ? String(raw.createdAt) : undefined),
+    updatedAt: raw.updatedAt instanceof Date ? raw.updatedAt.toISOString() : (raw.updatedAt ? String(raw.updatedAt) : undefined),
     storeLocation: raw.storeLocation ? locationView(raw.storeLocation) : undefined,
     // Map employees explicitly so stored credentials never leave the API
     currentCustodian: raw.currentCustodian ? mapEmployee(raw.currentCustodian) : null,
@@ -218,6 +220,8 @@ function mapApproval(raw: any): TransactionApproval {
     reviewRemarks: raw.reviewRemarks ?? undefined,
     createdAtGc: raw.createdAtGc,
     createdAtEc: raw.createdAtEc,
+    createdAt: raw.createdAt instanceof Date ? raw.createdAt.toISOString() : (raw.createdAt ? String(raw.createdAt) : undefined),
+    updatedAt: raw.updatedAt instanceof Date ? raw.updatedAt.toISOString() : (raw.updatedAt ? String(raw.updatedAt) : undefined),
     reviewedAtGc: raw.reviewedAtGc ?? undefined,
     reviewedAtEc: raw.reviewedAtEc ?? undefined,
     reviewedBy: raw.reviewedBy ? mapEmployee(raw.reviewedBy) : undefined,
