@@ -122,3 +122,36 @@ describe('startup upgrade: organizations from past issues', () => {
     expect(db.organization.create).not.toHaveBeenCalled();
   });
 });
+
+describe('startup upgrade: clean generated serial numbers', () => {
+  it('identifies and clears timestamp-generated serial numbers, leaving real serials untouched', async () => {
+    db.item.findMany.mockResolvedValue([
+      { id: 'item-1', serialNumber: 'SN-1729345678910-1' },
+      { id: 'item-2', serialNumber: 'SN-1792011873087' },
+      { id: 'item-3', serialNumber: 'SN-MF385-2024003' }, // real model serial: keep
+      { id: 'item-4', serialNumber: 'SN-77' }, // short serial: keep
+    ]);
+    db.item.updateMany.mockResolvedValue({ count: 2 });
+
+    await runStartupUpgrades();
+
+    expect(db.item.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['item-1', 'item-2'] } },
+      data: { serialNumber: '' },
+    });
+    expect(db.auditLog.create.mock.calls.map((c) => c[0].data.action)).toContain('SYSTEM_UPGRADE_CLEAR_SERIALS');
+  });
+
+  it('does nothing when no items have generated serials', async () => {
+    db.item.findMany.mockResolvedValue([
+      { id: 'item-3', serialNumber: 'SN-MF385-2024003' },
+    ]);
+
+    await runStartupUpgrades();
+
+    expect(db.item.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: { serialNumber: '' } })
+    );
+  });
+});
+

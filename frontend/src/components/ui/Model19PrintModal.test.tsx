@@ -143,4 +143,25 @@ describe('Model19PrintModal Component', () => {
     // The items themselves are still listed with their quantities
     expect(screen.getByText('Sulfa Drug In Vial')).toBeTruthy();
   });
+
+  it('renders a dash instead of auto-generated timestamp serial numbers', () => {
+    render(
+      <Model19PrintModal
+        isOpen
+        onClose={vi.fn()}
+        voucher={{
+          ...mockVoucher,
+          items: [
+            {
+              ...mockVoucher.items[0],
+              serialNo: 'SN-1729345678910-1',
+            },
+          ],
+        }}
+      />
+    );
+    expect(screen.queryByText('SN-1729345678910-1')).toBeNull();
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
 });
+

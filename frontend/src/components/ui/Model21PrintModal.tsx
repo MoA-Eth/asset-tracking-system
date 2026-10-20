@@ -1,6 +1,7 @@
 import React from 'react';
 import { Model21Voucher } from '../../types/asset-management';
 import { formatVoucherRemark } from '../../utils/voucher-remark';
+import { displaySerialNumber } from '../../utils/asset-tag';
 import {
   VoucherShell, VoucherDetails, VoucherSignatures, formatVoucherAmount, orDash,
   VOUCHER_TABLE_WRAP, VOUCHER_TABLE, VOUCHER_HEAD_ROW, VOUCHER_TH, VOUCHER_BODY, VOUCHER_TD,
@@ -74,7 +75,7 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
                 <td className={`${VOUCHER_TD} text-center font-mono`}>{item.sNo || idx + 1}</td>
                 <td className={`${VOUCHER_TD} font-medium`}>{item.description}</td>
                 <td className={`${VOUCHER_TD} font-mono whitespace-nowrap`}>{orDash(item.tagNumber)}</td>
-                <td className={`${VOUCHER_TD} text-center font-mono`}>{orDash(item.serialNumber)}</td>
+                <td className={`${VOUCHER_TD} text-center font-mono`}>{orDash(displaySerialNumber(item.serialNumber))}</td>
                 <td className={`${VOUCHER_TD} text-center font-mono`}>{orDash(item.chassisNumber)}</td>
                 <td className={`${VOUCHER_TD} text-center font-mono uppercase`}>{item.uom || 'EA'}</td>
                 <td className={`${VOUCHER_TD} text-right font-mono font-bold`}>{item.unit || 1}</td>

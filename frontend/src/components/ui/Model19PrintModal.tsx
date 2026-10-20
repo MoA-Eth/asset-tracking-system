@@ -1,6 +1,7 @@
 import React from 'react';
 import { Model19Voucher } from '../../types/asset-management';
 import { formatVoucherRemark } from '../../utils/voucher-remark';
+import { displaySerialNumber } from '../../utils/asset-tag';
 import {
   VoucherShell, VoucherDetails, VoucherTotals, VoucherSignatures, formatVoucherAmount, orDash,
   VOUCHER_TABLE_WRAP, VOUCHER_TABLE, VOUCHER_HEAD_ROW, VOUCHER_TH, VOUCHER_BODY, VOUCHER_TD,
@@ -81,7 +82,7 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
                   {item.itemType && <span className="block text-[10px] text-slate-500">{item.itemType === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset'}</span>}
                 </td>
                 <td className={`${VOUCHER_TD} text-center font-mono`}>{orDash(item.lotBatchNo)}</td>
-                <td className={`${VOUCHER_TD} text-center font-mono`}>{orDash(item.serialNo)}</td>
+                <td className={`${VOUCHER_TD} text-center font-mono`}>{orDash(displaySerialNumber(item.serialNo))}</td>
                 <td className={`${VOUCHER_TD} !p-0 text-center font-mono`}>
                   <div className="grid grid-cols-2 divide-x divide-slate-300 print:divide-black py-1.5">
                     <span className="px-1 truncate">{orDash(item.printedPadFrom)}</span>

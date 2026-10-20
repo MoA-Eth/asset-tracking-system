@@ -1,4 +1,5 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
+import { displaySerialNumber } from '../../utils/asset-tag';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FileText } from 'lucide-react';
 import { api } from '../../api/client';
@@ -1127,7 +1128,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
       itemCategory: it.itemCategoryDisplay || it.category.replace(/_/g, ' '),
       itemType: it.itemType,
       lotBatchNo: it.lotBatchNo || '',
-      serialNo: it.serialNumber || '',
+      serialNo: displaySerialNumber(it.serialNumber) === '—' ? '' : it.serialNumber,
       printedPadFrom: it.printedPadFrom || '',
       printedPadTo: it.printedPadTo || '',
       quantity: qty,

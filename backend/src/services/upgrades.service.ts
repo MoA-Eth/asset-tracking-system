@@ -16,6 +16,7 @@ export async function runStartupUpgrades(): Promise<void> {
   await moveRejectedReceipts();
   await grantDisposalPermission();
   await gatherOrganizations();
+  await cleanGeneratedSerialNumbers();
 }
 
 /**
@@ -127,3 +128,41 @@ async function grantDisposalPermission(): Promise<void> {
     console.warn('Upgrade step "disposal permission" did not run; it will be retried on the next start.', err?.message ?? err);
   }
 }
+
+/**
+ * Auto-generated timestamp serials (e.g. SN-1729345678910 or SN-1729345678910-1) were previously
+ * generated during batch receipt when no serial was provided. Clear them back to empty string.
+ */
+export async function cleanGeneratedSerialNumbers(): Promise<number> {
+  try {
+    const items = await prisma.item.findMany({
+      where: {
+        serialNumber: {
+          startsWith: 'SN-',
+        },
+      },
+      select: { id: true, serialNumber: true },
+    });
+    const generatedIds = items
+      .filter((i) => /^SN-\d{10,}(-\d+)?$/i.test(i.serialNumber.trim()))
+      .map((i) => i.id);
+
+    if (generatedIds.length > 0) {
+      const { count } = await prisma.item.updateMany({
+        where: { id: { in: generatedIds } },
+        data: { serialNumber: '' },
+      });
+      console.log(`Upgrade: ${count} auto-generated placeholder serial number(s) cleared.`);
+      await recordUpgrade(
+        'SYSTEM_UPGRADE_CLEAR_SERIALS',
+        `Cleared ${count} auto-generated timestamp serial number(s) from stock-in items.`
+      );
+      return count;
+    }
+    return 0;
+  } catch (err: any) {
+    console.warn('Upgrade step "clean generated serial numbers" did not run; it will be retried on the next start.', err?.message ?? err);
+    return 0;
+  }
+}
+

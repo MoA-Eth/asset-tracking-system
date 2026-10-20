@@ -1,5 +1,6 @@
 import React from 'react';
 import { DisposalVoucher } from '../../types/asset-management';
+import { displaySerialNumber } from '../../utils/asset-tag';
 import {
   VoucherShell, VoucherDetails, VoucherSignatures, formatVoucherAmount, orDash,
   VOUCHER_TABLE_WRAP, VOUCHER_TABLE, VOUCHER_HEAD_ROW, VOUCHER_TH, VOUCHER_BODY, VOUCHER_TD,
@@ -80,7 +81,7 @@ export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, 
                   )}
                 </td>
                 <td className={`${VOUCHER_TD} font-mono`}>{orDash(item.itemCode)}</td>
-                <td className={`${VOUCHER_TD} font-mono`}>{orDash(item.serialNo)}</td>
+                <td className={`${VOUCHER_TD} font-mono`}>{orDash(displaySerialNumber(item.serialNo))}</td>
                 <td className={VOUCHER_TD}>{' '}</td>
                 <td className={VOUCHER_TD}>{' '}</td>
                 <td className={VOUCHER_TD}>{' '}</td>
