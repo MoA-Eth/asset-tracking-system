@@ -2,7 +2,7 @@ import express from 'express';
 import { IncomingMessage, ServerResponse } from 'node:http';
 import { Socket } from 'node:net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiKeyAdminRoutes, kpiRoutes } from './api-key.routes';
+import { apiKeyAdminRoutes, assetsDashboardRoutes } from './api-key.routes';
 import itemRoutes from './item.routes';
 import { errorHandler } from '../middleware/error-handler';
 import { AuthService } from '../services/auth.service';
@@ -15,7 +15,7 @@ const service = vi.hoisted(() => ({
   revokeApiKey: vi.fn(),
 }));
 vi.mock('../services/api-key.service', () => service);
-vi.mock('../services/kpi.service', () => ({ getKpis: vi.fn().mockResolvedValue({ assets: { total: { units: 3, valueETB: 900 } } }) }));
+vi.mock('../services/assets-dashboard.service', () => ({ getAssetsDashboard: vi.fn().mockResolvedValue({ assets: { total: { units: 3, valueETB: 900 } } }) }));
 
 let app: express.Express;
 beforeAll(() => {
@@ -25,7 +25,7 @@ beforeAll(() => {
   });
   app = express();
   app.use('/settings/api-keys', apiKeyAdminRoutes);
-  app.use('/kpis', kpiRoutes);
+  app.use('/v1/assets-dashboard', assetsDashboardRoutes);
   app.use('/items', itemRoutes);
   app.use(errorHandler);
 });
@@ -34,7 +34,7 @@ beforeEach(() => {
   service.verifyApiKey.mockReset();
   service.verifyApiKey.mockImplementation(async (key?: string) => {
     if (key !== 'good-key') throw new UnauthorizedError('This API key is invalid, revoked or expired.');
-    return { apiKeyId: 'k1', name: 'Dashboard', scopes: ['kpis.read'] };
+    return { apiKeyId: 'k1', name: 'Dashboard', scopes: ['dashboard.read'] };
   });
   service.listApiKeys.mockResolvedValue([]);
 });
@@ -54,14 +54,14 @@ const request = (path: string, headers: Record<string, string> = {}, method = 'G
 
 describe('Reading the key figures with an API key', () => {
   it('opens the key figures to a valid key only', async () => {
-    expect((await request('/kpis', { 'x-api-key': 'good-key' })).status).toBe(200);
-    expect(service.verifyApiKey).toHaveBeenCalledWith('good-key', 'kpis.read');
-    expect((await request('/kpis', { 'x-api-key': 'bad-key' })).status).toBe(401);
-    expect((await request('/kpis')).status).toBe(401);
+    expect((await request('/v1/assets-dashboard', { 'x-api-key': 'good-key' })).status).toBe(200);
+    expect(service.verifyApiKey).toHaveBeenCalledWith('good-key', 'dashboard.read');
+    expect((await request('/v1/assets-dashboard', { 'x-api-key': 'bad-key' })).status).toBe(401);
+    expect((await request('/v1/assets-dashboard')).status).toBe(401);
   });
 
   it("doesn't take a person's sign-in instead of a key", async () => {
-    expect((await request('/kpis', { authorization: 'Bearer SYSTEM_ADMIN' })).status).toBe(401);
+    expect((await request('/v1/assets-dashboard', { authorization: 'Bearer SYSTEM_ADMIN' })).status).toBe(401);
   });
 
   it('opens nothing else with a key: other routes still need a signed-in person', async () => {

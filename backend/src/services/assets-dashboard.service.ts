@@ -5,7 +5,7 @@
  */
 import { StoreService } from './store.service';
 
-export interface KpiFilter {
+export interface AssetsDashboardFilter {
   from?: unknown;
   to?: unknown;
   storeId?: unknown;
@@ -15,7 +15,7 @@ export interface KpiFilter {
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 
-export async function getKpis(filter: KpiFilter) {
+export async function getAssetsDashboard(filter: AssetsDashboardFilter) {
   const d: any = await StoreService.getInstance().getExecutiveDashboard(filter);
   const amount = (units: number, valueETB: number) => ({ units: Number(units) || 0, valueETB: Number(valueETB) || 0 });
 

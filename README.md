@@ -309,7 +309,7 @@ The implemented **Settings → Roles** directory shows the system roles (includi
 ## 🔌 Integrations: reading the key figures with an API key
 
 Another system's **server** (for example the Ministry KPI dashboard) can read this app's key figures with an API key,
-without anyone signing in. A key is **read-only** and opens **one endpoint only**, `GET /api/kpis`, which returns
+without anyone signing in. A key is **read-only** and opens **one endpoint only**, `GET /api/v1/assets-dashboard`, which returns
 numbers — no item lists, no names. Every other endpoint still needs a signed-in person.
 
 ### For administrators: issue a key
@@ -336,12 +336,12 @@ copied):
 
 ```bash
 curl -H "X-API-Key: ats_live_…" \
-  "https://asset.moa.gov.et/api/kpis?from=2026-07-08&to=2026-10-20"
+  "https://asset.moa.gov.et/api/v1/assets-dashboard?from=2026-07-08&to=2026-10-20"
 ```
 
 ```js
 // Node.js 18+ (keep the key in your server's environment, e.g. .env)
-const res = await fetch('https://asset.moa.gov.et/api/kpis?from=2026-07-08&to=2026-10-20', {
+const res = await fetch('https://asset.moa.gov.et/api/v1/assets-dashboard?from=2026-07-08&to=2026-10-20', {
   headers: { 'X-API-Key': process.env.ATS_API_KEY },
 });
 const { data } = await res.json();

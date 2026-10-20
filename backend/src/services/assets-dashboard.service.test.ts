@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getKpis } from './kpi.service';
+import { getAssetsDashboard } from './assets-dashboard.service';
 import { StoreService } from './store.service';
 
 describe('Key figures for another system', () => {
@@ -22,16 +22,16 @@ describe('Key figures for another system', () => {
       departmentDistribution: [{ department: 'Finance', count: 3 }],
     } as any);
 
-    const kpis = await getKpis({ from: '2026-07-08', to: '2026-10-20', storeId: 'S1' });
+    const figures = await getAssetsDashboard({ from: '2026-07-08', to: '2026-10-20', storeId: 'S1' });
     expect(dashboard).toHaveBeenCalledWith({ from: '2026-07-08', to: '2026-10-20', storeId: 'S1' });
-    expect(kpis.assets.total).toEqual({ units: 120, valueETB: 5_000_000 });
-    expect(kpis.pending).toMatchObject({ receipts: 4, total: 7, withTeamLeader: 5, withDepartmentHead: 2 });
-    expect(kpis.movement).toEqual([{ month: '2026-09', received: 12, issued: 9 }]);
-    expect(kpis.byCategory).toEqual([{ category: 'IT_EQUIPMENT', units: 40, valueETB: 2_000_000 }]);
-    expect(kpis.byStore).toEqual([{ store: 'Head office · Central Store', units: 100, valueETB: 4_000_000, inStoreUnits: 25, issuedUnits: 70, pending: 3 }]);
-    expect(kpis.staleInStore).toEqual({ thresholdDays: 30, items: 3, units: 6, valueETB: 60_000 });
+    expect(figures.assets.total).toEqual({ units: 120, valueETB: 5_000_000 });
+    expect(figures.pending).toMatchObject({ receipts: 4, total: 7, withTeamLeader: 5, withDepartmentHead: 2 });
+    expect(figures.movement).toEqual([{ month: '2026-09', received: 12, issued: 9 }]);
+    expect(figures.byCategory).toEqual([{ category: 'IT_EQUIPMENT', units: 40, valueETB: 2_000_000 }]);
+    expect(figures.byStore).toEqual([{ store: 'Head office · Central Store', units: 100, valueETB: 4_000_000, inStoreUnits: 25, issuedUnits: 70, pending: 3 }]);
+    expect(figures.staleInStore).toEqual({ thresholdDays: 30, items: 3, units: 6, valueETB: 60_000 });
 
-    const text = JSON.stringify(kpis);
+    const text = JSON.stringify(figures);
     for (const leaked of ['MOA-', 'Laptop', 'Tractor', 'Getnet', 'Finance', 'extra']) expect(text).not.toContain(leaked);
   });
 });

@@ -54,7 +54,7 @@ const NewKeyForm: React.FC<{ onCancel: () => void; onCreated: (key: string, apiK
           <input id="key-expiry" type="date" value={expiresOn} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setExpiresOn(e.target.value)} className={inputClass('emerald')} />
         </Field>
         <Field label="Can read" htmlFor="key-scope">
-          <p id="key-scope" className="py-1.5 text-[13px] text-slate-700">The key figures only (<span className="font-mono">GET /api/kpis</span>)</p>
+          <p id="key-scope" className="py-1.5 text-[13px] text-slate-700">The key figures only (<span className="font-mono">GET /api/v1/assets-dashboard</span>)</p>
         </Field>
       </FieldGrid>
       <FormError message={error} />
@@ -90,7 +90,7 @@ const ShowKeyOnce: React.FC<{ apiKey: ApiKey; secret: string; onDone: () => void
         </button>
       </div>
       <p className="text-[11px] text-slate-600">
-        Their server sends it with each call: <span className="font-mono">GET /api/kpis</span> with the header <span className="font-mono">X-API-Key</span>. The API documentation (<span className="font-mono">/api/docs</span>) describes the figures.
+        Their server sends it with each call: <span className="font-mono">GET /api/v1/assets-dashboard</span> with the header <span className="font-mono">X-API-Key</span>. The API documentation (<span className="font-mono">/api/docs</span>) describes the figures.
       </p>
       <div className="flex justify-end">
         <button type="button" onClick={onDone} className={btn.primary}>Done</button>

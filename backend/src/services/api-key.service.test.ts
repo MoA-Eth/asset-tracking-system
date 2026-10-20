@@ -37,7 +37,7 @@ describe('API keys', () => {
   it('creates a key for a service, shows it once and keeps only a hash of its secret', async () => {
     const { key, apiKey } = await createApiKey({ name: '  Ministry KPI   dashboard ' }, 'admin');
     expect(key).toMatch(/^ats_live_[0-9a-f]{12}_[A-Za-z0-9_-]{40,}$/);
-    expect(apiKey).toMatchObject({ name: 'Ministry KPI dashboard', scopes: ['kpis.read'], status: 'ACTIVE', createdByName: 'System Administrator' });
+    expect(apiKey).toMatchObject({ name: 'Ministry KPI dashboard', scopes: ['dashboard.read'], status: 'ACTIVE', createdByName: 'System Administrator' });
     // The list never carries the secret, only the start of the key
     const secret = key.split('_').slice(3).join('_');
     expect(JSON.stringify(await listApiKeys('admin'))).not.toContain(secret);
@@ -56,20 +56,20 @@ describe('API keys', () => {
 
   it('lets the genuine key in, and refuses a wrong, revoked or expired one alike', async () => {
     const { key, apiKey } = await createApiKey({ name: 'Dashboard' }, 'admin');
-    await expect(verifyApiKey(key, 'kpis.read')).resolves.toMatchObject({ apiKeyId: apiKey.id, name: 'Dashboard' });
+    await expect(verifyApiKey(key, 'dashboard.read')).resolves.toMatchObject({ apiKeyId: apiKey.id, name: 'Dashboard' });
     expect(keys[0].lastUsedAt).toBeInstanceOf(Date);
 
     const wrong = key.slice(0, -4) + (key.endsWith('AAAA') ? 'BBBB' : 'AAAA');
-    await expect(verifyApiKey(wrong, 'kpis.read')).rejects.toMatchObject({ statusCode: 401 });
-    await expect(verifyApiKey(undefined, 'kpis.read')).rejects.toMatchObject({ statusCode: 401 });
-    await expect(verifyApiKey('Bearer something', 'kpis.read')).rejects.toMatchObject({ statusCode: 401 });
+    await expect(verifyApiKey(wrong, 'dashboard.read')).rejects.toMatchObject({ statusCode: 401 });
+    await expect(verifyApiKey(undefined, 'dashboard.read')).rejects.toMatchObject({ statusCode: 401 });
+    await expect(verifyApiKey('Bearer something', 'dashboard.read')).rejects.toMatchObject({ statusCode: 401 });
 
     keys[0].expiresAt = new Date(Date.now() - 1000);
-    await expect(verifyApiKey(key, 'kpis.read')).rejects.toMatchObject({ statusCode: 401 });
+    await expect(verifyApiKey(key, 'dashboard.read')).rejects.toMatchObject({ statusCode: 401 });
     keys[0].expiresAt = null;
 
     await revokeApiKey(apiKey.id, 'admin');
-    await expect(verifyApiKey(key, 'kpis.read')).rejects.toMatchObject({ statusCode: 401 });
+    await expect(verifyApiKey(key, 'dashboard.read')).rejects.toMatchObject({ statusCode: 401 });
     expect((await listApiKeys('admin'))[0].status).toBe('REVOKED');
     expect(db.auditLog.create).toHaveBeenLastCalledWith({ data: expect.objectContaining({ action: 'API_KEY_REVOKED' }) });
   });
@@ -77,15 +77,15 @@ describe('API keys', () => {
   it('refuses a key that is not allowed what it asks for', async () => {
     const { key } = await createApiKey({ name: 'Dashboard' }, 'admin');
     keys[0].scopes = [];
-    await expect(verifyApiKey(key, 'kpis.read')).rejects.toMatchObject({ statusCode: 403 });
+    await expect(verifyApiKey(key, 'dashboard.read')).rejects.toMatchObject({ statusCode: 403 });
   });
 
   it('limits each key to a number of calls a minute, separately', async () => {
     const a = await createApiKey({ name: 'A' }, 'admin');
     const b = await createApiKey({ name: 'B' }, 'admin');
-    for (let i = 0; i < API_KEY_RATE_PER_MINUTE; i++) await verifyApiKey(a.key, 'kpis.read');
-    await expect(verifyApiKey(a.key, 'kpis.read')).rejects.toMatchObject({ statusCode: 429 });
+    for (let i = 0; i < API_KEY_RATE_PER_MINUTE; i++) await verifyApiKey(a.key, 'dashboard.read');
+    await expect(verifyApiKey(a.key, 'dashboard.read')).rejects.toMatchObject({ statusCode: 429 });
     // Another service's key is not affected
-    await expect(verifyApiKey(b.key, 'kpis.read')).resolves.toMatchObject({ name: 'B' });
+    await expect(verifyApiKey(b.key, 'dashboard.read')).resolves.toMatchObject({ name: 'B' });
   });
 });

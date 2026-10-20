@@ -12,7 +12,7 @@ import { getTodayGcAndEc } from '../utils/eth-date';
 import { hasPermission } from '../security/role-policy';
 
 /** What a key may be allowed to do */
-export const API_KEY_SCOPES = ['kpis.read'] as const;
+export const API_KEY_SCOPES = ['dashboard.read'] as const;
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
 const PREFIX = 'ats_live_';
@@ -107,7 +107,7 @@ export async function createApiKey(
     if (expiresAt <= new Date()) throw new BadRequestError('The expiry date must be in the future.');
   }
 
-  const scopes = input.scopes === undefined ? ['kpis.read'] : input.scopes;
+  const scopes = input.scopes === undefined ? ['dashboard.read'] : input.scopes;
   if (!Array.isArray(scopes) || scopes.length === 0 || scopes.some((s) => !(API_KEY_SCOPES as readonly string[]).includes(s))) {
     throw new BadRequestError(`A key can be allowed: ${API_KEY_SCOPES.join(', ')}.`);
   }

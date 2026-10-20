@@ -10,7 +10,7 @@ vi.mock('../../context/ToastContext', () => ({ useToast: () => toast }));
 vi.mock('../../api/client', () => ({ api: { getApiKeys: vi.fn(), createApiKey: vi.fn(), revokeApiKey: vi.fn() } }));
 
 const key = (extra: object = {}) => ({
-  id: 'k1', name: 'Ministry KPI dashboard', hint: 'ats_live_8f3k2q9a1b2c…', scopes: ['kpis.read'], expiresAt: null, revokedAt: null,
+  id: 'k1', name: 'Ministry KPI dashboard', hint: 'ats_live_8f3k2q9a1b2c…', scopes: ['dashboard.read'], expiresAt: null, revokedAt: null,
   lastUsedAt: null, createdByName: 'System Administrator', createdAt: '2026-10-20T10:00:00Z', status: 'ACTIVE', ...extra,
 });
 

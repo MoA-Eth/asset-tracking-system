@@ -408,14 +408,14 @@ export const swaggerDocument = {
         },
       },
     },
-    '/api/kpis': {
+    '/api/v1/assets-dashboard': {
       get: {
         tags: ['Integration (API key)'],
         summary: "The app's key figures for another system's dashboard: numbers only, no item lists or names",
         description:
           'Send the key in the X-API-Key header from your server. Same figures and filters as the executive dashboard. ' +
           'At most 60 calls a minute per key; 401 when the key is invalid, revoked or expired; 429 when calling too often.\n\n' +
-          "Example: curl -H 'X-API-Key: ats_live_…' 'https://asset.moa.gov.et/api/kpis?from=2026-07-08&to=2026-10-20'",
+          "Example: curl -H 'X-API-Key: ats_live_…' 'https://asset.moa.gov.et/api/v1/assets-dashboard?from=2026-07-08&to=2026-10-20'",
         security: [{ ApiKeyAuth: [] }],
         parameters: [
           { name: 'from', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Start of the period (YYYY-MM-DD, Gregorian)' },

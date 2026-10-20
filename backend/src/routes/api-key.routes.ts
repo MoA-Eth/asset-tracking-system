@@ -3,7 +3,7 @@ import { requireAuth, requirePermission } from '../middleware/auth.middleware';
 import { asyncHandler } from '../middleware/async-handler';
 import { sendSuccess } from '../utils/api-response';
 import { ApiKeyScope, createApiKey, listApiKeys, revokeApiKey, verifyApiKey } from '../services/api-key.service';
-import { getKpis } from '../services/kpi.service';
+import { getAssetsDashboard } from '../services/assets-dashboard.service';
 
 /**
  * Lets another system's server in with an API key (X-API-Key header) instead of a person's sign-in. Used only on the
@@ -15,14 +15,14 @@ export const requireApiKey = (scope: ApiKeyScope) =>
     next();
   });
 
-/** GET /api/kpis — the app's key figures, numbers only, for a key allowed "kpis.read" */
-export const kpiRoutes = Router();
-kpiRoutes.get(
+/** GET /api/v1/assets-dashboard — the app's key figures, numbers only, for a key allowed "dashboard.read" */
+export const assetsDashboardRoutes = Router();
+assetsDashboardRoutes.get(
   '/',
-  requireApiKey('kpis.read'),
+  requireApiKey('dashboard.read'),
   asyncHandler(async (req: Request, res: Response) => {
     const { from, to, storeId, category, itemType } = req.query;
-    sendSuccess(res, await getKpis({ from, to, storeId, category, itemType }), 'Key figures');
+    sendSuccess(res, await getAssetsDashboard({ from, to, storeId, category, itemType }), 'Key figures');
   }),
 );
 
