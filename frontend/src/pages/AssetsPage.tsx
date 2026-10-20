@@ -1553,7 +1553,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       thClassName="px-3 py-1.5 min-w-[170px]"
                     />
                     <SortableHeader
-                      label="IFMIS Slip"
+                      label="Slip / Date"
                       columnKey="slip"
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
