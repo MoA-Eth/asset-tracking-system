@@ -34,14 +34,21 @@ export const blankLine = (): SlipLine => ({
   itemType: '',
   condition: ItemCondition.NEW,
   uom: 'EA',
-  quantity: 0,
+  quantity: 1,
   unitPrice: 0,
   vatApplicable: false,
   additionalCharges: 0,
 });
 
-/** A fixed asset is one item, so its line is always quantity 1 */
-export const oneIfFixed = (l: SlipLine): SlipLine => (l.itemType === ItemType.FIXED && l.quantity !== 1 ? { ...l, quantity: 1 } : l);
+/** Fixed asset quantity is 1 and not editable if item starts with 0 only */
+export const isLineFixed = (l: { ifmisCode?: string; itemType?: ItemType | '' }): boolean => {
+  const code = l.ifmisCode?.trim();
+  if (code) return code.startsWith('0');
+  return l.itemType === ItemType.FIXED;
+};
+
+/** Kept for the slip-quantity warning; Qty is always editable so this no longer forces qty=1 */
+export const oneIfFixed = (l: SlipLine): SlipLine => l;
 
 /** What a line still needs before the receipt can be submitted */
 export const lineMissing = (l: SlipLine, donation = false): string[] =>
@@ -130,9 +137,13 @@ export const ReceiptItems: React.FC<{
         const next = { ...l, ...patch };
         // The item code decides fixed asset or consumable if itemType was not explicitly provided
         if ('ifmisCode' in patch && !('itemType' in patch)) {
-          next.itemType = itemTypeFromIfmisCode(next.ifmisCode) ?? (next.ifmisCode?.trim() ? ItemType.FIXED : '');
+          next.itemType = itemTypeFromIfmisCode(next.ifmisCode) ?? (next.ifmisCode?.trim() ? (next.ifmisCode.trim().startsWith('0') ? ItemType.FIXED : ItemType.CONSUMABLE) : '');
+          // Always default to 1 if qty is unset; Qty is always editable
+          if (!next.quantity || next.quantity === 0) {
+            next.quantity = 1;
+          }
         }
-        return oneIfFixed(next);
+        return next;
       }),
     );
 
@@ -172,6 +183,7 @@ export const ReceiptItems: React.FC<{
             {first}
             {lines.map((l, i) => {
               const n = i + 2;
+              const isFixed = isLineFixed(l);
               const lineBase = (l.quantity || 0) * (l.unitPrice || 0);
               const lineVat = l.vatApplicable ? Math.round(lineBase * 0.15 * 100) / 100 : 0;
               const lineTotal = donation ? 0 : lineBase + (l.vatApplicable ? lineVat : (l.additionalCharges || 0));
@@ -187,7 +199,7 @@ export const ReceiptItems: React.FC<{
                       className={cellClass({ invalid: !l.name.trim() })}
                     />
                     {l.alreadyAs && <p className="mt-0.5 text-[10px] text-amber-700">Already received as {l.alreadyAs}; remove it unless this is a second delivery.</p>}
-                    {l.itemType === ItemType.FIXED && (l.slipQuantity ?? 0) > 1 && (
+                    {isFixed && (l.slipQuantity ?? 0) > 1 && (
                       <p className="mt-0.5 text-[10px] text-amber-700">The slip lists {l.slipQuantity}: a fixed asset is one item, so register the others as their own receipts.</p>
                     )}
                   </td>
@@ -240,8 +252,6 @@ export const ReceiptItems: React.FC<{
                       aria-label={`Item ${n} quantity`}
                       inputMode="numeric"
                       value={l.quantity || ''}
-                      disabled={l.itemType === ItemType.FIXED}
-                      title={l.itemType === ItemType.FIXED ? 'A fixed asset is one item' : undefined}
                       onChange={(e) => {
                         let clean = e.target.value.replace(/[^0-9.]/g, '');
                         const parts = clean.split('.');

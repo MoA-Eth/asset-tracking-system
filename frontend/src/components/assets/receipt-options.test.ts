@@ -20,13 +20,14 @@ describe('IFMIS item categories', () => {
 });
 
 describe('item type from the IFMIS item code', () => {
-  it('is a consumable when the code starts with 1, and defaults to a fixed asset for other codes', () => {
+  it('is a fixed asset when the code starts with 0, and defaults to consumable for other codes (e.g. 1..., 3...)', () => {
+    expect(itemTypeFromIfmisCode('008101101.0001')).toBe(ItemType.FIXED);
+    expect(itemTypeFromIfmisCode('005101101.0002')).toBe(ItemType.FIXED);
     expect(itemTypeFromIfmisCode('108101101.0021')).toBe(ItemType.CONSUMABLE);
     expect(itemTypeFromIfmisCode('101101101.0052')).toBe(ItemType.CONSUMABLE);
-    expect(itemTypeFromIfmisCode('008101101.0001')).toBe(ItemType.FIXED);
-    // Non-default fixed asset prefixes (e.g. 2..., alphanumeric) are now supported
-    expect(itemTypeFromIfmisCode('203101101.0001')).toBe(ItemType.FIXED);
-    expect(itemTypeFromIfmisCode('MOA-000343')).toBe(ItemType.FIXED);
+    expect(itemTypeFromIfmisCode('308101101.0001')).toBe(ItemType.CONSUMABLE);
+    expect(itemTypeFromIfmisCode('203101101.0001')).toBe(ItemType.CONSUMABLE);
+    expect(itemTypeFromIfmisCode('MOA-000343')).toBe(ItemType.CONSUMABLE);
   });
 
   it('makes no guess without a code', () => {

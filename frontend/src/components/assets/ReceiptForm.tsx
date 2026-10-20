@@ -119,8 +119,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const serialNumber = editItem?.serialNumber ?? '';
   const [printedPadFrom, setPrintedPadFrom] = useState(editItem?.printedPadFrom ?? '');
   const [printedPadTo, setPrintedPadTo] = useState(editItem?.printedPadTo ?? '');
-  // A new receipt starts empty (the field shows 0), so the number is always typed on purpose
-  const [quantity, setQuantity] = useState<number>(editItem ? Number(editItem.quantity) || 1 : 0);
+  // Qty always defaults to 1 and is always editable
+  const [quantity, setQuantity] = useState<number>(editItem ? Number(editItem.quantity) || 1 : 1);
   const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? start?.unitCostETB ?? 0);
   const [vatApplicable, setVatApplicable] = useState<boolean>(editItem?.vatApplicable ?? false);
   const [additionalCharges, setAdditionalCharges] = useState<number>(editItem?.additionalCharges ?? 0);
@@ -134,10 +134,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [deliveredByOwn, setDeliveredByOwn] = useState(
     !!editItem?.deliveredBy && editItem.deliveredBy !== (editItem.buyer ?? '')
   );
-  // The IFMIS item code decides fixed asset or consumable (1… consumable, 0… fixed); nobody picks it by hand
+  // The IFMIS item code decides fixed asset or consumable (0… fixed, other codes consumable); nobody picks it by hand
   const changeIfmisCode = (value: string) => {
     setIfmisItemCode(value);
-    setItemType(itemTypeFromIfmisCode(value) ?? (value.trim() ? ItemType.FIXED : ''));
+    const derived = itemTypeFromIfmisCode(value);
+    setItemType(derived ?? (value.trim() ? (value.trim().startsWith('0') ? ItemType.FIXED : ItemType.CONSUMABLE) : ''));
+    // Always default to 1 if no quantity set; Qty is always editable regardless of code
+    if (!quantity || quantity === 0) {
+      setQuantity(1);
+    }
   };
   const changeBuyer = (value: string) => {
     setBuyer(value);
@@ -175,11 +180,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const { slipAttachmentPolicy, showScannedSlipField } = useSystemSettings();
   const isAttachmentRequired = slipAttachmentPolicy === 'REQUIRED';
 
-  // A fixed asset is one item: its quantity is 1 and can't be changed. A record from before this rule keeps its own.
-  const fixedOne = itemType === ItemType.FIXED && !(isEdit && Number(editItem?.quantity) > 1);
-  useEffect(() => {
-    if (fixedOne && quantity !== 1) setQuantity(1);
-  }, [fixedOne, quantity]);
+  // Qty is always editable; isFixed is kept only to show the slip-quantity warning, not to lock the field
+  const isFixed = ifmisItemCode.trim() ? ifmisItemCode.trim().startsWith('0') : (isEdit && editItem?.itemType === ItemType.FIXED && !editItem?.ifmisItemCode);
+  const fixedOne = false; // Qty is never locked; kept as a const so downstream JSX that reads it still compiles
   // What the slip's first line said, to warn when it lists several of a fixed asset
   const [slipQuantity, setSlipQuantity] = useState(0);
   const base1 = (Number(quantity) || 0) * (Number(unitCostETB) || 0);
@@ -236,7 +239,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setLotBatchNo('');
     setPrintedPadFrom('');
     setPrintedPadTo('');
-    setQuantity(0);
+    setQuantity(1);
     setUnitCostETB(0);
     setVatApplicable(false);
     setAdditionalCharges(0);
@@ -284,7 +287,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     { key: 'itemType', label: 'item type', current: itemType, set: setItemType, empty: '' },
     { key: 'condition', label: 'condition', current: condition, set: setCondition, empty: '' },
     { key: 'uom', label: 'unit of measure', current: uom, set: setUom, empty: 'EA', free: uom === 'EA' },
-    { key: 'quantity', label: 'quantity', current: quantity, set: setQuantity, empty: 0 },
+    { key: 'quantity', label: 'quantity', current: quantity, set: setQuantity, empty: 1, free: quantity === 1 },
     { key: 'unitPrice', label: 'unit price', current: unitCostETB, set: setUnitCostETB, empty: 0 },
     // The IFMIS item code every item is known by; its first digit says fixed asset or consumable
     { key: 'subInventory', label: 'sub inventory', current: subInventory, set: setSubInventory, empty: '' },
@@ -329,7 +332,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       // Goods on a receipt have just arrived from the supplier; the person changes it if something came damaged
       condition: line ? ItemCondition.NEW : undefined,
       uom: line?.uom?.toUpperCase(),
-      quantity: line?.quantity || undefined,
+      quantity: line?.quantity || 1,
       unitPrice: line?.unitPrice || undefined,
       ifmisItemCode: line?.itemCode,
       subInventory: line?.subInventory,
@@ -371,20 +374,23 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const others = isEdit ? [] : slip.lines.slice(1);
     // Always replaced: lines of an earlier slip must not stay behind to be registered with this one
     setExtraLines(
-      others.map((l, i) => ({
-        key: Date.now() + i,
-        slipQuantity: l.quantity,
-        name: l.description ?? '',
-        category: CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(l.category ?? ''))?.[1] ?? '',
-        itemType: itemTypeFromIfmisCode(l.itemCode) ?? '',
-        condition: ItemCondition.NEW,
-        uom: (l.uom ?? 'EA').toUpperCase(),
-        quantity: l.quantity ?? 0,
-        unitPrice: l.unitPrice ?? 0,
-        ifmisCode: l.itemCode,
-        subInventory: l.subInventory,
-        alreadyAs: receivedAs(l.description),
-      })),
+      others.map((l, i) => {
+        const isFixed = Boolean(l.itemCode?.trim() && l.itemCode.trim().startsWith('0'));
+        return {
+          key: Date.now() + i,
+          slipQuantity: l.quantity,
+          name: l.description ?? '',
+          category: CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(l.category ?? ''))?.[1] ?? '',
+          itemType: itemTypeFromIfmisCode(l.itemCode) ?? '',
+          condition: ItemCondition.NEW,
+          uom: (l.uom ?? 'EA').toUpperCase(),
+          quantity: l.quantity || 1,
+          unitPrice: l.unitPrice ?? 0,
+          ifmisCode: l.itemCode,
+          subInventory: l.subInventory,
+          alreadyAs: receivedAs(l.description),
+        };
+      }),
     );
     if (others.length > 0) filled.push(`${others.length} more ${others.length === 1 ? 'item' : 'items'} (rows 2–${others.length + 1})`);
     if (already) {
