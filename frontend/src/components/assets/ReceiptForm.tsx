@@ -15,6 +15,7 @@ import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalFo
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
 import { ReceiptItems, SlipLine, ItemTypeTag, lineMissing, blankLine, cellClass, money } from './SlipLines';
 import { UomSelect } from './UomSelect';
+import { ProgramSelect } from './ProgramSelect';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { Part, SlipPreview } from './FormParts';
@@ -1046,7 +1047,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           )}
 
           <Field label="Program / project" optional htmlFor="stock-in-program">
-            <input id="stock-in-program" type="text" placeholder="What the goods were bought for" value={programName} onChange={(e) => setProgramName(e.target.value)} className={input()} />
+            <ProgramSelect id="stock-in-program" value={programName} onChange={setProgramName} className={input()} />
           </Field>
         </FieldGrid>
       </Part>

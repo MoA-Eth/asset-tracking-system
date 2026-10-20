@@ -52,6 +52,26 @@ export const COMMON_UOMS = [
   'PACK',
 ];
 
+/** The ministry's programs and projects goods are received for (Program / project on Model 19) */
+export const PROGRAMS = [
+  'Food and Nutrition Project team',
+  'Productive Safety Net Programme (PSNP)',
+  'Food System Resilience Program (FSRP)',
+  'Climate Resilient Wheat Value Chain Development (CREW) Project',
+  'Italian Development Cooperation Agriculture value chain project',
+  'National Avocado Program',
+  'Climate Resilient Green Economy Projects',
+  'Strengthening Drought Resilience project',
+  'WE_GO',
+  'Development Response to Displacement Impact Project Phase II',
+  'Rural Economic Development and Food Security (REDFS)',
+  'DRIVE and BREFONS',
+  'Livestock and Fisheries Sector Development Project (LFSDP)',
+  'Participatory Agriculture and Climate Transformation Program',
+  'Sustainable Land Use Management Project (SLMP)',
+  'Climate Action through Landscape Management (CALM)',
+];
+
 export const COMMON_UOM_OPTIONS: { value: string; label: string }[] = COMMON_UOMS.map((u) => ({
   value: u,
   label: u,
