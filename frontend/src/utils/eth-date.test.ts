@@ -8,6 +8,7 @@ import {
   formatEcToGc,
   getTodayGcAndEc,
   formatETB,
+  formatETBShort,
   ETHIOPIAN_MONTH_NAMES_AM,
   ETHIOPIAN_MONTH_NAMES_EN,
 } from './eth-date';
@@ -135,5 +136,18 @@ describe('eth-date engine', () => {
       expect(formatETB(0.45)).toMatch(/0\.45/);
       expect(formatETB(12.3456)).toMatch(/12\.3456/);
     });
+  });
+});
+
+describe('formatETBShort', () => {
+  it('shortens millions and billions so a dashboard card can hold them', () => {
+    expect(formatETBShort(16_484_461.1)).toBe('ETB 16.48M');
+    expect(formatETBShort(8_451_655)).toBe('ETB 8.45M');
+    expect(formatETBShort(1_250_000_000)).toBe('ETB 1.25B');
+  });
+
+  it('writes out amounts under a million as formatETB does', () => {
+    expect(formatETBShort(175_501.5)).toBe(formatETB(175_501.5));
+    expect(formatETBShort(0)).toBe(formatETB(0));
   });
 });

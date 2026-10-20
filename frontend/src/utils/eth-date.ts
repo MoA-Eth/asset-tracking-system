@@ -108,3 +108,15 @@ export function formatETB(amount: number): string {
     maximumFractionDigits: maxDigits,
   }).format(num);
 }
+
+/**
+ * An amount short enough for a card: "ETB 16.48M", "ETB 1.25B"; under a million it is written out as formatETB does.
+ * Show formatETB beside it (or on hover) where the exact figure matters.
+ */
+export function formatETBShort(amount: number): string {
+  const num = Number(amount) || 0;
+  const abs = Math.abs(num);
+  if (abs >= 1_000_000_000) return `ETB ${(num / 1_000_000_000).toFixed(2)}B`;
+  if (abs >= 1_000_000) return `ETB ${(num / 1_000_000).toFixed(2)}M`;
+  return formatETB(num);
+}

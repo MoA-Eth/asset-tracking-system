@@ -17,7 +17,7 @@ import { CATEGORY_OPTIONS } from '../components/assets/asset-state';
 import { PERIOD_OPTIONS, PeriodKey, periodRange } from '../utils/periods';
 import { Donut } from '../components/ui/charts';
 import { actionText, withRoleNames } from '../utils/roles';
-import { formatETB, formatGcToEc, getTodayGcAndEc } from '../utils/eth-date';
+import { formatETB, formatETBShort, formatGcToEc, getTodayGcAndEc } from '../utils/eth-date';
 import { Store, UserRole } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
 
@@ -126,6 +126,8 @@ const StatTile: React.FC<{
   labelAm: string;
   action?: React.ReactNode;
   value: React.ReactNode;
+  /** The exact figure, in small type under a shortened value (e.g. "ETB 16,484,461.10" under "ETB 16.48M") */
+  exact?: string;
   footer: React.ReactNode;
   meterPct?: number;
   splitBar?: {
@@ -135,7 +137,7 @@ const StatTile: React.FC<{
     primaryLabel?: string;
     secondaryLabel?: string;
   };
-}> = ({ label, labelAm, action, value, footer, meterPct, splitBar }) => (
+}> = ({ label, labelAm, action, value, exact, footer, meterPct, splitBar }) => (
   <div className="rounded-md flex flex-col border border-slate-200/90 border-b-2 border-b-slate-300 bg-white p-5 transition duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_4px_6px_rgba(15,23,42,0.06),0_16px_32px_-8px_rgba(15,23,42,0.18)] shadow-[0_3px_12px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.05)]">
     <div className="flex items-start justify-between gap-2 min-w-0">
       <div className="min-w-0">
@@ -144,7 +146,8 @@ const StatTile: React.FC<{
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
-    <div className="mt-3 text-xl sm:text-2xl xl:text-3xl font-bold tracking-tight text-slate-900">{value}</div>
+    <div className="mt-3 min-w-0 truncate text-xl sm:text-2xl xl:text-3xl font-bold tracking-tight text-slate-900 tabular-nums" title={exact}>{value}</div>
+    {exact && <p className="mt-0.5 truncate text-[11px] tabular-nums text-slate-500">{exact}</p>}
     <div className="mt-auto space-y-1.5 pt-3">
       {meterPct !== undefined && <Meter pct={meterPct} />}
       {splitBar && (
@@ -596,7 +599,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Total valuation"
           labelAm="ጠቅላላ የካፒታል ንብረት ዋጋ"
-          value={formatETB(totalValuation)}
+          value={formatETBShort(totalValuation)}
+          exact={totalValuation >= 1_000_000 ? formatETB(totalValuation) : undefined}
           splitBar={
             totalValuation > 0 && (fixedAssetsValuationETB > 0 || consumableValuationETB > 0)
               ? {
@@ -612,8 +616,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             <div className="space-y-1 pt-0.5 text-xs">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-slate-600">Fixed Assets:</span>
-                <span className="tabular-nums font-semibold text-emerald-800 text-[11px]">
-                  {formatETB(fixedAssetsValuationETB)}{' '}
+                <span className="tabular-nums font-semibold text-emerald-800 text-[11px] whitespace-nowrap" title={formatETB(fixedAssetsValuationETB)}>
+                  {formatETBShort(fixedAssetsValuationETB)}{' '}
                   {totalValuation > 0 && (
                     <span className="text-[10px] text-slate-400 font-normal">
                       ({formatAssetPct(fixedAssetsValuationETB, totalValuation)})
@@ -623,8 +627,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               </div>
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-slate-600">Consumables:</span>
-                <span className="tabular-nums font-semibold text-violet-800 text-[11px]">
-                  {formatETB(consumableValuationETB)}{' '}
+                <span className="tabular-nums font-semibold text-violet-800 text-[11px] whitespace-nowrap" title={formatETB(consumableValuationETB)}>
+                  {formatETBShort(consumableValuationETB)}{' '}
                   {totalValuation > 0 && (
                     <span className="text-[10px] text-slate-400 font-normal">
                       ({formatAssetPct(consumableValuationETB, totalValuation)})
@@ -748,7 +752,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               </button>
             ) : undefined
           }
-          value={formatETB(stale.valueETB)}
+          value={formatETBShort(stale.valueETB)}
+          exact={stale.valueETB >= 1_000_000 ? formatETB(stale.valueETB) : undefined}
           footer={
             stale.itemCount > 0 ? (
               <div className="space-y-1 pt-0.5 text-xs">
@@ -785,7 +790,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               label="Pending approvals"
               count={pendingApprovals}
               tone="warning"
-              note={pendingApprovalsValuationETB > 0 ? `${formatETB(pendingApprovalsValuationETB)} · Action required` : 'Needs action'}
+              note={pendingApprovalsValuationETB > 0 ? `${formatETBShort(pendingApprovalsValuationETB)} · Action required` : 'Needs action'}
               onClick={() => onNavigate('approvals')}
             />
           )}
@@ -803,7 +808,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               label="Pending disposals"
               count={pendingDisposal}
               tone="critical"
-              note={pendingDisposalValuationETB > 0 ? `${formatETB(pendingDisposalValuationETB)} · Model 28` : 'Disposal queue'}
+              note={pendingDisposalValuationETB > 0 ? `${formatETBShort(pendingDisposalValuationETB)} · Model 28` : 'Disposal queue'}
               onClick={() => onNavigate('assets')}
             />
           )}
@@ -812,7 +817,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               label={`In store over ${stale.thresholdDays} days`}
               count={stale.itemCount}
               tone="warning"
-              note={`${formatETB(stale.valueETB)} · ${stale.units.toLocaleString()} ${stale.units === 1 ? 'unit' : 'units'}`}
+              note={`${formatETBShort(stale.valueETB)} · ${stale.units.toLocaleString()} ${stale.units === 1 ? 'unit' : 'units'}`}
               onClick={showStale}
             />
           )}
