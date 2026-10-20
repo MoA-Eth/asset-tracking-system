@@ -19,17 +19,17 @@ export const CATEGORY_FROM_IFMIS: [RegExp, AssetCategory][] = [
 
 /**
  * Fixed asset or consumable from the IFMIS inventory item code on a Model 19:
- * a code starting with 0 or 3 is a fixed asset; other codes (e.g. starting with 1)
- * default to consumable with editable quantity.
+ * a code starting with 3 is a fixed asset; codes starting with 0 or 1 (and any other) are consumables
+ * (confirmed by the property team, 2026-10-20). The badge on the form can still change it.
  */
 export function itemTypeFromIfmisCode(code?: string): ItemType | undefined {
   const trimmed = code?.trim();
   if (!trimmed) return undefined;
-  return trimmed.startsWith('0') || trimmed.startsWith('3') ? ItemType.FIXED : ItemType.CONSUMABLE;
+  return trimmed.startsWith('3') ? ItemType.FIXED : ItemType.CONSUMABLE;
 }
 
 /** What a code gives as default item type */
-export const ITEM_CODE_RULE = 'Codes starting with 0 or 3 default to fixed asset; other codes default to consumable.';
+export const ITEM_CODE_RULE = 'Codes starting with 3 are fixed assets; codes starting with 0 or 1 are consumables.';
 
 export const COMMON_UOMS = [
   'EA',

@@ -31,7 +31,7 @@ const basePayload = {
   name: 'Legacy Laptop',
   // A fixed asset is known by its tag; a consumable by its IFMIS item code
   itemCode: 'MOA-TEST-0001',
-  ifmisItemCode: '008101101.0001',
+  ifmisItemCode: '308101101.0001',
   category: AssetCategory.IT_EQUIPMENT,
   serialNumber: 'LAP-001',
   unitCostETB: 55000,
@@ -126,6 +126,19 @@ describe('StoreService.registerStockIn approval gate', () => {
 
     await StoreService.getInstance().registerStockIn({ ...basePayload, serialNumber: 'LAP-002', isHistoricalData: true } as any);
     expect(db.item.create.mock.calls[1][0].data.itemType).toBe('FIXED');
+  });
+
+  it('takes the type from the IFMIS code when none is sent: 3… fixed asset, 0… and 1… consumable', async () => {
+    const typeFor = async (ifmisItemCode: string, n: number) => {
+      await StoreService.getInstance().registerStockIn({ ...basePayload, itemCode: undefined, serialNumber: `S-${n}`, name: `Item ${n}`, isHistoricalData: true, ifmisItemCode } as any);
+      return db.item.create.mock.calls[n][0].data.itemType;
+    };
+    expect(await typeFor('308101101.0001', 0)).toBe('FIXED');
+    expect(await typeFor('008101101.0001', 1)).toBe('CONSUMABLE');
+    expect(await typeFor('108101101.0021', 2)).toBe('CONSUMABLE');
+    // A type sent with the line wins over the code
+    await StoreService.getInstance().registerStockIn({ ...basePayload, itemCode: undefined, serialNumber: 'S-3', name: 'Item 3', isHistoricalData: true, ifmisItemCode: '008101101.0001', itemType: 'FIXED' } as any);
+    expect(db.item.create.mock.calls[3][0].data.itemType).toBe('FIXED');
   });
 
   it('refuses an item type that is neither fixed nor consumable', async () => {

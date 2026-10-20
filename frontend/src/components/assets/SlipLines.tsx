@@ -41,7 +41,7 @@ export const blankLine = (): SlipLine => ({
   additionalCharges: 0,
 });
 
-/** Fixed asset quantity is 1 and not editable if item starts with 0 or 3 */
+/** Whether a line is a fixed asset: by its code (3… is fixed), else by the type chosen */
 export const isLineFixed = (l: { ifmisCode?: string; itemType?: ItemType | '' }): boolean => {
   const code = l.ifmisCode?.trim();
   if (code) return itemTypeFromIfmisCode(code) === ItemType.FIXED;

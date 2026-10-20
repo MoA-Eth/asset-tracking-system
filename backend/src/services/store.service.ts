@@ -338,6 +338,18 @@ const ITEM_TYPES: ItemType[] = ['FIXED', 'CONSUMABLE'];
 
 const isBlank = (value: unknown): boolean => value === undefined || value === null || String(value).trim() === '';
 
+/**
+ * Fixed asset or consumable from the IFMIS inventory item code: 3… is a fixed asset, 0…, 1… and any other code a
+ * consumable (property team, 2026-10-20). Used when a receipt line comes without a type; no code means fixed asset.
+ */
+export const itemTypeFromIfmisCode = (code: unknown): ItemType | undefined => {
+  const trimmed = String(code ?? '').trim();
+  if (!trimmed) return undefined;
+  return (trimmed.startsWith('3') ? 'FIXED' : 'CONSUMABLE') as ItemType;
+};
+const receiptLineType = (line: any, payload: any): ItemType =>
+  (line.itemType || payload.itemType || itemTypeFromIfmisCode(line.ifmisItemCode ?? payload.ifmisItemCode) || 'FIXED') as ItemType;
+
 function assertMaxLength(value: unknown, max: number, what: string): void {
   if (!isBlank(value) && String(value).length > max) throw new BadRequestError(what + ' must be ' + max + ' characters or fewer.');
 }
@@ -894,9 +906,8 @@ export class StoreService {
     // with a fixed asset is used instead).
     const tags: string[] = [];
     for (const line of rawItems) {
-      const type = line.itemType || payload.itemType || 'FIXED';
+      const type = receiptLineType(line, payload);
       const name = line.name || payload.name || 'asset';
-      // The IFMIS item code: 1… defaults to consumable, other codes to fixed asset
       const ifmisCode = String(line.ifmisItemCode ?? payload.ifmisItemCode ?? '').trim();
       // A tag is no longer asked on receipt; one sent (older clients, imports) still becomes the item code
       const tag = type === 'FIXED' ? String(line.itemCode ?? '').trim() : '';
@@ -946,7 +957,7 @@ export class StoreService {
     for (let i = 0; i < rawItems.length; i++) {
       const lineItem = rawItems[i];
       const category = (lineItem.category || payload.category || AssetCategory.IT_EQUIPMENT) as AssetCategory;
-      const itemType = (lineItem.itemType || payload.itemType || 'FIXED') as ItemType;
+      const itemType = receiptLineType(lineItem, payload);
       const itemCode = lineItem.itemCode?.trim() || await generateItemCode(category, currentYear);
       const serialNumber = String(lineItem.serialNumber ?? '').trim();
       const unitCost = Number(lineItem.unitCostETB) || 0;

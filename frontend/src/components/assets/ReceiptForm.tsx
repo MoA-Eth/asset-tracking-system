@@ -158,7 +158,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       return !!from?.deliveredBy && from.deliveredBy !== (from.buyer ?? '');
     })()
   );
-  // The IFMIS item code decides fixed asset or consumable (0… or 3… fixed, other codes consumable); nobody picks it by hand
+  // The IFMIS item code decides fixed asset or consumable (3… fixed; 0… and 1… consumable); nobody picks it by hand
   const changeIfmisCode = (value: string) => {
     setIfmisItemCode(value);
     const derived = itemTypeFromIfmisCode(value);
@@ -599,7 +599,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const effectiveQty = Number(quantity) > 0 ? Number(quantity) : 1;
     const effectiveUom = uom.trim() || "EA";
     const effectiveUnitCost = donation ? 0 : (Number(unitCostETB) >= 0 ? Number(unitCostETB) : 0);
-    const effectiveIfmisItemCode = ifmisItemCode.trim() || (effectiveType === ItemType.CONSUMABLE ? "108101101.0001" : "005101101.0001");
+    const effectiveIfmisItemCode = ifmisItemCode.trim() || (effectiveType === ItemType.CONSUMABLE ? "108101101.0001" : "305101101.0001");
     if (hasDuplicates) {
       const msg = duplicateMessage || 'Duplicate entrance is not permitted.';
       setFormError(msg);

@@ -1031,10 +1031,10 @@ describe('Asset record', () => {
     // All fields are optional: submit is enabled
     expect(submit).toBeEnabled();
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
-    // A fixed asset line (its code starts with 0) is one item: its quantity becomes 1 and is greyed out
+    // A fixed asset line (its code starts with 3) is one item: its quantity becomes 1 and is greyed out
     const code2 = within(others).getByLabelText('Item 2 item code');
     await user.clear(code2);
-    await user.type(code2, '005101102.0415');
+    await user.type(code2, '305101102.0415');
     expect(within(others).getByLabelText('Item 2 item type')).toHaveTextContent('Fixed asset');
     // Quantity remains editable and keeps slip quantity
     expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('50');
@@ -1117,13 +1117,13 @@ describe('Asset record', () => {
     expect(within(panel).getByLabelText(/^Category/i)).toHaveValue('LAB_EQUIPMENT');
     expect(within(panel).getByLabelText(/Unit of measure/i)).toHaveValue('PKT');
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('100');
-    // The IFMIS code says what it is: 1… a consumable. A code starting with 0 would be a fixed asset
+    // The IFMIS code says what it is: 1… a consumable. A code starting with 3 would be a fixed asset
     const code = within(panel).getByLabelText(/IFMIS item code/i);
     expect(code).toHaveValue('107101102.4336');
     expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Consumable');
     expect(within(panel).queryByLabelText(/Tag number/i)).toBeNull();
     await user.clear(code);
-    await user.type(code, '007101102.4336');
+    await user.type(code, '307101102.4336');
     expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Fixed asset');
     // No tag number is asked, even for a fixed asset
     expect(within(panel).queryByLabelText(/Tag number/i)).toBeNull();
@@ -1483,8 +1483,8 @@ describe('Asset record', () => {
     await user.selectOptions(within(panel).getByLabelText(/Receiving store/i), 'S1');
     await user.type(within(panel).getByLabelText(/Item description/i), 'Donated tablet');
     await user.selectOptions(within(panel).getByLabelText(/^Category/i), 'IT_EQUIPMENT');
-    // A code starting with 0: a fixed asset
-    await user.type(within(panel).getByLabelText(/IFMIS item code/i), '005101101.0001');
+    // A code starting with 3: a fixed asset
+    await user.type(within(panel).getByLabelText(/IFMIS item code/i), '305101101.0001');
     // A fixed asset: one item, quantity 1
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('1');
     const submit = within(panel).getByRole('button', { name: /Submit for approval/i });
@@ -1804,7 +1804,7 @@ describe('Receiving form: item type from the IFMIS code, for PDFs and older reco
     auth.user.permissions = ENCODER;
   });
 
-  it('registers a fixed asset read from a Model 19 (code starting with 0): no tag is asked and the IFMIS code is kept', async () => {
+  it('registers a fixed asset read from a Model 19 (code starting with 3): no tag is asked and the IFMIS code is kept', async () => {
     const user = userEvent.setup();
     vi.mocked(readPdfRows).mockResolvedValueOnce([
       r(98, [640, 'Print Model19 Report']),
@@ -1812,7 +1812,7 @@ describe('Receiving form: item type from the IFMIS code, for PDFs and older reco
       r(193, [677, 'Transaction Type :'], [812, 'PO Receipt']),
       r(208, [742, 'Source :'], [812, 'TEST COMPUTERS PLC']),
       r(283, [95, 'S/No.'], [135, 'Item Code'], [278, 'Item Description'], [403, 'UOM'], [826, 'Qty']),
-      r(316, [88, '1'], [128, '005101101.0001'], [270, 'Dell Latitude Laptop'], [403, 'EA'], [435, 'AStore'], [510, 'Computer'], [826, '1'], [960, '50000'], [1050, '50000']),
+      r(316, [88, '1'], [128, '305101101.0001'], [270, 'Dell Latitude Laptop'], [403, 'EA'], [435, 'AStore'], [510, 'Computer'], [826, '1'], [960, '50000'], [1050, '50000']),
       r(630, [910, 'Grand Total'], [1050, '50000']),
     ]);
     vi.mocked(api.registerStockIn).mockResolvedValue({ item: { id: 'N9', itemCode: 'MOA-099001' }, items: [{ id: 'N9', itemCode: 'MOA-099001' }] } as any);
@@ -1823,7 +1823,7 @@ describe('Receiving form: item type from the IFMIS code, for PDFs and older reco
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
-    await vi.waitFor(() => expect(within(panel).getByLabelText(/IFMIS item code/i)).toHaveValue('005101101.0001'));
+    await vi.waitFor(() => expect(within(panel).getByLabelText(/IFMIS item code/i)).toHaveValue('305101101.0001'));
     expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Fixed asset');
     // No tag is asked: only the store is left to choose
     expect(within(panel).queryByLabelText(/Tag number/i)).toBeNull();
@@ -1837,7 +1837,7 @@ describe('Receiving form: item type from the IFMIS code, for PDFs and older reco
     expect(sent).toMatch(/"itemType":"FIXED"/);
     // The system gives the record its code
     expect(sent).not.toMatch(/"itemCode"/);
-    expect(sent).toMatch(/"ifmisItemCode":"005101101.0001"/);
+    expect(sent).toMatch(/"ifmisItemCode":"305101101.0001"/);
   });
 
   it('corrects an older fixed asset that has a tag but no IFMIS code: the missing code does not block it', async () => {
@@ -1883,7 +1883,7 @@ describe('Receiving form: one table for every item', () => {
 
     await user.click(within(panel).getByRole('button', { name: 'Add item' }));
     expect(within(panel).getByRole('region', { name: 'Items (2)' })).toBeInTheDocument();
-    await user.type(within(panel).getByLabelText('Item 2 item code'), '005101101.0002');
+    await user.type(within(panel).getByLabelText('Item 2 item code'), '305101101.0002');
     expect(within(panel).getByLabelText('Item 2 item type')).toHaveTextContent('Fixed asset');
     expect(within(panel).queryByLabelText('Item 2 tag number')).toBeNull();
     expect(within(panel).getByRole('button', { name: 'Submit 2 items for approval' })).toBeEnabled();
