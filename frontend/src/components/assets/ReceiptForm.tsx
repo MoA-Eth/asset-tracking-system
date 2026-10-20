@@ -471,7 +471,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   /** A scan given where the IFMIS PDF goes: it cannot be read, so it becomes the signed copy, and what was read stays */
   const scanGiven = (file: File, what: string) => {
     takeSigned(file);
-    setSlipNote({ tone: 'info', text: `${what} It is attached below as the signed copy. Nothing was read from it; what was filled in stays.` });
+    setSlipNote({
+      tone: 'info',
+      text: `${what} It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. To fill the form in automatically, choose the PDF saved from IFMIS.`,
+    });
   };
 
   // A slip chosen with the header button is read like one picked in the form; fields already filled are kept
@@ -910,10 +913,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           accent="emerald"
           required={false}
           fileName={ifmisFile?.name ?? ''}
-          accept={SLIP_PDF_ACCEPT_ATTR}
+          accept={SLIP_ACCEPT_ATTR}
           onChange={handleSlipSelected}
           file={ifmisFile}
-          emptyText="Click to choose the Model 19 PDF saved from IFMIS"
+          emptyText="Click to choose the Model 19 PDF saved from IFMIS, or a photo"
           hint="The form fills itself in from it. The signed, scanned copy goes under Store and signatures."
         />
         {slipNote && (

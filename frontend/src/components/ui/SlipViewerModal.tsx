@@ -87,7 +87,87 @@ export function useSlip(url?: string, file?: File | null): SlipState {
  */
 const PDF_OPEN = '#pagemode=none&navpanes=0&zoom=page-width&view=FitH';
 
-/** The slip itself: the PDF in the browser's own viewer, or the image */
+/**
+ * Whether the browser shows a PDF inside the page. Phone browsers (Chrome on Android, among others) can't: they show a
+ * placeholder with an Open button instead, so there the pages are drawn by the app.
+ */
+const browserShowsPdf = () => typeof navigator === 'undefined' || (navigator as Navigator & { pdfViewerEnabled?: boolean }).pdfViewerEnabled !== false;
+
+/** At most this many pages are drawn on a phone; a longer PDF opens whole with "Open" */
+const MAX_DRAWN_PAGES = 10;
+
+/** A PDF drawn page by page by the app (pdf.js), for browsers without a PDF viewer of their own */
+const PdfPages: React.FC<{ objectUrl: string; fileName: string; heightClass: string }> = ({ objectUrl, fileName, heightClass }) => {
+  const [pages, setPages] = useState<string[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const blob = await (await fetch(objectUrl)).blob();
+        const { openPdf } = await import('../../utils/slip-reader');
+        const doc = await openPdf(new File([blob], fileName, { type: 'application/pdf' }));
+        try {
+          const drawn: string[] = [];
+          const count = Math.min(doc.numPages, MAX_DRAWN_PAGES);
+          // Sharp on the phone's screen without making huge images
+          const scale = Math.min(window.devicePixelRatio || 1, 2) * 1.25;
+          for (let p = 1; p <= count && !cancelled; p++) {
+            const page = await doc.getPage(p);
+            const viewport = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.floor(viewport.width);
+            canvas.height = Math.floor(viewport.height);
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('no canvas');
+            await page.render({ canvasContext: context, viewport, canvas } as never).promise;
+            drawn.push(canvas.toDataURL('image/jpeg', 0.85));
+          }
+          if (!cancelled) {
+            setTotal(doc.numPages);
+            setPages(drawn);
+          }
+        } finally {
+          await doc.destroy();
+        }
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [objectUrl, fileName]);
+
+  if (failed) {
+    return (
+      <div className={`flex flex-col items-center justify-center gap-3 bg-white p-6 text-center ${heightClass}`}>
+        <FileText className="h-8 w-8 text-slate-400" />
+        <p className="text-xs text-slate-600">This PDF can't be shown here.</p>
+        <a href={objectUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-[4px] border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
+          <ExternalLink className="h-3.5 w-3.5" /> Open the PDF
+        </a>
+      </div>
+    );
+  }
+  if (!pages) return <DocumentSkeleton heightClass={heightClass} />;
+  return (
+    <div className={`overflow-y-auto bg-slate-100 p-2 space-y-2 ${heightClass}`} aria-label={`IFMIS slip ${fileName}`}>
+      {pages.map((src, i) => (
+        <img key={i} src={src} alt={`${fileName}, page ${i + 1} of ${total}`} className="block w-full bg-white shadow-sm" />
+      ))}
+      {total > pages.length && (
+        <a href={objectUrl} target="_blank" rel="noopener noreferrer" className="block py-2 text-center text-xs font-semibold text-emerald-800 underline">
+          Pages {pages.length + 1}–{total}: open the whole PDF
+        </a>
+      )}
+    </div>
+  );
+};
+
+/** The slip itself: the PDF in the browser's own viewer (or drawn by the app where there is none), or the image */
 export const SlipContent: React.FC<{ state: SlipState; fileName: string; heightClass?: string }> = ({ state, fileName, heightClass = 'h-[78vh]' }) => (
   <>
     {state.status === 'loading' && (
@@ -98,8 +178,12 @@ export const SlipContent: React.FC<{ state: SlipState; fileName: string; heightC
       <img src={state.objectUrl} alt={`IFMIS slip ${fileName}`} className="block mx-auto object-contain max-h-[78vh]" />
     )}
 
-    {state.status === 'ready' && state.kind === 'pdf' && (
+    {state.status === 'ready' && state.kind === 'pdf' && browserShowsPdf() && (
       <iframe src={`${state.objectUrl}${PDF_OPEN}`} title={`IFMIS slip ${fileName}`} className={`w-full border-0 bg-white ${heightClass}`} />
+    )}
+
+    {state.status === 'ready' && state.kind === 'pdf' && !browserShowsPdf() && (
+      <PdfPages objectUrl={state.objectUrl} fileName={fileName} heightClass={heightClass} />
     )}
 
     {state.status === 'missing' && (

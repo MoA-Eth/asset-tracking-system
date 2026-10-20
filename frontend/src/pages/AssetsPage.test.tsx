@@ -655,6 +655,21 @@ describe('Assets page', () => {
     expect(within(prompt).getByRole('button', { name: 'Save as its IFMIS tag' })).toBeDisabled();
   });
 
+  it('takes a photo in the IFMIS PDF box: it is kept as the copy and nothing is read from it', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await menuFor(user, 'MOA-S2');
+    await user.click(screen.getByRole('menuitem', { name: 'Dispose' }));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-S2' });
+    const box = document.querySelector('#disposal-form input[type="file"]') as HTMLInputElement;
+    expect(box.accept).toMatch(/image\/jpeg/);
+    await user.upload(box, new File(['jpeg'], 'model22b-photo.jpg', { type: 'image/jpeg' }));
+
+    expect(await within(record).findByText(/This is a photo\. It is attached .*Nothing was read from it/)).toBeInTheDocument();
+    expect(readPdfRows).not.toHaveBeenCalled();
+  });
+
   it('on a disposal form that names this item by an IFMIS tag it lacks, offers to record the tag on it', async () => {
     const user = userEvent.setup();
     const chair = item('C1', 'Office Chair', 'AVAILABLE', { itemCode: 'MOA-OF-2026-0001' });
@@ -939,7 +954,7 @@ describe('Asset record', () => {
     expect(toast.warning).toHaveBeenCalledWith('Not a Model 19', expect.any(String));
     // Not kept as the receipt's scanned copy
     expect(within(panel).queryByText('other-form.pdf')).toBeNull();
-    expect(within(panel).getByText('Click to choose the Model 19 PDF saved from IFMIS')).toBeInTheDocument();
+    expect(within(panel).getByText('Click to choose the Model 19 PDF saved from IFMIS, or a photo')).toBeInTheDocument();
     expect(within(panel).getByText('Click to attach the signed Model 19, scanned')).toBeInTheDocument();
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('');
     expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
@@ -1951,7 +1966,7 @@ describe('Receiving form: the uploaded slip is shown open under the form', () =>
     await screen.findByText('MOA-S1');
     await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
-    expect(within(panel).getByText('Click to choose the Model 19 PDF saved from IFMIS')).toBeInTheDocument();
+    expect(within(panel).getByText('Click to choose the Model 19 PDF saved from IFMIS, or a photo')).toBeInTheDocument();
     expect(within(panel).queryByText('Click to attach the signed Model 19, scanned')).toBeNull();
   });
 

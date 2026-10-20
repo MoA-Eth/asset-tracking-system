@@ -209,6 +209,17 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   // The IFMIS PDF the form was read from
   /** Only a disposal form is read here; another IFMIS form is named, so it can be taken to its own form */
   const readSlip = (file: File) => {
+    // A photo can't be read: it is kept as the request's copy, and what was filled in stays
+    if (file.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(file.name)) {
+      const error = validateSlipFile(file);
+      if (error) return void setSlipNote({ tone: 'warn', text: error });
+      setAttachmentFile(file);
+      setAttachmentFileName(file.name);
+      return void setSlipNote({
+        tone: 'info',
+        text: `This is a photo. It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. To fill the form in automatically, choose the PDF saved from IFMIS.`,
+      });
+    }
     if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return void setSlipNote({ tone: 'warn', text: 'Choose the disposal form as a PDF saved from IFMIS.' });
     setReadFile(file);
     setSlipNote({ tone: 'info', text: 'Reading the disposal form…' });
@@ -333,7 +344,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
           accent="emerald"
           required={false}
           fileName={readFile?.name ?? (!showScannedSlipField && editApproval?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editApproval.ifmisSlipAttachmentUrl) : '')}
-          accept=".pdf,application/pdf"
+          accept={SLIP_ACCEPT_ATTR}
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = '';
@@ -341,7 +352,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
           }}
           file={readFile}
           savedUrl={!showScannedSlipField ? editApproval?.ifmisSlipAttachmentUrl : undefined}
-          emptyText="Click to choose the disposal form PDF saved from IFMIS"
+          emptyText="Click to choose the disposal form PDF saved from IFMIS, or a photo"
           hint={
             showScannedSlipField
               ? "The form fills itself in from it; a scanned PDF can't be read."

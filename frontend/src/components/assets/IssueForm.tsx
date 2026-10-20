@@ -293,7 +293,10 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   };
   const scanGiven = (file: File, what: string) => {
     takeSigned(file);
-    setSlipNote({ tone: 'info', text: `${what} It is attached below as the signed copy. Nothing was read from it; what was filled in stays.` });
+    setSlipNote({
+      tone: 'info',
+      text: `${what} It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. To fill the form in automatically, choose the PDF saved from IFMIS.`,
+    });
   };
 
   const fillFromModel22 = (slip: Model22SlipFields) => {
@@ -607,11 +610,11 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             accent="emerald"
             required={false}
             fileName={ifmisFile?.name ?? (!showScannedSlipField && editApproval?.ifmisSlipAttachmentUrl ? getSlipDisplayName(editApproval.ifmisSlipAttachmentUrl) : '')}
-            accept={SLIP_PDF_ACCEPT_ATTR}
+            accept={SLIP_ACCEPT_ATTR}
             onChange={fileChosen(takeSlip)}
             file={ifmisFile}
             savedUrl={!showScannedSlipField ? editApproval?.ifmisSlipAttachmentUrl : undefined}
-            emptyText="Click to choose the Model 22 PDF saved from IFMIS"
+            emptyText="Click to choose the Model 22 PDF saved from IFMIS, or a photo"
             hint={
               showScannedSlipField
                 ? 'The form fills itself in from it. The signed, scanned copy goes under Recipient and signatures.'
