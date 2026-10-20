@@ -44,6 +44,19 @@ export function groupBySlip<T>(list: T[], keyOf: (entry: T) => string | undefine
 
 export const isSlipGroup = <T,>(entry: SlipGroup<T> | { single: T }): entry is SlipGroup<T> => 'members' in entry;
 
+/**
+ * What makes requests one row of the approvals queue: the lines of a receipt (same slip and PO) waiting at the same
+ * stage. Other requests have none and are a row each.
+ */
+export const approvalRowKey = (a: { transactionType: string; ifmisSlipNumber?: string | null; poNumber?: string | null; status: string; currentStage?: number }): string | undefined => {
+  if (a.transactionType !== 'STOCK_IN') return undefined;
+  const key = slipKey(a.ifmisSlipNumber, a.poNumber);
+  return key && `${key}|${a.status}|${a.currentStage ?? 1}`;
+};
+
+/** How many rows a list of requests makes in the approvals queue (a receipt of several lines counts once) */
+export const countApprovalRows = <T extends Parameters<typeof approvalRowKey>[0]>(list: T[]): number => groupBySlip<T>(list, approvalRowKey).length;
+
 // A receipt asked to be opened from elsewhere (the top-bar search): the Assets page opens it once it has loaded
 let pendingSlip: string | null = null;
 export const OPEN_SLIP_EVENT = 'moa_open_slip';

@@ -69,6 +69,7 @@ import { MoaLogo } from './components/ui/MoaLogo';
 
 import { getValidTab, getSettingsGroups } from './components/layout/navigation';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
+import { countApprovalRows } from './components/assets/slip-groups';
 
 const AuthenticatedPortal: React.FC = () => {
   const { user, role, isAuthenticated, isLoading } = useAuth();
@@ -126,16 +127,17 @@ const AuthenticatedPortal: React.FC = () => {
     if (!user?.permissions?.includes('approvals.read')) { setPendingApprovalsCount(0); return; }
     try {
       const data = await api.getApprovals();
+      // A receipt of several lines is one row of the queue, so it counts once
       const pending = data.filter((a) => a.status === 'PENDING');
       let count = 0;
       const canEndorse = user?.permissions?.includes('approvals.endorse') ?? (role === UserRole.TEAM_LEADER);
       const canAuthorize = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD || role === UserRole.CHIEF_DIRECTOR);
       if (canEndorse && !canAuthorize) {
-        count = pending.filter((a) => (a.currentStage ?? 1) === 1).length;
+        count = countApprovalRows(pending.filter((a) => (a.currentStage ?? 1) === 1));
       } else if (canAuthorize && !canEndorse) {
-        count = pending.filter((a) => a.currentStage === 2).length;
+        count = countApprovalRows(pending.filter((a) => a.currentStage === 2));
       } else if (canEndorse && canAuthorize) {
-        count = pending.length;
+        count = countApprovalRows(pending);
       } else {
         count = 0;
       }

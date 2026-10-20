@@ -51,7 +51,7 @@ import { useToast } from '../context/ToastContext';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { getSlipDisplayName } from '../utils/slip-upload';
 import { RefreshButton } from '../components/ui/RefreshButton';
-import { groupBySlip, isSlipGroup, slipKey, slipNames } from '../components/assets/slip-groups';
+import { approvalRowKey, groupBySlip, isSlipGroup, slipNames } from '../components/assets/slip-groups';
 import { formatETB } from '../utils/eth-date';
 
 interface ApprovalsPageProps {
@@ -171,11 +171,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   // a whole. Its row stands in for them; slipLines holds the lines behind it.
   const { rows, slipLines } = useMemo(() => {
     const lines = new Map<string, TransactionApproval[]>();
-    const grouped = groupBySlip(approvals, (a) => {
-      if (a.transactionType !== 'STOCK_IN') return undefined;
-      const key = slipKey(a.ifmisSlipNumber, a.poNumber);
-      return key && `${key}|${a.status}|${a.currentStage ?? 1}`;
-    });
+    const grouped = groupBySlip<TransactionApproval>(approvals, approvalRowKey);
     const list = grouped.map((g): TransactionApproval => {
       if (!isSlipGroup(g)) return g.single;
       const id = `slip:${g.key}`;

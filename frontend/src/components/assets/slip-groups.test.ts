@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupBySlip, isSlipGroup, slipKey, slipNames } from './slip-groups';
+import { countApprovalRows, groupBySlip, isSlipGroup, slipKey, slipNames } from './slip-groups';
 
 describe('one receipt per Model 19 and PO', () => {
   it('keys lines by Model 19 No. and PO, ignoring case and spaces', () => {
@@ -26,6 +26,16 @@ describe('one receipt per Model 19 and PO', () => {
     ];
     const out = groupBySlip(lines, (l) => slipKey(l.slip, l.po));
     expect(out.map((g) => (isSlipGroup(g) ? g.members.map((m) => m.id).join('+') : g.single.id))).toEqual(['a+c', 'b', 'd', 'e']);
+  });
+
+  it('counts a receipt of several lines once in the approvals badge, other requests one each', () => {
+    const req = (transactionType: string, slip: string, po: string, currentStage = 1) => ({ transactionType, ifmisSlipNumber: slip, poNumber: po, status: 'PENDING', currentStage });
+    expect(countApprovalRows([
+      req('STOCK_IN', '51', 'P1'), req('STOCK_IN', '51', 'P1'), req('STOCK_IN', '51', 'P1'), // one receipt
+      req('STOCK_IN', '52', 'P1'), // another receipt
+      req('STOCK_OUT', 'M22-1', ''), req('STOCK_OUT', 'M22-1', ''), // issues are a row each
+      req('STOCK_IN', '51', 'P1', 2), // a line of the first receipt already at the next stage
+    ])).toBe(5);
   });
 
   it('names a receipt by its first items', () => {
