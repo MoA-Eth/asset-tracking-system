@@ -1499,9 +1499,8 @@ describe('Asset record', () => {
 
     // The unit of measure
     const uom = within(panel).getByLabelText(/Unit of measure/i);
-    await user.clear(uom);
     expect(submitBtn).toBeEnabled();
-    await user.type(uom, 'kg');
+    await user.selectOptions(uom, 'KG');
 
     // The quantity defaults to 1: it is editable, and any number is accepted as typed
     const quantity = within(panel).getByLabelText(/^Quantity/i);

@@ -3,6 +3,7 @@ import { Plus, X } from 'lucide-react';
 import { AssetCategory, ItemCondition, ItemType } from '../../types/asset-management';
 import { inputClass, MoneyInput } from '../ui/FormKit';
 import { COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode } from './receipt-options';
+import { UomSelect } from './UomSelect';
 
 /** One more item line from the same Model 19, registered as its own record when the receipt is submitted */
 export interface SlipLine {
@@ -161,7 +162,7 @@ export const ReceiptItems: React.FC<{
             <col style={{ width: 'auto' }} />
             <col style={{ width: '220px' }} />
             <col style={{ width: '160px' }} />
-            <col style={{ width: '80px' }} />
+            <col style={{ width: '95px' }} />
             <col style={{ width: '80px' }} />
             {!donation && <col style={{ width: '120px' }} />}
             {!donation && <col style={{ width: '90px' }} />}
@@ -261,13 +262,11 @@ export const ReceiptItems: React.FC<{
                     </select>
                   </td>
                   <td className="px-2 py-2.5">
-                    <input
-                      aria-label={`Item ${n} unit`}
-                      list="uom-options"
-                      placeholder="EA"
+                    <UomSelect
+                      ariaLabel={`Item ${n} unit`}
                       value={l.uom}
-                      onChange={(e) => set(l.key, { uom: e.target.value.toUpperCase() })}
-                      className={`${cellClass({ align: 'center', mono: true, invalid: !l.uom.trim() })} uppercase`}
+                      onChange={(newUom) => set(l.key, { uom: newUom })}
+                      invalid={!l.uom.trim()}
                     />
                   </td>
                   <td className="px-2 py-2.5">

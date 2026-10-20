@@ -13,6 +13,7 @@ import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDispla
 import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
 import { ReceiptItems, SlipLine, ItemTypeTag, lineMissing, blankLine, cellClass, money } from './SlipLines';
+import { UomSelect } from './UomSelect';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { Part, SlipPreview } from './FormParts';
@@ -825,15 +826,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       </td>
       <td className="px-2 py-2.5">
         <label htmlFor="stock-in-uom" className="sr-only">Unit of measure</label>
-        <input
+        <UomSelect
           id="stock-in-uom"
-          type="text"
-          list="uom-options"
-          placeholder="EA"
+          ariaLabel="Unit of measure"
           value={uom}
-          onChange={(e) => setUom(e.target.value.toUpperCase())}
+          onChange={setUom}
           onBlur={fieldErrors.touch('uom')}
-          className={`${cellClass({ align: 'center', mono: true, invalid: !!fieldErrors.error('uom') })} uppercase`}
+          invalid={!!fieldErrors.error('uom')}
         />
       </td>
       <td className="px-2 py-2.5">
@@ -1074,11 +1073,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       {/* The slip itself, open under the form, to check what was filled in against it */}
       <SlipPreview ifmisFile={ifmisFile} signedFile={signedFile} savedUrl={editItem?.ifmisSlipAttachmentUrl} />
 
-      <datalist id="uom-options">
-        {COMMON_UOMS.map((u) => (
-          <option key={u} value={u} />
-        ))}
-      </datalist>
 
       <FormFooter
         accent="emerald"

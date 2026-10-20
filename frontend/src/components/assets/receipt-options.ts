@@ -31,7 +31,31 @@ export function itemTypeFromIfmisCode(code?: string): ItemType | undefined {
 /** What a code gives as default item type */
 export const ITEM_CODE_RULE = 'Codes starting with 0 or 3 default to fixed asset; other codes default to consumable.';
 
-export const COMMON_UOMS = ['EA', 'PKT', 'SET', 'ROLL', 'PCS', 'BOX', 'BAG', 'KG', 'LTR', 'CAN', 'BOTTLE'];
+export const COMMON_UOMS = [
+  'EA',
+  'PCS',
+  'SET',
+  'BOX',
+  'BAG',
+  'PKT',
+  'ROLL',
+  'KG',
+  'QUINTAL',
+  'LTR',
+  'CAN',
+  'BOTTLE',
+  'VIAL',
+  'PAIR',
+  'M',
+  'DRUM',
+  'DOZEN',
+  'PACK',
+];
+
+export const COMMON_UOM_OPTIONS: { value: string; label: string }[] = COMMON_UOMS.map((u) => ({
+  value: u,
+  label: u,
+}));
 export const COMMON_CATEGORIES = [
   { value: AssetCategory.IT_EQUIPMENT, label: 'IT Equipment & Accessories' },
   { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery & Supplies' },
