@@ -26,7 +26,7 @@ import { SortableHeader } from '../components/ui/SortableHeader';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
 import { AssetRecord } from '../components/assets/AssetRecord';
-import { SlipRecord, slipLineTotal, slipStatusSummary } from '../components/assets/SlipRecord';
+import { SlipRecord, SlipStatus, slipLineTotal } from '../components/assets/SlipRecord';
 import { OPEN_SLIP_EVENT, slipKey, slipNames, takePendingSlip } from '../components/assets/slip-groups';
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
@@ -1056,7 +1056,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             {members.length} items
           </span>
         </td>
-        <td className="px-3 py-2 text-xs text-slate-700">{slipStatusSummary(rowsOf)}</td>
+        <td className="px-3 py-2">
+          <SlipStatus rows={rowsOf} />
+        </td>
         <td className="px-3 py-2 text-right tabular-nums text-slate-600 whitespace-nowrap">{members.length} items</td>
         <td className="px-3 py-2 text-slate-700">{places.length === 1 ? places[0] : 'Several places'}</td>
         <td className="px-3 py-2 tabular-nums text-slate-700 whitespace-nowrap">

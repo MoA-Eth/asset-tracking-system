@@ -2057,7 +2057,9 @@ describe('One row per Model 19', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     const slipRow = await screen.findByRole('row', { name: 'Open Model 19 0000051' });
     expect(within(slipRow).getByText('Dell Latitude, HP Printer +1')).toBeInTheDocument();
-    expect(within(slipRow).getByText('2 in store · 1 issued')).toBeInTheDocument();
+    // A badge per state, with how many items are in it
+    expect(within(slipRow).getByText('2 In store')).toBeInTheDocument();
+    expect(within(slipRow).getByText('1 Issued')).toBeInTheDocument();
     expect(within(slipRow).getByText('PO PO-14')).toBeInTheDocument();
     // Its items are not rows of their own; the other PO is
     expect(screen.queryByText('MOA-L1')).toBeNull();
@@ -2074,6 +2076,17 @@ describe('One row per Model 19', () => {
     const record = screen.getByRole('region', { name: 'Asset record MOA-L2' });
     await user.click(within(record).getByRole('button', { name: /Model 19 #0000051/ }));
     expect(screen.getByRole('region', { name: 'Model 19 0000051' })).toBeInTheDocument();
+  });
+
+  it('shows the usual single badge when every item of the receipt stands the same way', async () => {
+    vi.mocked(api.getItems).mockResolvedValue([
+      item('L1', 'Dell Latitude', 'AVAILABLE', { ifmisSlipNumber: '0000051', poNumber: 'PO-14' }),
+      item('L2', 'HP Printer', 'AVAILABLE', { ifmisSlipNumber: '0000051', poNumber: 'PO-14' }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const slipRow = await screen.findByRole('row', { name: 'Open Model 19 0000051' });
+    expect(within(slipRow).getByText('In store')).toBeInTheDocument();
+    expect(within(slipRow).queryByText(/^d+ In store/)).toBeNull();
   });
 
   it('finds a receipt by the name of one of its items', async () => {

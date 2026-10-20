@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FileText, Paperclip, Printer } from 'lucide-react';
-import { btn } from '../ui/theme';
+import { btn, pill, statusTone } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { SlipViewerModal } from '../ui/SlipViewerModal';
 import { FieldGrid, Field as FormKitField, ReadOnlyValue, TotalValue } from '../ui/FormKit';
@@ -33,6 +33,35 @@ export const slipStatusSummary = (rows: AssetRow[]): string => {
   const counts = new Map<AssetState, number>();
   for (const r of rows) counts.set(r.state, (counts.get(r.state) ?? 0) + 1);
   return [...counts.entries()].map(([state, n]) => `${n} ${STATE_WORDS[state]}`).join(' · ');
+};
+
+/** How each state looks as a badge, in the colours used across the table */
+const STATE_BADGES: Record<AssetState, { label: string; tone: string }> = {
+  RECEIPT_PENDING: { label: 'Receipt pending', tone: statusTone.pending },
+  REQUEST_PENDING: { label: 'Request pending', tone: statusTone.pending },
+  IN_STORE: { label: 'In store', tone: statusTone.inStore },
+  ISSUED: { label: 'Issued', tone: statusTone.issued },
+  REJECTED: { label: 'Rejected', tone: statusTone.rejected },
+  DISPOSED: { label: 'Disposed', tone: statusTone.neutral },
+};
+
+/**
+ * The status of a Model 19 of several items, as badges: one normal badge when all its items stand the same way,
+ * otherwise one badge per state with how many items are in it ("2 In store", "1 Issued").
+ */
+export const SlipStatus: React.FC<{ rows: AssetRow[] }> = ({ rows }) => {
+  const counts = new Map<AssetState, number>();
+  for (const r of rows) counts.set(r.state, (counts.get(r.state) ?? 0) + 1);
+  if (counts.size === 1) return <AssetStatus row={{ ...rows[0], rejected: undefined }} />;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1" aria-label={slipStatusSummary(rows)}>
+      {[...counts.entries()].map(([state, n]) => (
+        <span key={state} className={`${pill} ${STATE_BADGES[state].tone}`}>
+          {n} {STATE_BADGES[state].label}
+        </span>
+      ))}
+    </span>
+  );
 };
 
 export interface SlipRecordProps {
