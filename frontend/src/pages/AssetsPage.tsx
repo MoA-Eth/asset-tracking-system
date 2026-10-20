@@ -501,7 +501,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const item = record ?? items.find((i) => i.id === request.itemId);
     if (request.transactionType === 'STOCK_IN') {
       // The receipt: the Model 19 lists every item registered on the same slip
-      if (item) setVoucher19(buildModel19Voucher(item, items, user?.fullNameEn));
+      if (item) setVoucher19(buildModel19Voucher(item, items, user?.fullNameEn, request));
     } else if (request.transactionType === 'STOCK_OUT') {
       setVoucher22(buildModel22Voucher(request, { item, departments, employees, printedBy: user?.fullNameEn, requests: approvals, items }));
     } else if (request.transactionType === 'DISPOSAL') {

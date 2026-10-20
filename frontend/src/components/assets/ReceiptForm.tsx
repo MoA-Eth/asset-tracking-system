@@ -1212,8 +1212,16 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
     };
   });
 
+  const grandTotal = voucherItems.reduce((acc, curr) => acc + curr.totalAmount, 0);
+  // The Team Leader's and the Department Head's (or CEO's) signature and stamp go on once they have signed off;
+  // without the request at hand, a record that left "pending" was approved
+  const pending = item.status === ItemStatus.PENDING_STOCK_IN;
+  const rejected = item.status === ItemStatus.REJECTED || approval?.status === 'REJECTED';
+  const approved = approval ? approval.status === 'APPROVED' : !pending && !rejected;
+  const endorsed = approved || (!!approval && !rejected && approval.currentStage >= 2);
+
   return {
-    approvalState: item.status === ItemStatus.PENDING_STOCK_IN ? 'PENDING' : item.status === ItemStatus.REJECTED ? 'REJECTED' : undefined,
+    approvalState: pending ? 'PENDING' : rejected ? 'REJECTED' : undefined,
     invModel19No: item.ifmisSlipNumber,
     provisionType: item.provisionType,
     poNumber: item.poNumber || '—',
@@ -1229,6 +1237,12 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
     receivedByName: item.receivedBy,
     printedBy,
     items: voucherItems,
-    grandTotal: voucherItems.reduce((acc, curr) => acc + curr.totalAmount, 0),
+    grandTotal,
+    signatories: [
+      { label: 'Delivered By', name: item.deliveredBy },
+      { label: 'Received By', name: item.receivedBy },
+      getEndorserSignatory(approval, { isEndorsed: endorsed }),
+      getAuthorizerSignatory(approval, { isApproved: approved, totalAmount: grandTotal }),
+    ],
   };
 };
