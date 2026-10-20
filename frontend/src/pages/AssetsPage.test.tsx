@@ -514,9 +514,9 @@ describe('Assets page', () => {
     expect(within(panel).getByLabelText('Item type')).toHaveTextContent('Fixed asset');
     // What differs every time starts empty
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('');
-    // A fixed asset is one item: its quantity is 1 and greyed out
+    // Quantity is 1 and editable
     expect(within(panel).getByLabelText(/^Quantity/i)).toHaveValue('1');
-    expect(within(panel).getByLabelText(/^Quantity/i)).toBeDisabled();
+    expect(within(panel).getByLabelText(/^Quantity/i)).not.toBeDisabled();
     // Serial number is no longer asked on a receipt
     expect(within(panel).queryByLabelText(/Serial number/i)).toBeNull();
     // No tag number is asked: the system gives the record its code
@@ -987,8 +987,9 @@ describe('Asset record', () => {
     await user.clear(code2);
     await user.type(code2, '005101102.0415');
     expect(within(others).getByLabelText('Item 2 item type')).toHaveTextContent('Fixed asset');
-    expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('1');
-    expect(within(others).getByLabelText('Item 2 quantity')).toBeDisabled();
+    // Quantity remains editable and keeps slip quantity
+    expect(within(others).getByLabelText('Item 2 quantity')).toHaveValue('50');
+    expect(within(others).getByLabelText('Item 2 quantity')).not.toBeDisabled();
     expect(within(others).getByText(/The slip lists 50: a fixed asset is one item/)).toBeInTheDocument();
     // Back to the slip's code: a consumable again
     await user.clear(code2);
@@ -1502,11 +1503,12 @@ describe('Asset record', () => {
     expect(submitBtn).toBeEnabled();
     await user.type(uom, 'kg');
 
-    // The quantity starts empty, showing 0: it has to be typed, and any number is accepted as typed
+    // The quantity defaults to 1: it is editable, and any number is accepted as typed
     const quantity = within(panel).getByLabelText(/^Quantity/i);
-    expect(quantity).toHaveValue('');
+    expect(quantity).toHaveValue('1');
     expect(quantity).toHaveAttribute('placeholder', '0');
     expect(submitBtn).toBeEnabled();
+    await user.clear(quantity);
     await user.type(quantity, '12');
     expect(quantity).toHaveValue('12');
 
