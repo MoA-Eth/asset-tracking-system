@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "et.gov.moa.ats",
+      "sha256_cert_fingerprints": [
+        "03:62:1D:88:A5:CD:FB:36:85:A2:D4:34:90:67:E2:F7:0D:F1:7E:30:74:AC:BA:50:9F:EC:FF:38:D2:8F:C7:D0"
+      ]
+    }
+  }
+]
