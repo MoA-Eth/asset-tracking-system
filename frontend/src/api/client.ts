@@ -33,6 +33,7 @@ import {
   AuthUser,
   UserRole,
   RoleDirectory,
+  ApiKey,
 } from '../types/asset-management';
 
 const BASE_URL = '/api';
@@ -316,6 +317,13 @@ export const api = {
   },
 
   /** Outside organizations items are issued to; with includeInactive, deactivated ones too (Settings) */
+  /** API keys other systems use to read the key figures (administrators) */
+  getApiKeys: () => request<ApiKey[]>('/settings/api-keys'),
+  /** The full key comes back this once; it can't be shown again */
+  createApiKey: (input: { name: string; expiresAt?: string }) =>
+    request<{ key: string; apiKey: ApiKey }>('/settings/api-keys', { method: 'POST', body: JSON.stringify(input) }),
+  revokeApiKey: (id: string) => request<ApiKey>(`/settings/api-keys/${encodeURIComponent(id)}/revoke`, { method: 'POST' }),
+
   getOrganizations: (opts: { includeInactive?: boolean } = {}) => {
     return request<Organization[]>(`/reference/organizations${opts.includeInactive ? '?includeInactive=true' : ''}`);
   },

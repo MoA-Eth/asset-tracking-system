@@ -118,6 +118,22 @@ export interface Organization {
   isActive: boolean;
 }
 
+/** A key another system's server uses to read this app's key figures; its secret is never listed */
+export interface ApiKey {
+  id: string;
+  /** The service that holds it, e.g. "Ministry KPI dashboard" */
+  name: string;
+  /** The start of the key, to recognise it: ats_live_8f3k2q9a… */
+  hint: string;
+  scopes: string[];
+  expiresAt: string | null;
+  revokedAt: string | null;
+  lastUsedAt: string | null;
+  createdByName: string;
+  createdAt: string;
+  status: 'ACTIVE' | 'REVOKED' | 'EXPIRED';
+}
+
 export interface OrganizationInput {
   name: string;
   shortName?: string;

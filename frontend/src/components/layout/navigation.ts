@@ -13,6 +13,7 @@ import {
   MapPin,
   Warehouse,
   Sliders,
+  KeyRound,
   LucideIcon,
   User,
 } from 'lucide-react';
@@ -106,7 +107,10 @@ export const SETTINGS_NAV: { label: string; icon: LucideIcon; groups: SettingsNa
     },
     {
       label: 'System',
-      items: [{ id: 'settings-system', label: 'System Settings', icon: Sliders }],
+      items: [
+        { id: 'settings-system', label: 'System Settings', icon: Sliders },
+        { id: 'settings-api-keys', label: 'API keys', icon: KeyRound },
+      ],
     },
   ],
 };

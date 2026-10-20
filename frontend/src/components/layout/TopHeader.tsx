@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   Settings,
   Sliders,
+  KeyRound,
   Shield,
   UserCheck,
   MapPin,
@@ -250,6 +251,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         return { title: 'Organizations', am: 'ድርጅቶች', icon: Building2, iconColor: 'text-emerald-700' };
       case 'settings-system':
         return { title: 'System Settings', am: 'የስርዓት ቅንብሮች', icon: Sliders, iconColor: 'text-emerald-700' };
+      case 'settings-api-keys':
+        return { title: 'API keys', am: 'የኤፒአይ ቁልፎች', icon: KeyRound, iconColor: 'text-emerald-700' };
       default:
         return { title: 'MoA Asset Tracking System', am: 'የግብርና ሚኒስቴር', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
     }

@@ -185,7 +185,7 @@ export function hasPermission(role: unknown, permission: Permission): boolean {
 export function computeAllowedTabs(role: UserRole, permissions: Permission[]): { allowedTabs: string[]; landingTab: string } {
   if (role === UserRole.SUPER_ADMIN) {
     return {
-      allowedTabs: ['dashboard', 'assets', 'approvals', 'reports', 'audit', ...referenceTabs, 'settings-users', 'settings-roles'],
+      allowedTabs: ['dashboard', 'assets', 'approvals', 'reports', 'audit', ...referenceTabs, 'settings-users', 'settings-roles', 'settings-api-keys'],
       landingTab: 'dashboard',
     };
   }
@@ -203,7 +203,11 @@ export function computeAllowedTabs(role: UserRole, permissions: Permission[]): {
   }
   if (permissions.includes('reports.read')) tabs.add('reports');
   if (permissions.includes('audit.read')) tabs.add('audit');
-  if (permissions.includes('roles.assign')) tabs.add('settings-users');
+  if (permissions.includes('roles.assign')) {
+    tabs.add('settings-users');
+    // Keys for other systems are access too: managed by whoever manages people's access
+    tabs.add('settings-api-keys');
+  }
   if (permissions.includes('roles.read')) tabs.add('settings-roles');
   if (permissions.includes('references.read')) {
     if (role !== UserRole.MANAGER) {

@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import compression from 'compression';
 import itemRoutes from './routes/item.routes';
 import referenceRoutes from './routes/reference.routes';
+import { apiKeyAdminRoutes, kpiRoutes } from './routes/api-key.routes';
 import authRoutes from './routes/auth.routes';
 import uploadRoutes from './routes/upload.routes';
 import rolesRoutes from './routes/roles.routes';
@@ -168,7 +169,10 @@ app.use('/api/roles', rolesRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/reference', referenceRoutes);
 app.use('/api/uploads', uploadRoutes);
+// API keys: administrators manage them; other systems' servers read the key figures with one
+app.use('/api/settings/api-keys', apiKeyAdminRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/kpis', kpiRoutes);
 
 // SPA catch-all fallback for frontend client routing (non-API GET requests)
 app.get('*', (req: Request, res: Response, next: NextFunction) => {

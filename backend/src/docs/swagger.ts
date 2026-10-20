@@ -408,6 +408,37 @@ export const swaggerDocument = {
         },
       },
     },
+    '/api/kpis': {
+      get: {
+        tags: ['Integration (API key)'],
+        summary: "The app's key figures for another system's dashboard: numbers only, no item lists or names",
+        description:
+          'Send the key in the X-API-Key header from your server. Same figures and filters as the executive dashboard. ' +
+          'At most 60 calls a minute per key; 401 when the key is invalid, revoked or expired; 429 when calling too often.\n\n' +
+          "Example: curl -H 'X-API-Key: ats_live_…' 'https://asset.moa.gov.et/api/kpis?from=2026-07-08&to=2026-10-20'",
+        security: [{ ApiKeyAuth: [] }],
+        parameters: [
+          { name: 'from', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Start of the period (YYYY-MM-DD, Gregorian)' },
+          { name: 'to', in: 'query', schema: { type: 'string', format: 'date' }, description: 'End of the period (YYYY-MM-DD)' },
+          { name: 'storeId', in: 'query', schema: { type: 'string' }, description: 'Only one store' },
+          { name: 'category', in: 'query', schema: { type: 'string' }, description: 'Only one category, e.g. IT_EQUIPMENT' },
+          { name: 'itemType', in: 'query', schema: { type: 'string', enum: ['FIXED', 'CONSUMABLE'] } },
+        ],
+        responses: {
+          200: {
+            description:
+              '{ generatedAt, filter, assets: { total, inStore, issued, disposed, fixedAssets, consumables } (each { units, valueETB }), ' +
+              'pending: { receipts, issues, transfers, disposals, total, valueETB, withTeamLeader, withDepartmentHead }, ' +
+              'movement: [{ month, received, issued }], byCategory: [{ category, units, valueETB }], ' +
+              'byStore: [{ store, units, valueETB, inStoreUnits, issuedUnits, pending }], byCondition: [{ condition, units, valueETB }], ' +
+              'staleInStore: { thresholdDays, items, units, valueETB } }',
+          },
+          401: { description: 'Missing, invalid, revoked or expired key' },
+          403: { description: 'The key is not allowed to read the key figures' },
+          429: { description: 'More than 60 calls in a minute with this key' },
+        },
+      },
+    },
     '/api/items/dashboard/executive': {
       get: {
         tags: ['Executive Dashboard & Reports'],
@@ -531,6 +562,12 @@ export const swaggerDocument = {
         scheme: 'bearer',
         bearerFormat: 'JWT',
         description: 'Enter your Bearer JWT token from /api/auth/login',
+      },
+      ApiKeyAuth: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'X-API-Key',
+        description: 'A key issued by an administrator (Settings → API keys), for another system\'s server. Keep it on the server; never put it in a web page.',
       },
     },
   },

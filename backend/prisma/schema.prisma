@@ -126,6 +126,27 @@ model Organization {
   @@map("organizations")
 }
 
+/// A key another system's server uses to read this app's figures (e.g. a KPI dashboard). Only a hash of its secret
+/// is kept; the key itself is shown once, when it is created.
+model ApiKey {
+  id            String    @id @default(uuid())
+  /// Which service holds it, e.g. "Ministry KPI dashboard"
+  name          String
+  /// The public part of the key, shown in the list and used to look the key up
+  keyId         String    @unique
+  secretHash    String
+  /// What it may read, e.g. ["kpis.read"]
+  scopes        String[]
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  lastUsedAt    DateTime?
+  createdById   String
+  createdByName String
+  createdAt     DateTime  @default(now())
+
+  @@map("api_keys")
+}
+
 /// A store receives and issues stock. It contains one or more locations.
 model Store {
   id       String  @id
