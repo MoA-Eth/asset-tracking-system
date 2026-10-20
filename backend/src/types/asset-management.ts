@@ -363,6 +363,8 @@ export interface TransactionApproval {
   
   // IFMIS attachment
   ifmisSlipNumber: string;
+  /** A receipt's PO number (from its Model 19): lines with the same slip and PO are one receipt */
+  poNumber?: string;
   ifmisSlipDateGc: string;
   ifmisSlipDateEc: string;
   ifmisSlipAttachmentUrl?: string;
@@ -772,6 +774,14 @@ export interface UpdateReturnRequest {
 
 export interface ApprovalActionRequest {
   approvalId: string;
+  action: 'ENDORSE' | 'APPROVE' | 'REJECT';
+  reviewedById: string;
+  reviewRemarks?: string;
+}
+
+/** One decision for every line of a Model 19 receipt (same slip and PO), all or nothing */
+export interface SlipApprovalActionRequest {
+  approvalIds: string[];
   action: 'ENDORSE' | 'APPROVE' | 'REJECT';
   reviewedById: string;
   reviewRemarks?: string;

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ItemWithRelations } from '../../types/asset-management';
 import { RecordDetailModal } from '../ui/RecordDetailModal';
 import { NAV_SECTIONS, SETTINGS_NAV } from './navigation';
+import { groupBySlip, isSlipGroup, requestOpenSlip, slipKey, slipNames } from '../assets/slip-groups';
 
 interface GlobalSearchProps {
   onNavigate: (tab: string) => void;
@@ -22,7 +23,13 @@ interface ItemHit {
   id: string;
   item: ItemWithRelations;
 }
-type Hit = PageHit | ItemHit;
+/** Several items received on one Model 19 (same slip and PO): one result, opening the receipt */
+interface SlipHit {
+  kind: 'slip';
+  id: string;
+  items: ItemWithRelations[];
+}
+type Hit = PageHit | ItemHit | SlipHit;
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING_STOCK_IN: 'Awaiting approval',
@@ -98,7 +105,14 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onNavigate }) => {
     };
   }, [term, canSearchItems]);
 
-  const itemHits = useMemo<ItemHit[]>(() => items.slice(0, MAX_ITEMS).map((item) => ({ kind: 'item', id: item.id, item })), [items]);
+  // Items found on the same Model 19 and PO are one result, like their one row in the register
+  const itemHits = useMemo<(ItemHit | SlipHit)[]>(
+    () =>
+      groupBySlip(items, (item) => (item.parentItemId ? undefined : slipKey(item.ifmisSlipNumber, item.poNumber)))
+        .slice(0, MAX_ITEMS)
+        .map((g) => (isSlipGroup(g) ? { kind: 'slip' as const, id: g.key, items: g.members } : { kind: 'item' as const, id: g.single.id, item: g.single })),
+    [items],
+  );
   const hits: Hit[] = useMemo(() => [...itemHits, ...pageHits], [itemHits, pageHits]);
 
   useEffect(() => setActive(0), [term, hits.length]);
@@ -132,7 +146,11 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onNavigate }) => {
     setQuery('');
     inputRef.current?.blur();
     if (hit.kind === 'page') onNavigate(hit.id);
-    else setViewingItemId(hit.item.id);
+    else if (hit.kind === 'slip') {
+      // The receipt opens in the register, with its details and items
+      requestOpenSlip(hit.id);
+      onNavigate('assets');
+    } else setViewingItemId(hit.item.id);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -206,7 +224,22 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onNavigate }) => {
                 </li>
                 {!searching && itemHits.length === 0 && <li role="presentation" className="px-3 py-2 text-xs text-slate-500">No item matches “{term}”.</li>}
                 {itemHits.map((hit, i) =>
-                  row(
+                  hit.kind === 'slip' ? row(
+                    hit,
+                    i,
+                    <>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                        <Package className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-slate-900">{slipNames(hit.items.map((it) => it.name))}</span>
+                        <span className="block truncate text-[11px] text-slate-500">
+                          Model 19 <span className="font-mono">{hit.items[0].ifmisSlipNumber}</span> · {hit.items.length} items
+                          {hit.items[0].poNumber ? ` · PO ${hit.items[0].poNumber}` : ''}
+                        </span>
+                      </span>
+                    </>,
+                  ) : row(
                     hit,
                     i,
                     <>

@@ -16,6 +16,7 @@ import {
   UpdateDisposalRequest,
   CreateTransferRequest,
   ApprovalActionRequest,
+  SlipApprovalActionRequest,
   UserRole,
 } from '../types/asset-management';
 import { asyncHandler } from '../middleware/async-handler';
@@ -302,6 +303,25 @@ export class ItemController {
     const result = await this.store.handleApproval(payload);
     const done = { ENDORSE: 'endorsed', APPROVE: 'approved', REJECT: 'rejected' }[payload.action];
     return sendSuccess(res, result, `Request ${done}`);
+  });
+
+  /**
+   * POST /api/items/approvals/slip-action  { approvalIds, action, reviewRemarks }
+   * One decision for every line of a Model 19 receipt (same slip and PO); all lines or none.
+   */
+  public handleSlipApproval = asyncHandler(async (req: Request, res: Response) => {
+    const payload: SlipApprovalActionRequest = req.body ?? {};
+    if (!['ENDORSE', 'APPROVE', 'REJECT'].includes(payload.action)) throw new BadRequestError('Invalid approval action.');
+    if (!req.user) throw new UnauthorizedError('Authentication is required.');
+    if (payload.action === 'ENDORSE') assertPermission(req, 'approvals.endorse');
+    else if (payload.action === 'APPROVE') assertPermission(req, 'approvals.authorize');
+    else if (!hasPermission(req.user.role, 'approvals.endorse') && !hasPermission(req.user.role, 'approvals.authorize')) {
+      throw new ForbiddenError('Your role cannot reject requests.');
+    }
+    payload.reviewedById = req.user.id;
+    const result = await this.store.handleSlipApproval(payload);
+    const done = { ENDORSE: 'endorsed', APPROVE: 'approved', REJECT: 'rejected' }[payload.action];
+    return sendSuccess(res, result, `Receipt ${done} (${result.length} items)`);
   });
 
   /**

@@ -1239,7 +1239,8 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
       { label: 'Delivered By', name: item.deliveredBy },
       { label: 'Received By', name: item.receivedBy },
       getEndorserSignatory(approval, { isEndorsed: endorsed }),
-      getAuthorizerSignatory(approval, { isApproved: approved, totalAmount: grandTotal }),
+      // The CEO signs when any line is above 10 million birr (the rule is per line, not the slip's total)
+      getAuthorizerSignatory(approval, { isApproved: approved, totalAmount: Math.max(0, ...voucherItems.map((l) => l.totalAmount)) }),
     ],
   };
 };

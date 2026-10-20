@@ -2037,3 +2037,49 @@ describe('Receiving form: the uploaded slip is shown open under the form', () =>
     expect(within(tableRows[1]).getByText('Newly Received Desk')).toBeInTheDocument();
   });
 });
+
+describe('One row per Model 19', () => {
+  beforeEach(() => {
+    auth.user.permissions = [...ENCODER];
+    vi.mocked(api.getItems).mockResolvedValue([
+      item('L1', 'Dell Latitude', 'AVAILABLE', { ifmisSlipNumber: '0000051', poNumber: 'PO-14', totalAmount: 50000 }),
+      item('L2', 'HP Printer', 'ISSUED', { ifmisSlipNumber: '0000051', poNumber: 'PO-14', totalAmount: 20000 }),
+      item('L3', 'Toner', 'AVAILABLE', { ifmisSlipNumber: '0000051', poNumber: 'PO-14', itemType: 'CONSUMABLE', quantity: 10, totalAmount: 5000 }),
+      // Same slip number, another PO: another receipt
+      item('L4', 'Scanner', 'AVAILABLE', { ifmisSlipNumber: '0000051', poNumber: 'PO-15' }),
+    ] as any);
+  });
+
+  it('shows the items of one Model 19 and PO as one row, and opens the receipt with its items', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const slipRow = await screen.findByRole('row', { name: 'Open Model 19 0000051' });
+    expect(within(slipRow).getByText('Dell Latitude, HP Printer +1')).toBeInTheDocument();
+    expect(within(slipRow).getByText('2 in store · 1 issued')).toBeInTheDocument();
+    expect(within(slipRow).getByText('PO PO-14')).toBeInTheDocument();
+    // Its items are not rows of their own; the other PO is
+    expect(screen.queryByText('MOA-L1')).toBeNull();
+    expect(screen.getByText('MOA-L4')).toBeInTheDocument();
+
+    await user.click(within(slipRow).getByText('Dell Latitude, HP Printer +1'));
+    const receipt = screen.getByRole('region', { name: 'Model 19 0000051' });
+    expect(within(receipt).getByText('3 items · PO PO-14 · 2 in store · 1 issued')).toBeInTheDocument();
+    const lines = within(receipt).getByRole('table', { name: 'Items on this Model 19' });
+    expect(within(lines).getAllByRole('row')).toHaveLength(4); // header and 3 items
+
+    // An item opens its own record, which leads back to the receipt
+    await user.click(within(lines).getByText('HP Printer'));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-L2' });
+    await user.click(within(record).getByRole('button', { name: /Model 19 #0000051/ }));
+    expect(screen.getByRole('region', { name: 'Model 19 0000051' })).toBeInTheDocument();
+  });
+
+  it('finds a receipt by the name of one of its items', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByRole('row', { name: 'Open Model 19 0000051' });
+    await user.type(screen.getByPlaceholderText(/search/i), 'toner');
+    expect(screen.getByRole('row', { name: 'Open Model 19 0000051' })).toBeInTheDocument();
+    expect(screen.queryByText('MOA-L4')).toBeNull();
+  });
+});

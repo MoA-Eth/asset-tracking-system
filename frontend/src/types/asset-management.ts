@@ -502,6 +502,8 @@ export interface TransactionApproval {
   
   // IFMIS attachment
   ifmisSlipNumber: string;
+  /** A receipt's PO number (from its Model 19): lines with the same slip and PO are one receipt */
+  poNumber?: string;
   ifmisSlipDateGc: string;
   ifmisSlipDateEc: string;
   ifmisSlipAttachmentUrl?: string;

@@ -291,6 +291,14 @@ export const api = {
     });
   },
 
+  /** One decision for every line of a Model 19 receipt (same slip and PO): all lines or none */
+  handleSlipApproval: (payload: Omit<ApprovalActionRequest, 'approvalId'> & { approvalIds: string[] }) => {
+    return request<TransactionApproval[]>('/items/approvals/slip-action', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   // Audit Logs
   getAuditLogs: () => {
     return request<AuditLogEntry[]>('/items/audit/logs');

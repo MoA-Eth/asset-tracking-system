@@ -26,6 +26,8 @@ import { SortableHeader } from '../components/ui/SortableHeader';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
 import { AssetRecord } from '../components/assets/AssetRecord';
+import { SlipRecord, slipLineTotal, slipStatusSummary } from '../components/assets/SlipRecord';
+import { OPEN_SLIP_EVENT, slipKey, slipNames, takePendingSlip } from '../components/assets/slip-groups';
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { Model21PrintModal } from '../components/ui/Model21PrintModal';
@@ -196,8 +198,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   // The asset record open beside the list, and whether what it has pending is being corrected in place
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  // A Model 19 of several items open beside the list; and the one an item was opened from, to go back to
+  const [selectedSlip, setSelectedSlip] = useState<string | null>(null);
+  const [slipBack, setSlipBack] = useState<string | null>(null);
   const closeRecord = () => {
     setSelectedId(null);
+    setSelectedSlip(null);
+    setSlipBack(null);
     setReceipt(null);
     setTransfer(null);
     setIssue(null);
@@ -206,6 +213,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
   const openReceipt = (edit?: ItemWithRelations, template?: ReceiptTemplate, templateKey?: string, copyOf?: ItemWithRelations) => {
     setSelectedId(null);
+    setSelectedSlip(null);
+    setSlipBack(null);
     setTransfer(null);
     setIssue(null);
     setDisposing(null);
@@ -485,7 +494,42 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     });
   }, [shown, sortColumn, sortDirection]);
 
-  const pager = usePagination(sortedShown, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}|${lastTouchedId}` });
+  // Registrations received on the same Model 19 with the same PO: one receipt, shown as one row (2 or more items)
+  const slips = useMemo(() => {
+    const byKey = new Map<string, AssetGroup[]>();
+    for (const g of groups) {
+      if (g.row.item.parentItemId) continue;
+      const key = slipKey(g.row.item.ifmisSlipNumber, g.row.item.poNumber);
+      if (key) byKey.set(key, [...(byKey.get(key) ?? []), g]);
+    }
+    for (const [key, list] of byKey) {
+      if (list.length < 2) byKey.delete(key);
+      else list.sort((a, b) => a.row.item.itemCode.localeCompare(b.row.item.itemCode, undefined, { numeric: true }));
+    }
+    return byKey;
+  }, [groups]);
+  const slipOfItem = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const [key, list] of slips) for (const g of list) map.set(g.row.item.id, key);
+    return map;
+  }, [slips]);
+  type ListEntry = { group: ShownGroup; slip?: undefined } | { slip: string; members: AssetGroup[]; group?: undefined };
+  /** The rows of the table: a receipt of several items is one row, where the first of its items would be */
+  const listed = useMemo(() => {
+    const out: ListEntry[] = [];
+    const placed = new Set<string>();
+    for (const g of sortedShown) {
+      const key = slipOfItem.get(g.row.item.id);
+      if (!key) out.push({ group: g });
+      else if (!placed.has(key)) {
+        placed.add(key);
+        out.push({ slip: key, members: slips.get(key)! });
+      }
+    }
+    return out;
+  }, [sortedShown, slips, slipOfItem]);
+
+  const pager = usePagination(listed, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}|${lastTouchedId}` });
   const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
   const toggleBatch = (id: string) =>
     setOpenBatches((prev) => {
@@ -521,13 +565,26 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
 
   /** Open a record in view mode with its actions in the toolbar */
-  const openRecord = (itemId: string) => {
+  const openRecord = (itemId: string, fromSlip?: string) => {
     setReceipt(null);
     setTransfer(null);
     setIssue(null);
     setDisposing(null);
+    setSelectedSlip(null);
+    setSlipBack(fromSlip ?? null);
     setSelectedId(itemId);
     setEditing(false);
+  };
+  /** Open a Model 19 of several items: its details and its items */
+  const openSlip = (key: string) => {
+    setReceipt(null);
+    setTransfer(null);
+    setIssue(null);
+    setDisposing(null);
+    setSelectedId(null);
+    setSlipBack(null);
+    setEditing(false);
+    setSelectedSlip(key);
   };
 
   /** Whether a form is open on this record: a correction, or a new issue, transfer, return or disposal */
@@ -972,6 +1029,75 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     );
   };
 
+  /** One row for a Model 19 of several items: what they are, where they stand, the slip and its total */
+  const renderSlipRow = (key: string, members: AssetGroup[]) => {
+    const rowsOf = members.map((g) => g.row);
+    const lead = rowsOf[0].item;
+    const places = [...new Set(rowsOf.map((r) => r.where))];
+    const total = rowsOf.reduce((sum, r) => sum + slipLineTotal(r.item), 0);
+    const touched = rowsOf.some((r) => r.item.id === lastTouchedId);
+    return (
+      <tr
+        key={`slip-${key}`}
+        tabIndex={0}
+        aria-label={`Open Model 19 ${lead.ifmisSlipNumber}`}
+        onClick={(e) => {
+          if (!(e.target as HTMLElement).closest('button, a, input')) openSlip(key);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && e.target === e.currentTarget) openSlip(key);
+        }}
+        className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${touched ? table.rowHighlight : table.row}`}
+      >
+        <td className="py-2 pr-3 pl-5">
+          <span className="block text-slate-900">{slipNames(rowsOf.map((r) => r.item.name))}</span>
+          <span className="flex items-center gap-x-1.5 whitespace-nowrap text-xs text-slate-600">
+            <span className="rounded-[4px] border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-semibold text-slate-700">Model 19</span>
+            {members.length} items
+          </span>
+        </td>
+        <td className="px-3 py-2 text-xs text-slate-700">{slipStatusSummary(rowsOf)}</td>
+        <td className="px-3 py-2 text-right tabular-nums text-slate-600 whitespace-nowrap">{members.length} items</td>
+        <td className="px-3 py-2 text-slate-700">{places.length === 1 ? places[0] : 'Several places'}</td>
+        <td className="px-3 py-2 tabular-nums text-slate-700 whitespace-nowrap">
+          <span className="block">{lead.ifmisSlipNumber}</span>
+          <span className="block text-xs text-slate-500">{lead.ifmisSlipDateGc || String(lead.createdAtGc || '').slice(0, 10) || '—'}</span>
+          {lead.poNumber && <span className="block text-xs text-slate-500">PO {lead.poNumber}</span>}
+        </td>
+        <td className="px-3 py-2 text-right tabular-nums text-slate-700 whitespace-nowrap">
+          {formatETB(total)}
+          <span className="block text-[10px] text-slate-500">total</span>
+        </td>
+        <td className={`px-3 py-2 ${table.actionsCell}`}>
+          <RowActionsMenu
+            label={`Model 19 ${lead.ifmisSlipNumber}`}
+            actions={[{ label: 'Print Model 19', icon: Printer, onClick: () => printSlip(members) }]}
+          />
+        </td>
+      </tr>
+    );
+  };
+  /** The Model 19 of a receipt of several items, with its approvers' signatures once approved */
+  const printSlip = (members: AssetGroup[]) => {
+    const lead = members[0].row.item;
+    const receiptRequest = approvals
+      .filter((a) => a.transactionType === 'STOCK_IN' && a.itemId === lead.id)
+      .sort((a, b) => decidedOn(b).localeCompare(decidedOn(a)))[0];
+    setVoucher19(buildModel19Voucher(lead, items, user?.fullNameEn, receiptRequest));
+  };
+  const selectedSlipMembers = selectedSlip ? slips.get(selectedSlip) : undefined;
+  // A receipt chosen in the top-bar search opens here once the list has it
+  useEffect(() => {
+    const openRequested = () => {
+      const key = takePendingSlip((k) => slips.has(k));
+      if (key) openSlip(key);
+    };
+    openRequested();
+    window.addEventListener(OPEN_SLIP_EVENT, openRequested);
+    return () => window.removeEventListener(OPEN_SLIP_EVENT, openRequested);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slips]);
+
   // ── The open record ──
   const selectedRow = selectedId ? rows.find((r) => r.item.id === selectedId) : undefined;
   const selectedGroup = selectedRow
@@ -1118,7 +1244,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   return (
     <div className="space-y-2.5 animate-fadeIn pb-1">
-      {selectedRow || receipt ? (
+      {selectedRow || receipt || selectedSlipMembers ? (
         /* ── The open record or registration, using the whole page; closing it (×, Esc) returns to the list as it was ── */
         <div className="grid items-start gap-3">
           {receipt ? (
@@ -1180,8 +1306,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 )}
               </div>
             </section>
+          ) : selectedSlipMembers ? (
+            <SlipRecord
+              rows={selectedSlipMembers.map((g) => g.row)}
+              onOpenItem={(id) => openRecord(id, selectedSlip!)}
+              onPrint={() => printSlip(selectedSlipMembers)}
+              onClose={closeRecord}
+            />
           ) : selectedRow ? (
             <AssetRecord
+              backTo={
+                slipBack && slips.has(slipBack)
+                  ? { label: `Model 19 #${slips.get(slipBack)![0].row.item.ifmisSlipNumber}`, onClick: () => openSlip(slipBack) }
+                  : undefined
+              }
               row={selectedRow}
               units={selectedUnits}
               batch={selectedGroup && !selectedIsBatch ? selectedGroup.row : undefined}
@@ -1580,7 +1718,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {pager.pageItems.map((group) => {
+                  {pager.pageItems.map((entry) => {
+                    if ('members' in entry && entry.members) return renderSlipRow(entry.slip, entry.members);
+                    const { group } = entry;
                     const open = group.forceOpen || openBatches.has(group.row.item.id);
                     return (
                       <React.Fragment key={group.row.item.id}>

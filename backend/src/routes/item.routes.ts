@@ -29,5 +29,6 @@ router.post('/transfer', requirePermission('transfers.write'), controller.transf
 router.put('/transfer/:approvalId', requirePermission('transfers.write'), controller.updateTransfer);
 
 router.post('/approvals/action', requirePermission('approvals.endorse', 'approvals.authorize'), controller.handleApproval);
+router.post('/approvals/slip-action', requirePermission('approvals.endorse', 'approvals.authorize'), controller.handleSlipApproval);
 
 export default router;

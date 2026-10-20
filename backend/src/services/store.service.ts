@@ -27,6 +27,7 @@ import {
   Model21Accessory,
   ItemBalance,
   ApprovalActionRequest,
+  SlipApprovalActionRequest,
   PROVISION_TYPES,
 } from '../types/asset-management';
 import { prisma } from '../lib/prisma';
@@ -150,6 +151,8 @@ function mapItem(raw: any): ItemWithRelations {
 }
 
 export const HIGH_VALUE_APPROVAL_THRESHOLD = 10_000_000;
+/** Most lines one Model 19 decision covers */
+export const MAX_SLIP_LINES = 200;
 
 export function calculateApprovalTotalAmount(raw: any, itemObj?: any): number {
   let req = raw?.requestDetails;
@@ -207,6 +210,7 @@ function mapApproval(raw: any): TransactionApproval {
     requestDetails: requestDetailsOf(raw),
     itemUnits: raw.item ? quantityOf(raw.item) : undefined,
     itemUom: raw.item ? uomOf(raw.item) : undefined,
+    poNumber: raw.transactionType === 'STOCK_IN' ? readItemMeta(raw.item?.notes).poNumber || undefined : undefined,
     totalAmount: calculateApprovalTotalAmount(raw),
     requiredRole: calculateApprovalTotalAmount(raw) > HIGH_VALUE_APPROVAL_THRESHOLD ? 'CHIEF_DIRECTOR' : 'DEPARTMENT_HEAD',
     status: raw.status as ApprovalStatus,
@@ -2275,6 +2279,31 @@ export class StoreService {
    */
   public async handleApproval(payload: ApprovalActionRequest): Promise<TransactionApproval> {
     return prisma.$transaction((db: any) => this.applyDecision(payload, db), { timeout: 20000 });
+  }
+
+  /**
+   * One decision for a whole Model 19: every line received on the same slip with the same PO, all waiting at the
+   * same stage. Each line goes through the same checks as on its own (permissions, stage, the CEO above 10 million
+   * birr); if any line fails, none is changed.
+   */
+  public async handleSlipApproval(payload: SlipApprovalActionRequest): Promise<TransactionApproval[]> {
+    const ids = [...new Set((Array.isArray(payload.approvalIds) ? payload.approvalIds : []).filter((id) => typeof id === 'string' && id))];
+    if (ids.length === 0) throw new BadRequestError('Choose the receipt to review.');
+    if (ids.length > MAX_SLIP_LINES) throw new BadRequestError(`A receipt can be reviewed ${MAX_SLIP_LINES} lines at a time.`);
+    const timeout = Math.min(20000 + ids.length * 1500, 120000);
+    return prisma.$transaction(async (db: any) => {
+      const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true } } } });
+      if (approvals.length !== ids.length) throw new NotFoundError('Part of this receipt no longer exists. Refresh the list.');
+      if (approvals.some((a: any) => a.transactionType !== 'STOCK_IN')) throw new BadRequestError('Only the lines of a receipt (Model 19) are reviewed together.');
+      if (approvals.some((a: any) => a.status !== 'PENDING')) throw new ConflictError('Part of this receipt has already been decided. Refresh the list.');
+      if (new Set(approvals.map((a: any) => a.currentStage ?? 1)).size > 1) throw new ConflictError('The lines of this receipt are at different stages. Review them one by one.');
+      const keyOf = (a: any) => `${String(a.ifmisSlipNumber ?? '').trim().toLowerCase()}|${String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase()}`;
+      if (new Set(approvals.map(keyOf)).size > 1) throw new BadRequestError('These lines are not on the same Model 19 and PO.');
+      const decided: TransactionApproval[] = [];
+      // In slip order, so the history and audit read like the voucher
+      for (const id of ids) decided.push(await this.applyDecision({ ...payload, approvalId: id }, db));
+      return decided;
+    }, { timeout });
   }
 
   private async applyDecision(payload: ApprovalActionRequest, db: any): Promise<TransactionApproval> {

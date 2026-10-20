@@ -380,6 +380,34 @@ export const swaggerDocument = {
         },
       },
     },
+    '/api/items/approvals/slip-action': {
+      post: {
+        tags: ['Approvals & Workflows'],
+        summary: 'Endorse, approve or reject every line of a Model 19 receipt (same slip and PO) at once; all lines or none',
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['approvalIds', 'action'],
+                properties: {
+                  approvalIds: { type: 'array', items: { type: 'string' } },
+                  action: { type: 'string', enum: ['APPROVE', 'ENDORSE', 'REJECT'] },
+                  reviewRemarks: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Every line decided' },
+          400: { description: 'Lines not on one Model 19 and PO, not receipts, or too many' },
+          409: { description: 'A line was already decided, or the lines are at different stages' },
+        },
+      },
+    },
     '/api/items/dashboard/executive': {
       get: {
         tags: ['Executive Dashboard & Reports'],

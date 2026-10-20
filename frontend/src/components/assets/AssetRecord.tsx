@@ -39,6 +39,8 @@ export interface AssetRecordProps {
   position?: { index: number; total: number };
   onPrevious?: () => void;
   onNext?: () => void;
+  /** The Model 19 this record was opened from, to go back to it */
+  backTo?: { label: string; onClick: () => void };
   /** Records the fixed asset's IFMIS tag number; absent when this person can't */
   onSaveIfmisTag?: (tag: string) => Promise<void>;
 }
@@ -172,6 +174,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   onPrevious,
   onNext,
   onSaveIfmisTag,
+  backTo,
 }) => {
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
   const { item } = row;
@@ -221,6 +224,15 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
         </div>
         <div className={`flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between ${editing && formActions?.length ? 'pr-32 lg:pr-40' : !editing && position ? 'pr-44' : 'pr-8'}`}>
           <div className="min-w-0">
+            {backTo && (
+              <button
+                type="button"
+                onClick={backTo.onClick}
+                className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer"
+              >
+                <ChevronLeft className="h-3 w-3" /> {backTo.label}
+              </button>
+            )}
             <h3 className="truncate text-base font-extrabold text-slate-900" title={item.name}>{item.name}</h3>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
               <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-slate-700 bg-slate-100 pl-2 pr-1 py-0.5 rounded-md border border-slate-200">

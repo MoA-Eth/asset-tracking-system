@@ -51,6 +51,8 @@ import { useToast } from '../context/ToastContext';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { getSlipDisplayName } from '../utils/slip-upload';
 import { RefreshButton } from '../components/ui/RefreshButton';
+import { groupBySlip, isSlipGroup, slipKey, slipNames } from '../components/assets/slip-groups';
+import { formatETB } from '../utils/eth-date';
 
 interface ApprovalsPageProps {
   currentRole?: UserRole;
@@ -165,13 +167,45 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     fetchApprovals();
   }, []);
 
+  // The lines of one Model 19 receipt (same slip and PO, waiting at the same stage) are one row: it is reviewed as
+  // a whole. Its row stands in for them; slipLines holds the lines behind it.
+  const { rows, slipLines } = useMemo(() => {
+    const lines = new Map<string, TransactionApproval[]>();
+    const grouped = groupBySlip(approvals, (a) => {
+      if (a.transactionType !== 'STOCK_IN') return undefined;
+      const key = slipKey(a.ifmisSlipNumber, a.poNumber);
+      return key && `${key}|${a.status}|${a.currentStage ?? 1}`;
+    });
+    const list = grouped.map((g): TransactionApproval => {
+      if (!isSlipGroup(g)) return g.single;
+      const id = `slip:${g.key}`;
+      lines.set(id, g.members);
+      const lead = g.members[0];
+      const high = g.members.some((m) => (m.totalAmount || 0) > HIGH_VALUE_THRESHOLD);
+      return {
+        ...lead,
+        id,
+        itemName: slipNames(g.members.map((m) => m.itemName)),
+        itemCode: `${g.members.length} items`,
+        itemUnits: undefined,
+        totalAmount: g.members.reduce((sum, m) => sum + (m.totalAmount || 0), 0),
+        requiredRole: high ? 'CHIEF_DIRECTOR' : 'DEPARTMENT_HEAD',
+        ifmisSlipAttachmentUrl: g.members.find((m) => m.ifmisSlipAttachmentUrl)?.ifmisSlipAttachmentUrl,
+      };
+    });
+    return { rows: list, slipLines: lines };
+  }, [approvals]);
+  /** Above 10 million birr: for a receipt, when any of its lines is (the CEO then signs the whole receipt) */
+  const isHigh = (a: TransactionApproval) =>
+    slipLines.get(a.id)?.some((l) => (l.totalAmount || 0) > HIGH_VALUE_THRESHOLD) ?? (a.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
+
   // Compute live counter metrics
   const metrics = useMemo(() => {
-    const pending = approvals.filter((a) => a.status === ApprovalStatus.PENDING);
+    const pending = rows.filter((a) => a.status === ApprovalStatus.PENDING);
     const stage1 = pending.filter((a) => (a.currentStage ?? 1) === 1);
     const stage2 = pending.filter((a) => a.currentStage === 2);
-    const approved = approvals.filter((a) => a.status === ApprovalStatus.APPROVED);
-    const rejected = approvals.filter((a) => a.status === ApprovalStatus.REJECTED);
+    const approved = rows.filter((a) => a.status === ApprovalStatus.APPROVED);
+    const rejected = rows.filter((a) => a.status === ApprovalStatus.REJECTED);
 
     let myQueueCount = 0;
     if (canEndorse && canApprove) {
@@ -179,9 +213,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     } else if (canEndorse) {
       myQueueCount = stage1.length;
     } else if (isChiefDirector) {
-      myQueueCount = stage2.filter((a) => (a.totalAmount || 0) > HIGH_VALUE_THRESHOLD).length;
+      myQueueCount = stage2.filter((a) => isHigh(a)).length;
     } else if (isDeptHead) {
-      myQueueCount = stage2.filter((a) => (a.totalAmount || 0) <= HIGH_VALUE_THRESHOLD).length;
+      myQueueCount = stage2.filter((a) => !isHigh(a)).length;
     } else if (canApprove) {
       myQueueCount = stage2.length;
     } else {
@@ -194,13 +228,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       stage2Count: stage2.length,
       approvedCount: approved.length,
       rejectedCount: rejected.length,
-      totalCount: approvals.length,
+      totalCount: rows.length,
     };
-  }, [approvals, canEndorse, canApprove]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, slipLines, canEndorse, canApprove]);
 
   // Filtered approvals list
   const filteredApprovals = useMemo(() => {
-    return approvals.filter((item) => {
+    return rows.filter((item) => {
       // 1. Tab Status Filter
       if (activeTab === 'MY_QUEUE') {
         if (item.status !== ApprovalStatus.PENDING) return false;
@@ -211,9 +246,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         }
         if (canApprove) {
           if (item.currentStage !== 2) return false;
-          const isHigh = (item.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
-          if (isChiefDirector && !isHigh) return false;
-          if (isDeptHead && isHigh) return false;
+          const high = isHigh(item);
+          if (isChiefDirector && !high) return false;
+          if (isDeptHead && high) return false;
         }
       } else if (activeTab === 'STAGE_1') {
         if (item.status !== ApprovalStatus.PENDING || (item.currentStage ?? 1) !== 1) return false;
@@ -231,10 +266,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       }
 
       // 3. Value Filter
-      if (valueFilter === 'HIGH_VALUE' && (item.totalAmount || 0) <= HIGH_VALUE_THRESHOLD) {
+      if (valueFilter === 'HIGH_VALUE' && !isHigh(item)) {
         return false;
       }
-      if (valueFilter === 'STANDARD' && (item.totalAmount || 0) > HIGH_VALUE_THRESHOLD) {
+      if (valueFilter === 'STANDARD' && isHigh(item)) {
         return false;
       }
 
@@ -247,13 +282,17 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           item.ifmisSlipNumber.toLowerCase().includes(q) ||
           (item.purposeOrRemarks && item.purposeOrRemarks.toLowerCase().includes(q)) ||
           (item.requestedBy?.fullNameEn && item.requestedBy.fullNameEn.toLowerCase().includes(q)) ||
-          (item.endorsedBy?.fullNameEn && item.endorsedBy.fullNameEn.toLowerCase().includes(q));
+          (item.endorsedBy?.fullNameEn && item.endorsedBy.fullNameEn.toLowerCase().includes(q)) ||
+          (item.poNumber && item.poNumber.toLowerCase().includes(q)) ||
+          // A receipt is found by any of its items
+          (slipLines.get(item.id) ?? []).some((l) => l.itemName.toLowerCase().includes(q) || l.itemCode.toLowerCase().includes(q));
         if (!matches) return false;
       }
 
       return true;
     });
-  }, [approvals, activeTab, typeFilter, valueFilter, searchTerm, canEndorse, canApprove]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, slipLines, activeTab, typeFilter, valueFilter, searchTerm, canEndorse, canApprove]);
 
   type ApprovalSortColumn = 'type' | 'item' | 'slip' | 'stage' | 'requester';
   const [sortColumn, setSortColumn] = useState<ApprovalSortColumn>('type');
@@ -326,6 +365,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     );
   };
 
+  /** Sends a decision: every line of a receipt at once (all or none), or a single request */
+  const decide = (id: string, action: 'ENDORSE' | 'APPROVE' | 'REJECT', reviewedById?: string, remarks?: string) => {
+    const receipt = slipLines.get(id);
+    return receipt
+      ? api.handleSlipApproval({ approvalIds: receipt.map((l) => l.id), action, reviewedById: reviewedById as string, reviewRemarks: remarks })
+      : api.handleApproval({ approvalId: id, action, reviewedById: reviewedById as string, reviewRemarks: remarks });
+  };
+
   // Single Action Handler
   const handleAction = async (approvalId: string, action: 'ENDORSE' | 'APPROVE' | 'REJECT') => {
     setActionError(null);
@@ -342,8 +389,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       return;
     }
 
-    const target = approvals.find((a) => a.id === approvalId) || selectedApproval;
-    const itemCode = target?.itemCode || 'Transaction';
+    const target = rows.find((a) => a.id === approvalId) || selectedApproval;
+    const receipt = slipLines.get(approvalId);
+    const itemCode = receipt ? `Model 19 #${target?.ifmisSlipNumber}, ${receipt.length} items` : target?.itemCode || 'Transaction';
     const typeLabel = typeText(target?.transactionType, target?.requestDetails).label;
 
     setActionLoading(true);
@@ -351,12 +399,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     const approverId = user?.id;
 
     try {
-      await api.handleApproval({
-        approvalId,
-        action,
-        reviewedById: approverId,
-        reviewRemarks: reviewRemarks.trim() || undefined,
-      });
+      await decide(approvalId, action, approverId, reviewRemarks.trim() || undefined);
 
       setSelectedApproval(null);
       setReviewRemarks('');
@@ -415,12 +458,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
     for (const id of selectedIds) {
       try {
-        await api.handleApproval({
-          approvalId: id,
-          action: batchActionType,
-          reviewedById: approverId,
-          reviewRemarks: batchRemarks.trim() || undefined,
-        });
+        await decide(id, batchActionType, approverId, batchRemarks.trim() || undefined);
         successCount++;
       } catch (err) {
         console.error(`Failed to process approval ${id}:`, err);
@@ -533,7 +571,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     }
 
     const stage = appr.currentStage ?? 1;
-    const isHighValue = (appr.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
+    const isHighValue = isHigh(appr);
     return (
       <div className="flex items-center gap-1.5">
         <span
@@ -874,7 +912,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   const isSelected = selectedIds.includes(appr.id);
                   const isPending = appr.status === ApprovalStatus.PENDING;
                   const stage = appr.currentStage ?? 1;
-                  const isHighValue = (appr.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
+                  const isHighValue = isHigh(appr);
                   const canAuthorizeThis =
                     canApprove &&
                     stage === 2 &&
@@ -939,6 +977,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                             )}
                           </div>
                           <span className="text-xs text-slate-500">{appr.ifmisSlipDateEc} E.C.</span>
+                          {appr.poNumber && <span className="text-xs text-slate-500">PO {appr.poNumber}</span>}
                         </div>
                       </td>
 
@@ -964,7 +1003,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() => setViewingApproval(appr)}
+                            onClick={() => setViewingApproval(slipLines.get(appr.id)?.[0] ?? appr)}
                             className={btn.row}
                             title="View the voucher"
                           >
@@ -1085,7 +1124,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 <FileCheck2 className="w-4 h-4 text-emerald-800" />
                 {selectedApproval.currentStage === 1
                   ? 'Stage 1: Team Leader Endorsement'
-                  : (selectedApproval.totalAmount || 0) > HIGH_VALUE_THRESHOLD
+                  : isHigh(selectedApproval)
                     ? 'Stage 2: Chief Director Final Authorization (> 10M ETB)'
                     : 'Stage 2: Directorate Head Final Authorization'}
               </h3>
@@ -1122,12 +1161,47 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     {selectedApproval.ifmisSlipDateEc} E.C. ({selectedApproval.ifmisSlipDateGc})
                   </span>
                 </div>
+                {selectedApproval.poNumber && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">PO number:</span>
+                    <span className="font-mono text-slate-800">{selectedApproval.poNumber}</span>
+                  </div>
+                )}
                 {selectedApproval.purposeOrRemarks && (
                   <div className="pt-1 border-t border-slate-200 text-slate-700">
                     <strong>Official Purpose / Note:</strong> {selectedApproval.purposeOrRemarks}
                   </div>
                 )}
               </div>
+
+              {/* A receipt is decided as a whole: every line on it is listed */}
+              {slipLines.has(selectedApproval.id) && (
+                <div className="rounded-md border border-slate-200">
+                  <p className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">
+                    Items on this Model 19 ({slipLines.get(selectedApproval.id)!.length}) · all are decided together
+                  </p>
+                  <table className="w-full" aria-label="Items on this Model 19">
+                    <tbody className="divide-y divide-slate-100">
+                      {slipLines.get(selectedApproval.id)!.map((l) => (
+                        <tr key={l.id}>
+                          <td className="px-3 py-1.5">
+                            <span className="block text-slate-900">{l.itemName}</span>
+                            <span className="font-mono text-[10px] text-slate-500">{l.itemCode}</span>
+                          </td>
+                          <td className="px-3 py-1.5 text-right text-slate-600 whitespace-nowrap">{approvalUnits(l)?.replace(/^Qty /, '')}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-800 whitespace-nowrap">{formatETB(l.totalAmount || 0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-slate-200">
+                        <td className="px-3 py-1.5 font-semibold text-slate-700" colSpan={2}>Total</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-slate-900 whitespace-nowrap">{formatETB(selectedApproval.totalAmount || 0)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
 
               {/* Endorsement Audit Trail Banner if Stage 2 */}
               {selectedApproval.currentStage === 2 && selectedApproval.endorsedBy && (
@@ -1246,7 +1320,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
               {selectedApproval.currentStage === 2 && canApprove && (
                 (() => {
-                  const isHighVal = (selectedApproval.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
+                  const isHighVal = isHigh(selectedApproval);
                   const canAuthorize = (isChiefDirector && isHighVal) || (isDeptHead && !isHighVal) || (!isChiefDirector && !isDeptHead);
                   if (!canAuthorize) {
                     return (
