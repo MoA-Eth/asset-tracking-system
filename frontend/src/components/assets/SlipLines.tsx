@@ -124,12 +124,16 @@ export const ReceiptItems: React.FC<{
   lines: SlipLine[];
   /** A donation has no price: the price columns are left out */
   donation?: boolean;
+  /** Whether 15% VAT applies to all items on this receipt */
+  vatApplicable?: boolean;
+  /** Toggle 15% VAT for all items */
+  onToggleVat?: (checked: boolean) => void;
   onChange: (lines: SlipLine[]) => void;
   /** Adds an empty line; left out when correcting a receipt, which is one item */
   onAdd?: () => void;
   /** Grand total of all rows */
   total?: number;
-}> = ({ first, lines, donation, onChange, onAdd, total }) => {
+}> = ({ first, lines, donation, vatApplicable, onToggleVat, onChange, onAdd, total }) => {
   const set = (key: number, patch: Partial<SlipLine>) =>
     onChange(
       lines.map((l) => {
@@ -173,7 +177,24 @@ export const ReceiptItems: React.FC<{
               <th className="px-2 py-2.5 text-center">Unit</th>
               <th className="px-2 py-2.5 text-center">Qty</th>
               {!donation && <th className="pl-3 pr-8 py-2.5 text-right">Unit price</th>}
-              {!donation && <th className="px-2 py-2.5 text-center" title="15% VAT auto-calculated">VAT (15%)</th>}
+              {!donation && (
+                <th className="px-2 py-2.5 text-center">
+                  <label
+                    className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 cursor-pointer select-none"
+                    title="Apply 15% VAT to all items on this receipt"
+                  >
+                    <input
+                      id="stock-in-vat-all"
+                      aria-label="VAT (15%) for all items"
+                      type="checkbox"
+                      checked={!!vatApplicable}
+                      onChange={(e) => onToggleVat?.(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                    />
+                    <span>VAT (15%)</span>
+                  </label>
+                </th>
+              )}
               {!donation && <th className="pl-3 pr-8 py-2.5 text-right">Addl charges</th>}
               {!donation && <th className="px-3 py-2.5 text-right">Total</th>}
               <th className="px-2 py-2.5 text-center" />
@@ -184,9 +205,10 @@ export const ReceiptItems: React.FC<{
             {lines.map((l, i) => {
               const n = i + 2;
               const isFixed = isLineFixed(l);
+              const isVat = Boolean(vatApplicable ?? l.vatApplicable);
               const lineBase = (l.quantity || 0) * (l.unitPrice || 0);
-              const lineVat = l.vatApplicable ? Math.round(lineBase * 0.15 * 100) / 100 : 0;
-              const lineTotal = donation ? 0 : lineBase + (l.vatApplicable ? lineVat : (l.additionalCharges || 0));
+              const lineVat = isVat ? Math.round(lineBase * 0.15 * 100) / 100 : 0;
+              const lineTotal = donation ? 0 : lineBase + (isVat ? lineVat : (l.additionalCharges || 0));
               return (
                 <tr key={l.key} className="align-middle hover:bg-slate-50/50 transition-colors">
                   <td className="px-2 py-2.5 font-mono text-slate-400 text-center text-xs">{n}</td>
@@ -276,32 +298,13 @@ export const ReceiptItems: React.FC<{
                   )}
                   {!donation && (
                     <td className="px-2 py-2.5 text-center">
-                      <div className="flex flex-col items-center justify-center gap-1">
-                        <label
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 cursor-pointer select-none"
-                          title="15% VAT auto-calculated (no additional charges allowed)"
-                        >
-                          <input
-                            aria-label={`Item ${n} VAT applicable`}
-                            type="checkbox"
-                            checked={!!l.vatApplicable}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              set(l.key, {
-                                vatApplicable: checked,
-                                additionalCharges: checked ? 0 : l.additionalCharges,
-                              });
-                            }}
-                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
-                          />
-                          <span className="text-[11px] font-semibold text-slate-700">15%</span>
-                        </label>
-                        {l.vatApplicable && lineVat > 0 && (
-                          <span className="text-[10px] font-mono font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 whitespace-nowrap" title="15% VAT auto-calculated">
-                            +{money(lineVat)}
-                          </span>
-                        )}
-                      </div>
+                      {isVat && lineVat > 0 ? (
+                        <span className="text-[10px] font-mono font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 whitespace-nowrap" title="15% VAT auto-calculated">
+                          +{money(lineVat)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300 font-mono text-xs">—</span>
+                      )}
                     </td>
                   )}
                   {!donation && (
@@ -309,12 +312,12 @@ export const ReceiptItems: React.FC<{
                       <MoneyInput
                         aria-label={`Item ${n} additional charges`}
                         suffix=""
-                        disabled={!!l.vatApplicable}
-                        value={l.vatApplicable ? 0 : (l.additionalCharges || 0)}
+                        disabled={isVat}
+                        value={isVat ? 0 : (l.additionalCharges || 0)}
                         onChange={(v) => set(l.key, { additionalCharges: v })}
                         placeholder="0.00"
-                        title={l.vatApplicable ? 'Additional charges not allowed when price includes VAT' : undefined}
-                        inputClassName={`!h-9 !px-2.5 !text-xs !rounded-md ${l.vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
+                        title={isVat ? 'Additional charges not allowed when price includes VAT' : undefined}
+                        inputClassName={`!h-9 !px-2.5 !text-xs !rounded-md ${isVat ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
                       />
                     </td>
                   )}

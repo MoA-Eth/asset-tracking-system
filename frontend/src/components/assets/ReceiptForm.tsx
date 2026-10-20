@@ -192,8 +192,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [extraLines, setExtraLines] = useState<SlipLine[]>([]);
   const extraTotal = donation ? 0 : extraLines.reduce((sum, l) => {
     const base = (l.quantity || 0) * (l.unitPrice || 0);
-    const vat = l.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
-    return sum + base + (l.vatApplicable ? vat : (Number(l.additionalCharges) || 0));
+    const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+    return sum + base + (vatApplicable ? vat : (Number(l.additionalCharges) || 0));
   }, 0);
 
   // Required fields still empty; the receipt can only be submitted once this is empty
@@ -244,6 +244,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     : duplicateLines.length > 0
       ? `${duplicateLines.length === 1 ? `Item "${duplicateLines[0].name.trim()}" was` : `${duplicateLines.length} items were`} already received on Model 19 No. ${ifmisSlipNumber.trim()}. Duplicate entrance is not permitted.`
       : undefined;
+
+  const handleToggleVat = (checked: boolean) => {
+    setVatApplicable(checked);
+    if (checked) {
+      setAdditionalCharges(0);
+      setExtraLines((lines) => lines.map((l) => ({ ...l, additionalCharges: 0 })));
+    }
+  };
 
   // A field shows what is wrong with it once the user has been in it
   const fieldErrors = useFieldErrors({});
@@ -636,11 +644,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         quantity: l.quantity,
         totalAmount: donation ? 0 : (() => {
           const base = l.quantity * l.unitPrice;
-          const vat = l.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
-          return base + (l.vatApplicable ? vat : Number(l.additionalCharges) || 0);
+          const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+          return base + (vatApplicable ? vat : Number(l.additionalCharges) || 0);
         })(),
-        vatApplicable: Boolean(l.vatApplicable),
-        additionalCharges: l.vatApplicable ? 0 : Number(l.additionalCharges) || 0,
+        vatApplicable,
+        additionalCharges: vatApplicable ? 0 : Number(l.additionalCharges) || 0,
       }))];
 
       const slipUrl = copyFile ? (await api.uploadSlip(copyFile)).url : undefined;
@@ -706,11 +714,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         unitPrice: donation ? 0 : l.unitPrice,
         totalAmount: donation ? 0 : (() => {
           const base = l.quantity * l.unitPrice;
-          const vat = l.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
-          return base + (l.vatApplicable ? vat : Number(l.additionalCharges) || 0);
+          const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+          return base + (vatApplicable ? vat : Number(l.additionalCharges) || 0);
         })(),
-        vatApplicable: Boolean(l.vatApplicable),
-        additionalCharges: l.vatApplicable ? 0 : Number(l.additionalCharges) || 0,
+        vatApplicable,
+        additionalCharges: vatApplicable ? 0 : Number(l.additionalCharges) || 0,
         remark: '',
       }))];
 
@@ -857,31 +865,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       )}
       {!donation && (
         <td className="px-2 py-2.5 text-center">
-          <div className="flex flex-col items-center justify-center gap-1">
-            <label
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 cursor-pointer select-none"
-              title="15% VAT auto-calculated (no additional charges allowed)"
-            >
-              <input
-                id="stock-in-vat"
-                aria-label="Item 1 VAT applicable"
-                type="checkbox"
-                checked={vatApplicable}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setVatApplicable(checked);
-                  if (checked) setAdditionalCharges(0);
-                }}
-                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
-              />
-              <span className="text-[11px] font-semibold text-slate-700">15%</span>
-            </label>
-            {vatApplicable && vat1 > 0 && (
-              <span className="text-[10px] font-mono font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 whitespace-nowrap" title="15% VAT auto-calculated">
-                +{money(vat1)}
-              </span>
-            )}
-          </div>
+          {vatApplicable && vat1 > 0 ? (
+            <span className="text-[10px] font-mono font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 whitespace-nowrap" title="15% VAT auto-calculated">
+              +{money(vat1)}
+            </span>
+          ) : (
+            <span className="text-slate-300 font-mono text-xs">—</span>
+          )}
         </td>
       )}
       {!donation && (
@@ -993,12 +983,35 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
       <Part
         title={`Items (${extraLines.length + 1})`}
-        aside={<span className="text-[11px] text-slate-500">{ITEM_CODE_RULE} A fixed asset is one item. Click the badge to toggle type if needed.</span>}
+        aside={
+          <div className="flex flex-wrap items-center gap-3">
+            {!donation && (
+              <label
+                htmlFor="stock-in-vat-master"
+                className="inline-flex items-center gap-1.5 cursor-pointer select-none bg-emerald-50/80 hover:bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200 transition-colors"
+                title="15% VAT auto-calculated for all items (no additional charges allowed)"
+              >
+                <input
+                  id="stock-in-vat-master"
+                  aria-label="VAT applicable (15% for all items)"
+                  type="checkbox"
+                  checked={vatApplicable}
+                  onChange={(e) => handleToggleVat(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                />
+                <span className="text-xs font-semibold text-emerald-800">15% VAT (all items)</span>
+              </label>
+            )}
+            <span className="text-[11px] text-slate-500">{ITEM_CODE_RULE} A fixed asset is one item. Click the badge to toggle type if needed.</span>
+          </div>
+        }
       >
         <ReceiptItems
           first={firstRow}
           lines={linesWithDuplicates}
           donation={donation}
+          vatApplicable={vatApplicable}
+          onToggleVat={handleToggleVat}
           onChange={setExtraLines}
           onAdd={isEdit ? undefined : () => setExtraLines((lines) => [...lines, blankLine()])}
           total={totalAmount + extraTotal}
