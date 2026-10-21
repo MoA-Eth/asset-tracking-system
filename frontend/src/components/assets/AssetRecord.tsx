@@ -9,6 +9,7 @@ import { HeaderActionButton } from '../ui/HeaderActionButton';
 import { FormSection, FieldGrid, Field as FormKitField, ReadOnlyValue, TotalValue, FormNotice } from '../ui/FormKit';
 import { ApprovalStatus, ItemStatus, TransactionApproval } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
+import { valueOf } from '../../utils/item-cost';
 import { isGeneratedSerialNumber, displaySerialNumber } from '../../utils/asset-tag';
 import { storeLocationLabel } from '../../utils/location';
 import { departmentLabel } from '../../utils/department';
@@ -494,9 +495,10 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 const vatAmount = isVat ? Math.round(baseTotal * 0.15 * 100) / 100 : 0;
                 const addlCharges = isVat ? 0 : Number(item.additionalCharges) || 0;
                 const computedTotal = baseTotal + (isVat ? vatAmount : addlCharges);
+                // A batch: every unit it received at what a unit cost (VAT and charges in, the charges counted once)
                 const displayTotal = (item.totalAmount !== undefined && Number(item.totalAmount) > 0 && !totals)
                   ? Number(item.totalAmount)
-                  : computedTotal;
+                  : totals ? valueOf(item, totalUnits) : computedTotal;
 
                 const inStoreRatio = totalUnits > 0 ? (totals ? totals.inStore : (row.state === 'IN_STORE' ? row.units : 0)) / totalUnits : 1;
                 const inStoreValuation = displayTotal * inStoreRatio;

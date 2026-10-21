@@ -17,6 +17,7 @@ import { OtherAssets } from './OtherAssets';
 import { LearnTagPrompt, taggableAssets } from './LearnTagPrompt';
 import { findByTag, printedTag } from '../../utils/asset-tag';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
+import { valueOf } from '../../utils/item-cost';
 import { departmentLabel } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { storeLocationLabel } from '../../utils/location';
@@ -90,7 +91,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [plateNo, setPlateNo] = useState(details.plateNo ?? '');
   const [engineNo, setEngineNo] = useState(details.engineNo ?? '');
   const [depreciation, setDepreciation] = useState<number>(details.depreciation ?? 0);
-  const [bookValue, setBookValue] = useState<number>(details.bookValue ?? (editItem ? (editItem.unitCostETB || 0) * (Number(editItem.quantity) || 1) : 0));
+  const [bookValue, setBookValue] = useState<number>(details.bookValue ?? (editItem ? valueOf(editItem, Number(editItem.quantity) || 1) : 0));
   // Accessories start at zero: the encoder enters what was actually handed over
   const [jackQty, setJackQty] = useState(qtyOf('jack with handle'));
   const [tireWrenchQty, setTireWrenchQty] = useState(qtyOf('tire wrench'));
@@ -140,7 +141,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     if (item && item.status === ItemStatus.AVAILABLE) setReturnToId('');
     if (item) {
       setDepreciation(0);
-      setBookValue((item.unitCostETB || 0) * (Number(item.quantity) || 1));
+      setBookValue(valueOf(item, Number(item.quantity) || 1));
       setChassisNumber(item.serialNumber || '');
       setPlateNo('');
       setEngineNo('');
@@ -417,7 +418,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           onSaved();
           return;
         }
-        const origCost = (item?.unitCostETB || 0) * (Number(item?.quantity) || 1);
+        const origCost = valueOf(item, Number(item?.quantity) || 1);
         await api.registerReturn({
           itemId: selectedItemId,
           ifmisSlipNumber: effectiveModel21No,
@@ -513,7 +514,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       }
 
       const selectedItem = selectedItemObj;
-      const origCost = (selectedItem?.unitCostETB || 0) * (Number(selectedItem?.quantity) || 1);
+      const origCost = valueOf(selectedItem, Number(selectedItem?.quantity) || 1);
       await api.transferItem({
         itemId: selectedItemId,
         ifmisSlipAttachmentUrl: slipUrl,
@@ -552,7 +553,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             ifmisSlipDateGc: transferDateGc,
             model21No: model21No.trim(),
             book: book.trim(),
-            origCost: other.line.origCost ?? (other.asset.unitCostETB || 0) * (Number(other.asset.quantity) || 1),
+            origCost: other.line.origCost ?? valueOf(other.asset, Number(other.asset.quantity) || 1),
             depreciation: other.line.depreciation,
             bookValue: other.line.bookValue,
           });
@@ -606,9 +607,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             serialNumber: o.asset.serialNumber || '',
             uom: o.asset.uom || 'EA',
             unit: Number(o.asset.quantity) || 1,
-            origCost: o.line.origCost ?? (o.asset.unitCostETB || 0) * (Number(o.asset.quantity) || 1),
+            origCost: o.line.origCost ?? valueOf(o.asset, Number(o.asset.quantity) || 1),
             depreciation: o.line.depreciation ?? 0,
-            bookValue: o.line.bookValue ?? (o.asset.unitCostETB || 0) * (Number(o.asset.quantity) || 1),
+            bookValue: o.line.bookValue ?? valueOf(o.asset, Number(o.asset.quantity) || 1),
             dateGc: transferDateGc,
             dateEc: formatGcToEc(transferDateGc),
             fromLocation: storeLocationLabel(o.asset.storeLocation),
@@ -787,7 +788,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                 { label: 'Current location', value: storeLocationLabel(selectedItemObj.storeLocation) },
                 {
                   label: `Original cost (${selectedItemObj.quantity || 1} ${selectedItemObj.uom || 'EA'})`,
-                  value: formatETB((selectedItemObj.unitCostETB || 0) * (Number(selectedItemObj.quantity) || 1)),
+                  value: formatETB(valueOf(selectedItemObj, Number(selectedItemObj.quantity) || 1)),
                   mono: true,
                 },
               ]}
@@ -800,7 +801,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                 value={depreciation}
                 onChange={(val) => {
                   setDepreciation(val);
-                  setBookValue(Math.max(0, (selectedItemObj?.unitCostETB || 0) * (Number(selectedItemObj?.quantity) || 1) - val));
+                  setBookValue(Math.max(0, valueOf(selectedItemObj, Number(selectedItemObj?.quantity) || 1) - val));
                 }}
               />
             </Field>
@@ -1052,7 +1053,7 @@ export const buildModel21Voucher = async (
       ? employees.find((e) => e.id === r.recipientEmployeeId) || r.recipientEmployee
       : employees.find((e) => e.id === d.storeRecipientId);
   const units = Number(item?.quantity) || 1;
-  const origCost = d.origCost ?? (item?.unitCostETB || 0) * units;
+  const origCost = d.origCost ?? valueOf(item, units);
   const fromLoc = storeLocationLabel(item?.storeLocation);
   const toLocation = locations.find((l) => l.id === r.targetLocationId);
   const storeName = toLocation ? storeLocationLabel(toLocation) : fromLoc || 'Store';

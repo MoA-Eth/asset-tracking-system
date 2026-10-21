@@ -11,6 +11,7 @@ import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { ItemWithRelations, TransactionApproval, Department, Employee, Model22Voucher, Organization } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
+import { costOf } from '../../utils/item-cost';
 import { departmentLabel } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { useSystemSettings } from '../../utils/system-settings';
@@ -227,7 +228,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const { slipAttachmentPolicy, showScannedSlipField } = useSystemSettings();
   const isAttachmentReq = slipAttachmentPolicy === 'REQUIRED';
 
-  const totalAmount = rows.reduce((sum, r) => sum + (Number(r.quantity) || 0) * (itemOf(r)?.unitCostETB || 0), 0);
+  // Each unit at what it cost, VAT and charges in, as IFMIS issues it
+  const totalAmount = Math.round(rows.reduce((sum, r) => sum + (Number(r.quantity) || 0) * costOf(itemOf(r)), 0) * 100) / 100;
   const grandTotal = totalAmount + transportationCost;
   const ethDate = formatGcToEc(issuedDateGc);
   const usedNo = slips.findUsed(model22No, ['STOCK_OUT'], editApproval?.id);
@@ -567,7 +569,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             itemId: effectiveRows[0].itemId,
             subInventory,
             quantity: effectiveRows[0].quantity,
-            unitPrice: single?.unitCostETB || 0,
+            unitPrice: costOf(single),
             totalAmount,
           })
         : await api.registerStockOut({ ...shared, itemId: rows[0].itemId, lines: effectiveRows.map((r) => ({ itemId: r.itemId, quantity: r.quantity })) });
@@ -587,7 +589,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         disposalReason: isDisposal ? purpose.trim() : undefined,
         items: rows.map((r, i) => {
           const item = itemOf(r)!;
-          const unitPrice = item.unitCostETB || 0;
+          const unitPrice = costOf(item);
           return {
             sNo: i + 1,
             // The Item column of the IFMIS Model 22 is the IFMIS item code; older records without one show their own code
@@ -635,7 +637,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         .map((item) => ({
           value: item.id,
           label: `${item.itemCode} — ${item.name}`,
-          note: `${unitsOf(item)} ${uomOf(item)} in store · ${formatETB(item.unitCostETB)} each${item.ifmisItemCode ? ` · ${item.ifmisItemCode}` : ''}${item.ifmisSlipNumber ? ` · Model 19 ${item.ifmisSlipNumber}` : ''}`,
+          note: `${unitsOf(item)} ${uomOf(item)} in store · ${formatETB(costOf(item))} each${item.ifmisItemCode ? ` · ${item.ifmisItemCode}` : ''}${item.ifmisSlipNumber ? ` · Model 19 ${item.ifmisSlipNumber}` : ''}`,
         })),
     },
   ];
@@ -726,7 +728,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
       </Part>
 
-      <Part title={rows.length > 1 ? `Items (${rows.length})` : 'Items'} aside={<span className="text-[11px] text-slate-500">From one store. Unit price as received on Model 19, without VAT or charges, as IFMIS keeps unit cost.</span>}>
+      <Part title={rows.length > 1 ? `Items (${rows.length})` : 'Items'} aside={<span className="text-[11px] text-slate-500">From one store. Unit price is what a unit cost on its Model 19, VAT and charges included, as IFMIS issues it.</span>}>
         <div className="overflow-hidden rounded-md border border-slate-200">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-xs">
@@ -789,8 +791,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                         <QuantityInput id={qtyId} min={0.0001} max={item ? inStore : undefined} value={row.quantity} onChange={(q) => setRow(row.key, { quantity: q })} className={cellClass({ align: 'right', mono: true, invalid: overStock })} />
                         {overStock && <p className="mt-0.5 text-right text-[10px] text-rose-700">Only {inStore} {uomOf(item)} in store</p>}
                       </td>
-                      <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? money(item.unitCostETB || 0) : '—'}</td>
-                      <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? money((item.unitCostETB || 0) * (row.quantity || 0)) : '—'}</td>
+                      <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? money(costOf(item)) : '—'}</td>
+                      <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? money(Math.round(costOf(item) * (row.quantity || 0) * 100) / 100) : '—'}</td>
                       <td className="px-1 py-1.5 pt-3">
                         {!isEdit && rows.length > 1 && (
                           <button
@@ -1018,7 +1020,7 @@ export const buildModel22Voucher = (
   const subInventory = itemDetails?.subInventory || itemDetails?.storeLocation?.roomNumber || '—';
   const lines = sameModel22(approval, context.requests).map((r, i) => {
     const item = r.id === approval.id ? itemDetails : context.items?.find((x) => x.id === r.itemId);
-    const unitPrice = item?.unitCostETB || 0;
+    const unitPrice = costOf(item);
     const quantity = Number(r.requestDetails?.quantity) || Number(item?.quantity) || 1;
     return {
       sNo: i + 1,

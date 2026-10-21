@@ -4,6 +4,7 @@ import { Department, ItemWithRelations } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
 import { departmentLabel } from '../../utils/department';
 import { BarList, BarRow, ColumnChart, Donut } from '../ui/charts';
+import { costOf } from '../../utils/item-cost';
 
 // Same colours as the dashboard: a colour belongs to what it stands for, never to its rank.
 // Checked for colour-blind separation; the pale ones are always paired with a written value.
@@ -80,7 +81,7 @@ export const ReportCharts: React.FC<ReportChartsProps> = ({ items, splitsByRoot,
     for (const item of items) {
       const units = unitsOf(item);
       const cur = sums.get(item.category) ?? { value: 0, units: 0 };
-      sums.set(item.category, { value: cur.value + item.unitCostETB * units, units: cur.units + units });
+      sums.set(item.category, { value: cur.value + costOf(item) * units, units: cur.units + units });
     }
     const rows = [...sums.entries()].map(([category, s]) => ({
       key: category,

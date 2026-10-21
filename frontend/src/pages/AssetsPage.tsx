@@ -34,6 +34,7 @@ import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { Model21PrintModal } from '../components/ui/Model21PrintModal';
 import { StockInForm, buildModel19Voucher, templateFromItem, templateFromSlip, ReceiptTemplate } from '../components/assets/ReceiptForm';
 import { FormNotice } from '../components/ui/FormKit';
+import { costOf, valueOf } from '../utils/item-cost';
 import { StockOutForm, buildModel22Voucher } from '../components/assets/IssueForm';
 import { TransferForm, buildModel21Voucher } from '../components/assets/TransferForm';
 import { DisposalForm, buildDisposalVoucher } from '../components/assets/DisposalForm';
@@ -493,8 +494,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           break;
         }
         case 'cost': {
-          const aVal = a.row.item.unitCostETB ?? 0;
-          const bVal = b.row.item.unitCostETB ?? 0;
+          const aVal = costOf(a.row.item);
+          const bVal = costOf(b.row.item);
           res = aVal - bVal;
           break;
         }
@@ -925,11 +926,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         const { isBatch, totalUnits, inStoreUnits, issuedUnits, holders } = batchSummary(group.row, children);
         const uom = item.uom || 'EA';
         const units = isBatch ? totalUnits : group.row.units;
-        const baseCost = (item.unitCostETB || 0) * units;
-        const isVat = Boolean(item.vatApplicable);
-        const vat = isVat ? Math.round(baseCost * 0.15 * 100) / 100 : 0;
-        const addl = isVat ? 0 : Number(item.additionalCharges) || 0;
-        const totalValue = item.totalAmount && !isBatch ? Number(item.totalAmount) : (baseCost + (isVat ? vat : addl));
+        // Every unit at what it cost, VAT and charges in (a batch's charges counted once, shared over its units)
+        const totalValue = valueOf(item, units);
         const whereText = isBatch && group.row.state !== 'ISSUED' && inStoreUnits === 0
           ? '—'
           : group.row.where || '';
@@ -951,7 +949,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           custodySummary,
           item.ifmisSlipNumber || '',
           item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10),
-          item.unitCostETB || 0,
+          Math.round(costOf(item) * 100) / 100,
           totalValue,
         ];
       });
@@ -1050,7 +1048,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <span className="block">{item.ifmisSlipNumber || '—'}</span>
           <span className="block text-xs text-slate-500">{item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10) || '—'}</span>
         </td>
-        <td className="px-2.5 py-2 text-right tabular-nums text-slate-700 whitespace-nowrap">{Number(item.unitCostETB) > 0 ? formatETB(item.unitCostETB) : '—'}</td>
+        <td className="px-2.5 py-2 text-right tabular-nums text-slate-700 whitespace-nowrap">{costOf(item) > 0 ? formatETB(Math.round(costOf(item) * 100) / 100) : '—'}</td>
         <td className={`px-2.5 py-2 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
           <RowActionsMenu
             label={item.itemCode}
@@ -1266,11 +1264,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       if (row.state === 'REJECTED' || row.state === 'RECEIPT_PENDING' || row.state === 'DISPOSED') return acc;
       const { isBatch, totalUnits, inStoreUnits } = batchSummary(row, group.children ?? []);
       const units = isBatch ? totalUnits : row.units;
-      const baseCost = (row.item.unitCostETB || 0) * units;
-      const isVat = Boolean(row.item.vatApplicable);
-      const vat = isVat ? Math.round(baseCost * 0.15 * 100) / 100 : 0;
-      const addl = isVat ? 0 : Number(row.item.additionalCharges) || 0;
-      const lineTotal = row.item.totalAmount && !isBatch ? Number(row.item.totalAmount) : (baseCost + (isVat ? vat : addl));
+      const lineTotal = valueOf(row.item, units);
       const inStoreRatio = units > 0 ? (isBatch ? inStoreUnits : row.state === 'IN_STORE' ? row.units : 0) / units : 0;
       acc.value += lineTotal;
       acc.inStore += lineTotal * inStoreRatio;

@@ -484,3 +484,14 @@ describe('Issue items (Model 22): an organization named on the slip', () => {
     await vi.waitFor(() => expect(screen.getByRole('combobox', { name: /Received by/ })).toHaveTextContent('Sidama Bureau of Agriculture'));
   });
 });
+
+describe('Issue items (Model 22): the unit price, as IFMIS issues it', () => {
+  it('is what a unit cost on its Model 19, VAT included: the battery bought at 16,490 + VAT is issued at 18,963.50', () => {
+    renderWith(item({ name: 'Battery 12v - 70 Amp', quantity: 2, uom: 'EA', unitCostETB: 16_490, vatApplicable: true, totalAmount: 37_927, costPerUnit: 18_963.5 }));
+    const cells = [...screen.getByLabelText('Quantity to issue').closest('tr')!.querySelectorAll('td')].map((td) => td.textContent);
+    expect(cells).toContain('18,963.5');
+    // Both batteries: the receipt's total
+    expect(cells).toContain('37,927');
+    expect(screen.getByText(/Grand total/).parentElement).toHaveTextContent('ETB 37,927.00');
+  });
+});

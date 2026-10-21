@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { costOf, valueOf } from '../utils/item-cost';
 import {
   Search,
   FileText,
@@ -284,7 +285,7 @@ export const ReportsPage: React.FC = () => {
 
   // Aggregate Total Valuation
   const totalValuation = useMemo(() => {
-    return filteredItems.reduce((sum, item) => sum + item.unitCostETB * reportUnits(item), 0);
+    return filteredItems.reduce((sum, item) => sum + costOf(item) * reportUnits(item), 0);
   }, [filteredItems, reportType]);
 
   const unitTotals = useMemo(
@@ -394,8 +395,8 @@ export const ReportsPage: React.FC = () => {
         balanceOf(item).total,
         balanceOf(item).issued,
         balanceOf(item).available,
-        item.unitCostETB,
-        item.unitCostETB * reportUnits(item),
+        Math.round(costOf(item) * 100) / 100,
+        valueOf(item, reportUnits(item)),
       ]);
 
       downloadCsv(`MoA_Asset_Report_${reportType}_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
@@ -479,7 +480,7 @@ export const ReportsPage: React.FC = () => {
         item.ifmisSlipNumber,
         item.ifmisSlipDateEc || item.createdAtEc,
         item.currentCustodian?.fullNameEn || item.heldByOrganization || item.assignedDepartment?.nameEn || storeLocationLabel(item.storeLocation),
-        formatETB(item.unitCostETB),
+        formatETB(costOf(item)),
       ]);
 
       autoTable(doc, {
@@ -567,7 +568,7 @@ export const ReportsPage: React.FC = () => {
         const custB = b.currentCustodian?.fullNameEn || b.heldByOrganization || b.assignedDepartment?.nameEn || storeLocationLabel(b.storeLocation);
         diff = custA.localeCompare(custB);
       } else if (sortColumn === 'cost') {
-        diff = a.unitCostETB - b.unitCostETB;
+        diff = costOf(a) - costOf(b);
       }
       return sortDirection === 'asc' ? diff : -diff;
     });
@@ -1314,10 +1315,10 @@ export const ReportsPage: React.FC = () => {
                       </td>
                       <td className="py-2 px-3 text-right tabular-nums text-slate-900 whitespace-nowrap w-32 shrink-0">
                         <div className="font-mono font-bold text-slate-900 text-xs">
-                          {formatETB(item.unitCostETB * reportUnits(item))}
+                          {formatETB(valueOf(item, reportUnits(item)))}
                         </div>
                         <div className="text-[11px] text-slate-500 font-mono">
-                          {formatETB(item.unitCostETB)} <span className="text-slate-400">/ {item.uom || "EA"}</span>
+                          {formatETB(costOf(item))} <span className="text-slate-400">/ {item.uom || "EA"}</span>
                         </div>
                       </td>
                       <td className="py-2 px-2 text-center whitespace-nowrap w-12 shrink-0 no-print">

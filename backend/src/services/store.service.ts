@@ -219,7 +219,7 @@ export function calculateApprovalTotalAmount(raw: any, itemObj?: any): number {
   if (raw?.transactionType === 'DISPOSAL') {
     const original = itemObj ?? raw?.item;
     const units = Number(req?.quantity) || (original ? quantityOf(original) : 1);
-    return original ? costPerUnit(original) * units : 0;
+    return original ? Math.round(costPerUnit(original) * units * 100) / 100 : 0;
   }
   if (req?.bookValue && Number(req.bookValue) > 0) {
     return Number(req.bookValue);
@@ -229,7 +229,7 @@ export function calculateApprovalTotalAmount(raw: any, itemObj?: any): number {
   // with the Model 22's transport cost on the line that carries it; not the record's whole received total
   const asked = Number(req?.quantity);
   if (raw?.transactionType && raw.transactionType !== 'STOCK_IN' && Number.isFinite(asked) && asked > 0) {
-    return (item ? costPerUnit(item) : 0) * asked + (Number(req?.transportationCost) || 0);
+    return Math.round(((item ? costPerUnit(item) : 0) * asked + (Number(req?.transportationCost) || 0)) * 100) / 100;
   }
   if (item?.notes) {
     const meta = readItemMeta(item.notes);
@@ -677,13 +677,15 @@ function uomOf(item: { notes?: string | null }): string {
  * on the receipt stays the price before VAT. A donation costs nothing.
  */
 export function costPerUnit(item: { notes?: string | null; unitCostETB?: number | null }): number {
+  // To 5 decimals, as IFMIS prints a unit price (18,963.50000)
+  const round5 = (n: number) => Math.round(n * 1e5) / 1e5;
   const meta = readItemMeta(item.notes);
   const qty = quantityOf(item);
   const total = Number(meta.totalAmount);
-  if (Number.isFinite(total) && total > 0) return total / qty;
+  if (Number.isFinite(total) && total > 0) return round5(total / qty);
   const unit = Number(item.unitCostETB) || 0;
-  if (meta.vatApplicable) return unit * 1.15;
-  return unit + (Number(meta.additionalCharges) || 0) / qty;
+  if (meta.vatApplicable) return round5(unit * 1.15);
+  return round5(unit + (Number(meta.additionalCharges) || 0) / qty);
 }
 
 /**
@@ -3338,7 +3340,7 @@ export class StoreService {
 
     const topValuationAssets = onRecord
       .slice()
-      .sort((a, b) => (b.unitCostETB || 0) * unitsOf(b) - (a.unitCostETB || 0) * unitsOf(a))
+      .sort((a, b) => (b.costPerUnit ?? b.unitCostETB ?? 0) * unitsOf(b) - (a.costPerUnit ?? a.unitCostETB ?? 0) * unitsOf(a))
       .slice(0, 8);
 
     return {

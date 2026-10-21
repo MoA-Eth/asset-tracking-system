@@ -14,6 +14,7 @@ import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { DisposalVoucher, Employee, ItemCondition, ItemStatus, ItemWithRelations, TransactionApproval } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
+import { costOf } from '../../utils/item-cost';
 import { getSystemSettings, useSystemSettings } from '../../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
 
@@ -59,7 +60,8 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
 
   const inStore = Number(item.quantity) || 1;
   const uom = item.uom || 'EA';
-  const unitPrice = item.unitCostETB || 0;
+  // What a unit cost, VAT and charges in: the original cost IFMIS prints
+  const unitPrice = costOf(item);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -567,7 +569,7 @@ export const buildDisposalVoucher = (
   const lineOf = (r: TransactionApproval, sNo: number) => {
     const rd = r.requestDetails ?? {};
     const it = r.id === approval.id ? item : context.items?.find((x) => x.id === r.itemId);
-    const unitPrice = it?.unitCostETB || 0;
+    const unitPrice = costOf(it);
     const quantity = Number(rd.quantity) || Number(it?.quantity) || 1;
     return {
       sNo,

@@ -4,6 +4,7 @@ import { Printer, ShieldCheck, FileCheck, Building2, UserCheck, Barcode, Externa
 import { CloseButton } from './CloseButton';
 import { TransactionApproval, ItemWithRelations } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
+import { costOf } from '../../utils/item-cost';
 import { displaySerialNumber } from '../../utils/asset-tag';
 import { useToast } from '../../context/ToastContext';
 import { openSlipInNewTab } from '../../utils/slip-upload';
@@ -35,7 +36,8 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
   const itemCode = approval?.itemCode || item?.itemCode || 'MOA-ASSET-001';
   const serialNo = displaySerialNumber(item?.serialNumber);
   const category = item?.category?.replace(/_/g, ' ') || 'EQUIPMENT';
-  const unitCost = item?.unitCostETB || 0;
+  // A receipt prints the price as received; an issue or transfer what a unit cost, VAT and charges in
+  const unitCost = approval?.transactionType === 'STOCK_IN' || voucherType === 'MODEL_19_STOCK_IN' ? item?.unitCostETB || 0 : costOf(item);
   // A Stock-Out may issue part of a batch; otherwise the record's own units
   const quantity = Number(approval?.requestDetails?.quantity) || Number(item?.quantity) || approval?.itemUnits || 1;
   const uom = approval?.requestDetails?.uom || item?.uom || approval?.itemUom || 'EA';

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { DashboardSkeleton } from '../components/ui/Skeleton';
+import { costOf } from '../utils/item-cost';
 import {
   RefreshCw,
   Eye,
@@ -1246,7 +1247,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                     </p>
                   </div>
                   <StatusTag status={asset.status} />
-                  <span className="w-28 shrink-0 text-right text-xs font-semibold text-slate-900">{formatETB(asset.unitCostETB)}</span>
+                  <span className="w-28 shrink-0 text-right text-xs font-semibold text-slate-900">{formatETB(costOf(asset))}</span>
                 </li>
               ))}
             </ol>
