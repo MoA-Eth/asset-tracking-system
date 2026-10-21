@@ -537,7 +537,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           purpose: purpose.trim() || undefined,
           remark: remark.trim() || undefined,
         });
-        toast.success('Issue request updated', `The request for ${editApproval.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
+        toast.success('Issue request updated', `The request for ${editApproval.itemCode} was corrected. ${editApproval.status === 'RETURNED' ? 'It stays returned for correction until it is resubmitted.' : 'It is still waiting for Team Leader endorsement.'}`);
         onSuccess(res.approval);
       } catch (err: any) {
         setFormError(`Update failed: ${err.message || 'Server error'}`);

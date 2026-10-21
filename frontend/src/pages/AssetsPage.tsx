@@ -640,6 +640,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             locations={locations}
             employees={employees}
             editItem={item}
+            returned={pendingByItem.get(item.id)?.status === ApprovalStatus.RETURNED}
             registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && i.id !== item.id).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
             rejectedReceipts={rejectedReceipts}
             onCancel={() => setEditing(false)}
@@ -1420,7 +1421,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     editItem={receipt.edit}
                     template={receipt.template}
                     registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (!receipt.edit || i.id !== receipt.edit.id)).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
-            rejectedReceipts={rejectedReceipts}
+                    rejectedReceipts={rejectedReceipts}
                     onCancel={() => setReceipt(null)}
                     onSuccess={(result, voucher) => {
                       setReceipt(null);

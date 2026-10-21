@@ -414,7 +414,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             storeRecipientId: receiverId || undefined,
             targetStoreLocationId: returnToId,
           });
-          toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} to store was corrected. It is still waiting for Team Leader endorsement.`);
+          toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} to store was corrected. ${editTransfer.status === 'RETURNED' ? 'It stays returned for correction until it is resubmitted.' : 'It is still waiting for Team Leader endorsement.'}`);
           onSaved();
           return;
         }
@@ -508,7 +508,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           transferredByEmployeeId: transferredById || undefined,
           ifmisSlipDateGc: transferDateGc,
         });
-        toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} was corrected. It is still waiting for Team Leader endorsement.`);
+        toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} was corrected. ${editTransfer.status === 'RETURNED' ? 'It stays returned for correction until it is resubmitted.' : 'It is still waiting for Team Leader endorsement.'}`);
         onSaved();
         return;
       }

@@ -70,7 +70,8 @@ export const slipStatusSummary = (rows: AssetRow[]): string => standings(rows).m
  */
 export const SlipStatus: React.FC<{ rows: AssetRow[] }> = ({ rows }) => {
   const list = standings(rows);
-  if (list.length === 1) return <AssetStatus row={{ ...rows[0], rejected: undefined }} />;
+  // All the same: the badge of one item; a rejected receipt keeps its reason, other states don't show an older rejection
+  if (list.length === 1) return <AssetStatus row={{ ...rows[0], rejected: rows[0].state === 'REJECTED' ? rows[0].rejected : undefined }} />;
   return (
     <span className="inline-flex flex-wrap items-center gap-1" aria-label={slipStatusSummary(rows)}>
       {list.map(({ key, label, tone, n }) => (

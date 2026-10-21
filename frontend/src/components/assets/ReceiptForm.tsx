@@ -40,6 +40,8 @@ export interface StockInFormProps {
   initialSlip?: File;
   /** Receipt lines already registered, to warn when a Model 19 line is received a second time */
   registered?: { slipNumber?: string; name: string; itemCode: string }[];
+  /** Correcting a receipt returned for correction: it stays returned until it is resubmitted */
+  returned?: boolean;
   /** Receipts rejected for good: their Model 19 No. and PO can't be received again */
   rejectedReceipts?: { slipNumber: string; poNumber?: string; reason?: string; by?: string; on?: string }[];
 }
@@ -127,7 +129,7 @@ export const templateFromSlip = (items: ItemWithRelations[]): ReceiptTemplate =>
   };
 };
 
-export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template, initialSlip, registered, rejectedReceipts }) => {
+export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template, initialSlip, registered, rejectedReceipts, returned }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
@@ -768,7 +770,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           'Receipt updated',
           extraLines.length > 0
             ? `${editItem.itemCode} was corrected and ${extraLines.length} item${extraLines.length === 1 ? '' : 's'} added to Model 19 #${slipNo}. All wait for Team Leader endorsement.`
-            : `${editItem.itemCode} was corrected. It is still waiting for Team Leader endorsement.`
+            : `${editItem.itemCode} was corrected. ${returned ? 'It stays returned for correction until it is resubmitted.' : 'It is still waiting for Team Leader endorsement.'}`
         );
         onSuccess(res);
       } catch (err: any) {
