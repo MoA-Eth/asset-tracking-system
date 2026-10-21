@@ -18,6 +18,7 @@ import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDispla
 import { readPdfPages, rowsToText, isModel19, isModel21, isModel22, isDisposalForm, parseModel22, Model22SlipFields } from '../../utils/slip-reader';
 import { Part, SlipPreview } from './FormParts';
 import { cellClass, money } from './SlipLines';
+import { categoryLabel } from './asset-state';
 
 // ─── Issue items (Model 22) ──────────────────────────────────────────────────
 
@@ -594,7 +595,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             itemDescription: item.name,
             uom: uomOf(item),
             subInventory: item.subInventory || item.storeLocation?.roomNumber || '',
-            itemCategory: item.itemCategoryDisplay || item.category?.replace(/_/g, ' ') || '',
+            itemCategory: categoryLabel(item),
             quantity: r.quantity,
             unitPrice,
             totalAmount: unitPrice * r.quantity,
@@ -1025,7 +1026,7 @@ export const buildModel22Voucher = (
       itemDescription: r.itemName,
       uom: item?.uom || 'EA',
       subInventory: item?.subInventory || item?.storeLocation?.roomNumber || subInventory,
-      itemCategory: item?.itemCategoryDisplay || (item?.category as string) || '—',
+      itemCategory: item ? categoryLabel(item) || '—' : '—',
       quantity,
       unitPrice,
       totalAmount: unitPrice * quantity,

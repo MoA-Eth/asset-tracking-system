@@ -15,6 +15,7 @@ import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalFo
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
 import { ReceiptItems, SlipLine, ItemTypeTag, lineMissing, blankLine, cellClass, money } from './SlipLines';
 import { slipKey } from './slip-groups';
+import { categoryLabel } from './asset-state';
 import { UomSelect } from './UomSelect';
 import { ProgramSelect } from './ProgramSelect';
 import { useToast } from '../../context/ToastContext';
@@ -1262,7 +1263,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
       itemDescription: it.name,
       uom: it.uom || 'EA',
       subInventory: it.subInventory || item.storeLocation?.roomNumber || '—',
-      itemCategory: it.itemCategoryDisplay || it.category.replace(/_/g, ' '),
+      itemCategory: categoryLabel(it),
       itemType: it.itemType,
       lotBatchNo: it.lotBatchNo || '',
       serialNo: displaySerialNumber(it.serialNumber) === '—' ? '' : it.serialNumber,

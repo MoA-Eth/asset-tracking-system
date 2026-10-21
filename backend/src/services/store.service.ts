@@ -215,6 +215,12 @@ export function calculateApprovalTotalAmount(raw: any, itemObj?: any): number {
     return Number(req.bookValue);
   }
   const item = itemObj ?? raw?.item;
+  // An issue (or a disposal) of part of a record is worth what it takes out: the units asked for at the unit price,
+  // with the Model 22's transport cost on the line that carries it; not the record's whole received total
+  const asked = Number(req?.quantity);
+  if (raw?.transactionType && raw.transactionType !== 'STOCK_IN' && Number.isFinite(asked) && asked > 0) {
+    return (Number(item?.unitCostETB) || 0) * asked + (Number(req?.transportationCost) || 0);
+  }
   if (item?.notes) {
     const meta = readItemMeta(item.notes);
     if (meta?.totalAmount && Number(meta.totalAmount) > 0) {
@@ -3120,9 +3126,10 @@ export class StoreService {
       }),
     );
     const pendingApprovals = pendingRows.length;
+    // What the pending requests are worth, as the approvers see them: an issue by the units it takes, not its whole record
     const pendingApprovalsValuationETB = pendingApprovalsList.reduce((s, r) => {
-      const it = scopedById.get(r.itemId);
-      return s + (it ? (Number(it.unitCostETB) || 0) * (Number(it.quantity) || 1) : 0);
+      const it: any = itemById.get(r.itemId);
+      return s + (it ? calculateApprovalTotalAmount(r, it) : 0);
     }, 0);
     const stage2Rows = pendingRows.filter((r) => r.currentStage === 2);
     const pendingStageCounts = {

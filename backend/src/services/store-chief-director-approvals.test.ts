@@ -64,6 +64,15 @@ describe('Chief Director & 10M High-Value Approval Workflow', () => {
     expect(calculateApprovalTotalAmount(raw4)).toBe(1_000_000);
   });
 
+  it('values an issue by the units it takes, with its transport cost, not by the whole record received', () => {
+    // 50 received for 5,000 (with VAT the receipt saved 5,750); 20 issued at 100 each, transport 300 on this line
+    const item = { notes: JSON.stringify({ quantity: 50, uom: 'EA', totalAmount: 5_750 }), unitCostETB: 100 };
+    expect(calculateApprovalTotalAmount({ transactionType: 'STOCK_OUT', requestDetails: { quantity: 20, transportationCost: 300 }, item })).toBe(2_300);
+    expect(calculateApprovalTotalAmount({ transactionType: 'STOCK_OUT', requestDetails: { quantity: 15 }, item })).toBe(1_500);
+    // A receipt is still worth what was received, VAT included
+    expect(calculateApprovalTotalAmount({ transactionType: 'STOCK_IN', requestDetails: { quantity: 50 }, item })).toBe(5_750);
+  });
+
   it('routes statutory requiredRole as CHIEF_DIRECTOR when amount > 10M, and DEPARTMENT_HEAD when <= 10M', async () => {
     const rawHigh = {
       id: 'appr-high',
