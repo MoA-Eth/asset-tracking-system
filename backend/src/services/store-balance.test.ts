@@ -203,6 +203,23 @@ describe('partial Stock-Out', () => {
     expect(result.requestDetails?.issuedItemCode).toBe('MOA-IT-2026-0080-1');
   });
 
+  it('shares the total and the additional charges between the parts, so they add up to what the whole cost', async () => {
+    db.transactionApproval.findUnique.mockResolvedValue(approvalAt(4));
+    db.transactionApproval.update.mockImplementation(async ({ data }: any) => ({ ...approvalAt(4), ...data }));
+    // 10 at 3,500 with 1,000 of charges: 36,000, so 3,600 a unit
+    const withCharges = { ...batch, notes: JSON.stringify({ ...JSON.parse(meta(10)), additionalCharges: 1_000, totalAmount: 36_000 }) };
+    db.item.findUnique.mockImplementation(async ({ where }: any) => (where.id === 'item-1' ? withCharges : null));
+    db.item.count.mockResolvedValue(0);
+
+    await approve();
+
+    const kept = JSON.parse(db.item.update.mock.calls[0][0].data.notes);
+    const issued = JSON.parse(db.item.create.mock.calls[0][0].data.notes);
+    expect(kept).toMatchObject({ quantity: 6, totalAmount: 21_600, additionalCharges: 600 });
+    expect(issued).toMatchObject({ quantity: 4, totalAmount: 14_400, additionalCharges: 400 });
+    expect(kept.totalAmount + issued.totalAmount).toBe(36_000);
+  });
+
   it('numbers further splits after the existing ones, keyed to the original registration', async () => {
     db.transactionApproval.findUnique.mockResolvedValue(approvalAt(2));
     db.transactionApproval.update.mockImplementation(async ({ data }: any) => ({ ...approvalAt(2), ...data }));

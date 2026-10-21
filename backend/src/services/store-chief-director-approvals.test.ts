@@ -5,6 +5,7 @@ import {
 } from '../types/asset-management';
 import {
   calculateApprovalTotalAmount,
+  costPerUnit,
   HIGH_VALUE_APPROVAL_THRESHOLD,
   StoreService,
   pendingVouchers,
@@ -64,11 +65,11 @@ describe('Chief Director & 10M High-Value Approval Workflow', () => {
     expect(calculateApprovalTotalAmount(raw4)).toBe(1_000_000);
   });
 
-  it('values an issue by the units it takes, with its transport cost, not by the whole record received', () => {
-    // 50 received for 5,000 (with VAT the receipt saved 5,750); 20 issued at 100 each, transport 300 on this line
+  it('values an issue by the units it takes, at what a unit cost with VAT, with its transport cost', () => {
+    // 50 received at 100 + VAT: 5,750, so 115 a unit as IFMIS carries it; 20 issued, transport 300 on this line
     const item = { notes: JSON.stringify({ quantity: 50, uom: 'EA', totalAmount: 5_750 }), unitCostETB: 100 };
-    expect(calculateApprovalTotalAmount({ transactionType: 'STOCK_OUT', requestDetails: { quantity: 20, transportationCost: 300 }, item })).toBe(2_300);
-    expect(calculateApprovalTotalAmount({ transactionType: 'STOCK_OUT', requestDetails: { quantity: 15 }, item })).toBe(1_500);
+    expect(calculateApprovalTotalAmount({ transactionType: 'STOCK_OUT', requestDetails: { quantity: 20, transportationCost: 300 }, item })).toBe(2_600);
+    expect(calculateApprovalTotalAmount({ transactionType: 'STOCK_OUT', requestDetails: { quantity: 15 }, item })).toBe(1_725);
     // A receipt is still worth what was received, VAT included
     expect(calculateApprovalTotalAmount({ transactionType: 'STOCK_IN', requestDetails: { quantity: 50 }, item })).toBe(5_750);
   });
@@ -303,5 +304,17 @@ describe('A disposal is weighed at its original cost', () => {
     expect(calculateApprovalTotalAmount({ transactionType: 'DISPOSAL', requestDetails: { quantity: 1, bookValue: 2_500 }, item })).toBe(15_000_000);
     // Part of a record: the units disposed of at the unit price
     expect(calculateApprovalTotalAmount({ transactionType: 'DISPOSAL', requestDetails: { quantity: 3, bookValue: 100 }, item: { unitCostETB: 200 } })).toBe(600);
+  });
+});
+
+describe('What one unit cost, as IFMIS carries it', () => {
+  it('is the Model 19 total over the quantity: VAT and additional charges in', () => {
+    // The battery on the IFMIS Model 22: 16,490 + 15% VAT = 18,963.50
+    expect(costPerUnit({ unitCostETB: 16_490, notes: JSON.stringify({ quantity: 1, vatApplicable: true, totalAmount: 18_963.5 }) })).toBe(18_963.5);
+    // 2 chairs at 1,500 with 100 charges: 3,100, so 1,550 each
+    expect(costPerUnit({ unitCostETB: 1_500, notes: JSON.stringify({ quantity: 2, additionalCharges: 100, totalAmount: 3_100 }) })).toBe(1_550);
+    // An older record without a saved total, and a donation
+    expect(costPerUnit({ unitCostETB: 1_000, notes: JSON.stringify({ quantity: 3, vatApplicable: true }) })).toBeCloseTo(1_150);
+    expect(costPerUnit({ unitCostETB: 0, notes: JSON.stringify({ quantity: 500 }) })).toBe(0);
   });
 });

@@ -281,6 +281,8 @@ export interface Item {
   totalAmount?: number;
   vatApplicable?: boolean;
   additionalCharges?: number;
+  /** What one unit cost: the Model 19 total ÷ quantity, VAT and additional charges in (set by the server) */
+  costPerUnit?: number;
   deliveredBy?: string;
   receivedBy?: string;
   remark?: string;

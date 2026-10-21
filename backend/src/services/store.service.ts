@@ -130,6 +130,8 @@ function mapItem(raw: any): ItemWithRelations {
     totalAmount: model19Meta.totalAmount || raw.totalAmount || (raw.unitCostETB * (model19Meta.quantity || 1)),
     vatApplicable: Boolean(model19Meta.vatApplicable),
     additionalCharges: Number(model19Meta.additionalCharges) || 0,
+    // What a unit cost with VAT and charges: the value of the record's units once received (issue, transfer, disposal)
+    costPerUnit: costPerUnit(raw),
     deliveredBy: model19Meta.deliveredBy || raw.deliveredBy || undefined,
     receivedBy: model19Meta.receivedBy || raw.receivedBy || undefined,
     remark: model19Meta.remark || raw.remark || undefined,
@@ -211,23 +213,23 @@ export function calculateApprovalTotalAmount(raw: any, itemObj?: any): number {
   if (req?.totalAmount && Number(req.totalAmount) > 0) {
     return Number(req.totalAmount);
   }
-  // A disposal is weighed at its original cost (units × unit price as received), not the book value typed on the
+  // A disposal is weighed at its original cost (units × what a unit cost, VAT and charges in), not the book value typed on the
   // form: the requester can't lower it, and a fully depreciated asset can still be worth a lot. The book value still
   // prints on the form. (Agreed 2026-10-21, pending the property directive; to weigh by book value, drop this.)
   if (raw?.transactionType === 'DISPOSAL') {
     const original = itemObj ?? raw?.item;
     const units = Number(req?.quantity) || (original ? quantityOf(original) : 1);
-    return (Number(original?.unitCostETB) || 0) * units;
+    return original ? costPerUnit(original) * units : 0;
   }
   if (req?.bookValue && Number(req.bookValue) > 0) {
     return Number(req.bookValue);
   }
   const item = itemObj ?? raw?.item;
-  // An issue (or a disposal) of part of a record is worth what it takes out: the units asked for at the unit price,
+  // An issue (or a disposal) of part of a record is worth what it takes out: the units asked for at what a unit cost,
   // with the Model 22's transport cost on the line that carries it; not the record's whole received total
   const asked = Number(req?.quantity);
   if (raw?.transactionType && raw.transactionType !== 'STOCK_IN' && Number.isFinite(asked) && asked > 0) {
-    return (Number(item?.unitCostETB) || 0) * asked + (Number(req?.transportationCost) || 0);
+    return (item ? costPerUnit(item) : 0) * asked + (Number(req?.transportationCost) || 0);
   }
   if (item?.notes) {
     const meta = readItemMeta(item.notes);
@@ -669,13 +671,31 @@ function uomOf(item: { notes?: string | null }): string {
   return readItemMeta(item.notes).uom || 'EA';
 }
 
-/** item.notes with a new quantity (and the matching line total) */
+/**
+ * What one unit of a record cost: its Model 19 total ÷ its quantity, so the VAT and additional charges paid are in
+ * it, as IFMIS carries cost on the Model 22 and Model 21 (16,490 + 15% VAT is issued at 18,963.50). The unit price
+ * on the receipt stays the price before VAT. A donation costs nothing.
+ */
+export function costPerUnit(item: { notes?: string | null; unitCostETB?: number | null }): number {
+  const meta = readItemMeta(item.notes);
+  const qty = quantityOf(item);
+  const total = Number(meta.totalAmount);
+  if (Number.isFinite(total) && total > 0) return total / qty;
+  const unit = Number(item.unitCostETB) || 0;
+  if (meta.vatApplicable) return unit * 1.15;
+  return unit + (Number(meta.additionalCharges) || 0) / qty;
+}
+
+/**
+ * item.notes with a new quantity, when a record is split by a partial issue or disposal: its total and its
+ * additional charges are shared in proportion to the units, so the parts add up to what the whole cost
+ */
 function notesWithQuantity(notes: string | null | undefined, quantity: number, unitCost: number): string {
   const meta = readItemMeta(notes);
-  const base = unitCost * quantity;
-  const vat = meta.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
-  const totalAmount = base + (meta.vatApplicable ? vat : (Number(meta.additionalCharges) || 0));
-  return JSON.stringify({ ...meta, quantity, totalAmount });
+  const share = quantity / quantityOf({ notes });
+  const totalAmount = Math.round(costPerUnit({ notes, unitCostETB: unitCost }) * quantity * 100) / 100;
+  const charges = Number(meta.additionalCharges) || 0;
+  return JSON.stringify({ ...meta, quantity, totalAmount, ...(charges ? { additionalCharges: Math.round(charges * share * 100) / 100 } : {}) });
 }
 
 /** Units still in store: available, or requested by a Stock-Out or disposal that isn't approved yet */
@@ -3163,7 +3183,8 @@ export class StoreService {
     // approval, and rejected or disposed ones, are left out; pending receipts are counted on their own.
     const onRecord = [...available, ...issued];
 
-    const sum = (arr: typeof allItems) => arr.reduce((s, i) => s + (i.unitCostETB || 0) * unitsOf(i), 0);
+    // Valued at what a unit cost, VAT and additional charges in, as IFMIS carries it
+    const sum = (arr: typeof allItems) => arr.reduce((s, i) => s + (i.costPerUnit ?? i.unitCostETB ?? 0) * unitsOf(i), 0);
 
     const departmentDistribution = departments.map((dept) => {
       const deptItems = onRecord.filter((i) => i.assignedDepartmentId === dept.id);
