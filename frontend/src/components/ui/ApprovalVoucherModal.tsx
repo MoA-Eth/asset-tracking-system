@@ -122,7 +122,7 @@ export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose }) => 
 
 /** The banner a voucher shows: pending requests and rejected ones say so, an approved one prints clean */
 function stateOf(approval: TransactionApproval): 'PENDING' | 'REJECTED' | undefined {
-  if (approval.status === 'PENDING') return 'PENDING';
+  if (approval.status === 'PENDING' || approval.status === 'RETURNED') return 'PENDING';
   if (approval.status === 'REJECTED') return 'REJECTED';
   return undefined;
 }

@@ -87,7 +87,7 @@ export const CopyButton: React.FC<{ text: string; label?: string; className?: st
 };
 
 const RequestStatus: React.FC<{ request: TransactionApproval }> = ({ request }) =>
-  request.status === ApprovalStatus.PENDING ? (
+  request.status === ApprovalStatus.PENDING || request.status === ApprovalStatus.RETURNED ? (
     <span className={`${pill} ${statusTone.pending}`}>
       <Clock className="h-3 w-3" />
       {stageLabel(request, 'Pending')}
@@ -296,6 +296,22 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
         <div className="flex-1 overflow-y-auto space-y-4 p-5">
           {/* Status-based field locking notice */}
           {(() => {
+            if (row.request?.status === ApprovalStatus.RETURNED) {
+              const r = row.request;
+              const noun = requestLabel(r.transactionType, r.requestDetails).noun;
+              const stage = r.returnedFromStage === 2 ? 'Department Head' : 'Team Leader';
+              return (
+                <FormNotice icon={Clock} tone="warn">
+                  <span className="font-bold">
+                    {capital(noun)} returned for correction{r.returnedBy ? ` by ${r.returnedBy.fullNameEn} (${stage})` : ''}{r.returnedAtGc ? ` · ${shortDate(r.returnedAtGc)}` : ''}
+                  </span>
+                  {r.returnRemarks && <p className="mt-0.5 text-[12px] text-amber-900">Reason: {r.returnRemarks}</p>}
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    Correct it with Edit, then Resubmit: it goes back to the Team Leader. For a voucher of several items, correct each item, then resubmit the voucher once.
+                  </p>
+                </FormNotice>
+              );
+            }
             if (row.state === 'REQUEST_PENDING' && row.request) {
               const reqNoun = requestLabel(row.request.transactionType, row.request.requestDetails).noun;
               const isStage1 = (row.request.currentStage ?? 1) === 1;
@@ -732,6 +748,11 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                         {r.transactionType === 'STOCK_OUT' && r.requestDetails?.quantity ? ` · ${r.requestDetails.quantity} ${uom}` : ''}
                       </p>
                       {r.status === ApprovalStatus.REJECTED && r.reviewRemarks && <p className="text-red-700">Reason: {r.reviewRemarks}</p>}
+                      {r.returnRemarks && (
+                        <p className="text-amber-800">
+                          {r.status === ApprovalStatus.RETURNED ? 'Returned for correction' : `Returned for correction earlier${(r.returnCount ?? 0) > 1 ? ` (${r.returnCount} times)` : ''}`}: {r.returnRemarks}
+                        </p>
+                      )}
                       <button
                         type="button"
                         onClick={() => onPrintRequest(r)}

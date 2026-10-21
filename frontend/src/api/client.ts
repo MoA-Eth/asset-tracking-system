@@ -293,6 +293,14 @@ export const api = {
     });
   },
 
+  /** Sends a request returned for correction back to the Team Leader: every line of its voucher at once */
+  resubmitApprovals: (approvalIds: string[]) => {
+    return request<TransactionApproval[]>('/items/approvals/resubmit', {
+      method: 'POST',
+      body: JSON.stringify({ approvalIds }),
+    });
+  },
+
   /** One decision for every line of a Model 19 receipt (same slip and PO): all lines or none */
   handleSlipApproval: (payload: Omit<ApprovalActionRequest, 'approvalId'> & { approvalIds: string[] }) => {
     return request<TransactionApproval[]>('/items/approvals/slip-action', {

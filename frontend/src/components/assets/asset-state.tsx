@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, Undo2 } from 'lucide-react';
 import { statusTone, pill } from '../ui/theme';
 import { ItemWithRelations, TransactionApproval, AssetCategory, ItemType } from '../../types/asset-management';
 
@@ -64,8 +64,9 @@ export const STAGE_LABELS: Record<number, string> = {
  * Who a pending request is waiting for, by name: at stage 2 the Chief Director instead of the Department Head when
  * its voucher is above 10 million birr (the server says so in requiredRole, from the voucher's grand total).
  */
-export const stageLabel = (request: { currentStage?: number; requiredRole?: string }, fallback = 'Waiting for approval'): string =>
-  request.currentStage === 2 && request.requiredRole === 'CHIEF_DIRECTOR' ? 'With Chief Director' : STAGE_LABELS[request.currentStage ?? 1] ?? fallback;
+export const stageLabel = (request: { status?: string; currentStage?: number; requiredRole?: string }, fallback = 'Waiting for approval'): string =>
+  request.status === 'RETURNED' ? 'Returned for correction'
+  : request.currentStage === 2 && request.requiredRole === 'CHIEF_DIRECTOR' ? 'With Chief Director' : STAGE_LABELS[request.currentStage ?? 1] ?? fallback;
 
 export const REQUEST_LABELS: Record<string, { noun: string; pending: string; model: string }> = {
   STOCK_IN: { noun: 'receipt', pending: 'Receipt pending', model: 'Model 19' },
@@ -162,6 +163,18 @@ export const RejectionNote: React.FC<{ request: TransactionApproval }> = ({ requ
   );
 };
 
+/** "Returned for correction · by Getnet · 21 Oct 2026", with the reason underneath: what the requester has to correct */
+export const ReturnedNote: React.FC<{ request: TransactionApproval }> = ({ request }) => {
+  const reason = request.returnRemarks?.trim();
+  const by = [request.returnedBy?.fullNameEn && `by ${request.returnedBy.fullNameEn}`, shortDate(request.returnedAtGc)].filter(Boolean).join(' · ');
+  return (
+    <span className="block max-w-[220px] whitespace-normal text-[10px] leading-snug text-amber-800" title={reason}>
+      {by && <span className="block text-slate-500">{by}</span>}
+      {reason && <span className="block line-clamp-2">{reason}</span>}
+    </span>
+  );
+};
+
 /** `partly`: a batch with some units out and the rest still in store */
 export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row, partly }) => {
   const settled =
@@ -184,6 +197,17 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
           </span>
         )}
         {row.rejected && <RejectionNote request={row.rejected} />}
+      </span>
+    );
+  }
+  if (row.request?.status === 'RETURNED') {
+    return (
+      <span className="inline-flex flex-col items-start gap-0.5">
+        <span className={`${pill} ${statusTone.pending}`}>
+          <Undo2 className="h-3 w-3" />
+          Returned for correction
+        </span>
+        <ReturnedNote request={row.request} />
       </span>
     );
   }

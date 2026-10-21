@@ -590,7 +590,8 @@ export const buildDisposalVoucher = (
   const formTotal = lines.reduce((sum, l) => sum + (Number(l.unitPrice) || 0) * (Number(l.quantity) || 1), 0);
   const dateGc = approval.ifmisSlipDateGc || (approval.createdAtGc || '').split('T')[0];
   return {
-    approvalState: approval.status === 'PENDING' ? 'PENDING' : approval.status === 'REJECTED' ? 'REJECTED' : undefined,
+    // Returned for correction is still waiting for approval
+    approvalState: approval.status === 'PENDING' || approval.status === 'RETURNED' ? 'PENDING' : approval.status === 'REJECTED' ? 'REJECTED' : undefined,
     disposalNo: approval.ifmisSlipNumber || '',
     dateGc,
     dateEc: approval.ifmisSlipDateEc || (dateGc ? formatGcToEc(dateGc) : undefined),
