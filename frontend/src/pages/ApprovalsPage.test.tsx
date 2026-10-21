@@ -1,5 +1,5 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApprovalsPage } from './ApprovalsPage';
@@ -105,5 +105,36 @@ describe('Approvals: one row per Model 22', () => {
     await user.click(screen.getByRole('button', { name: 'Endorse (Stage 1)' }));
     expect(api.handleSlipApproval).toHaveBeenCalledWith(expect.objectContaining({ approvalIds: ['X', 'Y'], action: 'ENDORSE' }));
     expect(api.handleApproval).not.toHaveBeenCalled();
+  });
+});
+
+describe('Approvals: the Chief Director signs a voucher by its grand total', () => {
+  afterEach(() => {
+    auth.role = 'TEAM_LEADER';
+    auth.user.permissions = ['approvals.endorse'];
+  });
+  // Two receipt lines of 6 million birr each: each under 10 million, the receipt above it
+  const sixMillion = (id: string, name: string) => receiptLine(id, name, { currentStage: 2, totalAmount: 6_000_000, poNumber: 'PO-77', ifmisSlipNumber: '0000077' });
+  beforeEach(() => {
+    vi.mocked(api.getApprovals).mockResolvedValue([sixMillion('P', 'Tractor'), sixMillion('Q', 'Harvester'), receiptLine('S', 'Laptop', { currentStage: 2, ifmisSlipNumber: '0000078' })] as any);
+  });
+
+  it("puts the receipt in the Chief Director's queue, marked for the Chief Director", async () => {
+    auth.role = 'CHIEF_DIRECTOR';
+    auth.user.permissions = ['approvals.authorize'];
+    render(<ApprovalsPage currentRole={UserRole.CHIEF_DIRECTOR} onNavigate={vi.fn()} />);
+    const row = (await screen.findByText('Tractor, Harvester')).closest('tr')!;
+    expect(within(row).getByText('2. Chief Director (>10M)')).toBeInTheDocument();
+    // The small receipt is the Department Head's
+    expect(screen.queryByText('Laptop')).toBeNull();
+  });
+
+  it("leaves it out of the Department Head's queue", async () => {
+    auth.role = 'DEPARTMENT_HEAD';
+    auth.user.permissions = ['approvals.authorize'];
+    render(<ApprovalsPage currentRole={UserRole.DEPARTMENT_HEAD} onNavigate={vi.fn()} />);
+    const row = (await screen.findByText('Laptop')).closest('tr')!;
+    expect(within(row).getByText('2. Dept. Head')).toBeInTheDocument();
+    expect(screen.queryByText('Tractor, Harvester')).toBeNull();
   });
 });

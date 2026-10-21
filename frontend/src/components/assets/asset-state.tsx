@@ -60,6 +60,13 @@ export const STAGE_LABELS: Record<number, string> = {
   2: 'With Dept. Head',
 };
 
+/**
+ * Who a pending request is waiting for, by name: at stage 2 the Chief Director instead of the Department Head when
+ * its voucher is above 10 million birr (the server says so in requiredRole, from the voucher's grand total).
+ */
+export const stageLabel = (request: { currentStage?: number; requiredRole?: string }, fallback = 'Waiting for approval'): string =>
+  request.currentStage === 2 && request.requiredRole === 'CHIEF_DIRECTOR' ? 'With Chief Director' : STAGE_LABELS[request.currentStage ?? 1] ?? fallback;
+
 export const REQUEST_LABELS: Record<string, { noun: string; pending: string; model: string }> = {
   STOCK_IN: { noun: 'receipt', pending: 'Receipt pending', model: 'Model 19' },
   STOCK_OUT: { noun: 'issue', pending: 'Issue pending', model: 'Model 22' },
@@ -187,7 +194,7 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
         <Clock className="h-3 w-3" />
         {label}
       </span>
-      {row.request && <span className="text-[10px] text-slate-500">{STAGE_LABELS[row.request.currentStage] ?? 'Waiting for approval'}</span>}
+      {row.request && <span className="text-[10px] text-slate-500">{stageLabel(row.request)}</span>}
     </span>
   );
 };

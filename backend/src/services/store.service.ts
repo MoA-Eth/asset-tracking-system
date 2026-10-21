@@ -154,6 +154,32 @@ export const HIGH_VALUE_APPROVAL_THRESHOLD = 10_000_000;
 /** Most lines one Model 19 decision covers */
 export const MAX_SLIP_LINES = 200;
 
+/**
+ * Who authorizes the lines of a voucher waiting together (a Model 19 receipt: same slip and PO; a Model 22 issue:
+ * same number): the CEO when the voucher's grand total is above 10 million birr, for every line of it, as the
+ * decision does. A request on its own keeps the role its own amount gives it.
+ */
+export function withVoucherApprover<T extends { transactionType: string; status: string; currentStage?: number; ifmisSlipNumber?: string; poNumber?: string; totalAmount?: number; requiredRole?: string }>(list: T[]): T[] {
+  const keyOf = (a: T) => {
+    const slip = String(a.ifmisSlipNumber ?? '').trim().toLowerCase();
+    if (a.status !== 'PENDING' || (a.transactionType !== 'STOCK_IN' && a.transactionType !== 'STOCK_OUT') || !slip || slip.startsWith('pending-')) return undefined;
+    const po = a.transactionType === 'STOCK_IN' ? String(a.poNumber ?? '').trim().toLowerCase() : '';
+    return `${a.transactionType}|${slip}|${po}|${a.currentStage ?? 1}`;
+  };
+  const totals = new Map<string, { sum: number; lines: number }>();
+  for (const a of list) {
+    const key = keyOf(a);
+    if (!key) continue;
+    const t = totals.get(key) ?? { sum: 0, lines: 0 };
+    totals.set(key, { sum: t.sum + (Number(a.totalAmount) || 0), lines: t.lines + 1 });
+  }
+  return list.map((a) => {
+    const t = totals.get(keyOf(a) ?? '');
+    if (!t || t.lines < 2) return a;
+    return { ...a, requiredRole: t.sum > HIGH_VALUE_APPROVAL_THRESHOLD ? 'CHIEF_DIRECTOR' : 'DEPARTMENT_HEAD' };
+  });
+}
+
 export function calculateApprovalTotalAmount(raw: any, itemObj?: any): number {
   let req = raw?.requestDetails;
   if (typeof req === 'string') {
@@ -2292,7 +2318,7 @@ export class StoreService {
     if (ids.length > MAX_SLIP_LINES) throw new BadRequestError(`A voucher can be reviewed ${MAX_SLIP_LINES} lines at a time.`);
     const timeout = Math.min(20000 + ids.length * 1500, 120000);
     return prisma.$transaction(async (db: any) => {
-      const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true } } } });
+      const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true, unitCostETB: true } } } });
       if (approvals.length !== ids.length) throw new NotFoundError('Part of this voucher no longer exists. Refresh the list.');
       const types = new Set(approvals.map((a: any) => a.transactionType));
       if (types.size > 1 || !(types.has('STOCK_IN') || types.has('STOCK_OUT'))) {
@@ -2305,14 +2331,36 @@ export class StoreService {
       // A receipt is its slip and PO; an issue is its Model 22 No.
       const keyOf = (a: any) => `${String(a.ifmisSlipNumber ?? '').trim().toLowerCase()}|${issue ? '' : String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase()}`;
       if (new Set(approvals.map(keyOf)).size > 1) throw new BadRequestError(issue ? 'These lines are not on the same Model 22.' : 'These lines are not on the same Model 19 and PO.');
+      // The voucher is signed as a whole, so its grand total decides whether the CEO must authorize it
+      const grandTotal = approvals.reduce((sum: number, a: any) => sum + calculateApprovalTotalAmount(a, a.item), 0);
       const decided: TransactionApproval[] = [];
       // In slip order, so the history and audit read like the voucher
-      for (const id of ids) decided.push(await this.applyDecision({ ...payload, approvalId: id }, db));
+      for (const id of ids) decided.push(await this.applyDecision({ ...payload, approvalId: id }, db, grandTotal));
       return decided;
     }, { timeout });
   }
 
-  private async applyDecision(payload: ApprovalActionRequest, db: any): Promise<TransactionApproval> {
+  /**
+   * The grand total of the voucher a line is on, while its lines wait together at the same stage: a Model 19 receipt
+   * (same slip and PO) or a Model 22 issue (same number). A line decided on its own still counts its whole voucher,
+   * so splitting a voucher into lines never takes it under the CEO's threshold. Other requests have none.
+   */
+  private async voucherTotalOf(approval: any, db: any): Promise<number | undefined> {
+    const type = approval.transactionType;
+    const slip = String(approval.ifmisSlipNumber ?? '').trim();
+    if ((type !== 'STOCK_IN' && type !== 'STOCK_OUT') || !slip || slip.toUpperCase().startsWith('PENDING-')) return undefined;
+    const lines = await db.transactionApproval.findMany({
+      where: { transactionType: type, status: 'PENDING', currentStage: approval.currentStage, ifmisSlipNumber: { equals: slip, mode: 'insensitive' } },
+      include: { item: { select: { notes: true, unitCostETB: true } } },
+    });
+    if (!Array.isArray(lines) || lines.length < 2) return undefined;
+    const poOf = (a: any) => String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase();
+    const own = lines.find((l: any) => l.id === approval.id);
+    const same = type === 'STOCK_IN' && own ? lines.filter((l: any) => poOf(l) === poOf(own)) : lines;
+    return same.length < 2 ? undefined : same.reduce((sum: number, l: any) => sum + calculateApprovalTotalAmount(l, l.item), 0);
+  }
+
+  private async applyDecision(payload: ApprovalActionRequest, db: any, voucherTotal?: number): Promise<TransactionApproval> {
     const approval = await db.transactionApproval.findUnique({ where: { id: payload.approvalId } });
     if (!approval) throw new NotFoundError('This request no longer exists. Refresh the list.');
     if (approval.status !== 'PENDING') throw new ConflictError(`This request is already ${approval.status.toLowerCase()}. Refresh the list.`);
@@ -2409,7 +2457,9 @@ export class StoreService {
     const item = await db.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new NotFoundError(`Target item ${approval.itemId} not found.`);
 
-    const totalAmount = calculateApprovalTotalAmount(approval, item);
+    // A line of a voucher of several lines goes by the voucher's grand total; anything else by its own amount
+    const ownAmount = calculateApprovalTotalAmount(approval, item);
+    const totalAmount = voucherTotal ?? (await this.voucherTotalOf(approval, db)) ?? ownAmount;
     const isHighValue = totalAmount > HIGH_VALUE_APPROVAL_THRESHOLD;
 
     // High-Value routing rule: Transactions > 10,000,000 ETB require Chief Director authorization at Stage 2
@@ -2417,7 +2467,7 @@ export class StoreService {
       if (isHighValue) {
         if (reviewer?.role !== UserRole.CHIEF_DIRECTOR && reviewer?.role !== UserRole.SYSTEM_ADMIN && reviewer?.role !== UserRole.SUPER_ADMIN) {
           throw new ForbiddenError(
-            `High-value transactions exceeding 10,000,000 ETB (${totalAmount.toLocaleString()} ETB) require authorization by the Chief Director.`
+            `High-value transactions exceeding 10,000,000 ETB (${totalAmount.toLocaleString()} ETB${totalAmount !== ownAmount ? ' for the whole voucher' : ''}) require authorization by the Chief Director.`
           );
         }
       } else {
@@ -2927,7 +2977,7 @@ export class StoreService {
       include: APPROVAL_INCLUDES,
       orderBy: { createdAt: 'desc' },
     });
-    return rows.map(mapApproval);
+    return withVoucherApprover(rows.map(mapApproval));
   }
 
   public async getAuditLogs(): Promise<AuditLogEntry[]> {

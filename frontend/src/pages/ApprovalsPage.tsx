@@ -51,7 +51,7 @@ import { useToast } from '../context/ToastContext';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { getSlipDisplayName } from '../utils/slip-upload';
 import { RefreshButton } from '../components/ui/RefreshButton';
-import { approvalRowKey, groupBySlip, isSlipGroup, slipNames, voucherName } from '../components/assets/slip-groups';
+import { approvalRowKey, groupBySlip, HIGH_VALUE_THRESHOLD, isSlipGroup, slipNames, voucherName } from '../components/assets/slip-groups';
 import { formatETB } from '../utils/eth-date';
 import { shortDate } from '../components/assets/asset-state';
 
@@ -67,7 +67,7 @@ type TabFilter = 'MY_QUEUE' | 'STAGE_1' | 'STAGE_2' | 'APPROVED' | 'REJECTED' | 
  * Queue tabs shown to a role. Stage approvers only get their own queue
  * ("Pending my action"); the other stage's queue is one they cannot act on.
  */
-export const HIGH_VALUE_THRESHOLD = 10_000_000;
+export { HIGH_VALUE_THRESHOLD } from '../components/assets/slip-groups';
 
 export function getVisibleQueueTabs(role: UserRole, permissions?: string[]): TabFilter[] {
   if (role === UserRole.SUPER_ADMIN) {
@@ -178,23 +178,24 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       const id = `slip:${g.key}`;
       lines.set(id, g.members);
       const lead = g.members[0];
-      const high = g.members.some((m) => (m.totalAmount || 0) > HIGH_VALUE_THRESHOLD);
+      // Signed as a whole: the grand total decides whether the Chief Director authorizes it
+      const total = g.members.reduce((sum, m) => sum + (m.totalAmount || 0), 0);
+      const high = total > HIGH_VALUE_THRESHOLD;
       return {
         ...lead,
         id,
         itemName: slipNames(g.members.map((m) => m.itemName)),
         itemCode: `${g.members.length} items`,
         itemUnits: undefined,
-        totalAmount: g.members.reduce((sum, m) => sum + (m.totalAmount || 0), 0),
+        totalAmount: total,
         requiredRole: high ? 'CHIEF_DIRECTOR' : 'DEPARTMENT_HEAD',
         ifmisSlipAttachmentUrl: g.members.find((m) => m.ifmisSlipAttachmentUrl)?.ifmisSlipAttachmentUrl,
       };
     });
     return { rows: list, slipLines: lines };
   }, [approvals]);
-  /** Above 10 million birr: for a receipt, when any of its lines is (the CEO then signs the whole receipt) */
-  const isHigh = (a: TransactionApproval) =>
-    slipLines.get(a.id)?.some((l) => (l.totalAmount || 0) > HIGH_VALUE_THRESHOLD) ?? (a.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
+  /** Above 10 million birr: a request by its amount, a voucher of several lines by its grand total (its row's amount) */
+  const isHigh = (a: TransactionApproval) => (a.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
 
   // Compute live counter metrics
   const metrics = useMemo(() => {
@@ -599,7 +600,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           }`}
         >
           <span className={`w-1.5 h-1.5 rounded-full ${stage === 2 ? (isHighValue ? 'bg-purple-600' : 'bg-emerald-600') : 'bg-slate-300'}`} />
-          {stage === 2 && isHighValue ? '2. Chief Director (>10M)' : '2. Authorize'}
+          {isHighValue ? '2. Chief Director (>10M)' : '2. Dept. Head'}
         </span>
       </div>
     );

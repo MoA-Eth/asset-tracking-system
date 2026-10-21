@@ -58,6 +58,15 @@ export const approvalRowKey = (a: { transactionType: string; ifmisSlipNumber?: s
 /** The voucher a request is made on, as people call it */
 export const voucherName = (transactionType?: string): string => (transactionType === 'STOCK_OUT' ? 'Model 22' : 'Model 19');
 
+/** Above this many birr (a request, or a voucher's grand total) the Chief Director authorizes instead of the Department Head */
+export const HIGH_VALUE_THRESHOLD = 10_000_000;
+
+/** The amount of each row of the approvals queue: a voucher of several lines counts its grand total */
+export const approvalRowTotals = <T extends Parameters<typeof approvalRowKey>[0] & { totalAmount?: number }>(list: T[]): number[] =>
+  groupBySlip<T>(list, approvalRowKey).map((g) =>
+    isSlipGroup(g) ? g.members.reduce((sum, m) => sum + (Number(m.totalAmount) || 0), 0) : Number(g.single.totalAmount) || 0,
+  );
+
 /** How many rows a list of requests makes in the approvals queue (a receipt of several lines counts once) */
 export const countApprovalRows = <T extends Parameters<typeof approvalRowKey>[0]>(list: T[]): number => groupBySlip<T>(list, approvalRowKey).length;
 

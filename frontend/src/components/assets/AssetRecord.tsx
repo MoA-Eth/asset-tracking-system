@@ -12,7 +12,7 @@ import { formatETB } from '../../utils/eth-date';
 import { isGeneratedSerialNumber, displaySerialNumber } from '../../utils/asset-tag';
 import { storeLocationLabel } from '../../utils/location';
 import { departmentLabel } from '../../utils/department';
-import { AssetRow, AssetStatus, categoryLabel, requestLabel, RejectionNote, STAGE_LABELS, shortDate } from './asset-state';
+import { AssetRow, AssetStatus, categoryLabel, requestLabel, RejectionNote, stageLabel, shortDate } from './asset-state';
 
 export interface AssetRecordProps {
   row: AssetRow;
@@ -89,7 +89,7 @@ const RequestStatus: React.FC<{ request: TransactionApproval }> = ({ request }) 
   request.status === ApprovalStatus.PENDING ? (
     <span className={`${pill} ${statusTone.pending}`}>
       <Clock className="h-3 w-3" />
-      {STAGE_LABELS[request.currentStage] ?? 'Pending'}
+      {stageLabel(request, 'Pending')}
     </span>
   ) : (
     <span className={`${pill} ${request.status === ApprovalStatus.APPROVED ? statusTone.approved : statusTone.rejected}`}>
@@ -652,7 +652,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               {pending && (
                 <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 text-xs">
                   <p className="font-semibold">
-                    {requestLabel(pending.transactionType, pending.requestDetails).pending} · {STAGE_LABELS[pending.currentStage] ?? 'waiting'}
+                    {requestLabel(pending.transactionType, pending.requestDetails).pending} · {stageLabel(pending, 'waiting')}
                   </p>
                   {row.goingTo && <p>→ {row.goingTo}</p>}
                 </div>

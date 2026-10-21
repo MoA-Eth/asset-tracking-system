@@ -70,7 +70,7 @@ import { MoaLogo } from './components/ui/MoaLogo';
 
 import { getValidTab, getSettingsGroups } from './components/layout/navigation';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
-import { countApprovalRows } from './components/assets/slip-groups';
+import { approvalRowTotals, countApprovalRows, HIGH_VALUE_THRESHOLD } from './components/assets/slip-groups';
 
 const AuthenticatedPortal: React.FC = () => {
   const { user, role, isAuthenticated, isLoading } = useAuth();
@@ -136,7 +136,12 @@ const AuthenticatedPortal: React.FC = () => {
       if (canEndorse && !canAuthorize) {
         count = countApprovalRows(pending.filter((a) => (a.currentStage ?? 1) === 1));
       } else if (canAuthorize && !canEndorse) {
-        count = countApprovalRows(pending.filter((a) => a.currentStage === 2));
+        // Stage 2 is split by amount: above 10 million birr (a voucher by its grand total) is the Chief Director's
+        const stage2 = approvalRowTotals(pending.filter((a) => a.currentStage === 2));
+        count =
+          role === UserRole.CHIEF_DIRECTOR ? stage2.filter((t) => t > HIGH_VALUE_THRESHOLD).length
+          : role === UserRole.DEPARTMENT_HEAD ? stage2.filter((t) => t <= HIGH_VALUE_THRESHOLD).length
+          : stage2.length;
       } else if (canEndorse && canAuthorize) {
         count = countApprovalRows(pending);
       } else {

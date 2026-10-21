@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { daysInStore, itemTypeLabel } from './asset-state';
+import { daysInStore, itemTypeLabel, stageLabel } from './asset-state';
 
 const today = new Date(2026, 9, 7); // 7 Oct 2026
 
@@ -31,5 +31,14 @@ describe('itemTypeLabel', () => {
     expect(itemTypeLabel('FIXED')).toBe('Fixed asset (ቋሚ ዕቃ)');
     expect(itemTypeLabel('CONSUMABLE')).toBe('Consumable item (አላቂ ዕቃ)');
     expect(itemTypeLabel(undefined)).toBe('Fixed asset (ቋሚ ዕቃ)');
+  });
+});
+
+describe('who a pending request waits for', () => {
+  it('names the Chief Director at stage 2 when the server says the voucher is theirs', () => {
+    expect(stageLabel({ currentStage: 1, requiredRole: 'CHIEF_DIRECTOR' })).toBe('With Team Leader');
+    expect(stageLabel({ currentStage: 2, requiredRole: 'DEPARTMENT_HEAD' })).toBe('With Dept. Head');
+    expect(stageLabel({ currentStage: 2, requiredRole: 'CHIEF_DIRECTOR' })).toBe('With Chief Director');
+    expect(stageLabel({ currentStage: 2 })).toBe('With Dept. Head');
   });
 });

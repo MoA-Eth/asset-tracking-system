@@ -20,6 +20,7 @@ const line = (id: string, extra: object = {}) => ({
 const people: Record<string, any> = {
   leader: { id: 'leader', fullNameEn: 'Getnet Taye', role: 'TEAM_LEADER', isActive: true },
   head: { id: 'head', fullNameEn: 'Getaneh G/mariam', role: 'DEPARTMENT_HEAD', isActive: true },
+  ceo: { id: 'ceo', fullNameEn: 'Chief Director', role: 'CHIEF_DIRECTOR', isActive: true },
 };
 let lines: any[] = [];
 
@@ -27,7 +28,12 @@ beforeEach(() => {
   vi.resetAllMocks();
   lines = [line('A'), line('B'), line('C')];
   db.$transaction.mockImplementation(async (fn: any) => fn(db));
-  db.transactionApproval.findMany.mockImplementation(async ({ where }: any) => lines.filter((l) => where.id.in.includes(l.id)));
+  db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
+    where.id
+      ? lines.filter((l) => where.id.in.includes(l.id))
+      // The other lines of a voucher, waiting together
+      : lines.filter((l) => l.transactionType === where.transactionType && l.status === where.status && l.currentStage === where.currentStage
+          && l.ifmisSlipNumber.toLowerCase() === where.ifmisSlipNumber.equals.toLowerCase()));
   db.transactionApproval.findUnique.mockImplementation(async ({ where }: any) => lines.find((l) => l.id === where.id) ?? null);
   db.transactionApproval.update.mockImplementation(async ({ where, data }: any) => ({ ...lines.find((l) => l.id === where.id), ...data }));
   db.employee.findUnique.mockImplementation(async ({ where }: any) => people[where.id] ?? null);
@@ -95,5 +101,31 @@ describe('Reviewing a whole Model 22 at once', () => {
     await expect(store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('not on the same Model 22');
     await expect(store().handleSlipApproval({ approvalIds: ['A', 'C'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('Only the lines of one receipt');
     expect(db.transactionApproval.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('The CEO threshold goes by the grand total of a voucher', () => {
+  // Two lines of 6 million birr: each under 10 million, together above it
+  const sixMillion = (id: string, extra: object = {}) => line(id, { currentStage: 2, item: { notes: meta('PO-14'), unitCostETB: 6_000_000 }, ...extra });
+  beforeEach(() => {
+    lines = [sixMillion('A'), sixMillion('B')];
+    db.item.findUnique.mockImplementation(async ({ where }: any) => ({ id: where.id, notes: meta('PO-14'), unitCostETB: 6_000_000 }));
+  });
+
+  it('sends a voucher whose lines add up to more than 10 million to the CEO', async () => {
+    await expect(store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'APPROVE', reviewedById: 'head' })).rejects.toThrow('Chief Director');
+    const result = await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'APPROVE', reviewedById: 'ceo' });
+    expect(result.map((a) => a.status)).toEqual(['APPROVED', 'APPROVED']);
+  });
+
+  it('still counts the whole voucher when one of its lines is decided on its own', async () => {
+    await expect(store().handleApproval({ approvalId: 'A', action: 'APPROVE', reviewedById: 'head' })).rejects.toThrow('12,000,000 ETB for the whole voucher');
+  });
+
+  it('leaves a voucher at or under 10 million with the Department Head, even with a large line among small ones', async () => {
+    lines = [sixMillion('A'), line('B', { currentStage: 2 })];
+    db.item.findUnique.mockImplementation(async ({ where }: any) => ({ id: where.id, notes: meta('PO-14'), unitCostETB: where.id === 'item-A' ? 6_000_000 : 1000 }));
+    const result = await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'APPROVE', reviewedById: 'head' });
+    expect(result.map((a) => a.status)).toEqual(['APPROVED', 'APPROVED']);
   });
 });

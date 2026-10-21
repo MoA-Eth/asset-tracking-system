@@ -7,6 +7,7 @@ import {
   calculateApprovalTotalAmount,
   HIGH_VALUE_APPROVAL_THRESHOLD,
   StoreService,
+  withVoucherApprover,
 } from './store.service';
 import { ForbiddenError } from '../errors/app-error';
 
@@ -26,6 +27,8 @@ vi.mock('../lib/prisma', () => ({ prisma: db }));
 beforeEach(() => {
   vi.clearAllMocks();
   db.$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => cb(db));
+  // No other lines on the same voucher unless a test says so
+  db.transactionApproval.findMany.mockResolvedValue([]);
 });
 
 describe('Chief Director & 10M High-Value Approval Workflow', () => {
@@ -245,5 +248,25 @@ describe('Chief Director & 10M High-Value Approval Workflow', () => {
 
     expect(result.status).toBe(ApprovalStatus.APPROVED);
     expect(db.transactionApproval.update).toHaveBeenCalled();
+  });
+});
+
+describe('Who authorizes the lines of a voucher, in the approvals list', () => {
+  const pending = (id: string, totalAmount: number, extra: object = {}) =>
+    ({ id, transactionType: 'STOCK_IN', status: 'PENDING', currentStage: 2, ifmisSlipNumber: '0000077', poNumber: 'PO-77', totalAmount, requiredRole: 'DEPARTMENT_HEAD', ...extra });
+
+  it('gives every line of a voucher above 10 million to the Chief Director, by its grand total', () => {
+    const list = withVoucherApprover([
+      pending('A', 6_000_000),
+      pending('B', 6_000_000),
+      pending('C', 6_000_000, { poNumber: 'PO-78' }), // another receipt on the same slip number
+      pending('D', 6_000_000, { transactionType: 'TRANSFER' }), // not a voucher of lines
+    ]);
+    expect(list.map((a) => a.requiredRole)).toEqual(['CHIEF_DIRECTOR', 'CHIEF_DIRECTOR', 'DEPARTMENT_HEAD', 'DEPARTMENT_HEAD']);
+  });
+
+  it('gives a voucher at or under 10 million to the Department Head, even with a line the CEO would sign alone', () => {
+    const list = withVoucherApprover([pending('A', 9_000_000, { transactionType: 'STOCK_OUT', poNumber: undefined }), pending('B', 1_000_000, { transactionType: 'STOCK_OUT' })]);
+    expect(list.map((a) => a.requiredRole)).toEqual(['DEPARTMENT_HEAD', 'DEPARTMENT_HEAD']);
   });
 });

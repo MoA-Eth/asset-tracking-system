@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countApprovalRows, groupBySlip, isSlipGroup, slipKey, slipNames } from './slip-groups';
+import { approvalRowTotals, countApprovalRows, groupBySlip, isSlipGroup, slipKey, slipNames } from './slip-groups';
 
 describe('one receipt per Model 19 and PO', () => {
   it('keys lines by Model 19 No. and PO, ignoring case and spaces', () => {
@@ -43,5 +43,16 @@ describe('one receipt per Model 19 and PO', () => {
   it('names a receipt by its first items', () => {
     expect(slipNames(['Laptop', 'Printer', 'Toner', 'Laptop', 'Mouse'])).toBe('Laptop, Printer +2');
     expect(slipNames(['Laptop', 'Printer'])).toBe('Laptop, Printer');
+  });
+});
+
+describe('the amount of each approvals row', () => {
+  it('is the grand total of a voucher, or the own amount of a single request', () => {
+    const req = (transactionType: string, slip: string, totalAmount: number) => ({ transactionType, ifmisSlipNumber: slip, poNumber: 'P1', status: 'PENDING', currentStage: 2, totalAmount });
+    expect(approvalRowTotals([
+      req('STOCK_IN', '51', 6_000_000), req('STOCK_IN', '51', 6_000_000), // one receipt: 12 million
+      req('STOCK_OUT', 'M22-1', 3_000), // an issue on its own
+      req('TRANSFER', 'T-1', 50_000),
+    ])).toEqual([12_000_000, 3_000, 50_000]);
   });
 });
