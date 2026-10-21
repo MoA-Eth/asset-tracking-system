@@ -7,7 +7,7 @@ import {
   isDatabaseUnavailableError,
 } from '../errors/app-error';
 import { prisma } from '../lib/prisma';
-import { createSessionToken, readSessionToken, hashPassword, verifyPassword } from '../security/credentials';
+import { createSessionToken, passwordStamp, readSessionToken, hashPassword, verifyPassword } from '../security/credentials';
 import { getRoleAccess } from '../security/role-policy';
 import { assertSignInAllowed, recordSignInFailure, recordSignInSuccess } from '../security/login-throttle';
 
@@ -59,15 +59,19 @@ export class AuthService {
     if (!matched.role) {
       throw new UnauthorizedError('This employee has no system access. Ask your System Administrator for a role.');
     }
-    if (!matched.password.startsWith('scrypt$')) {
-      await prisma.employee.updateMany({
+    let storedPassword: string = matched.password;
+    if (!storedPassword.startsWith('scrypt$')) {
+      const upgraded = await hashPassword(req.password);
+      const { count } = await prisma.employee.updateMany({
         where: { id: matched.id, password: matched.password },
-        data: { password: await hashPassword(req.password) },
+        data: { password: upgraded },
       });
+      if (count > 0) storedPassword = upgraded;
     }
 
     const authUser = this.toAuthUser(matched);
-    const token = this.generateToken(authUser);
+    // The session carries the password it was signed in with, so changing it ends this session
+    const token = createSessionToken(authUser.id, storedPassword);
     return { user: authUser, token };
   }
 
@@ -76,7 +80,7 @@ export class AuthService {
 
     // Only signed tokens are accepted. Older unsigned tokens could be made by hand for any user,
     // so anyone still holding one is asked to sign in again (401).
-    const userId = readSessionToken(tokenString);
+    const { userId, passwordStamp: stamp } = readSessionToken(tokenString);
 
     try {
       const employee = await prisma.employee.findUnique({ where: { id: userId } });
@@ -87,6 +91,10 @@ export class AuthService {
       if (employee.isActive === false || !employee.role) {
         throw new UnauthorizedError('This account no longer has system access.');
       }
+      // A password changed since this session signed in (on another machine, or reset by an administrator) ends it
+      if (stamp !== passwordStamp(employee.password)) {
+        throw new UnauthorizedError('Your password was changed. Please sign in again with the new password.');
+      }
 
       return this.toAuthUser(employee);
     } catch (err: any) {
@@ -95,10 +103,6 @@ export class AuthService {
       if (isDatabaseUnavailableError(err)) throw new ServiceUnavailableError(DATABASE_UNAVAILABLE_MESSAGE);
       throw new UnauthorizedError('Invalid or expired authentication token.');
     }
-  }
-
-  private generateToken(user: AuthUser): string {
-    return createSessionToken(user.id);
   }
 
   private toAuthUser(emp: any): AuthUser {

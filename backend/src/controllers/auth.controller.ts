@@ -46,7 +46,8 @@ export class AuthController {
   });
 
   public changePassword = asyncHandler(async (req: Request, res: Response) => {
-    await changeOwnPassword(req.user!.id, req.body?.currentPassword, req.body?.newPassword);
-    return sendSuccess(res, null, 'Password changed');
+    // A new session for this machine: the password signs every session, so the old ones end
+    const token = await changeOwnPassword(req.user!.id, req.body?.currentPassword, req.body?.newPassword);
+    return sendSuccess(res, { token }, 'Password changed');
   });
 }

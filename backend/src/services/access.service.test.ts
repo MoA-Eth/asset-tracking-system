@@ -99,6 +99,25 @@ describe('Changing your own password', () => {
     expect(await verifyPassword('brand-new-1', data.password)).toBe(true);
   });
 
+  it('ends the sessions signed in with the old password, and keeps this one going with a new token', async () => {
+    const auth = AuthService.getInstance();
+    const elsewhere = createSessionToken('encoder', people.encoder.password);
+    expect((await auth.verifyToken(elsewhere)).id).toBe('encoder');
+
+    const token = await changeOwnPassword('encoder', 'old-pass-1', 'brand-new-1');
+    people.encoder.password = db.employee.update.mock.calls[0][0].data.password;
+    await expect(auth.verifyToken(elsewhere)).rejects.toMatchObject({ statusCode: 401, message: 'Your password was changed. Please sign in again with the new password.' });
+    expect((await auth.verifyToken(token)).id).toBe('encoder');
+  });
+
+  it('ends the person\'s sessions when an administrator resets their password', async () => {
+    const auth = AuthService.getInstance();
+    const session = createSessionToken('encoder', people.encoder.password);
+    await resetPassword('encoder', 'temp-pass-9', 'admin');
+    people.encoder.password = db.employee.update.mock.calls[0][0].data.password;
+    await expect(auth.verifyToken(session)).rejects.toMatchObject({ statusCode: 401 });
+  });
+
   it("doesn't ask again for a temporary password the person just signed in with", async () => {
     people.encoder.mustChangePassword = true;
     // The temporary password can't be kept as the new one
@@ -121,7 +140,7 @@ describe('Changing your own password', () => {
 describe('Temporary passwords', () => {
   const auth = AuthService.getInstance();
   const run = async (url: string) => {
-    const req: any = { headers: { authorization: `Bearer ${createSessionToken('encoder')}` }, originalUrl: url };
+    const req: any = { headers: { authorization: `Bearer ${createSessionToken('encoder', people.encoder.password)}` }, originalUrl: url };
     let error: any;
     await new Promise<void>((resolve) => {
       requireAuth(req, {} as any, (err?: any) => {

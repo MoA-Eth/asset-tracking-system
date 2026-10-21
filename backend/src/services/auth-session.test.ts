@@ -4,6 +4,7 @@ const db = vi.hoisted(() => ({ employee: { findUnique: vi.fn(), findFirst: vi.fn
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
 import { AuthService } from './auth.service';
+import { createHmac } from 'node:crypto';
 import { createSessionToken } from '../security/credentials';
 
 const tokenFor = (id: string) => createSessionToken(id);
@@ -27,6 +28,22 @@ describe('session check when the database is down', () => {
     const forged = Buffer.from('EMP-ADMIN-01:SYSTEM_ADMIN:1').toString('base64');
     await expect(AuthService.getInstance().verifyToken(forged)).rejects.toMatchObject({ statusCode: 401 });
     expect(db.employee.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('rejects a session from before passwords were stamped, so everyone signs in again once', async () => {
+    const secret = 'a-test-signing-secret-of-at-least-32-chars';
+    vi.stubEnv('JWT_SECRET', secret);
+    try {
+      db.employee.findUnique.mockResolvedValue({ id: 'EMP-1', role: 'DATA_ENCODER', isActive: true, password: null });
+      // Signed as sessions were before: who and until when, no password stamp
+      const payload = Buffer.from(JSON.stringify({ sub: 'EMP-1', exp: Date.now() + 60_000 })).toString('base64url');
+      const sig = createHmac('sha256', Buffer.from(secret)).update(`moa-session-v1.${payload}`).digest('base64url');
+      await expect(AuthService.getInstance().verifyToken(`${payload}.${sig}`)).rejects.toMatchObject({ statusCode: 401 });
+      // The same person signed in now is fine
+      expect((await AuthService.getInstance().verifyToken(createSessionToken('EMP-1', null))).id).toBe('EMP-1');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('still rejects a missing token (401)', async () => {

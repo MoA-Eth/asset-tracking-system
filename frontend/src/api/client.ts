@@ -140,9 +140,10 @@ export const api = {
     });
   },
 
-  /** Replace your own password (also clears a temporary one) */
-  changePassword: (currentPassword: string | undefined, newPassword: string) => {
-    return request<null>('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
+  /** Replace your own password (also clears a temporary one). Other sessions end; this one carries on with a new token */
+  changePassword: async (currentPassword: string | undefined, newPassword: string): Promise<void> => {
+    const res = await request<{ token?: string } | null>('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
+    if (res?.token) localStorage.setItem('moa_token', res.token);
   },
 
   // Executive Dashboard

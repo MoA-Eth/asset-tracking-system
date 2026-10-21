@@ -24,6 +24,7 @@ describe('AuthService unit tests', () => {
 
   it('checks and upgrades a legacy password and returns effective access', async () => {
     db.employee.findFirst.mockResolvedValue({ id: 'admin', role: 'SYSTEM_ADMIN', password: 'correct' });
+    db.employee.updateMany.mockResolvedValue({ count: 1 });
     await expect(authService.login({ usernameOrEmail: 'admin@example.test', password: 'wrong' })).rejects.toThrow(UnauthorizedError);
     expect(db.employee.updateMany).not.toHaveBeenCalled();
     const result = await authService.login({ usernameOrEmail: 'admin@example.test', password: 'correct' });

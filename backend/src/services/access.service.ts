@@ -2,7 +2,7 @@ import { prisma } from '../lib/prisma';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from '../errors/app-error';
 import { getTodayGcAndEc } from '../utils/eth-date';
 import { hasPermission, isUserRole, ROLE_POLICY } from '../security/role-policy';
-import { hashPassword, verifyPassword } from '../security/credentials';
+import { hashPassword, verifyPassword, createSessionToken } from '../security/credentials';
 import { UserRole } from '../types/asset-management';
 
 /**
@@ -154,8 +154,11 @@ export async function resetPassword(id: string, password: unknown, actorId: stri
   });
 }
 
-/** A signed-in person replaces their own password; this also clears a temporary one */
-export async function changeOwnPassword(userId: string, current: unknown, next: unknown): Promise<void> {
+/**
+ * A signed-in person replaces their own password; this also clears a temporary one. Their other sessions end; this one
+ * carries on with the token returned.
+ */
+export async function changeOwnPassword(userId: string, current: unknown, next: unknown): Promise<string> {
   const employee = await prisma.employee.findUnique({ where: { id: userId } });
   if (!employee || employee.isActive === false || !employee.role || !employee.password) {
     throw new UnauthorizedError('This account no longer has system access.');
@@ -170,10 +173,12 @@ export async function changeOwnPassword(userId: string, current: unknown, next: 
   if (password === current || (temporary && (await verifyPassword(password, employee.password)))) {
     throw new BadRequestError('Choose a password that is different from your current one.');
   }
+  const hash = await hashPassword(password);
   await prisma.$transaction(async (tx) => {
-    await tx.employee.update({ where: { id: userId }, data: { password: await hashPassword(password), mustChangePassword: false } });
+    await tx.employee.update({ where: { id: userId }, data: { password: hash, mustChangePassword: false } });
     await audit(tx, employee, 'CHANGE_PASSWORD', userId, `${employee.fullNameEn} changed their password.`, undefined, { passwordChanged: true });
   });
+  return createSessionToken(userId, hash);
 }
 
 /**

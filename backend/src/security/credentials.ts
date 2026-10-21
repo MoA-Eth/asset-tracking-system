@@ -15,12 +15,21 @@ function signature(payload: string) {
   return createHmac('sha256', signingKey()).update(`moa-session-v1.${payload}`).digest();
 }
 
-export function createSessionToken(userId: string): string {
-  const payload = Buffer.from(JSON.stringify({ sub: userId, exp: Date.now() + SESSION_TTL_MS })).toString('base64url');
+/**
+ * A fingerprint of the stored password (its hash, keyed so it reveals nothing): a session carries the one it was
+ * signed in with, so changing the password, on any machine or by an administrator, ends every older session.
+ */
+export function passwordStamp(storedPassword: string | null | undefined): string {
+  return createHmac('sha256', signingKey()).update(`moa-password-v1.${storedPassword ?? ''}`).digest('base64url').slice(0, 22);
+}
+
+export function createSessionToken(userId: string, storedPassword?: string | null): string {
+  const payload = Buffer.from(JSON.stringify({ sub: userId, pw: passwordStamp(storedPassword), exp: Date.now() + SESSION_TTL_MS })).toString('base64url');
   return `${payload}.${signature(payload).toString('base64url')}`;
 }
 
-export function readSessionToken(token: string): string {
+/** Who a session is for, and the password it was signed in with (none on sessions from before passwords were stamped) */
+export function readSessionToken(token: string): { userId: string; passwordStamp?: string } {
   const invalid = () => new UnauthorizedError('Invalid or expired session. Please sign in again.');
   if (typeof token !== 'string' || token.length > 2048) throw invalid();
   const [payload, sig, extra] = token.split('.');
@@ -31,7 +40,7 @@ export function readSessionToken(token: string): string {
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     if (typeof data.sub !== 'string' || !data.sub || !Number.isFinite(data.exp) || data.exp <= Date.now()) throw invalid();
-    return data.sub;
+    return { userId: data.sub, passwordStamp: typeof data.pw === 'string' ? data.pw : undefined };
   } catch { throw invalid(); }
 }
 
