@@ -369,6 +369,49 @@ describe('Assets page', () => {
       );
     });
 
+    it('reads a Model 21 to a store man as a return to his store, and returns every asset on it', async () => {
+      const user = userEvent.setup();
+      const second = item('T2', 'Laptop', 'ISSUED', { itemCode: 'MOA-072352' });
+      vi.mocked(readPdfRows).mockResolvedValue(
+        asRows([
+          'Fixed Asset Internal Transfer Form',
+          'Model/21',
+          'Model # 0004400',
+          'From Employee Name :  Desta, Bikila  To : Man, Abebe Store',
+          // 0001: the store man of Head office
+          'From Employee ID :  MOA/1  To : 0001',
+          'Book :  MOA MC BOOK',
+          '1  Handheld GPS  MOA-072351  1  624,285.50  322,547.54  301,738.01  05-OCT-26',
+          '2  Laptop  MOA-072352  1  60,000.00  20,000.00  40,000.00  05-OCT-26',
+        ]),
+      );
+      vi.mocked(api.registerReturn).mockResolvedValue({} as any);
+      vi.mocked(api.getItems).mockResolvedValue([...items, gps, second] as any);
+      render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+      await screen.findByText('MOA-S1');
+      await menuFor(user, 'MOA-072351');
+      await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
+      const record = screen.getByRole('region', { name: 'Asset record MOA-072351' });
+      await user.upload(document.querySelector('#transfer-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model21.pdf', { type: 'application/pdf' }));
+
+      // Not a transfer to the store man in person: back to his store, received by him
+      expect(await within(record).findByText(/return to store \(Head office · Central Store\), received by \(Abebe Store Man\)/)).toBeInTheDocument();
+      expect(within(record).queryByText(/recipient \(/)).toBeNull();
+      const others = within(record).getByRole('region', { name: 'Other assets on this form' });
+      expect(within(others).getByText('Will be returned')).toBeInTheDocument();
+
+      await user.type(within(record).getByLabelText(/Reason for return/), 'Project ended');
+      vi.mocked(api.uploadSlip).mockResolvedValue({ url: '/api/uploads/slips/model21.pdf' } as any);
+      await user.click(within(record.querySelector('form#transfer-form') as HTMLElement).getByRole('button', { name: /Submit return to store/ }));
+      expect(api.transferItem).not.toHaveBeenCalled();
+      expect(api.registerReturn).toHaveBeenCalledTimes(2);
+      expect(api.registerReturn).toHaveBeenNthCalledWith(1, expect.objectContaining({ itemId: 'T1', model21No: '0004400', returnReason: 'Project ended' }));
+      expect(api.registerReturn).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ itemId: 'T2', model21No: '0004400', storeRecipientId: 'SM1', depreciation: 20000, bookValue: 40000, ifmisSlipAttachmentUrl: '/api/uploads/slips/model21.pdf' }),
+      );
+    });
+
     describe('an asset IFMIS knows by its own tag number', () => {
       // Received here under a system code; IFMIS names it MOA-016341 on its Model 21
       const truck = item('V1', 'Isuzu Truck', 'ISSUED', { itemCode: 'MOA-VEH-2026-0001' });

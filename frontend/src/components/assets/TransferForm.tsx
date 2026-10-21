@@ -214,6 +214,22 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   };
 
   /**
+   * Where a Model 21 returns an issued asset to store: the store whose store man it names as the recipient. A store
+   * man of several stores: the one its "To" location names, else the asset's own store, else his first. A location
+   * name alone doesn't make a return: offices and stores share names ("MoA Head office").
+   */
+  const returnOf = (slip: Model21SlipFields, asset?: ItemWithRelations) => {
+    if (!asset || asset.status !== ItemStatus.ISSUED || !slip.toEmployeeId) return undefined;
+    const hits = keepers.locations
+      .map((l) => ({ location: l, keeper: keepers.ofLocation(l.id).find((k) => sameEmployeeId(k.payrollId, slip.toEmployeeId)) }))
+      .filter((h): h is { location: typeof h.location; keeper: NonNullable<typeof h.keeper> } => !!h.keeper);
+    if (hits.length === 0) return undefined;
+    const to = (slip.toLocation ?? '').toLowerCase();
+    const named = (label: string) => label.split('·').map((p) => p.trim().toLowerCase()).some((p) => p.length > 3 && to.includes(p));
+    return hits.find((h) => to && named(h.location.label)) ?? hits.find((h) => h.location.id === asset.storeLocationId) ?? hits[0];
+  };
+
+  /**
    * A Model 21 fills in the voucher, the asset and who receives it. Anything that doesn't fit the order of operations
    * is said, and that asset (or the recipient) is not filled in. The form's other assets are listed under it, each to
    * be transferred as its own request.
@@ -240,6 +256,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
     const first = checkLine(line, slip);
     const usable = !!first.asset && !first.problem;
+    // Its recipient a store man: a return to his store, not a transfer to him in person
+    const back = usable && !editTransfer ? returnOf(slip, first.asset) : undefined;
     if (first.problem) problems.push(first.problem);
     else if (first.asset) {
       const asset = first.asset;
@@ -247,7 +265,13 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         handleItemSelect(asset.id);
         filled.push(`asset (${asset.itemCode})`);
       }
-      setReturnToId('');
+      if (back) {
+        setReturnToId(back.location.id);
+        setStoreReceiverId(back.keeper.employeeId);
+        filled.push(`return to store (${back.location.label})`, `received by (${back.keeper.fullNameEn})`);
+      } else if (!editTransfer) {
+        setReturnToId('');
+      }
       if (line?.depreciation !== undefined) {
         setDepreciation(line.depreciation);
         filled.push('depreciation');
@@ -275,8 +299,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       }
     }
 
-    // Who receives it: only once the asset itself fits
-    if (usable && slip.toEmployeeId) {
+    // Who receives it: only once the asset itself fits, and on a transfer (a return goes to the store)
+    if (usable && slip.toEmployeeId && !back) {
       const to = employees.find((e) => e.isActive !== false && sameEmployeeId(e.payrollId, slip.toEmployeeId));
       if (!to) problems.push(`No active employee has ID ${slip.toEmployeeId}${slip.toName ? ` (${slip.toName})` : ''}.`);
       else if (first.asset?.status === ItemStatus.ISSUED && to.id === first.asset.currentCustodianId) problems.push(`${first.asset.itemCode} is already with ${to.fullNameEn}.`);
@@ -292,14 +316,21 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       : slip.lines.slice(1).map((l, i) => {
           const checked = checkLine(l, slip);
           const sameAsFirst = checked.asset && first.asset && checked.asset.id === first.asset.id;
-          return { key: i, line: l, asset: checked.asset, problem: sameAsFirst ? `${checked.asset!.itemCode} is already the first asset on this form.` : checked.problem };
+          // Only what someone holds can go back to store
+          const inStore = back && checked.asset && !checked.problem && checked.asset.status !== ItemStatus.ISSUED;
+          return {
+            key: i,
+            line: l,
+            asset: checked.asset,
+            problem: sameAsFirst ? `${checked.asset!.itemCode} is already the first asset on this form.` : inStore ? `${checked.asset!.itemCode} is already in store.` : checked.problem,
+          };
         });
     setExtraAssets(others);
     const ready = others.filter((o) => o.asset && !o.problem).length;
 
     const more =
       others.length > 0
-        ? ` The form lists ${slip.lines.length} assets: the first is in the form and the others are listed under it${ready ? `; ${ready} of them will be transferred as their own requests when you submit` : ''}.`
+        ? ` The form lists ${slip.lines.length} assets: the first is in the form and the others are listed under it${ready ? `; ${ready} of them will be ${back ? 'returned to store' : 'transferred'} as their own requests when you submit` : ''}.`
         : '';
     if (problems.length) {
       setSlipNote({ tone: 'warn', text: `${problems.join(' ')}${filled.length ? ` Filled in: ${filled.join(', ')}.` : ''}${more}` });
@@ -443,6 +474,34 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           storeRecipientId: storeReceiverId || undefined,
           targetStoreLocationId: returnToId && returnToId !== item?.storeLocationId ? returnToId : undefined,
         });
+        // The other assets on the Model 21, each its own return with the same number, book, date and store
+        const returned: typeof extraReady = [];
+        const notReturned: string[] = [];
+        for (const other of editTransfer ? [] : extraReady) {
+          try {
+            await api.registerReturn({
+              itemId: other.asset.id,
+              ifmisSlipNumber: effectiveModel21No,
+              ifmisSlipDateGc: transferDateGc,
+              ifmisSlipAttachmentUrl: slipUrl,
+              returnReason: effectiveReason,
+              condition,
+              returningEmployeeId: other.asset.currentCustodianId || undefined,
+              registeredById: user?.id || '',
+              model21No: model21No.trim(),
+              book: book.trim(),
+              origCost: other.line.origCost ?? valueOf(other.asset, Number(other.asset.quantity) || 1),
+              depreciation: other.line.depreciation,
+              bookValue: other.line.bookValue,
+              storeRecipientId: receiverId || undefined,
+              targetStoreLocationId: returnToId && returnToId !== other.asset.storeLocationId ? returnToId : undefined,
+            });
+            returned.push(other);
+          } catch (err: any) {
+            notReturned.push(`${other.asset.itemCode}: ${err.message || 'refused'}`);
+          }
+        }
+        if (notReturned.length) toast.warning('Some assets on the form were not returned', notReturned.join(' · '));
         const receiver = returnStoreMen.find((k) => k.employeeId === receiverId);
         const loc = storeLocationLabel(item?.storeLocation);
         const returnVoucher: Model21Voucher = {
@@ -477,12 +536,30 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               tireNos: tireList.length > 0 ? tireList : undefined,
               remark: defectRemark.trim() || undefined,
             },
+            // The other assets returned on the same form
+            ...returned.map((other, i) => ({
+              sNo: i + 2,
+              description: other.asset.name || '—',
+              tagNumber: printedTag(other.asset) || '—',
+              serialNumber: other.asset.serialNumber || '',
+              uom: other.asset.uom || 'EA',
+              unit: Number(other.asset.quantity) || 1,
+              origCost: other.line.origCost ?? valueOf(other.asset, Number(other.asset.quantity) || 1),
+              depreciation: other.line.depreciation,
+              bookValue: other.line.bookValue,
+              dateGc: transferDateGc,
+              dateEc: formatGcToEc(transferDateGc),
+              fromLocation: storeLocationLabel(other.asset.storeLocation),
+              toLocation: returnLocation ? returnLocation.label : storeLocationLabel(other.asset.storeLocation),
+            })),
           ],
           printedBy: user?.fullNameEn,
         };
         toast.success(
           'Return to store submitted for approval',
-          `${item?.itemCode || 'The asset'} (${model21No.trim()}) is registered for Department Head approval and stays with its custodian until then.`,
+          returned.length
+            ? `${returned.length + 1} assets (${model21No.trim()}) are registered for Department Head approval and stay with their custodians until then.`
+            : `${item?.itemCode || 'The asset'} (${model21No.trim()}) is registered for Department Head approval and stays with its custodian until then.`,
         );
         rememberForm(user?.id, 'transfer', { book: book.trim() });
         onSaved(returnVoucher);
@@ -672,12 +749,12 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           onLearned={tagLearned}
         />
       )}
-      {extraAssets.length > 0 && !isReturn && (
+      {extraAssets.length > 0 && (
         <OtherAssets
           label="Other assets on this form"
-          note="each that fits is transferred as its own request, to the same recipient"
-          okLabel="Will be transferred"
-          notLabel="Not transferred"
+          note={isReturn ? 'each that fits is returned to the same store as its own request' : 'each that fits is transferred as its own request, to the same recipient'}
+          okLabel={isReturn ? 'Will be returned' : 'Will be transferred'}
+          notLabel={isReturn ? 'Not returned' : 'Not transferred'}
           assets={extraAssets.map((o) => ({ key: o.key, code: o.asset?.itemCode ?? o.line.tagNumber ?? '—', name: o.asset?.name ?? o.line.description, problem: o.problem }))}
           onLeaveOut={(key) => setExtraAssets((list) => list.filter((x) => x.key !== key))}
         />
