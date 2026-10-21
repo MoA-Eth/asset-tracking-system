@@ -223,7 +223,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   useEffect(() => {
     if (isEdit || receivedById || !start?.receivedBy) return;
     const same = storeMen.find((k) => k.fullNameEn === start.receivedBy);
-    if (same) setReceivedById(same.employeeId);
+    if (same) {
+      setReceivedById(same.employeeId);
+      // Came with the duplicate, like the rest: a slip naming another store man replaces it
+      if (fromStart.current) fromStart.current.receivedById = same.employeeId;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeMen]);
   const receiverId = receivedById || (storeMen.length === 1 ? storeMen[0].employeeId : '');
@@ -367,6 +371,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
    * not to the person, so another slip may replace or clear it.
    */
   const fromSlip = useRef<Record<string, string | number>>({});
+  // What the form started with, from a duplicated receipt or the person's last receipt: not typed now, so a slip's
+  // value replaces it (unlike fromSlip, a value the slip doesn't give is kept rather than cleared)
+  const fromStart = useRef<Record<string, string | number> | null>(null);
   // The slip file chosen last, so an earlier, slower read can't overwrite it
   const latestSlip = useRef<File | null>(null);
   const today = new Date().toISOString().split('T')[0];
@@ -394,6 +401,17 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     { key: 'storeId', label: 'receiving store', current: storeId, set: chooseStore, empty: '' },
     { key: 'receivedById', label: 'received by', current: receivedById, set: setReceivedById, empty: '' },
   ] as { key: string; label: string; current: string | number; set: (v: any) => void; empty: string | number; free?: boolean }[];
+  // Taken once, from the first render: everything filled in then came from a duplicate or memory, none of it typed.
+  // A correction starts from the saved receipt, which the person chose to correct: nothing of it is free.
+  if (fromStart.current === null) {
+    fromStart.current = isEdit
+      ? {}
+      : Object.fromEntries(
+          slipFields()
+            .filter((f) => f.current !== f.empty && !(typeof f.current === 'string' && !f.current.trim()))
+            .map((f) => [f.key, f.current]),
+        );
+  }
 
   /** Clears what an earlier slip filled in and the person hasn't changed, along with its other item lines */
   const forgetSlip = () => {
@@ -408,7 +426,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const line = slip.lines[0];
     // The store man only goes with his own store: not when the person already picked another store
     const found = keepers.findByName(slip.receivedBy);
-    const storeIsFree = !storeId || fromSlip.current.storeId === storeId;
+    const storeIsFree = !storeId || fromSlip.current.storeId === storeId || fromStart.current?.storeId === storeId;
     const receiver = found && (storeIsFree || storeId === found.storeId) ? found : undefined;
     const unknownReceiver =
       slip.receivedBy && !found ? ` The slip says received by ${slip.receivedBy}, who is not a store man of any store; pick the store man.` : '';
@@ -440,7 +458,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     for (const f of slipFields()) {
       const value = values[f.key];
       const fromEarlierSlip = fromSlip.current[f.key] !== undefined && fromSlip.current[f.key] === f.current;
-      const free = fromEarlierSlip || !!f.free || f.current === f.empty || (typeof f.current === 'string' && !f.current.trim());
+      const asStarted = !!fromStart.current && fromStart.current[f.key] !== undefined && fromStart.current[f.key] === f.current;
+      const free = fromEarlierSlip || asStarted || !!f.free || f.current === f.empty || (typeof f.current === 'string' && !f.current.trim());
       if (value !== undefined && value !== '' && free) {
         taken[f.key] = value;
         if (value !== f.current) {
@@ -479,7 +498,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         };
       }),
     );
-    if (others.length > 0) filled.push(`${others.length} more ${others.length === 1 ? 'item' : 'items'} (rows 2–${others.length + 1})`);
+    if (others.length > 0) filled.push(others.length === 1 ? '1 more item (row 2)' : `${others.length} more items (rows 2–${others.length + 1})`);
     if (already) {
       setSlipNote({
         tone: 'warn',

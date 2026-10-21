@@ -1724,6 +1724,29 @@ describe('Receiving form: replacing or racing slips', () => {
     expect(within(panel).getByLabelText(/Source/i)).toHaveValue('Typed supplier');
   });
 
+  it('fills a duplicated receipt from the slip: what the duplicate copied is replaced, what the slip lacks is kept', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getItems).mockResolvedValue(items.map((i) => (i.id === 'S1' ? {
+      ...i, poNumber: 'PO-OLD', source: 'Old supplier', programName: 'Office renewal', ifmisItemCode: '305101101.0001',
+    } : i)) as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await menuFor(user, 'MOA-S1');
+    await user.click(screen.getByRole('menuitem', { name: 'Duplicate as new receipt' }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Desk');
+
+    vi.mocked(readPdfRows).mockResolvedValueOnce(slip('NEW-19', [['101.1', 'Printer toner'], ['101.2', 'Stapler']], [r(162, [714, 'PO Number :'], [812, '555'])]));
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'new.pdf', { type: 'application/pdf' }));
+    await vi.waitFor(() => expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('NEW-19'));
+    // The slip's first item and PO take the place of the duplicated ones, and its other items follow
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Printer toner');
+    expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('555');
+    expect(within(panel).getByLabelText('Item 2 description')).toHaveValue('Stapler');
+    // The slip names no program: the duplicated one stays
+    expect(within(panel).getByLabelText(/Program/i)).toHaveValue('Office renewal');
+  });
+
   it('uses the slip chosen last when an earlier one finishes reading later', async () => {
     const user = userEvent.setup();
     const { panel, upload } = await openReceive(user);
