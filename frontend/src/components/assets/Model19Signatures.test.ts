@@ -39,3 +39,33 @@ describe('signatures on the printed Model 19', () => {
     expect(signed(v)[3]).toBe('Approved By (Chief Executive Officer) ✓');
   });
 });
+
+describe('the lines and amounts on the printed Model 19', () => {
+  const line = (id: string, extra: object = {}) =>
+    item('PENDING_STOCK_IN', { id, itemCode: `MOA-${id}`, name: `Item ${id}`, poNumber: 'PO-1', ifmisItemCode: `30510110${id.slice(-1)}.0001`, ...extra });
+
+  it('is signed by the Chief Executive Officer when the grand total is above 10 million, though no line is', () => {
+    const a = line('L1', { status: 'AVAILABLE', unitCostETB: 6_000_000, createdAt: '2026-10-01T08:00:00Z' });
+    const b = line('L2', { status: 'AVAILABLE', unitCostETB: 6_000_000, createdAt: '2026-10-01T08:00:01Z' });
+    const v = buildModel19Voucher(a, [a, b], 'Encoder', approval('APPROVED', 2));
+    expect(v.grandTotal).toBe(12_000_000);
+    expect(signed(v)[3]).toBe('Approved By (Chief Executive Officer) ✓');
+  });
+
+  it('prints the lines of this receipt only, in the order entered, by their IFMIS item codes', () => {
+    const first = line('L1', { createdAt: '2026-10-01T08:00:00Z' });
+    const second = line('L2', { createdAt: '2026-10-01T08:00:01Z', itemType: 'CONSUMABLE' });
+    const otherPo = line('L3', { poNumber: 'PO-2', createdAt: '2026-10-01T08:00:02Z' });
+    const rejectedTry = line('L4', { status: 'REJECTED', createdAt: '2026-09-30T08:00:00Z' });
+    // The list comes newest first, as the server sends it
+    const v = buildModel19Voucher(first, [rejectedTry, otherPo, second, first], 'Encoder');
+    expect(v.items.map((i) => i.itemDescription)).toEqual(['Item L1', 'Item L2']);
+    expect(v.items.map((i) => i.itemCode)).toEqual(['305101101.0001', '305101102.0001']);
+  });
+
+  it('keeps a line’s total with its VAT or charges, for the voucher to show them', () => {
+    const vat = line('L1', { quantity: 3, unitCostETB: 1799.99, vatApplicable: true, totalAmount: 6209.97 });
+    const v = buildModel19Voucher(vat, [vat], 'Encoder');
+    expect(v.items[0]).toMatchObject({ quantity: 3, unitPrice: 1799.99, vatApplicable: true, totalAmount: 6209.97 });
+  });
+});

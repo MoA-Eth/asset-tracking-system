@@ -165,3 +165,32 @@ describe('Model19PrintModal Component', () => {
   });
 });
 
+const amountsVoucher = (items: object[]) => ({
+  invModel19No: 'CALC-4', poNumber: 'PO-1', receivedDateGc: '2026-10-21', transactionType: 'PO Receipt', source: 'Supplier',
+  items: items.map((it, i) => ({ sNo: i + 1, itemCode: `10110110${i}.0001`, itemDescription: `Item ${i + 1}`, uom: 'EA', itemCategory: 'Office', ...it })),
+  grandTotal: 0,
+}) as any;
+
+describe('the amounts on the printed Model 19', () => {
+  it('shows what VAT adds to each line and in the totals, so the paper adds up', () => {
+    render(<Model19PrintModal isOpen onClose={() => {}} voucher={amountsVoucher([
+      { quantity: 3, unitPrice: 1799.99, vatApplicable: true, totalAmount: 6209.97 },
+      { quantity: 4, unitPrice: 250, vatApplicable: true, totalAmount: 1150 },
+    ])} />);
+    expect(screen.getByText('incl. VAT 810.00')).toBeInTheDocument();
+    expect(screen.getByText('incl. VAT 150.00')).toBeInTheDocument();
+    expect(screen.getByText('6,399.97')).toBeInTheDocument(); // subtotal: quantity × unit price
+    expect(screen.getByText('960.00')).toBeInTheDocument(); // VAT
+    expect(screen.getByText('7,359.97')).toBeInTheDocument(); // grand total
+  });
+
+  it('shows additional charges the same way, and no breakdown when nothing was added', () => {
+    const { unmount } = render(<Model19PrintModal isOpen onClose={() => {}} voucher={amountsVoucher([{ quantity: 2, unitPrice: 1500, totalAmount: 3100 }])} />);
+    expect(screen.getByText('incl. charges 100.00')).toBeInTheDocument();
+    expect(screen.getByText('Additional charges:')).toBeInTheDocument();
+    unmount();
+    render(<Model19PrintModal isOpen onClose={() => {}} voucher={amountsVoucher([{ quantity: 2, unitPrice: 1500, totalAmount: 3000 }])} />);
+    expect(screen.queryByText(/Subtotal/)).toBeNull();
+    expect(screen.queryByText(/incl\./)).toBeNull();
+  });
+});

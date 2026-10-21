@@ -14,6 +14,7 @@ import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDispla
 import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
 import { ReceiptItems, SlipLine, ItemTypeTag, lineMissing, blankLine, cellClass, money } from './SlipLines';
+import { slipKey } from './slip-groups';
 import { UomSelect } from './UomSelect';
 import { ProgramSelect } from './ProgramSelect';
 import { useToast } from '../../context/ToastContext';
@@ -1230,7 +1231,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWithRelations[], printedBy?: string, approval?: TransactionApproval): Model19Voucher => {
   const item = (record.parentItemId && allItems.find((i) => i.id === record.parentItemId)) || record;
   const registrations = allItems.filter((i) => !i.parentItemId);
-  const siblingItems = registrations.filter((i) => i.ifmisSlipNumber && i.ifmisSlipNumber === item.ifmisSlipNumber);
+  // The lines of this receipt: the same Model 19 No. and PO, in the order they were entered. A rejected attempt on
+  // the same number is another receipt, so it prints only with other rejected lines (as on its own voucher).
+  const key = slipKey(item.ifmisSlipNumber, item.poNumber);
+  const rejectedItem = item.status === ItemStatus.REJECTED;
+  const siblingItems = key
+    ? registrations
+        .filter((i) => slipKey(i.ifmisSlipNumber, i.poNumber) === key && (i.status === ItemStatus.REJECTED) === rejectedItem)
+        .sort((a, b) => String(a.createdAt ?? a.createdAtGc ?? '').localeCompare(String(b.createdAt ?? b.createdAtGc ?? '')) || a.itemCode.localeCompare(b.itemCode, undefined, { numeric: true }))
+    : [];
   const targetItems = siblingItems.length > 0 ? siblingItems : [item];
 
   const isDonation = item.provisionType === 'DONATION';
@@ -1248,7 +1257,8 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
     return {
       id: it.id,
       sNo: idx + 1,
-      itemCode: it.itemType === ItemType.CONSUMABLE && it.ifmisItemCode ? it.ifmisItemCode : it.itemCode,
+      // The IFMIS item code, as IFMIS prints it on the Model 19; the record code only for an older record without one
+      itemCode: it.ifmisItemCode || it.itemCode,
       itemDescription: it.name,
       uom: it.uom || 'EA',
       subInventory: it.subInventory || item.storeLocation?.roomNumber || '—',
@@ -1298,8 +1308,8 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
       { label: 'Delivered By', name: item.deliveredBy },
       { label: 'Received By', name: item.receivedBy },
       getEndorserSignatory(approval, { isEndorsed: endorsed }),
-      // The CEO signs when any line is above 10 million birr (the rule is per line, not the slip's total)
-      getAuthorizerSignatory(approval, { isApproved: approved, totalAmount: Math.max(0, ...voucherItems.map((l) => l.totalAmount)) }),
+      // The Chief Director signs when the receipt's grand total is above 10 million birr, as the approval goes
+      getAuthorizerSignatory(approval, { isApproved: approved, totalAmount: grandTotal }),
     ],
   };
 };
