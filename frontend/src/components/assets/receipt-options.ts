@@ -70,6 +70,7 @@ export const PROGRAMS = [
   'Participatory Agriculture and Climate Transformation Program',
   'Sustainable Land Use Management Project (SLMP)',
   'Climate Action through Landscape Management (CALM)',
+  'MoA-DE-RI & Value Enhancement of Pastoral Economies in the Horn of Africa',
 ];
 
 export const COMMON_UOM_OPTIONS: { value: string; label: string }[] = COMMON_UOMS.map((u) => ({
