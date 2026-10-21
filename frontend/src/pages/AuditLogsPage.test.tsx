@@ -8,7 +8,7 @@ import { api } from '../api/client';
 
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn() }));
 vi.mock('../context/ToastContext', () => ({ useToast: () => toast }));
-vi.mock('../api/client', () => ({ api: { getAuditLogs: vi.fn() } }));
+vi.mock('../api/client', () => ({ api: { getAuditLogs: vi.fn(), getItems: vi.fn(), getEmployees: vi.fn(), getApprovals: vi.fn() } }));
 
 const entry = (id: string, action: string, userName: string, userRole: string, details: string, extra: object = {}) => ({
   id, action, userName, userRole, details, userId: 'u', entityType: 'ITEM', entityId: 'i', timestampGc: '2026-10-02 17:10:11', timestampEc: '2019-01-22 17:10:11', ...extra,
@@ -52,15 +52,19 @@ describe('Audit log', () => {
     const user = userEvent.setup();
     render(<AuditLogsPage />);
     await user.click(await screen.findByRole('button', { name: 'Show details of Update system settings by Admin Person' }));
-    expect(screen.getByText('Before')).toBeInTheDocument();
-    expect(screen.getByText('After')).toBeInTheDocument();
+    expect(screen.getByText('Changes (1 of 1 fields)')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Before' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'After' })).toBeInTheDocument();
     expect(screen.getByText('OPTIONAL')).toBeInTheDocument();
     expect(screen.getByText('REQUIRED')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Hide details of Update system settings by Admin Person' }));
-    expect(screen.queryByText('Before')).not.toBeInTheDocument();
+    expect(screen.queryByText('OPTIONAL')).not.toBeInTheDocument();
 
+    // An entry without recorded values still says who did what, when, and to which record
     await user.click(screen.getByRole('button', { name: 'Show details of Register receipt by Store Encoder' }));
-    expect(screen.getByText('No before-and-after values were recorded for this entry.')).toBeInTheDocument();
+    expect(screen.getByText('REGISTER_STOCK_IN')).toBeInTheDocument();
+    expect(screen.getByText('Store Encoder · Data Encoder')).toBeInTheDocument();
+    expect(screen.queryByText(/^Changes/)).not.toBeInTheDocument();
   });
 
   it('filters by kind of activity, and an approval of a stock-in counts as an approval', async () => {
@@ -108,5 +112,44 @@ describe('Audit log', () => {
     expect(withRoleNames('Rejected by Abebe (TEAM_LEADER); permissions updated for role MANAGER. The MANAGER word alone stays.')).toBe(
       'Rejected by Abebe (Team Leader); permissions updated for role Manager. The MANAGER word alone stays.',
     );
+  });
+});
+
+describe('Audit log: an opened entry', () => {
+  it('names the record, and the request behind it as it stands now, with who returned it and why', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getItems).mockResolvedValue([{ id: 'i', itemCode: 'MOA-IT-2026-0079', name: 'Dell Latitude', status: 'PENDING_STOCK_IN' }] as any);
+    vi.mocked(api.getEmployees).mockResolvedValue([] as any);
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      {
+        id: 'r1', transactionType: 'STOCK_IN', itemId: 'i', ifmisSlipNumber: 'M19-0044', status: 'RETURNED', currentStage: 1, createdAtGc: '2026-10-01',
+        totalAmount: 85000, requestedBy: { fullNameEn: 'Store Encoder' }, returnedBy: { fullNameEn: 'Getnet Taye' }, returnedAtGc: '2026-10-21',
+        returnRemarks: 'Price is entered as USD.', returnCount: 2,
+      },
+    ] as any);
+    render(<AuditLogsPage />);
+    await user.click(await screen.findByRole('button', { name: 'Show details of Approve receipt by Tigist Haile' }));
+    expect(await screen.findByText('Request, as it stands now')).toBeInTheDocument();
+    expect(screen.getByText('MOA-IT-2026-0079')).toBeInTheDocument();
+    expect(screen.getByText(/now Receipt pending/)).toBeInTheDocument();
+    expect(screen.getByText('Returned for correction')).toBeInTheDocument();
+    expect(screen.getByText(/Getnet Taye · 21 Oct 2026 · 2 times/)).toBeInTheDocument();
+    expect(screen.getByText('Price is entered as USD.')).toBeInTheDocument();
+    expect(screen.getByText(/ETB 85,000/)).toBeInTheDocument();
+    // Loaded once, not on every entry opened
+    await user.click(screen.getByRole('button', { name: 'Show details of Reject issue by Mulugeta Bekele' }));
+    expect(api.getApprovals).toHaveBeenCalledTimes(1);
+  });
+
+  it('still opens when the requests or records cannot be read by this role', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getItems).mockRejectedValue(new Error('forbidden'));
+    vi.mocked(api.getEmployees).mockRejectedValue(new Error('forbidden'));
+    vi.mocked(api.getApprovals).mockRejectedValue(new Error('forbidden'));
+    render(<AuditLogsPage />);
+    await user.click(await screen.findByRole('button', { name: 'Show details of Approve receipt by Tigist Haile' }));
+    expect(screen.getByText('APPROVE_STOCK_IN')).toBeInTheDocument();
+    expect(await screen.findByText('i')).toBeInTheDocument();
+    expect(screen.queryByText('Request, as it stands now')).not.toBeInTheDocument();
   });
 });

@@ -10,6 +10,7 @@ import { downloadCsv } from '../utils/csv';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../components/ui/FilterPopover';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
 import { AuditLogSkeleton } from '../components/ui/Skeleton';
+import { AuditContext, AuditEntryDetails } from '../components/ui/AuditEntryDetails';
 
 /** What kind of activity an entry is, for the filter and the colour of its label */
 type ActivityKind = 'STOCK_IN' | 'STOCK_OUT' | 'TRANSFER' | 'DISPOSAL' | 'APPROVAL' | 'REJECTION' | 'ADMIN' | 'OTHER';
@@ -58,37 +59,6 @@ const splitStamp = (stamp?: string): [string, string] => {
   return [date, time.slice(0, 5)];
 };
 
-const fieldLabel = (key: string): string => {
-  const text = key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toLowerCase();
-  return text.charAt(0).toUpperCase() + text.slice(1);
-};
-const fieldValue = (value: unknown): string => {
-  if (value === null || value === undefined || value === '') return '—';
-  if (Array.isArray(value)) return value.length === 0 ? '—' : value.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(', ');
-  if (typeof value === 'object') return JSON.stringify(value);
-  return withRoleNames(String(value));
-};
-
-/** The recorded state before or after a change, one field per line; changed fields are highlighted */
-const StateList: React.FC<{ title: string; state?: Record<string, unknown> | null; other?: Record<string, unknown> | null }> = ({ title, state, other }) => {
-  if (!state || typeof state !== 'object' || Object.keys(state).length === 0) return null;
-  return (
-    <div className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white p-3">
-      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">{title}</p>
-      <dl className="space-y-1">
-        {Object.entries(state).map(([key, value]) => {
-          const changed = other && fieldValue(other[key]) !== fieldValue(value);
-          return (
-            <div key={key} className="flex gap-2 text-[11px]">
-              <dt className="w-36 shrink-0 text-slate-500">{fieldLabel(key)}</dt>
-              <dd className={`min-w-0 break-words ${changed ? 'font-semibold text-slate-900' : 'text-slate-700'}`}>{fieldValue(value)}</dd>
-            </div>
-          );
-        })}
-      </dl>
-    </div>
-  );
-};
 
 export const AuditLogsPage: React.FC = () => {
   const toast = useToast();
@@ -101,6 +71,18 @@ export const AuditLogsPage: React.FC = () => {
   const [selectedKind, setSelectedKind] = useState<ActivityKind | 'ALL'>('ALL');
   const [dateFilter, setDateFilter] = useState<string>('ALL_TIME');
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  // The records, staff and requests an opened entry names: loaded once, on the first entry opened; a list this role
+  // can't read is simply left out
+  const [context, setContext] = useState<AuditContext | null>(null);
+  const contextRequested = useRef(false);
+  useEffect(() => {
+    if (!expandedLogId || contextRequested.current) return;
+    contextRequested.current = true;
+    const safely = <T,>(load: () => Promise<T[]>) => Promise.resolve().then(load).then((list) => (Array.isArray(list) ? list : [])).catch(() => [] as T[]);
+    Promise.all([safely(() => api.getItems()), safely(() => api.getEmployees()), safely(() => api.getApprovals())]).then(([items, employees, approvals]) => {
+      setContext({ items: new Map(items.map((i) => [i.id, i])), employees: new Map(employees.map((e) => [e.id, e])), approvals });
+    });
+  }, [expandedLogId]);
 
   // 3-Dot Actions Menu
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
@@ -439,7 +421,6 @@ export const AuditLogsPage: React.FC = () => {
                     const isExpanded = expandedLogId === log.id;
                     const [ecDate, ecTime] = splitStamp(log.timestampEc);
                     const [gcDate] = splitStamp(log.timestampGc);
-                    const hasStates = Boolean(log.previousState || log.newState);
                     return (
                       <React.Fragment key={log.id}>
                         <tr
@@ -485,14 +466,7 @@ export const AuditLogsPage: React.FC = () => {
                           <tr className="bg-slate-50/70">
                             <td />
                             <td colSpan={5} className="px-3 pb-3.5 pt-1">
-                              {hasStates ? (
-                                <div className="flex flex-col gap-2.5 md:flex-row">
-                                  <StateList title="Before" state={log.previousState} other={log.newState} />
-                                  <StateList title="After" state={log.newState} other={log.previousState} />
-                                </div>
-                              ) : (
-                                <p className="text-[11px] text-slate-500">No before-and-after values were recorded for this entry.</p>
-                              )}
+                              <AuditEntryDetails log={log} context={context} />
                               <p className="mt-2 font-mono text-[10px] text-slate-400">
                                 Entry {log.id} · {log.timestampGc} G.C.
                               </p>
