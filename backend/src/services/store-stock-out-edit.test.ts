@@ -103,6 +103,13 @@ describe('Stock-Out correction before Stage 1 endorsement', () => {
     await expect(store().updateStockOut('appr-1', { ...edit, quantity: 0 }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
   });
 
+  it('is allowed once the request is returned for correction, and leaves it returned until resubmitted', async () => {
+    db.transactionApproval.findUnique.mockResolvedValue({ ...stage1Request, status: 'RETURNED', returnRemarks: 'Wrong recipient' });
+    await store().updateStockOut('appr-1', edit, 'EMP-ENC');
+    const data = db.transactionApproval.update.mock.calls[0][0].data;
+    expect(data.status).toBeUndefined();
+  });
+
   it('is refused once the Team Leader has endorsed (Stage 2)', async () => {
     db.transactionApproval.findUnique.mockResolvedValue({ ...stage1Request, currentStage: 2 });
     await expect(store().updateStockOut('appr-1', edit, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 409 });

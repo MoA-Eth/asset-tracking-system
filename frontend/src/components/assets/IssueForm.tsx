@@ -1048,7 +1048,8 @@ export const buildModel22Voucher = (
   const transportationCost = lines.reduce((sum, l) => sum + l.transportationCost, 0);
 
   return {
-    approvalState: approval.status === 'PENDING' ? 'PENDING' : approval.status === 'REJECTED' ? 'REJECTED' : undefined,
+    // Returned for correction is still waiting for approval
+    approvalState: approval.status === 'PENDING' || approval.status === 'RETURNED' ? 'PENDING' : approval.status === 'REJECTED' ? 'REJECTED' : undefined,
     model22No: approval.ifmisSlipNumber || '',
     issuedDateGc,
     issuedDateEc: approval.ifmisSlipDateEc || approval.createdAtEc || formatGcToEc(issuedDateGc),

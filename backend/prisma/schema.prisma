@@ -76,6 +76,8 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+  /// Sent back to the requester to correct; still open, resubmitted to the Team Leader
+  RETURNED
 }
 
 enum AuditEntityType {
@@ -225,6 +227,7 @@ model Employee {
   requestedApprovals  TransactionApproval[] @relation("RequestedBy")
   endorsedApprovals   TransactionApproval[] @relation("EndorsedBy")
   reviewedApprovals   TransactionApproval[] @relation("ReviewedBy")
+  returnedApprovals   TransactionApproval[] @relation("ReturnedBy")
   recipientApprovals  TransactionApproval[] @relation("RecipientEmployee")
   auditLogs           AuditLog[]
 
@@ -362,6 +365,17 @@ model TransactionApproval {
   createdAtEc   String
   reviewedAtGc  String?
   reviewedAtEc  String?
+
+  // Returned for correction: who sent it back, from which stage, why and when; how many times so far
+  returnedById      String?
+  returnRemarks     String?
+  returnedAtGc      String?
+  returnedAtEc      String?
+  returnedFromStage Int?
+  returnCount       Int     @default(0)
+  /// A rejection is final: the voucher can't be entered again. Rejections made before Return existed are not
+  rejectionFinal    Boolean @default(false)
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -372,6 +386,7 @@ model TransactionApproval {
   targetDepartment   Department? @relation("TargetDepartment", fields: [targetDepartmentId], references: [id])
   endorsedBy         Employee?   @relation("EndorsedBy", fields: [endorsedById], references: [id])
   reviewedBy         Employee?   @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  returnedBy         Employee?   @relation("ReturnedBy", fields: [returnedById], references: [id])
 
   @@index([status, currentStage])
   @@index([itemId])

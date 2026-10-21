@@ -59,11 +59,12 @@ describe('My assets', () => {
     }
   });
 
-  it('shows a waiting transfer or return', async () => {
-    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) => (where.status === 'PENDING' ? [{ itemId: 'item-1', transactionType: 'RETURN', currentStage: 2 }] : []));
+  it('shows a waiting transfer or return, also while it is returned for correction', async () => {
+    const open = (where: any) => Array.isArray(where.status?.in) && where.status.in.includes('PENDING') && where.status.in.includes('RETURNED');
+    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) => (open(where) ? [{ itemId: 'item-1', transactionType: 'RETURN', currentStage: 2 }] : []));
     const [asset] = await store().getMyAssets('EMP-ME');
     expect(asset.pendingRequest).toEqual({ type: 'RETURN', stage: 2 });
-    const waiting = db.transactionApproval.findMany.mock.calls.map((c: any) => c[0]).find((q: any) => q.where.status === 'PENDING');
+    const waiting = db.transactionApproval.findMany.mock.calls.map((c: any) => c[0]).find((q: any) => open(q.where));
     expect(waiting.where).toMatchObject({ itemId: { in: ['item-1'] }, transactionType: { in: ['TRANSFER', 'RETURN'] } });
     // The approved issues looked up are only those made to this person
     const issued = db.transactionApproval.findMany.mock.calls.map((c: any) => c[0]).find((q: any) => q.where.status === 'APPROVED');

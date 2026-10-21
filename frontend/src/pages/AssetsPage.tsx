@@ -17,6 +17,7 @@ import {
   MoreVertical,
   Printer,
   Info,
+  Send,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -295,7 +296,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   // The open request of a record (several issue requests can wait on one record: the oldest is shown)
   const pendingByItem = useMemo(
-    () => new Map(approvals.filter((a) => a.status === ApprovalStatus.PENDING).map((a) => [a.itemId, a] as const)),
+    () => new Map(approvals.filter((a) => a.status === ApprovalStatus.PENDING || a.status === ApprovalStatus.RETURNED).map((a) => [a.itemId, a] as const)),
     [approvals],
   );
 
@@ -308,7 +309,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const raised = new Map<string, TransactionApproval[]>();
     const add = (map: Map<string, TransactionApproval[]>, id: string, a: TransactionApproval) => map.set(id, [...(map.get(id) ?? []), a]);
     for (const a of approvals) {
-      if (a.status === ApprovalStatus.PENDING) continue;
+      if (a.status === ApprovalStatus.PENDING || a.status === ApprovalStatus.RETURNED) continue;
       // A partial issue or disposal is filed under the record split off for those units
       const splitCode = a.status === ApprovalStatus.APPROVED ? a.requestDetails?.issuedItemCode ?? a.requestDetails?.disposedItemCode : undefined;
       add(vouchers, (splitCode && idByCode.get(splitCode)) || a.itemId, a);
@@ -640,6 +641,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             employees={employees}
             editItem={item}
             registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && i.id !== item.id).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
+            rejectedReceipts={rejectedReceipts}
             onCancel={() => setEditing(false)}
             onSuccess={(_result, voucher) => done(voucher, setVoucher19)}
           />
@@ -755,6 +757,49 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return undefined;
   };
 
+  /** Receipts rejected for good, so the receive form refuses their Model 19 No. and PO */
+  const rejectedReceipts = useMemo(
+    () => approvals
+      .filter((a) => a.transactionType === 'STOCK_IN' && a.status === ApprovalStatus.REJECTED && a.rejectionFinal)
+      .map((a) => ({ slipNumber: a.ifmisSlipNumber, poNumber: a.poNumber, reason: a.reviewRemarks, by: a.reviewedBy?.fullNameEn, on: a.reviewedAtGc })),
+    [approvals],
+  );
+  /** A returned request's voucher, every line of it still returned: sent back to the Team Leader at once */
+  const voucherOfRequest = (request: TransactionApproval) => {
+    const norm = (v?: string | null) => (v ?? '').trim().toLowerCase();
+    const key = (a: TransactionApproval) => `${a.transactionType}|${norm(a.ifmisSlipNumber)}|${a.transactionType === 'STOCK_IN' ? norm(a.poNumber) : ''}`;
+    return approvals.filter((a) => a.status === ApprovalStatus.RETURNED && key(a) === key(request));
+  };
+  const VOUCHER_OF: Record<string, string> = { STOCK_IN: 'Model 19', STOCK_OUT: 'Model 22', TRANSFER: 'Model 21', RETURN: 'Model 21', DISPOSAL: 'disposal form' };
+  const [resubmitting, setResubmitting] = useState(false);
+  const resubmit = async (request: TransactionApproval) => {
+    const lines = voucherOfRequest(request);
+    if (lines.length === 0 || resubmitting) return;
+    setResubmitting(true);
+    try {
+      await api.resubmitApprovals(lines.map((a) => a.id));
+      toast.success(
+        'Resubmitted for approval',
+        `${VOUCHER_OF[request.transactionType] ?? 'Voucher'} ${request.ifmisSlipNumber}${lines.length > 1 ? ` (${lines.length} items)` : ''} went back to the Team Leader.`,
+      );
+      window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
+      await fetchData(true);
+    } catch (err: any) {
+      toast.error('Could not resubmit', err?.message || 'Try again.');
+    } finally {
+      setResubmitting(false);
+    }
+  };
+  /** Who may correct and resubmit each kind of request */
+  const mayCorrect = (type: string) => ({ STOCK_IN: canReceive, STOCK_OUT: canIssue, DISPOSAL: canDispose, TRANSFER: canTransfer, RETURN: canTransfer } as Record<string, boolean>)[type] ?? false;
+  const resubmitAction = (request?: TransactionApproval): RowAction => ({
+    label: `Resubmit ${VOUCHER_OF[request?.transactionType ?? ''] ?? 'request'}`,
+    icon: Send,
+    onClick: () => request && void resubmit(request),
+    hidden: !request || request.status !== ApprovalStatus.RETURNED || !mayCorrect(request.transactionType),
+    disabled: resubmitting,
+  });
+
   const actionsFor = (row: AssetRow): RowAction[] => {
     const { item, request } = row;
     // A rejected record: the one thing left to do is receive it again
@@ -781,6 +826,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             disabled: request?.currentStage === 2,
             reason: request?.currentStage === 2 ? ENDORSED_REASON : undefined,
           },
+          resubmitAction(request),
         ];
       case 'IN_STORE':
         return [
@@ -846,6 +892,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             disabled: request!.currentStage === 2,
             reason: request!.currentStage === 2 ? ENDORSED_REASON : undefined,
           },
+          resubmitAction(request),
           {
             // The units not on the waiting issue can go on another Model 22 now
             label: 'Issue (Model 22)',
@@ -1132,6 +1179,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <RowActionsMenu
             label={`Model 19 ${lead.ifmisSlipNumber}`}
             actions={[
+              resubmitAction(returnedReceiptOf(members)),
               { label: 'Issue (Model 22)', icon: PackageMinus, onClick: () => issueSlip(key, members), hidden: !canIssue || issuableOf(members).length === 0 },
               { label: 'Print Model 19', icon: Printer, onClick: () => printSlip(members) },
               { label: 'Duplicate as new receipt', icon: Copy, onClick: () => duplicateSlip(members), hidden: !canReceive },
@@ -1141,6 +1189,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       </tr>
     );
   };
+  /** The receipt request of a Model 19 returned for correction, if it is */
+  const returnedReceiptOf = (members: AssetGroup[]) =>
+    members.map((g) => pendingByItem.get(g.row.item.id)).find((a) => a?.status === ApprovalStatus.RETURNED && a.transactionType === 'STOCK_IN');
   /** The Model 19 of a receipt of several items, with its approvers' signatures once approved */
   const printSlip = (members: AssetGroup[]) => {
     const lead = members[0].row.item;
@@ -1293,7 +1344,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const onIssues = new Map<string, number>();
     const blocked = new Set<string>();
     for (const a of approvals) {
-      if (a.status !== ApprovalStatus.PENDING) continue;
+      if (a.status !== ApprovalStatus.PENDING && a.status !== ApprovalStatus.RETURNED) continue;
       if (a.transactionType !== 'STOCK_OUT') blocked.add(a.itemId);
       else onIssues.set(a.itemId, (onIssues.get(a.itemId) ?? 0) + (Number(a.requestDetails?.quantity) || Infinity));
     }
@@ -1369,6 +1420,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     editItem={receipt.edit}
                     template={receipt.template}
                     registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (!receipt.edit || i.id !== receipt.edit.id)).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
+            rejectedReceipts={rejectedReceipts}
                     onCancel={() => setReceipt(null)}
                     onSuccess={(result, voucher) => {
                       setReceipt(null);
@@ -1391,6 +1443,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               onPrint={() => printSlip(selectedSlipMembers)}
               onDuplicate={canReceive ? () => duplicateSlip(selectedSlipMembers) : undefined}
               onIssue={canIssue && issuableOf(selectedSlipMembers).length > 0 ? () => issueSlip(selectedSlip!, selectedSlipMembers) : undefined}
+              onResubmit={(() => {
+                const returned = returnedReceiptOf(selectedSlipMembers);
+                return returned && canReceive ? () => void resubmit(returned) : undefined;
+              })()}
               form={
                 issue?.slip === selectedSlip ? (
                   <div className="space-y-3">

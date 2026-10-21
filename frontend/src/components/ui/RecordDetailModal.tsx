@@ -128,7 +128,9 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
       : ITEM_STATUS[item.status] ?? { label: item.status, tone: 'neutral' as const }
     : null;
   const requestStatus = approval
-    ? approval.status === 'PENDING'
+    ? approval.status === 'RETURNED'
+      ? { label: 'Returned for correction', tone: 'pending' as const }
+      : approval.status === 'PENDING'
       ? { label: approval.currentStage === 1 ? 'Awaiting Team Leader' : 'Awaiting Dept. Head', tone: 'pending' as const }
       : approval.status === 'APPROVED'
         ? { label: 'Approved', tone: 'approved' as const }

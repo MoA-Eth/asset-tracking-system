@@ -40,6 +40,8 @@ export enum ApprovalStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  /** Sent back to the requester to correct; still open, resubmitted to the Team Leader */
+  RETURNED = 'RETURNED',
 }
 
 export enum AssetCategory {
@@ -569,6 +571,16 @@ export interface TransactionApproval {
   reviewedAtGc?: string;
   reviewedAtEc?: string;
   reviewedBy?: Employee;
+  /** Returned for correction: by whom, from which stage, why and when, and how many times so far */
+  returnedById?: string;
+  returnedBy?: Employee;
+  returnRemarks?: string;
+  returnedAtGc?: string;
+  returnedAtEc?: string;
+  returnedFromStage?: number;
+  returnCount?: number;
+  /** A final rejection: the voucher can't be entered again */
+  rejectionFinal?: boolean;
   requestedBy?: Employee;
   recipientEmployee?: Employee;
 }
@@ -937,7 +949,8 @@ export interface UpdateReturnRequest {
 
 export interface ApprovalActionRequest {
   approvalId: string;
-  action: 'ENDORSE' | 'APPROVE' | 'REJECT';
+  /** RETURN sends the request back to the requester to correct; REJECT refuses it for good */
+  action: 'ENDORSE' | 'APPROVE' | 'REJECT' | 'RETURN';
   reviewedById: string;
   reviewRemarks?: string;
 }

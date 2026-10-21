@@ -160,3 +160,42 @@ describe('Approvals: the Chief Director signs a voucher by its grand total', () 
     expect(screen.queryByText('Tractor, Harvester')).toBeNull();
   });
 });
+
+describe('Approvals: return for correction', () => {
+  it('needs a reason, then sends the whole Model 19 back to its requester', async () => {
+    const user = userEvent.setup();
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+    const row = (await screen.findByText('3 items')).closest('tr')!;
+    await user.click(within(row).getByRole('button', { name: /Endorse/ }));
+    // Wider than before, to read the voucher's lines
+    expect(screen.getByRole('button', { name: /Return for correction/ }).closest('.max-w-2xl')).not.toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /Return for correction/ }));
+    expect(api.handleSlipApproval).not.toHaveBeenCalled();
+    expect(toast.warning).toHaveBeenCalledWith('Reason Required', expect.any(String));
+
+    await user.type(screen.getByPlaceholderText(/Verified asset specifications/), 'Price is entered as USD.');
+    await user.click(screen.getByRole('button', { name: /Return for correction/ }));
+    expect(api.handleSlipApproval).toHaveBeenCalledWith(expect.objectContaining({ approvalIds: ['A', 'B', 'C'], action: 'RETURN', reviewRemarks: 'Price is entered as USD.' }));
+    expect(toast.success).toHaveBeenCalledWith('Returned for Correction', expect.stringContaining('went back to Encoder'));
+  });
+
+  it('lists a returned receipt with who returned it, when and why, and lets it only be rejected for good', async () => {
+    const user = userEvent.setup();
+    const returned = { status: 'RETURNED', returnedBy: { fullNameEn: 'Getnet Taye' }, returnedAtGc: '2026-10-21', returnRemarks: 'Price is entered as USD.' };
+    vi.mocked(api.getApprovals).mockResolvedValue([receiptLine('A', 'Dell Latitude', returned), receiptLine('B', 'HP Printer', returned)] as any);
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+    await user.click((await screen.findAllByRole('button', { name: /^Returned/ }))[0]);
+    const row = screen.getByText('Dell Latitude, HP Printer').closest('tr')!;
+    expect(within(row).getByText('Returned for correction')).toBeInTheDocument();
+    expect(within(row).getByText('by Getnet Taye · 21 Oct 2026')).toBeInTheDocument();
+    expect(within(row).getByText('Reason: Price is entered as USD.')).toBeInTheDocument();
+    expect(within(row).queryByRole('button', { name: /Endorse/ })).toBeNull();
+
+    await user.click(within(row).getByRole('button', { name: /Reject/ }));
+    expect(screen.queryByRole('button', { name: /Endorse \(Stage 1\)/ })).toBeNull();
+    await user.type(screen.getByPlaceholderText(/Verified asset specifications/), 'Not our delivery');
+    await user.click(screen.getByRole('button', { name: /Reject for good/ }));
+    expect(api.handleSlipApproval).toHaveBeenCalledWith(expect.objectContaining({ approvalIds: ['A', 'B'], action: 'REJECT', reviewRemarks: 'Not our delivery' }));
+  });
+});

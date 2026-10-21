@@ -8,7 +8,7 @@ const db = vi.hoisted(() => ({
   location: { findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, siteName: 'Store', isActive: true })) },
   department: { findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, nameEn: 'Directorate', isActive: true })) },
   item: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn() },
-  transactionApproval: { create: vi.fn() },
+  transactionApproval: { create: vi.fn(), findMany: vi.fn() },
   auditLog: { create: vi.fn() },
 }));
 
@@ -296,6 +296,30 @@ describe('StoreService.registerStockIn approval gate', () => {
     });
     expect(db.item.create).not.toHaveBeenCalled();
   });
+  it('refuses a Model 19 No. and PO an approver rejected for good, and says who and why', async () => {
+    db.transactionApproval.findMany.mockResolvedValue([
+      { reviewedAtGc: '2026-10-21', reviewRemarks: 'Not our delivery', reviewedBy: { fullNameEn: 'Getnet Taye' }, item: { notes: JSON.stringify({ poNumber: 'PO-9' }) } },
+    ]);
+    await expect(
+      StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, ifmisSlipNumber: 'M19-001', poNumber: 'PO-9' } as any)
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'Model 19 No. M19-001 (PO PO-9) was rejected by Getnet Taye on 2026-10-21: "Not our delivery". A rejected voucher can\'t be entered again. If it only needs correcting, ask the approver to return it for correction instead.',
+    });
+    const query = db.transactionApproval.findMany.mock.calls[0][0];
+    expect(query.where).toMatchObject({ transactionType: 'STOCK_IN', status: 'REJECTED', rejectionFinal: true });
+    expect(db.item.create).not.toHaveBeenCalled();
+  });
+
+  it('receives the same Model 19 No. on another PO, and receipts rejected before rejections were final', async () => {
+    // Only final rejections are looked up; this one was on another PO
+    db.transactionApproval.findMany.mockResolvedValue([{ reviewRemarks: 'x', item: { notes: JSON.stringify({ poNumber: 'PO-9' }) } }]);
+    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, poNumber: 'PO-10' } as any);
+    db.transactionApproval.findMany.mockResolvedValue([]);
+    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, serialNumber: 'LAP-002', poNumber: 'PO-9' } as any);
+    expect(db.item.create).toHaveBeenCalledTimes(2);
+  });
+
   it('calculates totalAmount correctly for VAT applicable vs additional charges', async () => {
     // 1. VAT applicable: additional charges must be locked to 0 and totalAmount = unitCost * quantity
     await StoreService.getInstance().registerStockIn({

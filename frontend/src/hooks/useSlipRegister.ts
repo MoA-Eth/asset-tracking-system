@@ -4,7 +4,8 @@ import { TransactionApproval } from '../types/asset-management';
 
 /**
  * The voucher numbers already used by requests, so a form can warn before the same number is entered twice.
- * A rejected request frees its number (it is registered again with the same slip), and a failed load only means no warning.
+ * A request rejected for good keeps its number (it can't be entered again); one rejected before rejections were final
+ * frees it. A failed load only means no warning.
  */
 export function useSlipRegister() {
   const [requests, setRequests] = useState<TransactionApproval[]>([]);
@@ -27,7 +28,7 @@ export function useSlipRegister() {
     const wanted = number.trim().toLowerCase();
     if (!wanted) return undefined;
     return requests.find(
-      (r) => r.id !== exceptId && types.includes(r.transactionType) && r.status !== 'REJECTED' && (r.ifmisSlipNumber || '').trim().toLowerCase() === wanted,
+      (r) => r.id !== exceptId && types.includes(r.transactionType) && (r.status !== 'REJECTED' || r.rejectionFinal === true) && (r.ifmisSlipNumber || '').trim().toLowerCase() === wanted,
     );
   };
 
@@ -36,7 +37,11 @@ export function useSlipRegister() {
 
 /** "Already used for MOA-IT-2026-0007 (issue, pending)" */
 export function usedMessage(number: string, used: TransactionApproval): string {
+  if (used.status === 'REJECTED') {
+    const by = used.reviewedBy?.fullNameEn ? ` by ${used.reviewedBy.fullNameEn}` : '';
+    return `${number.trim()} was rejected${by}${used.reviewRemarks ? `: "${used.reviewRemarks}"` : ''}. A rejected voucher can't be entered again; one that only needs correcting is returned for correction instead.`;
+  }
   const kind = used.transactionType === 'STOCK_OUT' ? 'issue' : used.transactionType === 'RETURN' ? 'return to store' : used.transactionType.toLowerCase();
-  const state = used.status === 'PENDING' ? 'pending' : used.status.toLowerCase();
+  const state = used.status === 'PENDING' ? 'pending' : used.status === 'RETURNED' ? 'returned for correction' : used.status.toLowerCase();
   return `${number.trim()} is already used for ${used.itemCode} (${kind}, ${state}). Check the number on the slip.`;
 }

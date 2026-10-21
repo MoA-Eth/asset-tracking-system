@@ -31,6 +31,7 @@ vi.mock('../api/client', () => ({
     getOrganizations: vi.fn(async () => []), createOrganization: vi.fn(), getItems: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn(), getStores: vi.fn(), getApprovals: vi.fn(),
     getItemById: vi.fn(), transferItem: vi.fn(), updateTransfer: vi.fn(), registerReturn: vi.fn(), registerStockOut: vi.fn(),
     registerStockIn: vi.fn(), updateStockIn: vi.fn(), uploadSlip: vi.fn(), registerDisposal: vi.fn(), updateDisposal: vi.fn(), setIfmisTag: vi.fn(),
+    resubmitApprovals: vi.fn(),
   },
 }));
 
@@ -2226,5 +2227,57 @@ describe('One row per Model 19', () => {
     // The item searched for leads the row's name instead of hiding behind "+1"
     expect(within(slipRow).getByText('Toner, Dell Latitude +1')).toBeInTheDocument();
     expect(screen.queryByText('MOA-L4')).toBeNull();
+  });
+});
+
+describe('Assets: a request returned for correction', () => {
+  const returnedReceipt = request('A-R1', 'STOCK_IN', 'R1', {
+    status: 'RETURNED', currentStage: 1, returnedFromStage: 2, returnRemarks: 'Price is entered as USD.',
+    returnedBy: { fullNameEn: 'Getnet Taye' }, returnedAtGc: '2026-10-21',
+  });
+
+  it('says so with the reason, and is corrected and resubmitted from its row', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getApprovals).mockResolvedValue([returnedReceipt, ...approvals.filter((a) => a.id !== 'A-R1')] as any);
+    vi.mocked(api.resubmitApprovals).mockResolvedValue([] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const row = (await screen.findByText('MOA-R1')).closest('tr')!;
+    expect(within(row).getByText('Returned for correction')).toBeInTheDocument();
+    expect(within(row).getByText('Price is entered as USD.')).toBeInTheDocument();
+
+    expect(await menuFor(user, 'MOA-R1')).toEqual(['Edit receipt', 'Resubmit Model 19', 'Duplicate as new receipt']);
+    await user.click(screen.getByRole('menuitem', { name: 'Resubmit Model 19' }));
+    expect(api.resubmitApprovals).toHaveBeenCalledWith(['A-R1']);
+    expect(toast.success).toHaveBeenCalledWith('Resubmitted for approval', 'Model 19 REQ-A-R1 went back to the Team Leader.');
+  });
+
+  it('a receipt still waiting for approval has no Resubmit', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-R1');
+    expect(await menuFor(user, 'MOA-R1')).not.toContain('Resubmit Model 19');
+  });
+});
+
+describe('Receiving form: a receipt rejected for good', () => {
+  it('refuses its Model 19 No. and PO, and says who rejected it and why', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      ...approvals,
+      request('GONE', 'STOCK_IN', 'X1', {
+        ifmisSlipNumber: '0000152', poNumber: '368', status: 'REJECTED', rejectionFinal: true, reviewRemarks: 'Not our delivery', reviewedBy: { fullNameEn: 'Getnet Taye' },
+      }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    await user.type(within(panel).getByLabelText(/Model 19 No\./), '0000152');
+    await user.type(within(panel).getByLabelText(/PO number/), '368');
+    expect(within(panel).getByText("Rejected receipt: can't be received again")).toBeInTheDocument();
+    expect(within(panel).getByText(/was rejected by Getnet Taye: "Not our delivery"/)).toBeInTheDocument();
+    // Another PO on the same number is another receipt
+    await user.type(within(panel).getByLabelText(/PO number/), '-2');
+    expect(within(panel).queryByText("Rejected receipt: can't be received again")).toBeNull();
   });
 });

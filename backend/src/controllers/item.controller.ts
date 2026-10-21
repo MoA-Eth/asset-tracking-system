@@ -288,12 +288,12 @@ export class ItemController {
   public handleApproval = asyncHandler(async (req: Request, res: Response) => {
     const payload: ApprovalActionRequest = req.body;
     
-    if (!['ENDORSE', 'APPROVE', 'REJECT'].includes(payload.action)) throw new BadRequestError('Invalid approval action.');
+    if (!['ENDORSE', 'APPROVE', 'REJECT', 'RETURN'].includes(payload.action)) throw new BadRequestError('Invalid approval action.');
     if (!req.user) throw new UnauthorizedError('Authentication is required.');
     if (payload.action === 'ENDORSE') assertPermission(req, 'approvals.endorse');
     else if (payload.action === 'APPROVE') assertPermission(req, 'approvals.authorize');
     else if (!hasPermission(req.user.role, 'approvals.endorse') && !hasPermission(req.user.role, 'approvals.authorize')) {
-      throw new ForbiddenError('Your role cannot reject requests.');
+      throw new ForbiddenError('Your role cannot reject or return requests.');
     }
     payload.reviewedById = req.user.id;
 
@@ -301,7 +301,7 @@ export class ItemController {
       throw new BadRequestError('Approval ID, Action, and Reviewing Officer are required.');
     }
     const result = await this.store.handleApproval(payload);
-    const done = { ENDORSE: 'endorsed', APPROVE: 'approved', REJECT: 'rejected' }[payload.action];
+    const done = { ENDORSE: 'endorsed', APPROVE: 'approved', REJECT: 'rejected', RETURN: 'returned for correction' }[payload.action];
     return sendSuccess(res, result, `Request ${done}`);
   });
 
@@ -311,18 +311,28 @@ export class ItemController {
    */
   public handleSlipApproval = asyncHandler(async (req: Request, res: Response) => {
     const payload: SlipApprovalActionRequest = req.body ?? {};
-    if (!['ENDORSE', 'APPROVE', 'REJECT'].includes(payload.action)) throw new BadRequestError('Invalid approval action.');
+    if (!['ENDORSE', 'APPROVE', 'REJECT', 'RETURN'].includes(payload.action)) throw new BadRequestError('Invalid approval action.');
     if (!req.user) throw new UnauthorizedError('Authentication is required.');
     if (payload.action === 'ENDORSE') assertPermission(req, 'approvals.endorse');
     else if (payload.action === 'APPROVE') assertPermission(req, 'approvals.authorize');
     else if (!hasPermission(req.user.role, 'approvals.endorse') && !hasPermission(req.user.role, 'approvals.authorize')) {
-      throw new ForbiddenError('Your role cannot reject requests.');
+      throw new ForbiddenError('Your role cannot reject or return requests.');
     }
     payload.reviewedById = req.user.id;
     const result = await this.store.handleSlipApproval(payload);
-    const done = { ENDORSE: 'endorsed', APPROVE: 'approved', REJECT: 'rejected' }[payload.action];
+    const done = { ENDORSE: 'endorsed', APPROVE: 'approved', REJECT: 'rejected', RETURN: 'returned for correction' }[payload.action];
     const voucher = result[0]?.transactionType === 'STOCK_OUT' ? 'Issue' : result[0]?.transactionType === 'DISPOSAL' ? 'Disposal' : 'Receipt';
     return sendSuccess(res, result, `${voucher} ${done} (${result.length} items)`);
+  });
+
+  /**
+   * POST /api/items/approvals/resubmit  { approvalIds }
+   * Sends a voucher returned for correction back to the Team Leader, once it is corrected.
+   */
+  public resubmitReturned = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) throw new UnauthorizedError('Authentication is required.');
+    const result = await this.store.resubmitReturned(req.body ?? {}, req.user.id);
+    return sendSuccess(res, result, result.length > 1 ? `Resubmitted for approval (${result.length} items)` : 'Resubmitted for approval');
   });
 
   /**

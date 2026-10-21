@@ -7,7 +7,7 @@ const db = vi.hoisted(() => ({
   location: { findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, siteName: 'Store', isActive: true })) },
   department: { findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, nameEn: 'Directorate', isActive: true })) },
   item: { findUnique: vi.fn(), update: vi.fn() },
-  transactionApproval: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+  transactionApproval: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
   auditLog: { create: vi.fn() },
   // A decision runs in one transaction: the stand-in simply runs it against the same client
   $transaction: vi.fn(),
