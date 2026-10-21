@@ -53,6 +53,7 @@ import { getSlipDisplayName } from '../utils/slip-upload';
 import { RefreshButton } from '../components/ui/RefreshButton';
 import { approvalRowKey, groupBySlip, isSlipGroup, slipNames } from '../components/assets/slip-groups';
 import { formatETB } from '../utils/eth-date';
+import { shortDate } from '../components/assets/asset-state';
 
 interface ApprovalsPageProps {
   currentRole?: UserRole;
@@ -548,21 +549,30 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   // Clean, understated stage stepper
   const getStageIndicator = (appr: TransactionApproval) => {
     if (appr.status !== ApprovalStatus.PENDING) {
+      const rejected = appr.status === ApprovalStatus.REJECTED;
+      const reason = appr.reviewRemarks?.trim();
       return (
-        <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold ${
-            appr.status === ApprovalStatus.APPROVED
-              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-              : 'bg-rose-50 text-rose-700 border border-rose-200'
-          }`}
-        >
-          {appr.status === ApprovalStatus.APPROVED ? (
-            <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-          ) : (
-            <XCircle className="w-3 h-3 text-rose-600" />
+        <div className="flex max-w-[240px] flex-col gap-0.5 whitespace-normal">
+          <span
+            className={`inline-flex w-fit items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold ${
+              rejected ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+            }`}
+          >
+            {rejected ? <XCircle className="w-3 h-3 text-rose-600" /> : <CheckCircle2 className="w-3 h-3 text-emerald-700" />}
+            {rejected ? 'Rejected' : 'Approved'}
+          </span>
+          {/* Who decided and when; for a rejection, why, so approvers and encoders see the same reason */}
+          {(appr.reviewedBy || appr.reviewedAtGc) && (
+            <span className="text-[11px] text-slate-500">
+              {[appr.reviewedBy?.fullNameEn && `by ${appr.reviewedBy.fullNameEn}`, shortDate(appr.reviewedAtGc)].filter(Boolean).join(' · ')}
+            </span>
           )}
-          {appr.status}
-        </span>
+          {rejected && reason && (
+            <span className="line-clamp-2 text-[11px] text-rose-700" title={reason}>
+              Reason: {reason}
+            </span>
+          )}
+        </div>
       );
     }
 

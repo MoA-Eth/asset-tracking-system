@@ -63,3 +63,21 @@ describe('Approvals: one row per Model 19', () => {
     expect(screen.queryByText('MOA-D')).toBeNull();
   });
 });
+
+describe('Approvals: a rejection shows why', () => {
+  it('shows who rejected, when and the reason on the Rejected tab', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      receiptLine('R', 'Office chair', {
+        status: 'REJECTED', reviewedBy: { fullNameEn: 'Getnet Taye' }, reviewedAtGc: '2026-10-21',
+        reviewRemarks: 'Wrong unit price; register it again',
+      }),
+    ] as any);
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+    await user.click((await screen.findAllByRole('button', { name: /^Rejected/ }))[0]);
+    const row = screen.getByText('Office chair').closest('tr')!;
+    expect(within(row).getByText('Rejected')).toBeInTheDocument();
+    expect(within(row).getByText('by Getnet Taye · 21 Oct 2026')).toBeInTheDocument();
+    expect(within(row).getByText('Reason: Wrong unit price; register it again')).toBeInTheDocument();
+  });
+});
