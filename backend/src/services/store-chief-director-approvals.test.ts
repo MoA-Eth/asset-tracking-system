@@ -8,6 +8,7 @@ import {
   costPerUnit,
   HIGH_VALUE_APPROVAL_THRESHOLD,
   StoreService,
+  approvalPolicy,
   pendingVouchers,
   withVoucherApprover,
 } from './store.service';
@@ -28,6 +29,8 @@ vi.mock('../lib/prisma', () => ({ prisma: db }));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // These tests are about the Chief Director rule: on for them (it is off in the app for now)
+  approvalPolicy.chiefDirectorAboveThreshold = true;
   db.$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => cb(db));
   // No other lines on the same voucher unless a test says so
   db.transactionApproval.findMany.mockResolvedValue([]);
@@ -316,5 +319,31 @@ describe('What one unit cost, as IFMIS carries it', () => {
     // An older record without a saved total, and a donation
     expect(costPerUnit({ unitCostETB: 1_000, notes: JSON.stringify({ quantity: 3, vatApplicable: true }) })).toBeCloseTo(1_150);
     expect(costPerUnit({ unitCostETB: 0, notes: JSON.stringify({ quantity: 500 }) })).toBe(0);
+  });
+});
+
+describe('With the Chief Director step off (as decided for now)', () => {
+  beforeEach(() => {
+    approvalPolicy.chiefDirectorAboveThreshold = false;
+  });
+
+  it('gives every request and voucher to the Department Head, whatever its amount', () => {
+    const list = withVoucherApprover([
+      { transactionType: 'STOCK_IN', status: 'PENDING', currentStage: 2, ifmisSlipNumber: '77', poNumber: 'P', totalAmount: 9_000_000, requiredRole: 'DEPARTMENT_HEAD' },
+      { transactionType: 'STOCK_IN', status: 'PENDING', currentStage: 2, ifmisSlipNumber: '77', poNumber: 'P', totalAmount: 9_000_000, requiredRole: 'DEPARTMENT_HEAD' },
+    ]);
+    expect(list.map((a) => a.requiredRole)).toEqual(['DEPARTMENT_HEAD', 'DEPARTMENT_HEAD']);
+  });
+
+  it('lets the Department Head authorize above 10,000,000 ETB', async () => {
+    db.transactionApproval.findUnique.mockResolvedValue({ id: 'big', status: 'PENDING', currentStage: 2, transactionType: 'STOCK_IN', itemId: 'item-big', itemCode: 'MOA-BIG', ifmisSlipNumber: 'M19-BIG', requestedById: 'enc' });
+    db.employee.findUnique.mockResolvedValue({ id: 'EMP-HEAD', fullNameEn: 'Abebe Head', role: UserRole.DEPARTMENT_HEAD });
+    db.item.findUnique.mockResolvedValue({ id: 'item-big', itemCode: 'MOA-BIG', unitCostETB: 15_000_000, notes: JSON.stringify({ quantity: 1, uom: 'EA' }), status: 'PENDING_STOCK_IN' });
+    db.transactionApproval.update.mockImplementation(async ({ data }: any) => ({ id: 'big', transactionType: 'STOCK_IN', itemId: 'item-big', itemCode: 'MOA-BIG', ...data }));
+    db.item.update.mockResolvedValue({});
+    db.auditLog.create.mockResolvedValue({});
+    const store = new (StoreService as any)();
+    const result = await store.handleApproval({ approvalId: 'big', action: 'APPROVE', reviewedById: 'EMP-HEAD' });
+    expect(result.status).toBe('APPROVED');
   });
 });

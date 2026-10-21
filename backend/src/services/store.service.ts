@@ -153,6 +153,14 @@ function mapItem(raw: any): ItemWithRelations {
 }
 
 export const HIGH_VALUE_APPROVAL_THRESHOLD = 10_000_000;
+/**
+ * Whether requests above HIGH_VALUE_APPROVAL_THRESHOLD go to the Chief Director at stage 2. Off for now (decided
+ * 2026-10-21): every request is endorsed by the Team Leader and authorized by the Department Head, whatever its
+ * amount. Turn it back on here (and CHIEF_DIRECTOR_APPROVAL_ON in the frontend's slip-groups.ts).
+ */
+export const approvalPolicy = { chiefDirectorAboveThreshold: false };
+/** Whether a request (or a voucher, by its grand total) of this amount needs the Chief Director at stage 2 */
+export const needsChiefDirector = (amount: number): boolean => approvalPolicy.chiefDirectorAboveThreshold && amount > HIGH_VALUE_APPROVAL_THRESHOLD;
 /** Most lines one Model 19 decision covers */
 export const MAX_SLIP_LINES = 200;
 
@@ -197,7 +205,7 @@ export function withVoucherApprover<T extends VoucherLine & { requiredRole?: str
   return list.map((a) => {
     const t = totals.get(keyOf(a) ?? '');
     if (!t || t.lines < 2) return a;
-    return { ...a, requiredRole: t.sum > HIGH_VALUE_APPROVAL_THRESHOLD ? 'CHIEF_DIRECTOR' : 'DEPARTMENT_HEAD' };
+    return { ...a, requiredRole: needsChiefDirector(t.sum) ? 'CHIEF_DIRECTOR' : 'DEPARTMENT_HEAD' };
   });
 }
 
@@ -273,7 +281,7 @@ function mapApproval(raw: any): TransactionApproval {
     itemUom: raw.item ? uomOf(raw.item) : undefined,
     poNumber: raw.transactionType === 'STOCK_IN' ? readItemMeta(raw.item?.notes).poNumber || undefined : undefined,
     totalAmount: calculateApprovalTotalAmount(raw),
-    requiredRole: calculateApprovalTotalAmount(raw) > HIGH_VALUE_APPROVAL_THRESHOLD ? 'CHIEF_DIRECTOR' : 'DEPARTMENT_HEAD',
+    requiredRole: needsChiefDirector(calculateApprovalTotalAmount(raw)) ? 'CHIEF_DIRECTOR' : 'DEPARTMENT_HEAD',
     status: raw.status as ApprovalStatus,
     currentStage: raw.currentStage ?? 1,
     endorsedById: raw.endorsedById ?? undefined,
@@ -2530,7 +2538,7 @@ export class StoreService {
     // A line of a voucher of several lines goes by the voucher's grand total; anything else by its own amount
     const ownAmount = calculateApprovalTotalAmount(approval, item);
     const totalAmount = voucherTotal ?? (await this.voucherTotalOf(approval, db)) ?? ownAmount;
-    const isHighValue = totalAmount > HIGH_VALUE_APPROVAL_THRESHOLD;
+    const isHighValue = needsChiefDirector(totalAmount);
 
     // High-Value routing rule: Transactions > 10,000,000 ETB require Chief Director authorization at Stage 2
     if (approval.currentStage === 2) {
@@ -3166,8 +3174,8 @@ export class StoreService {
       stage1: pendingRows.filter((r) => r.currentStage === 1).length,
       stage2: stage2Rows.length,
       // Stage 2 by who authorizes it: the Chief Director above 10 million birr, the Department Head otherwise
-      departmentHead: stage2Rows.filter((r) => r.total <= HIGH_VALUE_APPROVAL_THRESHOLD).length,
-      executive: stage2Rows.filter((r) => r.total > HIGH_VALUE_APPROVAL_THRESHOLD).length,
+      departmentHead: stage2Rows.filter((r) => !needsChiefDirector(r.total)).length,
+      executive: stage2Rows.filter((r) => needsChiefDirector(r.total)).length,
     };
 
     // Count units, not records: a partial Stock-Out splits one registration into several records,

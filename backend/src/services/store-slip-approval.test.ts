@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { StoreService } from './store.service';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { StoreService, approvalPolicy } from './store.service';
 
 // In-memory stand-in for the Prisma client: the real transaction rolls every line back when one fails
 const db = vi.hoisted(() => ({
@@ -26,6 +26,7 @@ let lines: any[] = [];
 
 beforeEach(() => {
   vi.resetAllMocks();
+  approvalPolicy.chiefDirectorAboveThreshold = false;
   lines = [line('A'), line('B'), line('C')];
   db.$transaction.mockImplementation(async (fn: any) => fn(db));
   db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
@@ -75,6 +76,7 @@ describe('Reviewing a whole Model 19 at once', () => {
   });
 
   it('sends the whole receipt to the CEO when one line is above 10 million birr', async () => {
+    approvalPolicy.chiefDirectorAboveThreshold = true;
     lines = [line('A', { currentStage: 2 }), line('B', { currentStage: 2, item: { notes: meta('PO-14'), unitCostETB: 12_000_000 } })];
     db.item.findUnique.mockImplementation(async ({ where }: any) => ({ id: where.id, notes: meta('PO-14'), unitCostETB: where.id === 'item-B' ? 12_000_000 : 1000 }));
     // The Department Head's decision fails on line B, so the transaction (and line A with it) is rolled back
@@ -105,9 +107,14 @@ describe('Reviewing a whole Model 22 at once', () => {
 });
 
 describe('The CEO threshold goes by the grand total of a voucher', () => {
+  // On for these tests: the Chief Director step is off in the app for now
+  afterEach(() => {
+    approvalPolicy.chiefDirectorAboveThreshold = false;
+  });
   // Two lines of 6 million birr: each under 10 million, together above it
   const sixMillion = (id: string, extra: object = {}) => line(id, { currentStage: 2, item: { notes: meta('PO-14'), unitCostETB: 6_000_000 }, ...extra });
   beforeEach(() => {
+    approvalPolicy.chiefDirectorAboveThreshold = true;
     lines = [sixMillion('A'), sixMillion('B')];
     db.item.findUnique.mockImplementation(async ({ where }: any) => ({ id: where.id, notes: meta('PO-14'), unitCostETB: 6_000_000 }));
   });
