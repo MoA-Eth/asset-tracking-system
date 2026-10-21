@@ -42,6 +42,12 @@ export const CATEGORY_OPTIONS: { value: AssetCategory; label: string }[] = [
   { value: AssetCategory.OTHER_SUPPLIES, label: 'Other Materials & Supplies' },
 ];
 
+/** The category as the forms and lists name it ("IT Equipment & Accessories") */
+export const categoryLabel = (item: { category?: string | null; itemCategoryDisplay?: string | null }): string =>
+  item.itemCategoryDisplay ||
+  CATEGORY_OPTIONS.find((c) => c.value === item.category)?.label ||
+  (item.category ?? '').replace(/_/g, ' ');
+
 /**
  * Where an asset record is in its life: received into store (Model 19), issued to someone (Model 22),
  * then transferred to someone else or returned to store (Model 21), and finally disposed of. Each step waits for approval.
@@ -58,7 +64,7 @@ export const REQUEST_LABELS: Record<string, { noun: string; pending: string; mod
   STOCK_IN: { noun: 'receipt', pending: 'Receipt pending', model: 'Model 19' },
   STOCK_OUT: { noun: 'issue', pending: 'Issue pending', model: 'Model 22' },
   TRANSFER: { noun: 'transfer', pending: 'Transfer pending', model: 'Model 21' },
-  RETURN: { noun: 'transfer to store', pending: 'Transfer to store pending', model: 'Model 21' },
+  RETURN: { noun: 'return to store', pending: 'Return to store pending', model: 'Model 21' },
   DISPOSAL: { noun: 'disposal', pending: 'Disposal pending', model: 'disposal voucher' },
 };
 

@@ -479,7 +479,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           printedBy: user?.fullNameEn,
         };
         toast.success(
-          'Transfer to store submitted for approval',
+          'Return to store submitted for approval',
           `${item?.itemCode || 'The asset'} (${model21No.trim()}) is registered for Department Head approval and stays with its custodian until then.`,
         );
         rememberForm(user?.id, 'transfer', { book: book.trim() });
@@ -1018,7 +1018,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       <FormFooter
         accent="emerald"
         submitting={submitting}
-        submitLabel={editTransfer ? 'Save changes' : isReturn ? 'Submit transfer to store for approval' : 'Submit transfer for approval'}
+        submitLabel={editTransfer ? 'Save changes' : isReturn ? 'Submit return to store for approval' : 'Submit transfer for approval'}
         missingFields={missingFields}
         fieldTargets={{ recipient: '#transfer-recipient', 'store man': '#transfer-store-man', 'signed copy': '#transfer-signed-copy input[type=file]' }}
         onCancel={onCancel}

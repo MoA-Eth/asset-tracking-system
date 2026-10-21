@@ -83,8 +83,8 @@ describe('Model 19 ReceiptItems: VAT and Additional Charges Scenarios', () => {
     expect(addlInput3.disabled).toBe(false);
     expect(addlInput3.value).toBe('100');
 
-    // Total should be: 550 + 1100 = 1,650 ETB
-    expect(screen.getByText('1,650 ETB')).toBeInTheDocument();
+    // Total should be: 550 + 1100 = ETB 1,650.00
+    expect(screen.getByText('ETB 1,650.00')).toBeInTheDocument();
 
     // Toggle master VAT on
     await user.click(masterVat);
@@ -103,7 +103,7 @@ describe('Model 19 ReceiptItems: VAT and Additional Charges Scenarios', () => {
     expect(screen.getByText('incl. VAT 150')).toBeInTheDocument();
 
     // Total with 15% VAT: (500 + 75) + (1000 + 150) = 1,725 ETB
-    expect(screen.getByText('1,725 ETB')).toBeInTheDocument();
+    expect(screen.getByText('ETB 1,725.00')).toBeInTheDocument();
 
     // Uncheck master VAT -> Additional charges unlock
     await user.click(masterVat);

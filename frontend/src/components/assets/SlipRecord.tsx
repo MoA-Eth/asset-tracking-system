@@ -95,9 +95,10 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
         <div className="flex flex-col gap-3 pr-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
           <div className="min-w-0">
             <h3 className="truncate text-base font-extrabold text-slate-900">Model 19 #{lead.ifmisSlipNumber}</h3>
-            <p className="mt-1 text-xs text-slate-600">
-              {rows.length} items{lead.poNumber ? ` · PO ${lead.poNumber}` : ''} · {slipStatusSummary(rows)}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+              <span>{rows.length} items{lead.poNumber ? ` · PO ${lead.poNumber}` : ''}</span>
+              <SlipStatus rows={rows} />
+            </div>
           </div>
           <div role="toolbar" aria-label="Receipt actions" className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={onPrint} className={btn.secondary}>
@@ -114,13 +115,15 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
 
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
         <FieldGrid>
-          <FormKitField label="Received on"><ReadOnlyValue>{value(lead.ifmisSlipDateGc)}</ReadOnlyValue></FormKitField>
+          <FormKitField label="Received date (G.C.)" hint={lead.ifmisSlipDateEc ? `${lead.ifmisSlipDateEc} E.C.` : undefined}>
+            <ReadOnlyValue mono>{value(lead.ifmisSlipDateGc)}</ReadOnlyValue>
+          </FormKitField>
           <FormKitField label="Transaction type"><ReadOnlyValue>{value(lead.transactionType)}</ReadOnlyValue></FormKitField>
-          <FormKitField label="PO number"><ReadOnlyValue>{value(lead.poNumber)}</ReadOnlyValue></FormKitField>
-          <FormKitField label="Source"><ReadOnlyValue>{value(lead.source)}</ReadOnlyValue></FormKitField>
+          <FormKitField label="PO number"><ReadOnlyValue mono>{value(lead.poNumber)}</ReadOnlyValue></FormKitField>
+          <FormKitField label="Source (supplier / vendor)"><ReadOnlyValue>{value(lead.source)}</ReadOnlyValue></FormKitField>
           <FormKitField label="Buyer"><ReadOnlyValue>{value(lead.buyer)}</ReadOnlyValue></FormKitField>
           <FormKitField label="Program / project"><ReadOnlyValue>{value(lead.programName)}</ReadOnlyValue></FormKitField>
-          <FormKitField label="Store"><ReadOnlyValue>{lead.storeLocation ? storeLocationLabel(lead.storeLocation) : '—'}</ReadOnlyValue></FormKitField>
+          <FormKitField label="Receiving store"><ReadOnlyValue>{lead.storeLocation ? storeLocationLabel(lead.storeLocation) : '—'}</ReadOnlyValue></FormKitField>
           <FormKitField label="Delivered by"><ReadOnlyValue>{value(lead.deliveredBy)}</ReadOnlyValue></FormKitField>
           <FormKitField label="Received by"><ReadOnlyValue>{value(lead.receivedBy)}</ReadOnlyValue></FormKitField>
           <FormKitField label="Total"><TotalValue accent="emerald">{formatETB(total)}</TotalValue></FormKitField>

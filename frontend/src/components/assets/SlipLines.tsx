@@ -4,6 +4,7 @@ import { AssetCategory, ItemCondition, ItemType } from '../../types/asset-manage
 import { inputClass, MoneyInput } from '../ui/FormKit';
 import { COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode } from './receipt-options';
 import { UomSelect } from './UomSelect';
+import { formatETB } from '../../utils/eth-date';
 
 /** One more item line from the same Model 19, registered as its own record when the receipt is submitted */
 export interface SlipLine {
@@ -322,7 +323,7 @@ export const ReceiptItems: React.FC<{
         )}
         {!donation && (
           <p className="text-xs text-slate-600">
-            Grand total <span className="ml-1 font-mono text-sm font-semibold tabular-nums text-slate-900">{money(total)} ETB</span>
+            Grand total <span className="ml-1 font-mono text-sm font-semibold tabular-nums text-slate-900">{formatETB(total)}</span>
           </p>
         )}
       </div>

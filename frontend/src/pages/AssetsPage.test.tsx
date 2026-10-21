@@ -487,7 +487,7 @@ describe('Assets page', () => {
     // Condition is not asked on a return
     expect(within(record).queryByLabelText(/Condition/)).toBeNull();
     expect(within(record).getByLabelText(/Reason for return/)).toBeInTheDocument();
-    expect(submitOf(record, 'transfer-form')).toHaveTextContent('Submit transfer to store for approval');
+    expect(submitOf(record, 'transfer-form')).toHaveTextContent('Submit return to store for approval');
 
     await user.type(within(record).getByPlaceholderText('Number on the Model 21 form'), 'RET-77');
     await user.type(within(record).getByPlaceholderText('Book the form comes from'), 'Book 3');
@@ -741,8 +741,8 @@ describe('Asset record', () => {
     // The last rejection shows in Custody
     expect(within(record).getByText('Budget line closed')).toBeInTheDocument();
     // The record has continuous Custody and Requests sections with no tabs
-    expect(within(record).getByText('Custody & Location')).toBeInTheDocument();
-    expect(within(record).getByText('Transaction Requests')).toBeInTheDocument();
+    expect(within(record).getByText('Custody & location')).toBeInTheDocument();
+    expect(within(record).getByText('Transaction requests')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Close record' }));
     expect(screen.queryByRole('region', { name: /Asset record/ })).not.toBeInTheDocument();
@@ -934,11 +934,11 @@ describe('Asset record', () => {
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-I1');
     // Opens in view mode first with prominent Edit button
-    expect(toolbarOf(record)).toEqual(['Edit transfer to store']);
-    expect(within(record).getByText('Transfer to store request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+    expect(toolbarOf(record)).toEqual(['Edit return to store']);
+    expect(within(record).getByText('Return to store request pending endorsement · Editable in correction mode')).toBeInTheDocument();
 
     // Clicking Edit enters edit mode with Save and Cancel
-    await user.click(within(record).getByRole('button', { name: 'Edit transfer to store' }));
+    await user.click(within(record).getByRole('button', { name: 'Edit return to store' }));
     // The form's own Submit and Cancel replace the toolbar while it is open
     expect(within(record).queryByRole('toolbar')).toBeNull();
     expect(record.querySelector('form#transfer-form')).not.toBeNull();
@@ -946,8 +946,8 @@ describe('Asset record', () => {
 
     // Cancel exits edit mode back to view mode
     await user.click(cancelOf(record, 'transfer-form'));
-    expect(toolbarOf(record)).toEqual(['Edit transfer to store']);
-    expect(within(record).getByText('Transfer to store request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+    expect(toolbarOf(record)).toEqual(['Edit return to store']);
+    expect(within(record).getByText('Return to store request pending endorsement · Editable in correction mode')).toBeInTheDocument();
   });
 
   it('keeps the header to the name, code and status while a correction form is open', async () => {
@@ -958,7 +958,7 @@ describe('Asset record', () => {
     const record = await open(user, 'MOA-I1');
     // Viewing: where it is shown in the header
     expect(within(record).getByTitle(/^Location .* Custody:/)).toBeInTheDocument();
-    await user.click(within(record).getByRole('button', { name: 'Edit transfer to store' }));
+    await user.click(within(record).getByRole('button', { name: 'Edit return to store' }));
     expect(record.querySelector('form#transfer-form')).not.toBeNull();
     expect(within(record).queryByTitle(/^Location .* Custody:/)).toBeNull();
     // The name and code stay
@@ -1215,7 +1215,7 @@ describe('Asset record', () => {
   it.each([
     ['MOA-O1', 'Edit issue', 'stock-out-form'],
     ['MOA-P1', 'Edit transfer', 'transfer-form'],
-    ['MOA-I1', 'Edit transfer to store', 'transfer-form'],
+    ['MOA-I1', 'Edit return to store', 'transfer-form'],
   ])('⋮ → Edit on %s opens its record with the request form in place', async (code, label, formId) => {
     const user = userEvent.setup();
     // A pending return on MOA-I1, with the Team Leader
@@ -1356,7 +1356,7 @@ describe('Asset record', () => {
 
     const copyBtn = within(record).getByRole('button', { name: 'Copy item code' });
     expect(copyBtn).toBeInTheDocument();
-    expect(within(record).getAllByText('IT EQUIPMENT').length).toBeGreaterThanOrEqual(1);
+    expect(within(record).getAllByText('IT Equipment & Accessories').length).toBeGreaterThanOrEqual(1);
   });
 
   it('sorts table columns when column headers are clicked and resets', async () => {
@@ -2086,7 +2086,9 @@ describe('One row per Model 19', () => {
 
     await user.click(within(slipRow).getByText('Dell Latitude, HP Printer +1'));
     const receipt = screen.getByRole('region', { name: 'Model 19 0000051' });
-    expect(within(receipt).getByText('3 items · PO PO-14 · 2 in store · 1 issued')).toBeInTheDocument();
+    expect(within(receipt).getByText('3 items · PO PO-14')).toBeInTheDocument();
+    expect(within(receipt).getByText('2 In store')).toBeInTheDocument();
+    expect(within(receipt).getByText('1 Issued')).toBeInTheDocument();
     const lines = within(receipt).getByRole('table', { name: 'Items on this Model 19' });
     expect(within(lines).getAllByRole('row')).toHaveLength(4); // header and 3 items
 

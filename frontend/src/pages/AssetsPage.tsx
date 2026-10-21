@@ -807,7 +807,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               setTransfer({ itemId: item.id });
               setIssue(null);
             },
-            hidden: !canTransfer || !!item.heldByOrganization,
+            // Consumables are issued (Model 22) and used up; only a fixed asset moves on
+            hidden: !canTransfer || !!item.heldByOrganization || item.itemType === 'CONSUMABLE',
           },
         ];
       case 'REQUEST_PENDING': {

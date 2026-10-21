@@ -827,7 +827,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                   )}
                   <td className="px-2 py-1.5 text-right font-medium text-slate-800 whitespace-nowrap">Grand total</td>
                   <td className="px-2 py-1.5 text-right whitespace-nowrap">
-                    <span className="block font-mono text-sm font-semibold tabular-nums text-slate-900">{money(grandTotal)} ETB</span>
+                    <span className="block font-mono text-sm font-semibold tabular-nums text-slate-900">{formatETB(grandTotal)}</span>
                     {transportationCost > 0 && (
                       <span className="block text-[11px] text-slate-500">
                         items {money(totalAmount)} + transport {money(transportationCost)}

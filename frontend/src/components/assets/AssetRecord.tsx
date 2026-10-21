@@ -12,7 +12,7 @@ import { formatETB } from '../../utils/eth-date';
 import { isGeneratedSerialNumber, displaySerialNumber } from '../../utils/asset-tag';
 import { storeLocationLabel } from '../../utils/location';
 import { departmentLabel } from '../../utils/department';
-import { AssetRow, AssetStatus, requestLabel, RejectionNote, STAGE_LABELS, shortDate } from './asset-state';
+import { AssetRow, AssetStatus, categoryLabel, requestLabel, RejectionNote, STAGE_LABELS, shortDate } from './asset-state';
 
 export interface AssetRecordProps {
   row: AssetRow;
@@ -178,12 +178,13 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
 }) => {
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
   const { item } = row;
-  const uom = item.uom || 'EA';
+  const uom = (item.uom || 'EA').toLowerCase();
   const editing = !!editForm;
 
   const steps = actions.filter((a) => !a.hidden && !a.label.startsWith('Print'));
   const pending = row.request;
-  const approved = row.state !== 'RECEIPT_PENDING' && row.state !== 'REJECTED';
+  // An approved record in store or issued: nothing on it can be typed over, only acted on
+  const locked = row.state === 'IN_STORE' || row.state === 'ISSUED';
 
   return (
     <section
@@ -241,14 +242,19 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               </span>
               {/* Quick Action Badges */}
               <AssetStatus row={{ ...row, rejected: undefined }} partly={partly} />
+              {!editing && locked && (
+                <span className="inline-flex items-center text-slate-400" title="Approved record: its fields are locked" aria-label="Approved record, fields locked">
+                  <Lock className="h-3.5 w-3.5" />
+                </span>
+              )}
               {/* While a form is open it shows these itself, so the header keeps only the name, code and status */}
               {!editing && item.category && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
                   <Tag className="w-2.5 h-2.5 text-emerald-600" />
-                  {item.itemCategoryDisplay || item.category.replace(/_/g, ' ')}
+                  {categoryLabel(item)}
                 </span>
               )}
-              {!editing && row.where && (
+              {!editing && row.where && row.state !== 'DISPOSED' && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-800 border border-blue-200" title={`Location / Custody: ${row.where}`}>
                   <MapPin className="w-2.5 h-2.5 text-blue-600" />
                   <span className="max-w-[160px] truncate">{row.where}</span>
@@ -347,14 +353,8 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 </FormNotice>
               );
             }
-            return (
-              <FormNotice icon={Lock} tone="info">
-                <span className="font-bold">Approved inventory record · Form fields locked</span>
-                <p className="mt-0.5 text-[11px] text-slate-500">
-                  Approved records are locked. To issue, transfer, or return this asset, use the action buttons in the toolbar.
-                </p>
-              </FormNotice>
-            );
+            // An approved record says so with the lock by its status
+            return null;
           })()}
 
           {/* Section 1: Voucher & procurement */}
@@ -405,7 +405,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
 
               <FormKitField
                 label="Received date (G.C.)"
-                required
+                optional
                 hint={item.ifmisSlipDateEc ? `${item.ifmisSlipDateEc} E.C.` : undefined}
               >
                 <ReadOnlyValue mono>{item.ifmisSlipDateGc || '—'}</ReadOnlyValue>
@@ -421,7 +421,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                     <ReadOnlyValue>{item.source || '—'}</ReadOnlyValue>
                   </FormKitField>
 
-                  <FormKitField label="Buyer / procurement officer" optional>
+                  <FormKitField label="Buyer" optional>
                     <ReadOnlyValue>{item.buyer || '—'}</ReadOnlyValue>
                   </FormKitField>
                 </>
@@ -433,7 +433,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
 
               <FormKitField label="Receiving store" optional>
                 <ReadOnlyValue>
-                  {item.storeLocation?.siteName || (item.storeLocation ? storeLocationLabel(item.storeLocation).split(' · ')[0] : '—')}
+                  {item.storeLocation ? storeLocationLabel(item.storeLocation) : '—'}
                 </ReadOnlyValue>
               </FormKitField>
             </FieldGrid>
@@ -453,7 +453,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               </FormKitField>
 
               <FormKitField label="Category" optional>
-                <ReadOnlyValue>{item.itemCategoryDisplay || item.category?.replace(/_/g, ' ')}</ReadOnlyValue>
+                <ReadOnlyValue>{categoryLabel(item)}</ReadOnlyValue>
               </FormKitField>
 
               <FormKitField label="Record code" optional>
@@ -608,10 +608,10 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
             </FieldGrid>
           </FormSection>
 
-          {/* Section 4: Custody & Location */}
+          {/* Section 4: Custody & location */}
           <FormSection
             step={4}
-            title="Custody & Location"
+            title="Custody & location"
             subtitle="የይዞታ እና የስምሪት ሁኔታ · Current allocation"
             icon={Users}
             accent="emerald"
@@ -679,7 +679,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                           </span>
                           <span className="flex shrink-0 items-center gap-2">
                             <span className="font-mono text-slate-700">
-                              {u.units} {u.item.uom || 'EA'}
+                              {u.units} {(u.item.uom || 'EA').toLowerCase()}
                             </span>
                             <AssetStatus row={u} />
                           </span>
@@ -692,10 +692,10 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
             </div>
           </FormSection>
 
-          {/* Section 5: Transaction Requests */}
+          {/* Section 5: Transaction requests */}
           <FormSection
             step={5}
-            title="Transaction Requests"
+            title="Transaction requests"
             subtitle="የጥያቄዎች እና እንቅስቃሴዎች ታሪክ · Activity log"
             icon={Clock}
             accent="emerald"

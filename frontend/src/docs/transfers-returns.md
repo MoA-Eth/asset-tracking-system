@@ -22,13 +22,13 @@ Use the same form for an **Issued** asset that is coming back.
 3. **Received by (store man)** is a store man of that store, chosen for you when there is only one. If the store has none, the transfer still goes ahead with no store man named.
 4. Enter the **Reason for return**. Note any defects or missing parts.
 5. Attach the **Signed copy** (required only if your administrator says so).
-6. Press **Submit transfer to store for approval**.
+6. Press **Submit return to store for approval**.
 
 The printed voucher keeps the IFMIS title, **Fixed Asset Internal Transfer Form**, as IFMIS prints a return on the same form. Under the title it shows **Transaction Type: Return to store** and the **Reason for return**, so the signers can tell it is a return.
 
 ## Good to know
 
-- You can **edit** a pending transfer until the Team Leader endorses it. A transfer to store keeps its **Return to store** choice.
+- You can **edit** a pending transfer until the Team Leader endorses it. A return to store keeps its **Return to store** choice.
 - A request on an asset blocks a second one: only one open request per record.
 - **Approved transfer to an employee:** the new holder and directorate apply. **Approved transfer to store:** the asset is **In store** and no one holds it. **Rejected:** nothing changes.
 - An asset that is already **In store** can only be transferred to an employee; **Return to store** is offered for issued assets.
