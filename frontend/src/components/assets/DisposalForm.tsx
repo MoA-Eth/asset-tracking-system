@@ -297,10 +297,13 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       // The other assets on the form, each its own request with the same reference, date, reason and recipient
       const sent: string[] = [];
       const notSent: string[] = [];
+      // What was filed on this form, for the voucher to list every asset
+      const filed: TransactionApproval[] = [result];
+      const filedItems: ItemWithRelations[] = [];
       for (const other of extraReady) {
         try {
           const men = keepers.ofLocation(other.asset.storeLocationId);
-          await api.registerDisposal({
+          const otherResult = await api.registerDisposal({
             itemId: other.asset.id,
             quantity: Number(other.asset.quantity) || 1,
             disposalNo: payload.disposalNo,
@@ -312,6 +315,8 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
             storekeeperEmployeeId: men.some((k) => k.employeeId === payload.storekeeperEmployeeId) ? payload.storekeeperEmployeeId : undefined,
           } as any);
           sent.push(other.asset.itemCode);
+          filed.push(otherResult);
+          filedItems.push(other.asset);
         } catch (err: any) {
           notSent.push(`${other.asset.itemCode}: ${err?.message || 'refused'}`);
         }
@@ -323,7 +328,8 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
           ? `${[item.itemCode, ...sent].join(', ')} sent for approval (${payload.disposalNo}), each as its own request.`
           : `${quantity} ${uom} of ${item.itemCode} sent for approval (${payload.disposalNo}).`,
       );
-      onSuccess(result, buildDisposalVoucher(result, { item, employees: [], printedBy: user?.fullNameEn, requestedByName: user?.fullNameEn }));
+      // Newest first, as the server lists requests
+      onSuccess(result, buildDisposalVoucher(result, { item, employees: [], printedBy: user?.fullNameEn, requestedByName: user?.fullNameEn, requests: [...filed].reverse(), items: filedItems }));
     } catch (err: any) {
       setFormError(`The disposal request could not be saved: ${err?.message || 'Server error'}`);
     } finally {
@@ -531,16 +537,54 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   );
 };
 
-/** Disposal voucher for a disposal request, from the request and its item */
+/**
+ * The requests filed on the same disposal form (the same No.): each asset on it is its own request. A rejected one
+ * prints on its own. In the order they were saved.
+ */
+export const sameDisposalForm = (approval: TransactionApproval, requests: TransactionApproval[] = []): TransactionApproval[] => {
+  const no = approval.ifmisSlipNumber?.trim().toLowerCase();
+  if (!no || no.startsWith('pending-') || approval.status === 'REJECTED') return [approval];
+  const lines = requests.filter(
+    (r) => r.id === approval.id || (r.transactionType === 'DISPOSAL' && r.status !== 'REJECTED' && r.ifmisSlipNumber?.trim().toLowerCase() === no),
+  );
+  if (!lines.some((r) => r.id === approval.id)) lines.push(approval);
+  // The list comes newest first: the later in the list was saved first
+  const at = (r: TransactionApproval) => requests.findIndex((x) => x.id === r.id);
+  return lines.sort((a, b) => String(a.createdAtGc ?? '').slice(0, 10).localeCompare(String(b.createdAtGc ?? '').slice(0, 10)) || at(b) - at(a));
+};
+
+/**
+ * Disposal voucher for a disposal request, from the request and its item. Given the other requests (and their items),
+ * it lists every asset filed on the same disposal form, as the paper does.
+ */
 export const buildDisposalVoucher = (
   approval: TransactionApproval,
-  context: { item?: ItemWithRelations; employees: Employee[]; printedBy?: string; requestedByName?: string },
+  context: { item?: ItemWithRelations; employees: Employee[]; printedBy?: string; requestedByName?: string; requests?: TransactionApproval[]; items?: ItemWithRelations[] },
 ): DisposalVoucher => {
   const { item, employees } = context;
   const d = approval.requestDetails ?? {};
   const nameOf = (id?: string, fallback?: { fullNameEn?: string }) => employees.find((e) => e.id === id)?.fullNameEn || fallback?.fullNameEn;
-  const unitPrice = item?.unitCostETB || 0;
-  const quantity = Number(d.quantity) || Number(item?.quantity) || 1;
+  const lineOf = (r: TransactionApproval, sNo: number) => {
+    const rd = r.requestDetails ?? {};
+    const it = r.id === approval.id ? item : context.items?.find((x) => x.id === r.itemId);
+    const unitPrice = it?.unitCostETB || 0;
+    const quantity = Number(rd.quantity) || Number(it?.quantity) || 1;
+    return {
+      sNo,
+      // A partial disposal is filed under the record split off for the disposed units
+      // IFMIS prints a fixed asset's own tag number when it has one
+      itemCode: it?.ifmisTagNumber || rd.disposedItemCode || r.itemCode,
+      description: r.itemName,
+      serialNo: it?.serialNumber || undefined,
+      uom: rd.uom || it?.uom || 'EA',
+      quantity,
+      unitPrice,
+      bookValue: rd.bookValue ?? unitPrice * quantity,
+    };
+  };
+  const lines = sameDisposalForm(approval, context.requests).map((r, i) => lineOf(r, i + 1));
+  // The form is signed as a whole: its total decides whether the Chief Director authorizes it, as the approval goes
+  const formTotal = lines.reduce((sum, l) => sum + (Number(l.bookValue) || 0), 0);
   const dateGc = approval.ifmisSlipDateGc || (approval.createdAtGc || '').split('T')[0];
   return {
     approvalState: approval.status === 'PENDING' ? 'PENDING' : approval.status === 'REJECTED' ? 'REJECTED' : undefined,
@@ -553,20 +597,7 @@ export const buildDisposalVoucher = (
     recipientName: d.recipientName,
     proceedsETB: d.proceedsETB,
     committeeRef: d.committeeRef,
-    items: [
-      {
-        sNo: 1,
-        // A partial disposal is filed under the record split off for the disposed units
-        // IFMIS prints a fixed asset's own tag number when it has one
-        itemCode: item?.ifmisTagNumber || d.disposedItemCode || approval.itemCode,
-        description: approval.itemName,
-        serialNo: item?.serialNumber || undefined,
-        uom: d.uom || item?.uom || 'EA',
-        quantity,
-        unitPrice,
-        bookValue: d.bookValue ?? unitPrice * quantity,
-      },
-    ],
+    items: lines,
     requestedByName: context.requestedByName || nameOf(approval.requestedById, approval.requestedBy),
     storekeeperName: d.storekeeperName,
     endorsedByName: nameOf(approval.endorsedById, approval.endorsedBy),
@@ -577,7 +608,7 @@ export const buildDisposalVoucher = (
       { label: 'FAMU Accountant' },
       { label: 'Recipient', name: d.recipientName },
       getEndorserSignatory(approval, { isEndorsed: approval.status === 'APPROVED' || approval.currentStage >= 2 }),
-      getAuthorizerSignatory(approval, { isApproved: approval.status === 'APPROVED', totalAmount: d.bookValue ?? unitPrice * quantity }),
+      getAuthorizerSignatory(approval, { isApproved: approval.status === 'APPROVED', totalAmount: formTotal }),
     ],
   };
 };

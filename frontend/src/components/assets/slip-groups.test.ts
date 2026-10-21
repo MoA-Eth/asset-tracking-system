@@ -56,3 +56,10 @@ describe('the amount of each approvals row', () => {
     ])).toEqual([12_000_000, 3_000, 50_000]);
   });
 });
+
+describe('a disposal form of several assets in the approvals queue', () => {
+  it('is one row, by its number', () => {
+    const req = (slip: string) => ({ transactionType: 'DISPOSAL', ifmisSlipNumber: slip, poNumber: '', status: 'PENDING', currentStage: 1 });
+    expect(countApprovalRows([req('0001765/2018'), req('0001765/2018'), req('0001765/2018'), req('0001766/2018')])).toBe(2);
+  });
+});

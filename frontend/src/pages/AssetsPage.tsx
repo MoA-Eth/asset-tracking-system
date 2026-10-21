@@ -559,7 +559,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     } else if (request.transactionType === 'STOCK_OUT') {
       setVoucher22(buildModel22Voucher(request, { item, departments, employees, printedBy: user?.fullNameEn, requests: approvals, items }));
     } else if (request.transactionType === 'DISPOSAL') {
-      setVoucherDisposal(buildDisposalVoucher(request, { item, employees, printedBy: user?.fullNameEn }));
+      // The disposal form lists every asset filed on it (the same No.)
+      setVoucherDisposal(buildDisposalVoucher(request, { item, employees, printedBy: user?.fullNameEn, requests: approvals, items }));
     } else if (request.transactionType === 'TRANSFER' || request.transactionType === 'RETURN') {
       setVoucher21(await buildModel21Voucher(request, { item, employees, locations, printedBy: user?.fullNameEn }));
     }

@@ -321,7 +321,7 @@ export class ItemController {
     payload.reviewedById = req.user.id;
     const result = await this.store.handleSlipApproval(payload);
     const done = { ENDORSE: 'endorsed', APPROVE: 'approved', REJECT: 'rejected' }[payload.action];
-    const voucher = result[0]?.transactionType === 'STOCK_OUT' ? 'Issue' : 'Receipt';
+    const voucher = result[0]?.transactionType === 'STOCK_OUT' ? 'Issue' : result[0]?.transactionType === 'DISPOSAL' ? 'Disposal' : 'Receipt';
     return sendSuccess(res, result, `${voucher} ${done} (${result.length} items)`);
   });
 

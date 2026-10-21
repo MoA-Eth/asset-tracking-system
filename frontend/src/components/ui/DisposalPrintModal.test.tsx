@@ -64,3 +64,35 @@ describe('buildDisposalVoucher', () => {
     expect(v).toMatchObject({ requestedByName: 'Bikila Desta', endorsedByName: 'Mulugeta Berhanu', approvedByName: 'Kassahun Tolosa' });
   });
 });
+
+describe('a disposal form of several assets', () => {
+  const request = (id: string, itemId: string, name: string, bookValue: number, extra: object = {}) => ({
+    id, transactionType: 'DISPOSAL', itemId, itemCode: `MOA-${itemId}`, itemName: name, status: 'PENDING', currentStage: 1,
+    ifmisSlipNumber: '0001765/2018', ifmisSlipDateGc: '2026-07-28', createdAtGc: '2026-10-21', requestedById: 'e1',
+    requestDetails: { quantity: 1, uom: 'EA', reason: 'TRANSFER', bookValue }, ...extra,
+  }) as unknown as TransactionApproval;
+  const items = [
+    { id: 'D1', unitCostETB: 85_000, quantity: 1, serialNumber: 'SN-DELL' },
+    { id: 'P1', unitCostETB: 12_500, quantity: 1, serialNumber: 'SLIP-TEST-01' },
+    { id: 'S1', unitCostETB: 8_400, quantity: 1, serialNumber: 'SLIP-TEST-02' },
+  ] as any[];
+
+  it('lists every asset filed on the form, in the order filed, with its own figures', () => {
+    // Newest first, as the server sends them; another form and a rejected one are left out
+    const requests = [
+      request('R3', 'S1', 'Scanner', 0),
+      request('R2', 'P1', 'Printer', 2_500),
+      request('R1', 'D1', 'Laptop', 0),
+      request('X1', 'D1', 'Old try', 0, { status: 'REJECTED' }),
+      request('Y1', 'P1', 'Other form', 0, { ifmisSlipNumber: '0001766/2018' }),
+    ];
+    const v = buildDisposalVoucher(requests[2], { item: items[0], employees: [], requests, items });
+    expect(v.items.map((i) => [i.description, i.unitPrice, i.bookValue, i.serialNo])).toEqual([
+      ['Laptop', 85_000, 0, 'SN-DELL'],
+      ['Printer', 12_500, 2_500, 'SLIP-TEST-01'],
+      ['Scanner', 8_400, 0, 'SLIP-TEST-02'],
+    ]);
+    // Opened from any of its assets, it is the same form
+    expect(buildDisposalVoucher(requests[0], { item: items[2], employees: [], requests, items }).items).toHaveLength(3);
+  });
+});

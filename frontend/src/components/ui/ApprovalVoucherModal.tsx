@@ -68,8 +68,13 @@ export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose }) => 
           ]);
           next = { kind: 'model22', voucher: buildModel22Voucher(approval, { item, departments, employees, printedBy, requests, items }) };
         } else if (type === 'DISPOSAL') {
-          const employees: Employee[] = await api.getEmployees();
-          next = { kind: 'disposal', voucher: buildDisposalVoucher(approval, { item, employees, printedBy }) };
+          // The other assets filed on the same disposal form are printed with it
+          const [employees, requests, items]: [Employee[], TransactionApproval[], ItemWithRelations[]] = await Promise.all([
+            api.getEmployees(),
+            api.getApprovals().catch(() => []),
+            api.getItems().catch(() => []),
+          ]);
+          next = { kind: 'disposal', voucher: buildDisposalVoucher(approval, { item, employees, printedBy, requests, items }) };
         } else if (type === 'TRANSFER' || type === 'RETURN') {
           const [employees, locations]: [Employee[], Location[]] = await Promise.all([api.getEmployees(), api.getLocations()]);
           next = { kind: 'model21', voucher: await buildModel21Voucher(approval, { item, employees, locations, printedBy }) };

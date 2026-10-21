@@ -46,17 +46,18 @@ export const isSlipGroup = <T,>(entry: SlipGroup<T> | { single: T }): entry is S
 
 /**
  * What makes requests one row of the approvals queue, waiting at the same stage: the lines of a receipt (same Model 19
- * and PO), or the lines of an issue (same Model 22 No., whatever receipt each item came from). Other requests have
- * none and are a row each.
+ * and PO), of an issue (same Model 22 No., whatever receipt each item came from), or the assets of a disposal form
+ * (same No.). Other requests have none and are a row each.
  */
 export const approvalRowKey = (a: { transactionType: string; ifmisSlipNumber?: string | null; poNumber?: string | null; status: string; currentStage?: number }): string | undefined => {
-  if (a.transactionType !== 'STOCK_IN' && a.transactionType !== 'STOCK_OUT') return undefined;
+  if (a.transactionType !== 'STOCK_IN' && a.transactionType !== 'STOCK_OUT' && a.transactionType !== 'DISPOSAL') return undefined;
   const key = a.transactionType === 'STOCK_IN' ? slipKey(a.ifmisSlipNumber, a.poNumber) : slipKey(a.ifmisSlipNumber, '');
   return key && `${a.transactionType}|${key}|${a.status}|${a.currentStage ?? 1}`;
 };
 
 /** The voucher a request is made on, as people call it */
-export const voucherName = (transactionType?: string): string => (transactionType === 'STOCK_OUT' ? 'Model 22' : 'Model 19');
+export const voucherName = (transactionType?: string): string =>
+  transactionType === 'STOCK_OUT' ? 'Model 22' : transactionType === 'DISPOSAL' ? 'disposal form' : 'Model 19';
 
 /** Above this many birr (a request, or a voucher's grand total) the Chief Director authorizes instead of the Department Head */
 export const HIGH_VALUE_THRESHOLD = 10_000_000;

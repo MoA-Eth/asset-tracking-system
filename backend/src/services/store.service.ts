@@ -164,7 +164,7 @@ type VoucherLine = { transactionType: string; status: string; currentStage?: num
 /** What makes pending lines one voucher, decided together: a Model 19 (slip and PO) or a Model 22 (number), at one stage */
 function voucherKey(a: VoucherLine): string | undefined {
   const slip = String(a.ifmisSlipNumber ?? '').trim().toLowerCase();
-  if (a.status !== 'PENDING' || (a.transactionType !== 'STOCK_IN' && a.transactionType !== 'STOCK_OUT') || !slip || slip.startsWith('pending-')) return undefined;
+  if (a.status !== 'PENDING' || !['STOCK_IN', 'STOCK_OUT', 'DISPOSAL'].includes(a.transactionType) || !slip || slip.startsWith('pending-')) return undefined;
   const po = a.transactionType === 'STOCK_IN' ? String(a.poNumber ?? '').trim().toLowerCase() : '';
   return `${a.transactionType}|${slip}|${po}|${a.currentStage ?? 1}`;
 }
@@ -2361,16 +2361,16 @@ export class StoreService {
       const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true, unitCostETB: true } } } });
       if (approvals.length !== ids.length) throw new NotFoundError('Part of this voucher no longer exists. Refresh the list.');
       const types = new Set(approvals.map((a: any) => a.transactionType));
-      if (types.size > 1 || !(types.has('STOCK_IN') || types.has('STOCK_OUT'))) {
-        throw new BadRequestError('Only the lines of one receipt (Model 19) or one issue (Model 22) are reviewed together.');
+      if (types.size > 1 || !(types.has('STOCK_IN') || types.has('STOCK_OUT') || types.has('DISPOSAL'))) {
+        throw new BadRequestError('Only the lines of one receipt (Model 19), one issue (Model 22) or one disposal form are reviewed together.');
       }
-      const issue = types.has('STOCK_OUT');
-      const voucher = issue ? 'Model 22' : 'Model 19';
+      // A receipt is its slip and PO; an issue or a disposal form is its number alone
+      const issue = types.has('STOCK_OUT') || types.has('DISPOSAL');
+      const voucher = types.has('STOCK_OUT') ? 'Model 22' : types.has('DISPOSAL') ? 'disposal form' : 'Model 19';
       if (approvals.some((a: any) => a.status !== 'PENDING')) throw new ConflictError(`Part of this ${voucher} has already been decided. Refresh the list.`);
       if (new Set(approvals.map((a: any) => a.currentStage ?? 1)).size > 1) throw new ConflictError(`The lines of this ${voucher} are at different stages. Review them one by one.`);
-      // A receipt is its slip and PO; an issue is its Model 22 No.
       const keyOf = (a: any) => `${String(a.ifmisSlipNumber ?? '').trim().toLowerCase()}|${issue ? '' : String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase()}`;
-      if (new Set(approvals.map(keyOf)).size > 1) throw new BadRequestError(issue ? 'These lines are not on the same Model 22.' : 'These lines are not on the same Model 19 and PO.');
+      if (new Set(approvals.map(keyOf)).size > 1) throw new BadRequestError(issue ? `These lines are not on the same ${voucher}.` : 'These lines are not on the same Model 19 and PO.');
       // The voucher is signed as a whole, so its grand total decides whether the CEO must authorize it
       const grandTotal = approvals.reduce((sum: number, a: any) => sum + calculateApprovalTotalAmount(a, a.item), 0);
       const decided: TransactionApproval[] = [];
@@ -2388,7 +2388,7 @@ export class StoreService {
   private async voucherTotalOf(approval: any, db: any): Promise<number | undefined> {
     const type = approval.transactionType;
     const slip = String(approval.ifmisSlipNumber ?? '').trim();
-    if ((type !== 'STOCK_IN' && type !== 'STOCK_OUT') || !slip || slip.toUpperCase().startsWith('PENDING-')) return undefined;
+    if (!['STOCK_IN', 'STOCK_OUT', 'DISPOSAL'].includes(type) || !slip || slip.toUpperCase().startsWith('PENDING-')) return undefined;
     const lines = await db.transactionApproval.findMany({
       where: { transactionType: type, status: 'PENDING', currentStage: approval.currentStage, ifmisSlipNumber: { equals: slip, mode: 'insensitive' } },
       include: { item: { select: { notes: true, unitCostETB: true } } },

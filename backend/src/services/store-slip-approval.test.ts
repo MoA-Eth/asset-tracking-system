@@ -64,7 +64,7 @@ describe('Reviewing a whole Model 19 at once', () => {
     lines[2] = line('C', { ifmisSlipNumber: '0000052' });
     await expect(store().handleSlipApproval({ approvalIds: ['A', 'C'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('not on the same Model 19 and PO');
     lines[2] = line('C', { transactionType: 'STOCK_OUT' });
-    await expect(store().handleSlipApproval({ approvalIds: ['A', 'C'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('Only the lines of one receipt (Model 19) or one issue (Model 22)');
+    await expect(store().handleSlipApproval({ approvalIds: ['A', 'C'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('Only the lines of one receipt (Model 19), one issue (Model 22) or one disposal form');
     lines[2] = line('C', { currentStage: 2 });
     await expect(store().handleSlipApproval({ approvalIds: ['A', 'C'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('different stages');
     lines[2] = line('C', { status: 'APPROVED' });
@@ -127,5 +127,23 @@ describe('The CEO threshold goes by the grand total of a voucher', () => {
     db.item.findUnique.mockImplementation(async ({ where }: any) => ({ id: where.id, notes: meta('PO-14'), unitCostETB: where.id === 'item-A' ? 6_000_000 : 1000 }));
     const result = await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'APPROVE', reviewedById: 'head' });
     expect(result.map((a) => a.status)).toEqual(['APPROVED', 'APPROVED']);
+  });
+});
+
+describe('Reviewing a whole disposal form at once', () => {
+  const disposalLine = (id: string, extra: object = {}) =>
+    line(id, { transactionType: 'DISPOSAL', ifmisSlipNumber: '0001765/2018', requestDetails: { quantity: 1, bookValue: 0 }, ...extra });
+
+  it('endorses every asset on the form in one transaction', async () => {
+    lines = [disposalLine('A'), disposalLine('B', { requestDetails: { quantity: 1, bookValue: 2_500 } })];
+    const result = await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'ENDORSE', reviewedById: 'leader' });
+    expect(result.map((a) => a.currentStage)).toEqual([2, 2]);
+  });
+
+  it('refuses assets of another disposal form, or a disposal mixed with an issue', async () => {
+    lines = [disposalLine('A'), disposalLine('B', { ifmisSlipNumber: '0001766/2018' }), line('C', { transactionType: 'STOCK_OUT', ifmisSlipNumber: '0001765/2018' })];
+    await expect(store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('not on the same disposal form');
+    await expect(store().handleSlipApproval({ approvalIds: ['A', 'C'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('Only the lines of one receipt');
+    expect(db.transactionApproval.update).not.toHaveBeenCalled();
   });
 });
