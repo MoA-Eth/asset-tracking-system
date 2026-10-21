@@ -384,6 +384,56 @@ describe('Issue items (Model 22): read from the IFMIS PDF', () => {
     expect(onSuccess.mock.calls[0][1].items.map((l: any) => [l.itemCode, l.quantity])).toEqual([['111101102.0010', 2], ['101102101.0027', 6]]);
   });
 
+  // The same umbrella received on two Model 19s: two store records, the older one issued first
+  const fromOld = item({ id: 'item-U1', itemCode: 'MOA-SUP-0011', name: 'Umbrella', quantity: 1, uom: 'EA', unitCostETB: 168.75, ifmisItemCode: '111101102.0010', ifmisSlipNumber: '0000044', ifmisSlipDateGc: '2026-08-01' });
+  const fromNew = item({ id: 'item-U2', itemCode: 'MOA-SUP-0012', name: 'Umbrella', quantity: 1, uom: 'EA', unitCostETB: 168.75, ifmisItemCode: '111101102.0010', ifmisSlipNumber: '0000051', ifmisSlipDateGc: '2026-09-15' });
+
+  it('takes an item the Model 22 issues from as many receipts as it needs, oldest first', async () => {
+    const user = userEvent.setup();
+    vi.mocked(readPdfPages).mockResolvedValue({ rows: MODEL22.filter((r) => !/Plastic Glove|Powder Soap/.test(JSON.stringify(r))), pages: 1, pagesRead: 1 } as any);
+    vi.mocked(api.uploadSlip).mockResolvedValue({ url: '/api/uploads/slips/m22.pdf' } as any);
+    vi.mocked(api.registerStockOut).mockResolvedValue({ approval: { id: 'appr-1', itemId: 'item-U1' }, approvals: [] } as any);
+    render(<StockOutForm availableItems={[fromNew, fromOld]} departments={[department]} employees={[employee]} onCancel={vi.fn()} onSuccess={vi.fn()} />);
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'm22.pdf', { type: 'application/pdf' }));
+
+    const note = await screen.findByText(/Filled in from the slip/);
+    expect(note).toHaveTextContent('Taken from more than one receipt: 111101102.0010 from 2 receipts (oldest first)');
+    expect(screen.getByLabelText('Quantity to issue')).toHaveValue('1');
+    expect(screen.getByLabelText('Item 2 quantity')).toHaveValue('1');
+    expect(screen.getByText(/part from Model 19 0000044/)).toBeInTheDocument();
+    expect(screen.getByText(/part from Model 19 0000051/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Submit 2 items for approval' }));
+    expect(vi.mocked(api.registerStockOut).mock.calls[0][0]).toMatchObject({ lines: [{ itemId: 'item-U1', quantity: 1 }, { itemId: 'item-U2', quantity: 1 }] });
+  });
+
+  it('says when the store holds less than the Model 22 issues, and never sends fewer quietly', async () => {
+    const user = userEvent.setup();
+    // Three umbrellas on the slip; one in store
+    const three = MODEL22.filter((r) => !/Plastic Glove|Powder Soap/.test(JSON.stringify(r)))
+      .concat([row(240, [29, '3'], [51, '111101102.0010'], [119, 'Umberella'], [201, 'EA'], [218, 'Uniforms'], [263, 'Other materials'], [534, '1'], [607, '168.75'], [683, '168.75'])]);
+    vi.mocked(readPdfPages).mockResolvedValue({ rows: three, pages: 1, pagesRead: 1 } as any);
+    render(<StockOutForm availableItems={[fromOld]} departments={[department]} employees={[employee]} onCancel={vi.fn()} onSuccess={vi.fn()} />);
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'm22.pdf', { type: 'application/pdf' }));
+
+    const note = await screen.findByText(/Filled in from the slip/);
+    expect(note).toHaveTextContent('Not enough in store: 111101102.0010 Umberella: the slip issues 3, only 1 in store');
+    expect(screen.getByLabelText('Quantity to issue')).toHaveValue('3');
+    expect(screen.getByText('Only 1 EA in store')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^Submit/ }));
+    expect(api.registerStockOut).not.toHaveBeenCalled();
+    expect(screen.getAllByText(/More than is in store \(item 1: only 1 EA in store\)/).length).toBeGreaterThan(0);
+  });
+
+  it('shows which receipt each store record came from when choosing by hand', async () => {
+    const user = userEvent.setup();
+    render(<StockOutForm availableItems={[fromOld, fromNew]} departments={[department]} employees={[employee]} onCancel={vi.fn()} onSuccess={vi.fn()} />);
+    await user.click(screen.getByLabelText('Store item'));
+    expect(await screen.findByText(/Model 19 0000044/)).toBeInTheDocument();
+    expect(screen.getByText(/Model 19 0000051/)).toBeInTheDocument();
+  });
+
   it('refuses a Model 19 here: it is not attached and fills nothing', async () => {
     const user = userEvent.setup();
     vi.mocked(readPdfPages).mockResolvedValue({ rows: [row(98, [640, 'Print Model19 Report']), row(146, [680, 'INV Model 19 No. :'], [812, '0000044'])], pages: 1, pagesRead: 1 } as any);

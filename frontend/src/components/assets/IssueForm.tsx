@@ -60,12 +60,14 @@ interface IssueRow {
   itemId: string;
   quantity: number;
   /** What the Model 22 PDF printed for this line, to show when no store item matches it */
-  slip?: { itemCode?: string; description?: string; quantity?: number; uom?: string; lines: number };
+  slip?: { itemCode?: string; description?: string; quantity?: number; uom?: string; lines: number; receipts?: number };
 }
 let rowKey = 0;
 const newRow = (itemId = '', quantity = 0, slip?: IssueRow['slip']): IssueRow => ({ key: ++rowKey, itemId, quantity, slip });
 
 const unitsOf = (item?: ItemWithRelations) => Number(item?.quantity) || 1;
+/** When a store record was received, to issue the oldest stock first */
+const receivedOn = (item: ItemWithRelations) => item.ifmisSlipDateGc || String(item.createdAtGc ?? '');
 /** "  oromia   bureau " and "Oromia Bureau" are the same organization */
 const orgKey = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
 // Items registered before units were recorded count in EA, as on the server
@@ -353,28 +355,53 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         } else groups.push({ itemCode: code, description: line.description, quantity: line.quantity, uom: line.uom, lines: 1 });
       }
       const taken = new Set<string>();
-      let matched = 0;
-      const next = groups.map((g) => {
-        const candidates = availableItems.filter((i) => !taken.has(i.id) && i.ifmisItemCode?.trim() === g.itemCode);
-        const pick = candidates.find((i) => unitsOf(i) >= (g.quantity ?? 1)) ?? candidates[0];
-        if (pick) {
-          taken.add(pick.id);
-          matched += 1;
+      let notInStore = 0;
+      const short: string[] = [];
+      const spread: string[] = [];
+      const next: IssueRow[] = [];
+      for (const g of groups) {
+        // The same item received on several Model 19s is several store records: the oldest is issued first
+        const candidates = availableItems
+          .filter((i) => !taken.has(i.id) && !!g.itemCode && i.ifmisItemCode?.trim() === g.itemCode)
+          .sort((a, b) => receivedOn(a).localeCompare(receivedOn(b)) || a.itemCode.localeCompare(b.itemCode, undefined, { numeric: true }));
+        if (candidates.length === 0) {
+          notInStore += 1;
+          next.push(newRow('', g.quantity ?? 0, g));
+          continue;
         }
-        return newRow(pick?.id ?? '', g.quantity ?? (pick ? unitsOf(pick) : 0), g);
-      });
+        let need = g.quantity ?? unitsOf(candidates[0]);
+        const parts: { item: ItemWithRelations; quantity: number }[] = [];
+        for (const c of candidates) {
+          if (need <= 0) break;
+          const quantity = Math.min(need, unitsOf(c));
+          parts.push({ item: c, quantity });
+          need -= quantity;
+        }
+        // More on the slip than in store: the rest stays on the last row, which then shows it is short
+        if (need > 0) {
+          parts[parts.length - 1].quantity += need;
+          short.push(`${g.itemCode} ${g.description ?? ''}: the slip issues ${g.quantity}, only ${(g.quantity ?? 0) - need} in store`.replace(/\s+:/, ':'));
+        }
+        if (parts.length > 1) spread.push(`${g.itemCode} from ${parts.length} receipts (oldest first)`);
+        for (const p of parts) {
+          taken.add(p.item.id);
+          next.push(newRow(p.item.id, p.quantity, { ...g, receipts: parts.length }));
+        }
+      }
       setRows(next);
       const combined = groups.filter((g) => g.lines > 1);
       filled.push(
         `${slip.lines.length} ${slip.lines.length === 1 ? 'line' : 'lines'} as ${next.length} ${next.length === 1 ? 'row' : 'rows'}` +
           (combined.length ? ` (lines with the same item code are combined: ${combined.map((g) => `${g.lines} × ${g.itemCode}`).join(', ')})` : ''),
       );
-      const missing = next.length - matched;
+      const missing = notInStore;
       const notFound = missing > 0 ? ` ${missing} ${missing === 1 ? 'line is' : 'lines are'} not in store under ${missing === 1 ? 'its' : 'their'} item code: choose the store item, or remove the row.` : '';
+      const spreadNote = spread.length ? ` Taken from more than one receipt: ${spread.join('; ')}.` : '';
+      const shortNote = short.length ? ` Not enough in store: ${short.join('; ')}.` : '';
       const more = slip.vouchers > 1 ? ` This PDF holds ${slip.vouchers} vouchers; only the first was read.` : '';
       setSlipNote({
-        tone: missing > 0 || slip.vouchers > 1 ? 'warn' : 'info',
-        text: `Filled in from the slip: ${filled.join(', ')}. Check them against the paper before submitting.${notFound}${more}`,
+        tone: missing > 0 || short.length > 0 || slip.vouchers > 1 ? 'warn' : 'info',
+        text: `Filled in from the slip: ${filled.join(', ')}. Check them against the paper before submitting.${spreadNote}${shortNote}${notFound}${more}`,
       });
     } else {
       setSlipNote({
@@ -445,6 +472,16 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+    const over = rows
+      .map((r, i) => ({ r, n: i + 1, it: itemOf(r) }))
+      .filter(({ r, it }) => !!it && Number(r.quantity) > unitsOf(it));
+    if (over.length > 0) {
+      const which = over.map(({ n, it }) => `item ${n}: only ${unitsOf(it)} ${uomOf(it)} in store`).join('; ');
+      const message = `More than is in store (${which}). Lower the quantity, or add the rest from another receipt of the same item.`;
+      setFormError(message);
+      toast.warning('Not enough in store', message);
+      return;
+    }
     const effectiveModel22No = model22No.trim() || `PENDING-ISSUE-${Date.now()}`;
     const effectiveIssuedDate = issuedDateGc || today;
     const effectiveTransactionType = transactionType || DEFAULT_TRANSACTION_TYPE;
@@ -463,12 +500,10 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           targetDepartmentId: destinationDepartmentId || undefined,
         };
     const effectiveRows = rows.map((r) => {
-      const it = itemOf(r);
-      const inStore = it ? unitsOf(it) : 1;
       const q = Number(r.quantity);
       return {
         ...r,
-        quantity: Number.isFinite(q) && q > 0 ? (inStore && q > inStore ? inStore : q) : 1,
+        quantity: Number.isFinite(q) && q > 0 ? q : 1,
       };
     });
     setSubmitting(true);
@@ -592,7 +627,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         .map((item) => ({
           value: item.id,
           label: `${item.itemCode} — ${item.name}`,
-          note: `${unitsOf(item)} ${uomOf(item)} in store · ${formatETB(item.unitCostETB)} each${item.ifmisItemCode ? ` · ${item.ifmisItemCode}` : ''}`,
+          note: `${unitsOf(item)} ${uomOf(item)} in store · ${formatETB(item.unitCostETB)} each${item.ifmisItemCode ? ` · ${item.ifmisItemCode}` : ''}${item.ifmisSlipNumber ? ` · Model 19 ${item.ifmisSlipNumber}` : ''}`,
         })),
     },
   ];
@@ -733,6 +768,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                                 <span className="font-mono">{row.slip.itemCode}</span> {row.slip.description}
                                 {row.slip.quantity ? ` · ${row.slip.quantity} ${row.slip.uom ?? ''}` : ''}
                                 {row.slip.lines > 1 ? ` (${row.slip.lines} lines combined)` : ''}
+                                {item && (row.slip.receipts ?? 1) > 1 ? ` · part from Model 19 ${item.ifmisSlipNumber || item.itemCode}` : ''}
                               </p>
                             )}
                           </>
