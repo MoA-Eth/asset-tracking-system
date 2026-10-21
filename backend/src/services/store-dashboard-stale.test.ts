@@ -105,6 +105,9 @@ describe('dashboard: totals count approved assets only', () => {
       record('DISPOSED-OF', 'DISPOSED', 1, { unitCostETB: 700000 }),
     ]);
 
+    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
+      where.status === 'PENDING' ? [{ itemId: 'AWAITING-ENDORSEMENT', transactionType: 'STOCK_IN', status: 'PENDING', currentStage: 1, ifmisSlipNumber: 'M19-P' }] : [],
+    );
     const d = await StoreService.getInstance().getExecutiveDashboard();
 
     // 4 units each for the two approved records; the pending receipt is reported on its own

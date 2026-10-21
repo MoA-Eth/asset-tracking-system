@@ -39,7 +39,9 @@ export async function getAssetsDashboard(filter: AssetsDashboardFilter) {
       total: d.pendingApprovalsCount ?? 0,
       valueETB: d.pendingApprovalsValuationETB ?? 0,
       withTeamLeader: d.pendingStageCounts?.stage1 ?? 0,
-      withDepartmentHead: d.pendingStageCounts?.stage2 ?? 0,
+      // Stage 2 by who authorizes it: above 10 million birr (a voucher by its grand total) the Chief Director
+      withDepartmentHead: d.pendingStageCounts?.departmentHead ?? d.pendingStageCounts?.stage2 ?? 0,
+      withChiefDirector: d.pendingStageCounts?.executive ?? 0,
     },
     movement: (d.stockMovement ?? []).map((m: any) => ({ month: m.month, received: m.received ?? 0, issued: m.issued ?? 0 })),
     byCategory: (d.categoryBreakdown ?? [])

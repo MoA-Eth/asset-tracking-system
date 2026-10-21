@@ -399,7 +399,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const issuedCount       = data?.issuedCount          || 0;
   const pendingApprovals  = data?.pendingApprovalsCount || 0;
   const pendingApprovalsValuationETB = data?.pendingApprovalsValuationETB || 0;
-  const pendingStageCounts = data?.pendingStageCounts || { stage1: 0, stage2: 0 };
+  const pendingStageCounts = data?.pendingStageCounts || { stage1: 0, stage2: 0, departmentHead: 0, executive: 0 };
   const pendingStockIn    = data?.pendingStockInCount   || 0;
   const pendingStockOut   = data?.pendingStockOutCount  || 0;
   const pendingTransfer   = data?.pendingTransferCount  || 0;
@@ -720,10 +720,17 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                     {pendingStageCounts.stage1}
                   </span>
                 </div>
+                {/* Stage 2 by who authorizes it: above 10 million birr (a voucher by its grand total) the Chief Director */}
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-600">Dept Head / Executive:</span>
+                  <span className="text-slate-600">Dept Head:</span>
                   <span className="font-semibold text-blue-800 tabular-nums">
-                    {pendingStageCounts.stage2}
+                    {pendingStageCounts.departmentHead ?? pendingStageCounts.stage2}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-600">Executive (&gt; 10M):</span>
+                  <span className="font-semibold text-purple-800 tabular-nums">
+                    {pendingStageCounts.executive ?? 0}
                   </span>
                 </div>
               </div>
@@ -792,7 +799,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             <WorkTile label="Pending stock-in" count={pendingStockIn} note="Receiving & inspection" onClick={() => onNavigate('assets')} />
           )}
           {pendingStockOut > 0 && (
-            <WorkTile label="Pending stock-out" count={pendingStockOut} note="Model 20 issuance" onClick={() => onNavigate('assets')} />
+            <WorkTile label="Pending stock-out" count={pendingStockOut} note="Model 22 issuance" onClick={() => onNavigate('assets')} />
           )}
           {pendingTransfer > 0 && (
             <WorkTile label="Pending transfers" count={pendingTransfer} note="Custodian handovers" onClick={() => onNavigate('assets')} />

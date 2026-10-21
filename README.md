@@ -376,7 +376,7 @@ const { data } = await res.json();
     "consumables": { "units": 600,  "valueETB": 3150000 }
   },
   "pending": { "receipts": 4, "issues": 2, "transfers": 1, "disposals": 0, "total": 7, "valueETB": 912000,
-               "withTeamLeader": 5, "withDepartmentHead": 2 },
+               "withTeamLeader": 4, "withDepartmentHead": 2, "withChiefDirector": 1 },
   "movement":    [{ "month": "2026-09", "received": 85, "issued": 60 }],
   "byCategory":  [{ "category": "IT_EQUIPMENT", "units": 420, "valueETB": 21400000 }],
   "byStore":     [{ "store": "Head office · Central Store", "units": 900, "valueETB": 36100000,
@@ -387,7 +387,8 @@ const { data } = await res.json();
 ```
 
 `assets` counts **approved** records (as the in-app dashboard does); receipts and requests still waiting for approval
-are under `pending`.
+are under `pending`. A receipt or issue of several items waiting together counts once. Requests endorsed by the Team Leader are
+with the Department Head, or with the Chief Director when the request (or the whole voucher) is above 10,000,000 ETB.
 
 **Errors:**
 

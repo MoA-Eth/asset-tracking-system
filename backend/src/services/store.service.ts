@@ -159,13 +159,32 @@ export const MAX_SLIP_LINES = 200;
  * same number): the CEO when the voucher's grand total is above 10 million birr, for every line of it, as the
  * decision does. A request on its own keeps the role its own amount gives it.
  */
-export function withVoucherApprover<T extends { transactionType: string; status: string; currentStage?: number; ifmisSlipNumber?: string; poNumber?: string; totalAmount?: number; requiredRole?: string }>(list: T[]): T[] {
-  const keyOf = (a: T) => {
-    const slip = String(a.ifmisSlipNumber ?? '').trim().toLowerCase();
-    if (a.status !== 'PENDING' || (a.transactionType !== 'STOCK_IN' && a.transactionType !== 'STOCK_OUT') || !slip || slip.startsWith('pending-')) return undefined;
-    const po = a.transactionType === 'STOCK_IN' ? String(a.poNumber ?? '').trim().toLowerCase() : '';
-    return `${a.transactionType}|${slip}|${po}|${a.currentStage ?? 1}`;
-  };
+type VoucherLine = { transactionType: string; status: string; currentStage?: number; ifmisSlipNumber?: string; poNumber?: string; totalAmount?: number };
+
+/** What makes pending lines one voucher, decided together: a Model 19 (slip and PO) or a Model 22 (number), at one stage */
+function voucherKey(a: VoucherLine): string | undefined {
+  const slip = String(a.ifmisSlipNumber ?? '').trim().toLowerCase();
+  if (a.status !== 'PENDING' || (a.transactionType !== 'STOCK_IN' && a.transactionType !== 'STOCK_OUT') || !slip || slip.startsWith('pending-')) return undefined;
+  const po = a.transactionType === 'STOCK_IN' ? String(a.poNumber ?? '').trim().toLowerCase() : '';
+  return `${a.transactionType}|${slip}|${po}|${a.currentStage ?? 1}`;
+}
+
+/**
+ * Pending requests as the approvals queue shows them: a voucher of several lines is one, with its grand total;
+ * any other request is one on its own
+ */
+export function pendingVouchers<T extends VoucherLine>(list: T[]): { currentStage: number; total: number; lead: T }[] {
+  const rows = new Map<string, { currentStage: number; total: number; lead: T }>();
+  list.forEach((a, i) => {
+    const key = voucherKey(a) ?? `single|${i}`;
+    const row = rows.get(key) ?? { currentStage: a.currentStage ?? 1, total: 0, lead: a };
+    rows.set(key, { ...row, total: row.total + (Number(a.totalAmount) || 0) });
+  });
+  return [...rows.values()];
+}
+
+export function withVoucherApprover<T extends VoucherLine & { requiredRole?: string }>(list: T[]): T[] {
+  const keyOf = voucherKey;
   const totals = new Map<string, { sum: number; lines: number }>();
   for (const a of list) {
     const key = keyOf(a);
@@ -3056,7 +3075,10 @@ export class StoreService {
       }),
       prisma.department.findMany({ orderBy: { code: 'asc' } }),
       prisma.location.findMany({ include: { store: true }, orderBy: [{ store: { name: 'asc' } }, { name: 'asc' }] }),
-      prisma.transactionApproval.findMany({ where: { status: 'PENDING' }, select: { itemId: true, createdAtGc: true, currentStage: true } }),
+      prisma.transactionApproval.findMany({
+        where: { status: 'PENDING' },
+        select: { itemId: true, createdAtGc: true, currentStage: true, transactionType: true, status: true, ifmisSlipNumber: true, requestDetails: true },
+      }),
       prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 8 }),
       prisma.transactionApproval.findMany({
         where: { transactionType: 'STOCK_OUT' as any, status: 'APPROVED' as any },
@@ -3081,15 +3103,34 @@ export class StoreService {
     const allItems = periodSet ? scopedItems.filter((i) => inPeriod(receivedOn(i))) : scopedItems;
     const locations = storeId ? allLocations.filter((l) => l.storeId === storeId) : allLocations;
     const pendingApprovalsList = pendingRequests.filter((r) => (!filtered || keptIds.has(r.itemId)) && (!periodSet || inPeriod(r.createdAtGc)));
-    const pendingApprovals = pendingApprovalsList.length;
+    // Counted as the approvals queue shows them: a voucher of several lines once, by its grand total
+    const itemById = new Map(allItemsRaw.map((i: any) => [i.id, i]));
+    const pendingRows = pendingVouchers(
+      pendingApprovalsList.map((r) => {
+        const item: any = itemById.get(r.itemId);
+        return {
+          transactionType: r.transactionType,
+          status: r.status,
+          currentStage: r.currentStage,
+          ifmisSlipNumber: r.ifmisSlipNumber,
+          poNumber: readItemMeta(item?.notes).poNumber,
+          totalAmount: calculateApprovalTotalAmount(r, item),
+          disposal: r.transactionType === 'DISPOSAL' || (r.requestDetails as any)?.disposal === true,
+        };
+      }),
+    );
+    const pendingApprovals = pendingRows.length;
     const pendingApprovalsValuationETB = pendingApprovalsList.reduce((s, r) => {
       const it = scopedById.get(r.itemId);
       return s + (it ? (Number(it.unitCostETB) || 0) * (Number(it.quantity) || 1) : 0);
     }, 0);
+    const stage2Rows = pendingRows.filter((r) => r.currentStage === 2);
     const pendingStageCounts = {
-      stage1: pendingApprovalsList.filter((r) => (r.currentStage ?? 1) === 1).length,
-      stage2: pendingApprovalsList.filter((r) => r.currentStage === 2).length,
-      stage3: pendingApprovalsList.filter((r) => r.currentStage === 3).length,
+      stage1: pendingRows.filter((r) => r.currentStage === 1).length,
+      stage2: stage2Rows.length,
+      // Stage 2 by who authorizes it: the Chief Director above 10 million birr, the Department Head otherwise
+      departmentHead: stage2Rows.filter((r) => r.total <= HIGH_VALUE_APPROVAL_THRESHOLD).length,
+      executive: stage2Rows.filter((r) => r.total > HIGH_VALUE_APPROVAL_THRESHOLD).length,
     };
 
     // Count units, not records: a partial Stock-Out splits one registration into several records,
@@ -3101,8 +3142,6 @@ export class StoreService {
     const available = allItems.filter((i) => IN_STORE_STATUSES.includes(i.status));
     const issued = allItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status));
     const pendingIn = allItems.filter((i) => i.status === 'PENDING_STOCK_IN');
-    const pendingOut = allItems.filter((i) => i.status === 'PENDING_STOCK_OUT');
-    const inTransfer = allItems.filter((i) => i.status === 'UNDER_TRANSFER');
     const pendingDisposal = allItems.filter((i) => i.status === ItemStatus.PENDING_DISPOSAL);
     const disposed = allItems.filter((i) => i.status === ItemStatus.DISPOSED);
     // Assets on record: approved and in store or with a custodian. Receipts still awaiting endorsement or
@@ -3276,10 +3315,11 @@ export class StoreService {
       issuedCount: units(issued),
       issuedRecords: issued.length,
       issuedValuationETB: sum(issued),
-      pendingStockInCount: pendingIn.length,
-      pendingStockOutCount: pendingOut.length,
-      pendingTransferCount: inTransfer.length,
-      pendingDisposalCount: pendingDisposal.length,
+      // Requests waiting for approval, by kind, counted as the approvals queue shows them (they add up to pendingApprovalsCount)
+      pendingStockInCount: pendingRows.filter((r) => r.lead.transactionType === 'STOCK_IN').length,
+      pendingStockOutCount: pendingRows.filter((r) => r.lead.transactionType === 'STOCK_OUT' && !r.lead.disposal).length,
+      pendingTransferCount: pendingRows.filter((r) => r.lead.transactionType === 'TRANSFER' || r.lead.transactionType === 'RETURN').length,
+      pendingDisposalCount: pendingRows.filter((r) => r.lead.disposal).length,
       // Units disposed of through approved disposals, and their value at unit price
       disposedCount: units(disposed),
       disposedValuationETB: sum(disposed),

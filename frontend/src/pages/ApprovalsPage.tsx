@@ -409,7 +409,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       if (action === 'ENDORSE') {
         toast.success(
           'Stage 1 Endorsement Recorded',
-          `${typeLabel} (${itemCode}) verified and advanced to Directorate Head for Stage 2 final approval.`
+          `${typeLabel} (${itemCode}) verified and advanced to the ${target && isHigh(target) ? 'Chief Director (above 10,000,000 ETB)' : 'Department Head'} for Stage 2 final approval.`
         );
       } else if (action === 'APPROVE') {
         const resultDesc = typeText(target?.transactionType, target?.requestDetails).approved;
@@ -961,7 +961,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                           <span className="text-slate-900 line-clamp-1">{appr.itemName}</span>
                           <span className="flex items-center gap-x-1.5 whitespace-nowrap">
                             <span className={table.code}>{appr.itemCode}</span>
-                            {approvalUnits(appr) && <span className="text-xs text-sky-800">· {approvalUnits(appr)}</span>}
+                            {/* A voucher of several lines lists each quantity when reviewed; its row would show only the first */}
+                            {!slipLines.has(appr.id) && approvalUnits(appr) && <span className="text-xs text-sky-800">· {approvalUnits(appr)}</span>}
                           </span>
                         </div>
                       </td>
@@ -1133,7 +1134,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   ? 'Stage 1: Team Leader Endorsement'
                   : isHigh(selectedApproval)
                     ? 'Stage 2: Chief Director Final Authorization (> 10M ETB)'
-                    : 'Stage 2: Directorate Head Final Authorization'}
+                    : 'Stage 2: Department Head Final Authorization'}
               </h3>
               <button
                 onClick={() => setSelectedApproval(null)}
@@ -1150,7 +1151,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   {getTypeBadge(selectedApproval.transactionType, selectedApproval.requestDetails)}
                 </div>
                 <p className="font-mono text-slate-800 font-bold">{selectedApproval.itemCode}</p>
-                {approvalUnits(selectedApproval) && (
+                {!slipLines.has(selectedApproval.id) && approvalUnits(selectedApproval) && (
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Quantity:</span>
                     <span className="font-mono font-semibold text-sky-800">{approvalUnits(selectedApproval)!.replace(/^Qty /, '')}</span>
@@ -1278,7 +1279,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 <label className="block text-slate-700 font-bold mb-1">
                   {selectedApproval.currentStage === 1
                     ? 'Team Leader Endorsement Remarks:'
-                    : 'Directorate Head Authorization Comments:'}
+                    : isHigh(selectedApproval)
+                      ? 'Chief Director Authorization Comments:'
+                      : 'Department Head Authorization Comments:'}
                 </label>
                 <input
                   type="text"
@@ -1334,7 +1337,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       <span className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-3 py-1.5 rounded-[4px]">
                         {isHighVal
                           ? 'High-Value (> 10M ETB): Reserved for Chief Director'
-                          : 'Standard (≤ 10M ETB): Handled by Directorate Head'}
+                          : 'Standard (≤ 10M ETB): Handled by the Department Head'}
                       </span>
                     );
                   }

@@ -37,6 +37,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import { GlobalSearch } from './GlobalSearch';
 import { MoaLogo } from '../ui/MoaLogo';
+import { approvalRows, HIGH_VALUE_THRESHOLD, slipNames } from '../assets/slip-groups';
 
 interface TopHeaderProps {
   activeTab: string;
@@ -128,15 +129,21 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     try {
       setLoadingNotifications(true);
       const data = await api.getApprovals(ApprovalStatus.PENDING);
-      let relevant = data;
+      // As the approvals queue shows them: a voucher of several lines is one notification, by its grand total
+      let rows = approvalRows(data);
       if (canEndorse && !canAuthorize) {
-        relevant = data.filter((a) => (a.currentStage ?? 1) === 1);
+        rows = rows.filter((r) => (r.lead.currentStage ?? 1) === 1);
       } else if (canAuthorize && !canEndorse) {
-        relevant = data.filter((a) => a.currentStage === 2);
+        rows = rows.filter((r) => r.lead.currentStage === 2);
+        // Above 10 million birr is the Chief Director's; the rest the Department Head's
+        if (role === UserRole.CHIEF_DIRECTOR) rows = rows.filter((r) => r.total > HIGH_VALUE_THRESHOLD);
+        else if (role === UserRole.DEPARTMENT_HEAD) rows = rows.filter((r) => r.total <= HIGH_VALUE_THRESHOLD);
       } else if (!canEndorse && !canAuthorize) {
-        relevant = [];
+        rows = [];
       }
-      setNotifications(relevant);
+      setNotifications(
+        rows.map((r) => (r.members.length > 1 ? { ...r.lead, itemName: `${slipNames(r.members.map((m) => m.itemName))} (${r.members.length} items)` } : r.lead)),
+      );
     } catch {
       // ignore
     } finally {

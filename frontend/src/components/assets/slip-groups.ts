@@ -61,11 +61,16 @@ export const voucherName = (transactionType?: string): string => (transactionTyp
 /** Above this many birr (a request, or a voucher's grand total) the Chief Director authorizes instead of the Department Head */
 export const HIGH_VALUE_THRESHOLD = 10_000_000;
 
+/** The rows of the approvals queue: a voucher of several lines is one row, with its lines and grand total */
+export const approvalRows = <T extends Parameters<typeof approvalRowKey>[0] & { totalAmount?: number }>(list: T[]): { lead: T; members: T[]; total: number }[] =>
+  groupBySlip<T>(list, approvalRowKey).map((g) => {
+    const members = isSlipGroup(g) ? g.members : [g.single];
+    return { lead: members[0], members, total: members.reduce((sum, m) => sum + (Number(m.totalAmount) || 0), 0) };
+  });
+
 /** The amount of each row of the approvals queue: a voucher of several lines counts its grand total */
 export const approvalRowTotals = <T extends Parameters<typeof approvalRowKey>[0] & { totalAmount?: number }>(list: T[]): number[] =>
-  groupBySlip<T>(list, approvalRowKey).map((g) =>
-    isSlipGroup(g) ? g.members.reduce((sum, m) => sum + (Number(m.totalAmount) || 0), 0) : Number(g.single.totalAmount) || 0,
-  );
+  approvalRows(list).map((r) => r.total);
 
 /** How many rows a list of requests makes in the approvals queue (a receipt of several lines counts once) */
 export const countApprovalRows = <T extends Parameters<typeof approvalRowKey>[0]>(list: T[]): number => groupBySlip<T>(list, approvalRowKey).length;

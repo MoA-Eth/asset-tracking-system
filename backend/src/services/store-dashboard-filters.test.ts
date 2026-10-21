@@ -54,7 +54,12 @@ beforeEach(() => {
   db.auditLog.findMany.mockResolvedValue([{ id: 'log-1' }]);
   // Pending requests on two items, one of them in Saris
   db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
-    where.status === 'PENDING' ? [{ itemId: 'FUEL-S' }, { itemId: 'LAPTOP-K' }] : [],
+    where.status === 'PENDING'
+      ? [
+          { itemId: 'FUEL-S', transactionType: 'STOCK_IN', status: 'PENDING', currentStage: 1, ifmisSlipNumber: 'M19-S' },
+          { itemId: 'LAPTOP-K', transactionType: 'TRANSFER', status: 'PENDING', currentStage: 1, ifmisSlipNumber: 'M21-K' },
+        ]
+      : [],
   );
 });
 

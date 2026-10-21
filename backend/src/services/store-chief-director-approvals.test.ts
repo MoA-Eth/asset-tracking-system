@@ -7,6 +7,7 @@ import {
   calculateApprovalTotalAmount,
   HIGH_VALUE_APPROVAL_THRESHOLD,
   StoreService,
+  pendingVouchers,
   withVoucherApprover,
 } from './store.service';
 import { ForbiddenError } from '../errors/app-error';
@@ -268,5 +269,20 @@ describe('Who authorizes the lines of a voucher, in the approvals list', () => {
   it('gives a voucher at or under 10 million to the Department Head, even with a line the CEO would sign alone', () => {
     const list = withVoucherApprover([pending('A', 9_000_000, { transactionType: 'STOCK_OUT', poNumber: undefined }), pending('B', 1_000_000, { transactionType: 'STOCK_OUT' })]);
     expect(list.map((a) => a.requiredRole)).toEqual(['DEPARTMENT_HEAD', 'DEPARTMENT_HEAD']);
+  });
+});
+
+describe('Pending requests counted as the approvals queue shows them', () => {
+  it('counts a voucher of several lines once, with its grand total; other requests one each', () => {
+    const line = (transactionType: string, slip: string, totalAmount: number, currentStage = 2) => ({ transactionType, status: 'PENDING', currentStage, ifmisSlipNumber: slip, poNumber: 'PO-1', totalAmount });
+    const rows = pendingVouchers([
+      line('STOCK_IN', '0000077', 6_000_000), line('STOCK_IN', '0000077', 6_000_000), // one receipt, 12 million
+      line('STOCK_OUT', 'M22-1', 2_000), line('STOCK_OUT', 'M22-1', 3_000), // one issue
+      line('TRANSFER', 'T-1', 50_000), line('TRANSFER', 'T-1', 50_000), // transfers stay one each
+      line('STOCK_IN', '0000078', 1_000, 1),
+    ]);
+    expect(rows.map((r) => [r.lead.transactionType, r.currentStage, r.total])).toEqual([
+      ['STOCK_IN', 2, 12_000_000], ['STOCK_OUT', 2, 5_000], ['TRANSFER', 2, 50_000], ['TRANSFER', 2, 50_000], ['STOCK_IN', 1, 1_000],
+    ]);
   });
 });
