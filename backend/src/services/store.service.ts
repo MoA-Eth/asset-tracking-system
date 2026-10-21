@@ -2282,23 +2282,29 @@ export class StoreService {
   }
 
   /**
-   * One decision for a whole Model 19: every line received on the same slip with the same PO, all waiting at the
-   * same stage. Each line goes through the same checks as on its own (permissions, stage, the CEO above 10 million
-   * birr); if any line fails, none is changed.
+   * One decision for a whole voucher: every line of a Model 19 receipt (same slip and PO), or of a Model 22 issue
+   * (same Model 22 No.), all waiting at the same stage. Each line goes through the same checks as on its own
+   * (permissions, stage, the CEO above 10 million birr); if any line fails, none is changed.
    */
   public async handleSlipApproval(payload: SlipApprovalActionRequest): Promise<TransactionApproval[]> {
     const ids = [...new Set((Array.isArray(payload.approvalIds) ? payload.approvalIds : []).filter((id) => typeof id === 'string' && id))];
-    if (ids.length === 0) throw new BadRequestError('Choose the receipt to review.');
-    if (ids.length > MAX_SLIP_LINES) throw new BadRequestError(`A receipt can be reviewed ${MAX_SLIP_LINES} lines at a time.`);
+    if (ids.length === 0) throw new BadRequestError('Choose the voucher to review.');
+    if (ids.length > MAX_SLIP_LINES) throw new BadRequestError(`A voucher can be reviewed ${MAX_SLIP_LINES} lines at a time.`);
     const timeout = Math.min(20000 + ids.length * 1500, 120000);
     return prisma.$transaction(async (db: any) => {
       const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true } } } });
-      if (approvals.length !== ids.length) throw new NotFoundError('Part of this receipt no longer exists. Refresh the list.');
-      if (approvals.some((a: any) => a.transactionType !== 'STOCK_IN')) throw new BadRequestError('Only the lines of a receipt (Model 19) are reviewed together.');
-      if (approvals.some((a: any) => a.status !== 'PENDING')) throw new ConflictError('Part of this receipt has already been decided. Refresh the list.');
-      if (new Set(approvals.map((a: any) => a.currentStage ?? 1)).size > 1) throw new ConflictError('The lines of this receipt are at different stages. Review them one by one.');
-      const keyOf = (a: any) => `${String(a.ifmisSlipNumber ?? '').trim().toLowerCase()}|${String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase()}`;
-      if (new Set(approvals.map(keyOf)).size > 1) throw new BadRequestError('These lines are not on the same Model 19 and PO.');
+      if (approvals.length !== ids.length) throw new NotFoundError('Part of this voucher no longer exists. Refresh the list.');
+      const types = new Set(approvals.map((a: any) => a.transactionType));
+      if (types.size > 1 || !(types.has('STOCK_IN') || types.has('STOCK_OUT'))) {
+        throw new BadRequestError('Only the lines of one receipt (Model 19) or one issue (Model 22) are reviewed together.');
+      }
+      const issue = types.has('STOCK_OUT');
+      const voucher = issue ? 'Model 22' : 'Model 19';
+      if (approvals.some((a: any) => a.status !== 'PENDING')) throw new ConflictError(`Part of this ${voucher} has already been decided. Refresh the list.`);
+      if (new Set(approvals.map((a: any) => a.currentStage ?? 1)).size > 1) throw new ConflictError(`The lines of this ${voucher} are at different stages. Review them one by one.`);
+      // A receipt is its slip and PO; an issue is its Model 22 No.
+      const keyOf = (a: any) => `${String(a.ifmisSlipNumber ?? '').trim().toLowerCase()}|${issue ? '' : String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase()}`;
+      if (new Set(approvals.map(keyOf)).size > 1) throw new BadRequestError(issue ? 'These lines are not on the same Model 22.' : 'These lines are not on the same Model 19 and PO.');
       const decided: TransactionApproval[] = [];
       // In slip order, so the history and audit read like the voucher
       for (const id of ids) decided.push(await this.applyDecision({ ...payload, approvalId: id }, db));

@@ -28,14 +28,16 @@ describe('one receipt per Model 19 and PO', () => {
     expect(out.map((g) => (isSlipGroup(g) ? g.members.map((m) => m.id).join('+') : g.single.id))).toEqual(['a+c', 'b', 'd', 'e']);
   });
 
-  it('counts a receipt of several lines once in the approvals badge, other requests one each', () => {
+  it('counts a receipt or an issue of several lines once in the approvals badge, other requests one each', () => {
     const req = (transactionType: string, slip: string, po: string, currentStage = 1) => ({ transactionType, ifmisSlipNumber: slip, poNumber: po, status: 'PENDING', currentStage });
     expect(countApprovalRows([
       req('STOCK_IN', '51', 'P1'), req('STOCK_IN', '51', 'P1'), req('STOCK_IN', '51', 'P1'), // one receipt
       req('STOCK_IN', '52', 'P1'), // another receipt
-      req('STOCK_OUT', 'M22-1', ''), req('STOCK_OUT', 'M22-1', ''), // issues are a row each
+      req('STOCK_OUT', 'M22-1', ''), req('STOCK_OUT', 'M22-1', 'P1'), // one issue (Model 22), whatever PO its items came on
+      req('STOCK_OUT', '51', ''), // an issue numbered like a receipt is still its own row
+      req('TRANSFER', 'T-1', ''), req('TRANSFER', 'T-1', ''), // transfers are a row each
       req('STOCK_IN', '51', 'P1', 2), // a line of the first receipt already at the next stage
-    ])).toBe(5);
+    ])).toBe(7);
   });
 
   it('names a receipt by its first items', () => {

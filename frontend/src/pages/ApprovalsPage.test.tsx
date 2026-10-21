@@ -81,3 +81,29 @@ describe('Approvals: a rejection shows why', () => {
     expect(within(row).getByText('Reason: Wrong unit price; register it again')).toBeInTheDocument();
   });
 });
+
+describe('Approvals: one row per Model 22', () => {
+  it('shows the lines of one issue as one row, whatever receipt each came from, and endorses them together', async () => {
+    const user = userEvent.setup();
+    const issueLine = (id: string, name: string, extra: object = {}) =>
+      receiptLine(id, name, { transactionType: 'STOCK_OUT', ifmisSlipNumber: '0000201/A', poNumber: undefined, requestDetails: { quantity: 2 }, ...extra });
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      issueLine('X', 'Toner'),
+      issueLine('Y', 'Printer paper'),
+      // Another Model 22 is another row
+      issueLine('Z', 'Stapler', { ifmisSlipNumber: '0000202/A' }),
+    ] as any);
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+
+    const row = (await screen.findByText('2 items')).closest('tr')!;
+    expect(within(row).getByText('Toner, Printer paper')).toBeInTheDocument();
+    expect(screen.getByText('MOA-Z')).toBeInTheDocument();
+
+    await user.click(within(row).getByRole('button', { name: /Endorse/ }));
+    const lines = screen.getByRole('table', { name: 'Items on this Model 22' });
+    expect(within(lines).getAllByRole('row')).toHaveLength(3); // 2 items and the total
+    await user.click(screen.getByRole('button', { name: 'Endorse (Stage 1)' }));
+    expect(api.handleSlipApproval).toHaveBeenCalledWith(expect.objectContaining({ approvalIds: ['X', 'Y'], action: 'ENDORSE' }));
+    expect(api.handleApproval).not.toHaveBeenCalled();
+  });
+});

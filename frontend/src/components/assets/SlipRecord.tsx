@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, FileText, Paperclip, Printer } from 'lucide-react';
+import { Copy, FileText, PackageMinus, Paperclip, Printer } from 'lucide-react';
 import { btn, pill, statusTone } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { SlipViewerModal } from '../ui/SlipViewerModal';
@@ -71,6 +71,10 @@ export interface SlipRecordProps {
   onPrint: () => void;
   /** Opens a new receipt with every item of this one; absent when this person can't receive */
   onDuplicate?: () => void;
+  /** Opens a Model 22 with this receipt's items still in store; absent when none is, or this person can't issue */
+  onIssue?: () => void;
+  /** A form open on this receipt (the Model 22 issuing its items), shown in place of the details */
+  form?: React.ReactNode;
   onClose: () => void;
 }
 
@@ -78,7 +82,7 @@ export interface SlipRecordProps {
  * A Model 19 receipt of several items, opened from its one row in the register: what the slip says, its total and
  * scanned copy, and its items, each opening its own record (where it is issued, transferred, corrected…).
  */
-export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrint, onDuplicate, onClose }) => {
+export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrint, onDuplicate, onIssue, form, onClose }) => {
   const [viewingSlip, setViewingSlip] = useState(false);
   const lead = rows[0].item;
   const total = rows.reduce((sum, r) => sum + slipLineTotal(r.item), 0);
@@ -102,7 +106,14 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
               <SlipStatus rows={rows} />
             </div>
           </div>
+          {/* While a form is open, its own Submit and Cancel replace these */}
+          {!form && (
           <div role="toolbar" aria-label="Receipt actions" className="flex flex-wrap items-center gap-2">
+            {onIssue && (
+              <button type="button" onClick={onIssue} className={btn.primary}>
+                <PackageMinus className="h-3.5 w-3.5" /> Issue (Model 22)
+              </button>
+            )}
             <button type="button" onClick={onPrint} className={btn.secondary}>
               <Printer className="h-3.5 w-3.5" /> Print Model 19
             </button>
@@ -117,9 +128,13 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
               </button>
             )}
           </div>
+          )}
         </div>
       </header>
 
+      {form ? (
+        <div className="flex-1 overflow-y-auto px-6 py-5">{form}</div>
+      ) : (
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
         <FieldGrid>
           <FormKitField label="Received date (G.C.)" hint={lead.ifmisSlipDateEc ? `${lead.ifmisSlipDateEc} E.C.` : undefined}>
@@ -180,9 +195,10 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
           </table>
         </div>
         <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
-          <FileText className="h-3.5 w-3.5" /> Open an item to issue, transfer or correct it.
+          <FileText className="h-3.5 w-3.5" /> Open an item to issue, transfer or correct it on its own.
         </p>
       </div>
+      )}
 
       {viewingSlip && slipUrl && <SlipViewerModal url={slipUrl} onClose={() => setViewingSlip(false)} />}
     </section>

@@ -201,7 +201,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   // Pop-ups: one per form, each either new (from a row or the header) or correcting a pending request
   const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string; copyOf?: string } | null>(null);
-  const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
+  // A new issue of one item, or of the items of a Model 19 (`slip` is its key, `itemIds` its items in store)
+  const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval; slip?: string; itemIds?: string[] } | null>(null);
   const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [disposing, setDisposing] = useState<{ itemId: string } | null>(null);
   // The asset record open beside the list, and whether what it has pending is being corrected in place
@@ -849,6 +850,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
   const duplicateItem = (item: ItemWithRelations) =>
     openReceipt(undefined, templateFromItem(item), `copy-${item.id}-${Date.now()}`, `${item.itemCode} · ${item.name}`);
+  /** The items of a Model 19 that can be issued now: in store, approved, with nothing pending on them */
+  const issuableOf = (members: AssetGroup[]) => members.map((g) => g.row.item.id).filter((id) => availableItems.some((i) => i.id === id));
+  /** A Model 22 issuing the items of a Model 19 still in store, opened on the receipt */
+  const issueSlip = (key: string, members: AssetGroup[]) => {
+    openSlip(key);
+    setIssue({ slip: key, itemIds: issuableOf(members) });
+  };
   /** A Model 19 of several items, every item on it, as a new receipt */
   const duplicateSlip = (members: AssetGroup[]) => {
     const lead = members[0].row.item;
@@ -1105,6 +1113,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <RowActionsMenu
             label={`Model 19 ${lead.ifmisSlipNumber}`}
             actions={[
+              { label: 'Issue (Model 22)', icon: PackageMinus, onClick: () => issueSlip(key, members), hidden: !canIssue || issuableOf(members).length === 0 },
               { label: 'Print Model 19', icon: Printer, onClick: () => printSlip(members) },
               { label: 'Duplicate as new receipt', icon: Copy, onClick: () => duplicateSlip(members), hidden: !canReceive },
             ]}
@@ -1348,6 +1357,24 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               onOpenItem={(id) => openRecord(id, selectedSlip!)}
               onPrint={() => printSlip(selectedSlipMembers)}
               onDuplicate={canReceive ? () => duplicateSlip(selectedSlipMembers) : undefined}
+              onIssue={canIssue && issuableOf(selectedSlipMembers).length > 0 ? () => issueSlip(selectedSlip!, selectedSlipMembers) : undefined}
+              form={
+                issue?.slip === selectedSlip ? (
+                  <StockOutForm
+                    key={`issue-slip-${selectedSlip}`}
+                    availableItems={availableItems}
+                    departments={departments}
+                    employees={employees}
+                    initialItemIds={issue.itemIds}
+                    onCancel={() => setIssue(null)}
+                    onSuccess={(_result, voucher) => {
+                      setIssue(null);
+                      saved(issue.itemIds?.[0]);
+                      if (voucher) setVoucher22(voucher);
+                    }}
+                  />
+                ) : undefined
+              }
               onClose={closeRecord}
             />
           ) : selectedRow ? (

@@ -45,14 +45,18 @@ export function groupBySlip<T>(list: T[], keyOf: (entry: T) => string | undefine
 export const isSlipGroup = <T,>(entry: SlipGroup<T> | { single: T }): entry is SlipGroup<T> => 'members' in entry;
 
 /**
- * What makes requests one row of the approvals queue: the lines of a receipt (same slip and PO) waiting at the same
- * stage. Other requests have none and are a row each.
+ * What makes requests one row of the approvals queue, waiting at the same stage: the lines of a receipt (same Model 19
+ * and PO), or the lines of an issue (same Model 22 No., whatever receipt each item came from). Other requests have
+ * none and are a row each.
  */
 export const approvalRowKey = (a: { transactionType: string; ifmisSlipNumber?: string | null; poNumber?: string | null; status: string; currentStage?: number }): string | undefined => {
-  if (a.transactionType !== 'STOCK_IN') return undefined;
-  const key = slipKey(a.ifmisSlipNumber, a.poNumber);
-  return key && `${key}|${a.status}|${a.currentStage ?? 1}`;
+  if (a.transactionType !== 'STOCK_IN' && a.transactionType !== 'STOCK_OUT') return undefined;
+  const key = a.transactionType === 'STOCK_IN' ? slipKey(a.ifmisSlipNumber, a.poNumber) : slipKey(a.ifmisSlipNumber, '');
+  return key && `${a.transactionType}|${key}|${a.status}|${a.currentStage ?? 1}`;
 };
+
+/** The voucher a request is made on, as people call it */
+export const voucherName = (transactionType?: string): string => (transactionType === 'STOCK_OUT' ? 'Model 22' : 'Model 19');
 
 /** How many rows a list of requests makes in the approvals queue (a receipt of several lines counts once) */
 export const countApprovalRows = <T extends Parameters<typeof approvalRowKey>[0]>(list: T[]): number => groupBySlip<T>(list, approvalRowKey).length;

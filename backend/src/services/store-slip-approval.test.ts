@@ -58,13 +58,13 @@ describe('Reviewing a whole Model 19 at once', () => {
     lines[2] = line('C', { ifmisSlipNumber: '0000052' });
     await expect(store().handleSlipApproval({ approvalIds: ['A', 'C'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('not on the same Model 19 and PO');
     lines[2] = line('C', { transactionType: 'STOCK_OUT' });
-    await expect(store().handleSlipApproval({ approvalIds: ['A', 'C'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('Only the lines of a receipt');
+    await expect(store().handleSlipApproval({ approvalIds: ['A', 'C'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('Only the lines of one receipt (Model 19) or one issue (Model 22)');
     lines[2] = line('C', { currentStage: 2 });
     await expect(store().handleSlipApproval({ approvalIds: ['A', 'C'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('different stages');
     lines[2] = line('C', { status: 'APPROVED' });
     await expect(store().handleSlipApproval({ approvalIds: ['A', 'C'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('already been decided');
     await expect(store().handleSlipApproval({ approvalIds: ['A', 'gone'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('no longer exists');
-    await expect(store().handleSlipApproval({ approvalIds: [], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('Choose the receipt');
+    await expect(store().handleSlipApproval({ approvalIds: [], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('Choose the voucher');
     expect(db.transactionApproval.update).not.toHaveBeenCalled();
   });
 
@@ -77,5 +77,23 @@ describe('Reviewing a whole Model 19 at once', () => {
 
   it('needs a reason to reject, like a single request', async () => {
     await expect(store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'REJECT', reviewedById: 'leader' })).rejects.toThrow('Give a reason');
+  });
+});
+
+describe('Reviewing a whole Model 22 at once', () => {
+  const issueLine = (id: string, extra: object = {}) => line(id, { transactionType: 'STOCK_OUT', ifmisSlipNumber: '0000201/A', requestDetails: { quantity: 1 }, ...extra });
+
+  it('endorses every line of the issue in one transaction, whatever receipt or PO each item came from', async () => {
+    lines = [issueLine('A'), issueLine('B', { item: { notes: meta('PO-99'), unitCostETB: 1000 } })];
+    const result = await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'ENDORSE', reviewedById: 'leader' });
+    expect(result.map((a) => a.currentStage)).toEqual([2, 2]);
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses lines of another Model 22, or an issue mixed with a receipt', async () => {
+    lines = [issueLine('A'), issueLine('B', { ifmisSlipNumber: '0000202/A' }), line('C')];
+    await expect(store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('not on the same Model 22');
+    await expect(store().handleSlipApproval({ approvalIds: ['A', 'C'], action: 'ENDORSE', reviewedById: 'leader' })).rejects.toThrow('Only the lines of one receipt');
+    expect(db.transactionApproval.update).not.toHaveBeenCalled();
   });
 });

@@ -51,7 +51,7 @@ import { useToast } from '../context/ToastContext';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { getSlipDisplayName } from '../utils/slip-upload';
 import { RefreshButton } from '../components/ui/RefreshButton';
-import { approvalRowKey, groupBySlip, isSlipGroup, slipNames } from '../components/assets/slip-groups';
+import { approvalRowKey, groupBySlip, isSlipGroup, slipNames, voucherName } from '../components/assets/slip-groups';
 import { formatETB } from '../utils/eth-date';
 import { shortDate } from '../components/assets/asset-state';
 
@@ -168,8 +168,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     fetchApprovals();
   }, []);
 
-  // The lines of one Model 19 receipt (same slip and PO, waiting at the same stage) are one row: it is reviewed as
-  // a whole. Its row stands in for them; slipLines holds the lines behind it.
+  // The lines of one voucher (a Model 19 receipt: same slip and PO; a Model 22 issue: same number), waiting at the
+  // same stage, are one row: it is reviewed as a whole. Its row stands in for them; slipLines holds the lines behind it.
   const { rows, slipLines } = useMemo(() => {
     const lines = new Map<string, TransactionApproval[]>();
     const grouped = groupBySlip<TransactionApproval>(approvals, approvalRowKey);
@@ -388,7 +388,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
     const target = rows.find((a) => a.id === approvalId) || selectedApproval;
     const receipt = slipLines.get(approvalId);
-    const itemCode = receipt ? `Model 19 #${target?.ifmisSlipNumber}, ${receipt.length} items` : target?.itemCode || 'Transaction';
+    const itemCode = receipt ? `${voucherName(target?.transactionType)} #${target?.ifmisSlipNumber}, ${receipt.length} items` : target?.itemCode || 'Transaction';
     const typeLabel = typeText(target?.transactionType, target?.requestDetails).label;
 
     setActionLoading(true);
@@ -1180,13 +1180,13 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 )}
               </div>
 
-              {/* A receipt is decided as a whole: every line on it is listed */}
+              {/* A voucher of several lines is decided as a whole: every line on it is listed */}
               {slipLines.has(selectedApproval.id) && (
                 <div className="rounded-md border border-slate-200">
                   <p className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">
-                    Items on this Model 19 ({slipLines.get(selectedApproval.id)!.length}) · all are decided together
+                    Items on this {voucherName(selectedApproval.transactionType)} ({slipLines.get(selectedApproval.id)!.length}) · all are decided together
                   </p>
-                  <table className="w-full" aria-label="Items on this Model 19">
+                  <table className="w-full" aria-label={`Items on this ${voucherName(selectedApproval.transactionType)}`}>
                     <tbody className="divide-y divide-slate-100">
                       {slipLines.get(selectedApproval.id)!.map((l) => (
                         <tr key={l.id}>

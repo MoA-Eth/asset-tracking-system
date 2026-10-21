@@ -2152,6 +2152,36 @@ describe('One row per Model 19', () => {
     expect(within(screen.getByRole('region', { name: 'Receive items' })).getByLabelText('Item 3 description')).toHaveValue('Toner');
   });
 
+  it('issues the items of a Model 19 on one Model 22, from its row menu or the open receipt', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const slipRow = await screen.findByRole('row', { name: 'Open Model 19 0000051' });
+    await user.click(within(slipRow).getByRole('button', { name: 'Actions for Model 19 0000051' }));
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())).toEqual(['Issue (Model 22)', 'Duplicate as new receipt', 'Print Model 19']);
+    await user.click(screen.getByRole('menuitem', { name: 'Issue (Model 22)' }));
+
+    // The receipt opens with the Model 22 in place of its details: the two items still in store, the issued one left out
+    const receipt = screen.getByRole('region', { name: 'Model 19 0000051' });
+    expect(within(receipt).queryByRole('toolbar', { name: 'Receipt actions' })).toBeNull();
+    const chosen = within(receipt).getAllByRole('combobox', { name: /store item/i }).map((c) => (c as HTMLSelectElement).value || c.textContent);
+    expect(chosen).toHaveLength(2);
+    await user.click(within(receipt).getByRole('button', { name: 'Cancel' }));
+    expect(within(receipt).getByRole('toolbar', { name: 'Receipt actions' })).toBeInTheDocument();
+    expect(within(within(receipt).getByRole('toolbar', { name: 'Receipt actions' })).getByRole('button', { name: 'Issue (Model 22)' })).toBeInTheDocument();
+  });
+
+  it('offers no issue when nothing on the receipt is in store', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getItems).mockResolvedValue([
+      item('L1', 'Dell Latitude', 'ISSUED', { ifmisSlipNumber: '0000051', poNumber: 'PO-14' }),
+      item('L2', 'HP Printer', 'ISSUED', { ifmisSlipNumber: '0000051', poNumber: 'PO-14' }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const slipRow = await screen.findByRole('row', { name: 'Open Model 19 0000051' });
+    await user.click(within(slipRow).getByRole('button', { name: 'Actions for Model 19 0000051' }));
+    expect(screen.queryByRole('menuitem', { name: 'Issue (Model 22)' })).toBeNull();
+  });
+
   it('finds a receipt by the name of one of its items', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);

@@ -33,6 +33,8 @@ export interface StockOutFormProps {
   editItem?: ItemWithRelations;
   /** Item chosen before the form opened, e.g. from its row in the register */
   initialItemId?: string;
+  /** Several items chosen before the form opened (the items of a Model 19 still in store), one row each */
+  initialItemIds?: string[];
 }
 
 /** Splits the stored "purpose (Remark: remark)" text back into its two fields */
@@ -82,6 +84,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   editApproval,
   editItem,
   initialItemId,
+  initialItemIds,
 }) => {
   const { user } = useAuth();
   const toast = useToast();
@@ -112,11 +115,15 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
   // ── Items: one row per line of the Model 22. A correction is its one item, which can't change.
   const startItem = availableItems.find((i) => i.id === initialItemId);
+  const startItems = (initialItemIds ?? []).map((id) => availableItems.find((i) => i.id === id)).filter(Boolean) as ItemWithRelations[];
   const [rows, setRows] = useState<IssueRow[]>(() =>
     isEdit
       ? [newRow(editItem?.id ?? '', Number(editApproval?.requestDetails?.quantity) || unitsOf(editItem))]
-      // Opened from an item's row: that item, all of it, unless fewer are typed
-      : [newRow(startItem?.id ?? '', startItem ? unitsOf(startItem) : 0)],
+      // Opened from a Model 19: each of its items in store, all of it; rows not issued are removed, fewer typed
+      : startItems.length > 0
+        ? startItems.map((item) => newRow(item.id, unitsOf(item)))
+        // Opened from an item's row: that item, all of it, unless fewer are typed
+        : [newRow(startItem?.id ?? '', startItem ? unitsOf(startItem) : 0)],
   );
   const itemOf = (row: IssueRow) => (isEdit ? editItem : availableItems.find((i) => i.id === row.itemId));
   const setRow = (key: number, patch: Partial<IssueRow>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
