@@ -1076,7 +1076,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${touched ? table.rowHighlight : table.row}`}
       >
         <td className="py-2 pr-2.5 pl-5">
-          <span className="block text-slate-900">{slipNames(rowsOf.map((r) => r.item.name))}</span>
+          {/* Searching by an item's name puts that item first, so the row shows what was looked for, not "+1" */}
+          <span className="block text-slate-900">
+            {slipNames([
+              ...rowsOf.filter((r) => q && r.item.name.toLowerCase().includes(q)),
+              ...rowsOf.filter((r) => !(q && r.item.name.toLowerCase().includes(q))),
+            ].map((r) => r.item.name))}
+          </span>
           <span className="flex items-center gap-x-1.5 whitespace-nowrap text-xs text-slate-600">
             <span className="rounded-[4px] border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-semibold text-slate-700">Model 19</span>
           </span>

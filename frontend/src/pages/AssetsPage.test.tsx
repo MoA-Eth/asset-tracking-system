@@ -2157,7 +2157,9 @@ describe('One row per Model 19', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByRole('row', { name: 'Open Model 19 0000051' });
     await user.type(screen.getByPlaceholderText(/search/i), 'toner');
-    expect(screen.getByRole('row', { name: 'Open Model 19 0000051' })).toBeInTheDocument();
+    const slipRow = screen.getByRole('row', { name: 'Open Model 19 0000051' });
+    // The item searched for leads the row's name instead of hiding behind "+1"
+    expect(within(slipRow).getByText('Toner, Dell Latitude +1')).toBeInTheDocument();
     expect(screen.queryByText('MOA-L4')).toBeNull();
   });
 });
