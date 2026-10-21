@@ -69,7 +69,13 @@ interface IssueRow {
 let rowKey = 0;
 const newRow = (itemId = '', quantity = 0, slip?: IssueRow['slip']): IssueRow => ({ key: ++rowKey, itemId, quantity, slip });
 
-const unitsOf = (item?: ItemWithRelations) => Number(item?.quantity) || 1;
+/** Units that can be issued from a record: those not already on an issue request waiting for approval */
+const unitsOf = (item?: ItemWithRelations) => item?.freeUnits ?? (Number(item?.quantity) || 1);
+/** "12 EA in store", or "20 of 50 EA free" when other issue requests already take some */
+const stockText = (item: ItemWithRelations) =>
+  item.freeUnits !== undefined && item.freeUnits < (Number(item.quantity) || 1)
+    ? `${item.freeUnits} of ${Number(item.quantity) || 1} ${uomOf(item)} free (the rest on issues waiting for approval)`
+    : `${unitsOf(item)} ${uomOf(item)} in store`;
 /** When a store record was received, to issue the oldest stock first */
 const receivedOn = (item: ItemWithRelations) => item.ifmisSlipDateGc || String(item.createdAtGc ?? '');
 /** "  oromia   bureau " and "Oromia Bureau" are the same organization */
@@ -486,7 +492,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       .map((r, i) => ({ r, n: i + 1, it: itemOf(r) }))
       .filter(({ r, it }) => !!it && Number(r.quantity) > unitsOf(it));
     if (over.length > 0) {
-      const which = over.map(({ n, it }) => `item ${n}: only ${unitsOf(it)} ${uomOf(it)} in store`).join('; ');
+      const which = over.map(({ n, it }) => `item ${n}: only ${stockText(it!)}`).join('; ');
       const message = `More than is in store (${which}). Lower the quantity, or add the rest from another receipt of the same item.`;
       setFormError(message);
       toast.warning('Not enough in store', message);
@@ -637,7 +643,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         .map((item) => ({
           value: item.id,
           label: `${item.itemCode} — ${item.name}`,
-          note: `${unitsOf(item)} ${uomOf(item)} in store · ${formatETB(costOf(item))} each${item.ifmisItemCode ? ` · ${item.ifmisItemCode}` : ''}${item.ifmisSlipNumber ? ` · Model 19 ${item.ifmisSlipNumber}` : ''}`,
+          note: `${stockText(item)} · ${formatETB(costOf(item))} each${item.ifmisItemCode ? ` · ${item.ifmisItemCode}` : ''}${item.ifmisSlipNumber ? ` · Model 19 ${item.ifmisSlipNumber}` : ''}`,
         })),
     },
   ];

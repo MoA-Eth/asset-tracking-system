@@ -293,7 +293,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
   }, [fetchData]);
 
-  // One open request per record at most
+  // The open request of a record (several issue requests can wait on one record: the oldest is shown)
   const pendingByItem = useMemo(
     () => new Map(approvals.filter((a) => a.status === ApprovalStatus.PENDING).map((a) => [a.itemId, a] as const)),
     [approvals],
@@ -846,6 +846,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             disabled: request!.currentStage === 2,
             reason: request!.currentStage === 2 ? ENDORSED_REASON : undefined,
           },
+          {
+            // The units not on the waiting issue can go on another Model 22 now
+            label: 'Issue (Model 22)',
+            icon: PackageMinus,
+            onClick: () => {
+              setSelectedId(item.id);
+              setIssue({ itemId: item.id });
+              setTransfer(null);
+              setDisposing(null);
+            },
+            hidden: !canIssue || !availableItems.some((i) => i.id === item.id),
+          },
         ];
       }
       default:
@@ -1275,7 +1287,24 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   );
 
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
-  const availableItems = items.filter((i) => i.status === ItemStatus.AVAILABLE && !pendingByItem.has(i.id));
+  // What can go on a Model 22: records in store with nothing waiting, and records whose waiting requests are all issues
+  // with units still free (a second Model 22 needn't wait for the first to be approved)
+  const availableItems = useMemo(() => {
+    const onIssues = new Map<string, number>();
+    const blocked = new Set<string>();
+    for (const a of approvals) {
+      if (a.status !== ApprovalStatus.PENDING) continue;
+      if (a.transactionType !== 'STOCK_OUT') blocked.add(a.itemId);
+      else onIssues.set(a.itemId, (onIssues.get(a.itemId) ?? 0) + (Number(a.requestDetails?.quantity) || Infinity));
+    }
+    return items.flatMap((i): ItemWithRelations[] => {
+      if (blocked.has(i.id)) return [];
+      if (i.status === ItemStatus.AVAILABLE && !onIssues.has(i.id)) return [i];
+      if (i.status !== ItemStatus.AVAILABLE && i.status !== ItemStatus.PENDING_STOCK_OUT) return [];
+      const free = Math.round(((Number(i.quantity) || 1) - (onIssues.get(i.id) ?? 0)) * 10000) / 10000;
+      return free > 0 ? [{ ...i, freeUnits: free }] : [];
+    });
+  }, [items, approvals]);
 
   if (error) {
     return (

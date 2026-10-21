@@ -508,6 +508,8 @@ export interface ItemWithRelations extends Item {
   parentItemId?: string;
   /** For a registration: totals across its split-off records. For a split-off record: its own units. */
   balance?: ItemBalance;
+  /** For the issue form: the units not already on issue requests waiting for approval, when some are */
+  freeUnits?: number;
   storeLocation?: Location;
   currentCustodian?: Employee | null;
   assignedDepartment?: Department | null;
