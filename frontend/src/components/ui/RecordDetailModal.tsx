@@ -216,6 +216,12 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                       {approval.endorsementRemarks ? ` — ${approval.endorsementRemarks}` : ''}
                     </Row>
                   )}
+                  {approval.status === 'RETURNED' && (approval.returnedBy || approval.returnRemarks) && (
+                    <Row label="Returned by">
+                      {approval.returnedBy?.fullNameEn ?? '—'}
+                      {approval.returnRemarks ? ` — ${approval.returnRemarks}` : ''}
+                    </Row>
+                  )}
                   {approval.reviewedBy && (
                     <Row label={approval.status === 'REJECTED' ? 'Rejected by' : 'Approved by'}>
                       {approval.reviewedBy.fullNameEn}

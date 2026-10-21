@@ -1303,7 +1303,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
   const endorsed = approved || (!!approval && !rejected && approval.currentStage >= 2);
 
   return {
-    approvalState: pending ? 'PENDING' : rejected ? 'REJECTED' : undefined,
+    approvalState: approval?.status === 'RETURNED' ? 'RETURNED' : pending ? 'PENDING' : rejected ? 'REJECTED' : undefined,
     approvalNote: approvalNoteOf(approval),
     invModel19No: item.ifmisSlipNumber,
     provisionType: item.provisionType,

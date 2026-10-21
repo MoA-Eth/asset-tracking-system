@@ -1,13 +1,17 @@
 import React from 'react';
-import { AlertTriangle, XCircle } from 'lucide-react';
+import { AlertTriangle, Undo2, XCircle } from 'lucide-react';
 
 /** Where a request stands when its voucher is printed; an approved request has no banner */
-export type VoucherApprovalState = 'PENDING' | 'REJECTED';
+export type VoucherApprovalState = 'PENDING' | 'RETURNED' | 'REJECTED';
 
 const TEXT: Record<VoucherApprovalState, { title: string; detail: string }> = {
   PENDING: {
     title: 'NOT YET APPROVED · ገና አልጸደቀም',
     detail: 'This request is waiting for the Team Leader and the Department Head. It is not valid as a receipt until both have approved it.',
+  },
+  RETURNED: {
+    title: 'RETURNED FOR CORRECTION · ለእርማት ተመልሷል',
+    detail: 'This request was sent back to the requester to correct and resubmit. It is not valid as a receipt until it is approved.',
   },
   REJECTED: {
     title: 'REJECTED · ውድቅ ተደርጓል',
@@ -19,7 +23,7 @@ const TEXT: Record<VoucherApprovalState, { title: string; detail: string }> = {
 /** `note`: who returned or rejected the request, when and why */
 export const VoucherStatusBanner: React.FC<{ state?: VoucherApprovalState; note?: string }> = ({ state, note }) => {
   if (!state) return null;
-  const Icon = state === 'REJECTED' ? XCircle : AlertTriangle;
+  const Icon = state === 'REJECTED' ? XCircle : state === 'RETURNED' ? Undo2 : AlertTriangle;
   return (
     <div
       role="note"

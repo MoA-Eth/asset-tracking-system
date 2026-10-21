@@ -32,3 +32,19 @@ describe('why a voucher is not approved', () => {
     expect(screen.getByText('Returned for correction by Getnet Taye (Team Leader) · 21 Oct 2026: Price is entered as USD.')).toBeInTheDocument();
   });
 });
+
+describe('the banner of a returned request', () => {
+  it('says it is with the requester to correct, not waiting for the approvers, and why', () => {
+    render(<VoucherStatusBanner state="RETURNED" note="Returned for correction by Getnet Taye (Team Leader) · 21 Oct 2026: Price is entered as USD." />);
+    expect(screen.getByText('RETURNED FOR CORRECTION · ለእርማት ተመልሷል')).toBeInTheDocument();
+    expect(screen.getByText(/sent back to the requester to correct and resubmit/)).toBeInTheDocument();
+    expect(screen.queryByText(/waiting for the Team Leader and the Department Head/)).toBeNull();
+    expect(screen.getByText(/Price is entered as USD\./)).toBeInTheDocument();
+  });
+
+  it('a rejected one keeps its own banner and reason', () => {
+    render(<VoucherStatusBanner state="REJECTED" note="Rejected by Getnet Taye (Team Leader) · 20 Oct 2026: Not our delivery" />);
+    expect(screen.getByText('REJECTED · ውድቅ ተደርጓል')).toBeInTheDocument();
+    expect(screen.getByText(/Not our delivery/)).toBeInTheDocument();
+  });
+});
