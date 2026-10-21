@@ -30,5 +30,6 @@ router.put('/transfer/:approvalId', requirePermission('transfers.write'), contro
 
 router.post('/approvals/action', requirePermission('approvals.endorse', 'approvals.authorize'), controller.handleApproval);
 router.post('/approvals/slip-action', requirePermission('approvals.endorse', 'approvals.authorize'), controller.handleSlipApproval);
+router.post('/approvals/resubmit', requirePermission('stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write'), controller.resubmitReturned);
 
 export default router;

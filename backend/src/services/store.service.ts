@@ -254,6 +254,7 @@ const APPROVAL_INCLUDES = {
   requestedBy: true,
   endorsedBy: true,
   reviewedBy: true,
+  returnedBy: true,
   recipientEmployee: true,
   targetDepartment: true,
   // Quantity lives in notes; unitCostETB enables threshold calculation
@@ -298,6 +299,14 @@ function mapApproval(raw: any): TransactionApproval {
     reviewedAtGc: raw.reviewedAtGc ?? undefined,
     reviewedAtEc: raw.reviewedAtEc ?? undefined,
     reviewedBy: raw.reviewedBy ? mapEmployee(raw.reviewedBy) : undefined,
+    returnedById: raw.returnedById ?? undefined,
+    returnedBy: raw.returnedBy ? mapEmployee(raw.returnedBy) : undefined,
+    returnRemarks: raw.returnRemarks ?? undefined,
+    returnedAtGc: raw.returnedAtGc ?? undefined,
+    returnedAtEc: raw.returnedAtEc ?? undefined,
+    returnedFromStage: raw.returnedFromStage ?? undefined,
+    returnCount: raw.returnCount ?? 0,
+    rejectionFinal: raw.rejectionFinal === true,
     requestedBy: raw.requestedBy ? mapEmployee(raw.requestedBy) : undefined,
     recipientEmployee: raw.recipientEmployee ? mapEmployee(raw.recipientEmployee) : undefined,
   };
@@ -756,7 +765,7 @@ async function attachBalances(items: ItemWithRelations[], rawItems: any[]): Prom
   const recordIds = [...rawItems.map((raw) => raw.id), ...splits.map((split) => split.id)];
   const outgoing = recordIds.length
     ? await prisma.transactionApproval.findMany({
-        where: { itemId: { in: recordIds }, status: 'PENDING', transactionType: { in: ['STOCK_OUT', 'DISPOSAL'] } },
+        where: { itemId: { in: recordIds }, status: { in: OPEN_STATUSES }, transactionType: { in: ['STOCK_OUT', 'DISPOSAL'] } },
         select: { itemId: true, requestDetails: true },
       })
     : [];
@@ -774,10 +783,49 @@ async function attachBalances(items: ItemWithRelations[], rawItems: any[]): Prom
   });
 }
 
+/** A request still open: waiting for an approver, or returned to its requester to correct and resubmit */
+const OPEN_STATUSES = ['PENDING', 'RETURNED'] as any[];
+
+/** Whether a request can be corrected now: before the Team Leader endorses it, or once it is returned for correction */
+const correctable = (a: { status: string; currentStage?: number | null }) =>
+  a.status === 'RETURNED' || (a.status === 'PENDING' && (a.currentStage ?? 1) === 1);
+
+/** What a voucher is called, by the request made on it */
+const VOUCHER_NAMES: Record<string, string> = { STOCK_IN: 'Model 19', STOCK_OUT: 'Model 22', TRANSFER: 'Model 21', RETURN: 'Model 21', DISPOSAL: 'Disposal form' };
+
+/**
+ * A voucher an approver rejected for good can't be entered again: a correction goes through Return instead.
+ * A receipt is its Model 19 No. and PO; other vouchers their number. Rejections from before Return existed were
+ * corrections, so they don't count (rejectionFinal is false on them).
+ */
+async function assertNotRejectedVoucher(type: string, number: string | null | undefined, poNumber?: string | null): Promise<void> {
+  const slip = String(number ?? '').trim();
+  if (!slip || slip.toUpperCase().startsWith('PENDING-')) return;
+  const found = await prisma.transactionApproval.findMany({
+    where: { transactionType: type as any, status: 'REJECTED' as any, rejectionFinal: true, ifmisSlipNumber: { equals: slip, mode: 'insensitive' } },
+    include: { reviewedBy: true, item: { select: { notes: true } } },
+  });
+  const rejected = Array.isArray(found) ? found : [];
+  const po = String(poNumber ?? '').trim();
+  const match = type === 'STOCK_IN'
+    ? rejected.find((a: any) => String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase() === po.toLowerCase())
+    : rejected[0];
+  if (!match) return;
+  const by = (match as any).reviewedBy?.fullNameEn;
+  throw new ConflictError(
+    `${VOUCHER_NAMES[type] ?? 'Voucher'} No. ${slip}${type === 'STOCK_IN' && po ? ` (PO ${po})` : ''} was rejected${by ? ` by ${by}` : ''}${match.reviewedAtGc ? ` on ${match.reviewedAtGc}` : ''}: "${match.reviewRemarks ?? ''}". A rejected voucher can't be entered again. If it only needs correcting, ask the approver to return it for correction instead.`,
+  );
+}
+
+/** Who may make, and so correct and resubmit, each kind of request */
+const WRITE_PERMISSION: Record<string, string> = {
+  STOCK_IN: 'stock-in.write', STOCK_OUT: 'stock-out.write', DISPOSAL: 'disposals.write', TRANSFER: 'transfers.write', RETURN: 'transfers.write',
+};
+
 /** No request may be waiting on the record; `except` lets issue requests (Model 22) share it, each taking its own units */
 async function assertNoPendingApproval(item: { id: string; itemCode: string }, except?: 'STOCK_OUT') {
   const pending = await prisma.transactionApproval.findFirst({
-    where: { itemId: item.id, status: 'PENDING', ...(except ? { transactionType: { not: except as any } } : {}) },
+    where: { itemId: item.id, status: { in: OPEN_STATUSES }, ...(except ? { transactionType: { not: except as any } } : {}) },
   });
   if (pending) {
     throw new ConflictError(`Item ${item.itemCode} already has a pending ${pending.transactionType} approval (${pending.ifmisSlipNumber}).`);
@@ -790,7 +838,7 @@ async function assertNoPendingApproval(item: { id: string; itemCode: string }, e
  */
 async function unitsOnPendingIssues(db: any, item: { id: string; notes?: string | null }, exceptApprovalId?: string): Promise<number> {
   const pending = await db.transactionApproval.findMany({
-    where: { itemId: item.id, status: 'PENDING', transactionType: 'STOCK_OUT', ...(exceptApprovalId ? { id: { not: exceptApprovalId } } : {}) },
+    where: { itemId: item.id, status: { in: OPEN_STATUSES }, transactionType: 'STOCK_OUT', ...(exceptApprovalId ? { id: { not: exceptApprovalId } } : {}) },
     select: { requestDetails: true },
   });
   const units = (Array.isArray(pending) ? pending : []).reduce((sum: number, a: any) => sum + (Number(a.requestDetails?.quantity) || quantityOf(item)), 0);
@@ -869,7 +917,7 @@ export class StoreService {
     };
 
     const waiting = await prisma.transactionApproval.findMany({
-      where: { itemId: { in: items.map((i) => i.id) }, status: 'PENDING' as any, transactionType: { in: ['TRANSFER', 'RETURN'] as any } },
+      where: { itemId: { in: items.map((i) => i.id) }, status: { in: OPEN_STATUSES }, transactionType: { in: ['TRANSFER', 'RETURN'] as any } },
       select: { itemId: true, transactionType: true, currentStage: true },
     });
     const pendingOf = new Map(waiting.map((a) => [a.itemId, a]));
@@ -1058,6 +1106,7 @@ export class StoreService {
       if (other) throw new ConflictError(`Tag number ${tag} is already registered (${other.name}). Check the tag on the asset.`);
     }
 
+    await assertNotRejectedVoucher('STOCK_IN', payload.ifmisSlipNumber, payload.poNumber);
     // Check if any line has already been received on this Model 19 slip
     if (payload.ifmisSlipNumber && !payload.ifmisSlipNumber.startsWith('PENDING-')) {
       for (const line of rawItems) {
@@ -1200,12 +1249,12 @@ export class StoreService {
     if (!item) throw new NotFoundError(`Item ${itemId} not found.`);
 
     const approval = await prisma.transactionApproval.findFirst({
-      where: { itemId, transactionType: 'STOCK_IN', status: 'PENDING' },
+      where: { itemId, transactionType: 'STOCK_IN', status: { in: OPEN_STATUSES } },
     });
-    // Once the Team Leader has endorsed (or the request is decided) the registration is locked
-    if (item.status !== 'PENDING_STOCK_IN' || !approval || approval.currentStage !== 1) {
+    // Once the Team Leader has endorsed (or the request is decided) the registration is locked, until it is returned
+    if (item.status !== 'PENDING_STOCK_IN' || !approval || !correctable(approval)) {
       throw new ConflictError(
-        `Item ${item.itemCode} can only be edited while it is waiting for Team Leader endorsement. Ask an approver to reject it and register it again.`
+        `Item ${item.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`
       );
     }
 
@@ -1394,10 +1443,10 @@ export class StoreService {
     if (!approval || approval.transactionType !== 'STOCK_OUT') {
       throw new NotFoundError(`Issue request ${approvalId} not found.`);
     }
-    // Once the Team Leader has endorsed (or the request is decided) the request is locked
-    if (approval.status !== 'PENDING' || approval.currentStage !== 1) {
+    // Once the Team Leader has endorsed (or the request is decided) the request is locked, until it is returned
+    if (!correctable(approval)) {
       throw new ConflictError(
-        `The issue request for ${approval.itemCode} can only be edited while it is waiting for Team Leader endorsement. Ask an approver to reject it and submit it again.`
+        `The issue request for ${approval.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`
       );
     }
 
@@ -1588,6 +1637,7 @@ export class StoreService {
       throw new ConflictError(`Item ${item.itemCode} must be in store to be issued. Current: ${item.status}`);
     }
     await assertNoPendingApproval(item, 'STOCK_OUT');
+    await assertNotRejectedVoucher('STOCK_OUT', payload.ifmisSlipNumber);
     if (isBlank(payload.ifmisSlipNumber)) {
       payload.ifmisSlipNumber = `PENDING-ISSUE-${Date.now()}`;
     }
@@ -1714,6 +1764,7 @@ export class StoreService {
     if (lines.length === 0) throw new BadRequestError('Add at least one item to issue.');
     const ids = lines.map((l) => l.itemId);
     if (new Set(ids).size !== ids.length) throw new BadRequestError('The same store item is on two lines: put its quantities on one line.');
+    await assertNotRejectedVoucher('STOCK_OUT', payload.ifmisSlipNumber);
     const items = await prisma.item.findMany({ where: { id: { in: ids } }, include: { storeLocation: true } });
     const stores = new Set<string>();
     for (const line of lines) {
@@ -1792,6 +1843,7 @@ export class StoreService {
     }
     await assertNoPendingApproval(item);
     const { disposalNo, details } = disposalDetailsOf(payload, item);
+    await assertNotRejectedVoucher('DISPOSAL', disposalNo);
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     // A store with no store man can't dispose: his name goes on the disposal form
     const keeper = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.storekeeperEmployeeId, 'the disposal');
@@ -1863,9 +1915,9 @@ export class StoreService {
     if (!approval || approval.transactionType !== ('DISPOSAL' as any)) {
       throw new NotFoundError(`Disposal request ${approvalId} not found.`);
     }
-    if (approval.status !== 'PENDING' || approval.currentStage !== 1) {
+    if (!correctable(approval)) {
       throw new ConflictError(
-        `The disposal request for ${approval.itemCode} can only be edited while it is waiting for Team Leader endorsement. Ask an approver to reject it and submit it again.`
+        `The disposal request for ${approval.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`
       );
     }
     const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
@@ -1988,6 +2040,7 @@ export class StoreService {
     }
     await assertNoPendingApproval(item);
     const effectiveSlipNo = String(payload.model21No || payload.ifmisSlipNumber || '').trim();
+    await assertNotRejectedVoucher('RETURN', effectiveSlipNo);
     if (!effectiveSlipNo) throw new BadRequestError('Return Voucher (Model 21 / 22) Slip Number is mandatory.');
     if (isBlank(payload.returnReason)) throw new BadRequestError('Reason for return is required.');
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
@@ -2094,16 +2147,16 @@ export class StoreService {
     return mapApproval(approval);
   }
 
-  /** A transfer or return can only be corrected while it waits for Team Leader endorsement */
+  /** A transfer or return can only be corrected while it waits for Team Leader endorsement, or once it is returned */
   private async loadEditableModel21Request(approvalId: string, type: 'TRANSFER' | 'RETURN') {
     const label = type === 'TRANSFER' ? 'Transfer' : 'Return';
     const approval = await prisma.transactionApproval.findUnique({ where: { id: approvalId } });
     if (!approval || approval.transactionType !== type) {
       throw new NotFoundError(`${label} request ${approvalId} not found.`);
     }
-    if (approval.status !== 'PENDING' || approval.currentStage !== 1) {
+    if (!correctable(approval)) {
       throw new ConflictError(
-        `The ${label.toLowerCase()} request for ${approval.itemCode} can only be edited while it is waiting for Team Leader endorsement. Ask an approver to reject it and submit it again.`
+        `The ${label.toLowerCase()} request for ${approval.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`
       );
     }
     return approval;
@@ -2432,7 +2485,9 @@ export class StoreService {
       // A receipt is its slip and PO; an issue or a disposal form is its number alone
       const issue = types.has('STOCK_OUT') || types.has('DISPOSAL');
       const voucher = types.has('STOCK_OUT') ? 'Model 22' : types.has('DISPOSAL') ? 'disposal form' : 'Model 19';
-      if (approvals.some((a: any) => a.status !== 'PENDING')) throw new ConflictError(`Part of this ${voucher} has already been decided. Refresh the list.`);
+      // A returned voucher is with its requester; an approver can still reject it for good
+      const open = (a: any) => a.status === 'PENDING' || (payload.action === 'REJECT' && a.status === 'RETURNED');
+      if (approvals.some((a: any) => !open(a))) throw new ConflictError(`Part of this ${voucher} has already been decided. Refresh the list.`);
       if (new Set(approvals.map((a: any) => a.currentStage ?? 1)).size > 1) throw new ConflictError(`The lines of this ${voucher} are at different stages. Review them one by one.`);
       const keyOf = (a: any) => `${String(a.ifmisSlipNumber ?? '').trim().toLowerCase()}|${issue ? '' : String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase()}`;
       if (new Set(approvals.map(keyOf)).size > 1) throw new BadRequestError(issue ? `These lines are not on the same ${voucher}.` : 'These lines are not on the same Model 19 and PO.');
@@ -2465,16 +2520,78 @@ export class StoreService {
     return same.length < 2 ? undefined : same.reduce((sum: number, l: any) => sum + calculateApprovalTotalAmount(l, l.item), 0);
   }
 
+  /**
+   * Sends requests returned for correction back to the Team Leader: a whole voucher at once (the lines of one Model 19,
+   * Model 22 or disposal form; a Model 21 request on its own). Whoever may make that kind of request may resubmit it.
+   */
+  public async resubmitReturned(payload: { approvalIds?: unknown }, actorId: string): Promise<TransactionApproval[]> {
+    const ids = [...new Set((Array.isArray(payload.approvalIds) ? payload.approvalIds : []).filter((id): id is string => typeof id === 'string' && !!id))];
+    if (ids.length === 0) throw new BadRequestError('Choose the request to resubmit.');
+    if (ids.length > MAX_SLIP_LINES) throw new BadRequestError(`A voucher can be resubmitted ${MAX_SLIP_LINES} lines at a time.`);
+    const actor = await prisma.employee.findUnique({ where: { id: actorId } });
+    const today = getTodayGcAndEc();
+    return prisma.$transaction(async (db: any) => {
+      const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true } } } });
+      if (approvals.length !== ids.length) throw new NotFoundError('Part of this request no longer exists. Refresh the list.');
+      if (approvals.some((a: any) => a.status !== 'RETURNED')) throw new ConflictError('Only a request returned for correction can be resubmitted. Refresh the list.');
+      const types = new Set(approvals.map((a: any) => a.transactionType));
+      if (types.size > 1) throw new BadRequestError('Resubmit one voucher at a time.');
+      const type = String(approvals[0].transactionType);
+      const keyOf = (a: any) => `${String(a.ifmisSlipNumber ?? '').trim().toLowerCase()}|${type === 'STOCK_IN' ? String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase() : ''}`;
+      if (new Set(approvals.map(keyOf)).size > 1) throw new BadRequestError(`These requests are not on the same ${VOUCHER_NAMES[type] ?? 'voucher'}.`);
+      if (!hasPermission(actor?.role, WRITE_PERMISSION[type] as any)) throw new ForbiddenError('Your role cannot resubmit this request.');
+
+      const resubmitted: TransactionApproval[] = [];
+      for (const id of ids) {
+        const a = approvals.find((x: any) => x.id === id);
+        const saved = await db.transactionApproval.update({
+          where: { id, status: 'RETURNED' as any },
+          data: { status: 'PENDING' as any, currentStage: 1 },
+          include: APPROVAL_INCLUDES,
+        }).catch((err: any) => { throw err?.code === 'P2025' ? new ConflictError('Someone else has just acted on this request. Refresh the list.') : err; });
+        await db.item.update({
+          where: { id: a.itemId },
+          data: {
+            history: {
+              create: {
+                dateGc: today.gc,
+                dateEc: today.ec,
+                action: `RESUBMITTED_${type}`,
+                fromEntity: 'Requester (Correction)',
+                toEntity: 'Team Leader Review (Stage 1)',
+                performedBy: actor ? actor.fullNameEn : actorId,
+                performedByRole: (actor?.role ?? 'DATA_ENCODER') as any,
+                ifmisSlipNumber: a.ifmisSlipNumber,
+                notes: `Corrected and resubmitted after: ${a.returnRemarks ?? 'return for correction'}`,
+              },
+            },
+          },
+        });
+        await addAuditLog(actorId, `RESUBMIT_${type}`, 'APPROVAL', a.itemId, `${type} for item ${a.itemCode} corrected and resubmitted to the Team Leader.`, a.ifmisSlipNumber, undefined, undefined, db);
+        resubmitted.push(mapApproval(saved));
+      }
+      return resubmitted;
+    }, { timeout: Math.min(20000 + ids.length * 1500, 120000) });
+  }
+
   private async applyDecision(payload: ApprovalActionRequest, db: any, voucherTotal?: number): Promise<TransactionApproval> {
     const approval = await db.transactionApproval.findUnique({ where: { id: payload.approvalId } });
     if (!approval) throw new NotFoundError('This request no longer exists. Refresh the list.');
-    if (approval.status !== 'PENDING') throw new ConflictError(`This request is already ${approval.status.toLowerCase()}. Refresh the list.`);
+    // A returned request is with its requester to correct; an approver can only reject it for good meanwhile
+    const returned = approval.status === 'RETURNED';
+    if (returned && payload.action !== 'REJECT') {
+      throw new ConflictError('This request was returned for correction. It can be reviewed again once it is resubmitted.');
+    }
+    if (approval.status !== 'PENDING' && !returned) throw new ConflictError(`This request is already ${approval.status.toLowerCase()}. Refresh the list.`);
 
     const today = getTodayGcAndEc();
     const reviewer = payload.reviewedById ? await db.employee.findUnique({ where: { id: payload.reviewedById } }) : null;
-    if (!['ENDORSE', 'APPROVE', 'REJECT'].includes(payload.action)) throw new BadRequestError('Invalid approval action.');
+    if (!['ENDORSE', 'APPROVE', 'REJECT', 'RETURN'].includes(payload.action)) throw new BadRequestError('Invalid approval action.');
     const permission = approval.currentStage === 1 ? 'approvals.endorse' : 'approvals.authorize';
-    if (!hasPermission(reviewer?.role, permission)) throw new ForbiddenError('Your role cannot review this approval stage.');
+    const mayReview = returned
+      ? hasPermission(reviewer?.role, 'approvals.endorse') || hasPermission(reviewer?.role, 'approvals.authorize')
+      : hasPermission(reviewer?.role, permission);
+    if (!mayReview) throw new ForbiddenError('Your role cannot review this approval stage.');
     // Segregation of duties: whoever submitted a request can't endorse, approve or reject it
     if (reviewer?.role !== UserRole.SUPER_ADMIN && approval.requestedById && approval.requestedById === payload.reviewedById) {
       throw new ForbiddenError("You can't endorse, approve or reject a request you submitted.");
@@ -2493,9 +2610,12 @@ export class StoreService {
     if (payload.action === 'REJECT' && !rejectionReason) {
       throw new BadRequestError('Give a reason for rejecting, so the requester knows what to correct.');
     }
+    if (payload.action === 'RETURN' && !rejectionReason) {
+      throw new BadRequestError('Give a reason for returning, so the requester knows what to correct.');
+    }
     // Two reviewers can act at the same moment: the update only goes through while the request is still
     // pending at the stage this reviewer saw, so the second one is refused instead of recorded twice
-    const stillWaiting = { id: payload.approvalId, status: 'PENDING' as any, currentStage: approval.currentStage };
+    const stillWaiting = { id: payload.approvalId, status: approval.status as any, currentStage: approval.currentStage };
     const decidedMeanwhile = (err: any) =>
       err?.code === 'P2025' ? new ConflictError('Someone else has just acted on this request. Refresh the list.') : err;
     // Either stage can reject: the history names the stage and the person who did
@@ -2553,6 +2673,66 @@ export class StoreService {
       return mapApproval(updatedApproval);
     }
 
+    // ── EITHER STAGE: RETURN FOR CORRECTION ───────────────────────────────
+    // The request goes back to its requester with the reason: still open (an issue keeps its units), corrected in place
+    // and resubmitted to the Team Leader. Nothing on the record moves.
+    if (payload.action === 'RETURN') {
+      const stage = approval.currentStage ?? 1;
+      const stageName = stage === 1 ? 'Team Leader' : 'Department Head';
+      const updatedApproval = await db.transactionApproval.update({
+        where: stillWaiting,
+        data: {
+          status: 'RETURNED' as any,
+          currentStage: 1,
+          returnedById: payload.reviewedById,
+          returnRemarks: rejectionReason,
+          returnedAtGc: today.gc,
+          returnedAtEc: today.ec,
+          returnedFromStage: stage,
+          returnCount: { increment: 1 },
+          // Endorsed again once corrected: the endorsement was of what is being changed
+          endorsedById: null,
+          endorsementRemarks: null,
+          endorsedAtGc: null,
+          endorsedAtEc: null,
+        },
+        include: APPROVAL_INCLUDES,
+      }).catch((err) => { throw decidedMeanwhile(err); });
+
+      await db.item.update({
+        where: { id: approval.itemId },
+        data: {
+          history: {
+            create: {
+              dateGc: today.gc,
+              dateEc: today.ec,
+              action: `RETURNED_${approval.transactionType}`,
+              fromEntity: `${stageName} Review (Stage ${stage})`,
+              toEntity: 'Requester (Correction)',
+              performedBy: reviewerName,
+              performedByRole: (reviewer ? reviewer.role : 'TEAM_LEADER') as any,
+              ifmisSlipNumber: approval.ifmisSlipNumber,
+              notes: `Returned for correction at Stage ${stage} (${stageName}) by ${reviewer?.fullNameEn ?? 'the reviewer'}: ${rejectionReason}`,
+            },
+          },
+        },
+      });
+
+      await addAuditLog(
+        payload.reviewedById,
+        `RETURN_${approval.transactionType}`,
+        'APPROVAL',
+        approval.itemId,
+        `${approval.transactionType} for item ${approval.itemCode} RETURNED for correction at Stage ${stage} by ${reviewerName}. Reason: ${rejectionReason}`,
+        approval.ifmisSlipNumber,
+        undefined,
+        undefined,
+        db,
+      );
+
+      return mapApproval(updatedApproval);
+    }
+
     // ── STAGE 2 ACTION: APPROVE / REJECT (Dept Head / Admin) ──────────────
     const isApprove = payload.action === 'APPROVE';
     if (isApprove && approval.currentStage === 1) {
@@ -2593,6 +2773,8 @@ export class StoreService {
         reviewRemarks: isApprove
           ? payload.reviewRemarks || (isHighValue ? 'Approved by Chief Director (High-Value Stage 2)' : 'Approved by Department Head (Stage 2)')
           : rejectionReason,
+        // A rejection is final: the voucher can't be entered again (a correction is a Return)
+        ...(isApprove ? {} : { rejectionFinal: true }),
         reviewedAtGc: today.gc,
         reviewedAtEc: today.ec,
       },
@@ -2970,6 +3152,7 @@ export class StoreService {
     await assertNoPendingApproval(item);
     const slipNo = String(payload.model21No || '').trim();
     if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
+    await assertNotRejectedVoucher('TRANSFER', slipNo);
     // The reason is optional on a transfer
     const reason = String(payload.reason ?? '').trim() || undefined;
     assertMaxLength(reason, 500, 'Reason for transfer');

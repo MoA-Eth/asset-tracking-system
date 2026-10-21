@@ -8,7 +8,7 @@ const db = vi.hoisted(() => {
     department: { findUnique: vi.fn() },
     location: { findUnique: vi.fn() },
     item: { findUnique: vi.fn(), update: vi.fn() },
-    transactionApproval: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
+    transactionApproval: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn() },
     auditLog: { create: vi.fn() },
   };
   client.$transaction = vi.fn(async (fn: any) => fn(client));
