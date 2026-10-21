@@ -876,7 +876,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const issuedUnits = item.balance?.issued ?? out.reduce((acc, c) => acc + c.units, 0) + (row.state === 'ISSUED' ? row.units : 0);
     // Units a pending issue or disposal is taking out: still on the shelf, but no longer free, so not "in store"
     const requestedUnits = item.balance?.requested ?? 0;
-    const inStoreUnits = Math.max(0, (item.balance?.available ?? (row.state === 'ISSUED' ? 0 : row.units) + children.filter((c) => c.state === 'IN_STORE').reduce((acc, c) => acc + c.units, 0)) - requestedUnits);
+    const inStoreUnits = Math.max(0, (item.balance?.available ?? (row.state === 'IN_STORE' ? row.units : 0) + children.filter((c) => c.state === 'IN_STORE').reduce((acc, c) => acc + c.units, 0)) - requestedUnits);
     const totalUnits = item.balance?.total ?? issuedUnits + inStoreUnits;
     // Disposed units left the batch for good; they're listed under it but not counted in it
     const disposed = children.filter((c) => c.item.status === ItemStatus.DISPOSED);
@@ -1265,9 +1265,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       const { isBatch, totalUnits, inStoreUnits } = batchSummary(row, group.children ?? []);
       const units = isBatch ? totalUnits : row.units;
       const lineTotal = valueOf(row.item, units);
-      const inStoreRatio = units > 0 ? (isBatch ? inStoreUnits : row.state === 'IN_STORE' ? row.units : 0) / units : 0;
       acc.value += lineTotal;
-      acc.inStore += lineTotal * inStoreRatio;
+      // The units free in store (a pending issue's units are not), at what a unit cost: a record with 1 of 3 on a
+      // pending issue still has 2 in store
+      acc.inStore += valueOf(row.item, Math.min(inStoreUnits, units));
       return acc;
     },
     { value: 0, inStore: 0 }
