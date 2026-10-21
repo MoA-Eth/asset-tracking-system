@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Paperclip, Printer } from 'lucide-react';
+import { Copy, FileText, Paperclip, Printer } from 'lucide-react';
 import { btn, pill, statusTone } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { SlipViewerModal } from '../ui/SlipViewerModal';
@@ -69,6 +69,8 @@ export interface SlipRecordProps {
   rows: AssetRow[];
   onOpenItem: (itemId: string) => void;
   onPrint: () => void;
+  /** Opens a new receipt with every item of this one; absent when this person can't receive */
+  onDuplicate?: () => void;
   onClose: () => void;
 }
 
@@ -76,7 +78,7 @@ export interface SlipRecordProps {
  * A Model 19 receipt of several items, opened from its one row in the register: what the slip says, its total and
  * scanned copy, and its items, each opening its own record (where it is issued, transferred, corrected…).
  */
-export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrint, onClose }) => {
+export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrint, onDuplicate, onClose }) => {
   const [viewingSlip, setViewingSlip] = useState(false);
   const lead = rows[0].item;
   const total = rows.reduce((sum, r) => sum + slipLineTotal(r.item), 0);
@@ -107,6 +109,11 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
             {slipUrl && (
               <button type="button" onClick={() => setViewingSlip(true)} className={btn.secondary} title={getSlipDisplayName(slipUrl)}>
                 <Paperclip className="h-3.5 w-3.5" /> Scanned slip
+              </button>
+            )}
+            {onDuplicate && (
+              <button type="button" onClick={onDuplicate} className={btn.secondary}>
+                <Copy className="h-3.5 w-3.5" /> Duplicate as new receipt
               </button>
             )}
           </div>

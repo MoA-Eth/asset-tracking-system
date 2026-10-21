@@ -219,6 +219,11 @@ describe('Assets page', () => {
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-X1')).toEqual(['Duplicate as new receipt']);
     await user.keyboard('{Escape}');
+    // Its record offers it too: receiving it again is the one thing left to do
+    await user.click(rowOf('MOA-X1').querySelector('td')!);
+    expect(within(screen.getByRole('toolbar', { name: 'Asset actions' })).getByRole('button', { name: 'Duplicate as new receipt' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Close record' }));
+    await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-Q1')).toEqual(['Edit disposal', 'Duplicate as new receipt']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-D1')).toEqual(['Duplicate as new receipt']);
@@ -755,8 +760,8 @@ describe('Asset record', () => {
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-X1');
 
-    // No action toolbar or edit buttons
-    expect(within(record).queryByRole('toolbar', { name: 'Asset actions' })).not.toBeInTheDocument();
+    // Nothing to edit or move: the one action is receiving it again
+    expect(within(within(record).getByRole('toolbar', { name: 'Asset actions' })).getAllByRole('button').map((b) => b.textContent?.trim())).toEqual(['Duplicate as new receipt']);
     expect(within(record).queryByRole('button', { name: /Edit/i })).not.toBeInTheDocument();
     expect(within(record).queryByRole('button', { name: /Add|Change/i })).not.toBeInTheDocument();
 
@@ -2108,6 +2113,43 @@ describe('One row per Model 19', () => {
     const slipRow = await screen.findByRole('row', { name: 'Open Model 19 0000051' });
     expect(within(slipRow).getByText('In store')).toBeInTheDocument();
     expect(within(slipRow).queryByText(/^d+ In store/)).toBeNull();
+  });
+
+  it('receives a rejected Model 19 again: every item comes across, and the same slip is not refused', async () => {
+    const user = userEvent.setup();
+    const rejected = { ifmisSlipNumber: '0000051', poNumber: 'PO-14', source: 'Abay Trading' };
+    vi.mocked(api.getItems).mockResolvedValue([
+      item('L1', 'Dell Latitude', 'REJECTED', { ...rejected, ifmisItemCode: '301101101.0001', unitCostETB: 50000 }),
+      item('L2', 'HP Printer', 'REJECTED', { ...rejected, ifmisItemCode: '301101101.0002', unitCostETB: 20000 }),
+      item('L3', 'Toner', 'REJECTED', { ...rejected, ifmisItemCode: '101101101.0003', itemType: 'CONSUMABLE', quantity: 10, unitCostETB: 500 }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const slipRow = await screen.findByRole('row', { name: 'Open Model 19 0000051' });
+    await user.click(within(slipRow).getByRole('button', { name: 'Actions for Model 19 0000051' }));
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())).toEqual(['Duplicate as new receipt', 'Print Model 19']);
+    await user.click(screen.getByRole('menuitem', { name: 'Duplicate as new receipt' }));
+
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    expect(within(panel).getByRole('heading', { name: 'Duplicate of Model 19 #0000051 · 3 items' })).toBeInTheDocument();
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Dell Latitude');
+    expect(within(panel).getByLabelText('Item 2 description')).toHaveValue('HP Printer');
+    expect(within(panel).getByLabelText('Item 3 description')).toHaveValue('Toner');
+    expect(within(panel).getByLabelText('Item 3 item code')).toHaveValue('101101101.0003');
+    expect(within(panel).getByLabelText('Item 3 quantity')).toHaveValue('10');
+    expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('PO-14');
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('');
+
+    // The rejected receipt doesn't count as received: typing its number again raises no duplicate warning
+    await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000051');
+    expect(within(panel).queryByText(/Duplicate entrance is not permitted/)).toBeNull();
+  });
+
+  it('offers the duplicate on the open receipt too, but not to someone who cannot receive', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await user.click(within(await screen.findByRole('row', { name: 'Open Model 19 0000051' })).getByText('Dell Latitude, HP Printer +1'));
+    await user.click(within(screen.getByRole('region', { name: 'Model 19 0000051' })).getByRole('button', { name: 'Duplicate as new receipt' }));
+    expect(within(screen.getByRole('region', { name: 'Receive items' })).getByLabelText('Item 3 description')).toHaveValue('Toner');
   });
 
   it('finds a receipt by the name of one of its items', async () => {

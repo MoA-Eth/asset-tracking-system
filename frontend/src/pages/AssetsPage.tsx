@@ -31,7 +31,7 @@ import { OPEN_SLIP_EVENT, slipKey, slipNames, takePendingSlip } from '../compone
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { Model21PrintModal } from '../components/ui/Model21PrintModal';
-import { StockInForm, buildModel19Voucher, templateFromItem, ReceiptTemplate } from '../components/assets/ReceiptForm';
+import { StockInForm, buildModel19Voucher, templateFromItem, templateFromSlip, ReceiptTemplate } from '../components/assets/ReceiptForm';
 import { StockOutForm, buildModel22Voucher } from '../components/assets/IssueForm';
 import { TransferForm, buildModel21Voucher } from '../components/assets/TransferForm';
 import { DisposalForm, buildDisposalVoucher } from '../components/assets/DisposalForm';
@@ -200,7 +200,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
 
   // Pop-ups: one per form, each either new (from a row or the header) or correcting a pending request
-  const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string; copyOf?: ItemWithRelations } | null>(null);
+  const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string; copyOf?: string } | null>(null);
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
   const [disposing, setDisposing] = useState<{ itemId: string } | null>(null);
@@ -220,7 +220,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setDisposing(null);
     setEditing(false);
   };
-  const openReceipt = (edit?: ItemWithRelations, template?: ReceiptTemplate, templateKey?: string, copyOf?: ItemWithRelations) => {
+  const openReceipt = (edit?: ItemWithRelations, template?: ReceiptTemplate, templateKey?: string, copyOf?: string) => {
     setSelectedId(null);
     setSelectedSlip(null);
     setSlipBack(null);
@@ -634,7 +634,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             locations={locations}
             employees={employees}
             editItem={item}
-            registered={items.filter((i) => !i.parentItemId && i.id !== item.id).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
+            registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && i.id !== item.id).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
             onCancel={() => setEditing(false)}
             onSuccess={(_result, voucher) => done(voucher, setVoucher19)}
           />
@@ -752,8 +752,16 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   const actionsFor = (row: AssetRow): RowAction[] => {
     const { item, request } = row;
+    // A rejected record: the one thing left to do is receive it again
     if (row.state === 'REJECTED' || item.status === ItemStatus.REJECTED) {
-      return [];
+      return [
+        {
+          label: 'Duplicate as new receipt',
+          icon: Copy,
+          onClick: () => duplicateItem(item),
+          hidden: !canReceive || !!item.parentItemId,
+        },
+      ];
     }
     // Viewing is clicking the row; printing is from the record's list of requests
     switch (row.state) {
@@ -838,6 +846,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       default:
         return [];
     }
+  };
+  const duplicateItem = (item: ItemWithRelations) =>
+    openReceipt(undefined, templateFromItem(item), `copy-${item.id}-${Date.now()}`, `${item.itemCode} · ${item.name}`);
+  /** A Model 19 of several items, every item on it, as a new receipt */
+  const duplicateSlip = (members: AssetGroup[]) => {
+    const lead = members[0].row.item;
+    openReceipt(undefined, templateFromSlip(members.map((g) => g.row.item)), `copy-slip-${lead.id}-${Date.now()}`, `Model 19 #${lead.ifmisSlipNumber} · ${members.length} items`);
   };
 
 // Note: error UI is rendered before main return below to keep hook execution order unconditional
@@ -1028,9 +1043,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               {
                 label: 'Duplicate as new receipt',
                 icon: Copy,
-                onClick: () => openReceipt(undefined, templateFromItem(item), `copy-${item.id}-${Date.now()}`, item),
-                // A piece split off a batch is not a receipt: duplicate the registration it came from
-                hidden: !canReceive || !!item.parentItemId,
+                onClick: () => duplicateItem(item),
+                // A piece split off a batch is not a receipt: duplicate the registration it came from.
+                // A rejected record has it among its own actions already.
+                hidden: !canReceive || !!item.parentItemId || row.state === 'REJECTED' || item.status === ItemStatus.REJECTED,
               },
             ]}
           />
@@ -1082,7 +1098,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         <td className={`px-2.5 py-2 ${table.actionsCell}`}>
           <RowActionsMenu
             label={`Model 19 ${lead.ifmisSlipNumber}`}
-            actions={[{ label: 'Print Model 19', icon: Printer, onClick: () => printSlip(members) }]}
+            actions={[
+              { label: 'Print Model 19', icon: Printer, onClick: () => printSlip(members) },
+              { label: 'Duplicate as new receipt', icon: Copy, onClick: () => duplicateSlip(members), hidden: !canReceive },
+            ]}
           />
         </td>
       </tr>
@@ -1276,7 +1295,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                           ? `Edit receipt · ${receipt.edit.itemCode}`
                           // A copy keeps the item's real name; the title says which record it was copied from
                           : receipt.copyOf
-                          ? `Duplicate of ${receipt.copyOf.itemCode} · ${receipt.copyOf.name}`
+                          ? `Duplicate of ${receipt.copyOf}`
                           : 'Receive items · Model 19'}
                       </h3>
                       <span className="px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -1301,7 +1320,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     employees={employees}
                     editItem={receipt.edit}
                     template={receipt.template}
-                    registered={items.filter((i) => !i.parentItemId && (!receipt.edit || i.id !== receipt.edit.id)).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
+                    registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (!receipt.edit || i.id !== receipt.edit.id)).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
                     onCancel={() => setReceipt(null)}
                     onSuccess={(result, voucher) => {
                       setReceipt(null);
@@ -1322,6 +1341,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               rows={selectedSlipMembers.map((g) => g.row)}
               onOpenItem={(id) => openRecord(id, selectedSlip!)}
               onPrint={() => printSlip(selectedSlipMembers)}
+              onDuplicate={canReceive ? () => duplicateSlip(selectedSlipMembers) : undefined}
               onClose={closeRecord}
             />
           ) : selectedRow ? (

@@ -64,6 +64,9 @@ export interface ReceiptTemplate {
   additionalCharges?: number;
   deliveredBy?: string;
   receivedBy?: string;
+  /** Set when a whole Model 19 is duplicated: the first item's quantity, and the receipt's other items */
+  quantity?: number;
+  lines?: SlipLine[];
 }
 
 /** What a duplicate keeps from an item: what it is and where it comes from, never its number, serial, quantity or slip */
@@ -91,6 +94,34 @@ export const templateFromItem = (item: ItemWithRelations): ReceiptTemplate => ({
   deliveredBy: item.deliveredBy,
   receivedBy: item.receivedBy,
 });
+
+const receivedQuantity = (item: ItemWithRelations) => item.balance?.total || Number(item.quantity) || 1;
+
+/**
+ * A whole Model 19 of several items (e.g. a rejected one, to receive again): the first item as templateFromItem
+ * keeps it, and every other item as a row of its own, with the quantities the receipt had. Never its number or slip.
+ */
+export const templateFromSlip = (items: ItemWithRelations[]): ReceiptTemplate => {
+  const [first, ...rest] = items;
+  return {
+    ...templateFromItem(first),
+    quantity: receivedQuantity(first),
+    lines: rest.map((item, i) => ({
+      key: Date.now() + i + Math.random(),
+      name: item.name,
+      category: item.category ?? '',
+      itemType: item.itemType ?? '',
+      condition: item.condition ?? '',
+      uom: item.uom || 'EA',
+      quantity: receivedQuantity(item),
+      unitPrice: item.unitCostETB || 0,
+      vatApplicable: item.vatApplicable,
+      additionalCharges: item.additionalCharges,
+      ifmisCode: item.ifmisItemCode,
+      subInventory: item.subInventory,
+    })),
+  };
+};
 
 export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template, initialSlip, registered }) => {
   const { user } = useAuth();
@@ -141,7 +172,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [printedPadFrom, setPrintedPadFrom] = useState(editItem?.printedPadFrom ?? start?.printedPadFrom ?? '');
   const [printedPadTo, setPrintedPadTo] = useState(editItem?.printedPadTo ?? start?.printedPadTo ?? '');
   // Qty always defaults to 1 and is always editable
-  const [quantity, setQuantity] = useState<number>(editItem ? Number(editItem.quantity) || 1 : 1);
+  const [quantity, setQuantity] = useState<number>(editItem ? Number(editItem.quantity) || 1 : start?.quantity || 1);
   const [unitCostETB, setUnitCostETB] = useState<number>(editItem?.unitCostETB ?? start?.unitCostETB ?? 0);
   const [vatApplicable, setVatApplicable] = useState<boolean>(editItem?.vatApplicable ?? start?.vatApplicable ?? false);
   const [additionalCharges, setAdditionalCharges] = useState<number>(editItem?.additionalCharges ?? start?.additionalCharges ?? 0);
@@ -220,7 +251,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const vat1 = vatApplicable ? Math.round(base1 * 0.15 * 100) / 100 : 0;
   const totalAmount = donation ? 0 : base1 + (vatApplicable ? vat1 : (Number(additionalCharges) || 0));
   // The other item lines of a Model 19 read from its PDF: each is registered as its own record on submit
-  const [extraLines, setExtraLines] = useState<SlipLine[]>([]);
+  const [extraLines, setExtraLines] = useState<SlipLine[]>(start?.lines ?? []);
   const extraTotal = donation ? 0 : extraLines.reduce((sum, l) => {
     const base = (l.quantity || 0) * (l.unitPrice || 0);
     const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
