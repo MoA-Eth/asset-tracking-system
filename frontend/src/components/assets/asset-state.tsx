@@ -163,14 +163,15 @@ export const RejectionNote: React.FC<{ request: TransactionApproval }> = ({ requ
   );
 };
 
-/** "Returned for correction · by Getnet · 21 Oct 2026", with the reason underneath: what the requester has to correct */
+/** "by Team Leader: Price is entered as USD." — who sent it back (the stage) and what to correct; the name and date on hover */
 export const ReturnedNote: React.FC<{ request: TransactionApproval }> = ({ request }) => {
   const reason = request.returnRemarks?.trim();
-  const by = [request.returnedBy?.fullNameEn && `by ${request.returnedBy.fullNameEn}`, shortDate(request.returnedAtGc)].filter(Boolean).join(' · ');
+  const by = request.returnedFromStage === 2 ? 'Department Head' : 'Team Leader';
+  const detail = [request.returnedBy?.fullNameEn, shortDate(request.returnedAtGc), reason].filter(Boolean).join(' · ');
   return (
-    <span className="block max-w-[220px] whitespace-normal text-[10px] leading-snug text-amber-800" title={reason}>
-      {by && <span className="block text-slate-500">{by}</span>}
-      {reason && <span className="block line-clamp-2">{reason}</span>}
+    <span className="block max-w-[220px] whitespace-normal text-[10px] leading-snug text-amber-800 line-clamp-2" title={detail}>
+      <span className="text-slate-500">by {by}{reason ? ': ' : ''}</span>
+      {reason && <span>{reason}</span>}
     </span>
   );
 };
@@ -205,7 +206,7 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
       <span className="inline-flex flex-col items-start gap-0.5">
         <span className={`${pill} ${statusTone.pending}`}>
           <Undo2 className="h-3 w-3" />
-          Returned for correction
+          Returned
         </span>
         <ReturnedNote request={row.request} />
       </span>

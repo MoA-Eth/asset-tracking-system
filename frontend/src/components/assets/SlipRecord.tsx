@@ -46,7 +46,7 @@ const standings = (rows: AssetRow[]) => {
   const groups = new Map<string, { key: string; label: string; word: string; tone: string; n: number }>();
   for (const r of rows) {
     // A request returned for correction is with its requester, whatever kind it is
-    const returned = r.request?.status === 'RETURNED' ? 'Returned for correction' : undefined;
+    const returned = r.request?.status === 'RETURNED' ? 'Returned' : undefined;
     const pending = returned ?? (r.state === 'REQUEST_PENDING' && r.request ? requestLabel(r.request.transactionType, r.request.requestDetails).pending : undefined);
     const key = returned ? 'RETURNED' : pending ? `REQUEST:${pending}` : r.state;
     const g = groups.get(key) ?? {

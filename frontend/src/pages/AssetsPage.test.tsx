@@ -2242,8 +2242,11 @@ describe('Assets: a request returned for correction', () => {
     vi.mocked(api.resubmitApprovals).mockResolvedValue([] as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('MOA-R1')).closest('tr')!;
-    expect(within(row).getByText('Returned for correction')).toBeInTheDocument();
+    expect(within(row).getByText('Returned')).toBeInTheDocument();
+    // Who sent it back (by stage) and why; the name and date are on hover
+    expect(within(row).getByText('by Department Head:')).toBeInTheDocument();
     expect(within(row).getByText('Price is entered as USD.')).toBeInTheDocument();
+    expect(within(row).getByText('Price is entered as USD.').parentElement).toHaveAttribute('title', 'Getnet Taye · 21 Oct 2026 · Price is entered as USD.');
 
     expect(await menuFor(user, 'MOA-R1')).toEqual(['Edit receipt', 'Resubmit Model 19', 'Duplicate as new receipt']);
     await user.click(screen.getByRole('menuitem', { name: 'Resubmit Model 19' }));
