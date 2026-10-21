@@ -399,7 +399,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const issuedCount       = data?.issuedCount          || 0;
   const pendingApprovals  = data?.pendingApprovalsCount || 0;
   const pendingApprovalsValuationETB = data?.pendingApprovalsValuationETB || 0;
-  const pendingStageCounts = data?.pendingStageCounts || { stage1: 0, stage2: 0, stage3: 0 };
+  const pendingStageCounts = data?.pendingStageCounts || { stage1: 0, stage2: 0 };
   const pendingStockIn    = data?.pendingStockInCount   || 0;
   const pendingStockOut   = data?.pendingStockOutCount  || 0;
   const pendingTransfer   = data?.pendingTransferCount  || 0;
@@ -721,15 +721,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-600">Dept Head:</span>
+                  <span className="text-slate-600">Dept Head / Executive:</span>
                   <span className="font-semibold text-blue-800 tabular-nums">
                     {pendingStageCounts.stage2}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-600">Executive:</span>
-                  <span className="font-semibold text-purple-800 tabular-nums">
-                    {pendingStageCounts.stage3}
                   </span>
                 </div>
               </div>
