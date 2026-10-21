@@ -78,8 +78,10 @@ describe('Approvals: a rejection shows why', () => {
     await user.click((await screen.findAllByRole('button', { name: /^Rejected/ }))[0]);
     const row = screen.getByText('Office chair').closest('tr')!;
     expect(within(row).getByText('Rejected')).toBeInTheDocument();
-    expect(within(row).getByText('by Getnet Taye · 21 Oct 2026')).toBeInTheDocument();
-    expect(within(row).getByText('Reason: Wrong unit price; register it again')).toBeInTheDocument();
+    // By role and a short date; the name, full date and reason on hover
+    expect(within(row).getByText(/^by Team Leader · 21 Oct/)).toBeInTheDocument();
+    expect(within(row).getByText('Wrong unit price; register it again')).toBeInTheDocument();
+    expect(within(row).getByText('Rejected').closest('[title]')).toHaveAttribute('title', 'Getnet Taye · 21 Oct 2026 · Wrong unit price; register it again');
   });
 });
 
@@ -187,9 +189,9 @@ describe('Approvals: return for correction', () => {
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     await user.click((await screen.findAllByRole('button', { name: /^Returned/ }))[0]);
     const row = screen.getByText('Dell Latitude, HP Printer').closest('tr')!;
-    expect(within(row).getByText('Returned for correction')).toBeInTheDocument();
-    expect(within(row).getByText('by Getnet Taye · 21 Oct 2026')).toBeInTheDocument();
-    expect(within(row).getByText('Reason: Price is entered as USD.')).toBeInTheDocument();
+    expect(within(row).getByText('Returned')).toBeInTheDocument();
+    expect(within(row).getByText(/^by Team Leader · 21 Oct/)).toBeInTheDocument();
+    expect(within(row).getByText('Price is entered as USD.')).toBeInTheDocument();
     expect(within(row).queryByRole('button', { name: /Endorse/ })).toBeNull();
 
     await user.click(within(row).getByRole('button', { name: /Reject/ }));

@@ -111,6 +111,22 @@ const approvalUnits = (a: TransactionApproval): string | null => {
   return a.status === 'PENDING' && a.itemUnits ? `Qty ${a.itemUnits} ${uom}` : null;
 };
 
+/** Who decided, by role: from their account, or else the stage they decided at */
+const deciderRole = (role?: string, stage?: number): string =>
+  role === 'CHIEF_DIRECTOR' ? 'Chief Director'
+  : role === 'DEPARTMENT_HEAD' ? 'Department Head'
+  : role === 'TEAM_LEADER' ? 'Team Leader'
+  : role === 'SYSTEM_ADMIN' || role === 'SUPER_ADMIN' ? 'Administrator'
+  : stage === 2 ? 'Department Head' : 'Team Leader';
+
+/** "21 Oct", with the year only when it isn't this year */
+const dayMonth = (gc?: string): string => {
+  if (!gc) return '';
+  const d = new Date(gc);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) });
+};
+
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefreshPendingCount }) => {
   const { user, role } = useAuth();
   const toast = useToast();
@@ -564,51 +580,29 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
   // Clean, understated stage stepper
   const getStageIndicator = (appr: TransactionApproval) => {
-    if (appr.status === ApprovalStatus.RETURNED) {
-      const reason = appr.returnRemarks?.trim();
-      return (
-        <div className="flex max-w-[240px] flex-col gap-0.5 whitespace-normal">
-          <span className="inline-flex w-fit items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-            <Undo2 className="w-3 h-3 text-amber-700" />
-            Returned for correction
-          </span>
-          {(appr.returnedBy || appr.returnedAtGc) && (
-            <span className="text-[11px] text-slate-500">
-              {[appr.returnedBy?.fullNameEn && `by ${appr.returnedBy.fullNameEn}`, shortDate(appr.returnedAtGc)].filter(Boolean).join(' · ')}
-            </span>
-          )}
-          {reason && (
-            <span className="line-clamp-2 text-[11px] text-amber-800" title={reason}>
-              Reason: {reason}
-            </span>
-          )}
-        </div>
-      );
-    }
+    // Decided or returned: the outcome, who by (their role) and when, and the reason on one line; the rest on hover
     if (appr.status !== ApprovalStatus.PENDING) {
+      const returned = appr.status === ApprovalStatus.RETURNED;
       const rejected = appr.status === ApprovalStatus.REJECTED;
-      const reason = appr.reviewRemarks?.trim();
+      const person = returned ? appr.returnedBy : appr.reviewedBy;
+      const stage = returned ? appr.returnedFromStage : appr.status === ApprovalStatus.APPROVED ? 2 : appr.currentStage;
+      const by = deciderRole(person?.role, stage);
+      const date = returned ? appr.returnedAtGc : appr.reviewedAtGc;
+      const reason = (returned ? appr.returnRemarks : rejected ? appr.reviewRemarks : undefined)?.trim();
+      const tone = returned
+        ? { badge: 'bg-amber-50 text-amber-800 border-amber-200', text: 'text-amber-800', icon: <Undo2 className="w-3 h-3 text-amber-700" />, label: 'Returned' }
+        : rejected
+          ? { badge: 'bg-rose-50 text-rose-700 border-rose-200', text: 'text-rose-700', icon: <XCircle className="w-3 h-3 text-rose-600" />, label: 'Rejected' }
+          : { badge: 'bg-emerald-50 text-emerald-800 border-emerald-200', text: '', icon: <CheckCircle2 className="w-3 h-3 text-emerald-700" />, label: 'Approved' };
+      const detail = [person?.fullNameEn, shortDate(date), reason].filter(Boolean).join(' · ');
       return (
-        <div className="flex max-w-[240px] flex-col gap-0.5 whitespace-normal">
-          <span
-            className={`inline-flex w-fit items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold ${
-              rejected ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-            }`}
-          >
-            {rejected ? <XCircle className="w-3 h-3 text-rose-600" /> : <CheckCircle2 className="w-3 h-3 text-emerald-700" />}
-            {rejected ? 'Rejected' : 'Approved'}
+        <div className="flex min-w-[150px] max-w-[220px] flex-col gap-0.5" title={detail}>
+          <span className={`inline-flex w-fit items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${tone.badge}`}>
+            {tone.icon}
+            {tone.label}
           </span>
-          {/* Who decided and when; for a rejection, why, so approvers and encoders see the same reason */}
-          {(appr.reviewedBy || appr.reviewedAtGc) && (
-            <span className="text-[11px] text-slate-500">
-              {[appr.reviewedBy?.fullNameEn && `by ${appr.reviewedBy.fullNameEn}`, shortDate(appr.reviewedAtGc)].filter(Boolean).join(' · ')}
-            </span>
-          )}
-          {rejected && reason && (
-            <span className="line-clamp-2 text-[11px] text-rose-700" title={reason}>
-              Reason: {reason}
-            </span>
-          )}
+          <span className="truncate text-[11px] text-slate-500">{[`by ${by}`, dayMonth(date)].filter(Boolean).join(' · ')}</span>
+          {reason && <span className={`truncate text-[11px] ${tone.text}`}>{reason}</span>}
         </div>
       );
     }
