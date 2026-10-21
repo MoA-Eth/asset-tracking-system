@@ -589,6 +589,26 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     e.preventDefault();
     setFormError(null);
 
+    // Each item needs what makes it a true record; nothing is made up for it. The unit price and the voucher's own
+    // details (Model 19 No., source, store…) may still be completed later, as before.
+    const itemsMissing = [
+      [
+        !name.trim() && 'description',
+        !ifmisItemCode.trim() && !(isEdit && itemType) && 'item code',
+        !category && 'category',
+        !itemType && 'item type',
+        !(Number(quantity) > 0) && 'quantity',
+      ].filter(Boolean) as string[],
+      ...extraLines.map((l) => lineMissing(l, donation)),
+    ];
+    const stillNeeded = itemsMissing.map((m, i) => (m.length ? `item ${i + 1} (${m.join(', ')})` : '')).filter(Boolean);
+    if (stillNeeded.length > 0) {
+      const msg = `Still needed before submitting: ${stillNeeded.join('; ')}.`;
+      setFormError(msg);
+      toast.warning('Some item details are missing', msg);
+      return;
+    }
+
     // Provide sensible fallbacks for unfulfilled / optional fields
     const effectiveCategory = (category || AssetCategory.IT_EQUIPMENT) as AssetCategory;
     const effectiveType = (itemType || ItemType.FIXED) as ItemType;
@@ -843,7 +863,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         <input
           id="stock-in-item-name"
           type="text"
-          placeholder="Item description * (e.g. Dell Latitude 5440 Laptop)"
+          placeholder="Item description (e.g. Dell Latitude 5440 Laptop)"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={fieldErrors.touch('itemName')}
@@ -856,7 +876,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         )}
       </td>
       <td className="px-3 py-2.5">
-        <div className="flex items-center gap-1.5">
+        <div className="space-y-1">
           <label htmlFor="stock-in-ifmis-code" className="sr-only">IFMIS item code</label>
           <input
             id="stock-in-ifmis-code"
@@ -932,17 +952,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         </td>
       )}
       {!donation && (
-        <td className="px-2 py-2.5 text-center">
-          {vatApplicable && vat1 > 0 ? (
-            <span className="text-[10px] font-mono font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 whitespace-nowrap" title="15% VAT auto-calculated">
-              +{money(vat1)}
-            </span>
-          ) : (
-            <span className="text-slate-300 font-mono text-xs">—</span>
-          )}
-        </td>
-      )}
-      {!donation && (
         <td className="px-3 py-2.5">
           <label htmlFor="stock-in-addl-charges" className="sr-only">Additional charges (ETB)</label>
           <MoneyInput
@@ -961,6 +970,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       {!donation && (
         <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap">
           {money(totalAmount)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
+          {vatApplicable && vat1 > 0 && <span className="block text-[10px] font-normal text-emerald-700">incl. VAT {money(vat1)}</span>}
         </td>
       )}
       <td className="px-2 py-2.5 text-center" />
@@ -1070,16 +1080,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                 <span className="text-xs font-semibold text-emerald-800">15% VAT (all items)</span>
               </label>
             )}
-            <span className="text-[11px] text-slate-500">{ITEM_CODE_RULE} Click the badge to toggle type if needed.</span>
           </div>
         }
       >
+        <p className="-mt-1 mb-2 text-[11px] text-slate-500">{ITEM_CODE_RULE} Click the badge under a code to change the type.</p>
         <ReceiptItems
           first={firstRow}
           lines={linesWithDuplicates}
           donation={donation}
           vatApplicable={vatApplicable}
-          onToggleVat={handleToggleVat}
           onChange={setExtraLines}
           onAdd={() => setExtraLines((lines) => [...lines, blankLine()])}
           total={totalAmount + extraTotal}
@@ -1114,7 +1123,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             <input
               id="stock-in-delivered-by"
               type="text"
-              placeholder="Filled from the buyer"
+              placeholder="Same as the buyer, unless typed here"
               value={deliveredBy}
               onChange={(e) => changeDeliveredBy(e.target.value)}
               className={input()}

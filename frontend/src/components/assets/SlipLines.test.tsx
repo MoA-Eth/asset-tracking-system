@@ -52,15 +52,18 @@ const TestReceiptTable: React.FC = () => {
   const line2Total = base2 + (vatApplicable ? vat2 : (lines[1].additionalCharges || 0));
   const grandTotal = line1Total + line2Total;
 
+  // The VAT checkbox sits above the table, as on the receive form
   return (
-    <ReceiptItems
-      first={<tr data-testid="first-row"><td colSpan={11}>First Item</td></tr>}
-      lines={lines}
-      vatApplicable={vatApplicable}
-      onToggleVat={handleToggleVat}
-      onChange={setLines}
-      total={grandTotal}
-    />
+    <>
+      <input type="checkbox" aria-label="VAT (15%) for all items" checked={vatApplicable} onChange={(e) => handleToggleVat(e.target.checked)} />
+      <ReceiptItems
+        first={<tr data-testid="first-row"><td colSpan={10}>First Item</td></tr>}
+        lines={lines}
+        vatApplicable={vatApplicable}
+        onChange={setLines}
+        total={grandTotal}
+      />
+    </>
   );
 };
 
@@ -95,9 +98,9 @@ describe('Model 19 ReceiptItems: VAT and Additional Charges Scenarios', () => {
     expect(addlInput3.value).toBe('');
     expect(addlInput3.title).toBe('Additional charges not allowed when price includes VAT');
 
-    // VAT badges: 500 * 0.15 = +75, 1000 * 0.15 = +150
-    expect(screen.getByText('+75')).toBeInTheDocument();
-    expect(screen.getByText('+150')).toBeInTheDocument();
+    // Each total says how much VAT it includes: 500 * 0.15 = 75, 1000 * 0.15 = 150
+    expect(screen.getByText('incl. VAT 75')).toBeInTheDocument();
+    expect(screen.getByText('incl. VAT 150')).toBeInTheDocument();
 
     // Total with 15% VAT: (500 + 75) + (1000 + 150) = 1,725 ETB
     expect(screen.getByText('1,725 ETB')).toBeInTheDocument();

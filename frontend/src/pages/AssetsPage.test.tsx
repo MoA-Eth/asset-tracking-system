@@ -870,6 +870,8 @@ describe('Asset record', () => {
     await user.click(within(record).getByRole('button', { name: 'Add item' }));
     await user.type(within(record).getByLabelText('Item 2 item code'), '108101101.0007');
     await user.type(within(record).getByLabelText('Item 2 description'), 'Printer toner');
+    await user.selectOptions(within(record).getByLabelText('Item 2 category'), 'OFFICE_SUPPLIES');
+    await user.type(within(record).getByLabelText('Item 2 unit price'), '4500');
     expect(submitOf(record, 'stock-in-form')).toHaveTextContent('Save changes and add 1 item');
     await user.click(submitOf(record, 'stock-in-form'));
 
@@ -1653,7 +1655,7 @@ describe('Receiving form: Delivered by follows the buyer', () => {
     await user.type(within(panel).getByLabelText(/PO number/i), '186');
 
     const buyer = within(panel).getByLabelText(/Buyer/);
-    const deliveredBy = within(panel).getByPlaceholderText(/Filled from the buyer/);
+    const deliveredBy = within(panel).getByPlaceholderText(/Same as the buyer/);
 
     await user.type(buyer, 'Abebe Kebede');
     expect(deliveredBy).toHaveValue('Abebe Kebede');
@@ -1772,7 +1774,7 @@ describe('Receiving form: store and signatures from the Model 19', () => {
 
     expect(await within(panel).findByText(/Filled in from the slip:.*delivered by, receiving store, received by/)).toBeInTheDocument();
     expect(within(panel).getByLabelText(/Receiving store/i)).toHaveValue('S1');
-    expect(within(panel).getByPlaceholderText(/Filled from the buyer/)).toHaveValue('Kebede, Tolosa Ayana');
+    expect(within(panel).getByPlaceholderText(/Same as the buyer/)).toHaveValue('Kebede, Tolosa Ayana');
   });
 });
 
@@ -1911,6 +1913,23 @@ describe('Receiving form: footer notes', () => {
     expect(within(panel).queryByText(/Still needed/i)).toBeNull();
     expect(within(panel).queryByText(/Unfulfilled fields are optional/i)).toBeNull();
     expect(within(panel).getByRole('button', { name: /Submit for approval/i })).toBeEnabled();
+  });
+
+  it('on submit, lists what the items still need instead of saving made-up values', async () => {
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+
+    await user.click(within(panel).getByRole('button', { name: /Submit for approval/i }));
+    expect(within(panel).getByText('Still needed before submitting: item 1 (description, item code, category, item type).')).toBeInTheDocument();
+
+    // Only the code typed: nothing like "Unspecified Item" or a default category is saved
+    await user.type(within(panel).getByLabelText(/IFMIS item code/i), '108101101.0021');
+    await user.click(within(panel).getByRole('button', { name: /Submit for approval/i }));
+    expect(within(panel).getByText('Still needed before submitting: item 1 (description, category).')).toBeInTheDocument();
+    expect(api.registerStockIn).not.toHaveBeenCalled();
   });
 });
 

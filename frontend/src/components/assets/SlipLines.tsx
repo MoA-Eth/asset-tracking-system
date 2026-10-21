@@ -52,7 +52,7 @@ export const isLineFixed = (l: { ifmisCode?: string; itemType?: ItemType | '' })
 export const oneIfFixed = (l: SlipLine): SlipLine => l;
 
 /** What a line still needs before the receipt can be submitted */
-export const lineMissing = (l: SlipLine, donation = false): string[] =>
+export const lineMissing = (l: SlipLine, _donation = false): string[] =>
   [
     !l.name.trim() && 'description',
     !l.category && 'category',
@@ -60,7 +60,6 @@ export const lineMissing = (l: SlipLine, donation = false): string[] =>
     !l.itemType && 'item type',
     !l.uom.trim() && 'unit',
     !(Number.isFinite(l.quantity) && l.quantity > 0) && 'quantity',
-    !donation && !(l.unitPrice > 0) && 'unit price',
   ].filter(Boolean) as string[];
 
 /** Fixed asset or consumable, as the item code says: shown as a badge, clickable to toggle */
@@ -126,16 +125,14 @@ export const ReceiptItems: React.FC<{
   lines: SlipLine[];
   /** A donation has no price: the price columns are left out */
   donation?: boolean;
-  /** Whether 15% VAT applies to all items on this receipt */
+  /** Whether 15% VAT applies to all items on this receipt (switched above the table); each total then includes it */
   vatApplicable?: boolean;
-  /** Toggle 15% VAT for all items */
-  onToggleVat?: (checked: boolean) => void;
   onChange: (lines: SlipLine[]) => void;
   /** Adds an empty line; left out when correcting a receipt, which is one item */
   onAdd?: () => void;
   /** Grand total of all rows */
   total?: number;
-}> = ({ first, lines, donation, vatApplicable, onToggleVat, onChange, onAdd, total }) => {
+}> = ({ first, lines, donation, vatApplicable, onChange, onAdd, total }) => {
   const set = (key: number, patch: Partial<SlipLine>) =>
     onChange(
       lines.map((l) => {
@@ -156,19 +153,19 @@ export const ReceiptItems: React.FC<{
   return (
     <div className="overflow-hidden rounded-md border border-slate-200">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1260px] text-xs table-fixed">
+        {/* Fits a laptop screen (about 960 px) with the description as the widest column; narrower screens scroll */}
+        <table className="w-full min-w-[880px] text-xs table-fixed">
           <colgroup>
-            <col style={{ width: '44px' }} />
+            <col style={{ width: '28px' }} />
             <col style={{ width: 'auto' }} />
-            <col style={{ width: '220px' }} />
-            <col style={{ width: '160px' }} />
-            <col style={{ width: '95px' }} />
-            <col style={{ width: '80px' }} />
-            {!donation && <col style={{ width: '120px' }} />}
-            {!donation && <col style={{ width: '90px' }} />}
-            {!donation && <col style={{ width: '120px' }} />}
-            {!donation && <col style={{ width: '120px' }} />}
-            <col style={{ width: '40px' }} />
+            <col style={{ width: '158px' }} />
+            <col style={{ width: '140px' }} />
+            <col style={{ width: '70px' }} />
+            <col style={{ width: '54px' }} />
+            {!donation && <col style={{ width: '96px' }} />}
+            {!donation && <col style={{ width: '82px' }} />}
+            {!donation && <col style={{ width: '108px' }} />}
+            <col style={{ width: '36px' }} />
           </colgroup>
           <thead className="bg-slate-50/90 border-b border-slate-200/90 shadow-2xs">
             <tr className="text-xs font-semibold text-slate-600">
@@ -178,26 +175,8 @@ export const ReceiptItems: React.FC<{
               <th className="px-3 py-2.5 text-left">Category</th>
               <th className="px-2 py-2.5 text-center">Unit</th>
               <th className="px-2 py-2.5 text-center">Qty</th>
-              {!donation && <th className="pl-3 pr-8 py-2.5 text-right">Unit price</th>}
-              {!donation && (
-                <th className="px-2 py-2.5 text-center">
-                  <label
-                    className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 cursor-pointer select-none"
-                    title="Apply 15% VAT to all items on this receipt"
-                  >
-                    <input
-                      id="stock-in-vat-all"
-                      aria-label="VAT (15%) for all items"
-                      type="checkbox"
-                      checked={!!vatApplicable}
-                      onChange={(e) => onToggleVat?.(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
-                    />
-                    <span>VAT (15%)</span>
-                  </label>
-                </th>
-              )}
-              {!donation && <th className="pl-3 pr-8 py-2.5 text-right">Addl charges</th>}
+              {!donation && <th className="px-3 py-2.5 text-right">Unit price</th>}
+              {!donation && <th className="px-3 py-2.5 text-right" title="Additional charges (transport, installation…); not with VAT">Charges</th>}
               {!donation && <th className="px-3 py-2.5 text-right">Total</th>}
               <th className="px-2 py-2.5 text-center" />
             </tr>
@@ -216,7 +195,7 @@ export const ReceiptItems: React.FC<{
                   <td className="px-3 py-2.5">
                     <input
                       aria-label={`Item ${n} description`}
-                      placeholder="Item description *"
+                      placeholder="Item description"
                       value={l.name}
                       onChange={(e) => set(l.key, { name: e.target.value })}
                       className={cellClass({ invalid: !l.name.trim() })}
@@ -224,7 +203,7 @@ export const ReceiptItems: React.FC<{
                     {l.alreadyAs && <p className="mt-0.5 text-[10px] font-semibold text-rose-600">Already received as {l.alreadyAs}. Duplicate entrance is not permitted.</p>}
                   </td>
                   <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-1.5">
+                    <div className="space-y-1">
                       <input
                         aria-label={`Item ${n} item code`}
                         placeholder="e.g. 108101101.0021"
@@ -286,21 +265,9 @@ export const ReceiptItems: React.FC<{
                         suffix=""
                         value={l.unitPrice}
                         onChange={(v) => set(l.key, { unitPrice: v })}
-                        invalid={!(l.unitPrice > 0)}
                         placeholder="0.00"
                         inputClassName="!h-9 !px-2.5 !text-xs font-medium !rounded-md"
                       />
-                    </td>
-                  )}
-                  {!donation && (
-                    <td className="px-2 py-2.5 text-center">
-                      {isVat && lineVat > 0 ? (
-                        <span className="text-[10px] font-mono font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 whitespace-nowrap" title="15% VAT auto-calculated">
-                          +{money(lineVat)}
-                        </span>
-                      ) : (
-                        <span className="text-slate-300 font-mono text-xs">—</span>
-                      )}
                     </td>
                   )}
                   {!donation && (
@@ -320,9 +287,10 @@ export const ReceiptItems: React.FC<{
                   {!donation && (
                     <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap">
                       {money(lineTotal)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
+                      {isVat && lineVat > 0 && <span className="block text-[10px] font-normal text-emerald-700">incl. VAT {money(lineVat)}</span>}
                     </td>
                   )}
-                  <td className="px-2 py-2.5 text-center">
+                  <td className="px-1.5 py-2.5 text-center">
                     <button
                       type="button"
                       onClick={() => onChange(lines.filter((x) => x.key !== l.key))}
