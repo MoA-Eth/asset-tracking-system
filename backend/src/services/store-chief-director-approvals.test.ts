@@ -295,3 +295,13 @@ describe('Pending requests counted as the approvals queue shows them', () => {
     ]);
   });
 });
+
+describe('A disposal is weighed at its original cost', () => {
+  const item = { notes: JSON.stringify({ quantity: 1, uom: 'EA' }), unitCostETB: 15_000_000 };
+  it('not at the book value typed on the form, even when that is 0 or small', () => {
+    expect(calculateApprovalTotalAmount({ transactionType: 'DISPOSAL', requestDetails: { quantity: 1, bookValue: 0 }, item })).toBe(15_000_000);
+    expect(calculateApprovalTotalAmount({ transactionType: 'DISPOSAL', requestDetails: { quantity: 1, bookValue: 2_500 }, item })).toBe(15_000_000);
+    // Part of a record: the units disposed of at the unit price
+    expect(calculateApprovalTotalAmount({ transactionType: 'DISPOSAL', requestDetails: { quantity: 3, bookValue: 100 }, item: { unitCostETB: 200 } })).toBe(600);
+  });
+});

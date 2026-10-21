@@ -583,8 +583,9 @@ export const buildDisposalVoucher = (
     };
   };
   const lines = sameDisposalForm(approval, context.requests).map((r, i) => lineOf(r, i + 1));
-  // The form is signed as a whole: its total decides whether the Chief Director authorizes it, as the approval goes
-  const formTotal = lines.reduce((sum, l) => sum + (Number(l.bookValue) || 0), 0);
+  // The form is signed as a whole: its total original cost decides whether the Chief Director authorizes it, as the
+  // approval goes (not the book value typed on the form)
+  const formTotal = lines.reduce((sum, l) => sum + (Number(l.unitPrice) || 0) * (Number(l.quantity) || 1), 0);
   const dateGc = approval.ifmisSlipDateGc || (approval.createdAtGc || '').split('T')[0];
   return {
     approvalState: approval.status === 'PENDING' ? 'PENDING' : approval.status === 'REJECTED' ? 'REJECTED' : undefined,

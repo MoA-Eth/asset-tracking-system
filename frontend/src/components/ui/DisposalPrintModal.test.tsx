@@ -96,3 +96,16 @@ describe('a disposal form of several assets', () => {
     expect(buildDisposalVoucher(requests[0], { item: items[2], employees: [], requests, items }).items).toHaveLength(3);
   });
 });
+
+describe('who signs a disposal form', () => {
+  it('is the Chief Executive Officer when the original cost is above 10 million, whatever the book value', () => {
+    const approval = {
+      id: 'R1', transactionType: 'DISPOSAL', itemId: 'V1', itemCode: 'MOA-VEH-1', itemName: 'Land Cruiser', status: 'APPROVED', currentStage: 2,
+      ifmisSlipNumber: 'D-9', createdAtGc: '2026-10-21', requestDetails: { quantity: 1, reason: 'SALE', bookValue: 0 },
+    } as unknown as TransactionApproval;
+    const v = buildDisposalVoucher(approval, { item: { unitCostETB: 15_000_000, quantity: 1 } as any, employees: [] });
+    expect(v.signatories?.[4].label).toBe('Approved By (Chief Executive Officer)');
+    // The book value still prints as given
+    expect(v.items[0].bookValue).toBe(0);
+  });
+});

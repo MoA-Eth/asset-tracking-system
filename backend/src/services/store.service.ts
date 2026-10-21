@@ -211,6 +211,14 @@ export function calculateApprovalTotalAmount(raw: any, itemObj?: any): number {
   if (req?.totalAmount && Number(req.totalAmount) > 0) {
     return Number(req.totalAmount);
   }
+  // A disposal is weighed at its original cost (units × unit price as received), not the book value typed on the
+  // form: the requester can't lower it, and a fully depreciated asset can still be worth a lot. The book value still
+  // prints on the form. (Agreed 2026-10-21, pending the property directive; to weigh by book value, drop this.)
+  if (raw?.transactionType === 'DISPOSAL') {
+    const original = itemObj ?? raw?.item;
+    const units = Number(req?.quantity) || (original ? quantityOf(original) : 1);
+    return (Number(original?.unitCostETB) || 0) * units;
+  }
   if (req?.bookValue && Number(req.bookValue) > 0) {
     return Number(req.bookValue);
   }
