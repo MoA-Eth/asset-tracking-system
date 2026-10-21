@@ -37,7 +37,8 @@ export const EMPLOYEE_FIELDS: {
 ];
 
 export const fieldInfo = (key: EmployeeField) => EMPLOYEE_FIELDS.find((f) => f.key === key)!;
-export const REQUIRED_COLUMNS = EMPLOYEE_FIELDS.filter((f) => f.required).map((f) => f.key);
+/** Columns an import must have: none for now, HR sheets are often partial (a row needs only an ID or a name). The form still requires its fields. */
+export const REQUIRED_COLUMNS: EmployeeField[] = [];
 export const COLUMN_LABELS = Object.fromEntries(EMPLOYEE_FIELDS.map((f) => [f.key, f.label])) as Record<EmployeeField, string>;
 
 /** One employee row read from a spreadsheet; `row` is the spreadsheet row number */
@@ -109,7 +110,7 @@ export interface SheetReadResult {
   rows: EmployeeSheetRow[];
   /** Columns found, in sheet order */
   columns: EmployeeField[];
-  /** Required columns the sheet doesn't have */
+  /** Required columns the sheet doesn't have (none are required for now) */
   missing: EmployeeField[];
 }
 
@@ -119,11 +120,14 @@ const emptyRow = (row: number): EmployeeSheetRow => ({
 });
 
 /**
- * Finds the heading row (the first row that names an employee ID column, within the first 10 rows),
+ * Finds the heading row (within the first 10 rows, the one naming the most employee columns; any column will do),
  * then reads every non-empty row below it. Columns it doesn't know (row number, salary…) are ignored.
  */
 export function rowsFromSheet(data: unknown[][]): SheetReadResult {
-  const headerIndex = data.slice(0, 10).findIndex((r) => r.some((c) => columnFor(c) === 'payrollId'));
+  const known = (r: unknown[]) => new Set(r.map(columnFor).filter(Boolean)).size;
+  const top = data.slice(0, 10);
+  const best = Math.max(0, ...top.map(known));
+  const headerIndex = best > 0 ? top.findIndex((r) => known(r) === best) : -1;
   if (headerIndex < 0) return { rows: [], columns: [], missing: [...REQUIRED_COLUMNS] };
 
   const map = new Map<number, EmployeeField>();

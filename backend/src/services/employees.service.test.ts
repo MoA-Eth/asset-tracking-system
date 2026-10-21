@@ -184,7 +184,7 @@ describe('Employee registry: importing an HR spreadsheet', () => {
     { row: 5, payrollId: '00000003', fullNameEn: 'Hana Again', fullNameAm: 'ሐና', department: 'ICT' },
     { row: 6, payrollId: '00000004', fullNameEn: 'Lost Dept', fullNameAm: 'ሀ', department: 'Finance' },
     { row: 7, payrollId: '00000005', fullNameEn: 'Taken Email', fullNameAm: 'ሀ', department: 'ICT', email: 'SARA@moa.gov.et' },
-    { row: 8, payrollId: '00000006', fullNameEn: '', fullNameAm: 'ሀ', department: 'ICT' },
+    { row: 8, payrollId: '', fullNameEn: '', fullNameAm: '', department: 'ICT', jobTitle: 'Clerk' },
   ];
 
   beforeEach(() => {
@@ -207,7 +207,7 @@ describe('Employee registry: importing an HR spreadsheet', () => {
     expect(byRow[5].message).toContain('also on row 4');
     expect(byRow[6]).toMatchObject({ action: 'create', department: 'Finance' });
     expect(byRow[7].message).toContain('already belongs to Sara Ali');
-    expect(byRow[8].message).toContain('Full name (English) is required');
+    expect(byRow[8].message).toBe('The row has no employee ID and no name.');
     expect(db.employee.createMany).not.toHaveBeenCalled();
     expect(db.department.createMany).not.toHaveBeenCalled();
     expect(db.employee.update).not.toHaveBeenCalled();
@@ -233,6 +233,55 @@ describe('Employee registry: importing an HR spreadsheet', () => {
     await expect(importEmployees(sheet, false, 'encoder')).rejects.toMatchObject({ statusCode: 403 });
     await expect(importEmployees([], false, 'admin')).rejects.toThrow('no employee rows');
     await expect(importEmployees(new Array(5001).fill({}), false, 'admin')).rejects.toThrow('at most 5,000');
+  });
+});
+
+describe('Importing a partial HR sheet: every column is optional', () => {
+  const saved = [
+    { id: 'e1', payrollId: '00000001', fullNameEn: 'Abebe Kebede', fullNameAm: 'አበበ', departmentId: 'DEP-01', jobTitle: 'Driver', email: null, phone: null, isActive: true },
+    { id: 'e2', payrollId: '00000002', fullNameEn: 'Sara Ali', fullNameAm: '', departmentId: 'DEP-01', jobTitle: null, email: null, phone: null, isActive: true },
+    { id: 'e3', payrollId: '00000003', fullNameEn: 'Sara Ali', fullNameAm: '', departmentId: 'DEP-01', jobTitle: null, email: null, phone: null, isActive: true },
+  ];
+  beforeEach(() => {
+    db.department.findMany.mockResolvedValue([{ id: 'DEP-01', code: 'PROP', nameEn: 'Procurement & Property', nameAm: 'ግዥ' }]);
+    db.employee.findMany.mockResolvedValue(saved);
+  });
+
+  it('adds new staff with no ID, no department or no English name', async () => {
+    const result = await importEmployees([
+      { row: 2, fullNameEn: 'Hana Tesfaye', jobTitle: 'Accountant' },
+      { row: 3, payrollId: '00000009', fullNameAm: 'ሐና ተስፋዬ' },
+    ], true, 'admin');
+    expect(result.counts).toEqual({ create: 2, update: 0, unchanged: 0, error: 0 });
+    const [unassigned] = db.department.createMany.mock.calls[0][0].data;
+    expect(unassigned).toMatchObject({ nameEn: 'Unassigned' });
+    const added = db.employee.createMany.mock.calls[0][0].data;
+    // A temporary ID until HR's is entered; Unassigned until a department is chosen
+    expect(added[0]).toMatchObject({ fullNameEn: 'Hana Tesfaye', jobTitle: 'Accountant', departmentId: unassigned.id });
+    expect(added[0].payrollId).toMatch(/^NOID-[0-9A-F]{8}$/);
+    // The Amharic name stands in for the English one
+    expect(added[1]).toMatchObject({ payrollId: '00000009', fullNameEn: 'ሐና ተስፋዬ', fullNameAm: 'ሐና ተስፋዬ', departmentId: unassigned.id });
+  });
+
+  it('finds staff on file by name when the row has no ID, and keeps what the row leaves out', async () => {
+    const result = await importEmployees([
+      { row: 2, fullNameEn: 'abebe kebede', jobTitle: 'Senior Driver' },
+      { row: 3, payrollId: '00000001', fullNameEn: 'Abebe Kebede' },
+    ], true, 'admin');
+    expect(result.rows[0]).toMatchObject({ action: 'update', payrollId: '00000001', changes: ['name', 'job title'], department: 'Procurement & Property' });
+    // The same person twice in one file is still caught
+    expect(result.rows[1].message).toContain('also on row 2');
+    expect(db.employee.update).toHaveBeenCalledWith({ where: { id: 'e1' }, data: { fullNameEn: 'abebe kebede', jobTitle: 'Senior Driver' } });
+    expect(db.department.createMany).not.toHaveBeenCalled();
+  });
+
+  it('asks for the ID when several staff share the name, and skips a row with neither ID nor name', async () => {
+    const result = await importEmployees([
+      { row: 2, fullNameEn: 'Sara Ali', phone: '+251911000000' },
+      { row: 3, jobTitle: 'Clerk', department: 'Procurement & Property' },
+    ], false, 'admin');
+    expect(result.rows[0].message).toBe('No employee ID, and 2 staff are named Sara Ali: add the ID to this row.');
+    expect(result.rows[1].message).toBe('The row has no employee ID and no name.');
   });
 });
 

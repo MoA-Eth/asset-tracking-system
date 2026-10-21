@@ -443,6 +443,10 @@ export interface EmployeeImportResult {
 }
 
 export const MAX_IMPORT_ROWS = 5000;
+/** Where imported staff go when their row names no department */
+export const UNASSIGNED_DEPARTMENT = 'Unassigned';
+/** The start of the employee ID given to imported staff whose row has none, until HR's ID is entered */
+export const TEMPORARY_ID_PREFIX = 'NOID-';
 
 const DETAIL_FIELDS = ['payrollId', 'fullNameEn', 'fullNameAm', 'departmentId', 'jobTitle', 'unit', 'gender', 'email', 'phone'] as const;
 type DetailField = (typeof DETAIL_FIELDS)[number];
@@ -500,29 +504,55 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
     const toCreate: any[] = [];
     const toUpdate: { id: string; payrollId: string; data: Record<string, unknown> }[] = [];
 
+    // Every column is optional (HR sheets are often partial). A row needs only an employee ID or a name.
+    const byName = (name: string) => (name ? existing.filter((e: any) => [e.fullNameEn, e.fullNameAm].some((n: string) => n && matchKey(n) === matchKey(name))) : []);
+    const unassigned = () => deptByKey.get(matchKey(UNASSIGNED_DEPARTMENT)) ?? planDepartment(UNASSIGNED_DEPARTMENT);
+
     for (const raw of rows) {
       const rowNo = Number(raw?.row) || 0;
-      const payrollId = cellText(raw?.payrollId);
+      const givenId = cellText(raw?.payrollId);
+      const nameEn = cellText(raw?.fullNameEn);
+      const nameAm = cellText(raw?.fullNameAm);
       const departmentText = cellText(raw?.department);
-      const base = { row: rowNo, payrollId, fullNameEn: cellText(raw?.fullNameEn), department: departmentText };
+      const base = { row: rowNo, payrollId: givenId, fullNameEn: nameEn || nameAm, department: departmentText };
       const fail = (message: string) => {
         result.rows.push({ ...base, action: 'error', message });
         result.counts.error++;
       };
 
+      if (!givenId && !nameEn && !nameAm) {
+        fail('The row has no employee ID and no name.');
+        continue;
+      }
       if (departmentText.length > 160) {
         fail('Department must be 160 characters or fewer.');
         continue;
       }
+      // Without an ID, the person is found by name; a name that several staff share needs the ID
+      let current = givenId ? byPayroll.get(matchKey(givenId)) : undefined;
+      if (!givenId) {
+        const named = byName(nameEn || nameAm);
+        if (named.length > 1) {
+          fail(`No employee ID, and ${named.length} staff are named ${nameEn || nameAm}: add the ID to this row.`);
+          continue;
+        }
+        current = named[0];
+      }
+      // New staff without an ID get a temporary one, replaced with HR's ID later from the employee's form
+      const payrollId = givenId || current?.payrollId || `${TEMPORARY_ID_PREFIX}${randomUUID().slice(0, 8).toUpperCase()}`;
+      base.payrollId = payrollId;
+
       const knownDept = departmentText ? deptByKey.get(matchKey(departmentText)) : undefined;
       let details: ReturnType<typeof checkDetails>;
       try {
         details = checkDetails({
           payrollId,
-          fullNameEn: raw?.fullNameEn,
+          // No English name: the Amharic one, so the person still has a name to be found by
+          fullNameEn: nameEn || current?.fullNameEn || nameAm,
           fullNameAm: raw?.fullNameAm,
-          // Checked before a missing department is planned, so a bad row never creates one
-          departmentId: knownDept?.id ?? (departmentText ? 'NEW' : ''),
+          // Checked before a missing department is planned, so a bad row never creates one.
+          // No department: staff on file keep theirs; new staff go to Unassigned.
+          departmentId: knownDept?.id ?? (departmentText ? 'NEW' : current?.departmentId ?? 'UNASSIGNED'),
           jobTitle: raw?.jobTitle,
           unit: raw?.unit,
           gender: raw?.gender,
@@ -540,9 +570,8 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
       }
       seenPayroll.set(pKey, rowNo);
 
-      const current = byPayroll.get(pKey);
-      // Rows for staff already on file keep their ID; only new staff must use HR's format
-      if (!current && !EMPLOYEE_ID_PATTERN.test(details.payrollId)) {
+      // Rows for staff already on file keep their ID; only an ID given for new staff must use HR's format
+      if (!current && givenId && !EMPLOYEE_ID_PATTERN.test(details.payrollId)) {
         fail(EMPLOYEE_ID_FORMAT);
         continue;
       }
@@ -560,8 +589,13 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
         seenEmail.set(eKey, rowNo);
       }
 
-      // The row is good: use its department, planning a new one if the file names one we don't have
-      const dept = knownDept ?? planDepartment(departmentText.replace(/\s+/g, ' '));
+      // The row is good: use its department, planning a new one if the file names one we don't have.
+      // None named: staff on file keep theirs, new staff go to Unassigned.
+      const dept = departmentText
+        ? knownDept ?? planDepartment(departmentText.replace(/\s+/g, ' '))
+        : current
+          ? deptByKey.get(matchKey(current.departmentId)) ?? { id: current.departmentId, nameEn: '' }
+          : unassigned();
       details.departmentId = dept.id;
       base.department = dept.nameEn;
 

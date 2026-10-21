@@ -66,10 +66,10 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
     setBusy('checking');
     try {
       const sheet = await readEmployeeFile(file);
-      if (sheet.missing.length > 0) {
+      if (sheet.columns.length === 0 || sheet.missing.length > 0) {
         setError(
           sheet.columns.length === 0
-            ? 'No employee ID heading (የሰራተኛ መለያ ቁጥር) was found in the first 10 rows. Use the template headings.'
+            ? 'None of the template headings (employee ID, name, department…) was found in the first 10 rows. Use the template headings.'
             : `The sheet is missing these columns: ${sheet.missing.map((c) => COLUMN_LABELS[c]).join(', ')}.`,
         );
         return;
@@ -133,17 +133,18 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
                   <span
                     key={f.key}
                     title={f.label}
-                    className={`rounded-md border px-1.5 py-0.5 text-[11px] ${f.required ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-900' : 'border-slate-200 bg-white text-slate-600'}`}
+                    className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] text-slate-600"
                   >
                     {f.heading}
-                    {f.required && ' *'}
                   </span>
                 ))}
               </p>
               <p className="mt-1.5">
-                * required. Other columns in HR's file (row number, salary, step…) are ignored. Staff are matched by employee ID:
-                new ones are added, existing ones are updated, and empty cells keep what is saved. Departments that don't exist
-                yet are created. You'll see a preview before anything is saved.
+                Every column is optional: a row needs only an employee ID or a name. Other columns in HR's file (row number,
+                salary, step…) are ignored. Staff are matched by employee ID, or by name when the row has none: new ones are
+                added, existing ones are updated, and empty cells keep what is saved. New staff without an ID get a temporary
+                one (NOID-…) and those without a department go to Unassigned; correct them later on the employee. Departments
+                that don't exist yet are created. You'll see a preview before anything is saved.
               </p>
             </FormNotice>
 
