@@ -8,7 +8,7 @@ import { ItemWithRelations } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
 import { storeLocationLabel } from '../../utils/location';
 import { getSlipDisplayName } from '../../utils/slip-upload';
-import { AssetRow, AssetState, AssetStatus, ItemTypeBadge } from './asset-state';
+import { AssetRow, AssetState, AssetStatus, ItemTypeBadge, requestLabel } from './asset-state';
 
 /** What a line of a receipt cost, as on its Model 19 (VAT or other charges included) */
 export const slipLineTotal = (item: ItemWithRelations): number => {
@@ -28,13 +28,6 @@ const STATE_WORDS: Record<AssetState, string> = {
   DISPOSED: 'disposed',
 };
 
-/** "2 in store · 1 issued": where the items of a receipt stand */
-export const slipStatusSummary = (rows: AssetRow[]): string => {
-  const counts = new Map<AssetState, number>();
-  for (const r of rows) counts.set(r.state, (counts.get(r.state) ?? 0) + 1);
-  return [...counts.entries()].map(([state, n]) => `${n} ${STATE_WORDS[state]}`).join(' · ');
-};
-
 /** How each state looks as a badge, in the colours used across the table */
 const STATE_BADGES: Record<AssetState, { label: string; tone: string }> = {
   RECEIPT_PENDING: { label: 'Receipt pending', tone: statusTone.pending },
@@ -46,18 +39,41 @@ const STATE_BADGES: Record<AssetState, { label: string; tone: string }> = {
 };
 
 /**
+ * How the items of a receipt stand, grouped: by state, and a pending request by its kind ("Issue pending",
+ * "Disposal pending"), as each item's own badge says it
+ */
+const standings = (rows: AssetRow[]) => {
+  const groups = new Map<string, { key: string; label: string; word: string; tone: string; n: number }>();
+  for (const r of rows) {
+    const pending = r.state === 'REQUEST_PENDING' && r.request ? requestLabel(r.request.transactionType, r.request.requestDetails).pending : undefined;
+    const key = pending ? `REQUEST:${pending}` : r.state;
+    const g = groups.get(key) ?? {
+      key,
+      label: pending ?? STATE_BADGES[r.state].label,
+      word: pending ? pending.toLowerCase() : STATE_WORDS[r.state],
+      tone: STATE_BADGES[r.state].tone,
+      n: 0,
+    };
+    groups.set(key, { ...g, n: g.n + 1 });
+  }
+  return [...groups.values()];
+};
+
+/** "2 in store · 1 issued": where the items of a receipt stand */
+export const slipStatusSummary = (rows: AssetRow[]): string => standings(rows).map(({ word, n }) => `${n} ${word}`).join(' · ');
+
+/**
  * The status of a Model 19 of several items, as badges: one normal badge when all its items stand the same way,
- * otherwise one badge per state with how many items are in it ("2 In store", "1 Issued").
+ * otherwise one badge per state with how many items are in it ("2 In store", "1 Issue pending").
  */
 export const SlipStatus: React.FC<{ rows: AssetRow[] }> = ({ rows }) => {
-  const counts = new Map<AssetState, number>();
-  for (const r of rows) counts.set(r.state, (counts.get(r.state) ?? 0) + 1);
-  if (counts.size === 1) return <AssetStatus row={{ ...rows[0], rejected: undefined }} />;
+  const list = standings(rows);
+  if (list.length === 1) return <AssetStatus row={{ ...rows[0], rejected: undefined }} />;
   return (
     <span className="inline-flex flex-wrap items-center gap-1" aria-label={slipStatusSummary(rows)}>
-      {[...counts.entries()].map(([state, n]) => (
-        <span key={state} className={`${pill} ${STATE_BADGES[state].tone}`}>
-          {n} {STATE_BADGES[state].label}
+      {list.map(({ key, label, tone, n }) => (
+        <span key={key} className={`${pill} ${tone}`}>
+          {n} {label}
         </span>
       ))}
     </span>

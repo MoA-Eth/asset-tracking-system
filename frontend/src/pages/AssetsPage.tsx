@@ -16,6 +16,7 @@ import {
   Copy,
   MoreVertical,
   Printer,
+  Info,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -32,6 +33,7 @@ import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { Model21PrintModal } from '../components/ui/Model21PrintModal';
 import { StockInForm, buildModel19Voucher, templateFromItem, templateFromSlip, ReceiptTemplate } from '../components/assets/ReceiptForm';
+import { FormNotice } from '../components/ui/FormKit';
 import { StockOutForm, buildModel22Voucher } from '../components/assets/IssueForm';
 import { TransferForm, buildModel21Voucher } from '../components/assets/TransferForm';
 import { DisposalForm, buildDisposalVoucher } from '../components/assets/DisposalForm';
@@ -1367,19 +1369,38 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               onIssue={canIssue && issuableOf(selectedSlipMembers).length > 0 ? () => issueSlip(selectedSlip!, selectedSlipMembers) : undefined}
               form={
                 issue?.slip === selectedSlip ? (
-                  <StockOutForm
-                    key={`issue-slip-${selectedSlip}`}
-                    availableItems={availableItems}
-                    departments={departments}
-                    employees={employees}
-                    initialItemIds={issue.itemIds}
-                    onCancel={() => setIssue(null)}
-                    onSuccess={(_result, voucher) => {
-                      setIssue(null);
-                      saved(issue.itemIds?.[0]);
-                      if (voucher) setVoucher22(voucher);
-                    }}
-                  />
+                  <div className="space-y-3">
+                    {/* The receipt's items that can't be issued now are named, with why, not just left out */}
+                    {(() => {
+                      const left = selectedSlipMembers.filter((g) => !(issue.itemIds ?? []).includes(g.row.item.id));
+                      if (left.length === 0) return null;
+                      const why = (g: AssetGroup) => {
+                        const r = g.row;
+                        if (r.state === 'REQUEST_PENDING' && r.request) {
+                          return `its ${requestLabel(r.request.transactionType, r.request.requestDetails).noun} ${r.request.ifmisSlipNumber} is waiting for approval`;
+                        }
+                        return r.state === 'ISSUED' ? 'it is issued' : r.state === 'DISPOSED' ? 'it is disposed of' : r.state === 'RECEIPT_PENDING' ? 'its receipt is not approved yet' : r.state === 'REJECTED' ? 'its receipt was rejected' : 'none of it is left in store';
+                      };
+                      return (
+                        <FormNotice icon={Info}>
+                          Not on this Model 22: {left.map((g) => `${g.row.item.name} (${why(g)})`).join('; ')}.
+                        </FormNotice>
+                      );
+                    })()}
+                    <StockOutForm
+                      key={`issue-slip-${selectedSlip}`}
+                      availableItems={availableItems}
+                      departments={departments}
+                      employees={employees}
+                      initialItemIds={issue.itemIds}
+                      onCancel={() => setIssue(null)}
+                      onSuccess={(_result, voucher) => {
+                        setIssue(null);
+                        saved(issue.itemIds?.[0]);
+                        if (voucher) setVoucher22(voucher);
+                      }}
+                    />
+                  </div>
                 ) : undefined
               }
               onClose={closeRecord}

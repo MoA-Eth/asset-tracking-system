@@ -2188,6 +2188,8 @@ describe('One row per Model 19', () => {
     expect(within(receipt).queryByRole('toolbar', { name: 'Receipt actions' })).toBeNull();
     const chosen = within(receipt).getAllByRole('combobox', { name: /store item/i }).map((c) => (c as HTMLSelectElement).value || c.textContent);
     expect(chosen).toHaveLength(2);
+    // The one left out is named, with why
+    expect(within(receipt).getByText('Not on this Model 22: HP Printer (it is issued).')).toBeInTheDocument();
     await user.click(within(receipt).getByRole('button', { name: 'Cancel' }));
     expect(within(receipt).getByRole('toolbar', { name: 'Receipt actions' })).toBeInTheDocument();
     expect(within(within(receipt).getByRole('toolbar', { name: 'Receipt actions' })).getByRole('button', { name: 'Issue (Model 22)' })).toBeInTheDocument();
