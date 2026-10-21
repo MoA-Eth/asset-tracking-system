@@ -16,7 +16,8 @@ const TEXT: Record<VoucherApprovalState, { title: string; detail: string }> = {
 };
 
 /** Printed at the top of a voucher so a copy made before approval can't pass for an approved one */
-export const VoucherStatusBanner: React.FC<{ state?: VoucherApprovalState }> = ({ state }) => {
+/** `note`: who returned or rejected the request, when and why */
+export const VoucherStatusBanner: React.FC<{ state?: VoucherApprovalState; note?: string }> = ({ state, note }) => {
   if (!state) return null;
   const Icon = state === 'REJECTED' ? XCircle : AlertTriangle;
   return (
@@ -31,6 +32,7 @@ export const VoucherStatusBanner: React.FC<{ state?: VoucherApprovalState }> = (
       <div>
         <p className="text-xs font-extrabold tracking-wide">{TEXT[state].title}</p>
         <p className="text-[11px] leading-snug">{TEXT[state].detail}</p>
+        {note && <p className="mt-1 text-[11px] font-semibold leading-snug">{note}</p>}
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { storeLocationLabel } from '../../utils/location';
 import { recallForm, rememberForm } from '../../utils/form-memory';
 import { useSlipRegister, usedMessage } from '../../hooks/useSlipRegister';
+import { approvalNoteOf } from '../../utils/approval-note';
 
 /** What an open request on an asset is called in the picker */
 /** An asset's status in words, for what a Model 21 can't be used for */
@@ -1062,6 +1063,7 @@ export const buildModel21Voucher = async (
   return {
     // Returned for correction is still waiting for approval
     approvalState: r.status === ApprovalStatus.PENDING || r.status === ApprovalStatus.RETURNED ? 'PENDING' : r.status === ApprovalStatus.REJECTED ? 'REJECTED' : undefined,
+    approvalNote: approvalNoteOf(r),
     model21No: r.ifmisSlipNumber || '—',
     fromEmployeeName: fromName,
     fromEmployeeId: fromEmp?.payrollId || '—',

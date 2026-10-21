@@ -37,6 +37,7 @@ export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, 
       title="Fixed Asset Disposal Form"
       number={voucher.disposalNo}
       approvalState={voucher.approvalState}
+      approvalNote={voucher.approvalNote}
       printedBy={voucher.printedBy}
     >
       {/* The table has twelve columns: print it across the long side of the page */}

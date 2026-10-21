@@ -51,13 +51,15 @@ interface VoucherShellProps {
   /** Optional line under the ministry name, e.g. the program */
   subheading?: string;
   approvalState?: VoucherApprovalState;
+  /** Who returned or rejected the request, when and why, printed under the banner */
+  approvalNote?: string;
   /** Who is printing; shown in the footer */
   printedBy?: string;
   children: React.ReactNode;
 }
 
 export const VoucherShell: React.FC<VoucherShellProps> = ({
-  isOpen, onClose, model, toolbarTitle, title, number, subheading, approvalState, printedBy, children,
+  isOpen, onClose, model, toolbarTitle, title, number, subheading, approvalState, approvalNote, printedBy, children,
 }) => {
   if (!isOpen) return null;
   return (
@@ -92,7 +94,7 @@ export const VoucherShell: React.FC<VoucherShellProps> = ({
           </div>
 
           <div className="relative z-10 space-y-5 text-xs">
-            <VoucherStatusBanner state={approvalState} />
+            <VoucherStatusBanner state={approvalState} note={approvalNote} />
 
             {/* Letterhead */}
             <div className="flex items-start justify-between gap-4 border-b border-slate-900 pb-3">

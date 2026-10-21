@@ -21,6 +21,7 @@ import { ProgramSelect } from './ProgramSelect';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { Part, SlipPreview } from './FormParts';
+import { approvalNoteOf } from '../../utils/approval-note';
 
 /** IFMIS slips are a page or two; a longer one is read this far and the rest flagged */
 const MAX_SLIP_PAGES = 30;
@@ -1303,6 +1304,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
 
   return {
     approvalState: pending ? 'PENDING' : rejected ? 'REJECTED' : undefined,
+    approvalNote: approvalNoteOf(approval),
     invModel19No: item.ifmisSlipNumber,
     provisionType: item.provisionType,
     poNumber: item.poNumber || '—',

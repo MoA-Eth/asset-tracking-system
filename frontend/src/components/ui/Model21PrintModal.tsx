@@ -30,6 +30,7 @@ export const Model21PrintModal: React.FC<Model21PrintModalProps> = ({ isOpen, on
       title="Fixed Asset Internal Transfer Form"
       number={voucher.model21No}
       approvalState={voucher.approvalState}
+      approvalNote={voucher.approvalNote}
       printedBy={voucher.printedBy}
     >
       <VoucherDetails

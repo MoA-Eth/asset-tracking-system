@@ -17,6 +17,7 @@ import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { costOf } from '../../utils/item-cost';
 import { getSystemSettings, useSystemSettings } from '../../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
+import { approvalNoteOf } from '../../utils/approval-note';
 
 /** Disposal types as IFMIS prints them in the Disposal Type column; another can be typed as IFMIS names it */
 export const DISPOSAL_TYPES = ['TRANSFER', 'DONATION', 'SALE', 'SCRAP'];
@@ -592,6 +593,7 @@ export const buildDisposalVoucher = (
   return {
     // Returned for correction is still waiting for approval
     approvalState: approval.status === 'PENDING' || approval.status === 'RETURNED' ? 'PENDING' : approval.status === 'REJECTED' ? 'REJECTED' : undefined,
+    approvalNote: approvalNoteOf(approval),
     disposalNo: approval.ifmisSlipNumber || '',
     dateGc,
     dateEc: approval.ifmisSlipDateEc || (dateGc ? formatGcToEc(dateGc) : undefined),

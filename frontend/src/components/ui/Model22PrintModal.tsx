@@ -31,6 +31,7 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, on
       title={disposal ? 'Articles Or Property Disposed Of (Write-off)' : 'Receipt For Articles Or Property Issued'}
       number={voucher.model22No}
       approvalState={voucher.approvalState}
+      approvalNote={voucher.approvalNote}
       printedBy={voucher.printedBy}
     >
       <VoucherDetails

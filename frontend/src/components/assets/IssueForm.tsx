@@ -20,6 +20,7 @@ import { readPdfPages, rowsToText, isModel19, isModel21, isModel22, isDisposalFo
 import { Part, SlipPreview } from './FormParts';
 import { cellClass, money } from './SlipLines';
 import { categoryLabel } from './asset-state';
+import { approvalNoteOf } from '../../utils/approval-note';
 
 // ─── Issue items (Model 22) ──────────────────────────────────────────────────
 
@@ -1050,6 +1051,7 @@ export const buildModel22Voucher = (
   return {
     // Returned for correction is still waiting for approval
     approvalState: approval.status === 'PENDING' || approval.status === 'RETURNED' ? 'PENDING' : approval.status === 'REJECTED' ? 'REJECTED' : undefined,
+    approvalNote: approvalNoteOf(approval),
     model22No: approval.ifmisSlipNumber || '',
     issuedDateGc,
     issuedDateEc: approval.ifmisSlipDateEc || approval.createdAtEc || formatGcToEc(issuedDateGc),

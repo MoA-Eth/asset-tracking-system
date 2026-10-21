@@ -47,6 +47,7 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
       number={voucher.invModel19No}
       subheading={voucher.programName || undefined}
       approvalState={voucher.approvalState}
+      approvalNote={voucher.approvalNote}
       printedBy={voucher.printedBy}
     >
       <VoucherDetails
