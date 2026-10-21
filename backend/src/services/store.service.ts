@@ -668,7 +668,7 @@ function inStoreSince(item: { history?: { action: string; dateGc: string }[]; if
 
 /** Adds up units by where they are: in store, with a custodian, or awaiting registration approval */
 function computeBalance(records: { status: string; notes?: string | null }[]): ItemBalance {
-  const balance: ItemBalance = { total: 0, issued: 0, available: 0, pending: 0 };
+  const balance: ItemBalance = { total: 0, issued: 0, available: 0, pending: 0, requested: 0 };
   for (const record of records) {
     const units = quantityOf(record);
     if (IN_STORE_STATUSES.includes(record.status)) balance.available += units;
@@ -686,13 +686,28 @@ async function attachBalances(items: ItemWithRelations[], rawItems: any[]): Prom
   const splits = rootIds.length
     ? await prisma.item.findMany({
         where: { parentItemId: { in: rootIds } },
-        select: { parentItemId: true, status: true, notes: true },
+        select: { id: true, parentItemId: true, status: true, notes: true },
+      })
+    : [];
+  // Units an issue or disposal request is waiting to take out of store: still on the shelf, no longer free to issue
+  const recordIds = [...rawItems.map((raw) => raw.id), ...splits.map((split) => split.id)];
+  const outgoing = recordIds.length
+    ? await prisma.transactionApproval.findMany({
+        where: { itemId: { in: recordIds }, status: 'PENDING', transactionType: { in: ['STOCK_OUT', 'DISPOSAL'] } },
+        select: { itemId: true, requestDetails: true },
       })
     : [];
   return items.map((item, index) => {
     const raw = rawItems[index];
     const records = raw.parentItemId ? [raw] : [raw, ...splits.filter((split) => split.parentItemId === raw.id)];
-    return { ...item, balance: computeBalance(records) };
+    const balance = computeBalance(records);
+    for (const request of outgoing) {
+      const record = records.find((r: any) => r.id === request.itemId);
+      if (!record || !IN_STORE_STATUSES.includes(record.status)) continue;
+      const asked = Number((request.requestDetails as any)?.quantity);
+      balance.requested += Number.isFinite(asked) && asked > 0 ? Math.min(asked, quantityOf(record)) : quantityOf(record);
+    }
+    return { ...item, balance };
   });
 }
 

@@ -315,6 +315,8 @@ export interface ItemBalance {
   available: number;
   /** Units of a registration still waiting for approval */
   pending: number;
+  /** Of the units in store, those a pending issue or disposal request is taking out: not free to issue */
+  requested?: number;
 }
 
 /** One asset as its holder sees it on "My assets": no costs, notes or other people's names */

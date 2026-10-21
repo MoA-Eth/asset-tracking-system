@@ -22,7 +22,7 @@ export interface AssetRecordProps {
   batch?: AssetRow;
   /** Batch totals: some units out, the rest in store */
   partly: boolean;
-  totals?: { total: number; issued: number; inStore: number };
+  totals?: { total: number; issued: number; inStore: number; requested?: number };
   /** Every request on this record, newest first */
   requests: TransactionApproval[];
   /** What can be done now (Issue, Transfer, Return, Edit…); the print actions go in their own group */
@@ -618,10 +618,12 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
           >
             <div className="space-y-3">
               {totals && (
-                <div className="grid grid-cols-3 gap-2 text-center">
+                <div className={`grid gap-2 text-center ${totals.requested ? 'grid-cols-4' : 'grid-cols-3'}`}>
                   {[
                     ['Received', totals.total],
                     ['Issued', totals.issued],
+                    // On a pending issue or disposal: still on the shelf, no longer free to issue
+                    ...(totals.requested ? [['Requested', totals.requested]] : []),
                     ['In store', totals.inStore],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-lg bg-slate-50 px-2 py-2">

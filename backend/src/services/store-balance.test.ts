@@ -62,6 +62,7 @@ const store = () => StoreService.getInstance();
 beforeEach(() => {
   vi.clearAllMocks();
   db.$transaction.mockImplementation(async (fn: any) => fn(db));
+  db.transactionApproval.findMany.mockResolvedValue([]);
   db.employee.findUnique.mockImplementation(async ({ where }: any) => employees[where.id] ?? null);
   db.item.update.mockResolvedValue({});
   db.item.create.mockResolvedValue({});
@@ -77,7 +78,7 @@ describe('item balance', () => {
         { parentItemId: 'item-1', status: 'UNDER_TRANSFER', notes: meta(1) },
       ]);
     const [item] = await store().getItems();
-    expect(item.balance).toEqual({ total: 10, issued: 4, available: 6, pending: 0 });
+    expect(item.balance).toEqual({ total: 10, issued: 4, available: 6, pending: 0, requested: 0 });
   });
 
   it('counts a pending registration in the total only, and leaves disposed units and rejected receipts out', async () => {
@@ -90,11 +91,25 @@ describe('item balance', () => {
       ])
       .mockResolvedValueOnce([]);
     const [pending, disposed, rejected, awaitingDisposal] = await store().getItems();
-    expect(pending.balance).toEqual({ total: 10, issued: 0, available: 0, pending: 10 });
-    expect(disposed.balance).toEqual({ total: 0, issued: 0, available: 0, pending: 0 });
-    expect(rejected.balance).toEqual({ total: 0, issued: 0, available: 0, pending: 0 });
+    expect(pending.balance).toEqual({ total: 10, issued: 0, available: 0, pending: 10, requested: 0 });
+    expect(disposed.balance).toEqual({ total: 0, issued: 0, available: 0, pending: 0, requested: 0 });
+    expect(rejected.balance).toEqual({ total: 0, issued: 0, available: 0, pending: 0, requested: 0 });
     // Units waiting for disposal approval are still in store
-    expect(awaitingDisposal.balance).toEqual({ total: 10, issued: 0, available: 10, pending: 0 });
+    expect(awaitingDisposal.balance).toEqual({ total: 10, issued: 0, available: 10, pending: 0, requested: 0 });
+  });
+
+  it('counts the units a pending issue or disposal is taking out as requested, the moment it is submitted', async () => {
+    db.item.findMany
+      .mockResolvedValueOnce([{ ...batch, status: 'PENDING_STOCK_OUT' }, { ...batch, id: 'item-2', status: 'PENDING_DISPOSAL' }])
+      .mockResolvedValueOnce([]);
+    db.transactionApproval.findMany.mockResolvedValue([
+      { itemId: 'item-1', requestDetails: { quantity: 4 } }, // 4 of the 10 asked for on a Model 22
+      { itemId: 'item-2', requestDetails: null }, // the whole record to be disposed of
+    ]);
+    const [issuing, disposing] = await store().getItems();
+    // Still on the shelf until approved, but no longer free to issue
+    expect(issuing.balance).toEqual({ total: 10, issued: 0, available: 10, pending: 0, requested: 4 });
+    expect(disposing.balance).toEqual({ total: 10, issued: 0, available: 10, pending: 0, requested: 10 });
   });
 });
 

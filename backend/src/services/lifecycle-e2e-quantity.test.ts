@@ -91,6 +91,7 @@ describe('Lifecycle E2E: Single batch item with quantity tracking across all sta
       available: 0,
       issued: 0,
       pending: 10,
+      requested: 0,
     });
     expect(pendingItem.status).toBe(ItemStatus.PENDING_STOCK_IN);
 
@@ -148,6 +149,7 @@ describe('Lifecycle E2E: Single batch item with quantity tracking across all sta
       available: 10,
       issued: 0,
       pending: 0,
+      requested: 0,
     });
 
     // Verify Executive Dashboard metrics at Phase 2:
@@ -217,6 +219,7 @@ describe('Lifecycle E2E: Single batch item with quantity tracking across all sta
       available: 6,
       issued: 4,
       pending: 0,
+      requested: 0,
     });
 
     // Verify Executive Dashboard metrics at Phase 3:
@@ -286,6 +289,7 @@ describe('Lifecycle E2E: Single batch item with quantity tracking across all sta
       available: 4,
       issued: 6,
       pending: 0,
+      requested: 0,
     });
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -368,6 +372,7 @@ describe('Lifecycle E2E: Single batch item with quantity tracking across all sta
       available: 6,
       issued: 4,
       pending: 0,
+      requested: 0,
     });
 
     // Verify Final Executive Dashboard metrics:

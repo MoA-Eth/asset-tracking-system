@@ -2170,6 +2170,16 @@ describe('One row per Model 19', () => {
     expect(within(within(receipt).getByRole('toolbar', { name: 'Receipt actions' })).getByRole('button', { name: 'Issue (Model 22)' })).toBeInTheDocument();
   });
 
+  it('takes the units on a pending issue off "in store" as soon as it is submitted', async () => {
+    vi.mocked(api.getItems).mockResolvedValue([
+      item('P1', 'Ballpoint pen', 'PENDING_STOCK_OUT', { ifmisSlipNumber: '0000090', itemType: 'CONSUMABLE', quantity: 50, balance: { total: 50, issued: 0, available: 50, pending: 0, requested: 10 } }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const row = (await screen.findByText('MOA-P1')).closest('tr')!;
+    expect(within(row).getByText('10 requested')).toBeInTheDocument();
+    expect(within(row).getByText('40 in store')).toBeInTheDocument();
+  });
+
   it('offers no issue when nothing on the receipt is in store', async () => {
     const user = userEvent.setup();
     vi.mocked(api.getItems).mockResolvedValue([

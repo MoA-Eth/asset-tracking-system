@@ -497,6 +497,8 @@ export interface ItemBalance {
   available: number;
   /** Units of a registration still waiting for approval */
   pending: number;
+  /** Of the units in store, those a pending issue or disposal request is taking out: not free to issue */
+  requested?: number;
 }
 
 export interface ItemWithRelations extends Item {

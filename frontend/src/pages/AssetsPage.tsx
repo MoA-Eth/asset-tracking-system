@@ -870,7 +870,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const { item } = row;
     const out = children.filter((c) => c.item.status === ItemStatus.ISSUED || c.item.status === ItemStatus.UNDER_TRANSFER);
     const issuedUnits = item.balance?.issued ?? out.reduce((acc, c) => acc + c.units, 0) + (row.state === 'ISSUED' ? row.units : 0);
-    const inStoreUnits = item.balance?.available ?? (row.state === 'ISSUED' ? 0 : row.units) + children.filter((c) => c.state === 'IN_STORE').reduce((acc, c) => acc + c.units, 0);
+    // Units a pending issue or disposal is taking out: still on the shelf, but no longer free, so not "in store"
+    const requestedUnits = item.balance?.requested ?? 0;
+    const inStoreUnits = Math.max(0, (item.balance?.available ?? (row.state === 'ISSUED' ? 0 : row.units) + children.filter((c) => c.state === 'IN_STORE').reduce((acc, c) => acc + c.units, 0)) - requestedUnits);
     const totalUnits = item.balance?.total ?? issuedUnits + inStoreUnits;
     // Disposed units left the batch for good; they're listed under it but not counted in it
     const disposed = children.filter((c) => c.item.status === ItemStatus.DISPOSED);
@@ -881,6 +883,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       out,
       issuedUnits,
       inStoreUnits,
+      requestedUnits,
       disposedUnits,
       recordsKind,
       totalUnits,
@@ -967,7 +970,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const nested = !batch && !!item.parentItemId && rows.some((r) => r.item.id === item.parentItemId);
     const orphanParent = !batch && !nested && item.parentItemId ? items.find((i) => i.id === item.parentItemId) : undefined;
     const children = batch?.group.children ?? [];
-    const { isBatch, out, issuedUnits, inStoreUnits, disposedUnits, recordsKind, totalUnits, holders } = batchSummary(row, children);
+    const { isBatch, out, issuedUnits, inStoreUnits, requestedUnits, disposedUnits, recordsKind, totalUnits, holders } = batchSummary(row, children);
+    // How the units stand: shown for a batch, and for any record with units on a pending request
+    const breakdown = isBatch || requestedUnits > 0;
 
     return (
       <tr
@@ -1013,12 +1018,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         </td>
         <td className="px-2.5 py-2 text-right tabular-nums text-slate-600">
           <span className="whitespace-nowrap">
-            {isBatch ? totalUnits : row.units} {uom.toLowerCase()}
+            {isBatch || requestedUnits > 0 ? totalUnits : row.units} {uom.toLowerCase()}
           </span>
           {/* One short line each, so a batch does not stretch the column */}
-          {isBatch && (
+          {breakdown && (
             <span className="mt-0.5 block font-sans text-[10px] font-normal leading-tight text-slate-500">
-              <span className="block whitespace-nowrap">{issuedUnits} issued</span>
+              {issuedUnits > 0 || isBatch ? <span className="block whitespace-nowrap">{issuedUnits} issued</span> : null}
+              {requestedUnits > 0 && <span className="block whitespace-nowrap text-amber-700">{requestedUnits} requested</span>}
               <span className="block whitespace-nowrap">{inStoreUnits} in store</span>
               {disposedUnits > 0 && <span className="block whitespace-nowrap">{disposedUnits} disposed</span>}
             </span>
@@ -1389,8 +1395,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               batch={selectedGroup && !selectedIsBatch ? selectedGroup.row : undefined}
               partly={!!selectedSummary?.partly}
               totals={
-                selectedSummary?.isBatch
-                  ? { total: selectedSummary.totalUnits, issued: selectedSummary.issuedUnits, inStore: selectedSummary.inStoreUnits }
+                selectedSummary?.isBatch || (selectedSummary?.requestedUnits ?? 0) > 0
+                  ? { total: selectedSummary.totalUnits, issued: selectedSummary.issuedUnits, inStore: selectedSummary.inStoreUnits, requested: selectedSummary.requestedUnits }
                   : undefined
               }
               requests={selectedRequests}
