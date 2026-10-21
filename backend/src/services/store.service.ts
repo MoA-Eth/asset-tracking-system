@@ -2574,6 +2574,28 @@ export class StoreService {
     }, { timeout: Math.min(20000 + ids.length * 1500, 120000) });
   }
 
+  /**
+   * A request returned for correction goes back to the Team Leader once it is corrected, with the rest of its voucher
+   * still returned (the other lines of its Model 19, Model 22 or disposal form). Nothing happens to a request that
+   * wasn't returned. `ref` is the request, or for a receipt the record it registers.
+   */
+  public async resubmitAfterCorrection(ref: { approvalId: string } | { itemId: string; transactionType: 'STOCK_IN' }, actorId: string): Promise<TransactionApproval[]> {
+    const include = { item: { select: { notes: true } } };
+    const approval: any = 'approvalId' in ref
+      ? await prisma.transactionApproval.findUnique({ where: { id: ref.approvalId }, include })
+      : await prisma.transactionApproval.findFirst({ where: { itemId: ref.itemId, transactionType: ref.transactionType as any, status: 'RETURNED' as any }, include });
+    if (!approval || approval.status !== 'RETURNED') return [];
+    const type = String(approval.transactionType);
+    const keyOf = (a: any) => `${String(a.ifmisSlipNumber ?? '').trim().toLowerCase()}|${type === 'STOCK_IN' ? String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase() : ''}`;
+    const slip = String(approval.ifmisSlipNumber ?? '').trim();
+    const voucherOfLines = ['STOCK_IN', 'STOCK_OUT', 'DISPOSAL'].includes(type) && slip && !slip.toUpperCase().startsWith('PENDING-');
+    const siblings: any[] = voucherOfLines
+      ? await prisma.transactionApproval.findMany({ where: { transactionType: type as any, status: 'RETURNED' as any, ifmisSlipNumber: { equals: slip, mode: 'insensitive' } }, include })
+      : [];
+    const ids = [approval.id, ...(Array.isArray(siblings) ? siblings : []).filter((a) => a.id !== approval.id && keyOf(a) === keyOf(approval)).map((a) => a.id)];
+    return this.resubmitReturned({ approvalIds: ids }, actorId);
+  }
+
   private async applyDecision(payload: ApprovalActionRequest, db: any, voucherTotal?: number): Promise<TransactionApproval> {
     const approval = await db.transactionApproval.findUnique({ where: { id: payload.approvalId } });
     if (!approval) throw new NotFoundError('This request no longer exists. Refresh the list.');

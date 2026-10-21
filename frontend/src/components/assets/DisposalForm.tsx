@@ -292,7 +292,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       const fileUrl = copy ? (await api.uploadSlip(copy)).url : undefined;
       if (editApproval) {
         const res = await api.updateDisposal(editApproval.id, { ...payload, ifmisSlipAttachmentUrl: fileUrl });
-        toast.success('Disposal request updated', `The request for ${editApproval.itemCode} was corrected. ${editApproval.status === 'RETURNED' ? 'It stays returned for correction until it is resubmitted.' : 'It is still waiting for Team Leader endorsement.'}`);
+        toast.success('Disposal request updated', `The request for ${editApproval.itemCode} was corrected. ${editApproval.status === 'RETURNED' ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`);
         onSuccess(res.approval);
         return;
       }
@@ -525,7 +525,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       <FormFooter
         accent="emerald"
         submitting={submitting}
-        submitLabel={isEdit ? 'Save changes' : 'Submit for approval'}
+        submitLabel={isEdit ? (editApproval?.status === 'RETURNED' ? 'Save and resubmit' : 'Save changes') : 'Submit for approval'}
         missingFields={missingFields}
         fieldTargets={{
           'disposal form no.': '#disposal-no',

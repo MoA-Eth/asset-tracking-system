@@ -163,3 +163,36 @@ describe('An issue returned for correction', () => {
       .rejects.toMatchObject({ statusCode: 409, message: expect.stringContaining('Model 22 No. 0000300 was rejected by Getnet Taye on 2026-10-20: "Wrong store"') });
   });
 });
+
+describe('Saving a correction of a returned request', () => {
+  beforeEach(async () => {
+    await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'RETURN', reviewedById: 'leader', reviewRemarks: 'Price in USD' });
+    vi.clearAllMocks();
+    db.$transaction.mockImplementation(async (fn: any) => fn(db));
+    db.employee.findUnique.mockImplementation(async ({ where }: any) => people[where.id] ?? null);
+    db.item.update.mockResolvedValue({});
+    db.auditLog.create.mockResolvedValue({});
+    db.transactionApproval.findFirst.mockImplementation(async ({ where }: any) => lines.find((l) => l.itemId === where.itemId && l.status === where.status) ?? null);
+    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
+      where.id?.in ? lines.filter((l) => where.id.in.includes(l.id))
+      : lines.filter((l) => l.status === where.status && l.transactionType === where.transactionType && l.ifmisSlipNumber.toLowerCase() === where.ifmisSlipNumber.equals.toLowerCase()));
+  });
+
+  it('resubmits it, with the rest of its Model 19, to the Team Leader', async () => {
+    const result = await store().resubmitAfterCorrection({ itemId: 'item-A', transactionType: 'STOCK_IN' }, 'encoder');
+    expect(result.map((a) => a.id)).toEqual(['A', 'B']);
+    expect(lines.map((l) => [l.status, l.currentStage])).toEqual([['PENDING', 1], ['PENDING', 1]]);
+  });
+
+  it('leaves another receipt on the same number but another PO alone', async () => {
+    lines.push(line('C', { status: 'RETURNED', item: { notes: JSON.stringify({ quantity: 1, poNumber: 'PO-8' }) } }));
+    await store().resubmitAfterCorrection({ approvalId: 'A' }, 'encoder');
+    expect(lines.find((l) => l.id === 'C')!.status).toBe('RETURNED');
+  });
+
+  it('does nothing to a request that was not returned', async () => {
+    lines.push(line('D'));
+    expect(await store().resubmitAfterCorrection({ approvalId: 'D' }, 'encoder')).toEqual([]);
+    expect(db.transactionApproval.update).not.toHaveBeenCalled();
+  });
+});

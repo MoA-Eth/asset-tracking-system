@@ -123,7 +123,9 @@ export class ItemController {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const payload: UpdateStockInRequest = req.body;
     const item = await this.store.updateStockIn(id, payload, req.user!.id);
-    return sendSuccess(res, { item }, 'Receipt updated');
+    // Corrected after it was returned: back to the Team Leader, with the rest of its Model 19
+    const resubmitted = await this.store.resubmitAfterCorrection({ itemId: id, transactionType: 'STOCK_IN' }, req.user!.id);
+    return sendSuccess(res, { item, resubmitted: resubmitted.length }, resubmitted.length ? 'Receipt corrected and resubmitted' : 'Receipt updated');
   });
 
   /** PATCH /api/items/:id/ifmis-tag  { tag } — a fixed asset's IFMIS tag number (empty clears it) */
@@ -170,7 +172,9 @@ export class ItemController {
     const approvalId = Array.isArray(req.params.approvalId) ? req.params.approvalId[0] : req.params.approvalId;
     const payload: UpdateStockOutRequest = req.body;
     const approval = await this.store.updateStockOut(approvalId, payload, req.user!.id);
-    return sendSuccess(res, { approval }, 'Issue request updated');
+    // Corrected after it was returned: back to the Team Leader
+    const resubmitted = await this.store.resubmitAfterCorrection({ approvalId }, req.user!.id);
+    return sendSuccess(res, { approval: resubmitted.find((a) => a.id === approvalId) ?? approval, resubmitted: resubmitted.length }, resubmitted.length ? 'Issue request corrected and resubmitted' : 'Issue request updated');
   });
 
   /**
@@ -201,7 +205,9 @@ export class ItemController {
     const approvalId = Array.isArray(req.params.approvalId) ? req.params.approvalId[0] : req.params.approvalId;
     const payload: UpdateDisposalRequest = req.body ?? {};
     const approval = await this.store.updateDisposal(approvalId, payload, req.user!.id);
-    return sendSuccess(res, { approval }, 'Disposal request updated');
+    // Corrected after it was returned: back to the Team Leader
+    const resubmitted = await this.store.resubmitAfterCorrection({ approvalId }, req.user!.id);
+    return sendSuccess(res, { approval: resubmitted.find((a) => a.id === approvalId) ?? approval, resubmitted: resubmitted.length }, resubmitted.length ? 'Disposal request corrected and resubmitted' : 'Disposal request updated');
   });
 
   /**
@@ -236,7 +242,9 @@ export class ItemController {
     const approvalId = Array.isArray(req.params.approvalId) ? req.params.approvalId[0] : req.params.approvalId;
     const payload: UpdateReturnRequest = req.body;
     const approval = await this.store.updateReturn(approvalId, payload, req.user!.id);
-    return sendSuccess(res, { approval }, 'Return request updated');
+    // Corrected after it was returned: back to the Team Leader
+    const resubmitted = await this.store.resubmitAfterCorrection({ approvalId }, req.user!.id);
+    return sendSuccess(res, { approval: resubmitted.find((a) => a.id === approvalId) ?? approval, resubmitted: resubmitted.length }, resubmitted.length ? 'Return request corrected and resubmitted' : 'Return request updated');
   });
 
   /**
@@ -247,7 +255,9 @@ export class ItemController {
     const approvalId = Array.isArray(req.params.approvalId) ? req.params.approvalId[0] : req.params.approvalId;
     const payload: UpdateTransferRequest = req.body;
     const approval = await this.store.updateTransfer(approvalId, payload, req.user!.id);
-    return sendSuccess(res, { approval }, 'Transfer request updated');
+    // Corrected after it was returned: back to the Team Leader
+    const resubmitted = await this.store.resubmitAfterCorrection({ approvalId }, req.user!.id);
+    return sendSuccess(res, { approval: resubmitted.find((a) => a.id === approvalId) ?? approval, resubmitted: resubmitted.length }, resubmitted.length ? 'Transfer request corrected and resubmitted' : 'Transfer request updated');
   });
 
   /**

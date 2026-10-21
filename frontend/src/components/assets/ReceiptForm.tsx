@@ -41,7 +41,7 @@ export interface StockInFormProps {
   initialSlip?: File;
   /** Receipt lines already registered, to warn when a Model 19 line is received a second time */
   registered?: { slipNumber?: string; name: string; itemCode: string }[];
-  /** Correcting a receipt returned for correction: it stays returned until it is resubmitted */
+  /** Correcting a receipt returned for correction: saving it resubmits it to the Team Leader */
   returned?: boolean;
   /** Receipts rejected for good: their Model 19 No. and PO can't be received again */
   rejectedReceipts?: { slipNumber: string; poNumber?: string; reason?: string; by?: string; on?: string }[];
@@ -771,7 +771,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           'Receipt updated',
           extraLines.length > 0
             ? `${editItem.itemCode} was corrected and ${extraLines.length} item${extraLines.length === 1 ? '' : 's'} added to Model 19 #${slipNo}. All wait for Team Leader endorsement.`
-            : `${editItem.itemCode} was corrected. ${returned ? 'It stays returned for correction until it is resubmitted.' : 'It is still waiting for Team Leader endorsement.'}`
+            : `${editItem.itemCode} was corrected. ${returned ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`
         );
         onSuccess(res);
       } catch (err: any) {
@@ -1222,7 +1222,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       <FormFooter
         accent="emerald"
         submitting={submitting}
-        submitLabel={isEdit ? (extraLines.length > 0 ? `Save changes and add ${extraLines.length} item${extraLines.length === 1 ? '' : 's'}` : 'Save changes') : extraLines.length > 0 ? `Submit ${extraLines.length + 1} items for approval` : 'Submit for approval'}
+        submitLabel={isEdit ? (extraLines.length > 0 ? `Save changes and add ${extraLines.length} item${extraLines.length === 1 ? '' : 's'}` : returned ? 'Save and resubmit' : 'Save changes') : extraLines.length > 0 ? `Submit ${extraLines.length + 1} items for approval` : 'Submit for approval'}
         allowIncomplete={true}
         submitDisabled={hasDuplicates}
         note={

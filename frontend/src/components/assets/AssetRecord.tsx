@@ -307,7 +307,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                   </span>
                   {r.returnRemarks && <p className="mt-0.5 text-[12px] text-amber-900">Reason: {r.returnRemarks}</p>}
                   <p className="mt-0.5 text-[11px] text-slate-500">
-                    Correct it with Edit, then Resubmit: it goes back to the Team Leader. For a voucher of several items, correct each item, then resubmit the voucher once.
+                    Correct it with Edit and save: it goes back to the Team Leader. If nothing needs changing, use Resubmit.
                   </p>
                 </FormNotice>
               );

@@ -538,7 +538,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           purpose: purpose.trim() || undefined,
           remark: remark.trim() || undefined,
         });
-        toast.success('Issue request updated', `The request for ${editApproval.itemCode} was corrected. ${editApproval.status === 'RETURNED' ? 'It stays returned for correction until it is resubmitted.' : 'It is still waiting for Team Leader endorsement.'}`);
+        toast.success('Issue request updated', `The request for ${editApproval.itemCode} was corrected. ${editApproval.status === 'RETURNED' ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`);
         onSuccess(res.approval);
       } catch (err: any) {
         setFormError(`Update failed: ${err.message || 'Server error'}`);
@@ -978,7 +978,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         submitting={submitting}
         submitLabel={
           isEdit
-            ? 'Save changes'
+            ? editApproval?.status === 'RETURNED' ? 'Save and resubmit' : 'Save changes'
             : isDisposal
               ? rows.length > 1 ? `Submit disposal of ${rows.length} items for approval` : 'Submit disposal for approval'
               : rows.length > 1 ? `Submit ${rows.length} items for approval` : 'Submit for approval'
