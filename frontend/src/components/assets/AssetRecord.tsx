@@ -352,7 +352,9 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <FormNotice icon={Lock} tone="warn">
                   <span className="font-bold">Rejected record · Archived</span>
                   <p className="mt-0.5 text-[11px] text-slate-500">
-                    This record was rejected and is kept for audit history. Rejected batches and records cannot be edited: use Duplicate as new receipt to receive it again.
+                    {row.rejected?.rejectionFinal
+                      ? 'This receipt was rejected for good and is kept for audit history. Its Model 19 No. and PO can\'t be received again.'
+                      : 'This record was rejected and is kept for audit history. Rejected batches and records cannot be edited: use Duplicate as new receipt to receive it again.'}
                   </p>
                 </FormNotice>
               );

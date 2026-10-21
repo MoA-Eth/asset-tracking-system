@@ -2281,3 +2281,21 @@ describe('Receiving form: a receipt rejected for good', () => {
     expect(within(panel).queryByText("Rejected receipt: can't be received again")).toBeNull();
   });
 });
+
+describe('Assets: a receipt rejected for good', () => {
+  it('is not offered as a copy, while one rejected before rejections were final still is', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      ...approvals,
+      request('NO-X1', 'STOCK_IN', 'X1', { status: 'REJECTED', rejectionFinal: true, reviewedAtGc: '2026-10-21', reviewRemarks: 'Not our delivery' }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-X1');
+    // Nothing is left to do with it: no actions menu at all
+    expect(screen.queryByRole('button', { name: 'Actions for MOA-X1' })).toBeNull();
+    await user.click(screen.getByText('MOA-X1'));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-X1' });
+    expect(within(record).getByText(/rejected for good and is kept for audit history/)).toBeInTheDocument();
+    expect(within(record).queryByRole('button', { name: 'Duplicate as new receipt' })).toBeNull();
+  });
+});

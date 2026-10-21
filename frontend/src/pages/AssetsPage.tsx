@@ -758,6 +758,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return undefined;
   };
 
+  /**
+   * Records whose receipt was rejected for good: they can't be received again, so they aren't offered as a copy.
+   * Receipts rejected before rejections were final were corrections, and keep Duplicate as new receipt.
+   */
+  const finallyRejected = useMemo(
+    () => new Set(approvals.filter((a) => a.transactionType === 'STOCK_IN' && a.status === ApprovalStatus.REJECTED && a.rejectionFinal).map((a) => a.itemId)),
+    [approvals],
+  );
   /** Receipts rejected for good, so the receive form refuses their Model 19 No. and PO */
   const rejectedReceipts = useMemo(
     () => approvals
@@ -803,14 +811,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   const actionsFor = (row: AssetRow): RowAction[] => {
     const { item, request } = row;
-    // A rejected record: the one thing left to do is receive it again
+    // A rejected record: the one thing left to do is receive it again, unless it was rejected for good
     if (row.state === 'REJECTED' || item.status === ItemStatus.REJECTED) {
       return [
         {
           label: 'Duplicate as new receipt',
           icon: Copy,
           onClick: () => duplicateItem(item),
-          hidden: !canReceive || !!item.parentItemId,
+          hidden: !canReceive || !!item.parentItemId || finallyRejected.has(item.id),
         },
       ];
     }
@@ -1183,7 +1191,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               resubmitAction(returnedReceiptOf(members)),
               { label: 'Issue (Model 22)', icon: PackageMinus, onClick: () => issueSlip(key, members), hidden: !canIssue || issuableOf(members).length === 0 },
               { label: 'Print Model 19', icon: Printer, onClick: () => printSlip(members) },
-              { label: 'Duplicate as new receipt', icon: Copy, onClick: () => duplicateSlip(members), hidden: !canReceive },
+              { label: 'Duplicate as new receipt', icon: Copy, onClick: () => duplicateSlip(members), hidden: !canReceive || members.every((g) => finallyRejected.has(g.row.item.id)) },
             ]}
           />
         </td>
@@ -1442,7 +1450,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               rows={selectedSlipMembers.map((g) => g.row)}
               onOpenItem={(id) => openRecord(id, selectedSlip!)}
               onPrint={() => printSlip(selectedSlipMembers)}
-              onDuplicate={canReceive ? () => duplicateSlip(selectedSlipMembers) : undefined}
+              onDuplicate={canReceive && !selectedSlipMembers.every((g) => finallyRejected.has(g.row.item.id)) ? () => duplicateSlip(selectedSlipMembers) : undefined}
               onIssue={canIssue && issuableOf(selectedSlipMembers).length > 0 ? () => issueSlip(selectedSlip!, selectedSlipMembers) : undefined}
               onResubmit={(() => {
                 const returned = returnedReceiptOf(selectedSlipMembers);
