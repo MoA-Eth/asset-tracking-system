@@ -84,6 +84,15 @@ const FILTERS: { value: AssetFilter; label: string }[] = [
 ];
 
 export type SortColumn = 'activity' | 'name' | 'status' | 'units' | 'where' | 'slip' | 'cost';
+const SORT_LABELS: Record<SortColumn, string> = {
+  activity: 'latest activity',
+  name: 'asset',
+  status: 'status',
+  units: 'quantity',
+  where: 'held by / where',
+  slip: 'slip / date',
+  cost: 'unit cost',
+};
 export type SortDirection = 'asc' | 'desc';
 const SORT_COLUMNS: SortColumn[] = ['activity', 'name', 'status', 'units', 'where', 'slip', 'cost'];
 
@@ -958,9 +967,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             {nested && <span className="mr-1 text-slate-400" aria-hidden="true">↳</span>}
             {item.name}
           </span>
-          {/* The code and the type on one line, so a row is two lines high */}
-          <span className="flex items-center gap-x-1.5 whitespace-nowrap">
-            <span className={table.code}>{item.itemCode}</span>
+          {/* The code and the type on one line, so a row is two lines high; the type goes under the code when the column is narrow */}
+          <span className="flex flex-wrap items-center gap-x-1.5">
+            <span className={`${table.code} whitespace-nowrap`}>{item.itemCode}</span>
             <ItemTypeBadge type={item.itemType} />
           </span>
           {orphanParent && <span className="block text-[10px] text-slate-500">Part of {orphanParent.itemCode}</span>}
@@ -976,10 +985,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </button>
           )}
         </td>
-        <td className="px-3 py-2">
+        <td className="px-2.5 py-2">
           <AssetStatus row={row} partly={isBatch && issuedUnits > 0 && inStoreUnits > 0} />
         </td>
-        <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+        <td className="px-2.5 py-2 text-right tabular-nums text-slate-600">
           <span className="whitespace-nowrap">
             {isBatch ? totalUnits : row.units} {uom.toLowerCase()}
           </span>
@@ -992,10 +1001,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </span>
           )}
         </td>
-        <td className="px-3 py-2 text-slate-700">
-          <span className="block">{isBatch && row.state !== 'ISSUED' && inStoreUnits === 0 ? '—' : row.where}</span>
+        <td className="px-2.5 py-2 text-slate-700">
+          <span className="block">{row.state === 'DISPOSED' || (isBatch && row.state !== 'ISSUED' && inStoreUnits === 0) ? '—' : row.where}</span>
           {row.goingTo && (
-            <span className="block max-w-[200px] truncate text-xs text-amber-800" title={`→ ${row.goingTo}`}>
+            <span className="block text-xs text-amber-800">
               → {row.goingTo}
             </span>
           )}
@@ -1005,12 +1014,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </span>
           )}
         </td>
-        <td className="px-3 py-2 tabular-nums text-slate-700 whitespace-nowrap">
+        <td className="px-2.5 py-2 tabular-nums text-slate-700 whitespace-nowrap">
           <span className="block">{item.ifmisSlipNumber || '—'}</span>
           <span className="block text-xs text-slate-500">{item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10) || '—'}</span>
         </td>
-        <td className="px-3 py-2 text-right tabular-nums text-slate-700 whitespace-nowrap">{formatETB(item.unitCostETB)}</td>
-        <td className={`px-3 py-2 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
+        <td className="px-2.5 py-2 text-right tabular-nums text-slate-700 whitespace-nowrap">{Number(item.unitCostETB) > 0 ? formatETB(item.unitCostETB) : '—'}</td>
+        <td className={`px-2.5 py-2 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
           <RowActionsMenu
             label={item.itemCode}
             actions={[
@@ -1050,28 +1059,27 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         }}
         className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${touched ? table.rowHighlight : table.row}`}
       >
-        <td className="py-2 pr-3 pl-5">
+        <td className="py-2 pr-2.5 pl-5">
           <span className="block text-slate-900">{slipNames(rowsOf.map((r) => r.item.name))}</span>
           <span className="flex items-center gap-x-1.5 whitespace-nowrap text-xs text-slate-600">
             <span className="rounded-[4px] border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-semibold text-slate-700">Model 19</span>
-            {members.length} items
           </span>
         </td>
-        <td className="px-3 py-2">
+        <td className="px-2.5 py-2">
           <SlipStatus rows={rowsOf} />
         </td>
-        <td className="px-3 py-2 text-right tabular-nums text-slate-600 whitespace-nowrap">{members.length} items</td>
-        <td className="px-3 py-2 text-slate-700">{places.length === 1 ? places[0] : 'Several places'}</td>
-        <td className="px-3 py-2 tabular-nums text-slate-700 whitespace-nowrap">
+        <td className="px-2.5 py-2 text-right tabular-nums text-slate-600 whitespace-nowrap">{members.length} items</td>
+        <td className="px-2.5 py-2 text-slate-700">{places.length === 1 ? places[0] : 'Several places'}</td>
+        <td className="px-2.5 py-2 tabular-nums text-slate-700 whitespace-nowrap">
           <span className="block">{lead.ifmisSlipNumber}</span>
           <span className="block text-xs text-slate-500">{lead.ifmisSlipDateGc || String(lead.createdAtGc || '').slice(0, 10) || '—'}</span>
           {lead.poNumber && <span className="block text-xs text-slate-500">PO {lead.poNumber}</span>}
         </td>
-        <td className="px-3 py-2 text-right tabular-nums text-slate-700 whitespace-nowrap">
+        <td className="px-2.5 py-2 text-right tabular-nums text-slate-700 whitespace-nowrap">
           {formatETB(total)}
           <span className="block text-[10px] text-slate-500">total</span>
         </td>
-        <td className={`px-3 py-2 ${table.actionsCell}`}>
+        <td className={`px-2.5 py-2 ${table.actionsCell}`}>
           <RowActionsMenu
             label={`Model 19 ${lead.ifmisSlipNumber}`}
             actions={[{ label: 'Print Model 19', icon: Printer, onClick: () => printSlip(members) }]}
@@ -1384,7 +1392,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 resultCountText={`${sortedShown.length} ${sortedShown.length === 1 ? 'group' : 'groups'}`}
               >
                 {/* Status Filter */}
-                <FilterSection label="Lifecycle Status">
+                <FilterSection label="Status">
                   <div className="flex flex-wrap gap-1.5 pt-0.5">
                     {FILTERS.map((f) => (
                       <FilterPill
@@ -1399,11 +1407,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 </FilterSection>
 
                 {/* Store & Location */}
-                <FilterSection label="Store & Custody Location" htmlFor="filter-store-location">
+                <FilterSection label="Store or location" htmlFor="filter-store-location">
                   <FilterSelect
                     id="filter-store-location"
                     ariaLabel="Filter by store location"
-                    placeholder="All Stores & Locations"
+                    placeholder="All stores and locations"
                     value={locationFilter}
                     onChange={setLocationFilter}
                     options={locations.map((loc) => ({
@@ -1414,11 +1422,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 </FilterSection>
 
                 {/* Asset Category */}
-                <FilterSection label="Asset Category" htmlFor="filter-asset-category">
+                <FilterSection label="Category" htmlFor="filter-asset-category">
                   <FilterSelect
                     id="filter-asset-category"
                     ariaLabel="Filter by asset category"
-                    placeholder="All Categories"
+                    placeholder="All categories"
                     value={categoryFilter}
                     onChange={setCategoryFilter}
                     options={CATEGORY_OPTIONS}
@@ -1426,11 +1434,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 </FilterSection>
 
                 {/* Fixed asset or consumable item */}
-                <FilterSection label="Item Type" htmlFor="filter-item-type">
+                <FilterSection label="Item type" htmlFor="filter-item-type">
                   <FilterSelect
                     id="filter-item-type"
                     ariaLabel="Filter by item type"
-                    placeholder="All Types"
+                    placeholder="All types"
                     value={typeFilter}
                     onChange={setTypeFilter}
                     options={ITEM_TYPE_OPTIONS.map((t) => ({ value: t.value, label: `${t.label} (${t.amharic})` }))}
@@ -1438,7 +1446,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 </FilterSection>
 
                 {/* Stock waiting too long to be issued */}
-                <FilterSection label="Time in Store">
+                <FilterSection label="Time in store">
                   <div className="flex flex-wrap gap-1.5 pt-0.5">
                     <FilterPill
                       label={`Over ${STALE_IN_STORE_DAYS} days`}
@@ -1510,7 +1518,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
                     >
                       <Printer className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Print Register</span>
+                      <span>Print register</span>
                     </button>
                   </div>
                 )}
@@ -1608,7 +1616,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               )}
               {(sortColumn !== 'activity' || sortDirection !== 'desc') && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
-                  <span>Sorted by: {sortColumn} ({sortDirection})</span>
+                  <span>Sorted by {SORT_LABELS[sortColumn]} ({sortDirection === 'asc' ? 'ascending' : 'descending'})</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -1671,7 +1679,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="pl-5 pr-3 py-1.5 min-w-[230px]"
+                      thClassName="pl-5 pr-3 py-1.5 min-w-[256px]"
                     />
                     <SortableHeader
                       label="Status"
@@ -1679,7 +1687,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-3 py-1.5 w-36"
+                      thClassName="px-2.5 py-1.5 w-36"
                     />
                     <SortableHeader
                       label="Qty"
@@ -1688,7 +1696,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
                       align="right"
-                      thClassName="px-3 py-1.5 w-20 text-right"
+                      thClassName="px-2.5 py-1.5 w-20 text-right"
                     />
                     <SortableHeader
                       label="Held by / where"
@@ -1696,7 +1704,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-3 py-1.5 min-w-[170px]"
+                      thClassName="px-2.5 py-1.5 min-w-[150px]"
                     />
                     <SortableHeader
                       label="Slip / Date"
@@ -1704,7 +1712,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-3 py-1.5 w-36 whitespace-nowrap"
+                      thClassName="px-2.5 py-1.5 w-36 whitespace-nowrap"
                     />
                     <SortableHeader
                       label="Unit cost"
@@ -1713,9 +1721,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
                       align="right"
-                      thClassName="px-3 py-1.5 w-28 text-right whitespace-nowrap"
+                      thClassName="px-2.5 py-1.5 w-28 text-right whitespace-nowrap"
                     />
-                    <th className={`px-3 py-1.5 ${table.actionsHead}`}>
+                    <th className={`px-2.5 py-1.5 ${table.actionsHead}`}>
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>

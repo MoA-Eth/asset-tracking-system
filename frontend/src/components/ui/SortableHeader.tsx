@@ -35,7 +35,8 @@ export const SortableHeader: React.FC<SortableHeaderProps> = ({
         type="button"
         onClick={() => onSort(columnKey)}
         className={`group inline-flex items-center gap-1.5 font-normal hover:text-slate-900 cursor-pointer select-none transition-colors ${isSorted ? 'text-slate-900' : 'text-slate-600'} ${
-          align === 'right' ? 'ml-auto' : align === 'center' ? 'mx-auto' : ''
+          // A right-aligned column keeps its arrow on the left, so the label ends where the figures below it end
+          align === 'right' ? 'ml-auto flex-row-reverse' : align === 'center' ? 'mx-auto' : ''
         } ${className}`}
         title={title || `Sort by ${label}`}
       >
