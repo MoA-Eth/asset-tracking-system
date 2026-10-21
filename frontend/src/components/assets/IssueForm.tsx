@@ -726,7 +726,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
       </Part>
 
-      <Part title={rows.length > 1 ? `Items (${rows.length})` : 'Items'} aside={<span className="text-[11px] text-slate-500">From one store. Unit and price are as received on Model 19.</span>}>
+      <Part title={rows.length > 1 ? `Items (${rows.length})` : 'Items'} aside={<span className="text-[11px] text-slate-500">From one store. Unit price as received on Model 19, without VAT or charges, as IFMIS keeps unit cost.</span>}>
         <div className="overflow-hidden rounded-md border border-slate-200">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-xs">
