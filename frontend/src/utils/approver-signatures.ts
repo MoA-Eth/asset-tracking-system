@@ -1,4 +1,5 @@
 import { TransactionApproval, Employee } from '../types/asset-management';
+import { approvalPolicy } from '../components/assets/slip-groups';
 
 export interface ApproverProfile {
   role: 'TEAM_LEADER' | 'DEPARTMENT_HEAD' | 'CHIEF_DIRECTOR';
@@ -65,8 +66,11 @@ export interface SignatoryItem {
 }
 
 export function isChiefDirectorApproval(totalAmount?: number, approval?: TransactionApproval): boolean {
-  if (approval?.requiredRole === 'CHIEF_DIRECTOR') return true;
+  // Who actually signed: a Chief Director who approved is printed as such
   if (approval?.reviewedBy?.role === 'CHIEF_DIRECTOR') return true;
+  // Otherwise the Department Head, while the Chief Director step is off
+  if (!approvalPolicy.chiefDirectorAboveThreshold) return false;
+  if (approval?.requiredRole === 'CHIEF_DIRECTOR') return true;
   const amount = Number(totalAmount ?? approval?.totalAmount ?? 0);
   return amount > CHIEF_DIRECTOR_THRESHOLD_ETB;
 }

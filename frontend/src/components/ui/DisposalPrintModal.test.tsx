@@ -1,9 +1,10 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { DisposalPrintModal } from './DisposalPrintModal';
 import { buildDisposalVoucher } from '../assets/DisposalForm';
 import { DisposalVoucher, TransactionApproval } from '../../types/asset-management';
+import { approvalPolicy } from '../assets/slip-groups';
 
 const voucher: DisposalVoucher = {
   approvalState: 'PENDING',
@@ -98,7 +99,21 @@ describe('a disposal form of several assets', () => {
 });
 
 describe('who signs a disposal form', () => {
+  afterEach(() => {
+    approvalPolicy.chiefDirectorAboveThreshold = false;
+  });
+  const vehicle = {
+    id: 'R1', transactionType: 'DISPOSAL', itemId: 'V1', itemCode: 'MOA-VEH-1', itemName: 'Land Cruiser', status: 'APPROVED', currentStage: 2,
+    ifmisSlipNumber: 'D-9', createdAtGc: '2026-10-21', requestDetails: { quantity: 1, reason: 'SALE', bookValue: 0 },
+  } as unknown as TransactionApproval;
+
+  it('is the Department Head above 10 million while the Chief Director step is off', () => {
+    const v = buildDisposalVoucher(vehicle, { item: { unitCostETB: 15_000_000, quantity: 1 } as any, employees: [] });
+    expect(v.signatories?.[4].label).toBe('Approved By (Department Head)');
+  });
+
   it('is the Chief Executive Officer when the original cost is above 10 million, whatever the book value', () => {
+    approvalPolicy.chiefDirectorAboveThreshold = true;
     const approval = {
       id: 'R1', transactionType: 'DISPOSAL', itemId: 'V1', itemCode: 'MOA-VEH-1', itemName: 'Land Cruiser', status: 'APPROVED', currentStage: 2,
       ifmisSlipNumber: 'D-9', createdAtGc: '2026-10-21', requestDetails: { quantity: 1, reason: 'SALE', bookValue: 0 },

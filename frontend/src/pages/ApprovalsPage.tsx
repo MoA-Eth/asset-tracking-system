@@ -51,7 +51,7 @@ import { useToast } from '../context/ToastContext';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { getSlipDisplayName } from '../utils/slip-upload';
 import { RefreshButton } from '../components/ui/RefreshButton';
-import { approvalRowKey, groupBySlip, HIGH_VALUE_THRESHOLD, isSlipGroup, slipNames, voucherName } from '../components/assets/slip-groups';
+import { approvalPolicy, approvalRowKey, groupBySlip, isSlipGroup, needsChiefDirector, slipNames, voucherName } from '../components/assets/slip-groups';
 import { formatETB } from '../utils/eth-date';
 import { shortDate } from '../components/assets/asset-state';
 
@@ -180,7 +180,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       const lead = g.members[0];
       // Signed as a whole: the grand total decides whether the Chief Director authorizes it
       const total = g.members.reduce((sum, m) => sum + (m.totalAmount || 0), 0);
-      const high = total > HIGH_VALUE_THRESHOLD;
+      const high = needsChiefDirector(total);
       return {
         ...lead,
         id,
@@ -195,7 +195,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     return { rows: list, slipLines: lines };
   }, [approvals]);
   /** Above 10 million birr: a request by its amount, a voucher of several lines by its grand total (its row's amount) */
-  const isHigh = (a: TransactionApproval) => (a.totalAmount || 0) > HIGH_VALUE_THRESHOLD;
+  const isHigh = (a: TransactionApproval) => needsChiefDirector(a.totalAmount || 0);
 
   // Compute live counter metrics
   const metrics = useMemo(() => {
@@ -660,12 +660,16 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             )}
             {isChiefDirector && (
               <span className="ml-1 text-slate-700 font-medium">
-                You hold final signing authority as <strong>Chief Director</strong> to authorize high-value transactions exceeding <strong>10,000,000 ETB</strong>.
+                {approvalPolicy.chiefDirectorAboveThreshold ? (
+                  <>You hold final signing authority as <strong>Chief Director</strong> to authorize high-value transactions exceeding <strong>10,000,000 ETB</strong>.</>
+                ) : (
+                  <>Requests are authorized by the <strong>Department Head</strong> for now; the Chief Director step is not in use.</>
+                )}
               </span>
             )}
             {isDeptHead && (
               <span className="ml-1 text-slate-700 font-medium">
-                You hold final signing authority to grant <strong>Stage 2 Store Issue Authorizations</strong> (up to 10,000,000 ETB).
+                You hold final signing authority to grant <strong>Stage 2 Store Issue Authorizations</strong>{approvalPolicy.chiefDirectorAboveThreshold ? ' (up to 10,000,000 ETB)' : ''}.
               </span>
             )}
             {canApprove && !isChiefDirector && !isDeptHead && (
@@ -748,6 +752,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               </FilterSection>
 
               {/* Transaction Value */}
+              {approvalPolicy.chiefDirectorAboveThreshold && (
               <FilterSection label="Transaction Value" htmlFor="filter-approval-value">
                 <FilterSelect
                   id="filter-approval-value"
@@ -761,6 +766,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   ]}
                 />
               </FilterSection>
+              )}
             </FilterPopover>
           </div>
         </div>

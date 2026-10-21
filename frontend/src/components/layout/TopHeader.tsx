@@ -37,7 +37,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import { GlobalSearch } from './GlobalSearch';
 import { MoaLogo } from '../ui/MoaLogo';
-import { approvalRows, HIGH_VALUE_THRESHOLD, slipNames } from '../assets/slip-groups';
+import { approvalRows, needsChiefDirector, slipNames } from '../assets/slip-groups';
 
 interface TopHeaderProps {
   activeTab: string;
@@ -136,8 +136,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       } else if (canAuthorize && !canEndorse) {
         rows = rows.filter((r) => r.lead.currentStage === 2);
         // Above 10 million birr is the Chief Director's; the rest the Department Head's
-        if (role === UserRole.CHIEF_DIRECTOR) rows = rows.filter((r) => r.total > HIGH_VALUE_THRESHOLD);
-        else if (role === UserRole.DEPARTMENT_HEAD) rows = rows.filter((r) => r.total <= HIGH_VALUE_THRESHOLD);
+        if (role === UserRole.CHIEF_DIRECTOR) rows = rows.filter((r) => needsChiefDirector(r.total));
+        else if (role === UserRole.DEPARTMENT_HEAD) rows = rows.filter((r) => !needsChiefDirector(r.total));
       } else if (!canEndorse && !canAuthorize) {
         rows = [];
       }

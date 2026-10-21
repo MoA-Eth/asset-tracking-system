@@ -62,6 +62,16 @@ export const voucherName = (transactionType?: string): string =>
 /** Above this many birr (a request, or a voucher's grand total) the Chief Director authorizes instead of the Department Head */
 export const HIGH_VALUE_THRESHOLD = 10_000_000;
 
+/**
+ * Whether requests above HIGH_VALUE_THRESHOLD go to the Chief Director at stage 2. Off for now (decided 2026-10-21):
+ * every request is endorsed by the Team Leader and authorized by the Department Head, whatever its amount. Turn it
+ * back on here and in the backend's store.service.ts (approvalPolicy there too).
+ */
+export const approvalPolicy = { chiefDirectorAboveThreshold: false };
+
+/** Whether a request (or a voucher, by its grand total) of this amount needs the Chief Director at stage 2 */
+export const needsChiefDirector = (amount: number): boolean => approvalPolicy.chiefDirectorAboveThreshold && amount > HIGH_VALUE_THRESHOLD;
+
 /** The rows of the approvals queue: a voucher of several lines is one row, with its lines and grand total */
 export const approvalRows = <T extends Parameters<typeof approvalRowKey>[0] & { totalAmount?: number }>(list: T[]): { lead: T; members: T[]; total: number }[] =>
   groupBySlip<T>(list, approvalRowKey).map((g) => {

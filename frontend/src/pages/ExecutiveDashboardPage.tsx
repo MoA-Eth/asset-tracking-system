@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { costOf } from '../utils/item-cost';
+import { approvalPolicy } from '../components/assets/slip-groups';
 import {
   RefreshCw,
   Eye,
@@ -728,12 +729,14 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                     {pendingStageCounts.departmentHead ?? pendingStageCounts.stage2}
                   </span>
                 </div>
+                {approvalPolicy.chiefDirectorAboveThreshold && (
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-slate-600">Executive (&gt; 10M):</span>
                   <span className="font-semibold text-purple-800 tabular-nums">
                     {pendingStageCounts.executive ?? 0}
                   </span>
                 </div>
+                )}
               </div>
             ) : (
               <span className="text-emerald-700 font-medium text-[11px]">All queues clear</span>

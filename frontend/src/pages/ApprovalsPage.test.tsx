@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { ApprovalsPage } from './ApprovalsPage';
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
+import { approvalPolicy } from '../components/assets/slip-groups';
 
 const auth = vi.hoisted(() => ({ user: { id: 'leader', fullNameEn: 'Getnet Taye', permissions: ['approvals.endorse'] }, role: 'TEAM_LEADER' }));
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn() }));
@@ -108,14 +109,35 @@ describe('Approvals: one row per Model 22', () => {
   });
 });
 
-describe('Approvals: the Chief Director signs a voucher by its grand total', () => {
+// Two receipt lines of 6 million birr each: each under 10 million, the receipt above it
+const sixMillion = (id: string, name: string) => receiptLine(id, name, { currentStage: 2, totalAmount: 6_000_000, poNumber: 'PO-77', ifmisSlipNumber: '0000077' });
+
+describe('Approvals: with the Chief Director step off, every voucher is the Department Head\'s', () => {
   afterEach(() => {
     auth.role = 'TEAM_LEADER';
     auth.user.permissions = ['approvals.endorse'];
   });
-  // Two receipt lines of 6 million birr each: each under 10 million, the receipt above it
-  const sixMillion = (id: string, name: string) => receiptLine(id, name, { currentStage: 2, totalAmount: 6_000_000, poNumber: 'PO-77', ifmisSlipNumber: '0000077' });
+
+  it('puts a voucher above 10 million in the Department Head\'s queue', async () => {
+    vi.mocked(api.getApprovals).mockResolvedValue([sixMillion('P', 'Tractor'), sixMillion('Q', 'Harvester')] as any);
+    auth.role = 'DEPARTMENT_HEAD';
+    auth.user.permissions = ['approvals.authorize'];
+    render(<ApprovalsPage currentRole={UserRole.DEPARTMENT_HEAD} onNavigate={vi.fn()} />);
+    const row = (await screen.findByText('Tractor, Harvester')).closest('tr')!;
+    expect(within(row).getByText('2. Dept. Head')).toBeInTheDocument();
+    expect(screen.queryByText(/Chief Director \(>10M\)/)).toBeNull();
+  });
+});
+
+describe('Approvals: the Chief Director signs a voucher by its grand total', () => {
+  afterEach(() => {
+    auth.role = 'TEAM_LEADER';
+    auth.user.permissions = ['approvals.endorse'];
+    approvalPolicy.chiefDirectorAboveThreshold = false;
+  });
   beforeEach(() => {
+    // On for these tests: the step is off in the app for now
+    approvalPolicy.chiefDirectorAboveThreshold = true;
     vi.mocked(api.getApprovals).mockResolvedValue([sixMillion('P', 'Tractor'), sixMillion('Q', 'Harvester'), receiptLine('S', 'Laptop', { currentStage: 2, ifmisSlipNumber: '0000078' })] as any);
   });
 

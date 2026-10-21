@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { buildModel19Voucher } from './ReceiptForm';
+import { approvalPolicy } from './slip-groups';
+
+afterEach(() => {
+  approvalPolicy.chiefDirectorAboveThreshold = false;
+});
 
 const item = (status: string, extra: object = {}) => ({
   id: 'R1', itemCode: 'MOA-R1', name: 'Scanner', status, quantity: 1, uom: 'EA', unitCostETB: 1000, category: 'IT_EQUIPMENT',
@@ -33,7 +38,14 @@ describe('signatures on the printed Model 19', () => {
     expect(signed(buildModel19Voucher(x, [x], 'Encoder', approval('REJECTED', 2)))).toEqual(['Delivered By', 'Received By', 'Endorsed By (Team Leader)', 'Approved By (Department Head)']);
   });
 
+  it('is signed by the Department Head above 10 million birr while the Chief Director step is off', () => {
+    const r = item('AVAILABLE', { unitCostETB: 12_000_000 });
+    const v = buildModel19Voucher(r, [r], 'Encoder', approval('APPROVED', 2));
+    expect(signed(v)[3]).toBe('Approved By (Department Head) ✓');
+  });
+
   it("is signed by the Chief Executive Officer above 10 million birr", () => {
+    approvalPolicy.chiefDirectorAboveThreshold = true;
     const r = item('AVAILABLE', { unitCostETB: 12_000_000 });
     const v = buildModel19Voucher(r, [r], 'Encoder', approval('APPROVED', 2));
     expect(signed(v)[3]).toBe('Approved By (Chief Executive Officer) ✓');
@@ -45,6 +57,7 @@ describe('the lines and amounts on the printed Model 19', () => {
     item('PENDING_STOCK_IN', { id, itemCode: `MOA-${id}`, name: `Item ${id}`, poNumber: 'PO-1', ifmisItemCode: `30510110${id.slice(-1)}.0001`, ...extra });
 
   it('is signed by the Chief Executive Officer when the grand total is above 10 million, though no line is', () => {
+    approvalPolicy.chiefDirectorAboveThreshold = true;
     const a = line('L1', { status: 'AVAILABLE', unitCostETB: 6_000_000, createdAt: '2026-10-01T08:00:00Z' });
     const b = line('L2', { status: 'AVAILABLE', unitCostETB: 6_000_000, createdAt: '2026-10-01T08:00:01Z' });
     const v = buildModel19Voucher(a, [a, b], 'Encoder', approval('APPROVED', 2));
