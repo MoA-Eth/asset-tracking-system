@@ -1149,9 +1149,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       )}
 
       {selectedApproval && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-md w-full max-w-2xl p-5 space-y-4 shadow-2xl text-slate-900 my-auto">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          {/* Fits the screen at either stage: the header and the buttons stay, the middle scrolls */}
+          <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col rounded-md border border-slate-200 bg-white text-slate-900 shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <FileCheck2 className="w-4 h-4 text-emerald-800" />
                 {selectedApproval.currentStage === 1
@@ -1168,7 +1169,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4 text-xs">
               <div className="p-3.5 rounded-md bg-slate-50 border border-slate-200 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-900 text-sm">{selectedApproval.itemName}</span>
@@ -1237,22 +1238,11 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
               {/* Endorsement Audit Trail Banner if Stage 2 */}
               {selectedApproval.currentStage === 2 && selectedApproval.endorsedBy && (
-                <div className="p-3 rounded-md bg-slate-50 border border-slate-200 text-slate-800 space-y-1">
-                  <div className="font-bold flex items-center justify-between text-[11px]">
-                    <span className="flex items-center gap-1 text-slate-900">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                      Stage 1 Endorsement Verified
-                    </span>
-                    <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-mono font-semibold">
-                      Ready for Final Sign-Off
-                    </span>
-                  </div>
-                  <p className="text-slate-700">
-                    Endorsed by: <strong>{selectedApproval.endorsedBy.fullNameEn}</strong> on{' '}
-                    {selectedApproval.endorsedAtGc}
-                  </p>
-                  <p className="italic text-slate-600">
-                    Remarks: "{selectedApproval.endorsementRemarks || 'Endorsed'}"
+                <div className="flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700">
+                  <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" />
+                  <p>
+                    Endorsed by <strong className="text-slate-900">{selectedApproval.endorsedBy.fullNameEn}</strong> · {selectedApproval.endorsedAtGc}
+                    {selectedApproval.endorsementRemarks && <span className="italic text-slate-600"> · “{selectedApproval.endorsementRemarks}”</span>}
                   </p>
                 </div>
               )}
@@ -1325,7 +1315,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-slate-200">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-5 py-3">
               <button
                 type="button"
                 onClick={() => setSelectedApproval(null)}
