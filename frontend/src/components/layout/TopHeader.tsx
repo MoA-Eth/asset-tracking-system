@@ -261,7 +261,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       case 'settings-api-keys':
         return { title: 'API keys', am: 'የኤፒአይ ቁልፎች', icon: KeyRound, iconColor: 'text-emerald-700' };
       default:
-        return { title: 'MoA Asset Tracking System', am: 'የግብርና ሚኒስቴር', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
+        return { title: 'Asset Tracking System', am: 'የግብርና ሚኒስቴር', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
     }
   };
 

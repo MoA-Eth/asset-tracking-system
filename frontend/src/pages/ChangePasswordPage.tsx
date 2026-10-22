@@ -50,31 +50,24 @@ export const ChangePasswordPage: React.FC = () => {
       className="auth-dark-bg min-h-screen w-full overflow-y-auto overflow-x-hidden flex flex-col items-center justify-center relative selection:bg-amber-400 selection:text-emerald-950 font-sans p-3 sm:p-4 py-4 sm:py-6"
       style={{
         background:
-          'radial-gradient(ellipse at 50% 20%, #0d3d24 0%, #082618 45%, #03120a 100%)',
+          'radial-gradient(ellipse at 50% 30%, #0F5C36 0%, #0A4429 50%, #062E1C 100%)',
       }}
     >
-      {/* Background Ambient Glows */}
+      {/* Background glow */}
       <div
-        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[540px] opacity-25 blur-[100px]"
+        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[320px] opacity-[0.16] blur-[90px]"
         style={{
           background:
-            'radial-gradient(ellipse at 50% 40%, #10b981 0%, #065f46 50%, transparent 75%)',
-        }}
-      />
-      <div
-        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[260px] opacity-15 blur-[80px]"
-        style={{
-          background:
-            'radial-gradient(ellipse at 50% 30%, #FCDD09 0%, transparent 70%)',
+            'radial-gradient(ellipse at 50% 35%, #FCDD09 0%, transparent 70%)',
         }}
       />
 
       {/* Geometric grid pattern */}
       <div
-        className="pointer-events-none fixed inset-0 opacity-[0.035]"
+        className="pointer-events-none fixed inset-0 opacity-[0.05]"
         style={{
           backgroundImage:
-            'linear-gradient(#34d399 1px, transparent 1px), linear-gradient(90deg, #34d399 1px, transparent 1px)',
+            'linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px)',
           backgroundSize: '40px 40px',
         }}
       />
@@ -84,12 +77,12 @@ export const ChangePasswordPage: React.FC = () => {
         {/* Authentic MoA Card matching Login Page */}
         <form
           onSubmit={handleSubmit}
-          className="rounded-2xl sm:rounded-3xl border border-emerald-500/30 backdrop-blur-2xl py-4 sm:py-5 px-5 sm:px-7 relative overflow-hidden ring-1 ring-white/10 text-white"
+          className="rounded-2xl sm:rounded-3xl border border-white/20 backdrop-blur-2xl py-4 sm:py-5 px-5 sm:px-7 relative overflow-hidden ring-1 ring-white/10 text-white"
           style={{
             background:
-              'linear-gradient(168deg, rgba(14, 46, 29, 0.95) 0%, rgba(9, 31, 20, 0.97) 50%, rgba(5, 18, 12, 0.98) 100%)',
+              'linear-gradient(168deg, rgba(11, 107, 58, 0.97) 0%, rgba(8, 96, 52, 0.98) 50%, rgba(6, 84, 45, 0.98) 100%)',
             boxShadow:
-              '0 24px 60px -12px rgba(0, 0, 0, 0.88), 0 12px 28px -10px rgba(0, 0, 0, 0.75), 0 0 45px -10px rgba(16, 185, 129, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.5)',
+              '0 24px 56px -14px rgba(0, 40, 18, 0.55), 0 10px 26px -10px rgba(0, 40, 18, 0.45), 0 0 45px -12px rgba(252, 221, 9, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.5)',
           }}
         >
           {/* Top gold-emerald accent strip with glow */}
@@ -132,7 +125,7 @@ export const ChangePasswordPage: React.FC = () => {
                 New Password
               </label>
               <div className="relative group">
-                <Lock className="w-4 h-4 text-emerald-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
+                <Lock className="w-4 h-4 text-emerald-200/80 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
                 <input
                   type={showNew ? 'text' : 'password'}
                   required
@@ -140,10 +133,10 @@ export const ChangePasswordPage: React.FC = () => {
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Min. 8 characters"
                   autoFocus
-                  className="w-full h-9 sm:h-10 pl-9 pr-9 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                  className="w-full h-9 sm:h-10 pl-9 pr-9 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                   style={{
-                    background: 'rgba(3, 15, 10, 0.88)',
-                    borderColor: 'rgba(52, 211, 153, 0.25)',
+                    background: 'rgba(3, 56, 29, 0.72)',
+                    borderColor: 'rgba(255, 255, 255, 0.22)',
                   }}
                 />
                 <button
@@ -162,17 +155,17 @@ export const ChangePasswordPage: React.FC = () => {
                 Confirm New Password
               </label>
               <div className="relative group">
-                <Lock className="w-4 h-4 text-emerald-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
+                <Lock className="w-4 h-4 text-emerald-200/80 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
                 <input
                   type={showNew ? 'text' : 'password'}
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-type new password"
-                  className="w-full h-9 sm:h-10 pl-9 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                  className="w-full h-9 sm:h-10 pl-9 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                   style={{
-                    background: 'rgba(3, 15, 10, 0.88)',
-                    borderColor: 'rgba(52, 211, 153, 0.25)',
+                    background: 'rgba(3, 56, 29, 0.72)',
+                    borderColor: 'rgba(255, 255, 255, 0.22)',
                   }}
                 />
               </div>
@@ -189,7 +182,7 @@ export const ChangePasswordPage: React.FC = () => {
                 disabled={submitting || !newPassword || !confirmPassword}
                 className="w-full h-9.5 sm:h-10.5 rounded-xl text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed group relative overflow-hidden"
                 style={{
-                  background: 'linear-gradient(135deg, #136a41 0%, #0c4228 100%)',
+                  background: 'linear-gradient(135deg, #00A24B 0%, #00843D 100%)',
                 }}
               >
                 {submitting ? (

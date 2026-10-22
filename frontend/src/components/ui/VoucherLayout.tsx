@@ -120,7 +120,7 @@ export const VoucherShell: React.FC<VoucherShellProps> = ({
             {/* Footer */}
             <div className="pt-6 border-t border-slate-300 print:border-slate-500 flex items-center justify-between gap-4 text-[10px] text-slate-600 font-mono">
               <p>
-                Printed by <span className="font-bold text-slate-800">{orDash(printedBy)}</span> from the MoA Asset Tracking System on {printTimestamp()}
+                Printed by <span className="font-bold text-slate-800">{orDash(printedBy)}</span> from the Asset Tracking System on {printTimestamp()}
               </p>
               <p className="font-bold shrink-0">Page 1 of 1</p>
             </div>

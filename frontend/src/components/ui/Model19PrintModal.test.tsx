@@ -125,7 +125,7 @@ describe('Model19PrintModal Component', () => {
     );
     expect(screen.queryByText(/MoA-Program to Build Resilience/)).toBeNull();
     expect(screen.queryByText(/ifmisdb/)).toBeNull();
-    expect(screen.getByText(/from the MoA Asset Tracking System/)).toBeTruthy();
+    expect(screen.getByText(/from the Asset Tracking System/)).toBeTruthy();
     expect(screen.queryByText('PO Receipt')).toBeNull();
   });
 

@@ -305,8 +305,8 @@ input:-webkit-autofill:active {
 .auth-dark-bg input:-webkit-autofill:focus, 
 .auth-dark-bg input:-webkit-autofill:active {
   -webkit-text-fill-color: #ffffff !important;
-  -webkit-box-shadow: 0 0 0px 1000px #030f0a inset !important;
-  box-shadow: 0 0 0px 1000px #030f0a inset !important;
+  -webkit-box-shadow: 0 0 0px 1000px #05432a inset !important;
+  box-shadow: 0 0 0px 1000px #05432a inset !important;
   transition: background-color 5000s ease-in-out 0s;
 }
 

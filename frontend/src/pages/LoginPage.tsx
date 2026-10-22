@@ -132,31 +132,24 @@ export const LoginPage: React.FC = () => {
       className="auth-dark-bg min-h-screen w-screen flex items-center justify-center relative overflow-x-hidden selection:bg-amber-400 selection:text-emerald-950 font-sans p-4 sm:p-6"
       style={{
         background:
-          "radial-gradient(ellipse at 50% 20%, #0d3d24 0%, #082618 45%, #03120a 100%)",
+          "radial-gradient(ellipse at 50% 30%, #0F5C36 0%, #0A4429 50%, #062E1C 100%)",
       }}
     >
-      {/* Background Ambient Glows */}
+      {/* Background glow */}
       <div
-        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[540px] opacity-25 blur-[100px]"
+        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[320px] opacity-[0.16] blur-[90px]"
         style={{
           background:
-            "radial-gradient(ellipse at 50% 40%, #10b981 0%, #065f46 50%, transparent 75%)",
-        }}
-      />
-      <div
-        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[260px] opacity-15 blur-[80px]"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 30%, #FCDD09 0%, transparent 70%)",
+            "radial-gradient(ellipse at 50% 35%, #FCDD09 0%, transparent 70%)",
         }}
       />
 
       {/* Geometric grid pattern */}
       <div
-        className="pointer-events-none fixed inset-0 opacity-[0.035]"
+        className="pointer-events-none fixed inset-0 opacity-[0.05]"
         style={{
           backgroundImage:
-            "linear-gradient(#34d399 1px, transparent 1px), linear-gradient(90deg, #34d399 1px, transparent 1px)",
+            "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px)",
           backgroundSize: "40px 40px",
         }}
       />
@@ -174,12 +167,12 @@ export const LoginPage: React.FC = () => {
         {/* Authentic MoA Card with Rich Height and Balanced Depth */}
         <form
           onSubmit={handleFormSubmit}
-          className="rounded-3xl border border-emerald-500/30 backdrop-blur-2xl py-8 sm:py-11 px-6 sm:px-10 relative overflow-hidden ring-1 ring-white/10"
+          className="rounded-3xl border border-white/20 backdrop-blur-2xl py-8 sm:py-11 px-6 sm:px-10 relative overflow-hidden ring-1 ring-white/10"
           style={{
             background:
-              "linear-gradient(168deg, rgba(14, 46, 29, 0.95) 0%, rgba(9, 31, 20, 0.97) 50%, rgba(5, 18, 12, 0.98) 100%)",
+              "linear-gradient(168deg, rgba(11, 107, 58, 0.97) 0%, rgba(8, 96, 52, 0.98) 50%, rgba(6, 84, 45, 0.98) 100%)",
             boxShadow:
-              "0 32px 70px -12px rgba(0, 0, 0, 0.88), 0 16px 36px -10px rgba(0, 0, 0, 0.75), 0 0 55px -10px rgba(16, 185, 129, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.5)",
+              "0 28px 60px -14px rgba(0, 40, 18, 0.55), 0 12px 28px -10px rgba(0, 40, 18, 0.45), 0 0 50px -12px rgba(252, 221, 9, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.5)",
           }}
         >
           {/* Top gold-emerald accent strip with glow */}
@@ -198,12 +191,12 @@ export const LoginPage: React.FC = () => {
               />
             </div>
 
-            <h1 className="text-2xl sm:text-[25px] font-bold text-white tracking-tight drop-shadow-sm">
-              MoA Asset Tracking System
-            </h1>
-            <p className="text-xs sm:text-sm text-emerald-200/80 mt-1.5 font-medium">
-              Sign in with your credentials
+            <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.14em] text-[#FCDD09]/90">
+              Ministry of Agriculture (FDRE)
             </p>
+            <h1 className="mt-1 text-2xl sm:text-[25px] font-bold text-white tracking-tight drop-shadow-sm">
+              Asset Tracking System
+            </h1>
           </div>
 
           {/* Form Inputs with Generous Height & Touch Targets */}
@@ -214,17 +207,17 @@ export const LoginPage: React.FC = () => {
                 Email or Employee ID
               </label>
               <div className="relative group">
-                <Mail className="w-4.5 h-4.5 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
+                <Mail className="w-4.5 h-4.5 text-emerald-200/80 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
                 <input
                   type="text"
                   required
                   value={usernameOrEmail}
                   onChange={(e) => setUsernameOrEmail(e.target.value)}
                   placeholder="name@moa.gov.et or payroll ID"
-                  className="w-full h-11 sm:h-12 pl-10 sm:pl-11 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                  className="w-full h-11 sm:h-12 pl-10 sm:pl-11 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                   style={{
-                    background: "rgba(3, 15, 10, 0.88)",
-                    borderColor: "rgba(52, 211, 153, 0.25)",
+                    background: "rgba(3, 56, 29, 0.72)",
+                    borderColor: "rgba(255, 255, 255, 0.22)",
                   }}
                 />
               </div>
@@ -251,16 +244,16 @@ export const LoginPage: React.FC = () => {
               </div>
 
               <div className="relative group">
-                <Lock className="w-4.5 h-4.5 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
+                <Lock className="w-4.5 h-4.5 text-emerald-200/80 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full h-11 sm:h-12 pl-10 sm:pl-11 pr-11 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                  className="w-full h-11 sm:h-12 pl-10 sm:pl-11 pr-11 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                   style={{
-                    background: "rgba(3, 15, 10, 0.88)",
-                    borderColor: "rgba(52, 211, 153, 0.25)",
+                    background: "rgba(3, 56, 29, 0.72)",
+                    borderColor: "rgba(255, 255, 255, 0.22)",
                   }}
                 />
                 <button
@@ -286,7 +279,7 @@ export const LoginPage: React.FC = () => {
                 className="w-full h-11 sm:h-12 rounded-xl text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden"
                 style={{
                   background:
-                    "linear-gradient(135deg, #136a41 0%, #0c4228 100%)",
+                    "linear-gradient(135deg, #00A24B 0%, #00843D 100%)",
                 }}
               >
                 <div className="absolute inset-0 bg-white/[0.06] opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -317,18 +310,18 @@ export const LoginPage: React.FC = () => {
         >
           {/* Translucent backdrop - allows radiant green background to shine through without blacking out */}
           <div
-            className="absolute inset-0 bg-[#072417]/45 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-[#003D1C]/50 backdrop-blur-[2px]"
             onClick={resetForgotDialog}
             aria-hidden="true"
           />
 
           <div
-            className="w-full max-w-md rounded-3xl border border-emerald-500/30 backdrop-blur-2xl py-7 sm:py-9 px-5 sm:px-9 relative z-10 overflow-hidden ring-1 ring-white/10 text-white animate-scaleIn"
+            className="w-full max-w-md rounded-3xl border border-white/20 backdrop-blur-2xl py-7 sm:py-9 px-5 sm:px-9 relative z-10 overflow-hidden ring-1 ring-white/10 text-white animate-scaleIn"
             style={{
               background:
-                "linear-gradient(168deg, rgba(14, 46, 29, 0.96) 0%, rgba(9, 31, 20, 0.98) 50%, rgba(5, 18, 12, 0.99) 100%)",
+                "linear-gradient(168deg, rgba(11, 107, 58, 0.97) 0%, rgba(8, 96, 52, 0.98) 50%, rgba(6, 84, 45, 0.98) 100%)",
               boxShadow:
-                "0 32px 70px -12px rgba(0, 0, 0, 0.88), 0 16px 36px -10px rgba(0, 0, 0, 0.75), 0 0 55px -10px rgba(16, 185, 129, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.5)",
+                "0 28px 60px -14px rgba(0, 40, 18, 0.55), 0 12px 28px -10px rgba(0, 40, 18, 0.45), 0 0 50px -12px rgba(252, 221, 9, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.5)",
             }}
           >
             {/* Top gold-emerald accent strip with glow */}
@@ -369,7 +362,7 @@ export const LoginPage: React.FC = () => {
             {/* Confirmation / Success State */}
             {resetSuccessMessage ? (
               <div className="space-y-6 py-2 animate-fadeIn">
-                <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-500/30 flex items-start gap-3 shadow-inner">
+                <div className="p-4 rounded-xl bg-white/10 border border-white/20 flex items-start gap-3 shadow-inner">
                   <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
                   <div>
                     <h3 className="text-sm font-bold text-white">
@@ -388,7 +381,7 @@ export const LoginPage: React.FC = () => {
                     className="w-full h-11 sm:h-12 rounded-xl text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99]"
                     style={{
                       background:
-                        "linear-gradient(135deg, #136a41 0%, #0c4228 100%)",
+                        "linear-gradient(135deg, #00A24B 0%, #00843D 100%)",
                     }}
                   >
                     <span>Proceed to Sign In</span>
@@ -416,17 +409,17 @@ export const LoginPage: React.FC = () => {
                     Email or Employee ID
                   </label>
                   <div className="relative group">
-                    <Mail className="w-4.5 h-4.5 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
+                    <Mail className="w-4.5 h-4.5 text-emerald-200/80 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
                     <input
                       type="text"
                       required
                       value={resetIdentifier}
                       onChange={(e) => setResetIdentifier(e.target.value)}
               placeholder="e.g. name@moa.gov.et or payroll ID"
-                      className="w-full h-11 pl-10 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                      className="w-full h-11 pl-10 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                       style={{
-                        background: "rgba(3, 15, 10, 0.88)",
-                        borderColor: "rgba(52, 211, 153, 0.25)",
+                        background: "rgba(3, 56, 29, 0.72)",
+                        borderColor: "rgba(255, 255, 255, 0.22)",
                       }}
                     />
                   </div>
@@ -438,17 +431,17 @@ export const LoginPage: React.FC = () => {
                     Current or Temporary Password
                   </label>
                   <div className="relative group">
-                    <Lock className="w-4.5 h-4.5 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
+                    <Lock className="w-4.5 h-4.5 text-emerald-200/80 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
                     <input
                       type={showCurrentPassword ? "text" : "password"}
                       required
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       placeholder="Current password"
-                      className="w-full h-11 pl-10 pr-10 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                      className="w-full h-11 pl-10 pr-10 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                       style={{
-                        background: "rgba(3, 15, 10, 0.88)",
-                        borderColor: "rgba(52, 211, 153, 0.25)",
+                        background: "rgba(3, 56, 29, 0.72)",
+                        borderColor: "rgba(255, 255, 255, 0.22)",
                       }}
                     />
                     <button
@@ -475,10 +468,10 @@ export const LoginPage: React.FC = () => {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Min. 8 characters"
-                        className="w-full h-11 pl-3.5 pr-9 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                        className="w-full h-11 pl-3.5 pr-9 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                         style={{
-                          background: "rgba(3, 15, 10, 0.88)",
-                          borderColor: "rgba(52, 211, 153, 0.25)",
+                          background: "rgba(3, 56, 29, 0.72)",
+                          borderColor: "rgba(255, 255, 255, 0.22)",
                         }}
                       />
                       <button
@@ -502,10 +495,10 @@ export const LoginPage: React.FC = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-type new password"
-                      className="w-full h-11 px-3.5 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-800/80 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                      className="w-full h-11 px-3.5 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
                       style={{
-                        background: "rgba(3, 15, 10, 0.88)",
-                        borderColor: "rgba(52, 211, 153, 0.25)",
+                        background: "rgba(3, 56, 29, 0.72)",
+                        borderColor: "rgba(255, 255, 255, 0.22)",
                       }}
                     />
                   </div>
@@ -530,7 +523,7 @@ export const LoginPage: React.FC = () => {
                     className="h-11 px-5 rounded-xl text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed"
                     style={{
                       background:
-                        "linear-gradient(135deg, #136a41 0%, #0c4228 100%)",
+                        "linear-gradient(135deg, #00A24B 0%, #00843D 100%)",
                     }}
                   >
                     {resetLoading ? (

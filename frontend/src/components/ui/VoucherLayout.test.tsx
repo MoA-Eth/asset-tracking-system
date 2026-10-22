@@ -52,7 +52,7 @@ describe('Printed vouchers share one format', () => {
     expect(screen.getAllByText('Signature :')).toHaveLength(names.length);
 
     // Same footer, naming the person who printed
-    const footer = screen.getByText(/from the MoA Asset Tracking System on/);
+    const footer = screen.getByText(/from the Asset Tracking System on/);
     expect(within(footer).getByText('Hana Tesfaye')).toBeInTheDocument();
     expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
 

@@ -158,7 +158,7 @@ export const ProfilePage: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                {ROLE_DESCRIPTIONS[role] || 'Authorized user of the MoA Asset Tracking System.'}
+                {ROLE_DESCRIPTIONS[role] || 'Authorized user of the Asset Tracking System.'}
               </p>
             </div>
           </div>
