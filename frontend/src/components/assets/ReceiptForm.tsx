@@ -182,8 +182,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [vatApplicable, setVatApplicable] = useState<boolean>(editItem?.vatApplicable ?? start?.vatApplicable ?? false);
   const [additionalCharges, setAdditionalCharges] = useState<number>(editItem?.additionalCharges ?? start?.additionalCharges ?? 0);
   const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? start?.condition ?? ItemCondition.NEW);
-  // Remark is no longer asked; a correction keeps what an older record has
-  const remark = editItem?.remark ?? '';
+  // The store's note on the whole receipt (e.g. why there is no proper Model 19): kept on every item of it
+  const [remark, setRemark] = useState(editItem?.remark ?? '');
 
   // Section 3: Signatures & Document Scan
   const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? start?.deliveredBy ?? '');
@@ -329,6 +329,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   const handleReset = () => {
     setIfmisSlipNumber('');
+    setRemark('');
     setPoNumber('');
     setIfmisSlipDateGc(new Date().toISOString().split('T')[0]);
     setTransactionType('');
@@ -638,6 +639,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     })(),
     vatApplicable,
     additionalCharges: vatApplicable ? 0 : Number(l.additionalCharges) || 0,
+    remark: remark.trim() || undefined,
   }));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -867,7 +869,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         })(),
         vatApplicable,
         additionalCharges: vatApplicable ? 0 : Number(l.additionalCharges) || 0,
-        remark: '',
+        remark: remark.trim() || '',
       }))];
 
       const generatedVoucher: Model19Voucher = {
@@ -1201,6 +1203,17 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           />
 
         )}
+        <Field label="Remarks" optional htmlFor="stock-in-remarks" hint="Anything the approvers should know, e.g. why there is no proper Model 19. Kept on every item and printed on the voucher.">
+          <textarea
+            id="stock-in-remarks"
+            rows={2}
+            maxLength={500}
+            placeholder="e.g. Received without a proper Model 19: …"
+            value={remark}
+            onChange={(e) => setRemark(e.target.value)}
+            className={`${input()} h-auto resize-y py-2`}
+          />
+        </Field>
       </Part>
 
       {/* The slip itself, open under the form, to check what was filled in against it */}

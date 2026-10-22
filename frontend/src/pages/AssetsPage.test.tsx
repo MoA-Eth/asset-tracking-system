@@ -1952,9 +1952,9 @@ describe('Receiving form: one table for every item', () => {
 
     expect(within(panel).getByRole('region', { name: 'Items (1)' })).toBeInTheDocument();
     expect(within(panel).queryByLabelText('Item 2 description')).toBeNull();
-    // No cards or remark: the item is a row, with no separate remark field
+    // No cards: the item is a row; one Remarks box for the whole receipt, none per item
     expect(within(panel).queryByText('Item received')).toBeNull();
-    expect(within(panel).queryByLabelText(/Remark/i)).toBeNull();
+    expect(within(panel).getAllByLabelText(/Remark/i)).toEqual([within(panel).getByRole('textbox', { name: 'Remarks' })]);
     // No tag number column, for any item
     expect(within(panel).queryByRole('columnheader', { name: 'Tag number' })).toBeNull();
 
