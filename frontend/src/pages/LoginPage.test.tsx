@@ -43,7 +43,7 @@ beforeEach(() => {
 });
 
 describe('LoginPage', () => {
-  it('renders login form with authentic MoA branding, inputs, and forgot password link', () => {
+  it('renders login form with authentic MoA branding, inputs, and reset password link', () => {
     render(<LoginPage />);
 
     expect(screen.getByTestId('moa-logo')).toBeInTheDocument();
@@ -52,7 +52,7 @@ describe('LoginPage', () => {
     expect(screen.queryByText('Sign in with your credentials')).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(/name@moa.gov.et/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Login/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Forgot password?/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reset password' })).toBeInTheDocument();
   });
 
   it('submits login credentials successfully', async () => {
@@ -81,7 +81,7 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    const forgotBtn = screen.getByRole('button', { name: /Forgot password?/i });
+    const forgotBtn = screen.getByRole('button', { name: 'Reset password' });
     await user.click(forgotBtn);
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();

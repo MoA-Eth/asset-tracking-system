@@ -239,7 +239,7 @@ export const LoginPage: React.FC = () => {
                   className="text-xs font-medium text-emerald-400 hover:text-amber-300 transition-colors cursor-pointer inline-flex items-center gap-1.5 group"
                 >
                   <KeyRound className="w-3.5 h-3.5 text-emerald-400 group-hover:text-amber-300 transition-colors" />
-                  <span>Forgot password?</span>
+                  <span>Reset password</span>
                 </button>
               </div>
 
