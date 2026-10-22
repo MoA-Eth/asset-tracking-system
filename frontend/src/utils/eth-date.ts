@@ -110,6 +110,14 @@ export function formatETB(amount: number): string {
 }
 
 /**
+ * A total or a value, to the cent: sums of unit prices kept to 5 decimals (as IFMIS prints them) must not show
+ * "151,760,701.102". formatETB keeps a unit price's own decimals; this rounds.
+ */
+export function formatETBTotal(amount: number): string {
+  return formatETB(Math.round((Number(amount) || 0) * 100) / 100);
+}
+
+/**
  * An amount short enough for a card: "ETB 16.48M", "ETB 1.25B"; under a million it is written out as formatETB does.
  * Show formatETB beside it (or on hover) where the exact figure matters.
  */
@@ -118,5 +126,5 @@ export function formatETBShort(amount: number): string {
   const abs = Math.abs(num);
   if (abs >= 1_000_000_000) return `ETB ${(num / 1_000_000_000).toFixed(2)}B`;
   if (abs >= 1_000_000) return `ETB ${(num / 1_000_000).toFixed(2)}M`;
-  return formatETB(num);
+  return formatETBTotal(num);
 }

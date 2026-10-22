@@ -3401,6 +3401,20 @@ export class StoreService {
     const pendingApprovalsList = pendingRequests.filter((r) => (!filtered || keptIds.has(r.itemId)) && (!periodSet || inPeriod(r.createdAtGc)));
     // Counted as the approvals queue shows them: a voucher of several lines once, by its grand total
     const itemById = new Map(allItemsRaw.map((i: any) => [i.id, i]));
+    const rejectedRows = await prisma.transactionApproval.findMany({
+      where: { status: 'RETURNED' as any },
+      select: { id: true, itemId: true, createdAtGc: true, transactionType: true, ifmisSlipNumber: true },
+    });
+    const rejectedWaiting = new Set(
+      (Array.isArray(rejectedRows) ? rejectedRows : [])
+        .filter((r: any) => (!filtered || keptIds.has(r.itemId)) && (!periodSet || inPeriod(r.createdAtGc)))
+        .map((r: any) => {
+          const slip = String(r.ifmisSlipNumber ?? '').trim().toLowerCase();
+          if (!slip || slip.startsWith('pending-')) return r.id;
+          const po = r.transactionType === 'STOCK_IN' ? String(readItemMeta((itemById.get(r.itemId) as any)?.notes).poNumber ?? '').trim().toLowerCase() : '';
+          return `${r.transactionType}|${slip}|${po}`;
+        }),
+    ).size;
     const pendingRows = pendingVouchers(
       pendingApprovalsList.map((r) => {
         const item: any = itemById.get(r.itemId);
@@ -3599,7 +3613,7 @@ export class StoreService {
     });
 
     const topValuationAssets = onRecord
-      .slice()
+      .filter((i) => i.itemType !== 'CONSUMABLE')
       .sort((a, b) => (b.costPerUnit ?? b.unitCostETB ?? 0) * unitsOf(b) - (a.costPerUnit ?? a.unitCostETB ?? 0) * unitsOf(a))
       .slice(0, 8);
 
@@ -3623,6 +3637,8 @@ export class StoreService {
       disposedValuationETB: sum(disposed),
       pendingApprovalsCount: pendingApprovals,
       pendingApprovalsValuationETB,
+      // Rejected requests back with their requesters, to correct and resubmit or cancel (vouchers, not lines)
+      rejectedWaitingCount: rejectedWaiting,
       pendingStageCounts,
       totalValuationETB: sum(onRecord),
       fixedAssetsCount,

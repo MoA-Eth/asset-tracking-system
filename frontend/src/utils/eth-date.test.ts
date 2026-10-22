@@ -9,6 +9,7 @@ import {
   getTodayGcAndEc,
   formatETB,
   formatETBShort,
+  formatETBTotal,
   ETHIOPIAN_MONTH_NAMES_AM,
   ETHIOPIAN_MONTH_NAMES_EN,
 } from './eth-date';
@@ -146,8 +147,20 @@ describe('formatETBShort', () => {
     expect(formatETBShort(1_250_000_000)).toBe('ETB 1.25B');
   });
 
-  it('writes out amounts under a million as formatETB does', () => {
+  it('writes out amounts under a million as a total, to the cent', () => {
     expect(formatETBShort(175_501.5)).toBe(formatETB(175_501.5));
     expect(formatETBShort(0)).toBe(formatETB(0));
+    expect(formatETBShort(18_963.50005)).toBe(formatETB(18_963.5));
+  });
+});
+
+describe('formatETBTotal', () => {
+  it('writes a total to the cent, though the unit prices it adds up keep 5 decimals', () => {
+    expect(formatETBTotal(151_760_701.102)).toBe(formatETB(151_760_701.1));
+    expect(formatETBTotal(151_760_701.102)).toMatch(/151,760,701\.10$/);
+    expect(formatETBTotal(49_625_591.892)).toMatch(/49,625,591\.89$/);
+    expect(formatETBTotal(0)).toBe(formatETB(0));
+    // A unit price itself keeps its decimals with formatETB
+    expect(formatETB(18_963.50001)).toMatch(/18,963\.50001/);
   });
 });

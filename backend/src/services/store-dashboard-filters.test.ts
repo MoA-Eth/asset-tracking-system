@@ -54,7 +54,13 @@ beforeEach(() => {
   db.auditLog.findMany.mockResolvedValue([{ id: 'log-1' }]);
   // Pending requests on two items, one of them in Saris
   db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
-    where.status === 'PENDING'
+    where.status === 'RETURNED'
+      ? [
+          { id: 'r1', itemId: 'LAPTOP-K', transactionType: 'STOCK_IN', ifmisSlipNumber: '0000152', createdAtGc: '2026-10-01' },
+          { id: 'r2', itemId: 'FUEL-K', transactionType: 'STOCK_IN', ifmisSlipNumber: '0000152', createdAtGc: '2026-10-01' },
+          { id: 'r3', itemId: 'LAPTOP-S', transactionType: 'TRANSFER', ifmisSlipNumber: 'M21-9', createdAtGc: '2026-10-01' },
+        ]
+      : where.status === 'PENDING'
       ? [
           { itemId: 'FUEL-S', transactionType: 'STOCK_IN', status: 'PENDING', currentStage: 1, ifmisSlipNumber: 'M19-S' },
           { itemId: 'LAPTOP-K', transactionType: 'TRANSFER', status: 'PENDING', currentStage: 1, ifmisSlipNumber: 'M21-K' },
@@ -64,6 +70,19 @@ beforeEach(() => {
 });
 
 const dashboard = (filter?: Record<string, unknown>) => StoreService.getInstance().getExecutiveDashboard(filter);
+
+describe('dashboard figures', () => {
+  it('counts rejected requests back with their requesters, a voucher of several lines once, within the filters', async () => {
+    expect((await dashboard()).rejectedWaitingCount).toBe(2);
+    expect((await dashboard({ storeId: 'S-KAL' })).rejectedWaitingCount).toBe(1);
+  });
+
+  it('lists only fixed assets as the highest-value capital assets', async () => {
+    const d = await dashboard();
+    expect(d.topValuationAssets.length).toBeGreaterThan(0);
+    expect(d.topValuationAssets.every((a: any) => a.itemType !== 'CONSUMABLE')).toBe(true);
+  });
+});
 
 describe('dashboard filters', () => {
   it('counts everything without filters', async () => {
