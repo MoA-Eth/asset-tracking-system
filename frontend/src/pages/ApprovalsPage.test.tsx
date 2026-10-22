@@ -169,18 +169,33 @@ describe('Approvals: rejecting', () => {
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('3 items')).closest('tr')!;
     await user.click(within(row).getByRole('button', { name: /Endorse/ }));
-    // Wider than before, to read the voucher's lines
-    expect(screen.getByRole('button', { name: /^Reject$/ }).closest('.max-w-2xl')).not.toBeNull();
+    // The decision window's own Reject (the row has one too); wider than before, to read the voucher's lines
+    const modalReject = () => screen.getAllByRole('button', { name: /^Reject$/ }).find((b) => b.closest('.max-w-2xl'))!;
+    expect(modalReject()).toBeDefined();
     expect(screen.queryByRole('button', { name: /Return for correction/ })).toBeNull();
     expect(screen.getByText(/goes back to its requester, who corrects and resubmits it, or cancels it/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /^Reject$/ }));
+    await user.click(modalReject());
     expect(api.handleSlipApproval).not.toHaveBeenCalled();
 
     await user.type(screen.getByPlaceholderText(/Verified asset specifications/), 'Price is entered as USD.');
-    await user.click(screen.getByRole('button', { name: /^Reject$/ }));
+    await user.click(modalReject());
     expect(api.handleSlipApproval).toHaveBeenCalledWith(expect.objectContaining({ approvalIds: ['A', 'B', 'C'], action: 'REJECT', reviewRemarks: 'Price is entered as USD.' }));
     expect(toast.warning).toHaveBeenCalledWith('Transaction Rejected', expect.stringContaining('went back to Encoder with your reason, to correct and resubmit, or cancel'));
+  });
+
+  it('rejects straight from the row: only the reason is asked, and the whole Model 19 goes back', async () => {
+    const user = userEvent.setup();
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+    const row = (await screen.findByText('3 items')).closest('tr')!;
+    await user.click(within(row).getByRole('button', { name: 'Reject' }));
+    const dialog = screen.getByRole('dialog');
+    // No reason, no rejecting
+    expect(within(dialog).getByRole('button', { name: /^Reject$/ })).toBeDisabled();
+    await user.type(within(dialog).getByRole('textbox', { name: 'Reason for rejecting' }), 'Price is entered as USD.');
+    await user.click(within(dialog).getByRole('button', { name: /^Reject$/ }));
+    expect(api.handleSlipApproval).toHaveBeenCalledWith(expect.objectContaining({ approvalIds: ['A', 'B', 'C'], action: 'REJECT', reviewRemarks: 'Price is entered as USD.' }));
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('lists a rejected receipt, still with its requester, under Rejected, with nothing for the approver to do', async () => {

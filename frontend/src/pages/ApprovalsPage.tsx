@@ -49,6 +49,7 @@ import { getTodayGcAndEc } from '../utils/eth-date';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
+import { Modal } from '../components/ui/Modal';
 import { getSlipDisplayName } from '../utils/slip-upload';
 import { RefreshButton } from '../components/ui/RefreshButton';
 import { approvalPolicy, approvalRowKey, groupBySlip, isSlipGroup, needsChiefDirector, slipNames, voucherName } from '../components/assets/slip-groups';
@@ -156,6 +157,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const [selectedApproval, setSelectedApproval] = useState<TransactionApproval | null>(null);
   // Read-only view of a request and its item
   const [viewingApproval, setViewingApproval] = useState<TransactionApproval | null>(null);
+  // Rejected straight from its row: only the reason is asked
+  const [rejecting, setRejecting] = useState<TransactionApproval | null>(null);
   const [reviewRemarks, setReviewRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -417,6 +420,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       await decide(approvalId, action, approverId, reviewRemarks.trim() || undefined);
 
       setSelectedApproval(null);
+      setRejecting(null);
       setReviewRemarks('');
       setSelectedIds((prev) => prev.filter((id) => id !== approvalId));
       await fetchApprovals();
@@ -1058,6 +1062,20 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                             <span>{stage === 1 ? 'Endorse' : isHighValue ? 'Authorize (> 10M)' : 'Authorize'}</span>
                           </button>
                           )}
+                          {isActionableForMe && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRejecting(appr);
+                              setReviewRemarks('');
+                              setActionError(null);
+                            }}
+                            className="px-3 py-1.5 rounded-[4px] border border-rose-200 bg-white font-bold text-xs text-rose-700 transition cursor-pointer flex items-center gap-1.5 shadow-2xs hover:bg-rose-50"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>Reject</span>
+                          </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1383,6 +1401,51 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             </div>
           </div>
         </div>
+      )}
+
+      {rejecting && (
+        <Modal
+          isOpen
+          onClose={() => !actionLoading && setRejecting(null)}
+          title={`Reject ${voucherName(rejecting.transactionType)} ${rejecting.ifmisSlipNumber}${slipLines.get(rejecting.id) ? ` (${slipLines.get(rejecting.id)!.length} items)` : ''}?`}
+          subtitle="It goes back to its requester with your reason, to correct and resubmit, or cancel."
+          size="sm"
+        >
+          <div className="space-y-3 text-xs">
+            <p className="text-slate-700">
+              <span className="font-semibold text-slate-900">{rejecting.itemName}</span> · <span className="font-mono">{rejecting.itemCode}</span>
+            </p>
+            {actionError && (
+              <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700">{actionError}</p>
+            )}
+            <label className="block">
+              <span className="mb-1 block font-semibold text-slate-700">Reason for rejecting</span>
+              <textarea
+                autoFocus
+                rows={3}
+                value={reviewRemarks}
+                maxLength={500}
+                onChange={(e) => setReviewRemarks(e.target.value)}
+                placeholder="e.g. The quantity does not match the signed Model 19."
+                className="w-full resize-y rounded-[4px] border border-slate-300 px-3 py-2 text-xs focus:border-rose-600 focus:outline-none"
+              />
+            </label>
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={() => setRejecting(null)} disabled={actionLoading} className={btn.secondary}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleAction(rejecting.id, 'REJECT')}
+                disabled={actionLoading || !reviewRemarks.trim()}
+                className="inline-flex items-center gap-1.5 rounded-md bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-800 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                {actionLoading ? 'Rejecting…' : 'Reject'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {viewingSlipUrl && (
