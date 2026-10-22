@@ -23,6 +23,12 @@ import { formatETBShort, formatETBTotal, formatGcToEc, getTodayGcAndEc } from '.
 import { Store, UserRole } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
 
+/**
+ * Prices on record are still being checked and will be corrected: until then money shows on the Total valuation card
+ * only, and everything else is counted in items and units. Set to true to show values across the dashboard again.
+ */
+const SHOW_VALUES = false;
+
 interface ExecutiveDashboardPageProps {
   onNavigate: (tab: string) => void;
   currentRole: UserRole;
@@ -442,9 +448,10 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
 
   const deptRows: any[] = (data?.departmentDistribution || [])
     .filter((d: any) => d.itemCount > 0)
-    .sort((a: any, b: any) => b.totalValueETB - a.totalValueETB)
+    .sort((a: any, b: any) => (SHOW_VALUES ? b.totalValueETB - a.totalValueETB : b.itemCount - a.itemCount))
     .slice(0, 6);
-  const deptMaxVal = deptRows.length > 0 ? deptRows[0].totalValueETB : 1;
+  const deptSize = (d: any): number => (SHOW_VALUES ? d.totalValueETB : d.itemCount);
+  const deptMaxVal = deptRows.length > 0 ? deptSize(deptRows[0]) || 1 : 1;
 
   // Categories in their fixed order so colours never shift
   const categoryRows: any[] = (data?.categoryBreakdown || [])
@@ -755,7 +762,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           }
         />
         <StatTile
-          label="Idle capital (>30 days)"
+          label={SHOW_VALUES ? 'Idle capital (>30 days)' : 'Idle in store (>30 days)'}
           labelAm="ከ30 ቀን በላይ በመጋዘን የቆየ"
           action={
             stale.itemCount > 0 ? (
@@ -768,8 +775,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               </button>
             ) : undefined
           }
-          value={formatETBShort(stale.valueETB)}
-          exact={stale.valueETB >= 1_000_000 ? formatETBTotal(stale.valueETB) : undefined}
+          value={SHOW_VALUES ? formatETBShort(stale.valueETB) : `${stale.itemCount.toLocaleString()} ${stale.itemCount === 1 ? 'item' : 'items'}`}
+          exact={SHOW_VALUES && stale.valueETB >= 1_000_000 ? formatETBTotal(stale.valueETB) : undefined}
           footer={
             stale.itemCount > 0 ? (
               <div className="space-y-1 pt-0.5 text-xs">
@@ -807,7 +814,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               count={pendingApprovals}
               tone="warning"
               note={[
-                pendingApprovalsValuationETB > 0 ? formatETBShort(pendingApprovalsValuationETB) : '',
+                SHOW_VALUES && pendingApprovalsValuationETB > 0 ? formatETBShort(pendingApprovalsValuationETB) : '',
                 ...pendingBreakdown,
               ].filter(Boolean).join(' · ') || 'Needs action'}
               onClick={() => onNavigate('approvals')}
@@ -827,7 +834,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               label={`In store ${stale.thresholdDays}+ days`}
               count={stale.itemCount}
               tone="warning"
-              note={`${formatETBShort(stale.valueETB)} · ${stale.units.toLocaleString()} ${stale.units === 1 ? 'unit' : 'units'}`}
+              note={`${SHOW_VALUES ? `${formatETBShort(stale.valueETB)} · ` : ''}${stale.units.toLocaleString()} ${stale.units === 1 ? 'unit' : 'units'}`}
               onClick={showStale}
             />
           )}
@@ -856,11 +863,11 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                     </p>
                   </div>
                 </div>
-                <dl className="grid grid-cols-3 gap-4 sm:gap-6 text-right">
+                <dl className={`grid ${SHOW_VALUES ? 'grid-cols-3' : 'grid-cols-2'} gap-4 sm:gap-6 text-right`}>
                   {[
                     { label: stale.itemCount === 1 ? 'Item' : 'Items', value: stale.itemCount.toLocaleString() },
                     { label: stale.units === 1 ? 'Unit' : 'Units', value: stale.units.toLocaleString() },
-                    { label: 'Value', value: formatETBTotal(stale.valueETB) },
+                    ...(SHOW_VALUES ? [{ label: 'Value', value: formatETBTotal(stale.valueETB) }] : []),
                   ].map((s) => (
                     <div key={s.label}>
                       <dt className="text-[10px] font-semibold uppercase tracking-wider text-amber-800/70">{s.label}</dt>
@@ -938,7 +945,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                           <span className="font-mono text-xs font-semibold text-slate-900">
                             {i.unitsInStore} {i.uom}
                           </span>
-                          <span className="text-[11px] text-slate-500">{formatETBTotal(i.valueETB)}</span>
+                          {SHOW_VALUES && <span className="text-[11px] text-slate-500">{formatETBTotal(i.valueETB)}</span>}
                         </div>
                       </li>
                     );
@@ -955,7 +962,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <Panel
           className="lg:col-span-7"
           title="Directorate allocation"
-          subtitle={deptRows.length > 0 ? 'Asset value held by each directorate' : 'No assets assigned to directorates yet'}
+          subtitle={deptRows.length > 0 ? (SHOW_VALUES ? 'Asset value held by each directorate' : 'Units held by each directorate') : 'No assets assigned to directorates yet'}
           action={<CountPill>{deptRows.length} directorates</CountPill>}
         >
           {deptRows.length === 0 ? (
@@ -963,7 +970,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           ) : (
             <div className="space-y-4">
               {deptRows.map((dept: any) => {
-                const pct = Math.min(100, Math.round((dept.totalValueETB / deptMaxVal) * 100));
+                const pct = Math.min(100, Math.round((deptSize(dept) / deptMaxVal) * 100));
                 return (
                   <div key={dept.departmentId} className="space-y-1.5">
                     <div className="flex items-start justify-between gap-3 text-xs">
@@ -972,8 +979,17 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                         {dept.nameAm && dept.nameAm !== dept.nameEn && <span className="text-[10px] text-slate-400">{dept.nameAm}</span>}
                       </div>
                       <div className="shrink-0 text-right">
-                        <span className="block font-semibold text-slate-900">{formatETBTotal(dept.totalValueETB)}</span>
-                        <span className="text-[10px] text-slate-500">{dept.itemCount.toLocaleString()} {dept.itemCount === 1 ? 'unit' : 'units'} · {dept.issuedCount.toLocaleString()} issued</span>
+                        {SHOW_VALUES ? (
+                          <>
+                            <span className="block font-semibold text-slate-900">{formatETBTotal(dept.totalValueETB)}</span>
+                            <span className="text-[10px] text-slate-500">{dept.itemCount.toLocaleString()} {dept.itemCount === 1 ? 'unit' : 'units'} · {dept.issuedCount.toLocaleString()} issued</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="block font-semibold text-slate-900">{dept.itemCount.toLocaleString()} {dept.itemCount === 1 ? 'unit' : 'units'}</span>
+                            <span className="text-[10px] text-slate-500">{dept.issuedCount.toLocaleString()} issued</span>
+                          </>
+                        )}
                       </div>
                     </div>
                     <Meter pct={pct} />
@@ -1004,7 +1020,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               <div className="border-t border-slate-100 pt-3">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    High-Value Fleet & Heavy Machinery
+                    {SHOW_VALUES ? 'High-Value Fleet & Heavy Machinery' : 'Fleet & Heavy Machinery'}
                   </span>
                   <span className="text-[10px] text-slate-400">ከፍተኛ ካፒታል</span>
                 </div>
@@ -1016,7 +1032,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                         {fleetStats.totalVehicles.toLocaleString()} {fleetStats.totalVehicles === 1 ? 'unit' : 'units'}
                       </span>
                     </div>
-                    <p className="mt-1.5 text-xs font-bold text-slate-900">{formatETBTotal(fleetStats.vehicleValuationETB)}</p>
+                    {SHOW_VALUES && <p className="mt-1.5 text-xs font-bold text-slate-900">{formatETBTotal(fleetStats.vehicleValuationETB)}</p>}
                     <p className="text-[10px] text-slate-500">
                       {fleetStats.activeVehicles.toLocaleString()} active · {fleetStats.inStoreVehicles.toLocaleString()} in store
                     </p>
@@ -1029,7 +1045,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                         {fleetStats.totalMachinery.toLocaleString()} {fleetStats.totalMachinery === 1 ? 'unit' : 'units'}
                       </span>
                     </div>
-                    <p className="mt-1.5 text-xs font-bold text-slate-900">{formatETBTotal(fleetStats.machineryValuationETB)}</p>
+                    {SHOW_VALUES && <p className="mt-1.5 text-xs font-bold text-slate-900">{formatETBTotal(fleetStats.machineryValuationETB)}</p>}
                     <p className="text-[10px] text-slate-500">
                       {fleetStats.activeMachinery.toLocaleString()} deployed · {fleetStats.inStoreMachinery.toLocaleString()} in store
                     </p>
@@ -1080,7 +1096,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   <th className="px-3.5 py-1.5">Building & Room</th>
                   <th className="px-3.5 py-1.5 text-right">Total Units</th>
                   <th className="px-3.5 py-1.5">Status Allocation</th>
-                  <th className="px-3.5 py-1.5 text-right">Valuation (ETB)</th>
+                  {SHOW_VALUES && <th className="px-3.5 py-1.5 text-right">Valuation (ETB)</th>}
                   <th className="px-3.5 py-1.5">Key Categories</th>
                 </tr>
               </thead>
@@ -1132,9 +1148,11 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                           {pending > 0 && <span className="text-amber-700">{pending} pending</span>}
                         </div>
                       </td>
-                      <td className="px-3.5 py-2 text-right font-semibold text-slate-900 whitespace-nowrap">
-                        {formatETBTotal(loc.totalValueETB || 0)}
-                      </td>
+                      {SHOW_VALUES && (
+                        <td className="px-3.5 py-2 text-right font-semibold text-slate-900 whitespace-nowrap">
+                          {formatETBTotal(loc.totalValueETB || 0)}
+                        </td>
+                      )}
                       <td className="px-3.5 py-2 whitespace-nowrap">
                         <div className="flex flex-wrap gap-1">
                           {topCats.map((cat: any) => (
@@ -1186,10 +1204,12 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                     </div>
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
-                    <span className="text-slate-500">Total value</span>
-                    <span className="font-semibold text-slate-900">{formatETBTotal(loc.totalValueETB || 0)}</span>
-                  </div>
+                  {SHOW_VALUES && (
+                    <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
+                      <span className="text-slate-500">Total value</span>
+                      <span className="font-semibold text-slate-900">{formatETBTotal(loc.totalValueETB || 0)}</span>
+                    </div>
+                  )}
 
                   <div className="mt-3 space-y-2">
                     <SegmentBar segments={segments} />
@@ -1229,7 +1249,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       </Panel>
 
       {/* ── Row 5: Highest-Value Assets & Executive Governance (Side-by-Side) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className={`grid grid-cols-1 gap-5 ${SHOW_VALUES ? 'lg:grid-cols-2' : ''}`}>
+        {SHOW_VALUES && (
         <Panel
           title="Highest-value capital assets"
           subtitle="ከፍተኛ ዋጋ ያላቸው ንብረቶች"
@@ -1261,6 +1282,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             </ol>
           )}
         </Panel>
+        )}
 
         <Panel
           title="Executive governance & activity"
