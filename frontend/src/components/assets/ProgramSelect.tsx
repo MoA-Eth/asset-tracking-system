@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { PROGRAMS } from './receipt-options';
 
 const OTHER = '__OTHER__';
+/** Names compared without case or '&', so one saved as "(REDFS)" is still "(RED&FS)" on the list */
+const same = (a: string, b: string) => a.trim().toLowerCase().replace(/&/g, '') === b.trim().toLowerCase().replace(/&/g, '');
 
 /**
  * Program / project: chosen from the ministry's list, or typed when it isn't there. A name that isn't on the list
@@ -14,7 +16,7 @@ export const ProgramSelect: React.FC<{
   className: string;
 }> = ({ id, value, onChange, className }) => {
   const [typing, setTyping] = useState(false);
-  const known = PROGRAMS.some((p) => p.toLowerCase() === value.trim().toLowerCase());
+  const known = PROGRAMS.some((p) => same(p, value));
 
   if (typing) {
     return (
@@ -44,7 +46,7 @@ export const ProgramSelect: React.FC<{
   return (
     <select
       id={id}
-      value={known ? PROGRAMS.find((p) => p.toLowerCase() === value.trim().toLowerCase()) : value}
+      value={known ? PROGRAMS.find((p) => same(p, value)) : value}
       onChange={(e) => {
         if (e.target.value === OTHER) {
           setTyping(true);

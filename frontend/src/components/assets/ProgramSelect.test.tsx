@@ -41,4 +41,10 @@ describe('Program / project', () => {
     render(<Harness start="Office renewal" />);
     expect(screen.getByLabelText('Program / project')).toHaveValue('Office renewal');
   });
+
+  it('lists RED&FS, and shows one saved as "(REDFS)" as that entry, not a second one', () => {
+    render(<Harness start="Rural Economic Development and Food Security (REDFS)" />);
+    expect(screen.getByLabelText('Program / project')).toHaveValue('Rural Economic Development and Food Security (RED&FS)');
+    expect(screen.queryByRole('option', { name: /\(REDFS\)/ })).toBeNull();
+  });
 });

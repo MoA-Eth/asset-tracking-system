@@ -64,7 +64,7 @@ export const PROGRAMS = [
   'Strengthening Drought Resilience project',
   'WE_GO',
   'Development Response to Displacement Impact Project Phase II',
-  'Rural Economic Development and Food Security (REDFS)',
+  'Rural Economic Development and Food Security (RED&FS)',
   'DRIVE and BREFONS',
   'Livestock and Fisheries Sector Development Project (LFSDP)',
   'Participatory Agriculture and Climate Transformation Program',
