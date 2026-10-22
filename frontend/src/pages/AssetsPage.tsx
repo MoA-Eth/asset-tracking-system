@@ -90,16 +90,6 @@ const FILTERS: { value: AssetFilter; label: string }[] = [
   { value: 'DISPOSED', label: 'Disposed' },
 ];
 
-/** The bullet beside each status tab: a tiny copy of that status's badge in the table (pale fill, its colour as the outline) */
-const FILTER_DOT: Record<AssetFilter, string> = {
-  ALL: 'bg-slate-100 border-slate-400',
-  IN_STORE: 'bg-emerald-100 border-emerald-500',
-  ISSUED: 'bg-blue-100 border-blue-500',
-  PENDING: 'bg-amber-100 border-amber-500',
-  REJECTED: 'bg-red-100 border-red-500',
-  DISPOSED: 'bg-slate-100 border-slate-400',
-};
-
 export type SortColumn = 'activity' | 'name' | 'status' | 'units' | 'where' | 'slip' | 'cost';
 const SORT_LABELS: Record<SortColumn, string> = {
   activity: 'latest activity',
@@ -1594,26 +1584,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
           {/* Status: always in sight, with how many of each */}
           <div role="group" aria-label="Status" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
-            {FILTERS.map((f) => {
-              const active = filter === f.value;
-              const count = groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length;
-              return (
-                <button
-                  key={f.value}
-                  type="button"
-                  aria-pressed={active}
-                  aria-label={`${f.label} ${count}`}
-                  onClick={() => setFilter(f.value)}
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition cursor-pointer ${
-                    active ? 'border-moa-green bg-moa-green text-white shadow-xs' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                  }`}
-                >
-                  {f.value !== 'ALL' && <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full border ${FILTER_DOT[f.value]} ${active ? 'ring-2 ring-white' : ''}`} />}
-                  {f.label}
-                  <span className={`tabular-nums ${active ? 'text-white/80' : 'text-slate-400'}`}>{count}</span>
-                </button>
-              );
-            })}
+            {FILTERS.map((f) => (
+              <FilterPill
+                key={f.value}
+                label={f.label}
+                count={groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length}
+                active={filter === f.value}
+                onClick={() => setFilter(f.value)}
+              />
+            ))}
           </div>
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative flex-1 w-full sm:max-w-md">
