@@ -190,9 +190,9 @@ describe('Assets page', () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    const filterBtn = screen.getByRole('button', { name: /Filter assets/i });
-    await user.click(filterBtn);
-    expect(screen.getByRole('button', { name: /^Pending 4$/ })).toBeInTheDocument();
+    // The status tabs are in sight without opening the filters
+    expect(within(screen.getByRole('group', { name: 'Status' })).getByRole('button', { name: /^Pending 4$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^All \d+$/ })).toHaveAttribute('aria-pressed', 'true');
     await user.click(screen.getByRole('button', { name: /^Issued/ }));
     // The batch shows with only its issued unit unfolded
     expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent)).toEqual(['MOA-I1', 'MOA-S1', 'MOA-S1-1']);

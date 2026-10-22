@@ -90,6 +90,16 @@ const FILTERS: { value: AssetFilter; label: string }[] = [
   { value: 'DISPOSED', label: 'Disposed' },
 ];
 
+/** The bullet beside each status tab: a tiny copy of that status's badge in the table (pale fill, its colour as the outline) */
+const FILTER_DOT: Record<AssetFilter, string> = {
+  ALL: 'bg-slate-100 border-slate-400',
+  IN_STORE: 'bg-emerald-100 border-emerald-500',
+  ISSUED: 'bg-blue-100 border-blue-500',
+  PENDING: 'bg-amber-100 border-amber-500',
+  REJECTED: 'bg-red-100 border-red-500',
+  DISPOSED: 'bg-slate-100 border-slate-400',
+};
+
 export type SortColumn = 'activity' | 'name' | 'status' | 'units' | 'where' | 'slip' | 'cost';
 const SORT_LABELS: Record<SortColumn, string> = {
   activity: 'latest activity',
@@ -1350,8 +1360,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   }, [selectedId, flatSelectableIds, voucher19, voucher21, voucher22, voucherDisposal, receipt, issue, transfer, disposing]);
 
 
+  // The status is in the tabs, always in sight: only the filters inside the popover are counted
   const activeFilterCount =
-    (filter !== 'ALL' ? 1 : 0) +
     (locationFilter !== 'ALL' ? 1 : 0) +
     (categoryFilter !== 'ALL' ? 1 : 0) +
     (typeFilter !== 'ALL' ? 1 : 0) +
@@ -1582,6 +1592,29 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         /* ── Register ── */
         <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
+          {/* Status: always in sight, with how many of each */}
+          <div role="group" aria-label="Status" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+            {FILTERS.map((f) => {
+              const active = filter === f.value;
+              const count = groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length;
+              return (
+                <button
+                  key={f.value}
+                  type="button"
+                  aria-pressed={active}
+                  aria-label={`${f.label} ${count}`}
+                  onClick={() => setFilter(f.value)}
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition cursor-pointer ${
+                    active ? 'border-moa-green bg-moa-green text-white shadow-xs' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {f.value !== 'ALL' && <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full border ${FILTER_DOT[f.value]} ${active ? 'ring-2 ring-white' : ''}`} />}
+                  {f.label}
+                  <span className={`tabular-nums ${active ? 'text-white/80' : 'text-slate-400'}`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative flex-1 w-full sm:max-w-md">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1608,21 +1641,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 showClear={viewChanged}
                 resultCountText={`${sortedShown.length} ${sortedShown.length === 1 ? 'group' : 'groups'}`}
               >
-                {/* Status Filter */}
-                <FilterSection label="Status">
-                  <div className="flex flex-wrap gap-1.5 pt-0.5">
-                    {FILTERS.map((f) => (
-                      <FilterPill
-                        key={f.value}
-                        label={f.label}
-                        count={groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length}
-                        active={filter === f.value}
-                        onClick={() => setFilter(f.value)}
-                      />
-                    ))}
-                  </div>
-                </FilterSection>
-
                 {/* Store & Location */}
                 <FilterSection label="Store or location" htmlFor="filter-store-location">
                   <FilterSelect
@@ -1797,20 +1815,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     onClick={() => setTypeFilter('ALL')}
                     title="Remove item type filter"
                     aria-label="Remove item type filter"
-                    className="hover:text-emerald-950 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {filter !== 'ALL' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
-                  <span>Status: {FILTERS.find((f) => f.value === filter)?.label || filter}</span>
-                  <button
-                    type="button"
-                    onClick={() => setFilter('ALL')}
-                    title="Remove status filter"
-                    aria-label="Remove status filter"
                     className="hover:text-emerald-950 cursor-pointer"
                   >
                     <X className="w-3 h-3" />
