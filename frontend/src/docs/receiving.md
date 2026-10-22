@@ -40,7 +40,8 @@ Choose it in **IFMIS Model 19 PDF** at the top. The form fills in what is still 
 
 - **Filled in:** the voucher header, **every item line as a row** (code, type, description, category, unit, quantity, price), delivered by, and received by when IFMIS printed the names. A store man named on the slip also sets the store.
 - **Another PDF** replaces what the first one filled in, including its rows; what you typed stays.
-- **The signed scan is never read.** Attaching it, even as a PDF, changes nothing that was filled in. A scan or photo chosen in the IFMIS PDF box by mistake is moved to **Signed copy**.
+- **A scan or photo chosen in the IFMIS PDF box is read with OCR** (it takes up to a minute). The header (Model 19 No., PO, date, source, buyer, program) is filled in; item lines are filled only where quantity × unit price matches the line total, and the rest are added by hand. Handwritten names are not read. The scan becomes the receipt's copy. **Check every value against the paper.**
+- **The signed scan under Signed copy is never read.** Attaching it changes nothing that was filled in.
 
 ## Common cases
 
@@ -55,7 +56,7 @@ Choose it in **IFMIS Model 19 PDF** at the top. The form fills in what is still 
 | Donation | Leave the PO number empty. No source, buyer or prices. |
 | Petty-cash purchase (no PO number on the slip) | It comes in as a donation. If it was bought, type the PO number, or ask your supervisor how to record it. |
 | Usual flow: IFMIS PDF, then the signed printout | Choose the IFMIS PDF at the top (it fills the form), then attach the signed scan under **Signed copy**. |
-| Only a scan or photo, no IFMIS PDF | Attach it under **Signed copy** and fill in the fields by hand. |
+| Only a scan or photo, no IFMIS PDF | Choose it in the IFMIS PDF box: it is read with OCR and kept as the copy. Check every value against the paper, and add the items it could not read. |
 | A Model 21, Model 22 or disposal form | Refused here and not attached; the note says which form it belongs to. |
 | The slip was already received | Duplicate entrance is not permitted: the note warns with the existing record codes and submission is blocked so the goods aren't counted twice. |
 | A mistake after submitting | Until the Team Leader endorses it: **Edit receipt**, fix, **Save changes**. After that: ask an approver to reject it, then register it again. |

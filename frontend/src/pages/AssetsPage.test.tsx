@@ -7,6 +7,7 @@ import { applySystemSettings, resetSystemSettings } from '../utils/system-settin
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
 import { readPdfRows, readPdfPages, PdfRow } from '../utils/slip-reader';
+import { ocrRows } from '../utils/slip-ocr';
 
 /** Lines of PDF text as the reader returns them: cells two spaces apart, laid out left to right */
 const asRows = (lines: string[]): PdfRow[] =>
@@ -26,6 +27,11 @@ vi.mock('../utils/slip-reader', async (importOriginal) => {
     readPdfPages: vi.fn(async (file: File) => ({ rows: await readPdfRows(file), pages: 1, pagesRead: 1 })),
   };
 });
+// OCR runs in the browser with its own engine: here a scan reads as whatever a test says
+vi.mock('../utils/slip-ocr', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../utils/slip-ocr')>()),
+  ocrRows: vi.fn(async () => []),
+}));
 vi.mock('../api/client', () => ({
   api: {
     getOrganizations: vi.fn(async () => []), createOrganization: vi.fn(), getItems: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn(), getStores: vi.fn(), getApprovals: vi.fn(),
@@ -1288,7 +1294,25 @@ describe('Asset record', () => {
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000051');
   });
 
-  it('says so when the attached PDF is a scan with no text', async () => {
+  it('reads a scanned Model 19 with OCR: fills the header, says the items must be added, keeps the scan as the copy', async () => {
+    const user = userEvent.setup();
+    vi.mocked(readPdfRows).mockResolvedValue([]);
+    // The scan's header reads well; its table did not
+    vi.mocked(ocrRows).mockResolvedValueOnce(asRows(['Print Model19 Report', 'INV Model 19 No. :  0000070', 'PO Number :  104', 'Received By Name :  BAHIA']));
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+    await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'scan.pdf', { type: 'application/pdf' }));
+    expect(await within(panel).findByText(/Filled in from the scan: Model 19 No\., PO number\. A scan can be misread, so check every value against the paper/)).toBeInTheDocument();
+    expect(within(panel).getByText(/The item lines on this scan could not be read: add the items yourself\./)).toBeInTheDocument();
+    expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000070');
+    // The handwritten name by the signature isn't taken from a scan
+    expect(within(panel).queryByText(/received by BAHIA/)).toBeNull();
+    expect(within(within(panel).getByRole('region', { name: 'Store and signatures' })).getByText('scan.pdf')).toBeInTheDocument();
+  });
+
+  it("attaches a scan that can't be read as a Model 19, and keeps what was typed", async () => {
     const user = userEvent.setup();
     vi.mocked(readPdfRows).mockResolvedValue([]);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
@@ -1297,8 +1321,7 @@ describe('Asset record', () => {
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000077');
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'scan.pdf', { type: 'application/pdf' }));
-    // Only text PDFs saved from IFMIS are read; a scanned one is the signed copy, and what was typed stays
-    expect(await within(panel).findByText(/This PDF is a scan \(it has no text\)\. It is attached below as the signed copy/)).toBeInTheDocument();
+    expect(await within(panel).findByText(/This scan or photo couldn't be read as a Model 19\. It is attached below as the signed copy/)).toBeInTheDocument();
     expect(within(within(panel).getByRole('region', { name: 'Store and signatures' })).getByText('scan.pdf')).toBeInTheDocument();
     expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000077');
     // It says how to get a file that can be read

@@ -12,6 +12,7 @@ import { useSystemSettings } from '../../utils/system-settings';
 import { recallForm, rememberForm } from '../../utils/form-memory';
 import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
 import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
+import { isImageFile, ocrRows } from '../../utils/slip-ocr';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
 import { ReceiptItems, SlipLine, ItemTypeTag, lineMissing, blankLine, cellClass, money } from './SlipLines';
 import { slipKey } from './slip-groups';
@@ -25,6 +26,8 @@ import { approvalNoteOf } from '../../utils/approval-note';
 
 /** IFMIS slips are a page or two; a longer one is read this far and the rest flagged */
 const MAX_SLIP_PAGES = 30;
+/** A scan is read with OCR, a few seconds a page: only its first pages (a Model 19 is rarely longer) */
+const MAX_SCAN_PAGES = 3;
 
 // ─── Stock-In Form (Flat Single-Item Format) ────────────────────────────────
 
@@ -364,8 +367,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   // What reading the attached slip found, shown under it
   const [slipNote, setSlipNote] = useState<{ tone: 'info' | 'warn'; text: string } | null>(null);
+  // Whether the slip being read is a scan or photo (read with OCR), which can be misread
+  const fromScan = useRef(false);
   const filledNote = (filled: string[], more: string) =>
-    setSlipNote({ tone: 'info', text: `Filled in from the slip: ${filled.join(', ')}. Check them against the paper before submitting.${more}` });
+    setSlipNote({
+      tone: 'info',
+      text: fromScan.current
+        ? `Filled in from the scan: ${filled.join(', ')}. A scan can be misread, so check every value against the paper before submitting.${more}`
+        : `Filled in from the slip: ${filled.join(', ')}. Check them against the paper before submitting.${more}`,
+    });
 
   /**
    * A Model 19 PDF from IFMIS fills in what is still empty: the header and the first item line. Only what the person
@@ -427,8 +437,18 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setSlipQuantity(0);
   };
 
-  const fillFromModel19 = (slip: Model19SlipFields) => {
+  const fillFromModel19 = (read: Model19SlipFields) => {
     const filled: string[] = [];
+    // From a downloaded PDF every line is exact. From a scan, only a line that holds together is used: a real unit,
+    // and a quantity and unit price whose product is the line total; any other line may be misread, so it is left out
+    const holdsTogether = (l: Model19SlipFields['lines'][number]) =>
+      !!l.description &&
+      !!l.uom && COMMON_UOMS.includes(l.uom.toUpperCase()) &&
+      !!l.quantity && !!l.unitPrice && !!l.totalAmount &&
+      Math.abs(l.quantity * l.unitPrice - l.totalAmount) <= Math.max(1, l.totalAmount * 0.01);
+    const unreadable = fromScan.current ? read.lines.map((l, i) => (holdsTogether(l) ? 0 : i + 1)).filter(Boolean) : [];
+    // The names by the signatures are handwritten on a scan, which OCR can't read: they are left to be filled in
+    const slip = fromScan.current ? { ...read, receivedBy: undefined, deliveredBy: undefined, lines: read.lines.filter(holdsTogether) } : read;
     const line = slip.lines[0];
     // The store man only goes with his own store: not when the person already picked another store
     const found = keepers.findByName(slip.receivedBy);
@@ -520,7 +540,16 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       others.length > 0
         ? ` This slip lists ${slip.lines.length} items, one row each. Check every row; each is registered as its own record.`
         : '';
-    filledNote(filled, more + unknownReceiver);
+    // Lines of the scan that couldn't be read reliably: named, to be typed in
+    const missing =
+      fromScan.current && read.lines.length === 0
+        ? ' The item lines on this scan could not be read: add the items yourself.'
+        : unreadable.length === 0
+        ? ''
+        : unreadable.length === read.lines.length
+          ? ' The item lines on this scan could not be read reliably: add the items yourself.'
+          : ` Line${unreadable.length === 1 ? '' : 's'} ${unreadable.join(', ')} of the scan could not be read reliably and ${unreadable.length === 1 ? 'was' : 'were'} left out: add ${unreadable.length === 1 ? 'it' : 'them'} with Add item.`;
+    filledNote(filled, more + missing + unknownReceiver);
   };
 
   /** Only a Model 19 is read here; another IFMIS form is named, so it can be taken to its own form */
@@ -553,9 +582,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     e.target.value = '';
     if (file) takeSigned(file);
   };
-  /** A scan given where the IFMIS PDF goes: it cannot be read, so it becomes the signed copy, and what was read stays */
+  /** A scan or photo is the receipt's copy: under Signed copy when that field is shown, else in the slip field itself */
+  const attachScan = (file: File) => {
+    if (showScannedSlipField) return takeSigned(file);
+    setIfmisFile(file);
+  };
+  /** A scan or photo that couldn't be read: it becomes the signed copy, and what was filled in stays */
   const scanGiven = (file: File, what: string) => {
-    takeSigned(file);
+    attachScan(file);
     setSlipNote({
       tone: 'info',
       text: `${what} It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. ${SCAN_HINT}`,
@@ -584,8 +618,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setFormError(null);
     // Reading takes a moment: if another file is chosen meanwhile, only the last one counts
     latestSlip.current = file;
-    // A picture is a scan: only a PDF saved from IFMIS carries text to read
-    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return scanGiven(file, 'This is a photo or scan.');
+    fromScan.current = false;
+    // A picture is a scan: read with OCR
+    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return void readScan(file);
     // The PDF is read before it is attached: another IFMIS form is refused, not kept as this receipt's copy
     setSlipNote({ tone: 'info', text: 'Reading the slip…' });
     readPdfPages(file, MAX_SLIP_PAGES)
@@ -599,8 +634,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           return;
         }
         const text = rowsToText(rows);
-        // A scanned PDF has no text: it is the signed copy, not the IFMIS PDF
-        if (!text.trim()) return scanGiven(file, 'This PDF is a scan (it has no text).');
+        // A scanned PDF has no text: read with OCR
+        if (!text.trim()) return void readScan(file);
         if (!isModel19(text)) {
           setSlipNote({ tone: 'warn', text: 'Only an IFMIS Model 19 PDF can be read here. It was not attached and nothing was filled in.' });
           return;
@@ -618,6 +653,34 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         if (latestSlip.current !== file) return;
         setSlipNote({ tone: 'warn', text: "The PDF couldn't be read, so nothing was filled in. If it is the signed scan, attach it under Signed copy." });
       });
+  };
+
+  /**
+   * A scanned PDF or a photo of a Model 19, read with OCR in the browser: it fills the form like the IFMIS PDF, and is
+   * kept as the signed copy (it is the signed paper). One that can't be read as a Model 19 is only attached.
+   */
+  const readScan = async (file: File) => {
+    if (!isImageFile(file) && !(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return scanGiven(file, 'This file is not a PDF or photo.');
+    setSlipNote({ tone: 'info', text: 'Reading the scan… this can take up to a minute on an older computer.' });
+    let rows: PdfRow[] = [];
+    try {
+      rows = await ocrRows(file, MAX_SCAN_PAGES);
+    } catch {
+      rows = [];
+    }
+    if (latestSlip.current !== file) return;
+    const text = rowsToText(rows);
+    const other = text.trim() ? otherForm(text) : undefined;
+    if (other) {
+      const message = `This scan is ${other}. The receive form takes only a Model 19, so it was not attached and nothing was filled in.`;
+      setSlipNote({ tone: 'warn', text: message });
+      toast.warning('Not a Model 19', message);
+      return;
+    }
+    if (!text.trim() || !isModel19(text)) return scanGiven(file, "This scan or photo couldn't be read as a Model 19.");
+    attachScan(file);
+    fromScan.current = true;
+    fillFromModel19(parseModel19(rows));
   };
 
   // The lines added under the first one, as the server receives them
