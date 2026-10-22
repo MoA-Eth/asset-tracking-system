@@ -304,7 +304,7 @@ describe('Two-Stage Approval Workflow & Queue Logic', () => {
       '%s only sees its own queue plus history, not the other stage',
       (role) => {
         const tabs = getVisibleQueueTabs(role);
-        expect(tabs).toEqual(['MY_QUEUE', 'APPROVED', 'RETURNED', 'REJECTED', 'ALL']);
+        expect(tabs).toEqual(['MY_QUEUE', 'APPROVED', 'REJECTED', 'ALL']);
         expect(tabs).not.toContain('STAGE_1');
         expect(tabs).not.toContain('STAGE_2');
       }

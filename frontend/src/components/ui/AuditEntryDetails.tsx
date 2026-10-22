@@ -42,7 +42,8 @@ export function relatedRequest(log: AuditLogEntry, approvals: TransactionApprova
 /** Where a request stands now */
 const requestStatus = (a: TransactionApproval): string =>
   a.status === 'PENDING' ? `Waiting · stage ${a.currentStage ?? 1} (${(a.currentStage ?? 1) === 2 ? 'Department Head' : 'Team Leader'})`
-  : a.status === 'RETURNED' ? 'Returned for correction'
+  : a.status === 'RETURNED' ? 'Rejected · with the requester to correct or cancel'
+  : a.status === 'CANCELLED' ? 'Cancelled by the requester'
   : a.status === 'APPROVED' ? 'Approved'
   : a.status === 'REJECTED' ? 'Rejected'
   : String(a.status);
@@ -184,14 +185,14 @@ export const AuditEntryDetails: React.FC<{ log: AuditLogEntry; context: AuditCon
           <Row label="Requested by">{byOn(request.requestedBy, request.createdAtGc)}</Row>
           {request.endorsedBy && <Row label="Endorsed by">{byOn(request.endorsedBy, request.endorsedAtGc)}</Row>}
           {request.status === 'APPROVED' && <Row label="Approved by">{byOn(request.reviewedBy, request.reviewedAtGc)}</Row>}
-          {request.status === 'REJECTED' && (
-            <Row label="Rejected by">
+          {(request.status === 'REJECTED' || request.status === 'CANCELLED') && (
+            <Row label={request.status === 'CANCELLED' ? 'Cancelled by' : 'Rejected by'}>
               {byOn(request.reviewedBy, request.reviewedAtGc)}
               {request.reviewRemarks && <span className="block text-rose-700">{request.reviewRemarks}</span>}
             </Row>
           )}
           {request.returnRemarks && (
-            <Row label={request.status === 'RETURNED' ? 'Returned by' : 'Last returned by'}>
+            <Row label={request.status === 'RETURNED' ? 'Rejected by' : 'Last rejected by'}>
               {byOn(request.returnedBy, request.returnedAtGc)}
               {(request.returnCount ?? 0) > 1 ? ` · ${request.returnCount} times` : ''}
               <span className="block text-amber-800">{request.returnRemarks}</span>

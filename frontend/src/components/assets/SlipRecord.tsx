@@ -45,15 +45,15 @@ const STATE_BADGES: Record<AssetState, { label: string; tone: string }> = {
 const standings = (rows: AssetRow[]) => {
   const groups = new Map<string, { key: string; label: string; word: string; tone: string; n: number }>();
   for (const r of rows) {
-    // A request returned for correction is with its requester, whatever kind it is
-    const returned = r.request?.status === 'RETURNED' ? 'Returned' : undefined;
+    // A rejected request is with its requester, whatever kind it is
+    const returned = r.request?.status === 'RETURNED' ? 'Rejected' : undefined;
     const pending = returned ?? (r.state === 'REQUEST_PENDING' && r.request ? requestLabel(r.request.transactionType, r.request.requestDetails).pending : undefined);
-    const key = returned ? 'RETURNED' : pending ? `REQUEST:${pending}` : r.state;
+    const key = returned ? 'REJECTED' : pending ? `REQUEST:${pending}` : r.state;
     const g = groups.get(key) ?? {
       key,
       label: pending ?? STATE_BADGES[r.state].label,
       word: pending ? pending.toLowerCase() : STATE_WORDS[r.state],
-      tone: STATE_BADGES[r.state].tone,
+      tone: returned ? statusTone.rejected : STATE_BADGES[r.state].tone,
       n: 0,
     };
     groups.set(key, { ...g, n: g.n + 1 });
@@ -92,8 +92,10 @@ export interface SlipRecordProps {
   onDuplicate?: () => void;
   /** Opens a Model 22 with this receipt's items still in store; absent when none is, or this person can't issue */
   onIssue?: () => void;
-  /** Sends this receipt, returned for correction, back to the Team Leader; absent when it isn't returned or this person can't */
+  /** Sends this rejected receipt back to the Team Leader; absent when it isn't rejected or this person can't */
   onResubmit?: () => void;
+  /** Withdraws this rejected receipt; absent when it isn't rejected or this person can't */
+  onCancelRequest?: () => void;
   /** A form open on this receipt (the Model 22 issuing its items), shown in place of the details */
   form?: React.ReactNode;
   onClose: () => void;
@@ -103,7 +105,7 @@ export interface SlipRecordProps {
  * A Model 19 receipt of several items, opened from its one row in the register: what the slip says, its total and
  * scanned copy, and its items, each opening its own record (where it is issued, transferred, corrected…).
  */
-export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrint, onDuplicate, onIssue, onResubmit, form, onClose }) => {
+export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrint, onDuplicate, onIssue, onResubmit, onCancelRequest, form, onClose }) => {
   const [viewingSlip, setViewingSlip] = useState(false);
   const lead = rows[0].item;
   const total = rows.reduce((sum, r) => sum + slipLineTotal(r.item), 0);
@@ -133,6 +135,11 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
             {onResubmit && (
               <button type="button" onClick={onResubmit} className={btn.primary} title="Correct its items first: open each from the list below">
                 <Send className="h-3.5 w-3.5" /> Resubmit Model 19
+              </button>
+            )}
+            {onCancelRequest && (
+              <button type="button" onClick={onCancelRequest} className={btn.secondary}>
+                Cancel request
               </button>
             )}
             {onIssue && (

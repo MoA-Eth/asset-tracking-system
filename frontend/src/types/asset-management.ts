@@ -40,8 +40,10 @@ export enum ApprovalStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
-  /** Sent back to the requester to correct; still open, resubmitted to the Team Leader */
+  /** Rejected by an approver and with its requester: still open, corrected and resubmitted, or cancelled */
   RETURNED = 'RETURNED',
+  /** Withdrawn by its requester after it was rejected; closed, its record released */
+  CANCELLED = 'CANCELLED',
 }
 
 export enum AssetCategory {
@@ -324,7 +326,7 @@ export interface VoucherSignatory {
 
 export interface Model19Voucher {
   /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
-  approvalState?: 'PENDING' | 'RETURNED' | 'REJECTED';
+  approvalState?: 'PENDING' | 'RETURNED' | 'REJECTED' | 'CANCELLED';
   /** Who returned or rejected the request, when and why, printed under the banner */
   approvalNote?: string;
   invModel19No: string;
@@ -389,7 +391,7 @@ export interface MyAsset {
 
 export interface Model22Voucher {
   /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
-  approvalState?: 'PENDING' | 'RETURNED' | 'REJECTED';
+  approvalState?: 'PENDING' | 'RETURNED' | 'REJECTED' | 'CANCELLED';
   /** Who returned or rejected the request, when and why, printed under the banner */
   approvalNote?: string;
   model22No: string;
@@ -416,7 +418,7 @@ export interface Model22Voucher {
 /** Printed record of a disposal request (Asset Disposal Certificate) */
 export interface DisposalVoucher {
   /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
-  approvalState?: 'PENDING' | 'RETURNED' | 'REJECTED';
+  approvalState?: 'PENDING' | 'RETURNED' | 'REJECTED' | 'CANCELLED';
   /** Who returned or rejected the request, when and why, printed under the banner */
   approvalNote?: string;
   disposalNo: string;
@@ -478,7 +480,7 @@ export interface Model21LineItem {
 
 export interface Model21Voucher {
   /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
-  approvalState?: 'PENDING' | 'RETURNED' | 'REJECTED';
+  approvalState?: 'PENDING' | 'RETURNED' | 'REJECTED' | 'CANCELLED';
   /** Who returned or rejected the request, when and why, printed under the banner */
   approvalNote?: string;
   model21No: string;
@@ -579,7 +581,7 @@ export interface TransactionApproval {
   reviewedAtGc?: string;
   reviewedAtEc?: string;
   reviewedBy?: Employee;
-  /** Returned for correction: by whom, from which stage, why and when, and how many times so far */
+  /** Rejected and sent back to the requester: by whom, from which stage, why and when, and how many times so far */
   returnedById?: string;
   returnedBy?: Employee;
   returnRemarks?: string;
@@ -587,8 +589,6 @@ export interface TransactionApproval {
   returnedAtEc?: string;
   returnedFromStage?: number;
   returnCount?: number;
-  /** A final rejection: the voucher can't be entered again */
-  rejectionFinal?: boolean;
   requestedBy?: Employee;
   recipientEmployee?: Employee;
 }
@@ -957,7 +957,7 @@ export interface UpdateReturnRequest {
 
 export interface ApprovalActionRequest {
   approvalId: string;
-  /** RETURN sends the request back to the requester to correct; REJECT refuses it for good */
+  /** REJECT sends the request back to its requester, still open (RETURN is the older name of it) */
   action: 'ENDORSE' | 'APPROVE' | 'REJECT' | 'RETURN';
   reviewedById: string;
   reviewRemarks?: string;

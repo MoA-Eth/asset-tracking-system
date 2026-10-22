@@ -163,41 +163,48 @@ describe('Approvals: the Chief Director signs a voucher by its grand total', () 
   });
 });
 
-describe('Approvals: return for correction', () => {
-  it('needs a reason, then sends the whole Model 19 back to its requester', async () => {
+describe('Approvals: rejecting', () => {
+  it('needs a reason, then sends the whole Model 19 back to its requester; there is no separate Return', async () => {
     const user = userEvent.setup();
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('3 items')).closest('tr')!;
     await user.click(within(row).getByRole('button', { name: /Endorse/ }));
     // Wider than before, to read the voucher's lines
-    expect(screen.getByRole('button', { name: /Return for correction/ }).closest('.max-w-2xl')).not.toBeNull();
+    expect(screen.getByRole('button', { name: /^Reject$/ }).closest('.max-w-2xl')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: /Return for correction/ })).toBeNull();
+    expect(screen.getByText(/goes back to its requester, who corrects and resubmits it, or cancels it/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Return for correction/ }));
+    await user.click(screen.getByRole('button', { name: /^Reject$/ }));
     expect(api.handleSlipApproval).not.toHaveBeenCalled();
-    expect(toast.warning).toHaveBeenCalledWith('Reason Required', expect.any(String));
 
     await user.type(screen.getByPlaceholderText(/Verified asset specifications/), 'Price is entered as USD.');
-    await user.click(screen.getByRole('button', { name: /Return for correction/ }));
-    expect(api.handleSlipApproval).toHaveBeenCalledWith(expect.objectContaining({ approvalIds: ['A', 'B', 'C'], action: 'RETURN', reviewRemarks: 'Price is entered as USD.' }));
-    expect(toast.success).toHaveBeenCalledWith('Returned for Correction', expect.stringContaining('went back to Encoder'));
+    await user.click(screen.getByRole('button', { name: /^Reject$/ }));
+    expect(api.handleSlipApproval).toHaveBeenCalledWith(expect.objectContaining({ approvalIds: ['A', 'B', 'C'], action: 'REJECT', reviewRemarks: 'Price is entered as USD.' }));
+    expect(toast.warning).toHaveBeenCalledWith('Transaction Rejected', expect.stringContaining('went back to Encoder with your reason, to correct and resubmit, or cancel'));
   });
 
-  it('lists a returned receipt with who returned it, when and why, and lets it only be rejected for good', async () => {
+  it('lists a rejected receipt, still with its requester, under Rejected, with nothing for the approver to do', async () => {
     const user = userEvent.setup();
-    const returned = { status: 'RETURNED', returnedBy: { fullNameEn: 'Getnet Taye' }, returnedAtGc: '2026-10-21', returnRemarks: 'Price is entered as USD.' };
-    vi.mocked(api.getApprovals).mockResolvedValue([receiptLine('A', 'Dell Latitude', returned), receiptLine('B', 'HP Printer', returned)] as any);
+    const rejected = { status: 'RETURNED', returnedBy: { fullNameEn: 'Getnet Taye' }, returnedFromStage: 1, returnedAtGc: '2026-10-21', returnRemarks: 'Price is entered as USD.' };
+    vi.mocked(api.getApprovals).mockResolvedValue([receiptLine('A', 'Dell Latitude', rejected), receiptLine('B', 'HP Printer', rejected)] as any);
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
-    await user.click((await screen.findAllByRole('button', { name: /^Returned/ }))[0]);
+    expect(screen.queryByRole('button', { name: /^Returned/ })).toBeNull();
+    await user.click((await screen.findAllByRole('button', { name: /^Rejected/ }))[0]);
     const row = screen.getByText('Dell Latitude, HP Printer').closest('tr')!;
-    expect(within(row).getByText('Returned')).toBeInTheDocument();
+    expect(within(row).getByText('Rejected · with requester')).toBeInTheDocument();
     expect(within(row).getByText(/^by Team Leader · 21 Oct/)).toBeInTheDocument();
     expect(within(row).getByText('Price is entered as USD.')).toBeInTheDocument();
-    expect(within(row).queryByRole('button', { name: /Endorse/ })).toBeNull();
+    expect(within(row).queryByRole('button', { name: /Endorse|Reject/ })).toBeNull();
+  });
 
-    await user.click(within(row).getByRole('button', { name: /Reject/ }));
-    expect(screen.queryByRole('button', { name: /Endorse \(Stage 1\)/ })).toBeNull();
-    await user.type(screen.getByPlaceholderText(/Verified asset specifications/), 'Not our delivery');
-    await user.click(screen.getByRole('button', { name: /Reject for good/ }));
-    expect(api.handleSlipApproval).toHaveBeenCalledWith(expect.objectContaining({ approvalIds: ['A', 'B'], action: 'REJECT', reviewRemarks: 'Not our delivery' }));
+  it('shows a cancelled request as cancelled by its requester', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getApprovals).mockResolvedValue([receiptLine('A', 'Dell Latitude', { status: 'CANCELLED', reviewedBy: { fullNameEn: 'Encoder', role: 'DATA_ENCODER' }, reviewedAtGc: '2026-10-22', reviewRemarks: 'Entered twice' })] as any);
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+    await user.click((await screen.findAllByRole('button', { name: /^All Records/ }))[0]);
+    const row = screen.getByText('Dell Latitude').closest('tr')!;
+    expect(within(row).getByText('Cancelled')).toBeInTheDocument();
+    expect(within(row).getByText(/^by the requester · 22 Oct/)).toBeInTheDocument();
+    expect(within(row).getByText('Entered twice')).toBeInTheDocument();
   });
 });

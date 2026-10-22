@@ -30,7 +30,6 @@ import {
   ShieldCheck,
   Paperclip,
   ArrowRightLeft,
-  Undo2,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { ApprovalsSkeleton } from '../components/ui/Skeleton';
@@ -62,7 +61,7 @@ interface ApprovalsPageProps {
   onRefreshPendingCount?: () => void;
 }
 
-type TabFilter = 'MY_QUEUE' | 'STAGE_1' | 'STAGE_2' | 'APPROVED' | 'RETURNED' | 'REJECTED' | 'ALL';
+type TabFilter = 'MY_QUEUE' | 'STAGE_1' | 'STAGE_2' | 'APPROVED' | 'REJECTED' | 'ALL';
 
 /**
  * Queue tabs shown to a role. Stage approvers only get their own queue
@@ -72,14 +71,14 @@ export { HIGH_VALUE_THRESHOLD } from '../components/assets/slip-groups';
 
 export function getVisibleQueueTabs(role: UserRole, permissions?: string[]): TabFilter[] {
   if (role === UserRole.SUPER_ADMIN) {
-    return ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'RETURNED', 'REJECTED', 'ALL'];
+    return ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'REJECTED', 'ALL'];
   }
   const canEndorse = permissions ? permissions.includes('approvals.endorse') : (role === UserRole.TEAM_LEADER);
   const canAuthorize = permissions ? permissions.includes('approvals.authorize') : (role === UserRole.DEPARTMENT_HEAD || role === UserRole.CHIEF_DIRECTOR);
   const isSingleStageApprover = (canEndorse && !canAuthorize) || (!canEndorse && canAuthorize);
   return isSingleStageApprover
-    ? ['MY_QUEUE', 'APPROVED', 'RETURNED', 'REJECTED', 'ALL']
-    : ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'RETURNED', 'REJECTED', 'ALL'];
+    ? ['MY_QUEUE', 'APPROVED', 'REJECTED', 'ALL']
+    : ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'REJECTED', 'ALL'];
 }
 
 
@@ -220,8 +219,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     const stage1 = pending.filter((a) => (a.currentStage ?? 1) === 1);
     const stage2 = pending.filter((a) => a.currentStage === 2);
     const approved = rows.filter((a) => a.status === ApprovalStatus.APPROVED);
-    const rejected = rows.filter((a) => a.status === ApprovalStatus.REJECTED);
-    const returned = rows.filter((a) => a.status === ApprovalStatus.RETURNED);
+    // Rejected: with the requester to correct (RETURNED), or closed before rejections went back to the requester
+    const rejected = rows.filter((a) => a.status === ApprovalStatus.REJECTED || a.status === ApprovalStatus.RETURNED);
 
     let myQueueCount = 0;
     if (canEndorse && canApprove) {
@@ -244,7 +243,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       stage2Count: stage2.length,
       approvedCount: approved.length,
       rejectedCount: rejected.length,
-      returnedCount: returned.length,
       totalCount: rows.length,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -273,10 +271,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         if (item.status !== ApprovalStatus.PENDING || item.currentStage !== 2) return false;
       } else if (activeTab === 'APPROVED') {
         if (item.status !== ApprovalStatus.APPROVED) return false;
-      } else if (activeTab === 'RETURNED') {
-        if (item.status !== ApprovalStatus.RETURNED) return false;
       } else if (activeTab === 'REJECTED') {
-        if (item.status !== ApprovalStatus.REJECTED) return false;
+        if (item.status !== ApprovalStatus.REJECTED && item.status !== ApprovalStatus.RETURNED) return false;
       }
 
       // 2. Type Filter
@@ -385,7 +381,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   };
 
   /** Sends a decision: every line of a receipt at once (all or none), or a single request */
-  const decide = (id: string, action: 'ENDORSE' | 'APPROVE' | 'REJECT' | 'RETURN', reviewedById?: string, remarks?: string) => {
+  const decide = (id: string, action: 'ENDORSE' | 'APPROVE' | 'REJECT', reviewedById?: string, remarks?: string) => {
     const receipt = slipLines.get(id);
     return receipt
       ? api.handleSlipApproval({ approvalIds: receipt.map((l) => l.id), action, reviewedById: reviewedById as string, reviewRemarks: remarks })
@@ -393,16 +389,11 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   };
 
   // Single Action Handler
-  const handleAction = async (approvalId: string, action: 'ENDORSE' | 'APPROVE' | 'REJECT' | 'RETURN') => {
+  const handleAction = async (approvalId: string, action: 'ENDORSE' | 'APPROVE' | 'REJECT') => {
     setActionError(null);
     if (action === 'REJECT' && !reviewRemarks.trim()) {
       setActionError('Please provide a mandatory reason for rejection.');
       toast.warning('Remarks Required', 'A reason or remarks must be provided when rejecting a transaction.');
-      return;
-    }
-    if (action === 'RETURN' && !reviewRemarks.trim()) {
-      setActionError('Say what needs correcting: the requester sees it with the returned request.');
-      toast.warning('Reason Required', 'Say what needs correcting before returning the request.');
       return;
     }
 
@@ -443,15 +434,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           'Authorization Approved',
           `${typeLabel} (${itemCode}) granted final sign-off. ${resultDesc}`
         );
-      } else if (action === 'RETURN') {
-        toast.success(
-          'Returned for Correction',
-          `${typeLabel} (${itemCode}) went back to ${target?.requestedBy?.fullNameEn || 'its requester'} with your reason. It comes back to the Team Leader once corrected.`
-        );
       } else if (action === 'REJECT') {
         toast.warning(
           'Transaction Rejected',
-          `${typeLabel} (${itemCode}) has been rejected for good: its number can't be entered again.`
+          `${typeLabel} (${itemCode}) went back to ${target?.requestedBy?.fullNameEn || 'its requester'} with your reason, to correct and resubmit, or cancel.`
         );
       }
     } catch (err: any) {
@@ -582,17 +568,19 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const getStageIndicator = (appr: TransactionApproval) => {
     // Decided or returned: the outcome, who by (their role) and when, and the reason on one line; the rest on hover
     if (appr.status !== ApprovalStatus.PENDING) {
-      const returned = appr.status === ApprovalStatus.RETURNED;
-      const rejected = appr.status === ApprovalStatus.REJECTED;
-      const person = returned ? appr.returnedBy : appr.reviewedBy;
-      const stage = returned ? appr.returnedFromStage : appr.status === ApprovalStatus.APPROVED ? 2 : appr.currentStage;
-      const by = deciderRole(person?.role, stage);
-      const date = returned ? appr.returnedAtGc : appr.reviewedAtGc;
-      const reason = (returned ? appr.returnRemarks : rejected ? appr.reviewRemarks : undefined)?.trim();
-      const tone = returned
-        ? { badge: 'bg-amber-50 text-amber-800 border-amber-200', text: 'text-amber-800', icon: <Undo2 className="w-3 h-3 text-amber-700" />, label: 'Returned' }
-        : rejected
-          ? { badge: 'bg-rose-50 text-rose-700 border-rose-200', text: 'text-rose-700', icon: <XCircle className="w-3 h-3 text-rose-600" />, label: 'Rejected' }
+      // Rejected now: with its requester (RETURNED); rejected and closed before; or cancelled by its requester
+      const withRequester = appr.status === ApprovalStatus.RETURNED;
+      const cancelled = appr.status === ApprovalStatus.CANCELLED;
+      const rejected = withRequester || appr.status === ApprovalStatus.REJECTED;
+      const person = withRequester ? appr.returnedBy : appr.reviewedBy;
+      const stage = withRequester ? appr.returnedFromStage : appr.status === ApprovalStatus.APPROVED ? 2 : appr.currentStage;
+      const by = cancelled ? 'the requester' : deciderRole(person?.role, stage);
+      const date = withRequester ? appr.returnedAtGc : appr.reviewedAtGc;
+      const reason = (withRequester ? appr.returnRemarks : rejected || cancelled ? appr.reviewRemarks : undefined)?.trim();
+      const tone = rejected
+        ? { badge: 'bg-rose-50 text-rose-700 border-rose-200', text: 'text-rose-700', icon: <XCircle className="w-3 h-3 text-rose-600" />, label: withRequester ? 'Rejected · with requester' : 'Rejected' }
+        : cancelled
+          ? { badge: 'bg-slate-100 text-slate-700 border-slate-300', text: 'text-slate-600', icon: <XCircle className="w-3 h-3 text-slate-500" />, label: 'Cancelled' }
           : { badge: 'bg-emerald-50 text-emerald-800 border-emerald-200', text: '', icon: <CheckCircle2 className="w-3 h-3 text-emerald-700" />, label: 'Approved' };
       const detail = [person?.fullNameEn, shortDate(date), reason].filter(Boolean).join(' · ');
       return (
@@ -642,8 +630,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       { id: 'STAGE_1' as TabFilter, label: 'Stage 1 (Team Leader)', count: metrics.stage1Count },
       { id: 'STAGE_2' as TabFilter, label: 'Stage 2 (Dept Head)', count: metrics.stage2Count },
       { id: 'APPROVED' as TabFilter, label: 'Approved History', count: metrics.approvedCount },
-      // With their requesters to correct and resubmit
-      { id: 'RETURNED' as TabFilter, label: 'Returned', count: metrics.returnedCount },
       { id: 'REJECTED' as TabFilter, label: 'Rejected', count: metrics.rejectedCount },
       { id: 'ALL' as TabFilter, label: 'All Records', count: metrics.totalCount },
     ].filter((tab) => getVisibleQueueTabs(role, user?.permissions).includes(tab.id));
@@ -1056,20 +1042,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                             <FileSearch className={btn.rowIcon} />
                             View
                           </button>
-                          {appr.status === ApprovalStatus.RETURNED && canReview && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedApproval(appr);
-                                setReviewRemarks('');
-                              }}
-                              className={btn.row}
-                              title="A returned request waits for its requester; it can still be rejected for good"
-                            >
-                              <XCircle className={btn.rowIcon} />
-                              Reject
-                            </button>
-                          )}
                           {isActionableForMe && (
                           <button
                             onClick={() => {
@@ -1182,9 +1154,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <FileCheck2 className="w-4 h-4 text-emerald-800" />
-                {selectedApproval.status === ApprovalStatus.RETURNED
-                  ? 'Returned for correction: reject it for good?'
-                  : selectedApproval.currentStage === 1
+                {selectedApproval.currentStage === 1
                   ? 'Stage 1: Team Leader Endorsement'
                   : isHigh(selectedApproval)
                     ? 'Stage 2: Chief Director Final Authorization (> 10M ETB)'
@@ -1350,9 +1320,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   className="w-full px-3 py-2 bg-white border border-slate-300 rounded-[4px] text-slate-900 focus:outline-none focus:border-emerald-700 text-xs"
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
-                  {selectedApproval.status === ApprovalStatus.RETURNED
-                    ? 'Give the reason. A rejection is final: this voucher can\'t be entered again.'
-                    : 'Needed to return or reject. Return sends it back to the requester to correct; Reject refuses it for good.'}
+                  Needed to reject. A rejected request goes back to its requester, who corrects and resubmits it, or cancels it.
                 </p>
               </div>
             </div>
@@ -1366,17 +1334,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 Cancel
               </button>
 
-              {selectedApproval.status === ApprovalStatus.RETURNED && canReview && (
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => handleAction(selectedApproval.id, 'REJECT')}
-                  className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                >
-                  <XCircle className="w-4 h-4" /> Reject for good
-                </button>
-              )}
-
               {selectedApproval.status === ApprovalStatus.PENDING && selectedApproval.currentStage === 1 && canEndorse && (
                 <>
                   <button
@@ -1386,15 +1343,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
                   >
                     <XCircle className="w-4 h-4" /> Reject
-                  </button>
-                  <button
-                    type="button"
-                    disabled={actionLoading}
-                    onClick={() => handleAction(selectedApproval.id, 'RETURN')}
-                    title="Send it back to the requester to correct and resubmit"
-                    className="px-4 py-2 bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                  >
-                    <Undo2 className="w-4 h-4" /> Return for correction
                   </button>
                   <button
                     type="button"
@@ -1430,15 +1378,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       >
                         <XCircle className="w-4 h-4" /> Reject
                       </button>
-                      <button
-                    type="button"
-                    disabled={actionLoading}
-                    onClick={() => handleAction(selectedApproval.id, 'RETURN')}
-                    title="Send it back to the requester to correct and resubmit"
-                    className="px-4 py-2 bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                  >
-                    <Undo2 className="w-4 h-4" /> Return for correction
-                  </button>
                       <button
                         type="button"
                         disabled={actionLoading}

@@ -18,6 +18,7 @@ import {
   Printer,
   Info,
   Send,
+  XCircle,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -40,6 +41,7 @@ import { StockOutForm, buildModel22Voucher } from '../components/assets/IssueFor
 import { TransferForm, buildModel21Voucher } from '../components/assets/TransferForm';
 import { DisposalForm, buildDisposalVoucher } from '../components/assets/DisposalForm';
 import { DisposalPrintModal } from '../components/ui/DisposalPrintModal';
+import { Modal } from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import {
@@ -363,7 +365,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           lastMove: approved.find((a) => a.transactionType === 'TRANSFER' || a.transactionType === 'RETURN'),
           lastDisposal,
           // A new request replaces the rejected one; until then the row says what happened
-          rejected: !request && lastRaised?.status === ApprovalStatus.REJECTED ? lastRaised : undefined,
+          rejected: !request && (lastRaised?.status === ApprovalStatus.REJECTED || lastRaised?.status === ApprovalStatus.CANCELLED) ? lastRaised : undefined,
           daysInStore: state === 'IN_STORE' ? daysInStore(item, today) : undefined,
         };
       })
@@ -642,7 +644,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             editItem={item}
             returned={pendingByItem.get(item.id)?.status === ApprovalStatus.RETURNED}
             registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && i.id !== item.id).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
-            rejectedReceipts={rejectedReceipts}
             onCancel={() => setEditing(false)}
             onSuccess={(_result, voucher) => done(voucher, setVoucher19)}
           />
@@ -758,22 +759,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return undefined;
   };
 
-  /**
-   * Records whose receipt was rejected for good: they can't be received again, so they aren't offered as a copy.
-   * Receipts rejected before rejections were final were corrections, and keep Duplicate as new receipt.
-   */
-  const finallyRejected = useMemo(
-    () => new Set(approvals.filter((a) => a.transactionType === 'STOCK_IN' && a.status === ApprovalStatus.REJECTED && a.rejectionFinal).map((a) => a.itemId)),
-    [approvals],
-  );
-  /** Receipts rejected for good, so the receive form refuses their Model 19 No. and PO */
-  const rejectedReceipts = useMemo(
-    () => approvals
-      .filter((a) => a.transactionType === 'STOCK_IN' && a.status === ApprovalStatus.REJECTED && a.rejectionFinal)
-      .map((a) => ({ slipNumber: a.ifmisSlipNumber, poNumber: a.poNumber, reason: a.reviewRemarks, by: a.reviewedBy?.fullNameEn, on: a.reviewedAtGc })),
-    [approvals],
-  );
-  /** A returned request's voucher, every line of it still returned: sent back to the Team Leader at once */
+  /** A rejected request's voucher, every line of it still with its requester: resubmitted or cancelled at once */
   const voucherOfRequest = (request: TransactionApproval) => {
     const norm = (v?: string | null) => (v ?? '').trim().toLowerCase();
     const key = (a: TransactionApproval) => `${a.transactionType}|${norm(a.ifmisSlipNumber)}|${a.transactionType === 'STOCK_IN' ? norm(a.poNumber) : ''}`;
@@ -801,6 +787,36 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
   /** Who may correct and resubmit each kind of request */
   const mayCorrect = (type: string) => ({ STOCK_IN: canReceive, STOCK_OUT: canIssue, DISPOSAL: canDispose, TRANSFER: canTransfer, RETURN: canTransfer } as Record<string, boolean>)[type] ?? false;
+  // Cancelling closes a rejected request for good, so it is confirmed first
+  const [cancelling, setCancelling] = useState<{ request: TransactionApproval; lines: TransactionApproval[]; reason: string; busy: boolean } | null>(null);
+  const askCancel = (request: TransactionApproval) => {
+    const lines = voucherOfRequest(request);
+    if (lines.length) setCancelling({ request, lines, reason: '', busy: false });
+  };
+  const confirmCancel = async () => {
+    if (!cancelling || cancelling.busy) return;
+    setCancelling({ ...cancelling, busy: true });
+    const { request, lines, reason } = cancelling;
+    try {
+      await api.cancelApprovals(lines.map((a) => a.id), reason.trim() || undefined);
+      toast.success(
+        'Request cancelled',
+        `${VOUCHER_OF[request.transactionType] ?? 'Voucher'} ${request.ifmisSlipNumber}${lines.length > 1 ? ` (${lines.length} items)` : ''} is cancelled and its records are released.`,
+      );
+      setCancelling(null);
+      window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
+      await fetchData(true);
+    } catch (err: any) {
+      toast.error('Could not cancel', err?.message || 'Try again.');
+      setCancelling((c) => (c ? { ...c, busy: false } : c));
+    }
+  };
+  const cancelAction = (request?: TransactionApproval): RowAction => ({
+    label: 'Cancel request',
+    icon: XCircle,
+    onClick: () => request && askCancel(request),
+    hidden: !request || request.status !== ApprovalStatus.RETURNED || !mayCorrect(request.transactionType),
+  });
   const resubmitAction = (request?: TransactionApproval): RowAction => ({
     label: `Resubmit ${VOUCHER_OF[request?.transactionType ?? ''] ?? 'request'}`,
     icon: Send,
@@ -811,14 +827,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   const actionsFor = (row: AssetRow): RowAction[] => {
     const { item, request } = row;
-    // A rejected record: the one thing left to do is receive it again, unless it was rejected for good
+    // A rejected or cancelled record: the one thing left to do is receive it again
     if (row.state === 'REJECTED' || item.status === ItemStatus.REJECTED) {
       return [
         {
           label: 'Duplicate as new receipt',
           icon: Copy,
           onClick: () => duplicateItem(item),
-          hidden: !canReceive || !!item.parentItemId || finallyRejected.has(item.id),
+          hidden: !canReceive || !!item.parentItemId,
         },
       ];
     }
@@ -836,6 +852,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             reason: request?.currentStage === 2 ? ENDORSED_REASON : undefined,
           },
           resubmitAction(request),
+          cancelAction(request),
         ];
       case 'IN_STORE':
         return [
@@ -902,6 +919,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             reason: request!.currentStage === 2 ? ENDORSED_REASON : undefined,
           },
           resubmitAction(request),
+          cancelAction(request),
           {
             // The units not on the waiting issue can go on another Model 22 now
             label: 'Issue (Model 22)',
@@ -1189,16 +1207,17 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             label={`Model 19 ${lead.ifmisSlipNumber}`}
             actions={[
               resubmitAction(returnedReceiptOf(members)),
+              cancelAction(returnedReceiptOf(members)),
               { label: 'Issue (Model 22)', icon: PackageMinus, onClick: () => issueSlip(key, members), hidden: !canIssue || issuableOf(members).length === 0 },
               { label: 'Print Model 19', icon: Printer, onClick: () => printSlip(members) },
-              { label: 'Duplicate as new receipt', icon: Copy, onClick: () => duplicateSlip(members), hidden: !canReceive || members.every((g) => finallyRejected.has(g.row.item.id)) },
+              { label: 'Duplicate as new receipt', icon: Copy, onClick: () => duplicateSlip(members), hidden: !canReceive },
             ]}
           />
         </td>
       </tr>
     );
   };
-  /** The receipt request of a Model 19 returned for correction, if it is */
+  /** The receipt request of a rejected Model 19, still with its requester, if it is */
   const returnedReceiptOf = (members: AssetGroup[]) =>
     members.map((g) => pendingByItem.get(g.row.item.id)).find((a) => a?.status === ApprovalStatus.RETURNED && a.transactionType === 'STOCK_IN');
   /** The Model 19 of a receipt of several items, with its approvers' signatures once approved */
@@ -1429,7 +1448,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     editItem={receipt.edit}
                     template={receipt.template}
                     registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (!receipt.edit || i.id !== receipt.edit.id)).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
-                    rejectedReceipts={rejectedReceipts}
                     onCancel={() => setReceipt(null)}
                     onSuccess={(result, voucher) => {
                       setReceipt(null);
@@ -1450,11 +1468,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               rows={selectedSlipMembers.map((g) => g.row)}
               onOpenItem={(id) => openRecord(id, selectedSlip!)}
               onPrint={() => printSlip(selectedSlipMembers)}
-              onDuplicate={canReceive && !selectedSlipMembers.every((g) => finallyRejected.has(g.row.item.id)) ? () => duplicateSlip(selectedSlipMembers) : undefined}
+              onDuplicate={canReceive ? () => duplicateSlip(selectedSlipMembers) : undefined}
               onIssue={canIssue && issuableOf(selectedSlipMembers).length > 0 ? () => issueSlip(selectedSlip!, selectedSlipMembers) : undefined}
               onResubmit={(() => {
                 const returned = returnedReceiptOf(selectedSlipMembers);
                 return returned && canReceive ? () => void resubmit(returned) : undefined;
+              })()}
+              onCancelRequest={(() => {
+                const returned = returnedReceiptOf(selectedSlipMembers);
+                return returned && canReceive ? () => askCancel(returned) : undefined;
               })()}
               form={
                 issue?.slip === selectedSlip ? (
@@ -1936,6 +1958,38 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       <Model22PrintModal isOpen={!!voucher22} voucher={voucher22} onClose={() => setVoucher22(null)} />
       <Model21PrintModal isOpen={!!voucher21} voucher={voucher21} onClose={() => setVoucher21(null)} />
       <DisposalPrintModal isOpen={!!voucherDisposal} voucher={voucherDisposal} onClose={() => setVoucherDisposal(null)} />
+      {cancelling && (
+        <Modal
+          isOpen
+          onClose={() => !cancelling.busy && setCancelling(null)}
+          title={`Cancel ${VOUCHER_OF[cancelling.request.transactionType] ?? 'request'} ${cancelling.request.ifmisSlipNumber}${cancelling.lines.length > 1 ? ` (${cancelling.lines.length} items)` : ''}?`}
+          subtitle="The request closes and its records are released. It can't be resubmitted afterwards."
+          size="sm"
+        >
+          <div className="space-y-3 text-xs">
+            {cancelling.request.returnRemarks && <p className="text-slate-600">Rejected because: {cancelling.request.returnRemarks}</p>}
+            <label className="block">
+              <span className="mb-1 block font-semibold text-slate-700">Reason (optional)</span>
+              <input
+                type="text"
+                value={cancelling.reason}
+                maxLength={500}
+                onChange={(e) => setCancelling({ ...cancelling, reason: e.target.value })}
+                placeholder="e.g. Entered twice"
+                className="w-full rounded-[4px] border border-slate-300 px-3 py-2 text-xs focus:border-emerald-700 focus:outline-none"
+              />
+            </label>
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={() => setCancelling(null)} disabled={cancelling.busy} className={btn.secondary}>
+                Keep it
+              </button>
+              <button type="button" onClick={() => void confirmCancel()} disabled={cancelling.busy} className="inline-flex items-center gap-1.5 rounded-md bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-800 disabled:opacity-60 cursor-pointer">
+                {cancelling.busy ? 'Cancelling…' : 'Cancel request'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

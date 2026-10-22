@@ -41,10 +41,8 @@ export interface StockInFormProps {
   initialSlip?: File;
   /** Receipt lines already registered, to warn when a Model 19 line is received a second time */
   registered?: { slipNumber?: string; name: string; itemCode: string }[];
-  /** Correcting a receipt returned for correction: saving it resubmits it to the Team Leader */
+  /** Correcting a rejected receipt: saving it resubmits it to the Team Leader */
   returned?: boolean;
-  /** Receipts rejected for good: their Model 19 No. and PO can't be received again */
-  rejectedReceipts?: { slipNumber: string; poNumber?: string; reason?: string; by?: string; on?: string }[];
 }
 
 /** What a new receipt can start from instead of empty: an earlier item ("Duplicate as new receipt") */
@@ -130,7 +128,7 @@ export const templateFromSlip = (items: ItemWithRelations[]): ReceiptTemplate =>
   };
 };
 
-export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template, initialSlip, registered, rejectedReceipts, returned }) => {
+export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template, initialSlip, registered, returned }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
@@ -311,18 +309,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   })), [extraLines, ifmisSlipNumber, registered]);
 
   const duplicateLines = linesWithDuplicates.filter((l) => Boolean(l.alreadyAs));
-  // A Model 19 No. and PO an approver rejected for good can't be received again (a correction is returned instead)
-  const rejectedAs = (() => {
-    const slip = ifmisSlipNumber.trim().toLowerCase();
-    const po = poNumber.trim().toLowerCase();
-    if (!slip) return undefined;
-    return rejectedReceipts?.find((r) => r.slipNumber.trim().toLowerCase() === slip && (r.poNumber ?? '').trim().toLowerCase() === po);
-  })();
-  const rejectedMessage = rejectedAs
-    ? `Model 19 No. ${ifmisSlipNumber.trim()}${poNumber.trim() ? ` (PO ${poNumber.trim()})` : ''} was rejected${rejectedAs.by ? ` by ${rejectedAs.by}` : ''}${rejectedAs.reason ? `: "${rejectedAs.reason}"` : ''}. A rejected receipt can't be received again; one that only needs correcting is returned for correction instead.`
-    : undefined;
-  const hasDuplicates = Boolean(rejectedMessage || primaryDuplicateAs || duplicateLines.length > 0);
-  const duplicateMessage = rejectedMessage ? rejectedMessage : primaryDuplicateAs
+  const hasDuplicates = Boolean(primaryDuplicateAs || duplicateLines.length > 0);
+  const duplicateMessage = primaryDuplicateAs
     ? `Item "${name.trim()}" was already received as ${primaryDuplicateAs} (Model 19 No. ${ifmisSlipNumber.trim()}). Duplicate entrance is not permitted.`
     : duplicateLines.length > 0
       ? `${duplicateLines.length === 1 ? `Item "${duplicateLines[0].name.trim()}" was` : `${duplicateLines.length} items were`} already received on Model 19 No. ${ifmisSlipNumber.trim()}. Duplicate entrance is not permitted.`
@@ -690,7 +678,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     if (hasDuplicates) {
       const msg = duplicateMessage || 'Duplicate entrance is not permitted.';
       setFormError(msg);
-      toast.error(rejectedMessage ? 'Rejected receipt' : 'Duplicate entrance not permitted', msg);
+      toast.error('Duplicate entrance not permitted', msg);
       setSubmitting(false);
       return;
     }
@@ -1070,7 +1058,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
       <Part title="Voucher">
         <FieldGrid cols={4}>
-          <Field label="Model 19 No." optional htmlFor="stock-in-model19" error={fieldErrors.error('model19No') || (rejectedAs ? 'Rejected receipt: can\'t be received again' : undefined)}>
+          <Field label="Model 19 No." optional htmlFor="stock-in-model19" error={fieldErrors.error('model19No')}>
             <input
               id="stock-in-model19"
               type="text"
@@ -1078,7 +1066,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               value={ifmisSlipNumber}
               onChange={(e) => setIfmisSlipNumber(e.target.value)}
               onBlur={fieldErrors.touch('model19No')}
-              className={`${input({ mono: true, invalid: !!fieldErrors.error('model19No') || !!rejectedAs })} font-semibold`}
+              className={`${input({ mono: true, invalid: !!fieldErrors.error('model19No') })} font-semibold`}
             />
           </Field>
 
@@ -1303,7 +1291,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
   const endorsed = approved || (!!approval && !rejected && approval.currentStage >= 2);
 
   return {
-    approvalState: approval?.status === 'RETURNED' ? 'RETURNED' : pending ? 'PENDING' : rejected ? 'REJECTED' : undefined,
+    approvalState: approval?.status === 'RETURNED' ? 'RETURNED' : approval?.status === 'CANCELLED' ? 'CANCELLED' : pending ? 'PENDING' : rejected ? 'REJECTED' : undefined,
     approvalNote: approvalNoteOf(approval),
     invModel19No: item.ifmisSlipNumber,
     provisionType: item.provisionType,

@@ -123,13 +123,13 @@ describe('Frontend RBAC Permission Matrix Enforcement', () => {
   describe('Approvals Queue Tabs Dynamic Resolution (getVisibleQueueTabs)', () => {
     it('shows single-stage tabs for Stage 1 endorsers', () => {
       const tabs = getVisibleQueueTabs(UserRole.TEAM_LEADER, ['approvals.endorse']);
-      expect(tabs).toEqual(['MY_QUEUE', 'APPROVED', 'RETURNED', 'REJECTED', 'ALL']);
+      expect(tabs).toEqual(['MY_QUEUE', 'APPROVED', 'REJECTED', 'ALL']);
       expect(tabs).not.toContain('STAGE_2');
     });
 
     it('shows single-stage tabs for Stage 2 authorizers', () => {
       const tabs = getVisibleQueueTabs(UserRole.DEPARTMENT_HEAD, ['approvals.authorize']);
-      expect(tabs).toEqual(['MY_QUEUE', 'APPROVED', 'RETURNED', 'REJECTED', 'ALL']);
+      expect(tabs).toEqual(['MY_QUEUE', 'APPROVED', 'REJECTED', 'ALL']);
       expect(tabs).not.toContain('STAGE_1');
     });
 

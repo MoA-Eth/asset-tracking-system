@@ -87,14 +87,14 @@ export const CopyButton: React.FC<{ text: string; label?: string; className?: st
 };
 
 const RequestStatus: React.FC<{ request: TransactionApproval }> = ({ request }) =>
-  request.status === ApprovalStatus.PENDING || request.status === ApprovalStatus.RETURNED ? (
+  request.status === ApprovalStatus.PENDING ? (
     <span className={`${pill} ${statusTone.pending}`}>
       <Clock className="h-3 w-3" />
       {stageLabel(request, 'Pending')}
     </span>
   ) : (
     <span className={`${pill} ${request.status === ApprovalStatus.APPROVED ? statusTone.approved : statusTone.rejected}`}>
-      {request.status === ApprovalStatus.APPROVED ? 'Approved' : 'Rejected'}
+      {request.status === ApprovalStatus.APPROVED ? 'Approved' : request.status === ApprovalStatus.CANCELLED ? 'Cancelled' : request.status === ApprovalStatus.RETURNED ? 'Rejected · with requester' : 'Rejected'}
     </span>
   );
 
@@ -303,11 +303,11 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               return (
                 <FormNotice icon={Clock} tone="warn">
                   <span className="font-bold">
-                    {capital(noun)} returned for correction{r.returnedBy ? ` by ${r.returnedBy.fullNameEn} (${stage})` : ''}{r.returnedAtGc ? ` · ${shortDate(r.returnedAtGc)}` : ''}
+                    {capital(noun)} rejected{r.returnedBy ? ` by ${r.returnedBy.fullNameEn} (${stage})` : ''}{r.returnedAtGc ? ` · ${shortDate(r.returnedAtGc)}` : ''}
                   </span>
                   {r.returnRemarks && <p className="mt-0.5 text-[12px] text-amber-900">Reason: {r.returnRemarks}</p>}
                   <p className="mt-0.5 text-[11px] text-slate-500">
-                    Correct it with Edit and save: it goes back to the Team Leader. If nothing needs changing, use Resubmit.
+                    Correct it with Edit and save: it goes back to the Team Leader (Resubmit, if nothing needs changing). If it shouldn't go ahead, cancel the request.
                   </p>
                 </FormNotice>
               );
@@ -352,8 +352,8 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <FormNotice icon={Lock} tone="warn">
                   <span className="font-bold">Rejected record · Archived</span>
                   <p className="mt-0.5 text-[11px] text-slate-500">
-                    {row.rejected?.rejectionFinal
-                      ? 'This receipt was rejected for good and is kept for audit history. Its Model 19 No. and PO can\'t be received again.'
+                    {row.rejected?.status === 'CANCELLED'
+                      ? 'Its receipt was cancelled and is kept for audit history. Use Duplicate as new receipt to receive it again.'
                       : 'This record was rejected and is kept for audit history. Rejected batches and records cannot be edited: use Duplicate as new receipt to receive it again.'}
                   </p>
                 </FormNotice>
@@ -752,7 +752,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                       {r.status === ApprovalStatus.REJECTED && r.reviewRemarks && <p className="text-red-700">Reason: {r.reviewRemarks}</p>}
                       {r.returnRemarks && (
                         <p className="text-amber-800">
-                          {r.status === ApprovalStatus.RETURNED ? 'Returned for correction' : `Returned for correction earlier${(r.returnCount ?? 0) > 1 ? ` (${r.returnCount} times)` : ''}`}: {r.returnRemarks}
+                          {r.status === ApprovalStatus.RETURNED ? 'Rejected, to correct' : `Rejected earlier${(r.returnCount ?? 0) > 1 ? ` (${r.returnCount} times)` : ''}`}: {r.returnRemarks}
                         </p>
                       )}
                       <button

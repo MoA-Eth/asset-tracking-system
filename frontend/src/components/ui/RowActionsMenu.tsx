@@ -27,7 +27,7 @@ const MENU_WIDTH = 248;
  */
 const kindOf = (label: string): 'work' | 'look' | 'danger' => {
   if (/^(View|Print)\b/i.test(label)) return 'look';
-  if (/^(Dispose|Delete|Remove)\b/i.test(label)) return 'danger';
+  if (/^(Dispose|Delete|Remove|Cancel)\b/i.test(label)) return 'danger';
   return 'work';
 };
 

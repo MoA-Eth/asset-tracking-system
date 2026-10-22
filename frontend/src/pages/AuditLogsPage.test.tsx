@@ -116,7 +116,7 @@ describe('Audit log', () => {
 });
 
 describe('Audit log: an opened entry', () => {
-  it('names the record, and the request behind it as it stands now, with who returned it and why', async () => {
+  it('names the record, and the request behind it as it stands now, with who rejected it and why', async () => {
     const user = userEvent.setup();
     vi.mocked(api.getItems).mockResolvedValue([{ id: 'i', itemCode: 'MOA-IT-2026-0079', name: 'Dell Latitude', status: 'PENDING_STOCK_IN' }] as any);
     vi.mocked(api.getEmployees).mockResolvedValue([] as any);
@@ -132,7 +132,7 @@ describe('Audit log: an opened entry', () => {
     expect(await screen.findByText('Request, as it stands now')).toBeInTheDocument();
     expect(screen.getByText('MOA-IT-2026-0079')).toBeInTheDocument();
     expect(screen.getByText(/now Receipt pending/)).toBeInTheDocument();
-    expect(screen.getByText('Returned for correction')).toBeInTheDocument();
+    expect(screen.getByText('Rejected · with the requester to correct or cancel')).toBeInTheDocument();
     expect(screen.getByText(/Getnet Taye · 21 Oct 2026 · 2 times/)).toBeInTheDocument();
     expect(screen.getByText('Price is entered as USD.')).toBeInTheDocument();
     expect(screen.getByText(/ETB 85,000/)).toBeInTheDocument();

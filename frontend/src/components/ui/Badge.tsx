@@ -80,7 +80,10 @@ export const StatusBadge: React.FC<{ status: ItemStatus | ApprovalStatus | strin
       return <Badge variant="danger">Rejected</Badge>;
 
     case ApprovalStatus.RETURNED:
-      return <Badge variant="warning">Returned for correction</Badge>;
+      return <Badge variant="danger">Rejected</Badge>;
+
+    case ApprovalStatus.CANCELLED:
+      return <Badge variant="neutral">Cancelled</Badge>;
 
     default:
       return <Badge variant="neutral">{String(status).replace(/_/g, ' ')}</Badge>;

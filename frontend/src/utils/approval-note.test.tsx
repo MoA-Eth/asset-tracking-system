@@ -7,11 +7,11 @@ import { VoucherStatusBanner } from '../components/ui/VoucherStatusBanner';
 const request = (extra: object) => ({ id: 'A', transactionType: 'STOCK_IN', status: 'PENDING', currentStage: 1, ...extra }) as any;
 
 describe('why a voucher is not approved', () => {
-  it('says who returned it, when and why', () => {
+  it('says who rejected it, when and why, while it is with its requester', () => {
     expect(approvalNoteOf(request({
       status: 'RETURNED', returnedFromStage: 2, returnedAtGc: '2026-10-21', returnRemarks: 'Wrong buyer name',
       returnedBy: { fullNameEn: 'Getaneh G/mariam', role: 'DEPARTMENT_HEAD' },
-    }))).toBe('Returned for correction by Getaneh G/mariam (Department Head) · 21 Oct 2026: Wrong buyer name');
+    }))).toBe('Rejected by Getaneh G/mariam (Department Head) · 21 Oct 2026: Wrong buyer name');
   });
 
   it('says who rejected it, when and why; the role comes from the stage when unknown', () => {
@@ -33,18 +33,19 @@ describe('why a voucher is not approved', () => {
   });
 });
 
-describe('the banner of a returned request', () => {
-  it('says it is with the requester to correct, not waiting for the approvers, and why', () => {
-    render(<VoucherStatusBanner state="RETURNED" note="Returned for correction by Getnet Taye (Team Leader) · 21 Oct 2026: Price is entered as USD." />);
-    expect(screen.getByText('RETURNED FOR CORRECTION · ለእርማት ተመልሷል')).toBeInTheDocument();
-    expect(screen.getByText(/sent back to the requester to correct and resubmit/)).toBeInTheDocument();
+describe('the banner of a rejected request', () => {
+  it('says it is rejected and with its requester, not waiting for the approvers, and why', () => {
+    render(<VoucherStatusBanner state="RETURNED" note="Rejected by Getnet Taye (Team Leader) · 21 Oct 2026: Price is entered as USD." />);
+    expect(screen.getByText('REJECTED · ውድቅ ተደርጓል')).toBeInTheDocument();
+    expect(screen.getByText(/sent back to its requester to correct and resubmit, or cancel/)).toBeInTheDocument();
     expect(screen.queryByText(/waiting for the Team Leader and the Department Head/)).toBeNull();
     expect(screen.getByText(/Price is entered as USD\./)).toBeInTheDocument();
   });
 
-  it('a rejected one keeps its own banner and reason', () => {
-    render(<VoucherStatusBanner state="REJECTED" note="Rejected by Getnet Taye (Team Leader) · 20 Oct 2026: Not our delivery" />);
-    expect(screen.getByText('REJECTED · ውድቅ ተደርጓል')).toBeInTheDocument();
-    expect(screen.getByText(/Not our delivery/)).toBeInTheDocument();
+  it('a cancelled one says it was cancelled by its requester', () => {
+    expect(approvalNoteOf({ id: 'A', transactionType: 'STOCK_IN', status: 'CANCELLED', reviewedBy: { fullNameEn: 'Store Encoder' }, reviewedAtGc: '2026-10-22', reviewRemarks: 'Entered twice' } as any))
+      .toBe('Cancelled by Store Encoder · 22 Oct 2026: Entered twice');
+    render(<VoucherStatusBanner state="CANCELLED" />);
+    expect(screen.getByText('CANCELLED · ተሰርዟል')).toBeInTheDocument();
   });
 });

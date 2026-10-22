@@ -65,7 +65,7 @@ export const STAGE_LABELS: Record<number, string> = {
  * its voucher is above 10 million birr (the server says so in requiredRole, from the voucher's grand total).
  */
 export const stageLabel = (request: { status?: string; currentStage?: number; requiredRole?: string }, fallback = 'Waiting for approval'): string =>
-  request.status === 'RETURNED' ? 'Returned for correction'
+  request.status === 'RETURNED' ? 'Rejected'
   : request.currentStage === 2 && request.requiredRole === 'CHIEF_DIRECTOR' ? 'With Chief Director' : STAGE_LABELS[request.currentStage ?? 1] ?? fallback;
 
 export const REQUEST_LABELS: Record<string, { noun: string; pending: string; model: string }> = {
@@ -149,21 +149,21 @@ export const decidedOn = (a: TransactionApproval) => `${a.reviewedAtGc || ''}|${
 export const shortDate = (gc?: string) =>
   gc ? new Date(gc).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
-/** "Issue rejected · 30 Sep 2026", with the reviewer's reason underneath */
+/** "Issue rejected · 30 Sep 2026" (or cancelled by its requester), with the reason underneath */
 export const RejectionNote: React.FC<{ request: TransactionApproval }> = ({ request }) => {
   const kind = requestLabel(request.transactionType, request.requestDetails).noun;
   const reason = request.reviewRemarks?.trim();
   return (
     <span className="block max-w-[220px] whitespace-normal text-[10px] leading-snug text-red-700" title={reason}>
       <span className="font-semibold">
-        {kind.charAt(0).toUpperCase() + kind.slice(1)} rejected{request.reviewedAtGc ? ` · ${shortDate(request.reviewedAtGc)}` : ''}
+        {kind.charAt(0).toUpperCase() + kind.slice(1)} {request.status === 'CANCELLED' ? 'cancelled' : 'rejected'}{request.reviewedAtGc ? ` · ${shortDate(request.reviewedAtGc)}` : ''}
       </span>
       {reason && <span className="block line-clamp-2 text-red-700/80">{reason}</span>}
     </span>
   );
 };
 
-/** "by Team Leader: Price is entered as USD." — who sent it back (the stage) and what to correct; the name and date on hover */
+/** "by Team Leader: Price is entered as USD." — who rejected it (the stage) and what to correct; the name and date on hover */
 export const ReturnedNote: React.FC<{ request: TransactionApproval }> = ({ request }) => {
   const reason = request.returnRemarks?.trim();
   const by = request.returnedFromStage === 2 ? 'Department Head' : 'Team Leader';
@@ -179,7 +179,7 @@ export const ReturnedNote: React.FC<{ request: TransactionApproval }> = ({ reque
 /** `partly`: a batch with some units out and the rest still in store */
 export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row, partly }) => {
   const settled =
-    row.state === 'REJECTED' ? <span className={`${pill} ${statusTone.rejected}`}>Rejected</span>
+    row.state === 'REJECTED' ? <span className={`${pill} ${statusTone.rejected}`}>{row.rejected?.status === 'CANCELLED' ? 'Cancelled' : 'Rejected'}</span>
     : row.state === 'DISPOSED' ? <span className={`${pill} ${statusTone.neutral}`}>Disposed</span>
     : row.state === 'IN_STORE' && partly ? <span className={`${pill} ${statusTone.partly}`}>Partly issued</span>
     : row.state === 'IN_STORE' ? <span className={`${pill} ${statusTone.inStore}`}>In store</span>
@@ -201,12 +201,13 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
       </span>
     );
   }
+  // Rejected and with its requester, to correct and resubmit or cancel
   if (row.request?.status === 'RETURNED') {
     return (
       <span className="inline-flex flex-col items-start gap-0.5">
-        <span className={`${pill} ${statusTone.pending}`}>
+        <span className={`${pill} ${statusTone.rejected}`}>
           <Undo2 className="h-3 w-3" />
-          Returned
+          Rejected
         </span>
         <ReturnedNote request={row.request} />
       </span>

@@ -39,7 +39,7 @@ const KIND_TONE: Record<ActivityKind, string> = {
 
 /** Decisions first: "APPROVE_STOCK_IN" is an approval, not a stock-in */
 export function activityKind(action: string): ActivityKind {
-  if (/REJECT/.test(action)) return 'REJECTION';
+  if (/REJECT|CANCEL/.test(action)) return 'REJECTION';
   if (/APPROVE|ENDORSE/.test(action)) return 'APPROVAL';
   if (/ACCESS|PASSWORD|ROLE|PERMISSION|EMPLOYEE|STORE|LOCATION|SETTING|LOGIN/.test(action)) return 'ADMIN';
   if (/TRANSFER|RETURN/.test(action)) return 'TRANSFER';

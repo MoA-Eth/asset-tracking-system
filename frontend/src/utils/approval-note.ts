@@ -18,20 +18,25 @@ const longDate = (gc?: string) =>
   gc ? new Date(gc).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
 /**
- * Why a voucher isn't approved, printed under its banner: who returned it for correction or rejected it, when, and
- * the reason. Nothing for a request still waiting its turn, or an approved one.
+ * Why a voucher isn't approved, printed under its banner: who rejected it (or cancelled it), when, and the reason.
+ * Nothing for a request still waiting its turn, or an approved one.
  */
 export function approvalNoteOf(a?: TransactionApproval): string | undefined {
   if (!a) return undefined;
   if (a.status === 'RETURNED') {
     const when = longDate(a.returnedAtGc);
     const reason = a.returnRemarks?.trim();
-    return `Returned for correction by ${decider(a.returnedBy, a.returnedFromStage)}${when ? ` · ${when}` : ''}${reason ? `: ${reason}` : ''}`;
+    return `Rejected by ${decider(a.returnedBy, a.returnedFromStage)}${when ? ` · ${when}` : ''}${reason ? `: ${reason}` : ''}`;
   }
   if (a.status === 'REJECTED') {
     const when = longDate(a.reviewedAtGc);
     const reason = a.reviewRemarks?.trim();
     return `Rejected by ${decider(a.reviewedBy, a.currentStage)}${when ? ` · ${when}` : ''}${reason ? `: ${reason}` : ''}`;
+  }
+  if (a.status === 'CANCELLED') {
+    const when = longDate(a.reviewedAtGc);
+    const reason = a.reviewRemarks?.trim();
+    return `Cancelled by ${a.reviewedBy?.fullNameEn ?? 'its requester'}${when ? ` · ${when}` : ''}${reason ? `: ${reason}` : ''}`;
   }
   return undefined;
 }

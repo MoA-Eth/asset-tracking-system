@@ -293,7 +293,15 @@ export const api = {
     });
   },
 
-  /** Sends a request returned for correction back to the Team Leader: every line of its voucher at once */
+  /** The requester withdraws a rejected request: every line of its voucher at once; it closes and its records are released */
+  cancelApprovals: (approvalIds: string[], reason?: string) => {
+    return request<TransactionApproval[]>('/items/approvals/cancel', {
+      method: 'POST',
+      body: JSON.stringify({ approvalIds, reason }),
+    });
+  },
+
+  /** Sends a rejected request, corrected, back to the Team Leader: every line of its voucher at once */
   resubmitApprovals: (approvalIds: string[]) => {
     return request<TransactionApproval[]>('/items/approvals/resubmit', {
       method: 'POST',

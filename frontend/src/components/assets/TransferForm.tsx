@@ -1138,7 +1138,7 @@ export const buildModel21Voucher = async (
   const todayGc = new Date().toISOString().split('T')[0];
   const requestDateGc = r.ifmisSlipDateGc || String(r.createdAtGc).slice(0, 10);
   return {
-    approvalState: r.status === ApprovalStatus.PENDING ? 'PENDING' : r.status === ApprovalStatus.RETURNED ? 'RETURNED' : r.status === ApprovalStatus.REJECTED ? 'REJECTED' : undefined,
+    approvalState: r.status === ApprovalStatus.PENDING ? 'PENDING' : r.status === ApprovalStatus.RETURNED ? 'RETURNED' : r.status === ApprovalStatus.REJECTED ? 'REJECTED' : r.status === ApprovalStatus.CANCELLED ? 'CANCELLED' : undefined,
     approvalNote: approvalNoteOf(r),
     model21No: r.ifmisSlipNumber || '—',
     fromEmployeeName: fromName,
