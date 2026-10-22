@@ -346,6 +346,16 @@ export class ItemController {
   });
 
   /**
+   * POST /api/items/approvals/cancel  { approvalIds, reason? }
+   * The requester withdraws a rejected voucher: it closes and its records are put back.
+   */
+  public cancelRejected = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) throw new UnauthorizedError('Authentication is required.');
+    const result = await this.store.cancelRejected(req.body ?? {}, req.user.id);
+    return sendSuccess(res, result, result.length > 1 ? `Request cancelled (${result.length} items)` : 'Request cancelled');
+  });
+
+  /**
    * GET /api/items/audit/logs
    * Immutable statutory audit trail of all store operations.
    */

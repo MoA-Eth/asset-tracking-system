@@ -40,8 +40,10 @@ export enum ApprovalStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
-  /** Sent back to the requester to correct; still open, resubmitted to the Team Leader */
+  /** Rejected by an approver and with its requester: still open, corrected and resubmitted, or cancelled */
   RETURNED = 'RETURNED',
+  /** Withdrawn by its requester after it was rejected; closed, its record released */
+  CANCELLED = 'CANCELLED',
 }
 
 export enum AssetCategory {
@@ -790,7 +792,7 @@ export interface UpdateReturnRequest {
 
 export interface ApprovalActionRequest {
   approvalId: string;
-  /** RETURN sends the request back to the requester to correct; REJECT refuses it for good */
+  /** REJECT sends the request back to its requester, still open (RETURN is the older name of it) */
   action: 'ENDORSE' | 'APPROVE' | 'REJECT' | 'RETURN';
   reviewedById: string;
   reviewRemarks?: string;
@@ -804,9 +806,15 @@ export interface SlipApprovalActionRequest {
   reviewRemarks?: string;
 }
 
-/** Requests returned for correction, sent back to the Team Leader: one voucher's lines, or one request */
+/** Rejected requests, sent back to the Team Leader once corrected: one voucher's lines, or one request */
 export interface ResubmitRequest {
   approvalIds: string[];
+}
+
+/** Rejected requests their requester withdraws: one voucher's lines, or one request; the reason is optional */
+export interface CancelRequest {
+  approvalIds: string[];
+  reason?: string;
 }
 
 export interface ApiResponse<T = any> {

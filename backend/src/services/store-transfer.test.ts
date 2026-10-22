@@ -62,6 +62,10 @@ const pendingTransfer = {
 };
 
 const store = () => StoreService.getInstance();
+
+/** The requester withdraws a rejected request: it closes, and the record is put back as before the request */
+const cancel = (approvalId = 'appr-1', reason?: string) =>
+  (store() as any).applyDecision({ approvalId, action: 'REJECT', reviewedById: 'EMP-ENC', reviewRemarks: reason }, db, undefined, true);
 const itemUpdateData = () => db.item.update.mock.calls[0][0].data;
 
 describe('Asset Transfer approval workflow', () => {
@@ -175,8 +179,9 @@ describe('Asset Transfer approval workflow', () => {
       expect(db.transactionApproval.update).not.toHaveBeenCalled();
     });
 
-    it('keeps the current custody and restores the status on rejection', async () => {
-      await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Wrong recipient' } as any);
+    it('keeps the current custody and restores the status when the rejected transfer is cancelled', async () => {
+      db.transactionApproval.findUnique.mockResolvedValue({ ...pendingTransfer, status: 'RETURNED', currentStage: 1 });
+      await cancel('appr-1', 'Wrong recipient');
 
       expect(itemUpdateData()).toMatchObject({
         status: 'ISSUED',
@@ -195,11 +200,13 @@ describe('Asset Transfer approval workflow', () => {
       expect(db.item.update).not.toHaveBeenCalled();
     });
 
-    it('saves the reason, and the history names the stage and the person who rejected', async () => {
+    it('sends it back to the requester with the reason; the history names the stage and the person who rejected', async () => {
       await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: '  Wrong recipient  ' } as any);
 
-      expect(db.transactionApproval.update.mock.calls[0][0].data).toMatchObject({ status: 'REJECTED', reviewRemarks: 'Wrong recipient', reviewedById: 'EMP-HEAD' });
-      expect(JSON.stringify(db.item.update.mock.calls[0][0])).toContain('Rejected at Stage 2 (Department Head) by Employee EMP-HEAD: Wrong recipient');
+      expect(db.transactionApproval.update.mock.calls[0][0].data).toMatchObject({ status: 'RETURNED', returnRemarks: 'Wrong recipient', returnedById: 'EMP-HEAD', returnedFromStage: 2 });
+      expect(JSON.stringify(db.item.update.mock.calls[0][0])).toContain('Rejected at Stage 2 (Department Head) by Employee EMP-HEAD, back to the requester to correct or cancel: Wrong recipient');
+      // Nothing moves while it is with the requester
+      expect(db.item.update.mock.calls[0][0].data.status).toBeUndefined();
     });
 
     it('names the Team Leader when the rejection happens at Stage 1', async () => {
@@ -208,7 +215,7 @@ describe('Asset Transfer approval workflow', () => {
 
       await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-TL', reviewRemarks: 'Slip number is missing' } as any);
 
-      expect(JSON.stringify(db.item.update.mock.calls[0][0])).toContain('Rejected at Stage 1 (Team Leader) by Employee EMP-TL: Slip number is missing');
+      expect(JSON.stringify(db.item.update.mock.calls[0][0])).toContain('Rejected at Stage 1 (Team Leader) by Employee EMP-TL, back to the requester to correct or cancel: Slip number is missing');
     });
 
     it.each([123, { text: 'x' }, ['x'], true])('refuses remarks that are not text (%j)', async (reviewRemarks) => {
@@ -266,10 +273,11 @@ describe('Asset Transfer approval workflow', () => {
       expect(db.auditLog.create).not.toHaveBeenCalled();
     });
 
-    it('restores AVAILABLE when a store item without a custodian is rejected', async () => {
+    it('restores AVAILABLE when the rejected transfer of a store item without a custodian is cancelled', async () => {
+      db.transactionApproval.findUnique.mockResolvedValue({ ...pendingTransfer, status: 'RETURNED', currentStage: 1 });
       db.item.findUnique.mockResolvedValue({ ...issuedItem, status: 'UNDER_TRANSFER', currentCustodianId: null });
 
-      await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Wrong recipient' } as any);
+      await cancel('appr-1', 'Wrong recipient');
 
       expect(itemUpdateData().status).toBe('AVAILABLE');
     });

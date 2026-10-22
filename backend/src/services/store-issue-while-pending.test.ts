@@ -138,15 +138,18 @@ describe('a second Model 22 while the first issue waits for approval', () => {
 });
 
 describe('deciding one issue while another waits on the same record', () => {
-  const decide = (action: 'APPROVE' | 'REJECT', quantity: number) => {
+  // CANCEL: the first issue was rejected, and its requester withdraws it
+  const decide = (action: 'APPROVE' | 'CANCEL', quantity: number) => {
     const approval = {
-      id: 'first-issue', transactionType: 'STOCK_OUT', status: 'PENDING', currentStage: 2, itemId: item.id, itemCode: item.itemCode, itemName: item.name,
+      id: 'first-issue', transactionType: 'STOCK_OUT', status: action === 'CANCEL' ? 'RETURNED' : 'PENDING', currentStage: action === 'CANCEL' ? 1 : 2, itemId: item.id, itemCode: item.itemCode, itemName: item.name,
       ifmisSlipNumber: '0000201/A', purposeOrRemarks: 'Field office', requestedById: 'EMP-ENC', recipientEmployeeId: 'EMP-B', targetDepartmentId: 'DEP-2',
       requestDetails: { quantity, uom: 'EA' },
     };
     db.transactionApproval.findUnique.mockResolvedValue(approval);
     db.transactionApproval.update.mockImplementation(async ({ data }: any) => ({ ...approval, ...data }));
-    return store().handleApproval({ approvalId: 'first-issue', action, reviewedById: 'EMP-HEAD', reviewRemarks: action === 'REJECT' ? 'Wrong directorate' : undefined } as any);
+    return action === 'CANCEL'
+      ? (store() as any).applyDecision({ approvalId: 'first-issue', action: 'REJECT', reviewedById: 'EMP-ENC', reviewRemarks: 'Wrong directorate' }, db, undefined, true)
+      : store().handleApproval({ approvalId: 'first-issue', action, reviewedById: 'EMP-HEAD' } as any);
   };
   const statusSet = () => db.item.update.mock.calls.at(-1)![0].data.status;
 
@@ -162,14 +165,14 @@ describe('deciding one issue while another waits on the same record', () => {
     expect(JSON.parse(db.item.create.mock.calls[0][0].data.notes).quantity).toBe(30);
   });
 
-  it('rejecting the first leaves the record waiting for the second', async () => {
-    await decide('REJECT', 30);
+  it('cancelling the first leaves the record waiting for the second', async () => {
+    await decide('CANCEL', 30);
     expect(statusSet()).toBe('PENDING_STOCK_OUT');
   });
 
   it('puts the record back in store once no other issue waits', async () => {
     pendingIssues = [{ id: 'first-issue', quantity: 30 }];
-    await decide('REJECT', 30);
+    await decide('CANCEL', 30);
     expect(statusSet()).toBe('AVAILABLE');
   });
 

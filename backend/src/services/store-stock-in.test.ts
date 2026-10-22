@@ -296,28 +296,15 @@ describe('StoreService.registerStockIn approval gate', () => {
     });
     expect(db.item.create).not.toHaveBeenCalled();
   });
-  it('refuses a Model 19 No. and PO an approver rejected for good, and says who and why', async () => {
-    db.transactionApproval.findMany.mockResolvedValue([
-      { reviewedAtGc: '2026-10-21', reviewRemarks: 'Not our delivery', reviewedBy: { fullNameEn: 'Getnet Taye' }, item: { notes: JSON.stringify({ poNumber: 'PO-9' }) } },
-    ]);
-    await expect(
-      StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, ifmisSlipNumber: 'M19-001', poNumber: 'PO-9' } as any)
-    ).rejects.toMatchObject({
+  it('sends a line already on a rejected receipt to that receipt, to correct it there or cancel it', async () => {
+    db.item.findFirst.mockImplementation(async ({ where }: any) =>
+      where?.ifmisSlipNumber ? { id: 'item-9', itemCode: 'MOA-0009', name: 'Legacy Laptop', ifmisSlipNumber: 'M19-001', status: 'PENDING_STOCK_IN' } : null);
+    (db.transactionApproval as any).findFirst = vi.fn(async () => ({ id: 'appr-9' }));
+    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any)).rejects.toMatchObject({
       statusCode: 409,
-      message: 'Model 19 No. M19-001 (PO PO-9) was rejected by Getnet Taye on 2026-10-21: "Not our delivery". A rejected voucher can\'t be entered again. If it only needs correcting, ask the approver to return it for correction instead.',
+      message: 'Item "Legacy Laptop" is on Model 19 No. M19-001, which was rejected and is waiting for correction. Correct it there and save, or cancel it first.',
     });
-    const query = db.transactionApproval.findMany.mock.calls[0][0];
-    expect(query.where).toMatchObject({ transactionType: 'STOCK_IN', status: 'REJECTED', rejectionFinal: true });
     expect(db.item.create).not.toHaveBeenCalled();
-  });
-
-  it('receives the same Model 19 No. on another PO, and receipts rejected before rejections were final', async () => {
-    // Only final rejections are looked up; this one was on another PO
-    db.transactionApproval.findMany.mockResolvedValue([{ reviewRemarks: 'x', item: { notes: JSON.stringify({ poNumber: 'PO-9' }) } }]);
-    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, poNumber: 'PO-10' } as any);
-    db.transactionApproval.findMany.mockResolvedValue([]);
-    await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, serialNumber: 'LAP-002', poNumber: 'PO-9' } as any);
-    expect(db.item.create).toHaveBeenCalledTimes(2);
   });
 
   it('calculates totalAmount correctly for VAT applicable vs additional charges', async () => {

@@ -59,57 +59,90 @@ beforeEach(() => {
   });
 });
 
-describe('Return for correction', () => {
+describe('Rejecting', () => {
   it('needs a reason', async () => {
-    await expect(decide('A', 'RETURN', 'leader')).rejects.toMatchObject({ statusCode: 400, message: 'Give a reason for returning, so the requester knows what to correct.' });
+    await expect(decide('A', 'REJECT', 'leader')).rejects.toMatchObject({ statusCode: 400, message: 'Give a reason for rejecting, so the requester knows what to correct.' });
   });
 
   it('sends the request back to its requester, still open, with who, why, when and from which stage', async () => {
-    const result = await decide('A', 'RETURN', 'leader', 'Price is entered as USD.');
+    const result = await decide('A', 'REJECT', 'leader', 'Price is entered as USD.');
     expect(result).toMatchObject({ status: 'RETURNED', currentStage: 1, returnRemarks: 'Price is entered as USD.', returnedFromStage: 1, returnCount: 1 });
     const data = db.transactionApproval.update.mock.calls[0][0].data;
     expect(data).toMatchObject({ returnedById: 'leader', returnedAtGc: expect.any(String) });
     // The record doesn't move: still waiting for its receipt to be approved
     const itemData = db.item.update.mock.calls[0][0].data;
     expect(itemData.status).toBeUndefined();
-    expect(itemData.history.create).toMatchObject({ action: 'RETURNED_STOCK_IN', toEntity: 'Requester (Correction)' });
+    expect(itemData.history.create).toMatchObject({ action: 'STOCK_IN_REJECTED', toEntity: 'Requester (Correction)' });
     expect(itemData.history.create.notes).toContain('Price is entered as USD.');
-    expect(db.auditLog.create.mock.calls[0][0].data.action).toBe('RETURN_STOCK_IN');
+    expect(db.auditLog.create.mock.calls[0][0].data.action).toBe('REJECT_STOCK_IN');
   });
 
   it('from the Department Head too: it goes back to the start and the endorsement is cleared', async () => {
     lines[0] = line('A', { currentStage: 2, endorsedById: 'leader', endorsementRemarks: 'ok', endorsedAtGc: '2026-10-21' });
-    const result = await decide('A', 'RETURN', 'head', 'Wrong buyer name');
+    const result = await decide('A', 'REJECT', 'head', 'Wrong buyer name');
     expect(result).toMatchObject({ status: 'RETURNED', currentStage: 1, returnedFromStage: 2 });
     expect(db.transactionApproval.update.mock.calls[0][0].data).toMatchObject({ endorsedById: null, endorsementRemarks: null, endorsedAtGc: null });
   });
 
-  it('returns a whole Model 19 at once', async () => {
-    const result = await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'RETURN', reviewedById: 'leader', reviewRemarks: 'Price in USD' });
+  it('rejects a whole Model 19 at once; RETURN, its older name, does the same', async () => {
+    const result = await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'REJECT', reviewedById: 'leader', reviewRemarks: 'Price in USD' });
+    expect(result.map((a) => a.status)).toEqual(['RETURNED', 'RETURNED']);
+    lines = [line('A'), line('B')];
+    expect((await decide('A', 'RETURN', 'leader', 'Price in USD')).status).toBe('RETURNED');
+  });
+
+  it('a whole Model 19, all lines together', async () => {
+    const result = await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'REJECT', reviewedById: 'leader', reviewRemarks: 'Price in USD' });
     expect(result.map((a) => a.status)).toEqual(['RETURNED', 'RETURNED']);
   });
 
-  it('is not reviewed while returned, except to reject it for good', async () => {
-    await decide('A', 'RETURN', 'leader', 'Price in USD');
-    await expect(decide('A', 'ENDORSE', 'leader')).rejects.toMatchObject({ statusCode: 409, message: expect.stringContaining('returned for correction') });
-    await expect(decide('A', 'RETURN', 'leader', 'again')).rejects.toMatchObject({ statusCode: 409 });
-    // The Department Head can reject it too, though it waits at stage 1 with its requester
-    const rejected = await decide('A', 'REJECT', 'head', 'Not our delivery');
-    expect(rejected.status).toBe('REJECTED');
-    expect(db.transactionApproval.update.mock.calls.at(-1)![0].data.rejectionFinal).toBe(true);
+  it('is not reviewed while it is with its requester', async () => {
+    await decide('A', 'REJECT', 'leader', 'Price in USD');
+    await expect(decide('A', 'ENDORSE', 'leader')).rejects.toMatchObject({ statusCode: 409, message: expect.stringContaining('with its requester to correct or cancel') });
+    await expect(decide('A', 'REJECT', 'head', 'again')).rejects.toMatchObject({ statusCode: 409 });
   });
 });
 
-describe('Rejecting', () => {
-  it('is final', async () => {
-    await decide('A', 'REJECT', 'leader', 'Not our delivery');
-    expect(db.transactionApproval.update.mock.calls[0][0].data).toMatchObject({ status: 'REJECTED', rejectionFinal: true });
+describe('Cancelling a rejected voucher', () => {
+  beforeEach(async () => {
+    await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'REJECT', reviewedById: 'leader', reviewRemarks: 'Double entrance' });
+    vi.clearAllMocks();
+    db.$transaction.mockImplementation(async (fn: any) => fn(db));
+    db.employee.findUnique.mockImplementation(async ({ where }: any) => people[where.id] ?? null);
+    db.item.findUnique.mockImplementation(async ({ where }: any) => ({ ...record, id: where.id }));
+    db.item.update.mockResolvedValue({});
+    db.auditLog.create.mockResolvedValue({});
+  });
+
+  it('closes every line and puts the records back, with the history and audit of it', async () => {
+    const result = await store().cancelRejected({ approvalIds: ['A', 'B'], reason: 'Entered twice' }, 'encoder');
+    expect(result.map((a) => a.status)).toEqual(['CANCELLED', 'CANCELLED']);
+    expect(db.transactionApproval.update.mock.calls[0][0].data).toMatchObject({ status: 'CANCELLED', reviewRemarks: 'Entered twice', reviewedById: 'encoder' });
+    // A receipt cancelled: its record is rejected, so its Model 19 No. can be received again
+    expect(db.item.update.mock.calls[0][0].data.status).toBe('REJECTED');
+    expect(db.item.update.mock.calls[0][0].data.history.create).toMatchObject({ action: 'STOCK_IN_CANCELLED' });
+    expect(db.auditLog.create.mock.calls[0][0].data.action).toBe('CANCEL_STOCK_IN');
+  });
+
+  it('needs no reason', async () => {
+    const result = await store().cancelRejected({ approvalIds: ['A', 'B'] }, 'encoder');
+    expect(result[0].reviewRemarks).toBe('Cancelled by the requester');
+  });
+
+  it('refuses what is not rejected, another voucher, or a role that cannot make such a request', async () => {
+    await expect(store().cancelRejected({ approvalIds: [] }, 'encoder')).rejects.toMatchObject({ statusCode: 400 });
+    lines.push(line('C'));
+    await expect(store().cancelRejected({ approvalIds: ['A', 'C'] }, 'encoder')).rejects.toMatchObject({ statusCode: 409, message: expect.stringContaining('Only a rejected request') });
+    lines.push(line('D', { status: 'RETURNED', ifmisSlipNumber: '0000153' }));
+    await expect(store().cancelRejected({ approvalIds: ['A', 'D'] }, 'encoder')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(store().cancelRejected({ approvalIds: ['A', 'B'] }, 'leader')).rejects.toMatchObject({ statusCode: 403 });
+    expect(db.transactionApproval.update).not.toHaveBeenCalled();
   });
 });
 
 describe('Resubmitting a corrected voucher', () => {
   beforeEach(async () => {
-    await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'RETURN', reviewedById: 'leader', reviewRemarks: 'Price in USD' });
+    await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'REJECT', reviewedById: 'leader', reviewRemarks: 'Price in USD' });
     vi.clearAllMocks();
     db.$transaction.mockImplementation(async (fn: any) => fn(db));
     db.employee.findUnique.mockImplementation(async ({ where }: any) => people[where.id] ?? null);
@@ -154,19 +187,11 @@ describe('An issue returned for correction', () => {
       .rejects.toThrow('at most 2');
   });
 
-  it('a Model 22 No. rejected for good is refused', async () => {
-    db.item.findUnique.mockResolvedValue({ id: 'item-9', itemCode: 'MOA-FUR-1', status: 'AVAILABLE', storeLocationId: 'LOC-1', notes: JSON.stringify({ quantity: 10 }) });
-    db.transactionApproval.findFirst.mockResolvedValue(null);
-    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
-      where.rejectionFinal ? [{ reviewRemarks: 'Wrong store', reviewedAtGc: '2026-10-20', reviewedBy: { fullNameEn: 'Getnet Taye' } }] : []);
-    await expect(store().registerStockOut({ itemId: 'item-9', quantity: 1, ifmisSlipNumber: '0000300', recipientEmployeeId: 'leader', registeredById: 'encoder' } as any))
-      .rejects.toMatchObject({ statusCode: 409, message: expect.stringContaining('Model 22 No. 0000300 was rejected by Getnet Taye on 2026-10-20: "Wrong store"') });
-  });
 });
 
 describe('Saving a correction of a returned request', () => {
   beforeEach(async () => {
-    await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'RETURN', reviewedById: 'leader', reviewRemarks: 'Price in USD' });
+    await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'REJECT', reviewedById: 'leader', reviewRemarks: 'Price in USD' });
     vi.clearAllMocks();
     db.$transaction.mockImplementation(async (fn: any) => fn(db));
     db.employee.findUnique.mockImplementation(async ({ where }: any) => people[where.id] ?? null);

@@ -79,6 +79,10 @@ const pendingIssue = (over: Record<string, unknown> = {}, details: Record<string
 });
 
 const store = () => StoreService.getInstance();
+
+/** The requester withdraws a rejected request: it closes, and the record is put back as before the request */
+const cancel = (approvalId = 'appr-1', reason?: string) =>
+  (store() as any).applyDecision({ approvalId, action: 'REJECT', reviewedById: 'EMP-ENC', reviewRemarks: reason }, db, undefined, true);
 const roleOf = (id: string) => (id === 'EMP-HEAD' ? 'DEPARTMENT_HEAD' : id === 'EMP-TL' ? 'TEAM_LEADER' : 'DATA_ENCODER');
 
 beforeEach(() => {
@@ -215,11 +219,11 @@ describe('approving an issue to an outside organization', () => {
     });
   });
 
-  it('puts the item back in store, with no organization, when the issue is rejected', async () => {
-    db.transactionApproval.findUnique.mockResolvedValue(pendingIssue({ currentStage: 2 }));
+  it('puts the item back in store, with no organization, when the rejected issue is cancelled', async () => {
+    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingIssue({ currentStage: 1 }), status: 'RETURNED' });
     db.item.findUnique.mockResolvedValue({ ...chairs, status: 'PENDING_STOCK_OUT' });
 
-    await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Not approved' } as any);
+    await cancel('appr-1', 'Not needed');
 
     expect(db.item.update.mock.calls[0][0].data).toMatchObject({ status: 'AVAILABLE', heldByOrganization: null });
   });
@@ -282,11 +286,11 @@ describe('disposing of stock through Model 22', () => {
     expect(db.item.create.mock.calls[0][0].data).toMatchObject({ status: 'DISPOSED', parentItemId: 'item-1' });
   });
 
-  it('puts the stock back in store when the disposal is rejected', async () => {
-    db.transactionApproval.findUnique.mockResolvedValue(pendingIssue({ currentStage: 2 }, { disposal: true }));
+  it('puts the stock back in store when the rejected disposal is cancelled', async () => {
+    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingIssue({ currentStage: 1 }, { disposal: true }), status: 'RETURNED' });
     db.item.findUnique.mockResolvedValue({ ...chairs, status: 'PENDING_STOCK_OUT' });
 
-    await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Keep it' } as any);
+    await cancel('appr-1', 'Keep it');
 
     expect(db.item.update.mock.calls[0][0].data).toMatchObject({ status: 'AVAILABLE' });
   });

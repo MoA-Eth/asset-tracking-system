@@ -72,6 +72,10 @@ const pendingDisposal = (details: Record<string, unknown>, stage = 2) => ({
 });
 
 const store = () => StoreService.getInstance();
+
+/** The requester withdraws a rejected request: it closes, and the record is put back as before the request */
+const cancel = (approvalId = 'appr-1', reason?: string) =>
+  (store() as any).applyDecision({ approvalId, action: 'REJECT', reviewedById: 'EMP-ENC', reviewRemarks: reason }, db, undefined, true);
 const roleOf = (id: string) => (id === 'EMP-HEAD' ? 'DEPARTMENT_HEAD' : id === 'EMP-TL' ? 'TEAM_LEADER' : 'DATA_ENCODER');
 
 beforeEach(() => {
@@ -224,15 +228,15 @@ describe('deciding on a disposal', () => {
     expect(approval.requestDetails?.disposedItemCode).toBe('MOA-FUR-2026-0001-1');
   });
 
-  it('puts the item back in store when the disposal is rejected', async () => {
-    db.transactionApproval.findUnique.mockResolvedValue(pendingDisposal({ quantity: 3 }));
+  it('puts the item back in store when the rejected disposal is cancelled', async () => {
+    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingDisposal({ quantity: 3 }), status: 'RETURNED' });
     db.item.findUnique.mockResolvedValue({ ...chairs, status: 'PENDING_DISPOSAL' });
 
-    await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Repair it instead' } as any);
+    await cancel('appr-1', 'Repair it instead');
 
     const data = db.item.update.mock.calls[0][0].data;
     expect(data.status).toBe('AVAILABLE');
-    expect(data.history.create).toMatchObject({ action: 'DISPOSAL_REJECTED' });
+    expect(data.history.create).toMatchObject({ action: 'DISPOSAL_CANCELLED' });
     expect(data.history.create.notes).toMatch(/Repair it instead/);
     expect(db.item.create).not.toHaveBeenCalled();
   });
@@ -242,10 +246,10 @@ describe('deciding on a disposal', () => {
     await expect(store().handleApproval({ approvalId: 'appr-1', action: 'APPROVE', reviewedById: 'EMP-HEAD' } as any)).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it('marks a rejected receipt REJECTED, not DISPOSED', async () => {
-    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingDisposal({}), transactionType: 'STOCK_IN' });
+  it('marks a cancelled receipt REJECTED, not DISPOSED', async () => {
+    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingDisposal({}), transactionType: 'STOCK_IN', status: 'RETURNED' });
     db.item.findUnique.mockResolvedValue({ ...chairs, status: 'PENDING_STOCK_IN' });
-    await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Wrong supplier' } as any);
+    await cancel('appr-1', 'Wrong supplier');
     expect(db.item.update.mock.calls[0][0].data.status).toBe('REJECTED');
   });
 

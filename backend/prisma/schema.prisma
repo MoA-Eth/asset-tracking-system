@@ -76,8 +76,10 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
-  /// Sent back to the requester to correct; still open, resubmitted to the Team Leader
+  /// Rejected by an approver and with its requester: still open, corrected and resubmitted, or cancelled
   RETURNED
+  /// Withdrawn by its requester after it was rejected; closed, its record released
+  CANCELLED
 }
 
 enum AuditEntityType {
@@ -373,7 +375,7 @@ model TransactionApproval {
   returnedAtEc      String?
   returnedFromStage Int?
   returnCount       Int     @default(0)
-  /// A rejection is final: the voucher can't be entered again. Rejections made before Return existed are not
+  /// No longer set: a rejection now goes back to the requester (kept so the column isn't dropped)
   rejectionFinal    Boolean @default(false)
 
   createdAt     DateTime @default(now())
