@@ -38,7 +38,7 @@ beforeEach(() => {
   db.transactionApproval.findUnique.mockImplementation(async ({ where }: any) => lines.find((l) => l.id === where.id) ?? null);
   db.transactionApproval.update.mockImplementation(async ({ where, data }: any) => ({ ...lines.find((l) => l.id === where.id), ...data }));
   db.employee.findUnique.mockImplementation(async ({ where }: any) => people[where.id] ?? null);
-  db.item.findUnique.mockImplementation(async ({ where }: any) => ({ id: where.id, notes: meta('PO-14'), unitCostETB: 1000 }));
+  db.item.findUnique.mockImplementation(async ({ where }: any) => ({ id: where.id, status: 'PENDING_STOCK_OUT', notes: meta('PO-14'), unitCostETB: 1000 }));
   db.item.update.mockResolvedValue({});
   db.auditLog.create.mockResolvedValue({});
 });

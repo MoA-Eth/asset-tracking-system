@@ -960,9 +960,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const { item } = row;
     const out = children.filter((c) => c.item.status === ItemStatus.ISSUED || c.item.status === ItemStatus.UNDER_TRANSFER);
     const issuedUnits = item.balance?.issued ?? out.reduce((acc, c) => acc + c.units, 0) + (row.state === 'ISSUED' ? row.units : 0);
-    // Units a pending issue or disposal is taking out: still on the shelf, but no longer free, so not "in store"
+    // Units on a pending issue or disposal: still on the shelf, so still in store until the last approver approves
     const requestedUnits = item.balance?.requested ?? 0;
-    const inStoreUnits = Math.max(0, (item.balance?.available ?? (row.state === 'IN_STORE' ? row.units : 0) + children.filter((c) => c.state === 'IN_STORE').reduce((acc, c) => acc + c.units, 0)) - requestedUnits);
+    const inStoreUnits = item.balance?.available ?? (row.state === 'IN_STORE' ? row.units : 0) + children.filter((c) => c.state === 'IN_STORE').reduce((acc, c) => acc + c.units, 0);
     const totalUnits = item.balance?.total ?? issuedUnits + inStoreUnits;
     // Disposed units left the batch for good; they're listed under it but not counted in it
     const disposed = children.filter((c) => c.item.status === ItemStatus.DISPOSED);
@@ -1366,22 +1366,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   );
 
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
-  // What can go on a Model 22: records in store with nothing waiting, and records whose waiting requests are all issues
-  // with units still free (a second Model 22 needn't wait for the first to be approved)
+  // What can go on a Model 22: records in store with nothing waiting, and records whose waiting requests are all issues.
+  // Units on issues still waiting stay in store until the last approver approves, so all of them can be requested again
   const availableItems = useMemo(() => {
     const onIssues = new Map<string, number>();
     const blocked = new Set<string>();
     for (const a of approvals) {
       if (a.status !== ApprovalStatus.PENDING && a.status !== ApprovalStatus.RETURNED) continue;
       if (a.transactionType !== 'STOCK_OUT') blocked.add(a.itemId);
-      else onIssues.set(a.itemId, (onIssues.get(a.itemId) ?? 0) + (Number(a.requestDetails?.quantity) || Infinity));
+      else onIssues.set(a.itemId, (onIssues.get(a.itemId) ?? 0) + (Number(a.requestDetails?.quantity) || 0));
     }
     return items.flatMap((i): ItemWithRelations[] => {
       if (blocked.has(i.id)) return [];
-      if (i.status === ItemStatus.AVAILABLE && !onIssues.has(i.id)) return [i];
       if (i.status !== ItemStatus.AVAILABLE && i.status !== ItemStatus.PENDING_STOCK_OUT) return [];
-      const free = Math.round(((Number(i.quantity) || 1) - (onIssues.get(i.id) ?? 0)) * 10000) / 10000;
-      return free > 0 ? [{ ...i, freeUnits: free }] : [];
+      return onIssues.get(i.id) ? [{ ...i, unitsOnPendingIssues: onIssues.get(i.id) }] : [i];
     });
   }, [items, approvals]);
 

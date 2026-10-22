@@ -761,7 +761,7 @@ async function attachBalances(items: ItemWithRelations[], rawItems: any[]): Prom
         select: { id: true, parentItemId: true, status: true, notes: true },
       })
     : [];
-  // Units an issue or disposal request is waiting to take out of store: still on the shelf, no longer free to issue
+  // Units an issue or disposal request is waiting to take out of store: still on the shelf and still in store until approved
   const recordIds = [...rawItems.map((raw) => raw.id), ...splits.map((split) => split.id)];
   const outgoing = recordIds.length
     ? await prisma.transactionApproval.findMany({
@@ -809,7 +809,8 @@ async function assertNoPendingApproval(item: { id: string; itemCode: string }, e
 }
 
 /**
- * Units of a record already taken by issue requests (Model 22) still waiting for approval, so not free to issue again.
+ * Units of a record on issue requests (Model 22) still waiting for approval. They stay in store, and can be requested
+ * again, until the last approver approves; this only tells whether the record is still waiting on an issue.
  * A request without a quantity takes the whole record.
  */
 async function unitsOnPendingIssues(db: any, item: { id: string; notes?: string | null }, exceptApprovalId?: string): Promise<number> {
@@ -821,12 +822,30 @@ async function unitsOnPendingIssues(db: any, item: { id: string; notes?: string 
   return Math.round(units * 10000) / 10000;
 }
 
-/** Why a quantity can't be issued from a record: more than is in store, or than is left beside pending issues */
-function issueQuantityError(itemCode: string, inStore: number, onOtherIssues: number, uom: string): string {
-  const free = Math.max(0, Math.round((inStore - onOtherIssues) * 10000) / 10000);
-  if (onOtherIssues <= 0) return `${itemCode}: quantity must be greater than 0 and at most ${inStore} (${uom} in store).`;
-  if (free <= 0) return `${itemCode}: all ${inStore} ${uom} in store are already on issue requests waiting for approval.`;
-  return `${itemCode}: quantity must be greater than 0 and at most ${free}: ${onOtherIssues} of the ${inStore} ${uom} in store are already on issue requests waiting for approval.`;
+/**
+ * Whether an issue (Model 22) can still take its units. Nothing is held while it waits, so another issue approved first
+ * may have taken some, or the whole record. Checked when it is endorsed, resubmitted, corrected and approved; the
+ * reviewer is told to reject it, the requester to correct it.
+ */
+function assertIssueStillFits(approval: { transactionType: string; requestDetails?: any }, item: any, who: 'reviewer' | 'requester') {
+  if (approval.transactionType !== 'STOCK_OUT') return;
+  const next = who === 'reviewer' ? 'Reject it, so the requester lowers the quantity and resubmits, or cancels it.' : 'Lower the quantity, or cancel the request.';
+  if (item.status !== 'AVAILABLE' && item.status !== 'PENDING_STOCK_OUT') {
+    throw new ConflictError(`${item.itemCode} is no longer in store: another issue was approved first and took all of it. ${who === 'reviewer' ? 'Reject this Model 22, so the requester issues other stock or cancels it.' : 'Cancel this request and issue other stock.'}`);
+  }
+  const requested = Number(approval.requestDetails?.quantity);
+  const inStore = quantityOf(item);
+  if (Number.isFinite(requested) && requested > inStore + 1e-9) {
+    throw new ConflictError(`Only ${inStore} ${uomOf(item)} of ${item.itemCode} are left in store, fewer than the ${requested} on this Model 22: another issue was approved first. ${next}`);
+  }
+}
+
+/**
+ * Why a quantity can't be issued from a record: more than is in store. Units on other issue requests still waiting count
+ * as in store: nothing leaves until the last approver approves, and the first approved takes them.
+ */
+function issueQuantityError(itemCode: string, inStore: number, uom: string): string {
+  return `${itemCode}: quantity must be greater than 0 and at most ${inStore} (${uom} in store).`;
 }
 
 /**
@@ -1460,6 +1479,7 @@ export class StoreService {
 
     const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
+    assertIssueStillFits({ transactionType: 'STOCK_OUT' }, item, 'requester');
     // Who issues it: a new choice must be a store man of the item's store; otherwise the request keeps its own
     const issuer = payload.issuedByEmployeeId
       ? await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.issuedByEmployeeId, 'issuing the items')
@@ -1469,9 +1489,8 @@ export class StoreService {
     const previousDetails = (approval.requestDetails ?? {}) as Record<string, any>;
     const previousQuantity = Number(previousDetails.quantity) || inStore;
     const quantity = payload.quantity === undefined || payload.quantity === null ? previousQuantity : Number(payload.quantity);
-    const onOtherIssues = await unitsOnPendingIssues(prisma, item, approval.id);
-    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > inStore - onOtherIssues + 1e-9) {
-      throw new BadRequestError(issueQuantityError(item.itemCode, inStore, onOtherIssues, uom));
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > inStore + 1e-9) {
+      throw new BadRequestError(issueQuantityError(item.itemCode, inStore, uom));
     }
 
     const before = {
@@ -1633,14 +1652,12 @@ export class StoreService {
     assertMaxLength(payload.purpose, 500, disposal ? 'Reason for disposal' : 'Purpose of issue');
     assertSlipDate(payload.ifmisSlipDateGc);
 
-    // Issue every unit still free (not on another pending issue) unless fewer are requested
+    // Issue every unit in store unless fewer are requested; other issues still waiting hold none of them
     const inStore = quantityOf(item);
     const uom = uomOf(item);
-    const onOtherIssues = await unitsOnPendingIssues(prisma, item);
-    const free = Math.round((inStore - onOtherIssues) * 10000) / 10000;
-    const quantity = payload.quantity === undefined || payload.quantity === null ? free : Number(payload.quantity);
-    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > free) {
-      throw new BadRequestError(issueQuantityError(item.itemCode, inStore, onOtherIssues, uom));
+    const quantity = payload.quantity === undefined || payload.quantity === null ? inStore : Number(payload.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > inStore + 1e-9) {
+      throw new BadRequestError(issueQuantityError(item.itemCode, inStore, uom));
     }
     // A store with no store man can't issue: his name goes on the voucher
     let issuer = null;
@@ -1678,7 +1695,7 @@ export class StoreService {
             dateGc: today.gc,
             dateEc: today.ec,
             action: 'STOCK_OUT_REQUESTED',
-            fromEntity: `${await storeLabel(item.storeLocationId)} (${onOtherIssues > 0 ? 'Issue pending' : 'Available'})`,
+            fromEntity: `${await storeLabel(item.storeLocationId)} (${item.status === 'PENDING_STOCK_OUT' ? 'Issue pending' : 'Available'})`,
             toEntity: disposal
               ? 'Disposal (Pending Approval)'
               : external
@@ -1687,7 +1704,7 @@ export class StoreService {
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
             ifmisSlipNumber: payload.ifmisSlipNumber,
-            notes: quantity < inStore ? `Partial issue: ${quantity} of ${inStore} ${uom}${onOtherIssues > 0 ? ` (${onOtherIssues} already on other issue requests)` : ''}. ${notesText}` : notesText,
+            notes: quantity < inStore ? `Partial issue: ${quantity} of ${inStore} ${uom}. ${notesText}` : notesText,
           },
         },
       },
@@ -1754,10 +1771,9 @@ export class StoreService {
       if (item.status !== 'AVAILABLE' && item.status !== 'PENDING_STOCK_OUT') throw new ConflictError(`Item ${item.itemCode} must be in store to be issued. Current: ${item.status}`);
       await assertNoPendingApproval(item, 'STOCK_OUT');
       const inStore = quantityOf(item);
-      const onOtherIssues = await unitsOnPendingIssues(prisma, item);
       const quantity = Number(line.quantity);
-      if (!Number.isFinite(quantity) || quantity <= 0 || quantity > inStore - onOtherIssues + 1e-9) {
-        throw new BadRequestError(issueQuantityError(item.itemCode, inStore, onOtherIssues, uomOf(item)));
+      if (!Number.isFinite(quantity) || quantity <= 0 || quantity > inStore + 1e-9) {
+        throw new BadRequestError(issueQuantityError(item.itemCode, inStore, uomOf(item)));
       }
       stores.add(item.storeLocation?.storeId ?? item.storeLocationId);
     }
@@ -2508,7 +2524,7 @@ export class StoreService {
     const actor = await prisma.employee.findUnique({ where: { id: actorId } });
     const today = getTodayGcAndEc();
     return prisma.$transaction(async (db: any) => {
-      const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true } } } });
+      const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true, status: true, itemCode: true } } } });
       if (approvals.length !== ids.length) throw new NotFoundError('Part of this request no longer exists. Refresh the list.');
       if (approvals.some((a: any) => a.status !== 'RETURNED')) throw new ConflictError('Only a request returned for correction can be resubmitted. Refresh the list.');
       const types = new Set(approvals.map((a: any) => a.transactionType));
@@ -2517,6 +2533,7 @@ export class StoreService {
       const keyOf = (a: any) => `${String(a.ifmisSlipNumber ?? '').trim().toLowerCase()}|${type === 'STOCK_IN' ? String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase() : ''}`;
       if (new Set(approvals.map(keyOf)).size > 1) throw new BadRequestError(`These requests are not on the same ${VOUCHER_NAMES[type] ?? 'voucher'}.`);
       if (!hasPermission(actor?.role, WRITE_PERMISSION[type] as any)) throw new ForbiddenError('Your role cannot resubmit this request.');
+      for (const a of approvals) if (a.item) assertIssueStillFits(a, a.item, 'requester');
 
       const resubmitted: TransactionApproval[] = [];
       for (const id of ids) {
@@ -2659,6 +2676,10 @@ export class StoreService {
       if (approval.currentStage !== 1) {
         throw new ConflictError(`Transaction ${approval.itemCode} has already completed Stage 1 endorsement.`);
       }
+      if (approval.transactionType === 'STOCK_OUT') {
+        const onRecord = await db.item.findUnique({ where: { id: approval.itemId } });
+        if (onRecord) assertIssueStillFits(approval, onRecord, 'reviewer');
+      }
 
       const updatedApproval = await db.transactionApproval.update({
         where: stillWaiting,
@@ -2774,6 +2795,7 @@ export class StoreService {
 
     const item = await db.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new NotFoundError(`Target item ${approval.itemId} not found.`);
+    if (isApprove) assertIssueStillFits(approval, item, 'reviewer');
 
     // A line of a voucher of several lines goes by the voucher's grand total; anything else by its own amount
     const ownAmount = calculateApprovalTotalAmount(approval, item);
@@ -2940,9 +2962,6 @@ export class StoreService {
 
         const requested = Number((approval.requestDetails as Record<string, any> | null)?.quantity);
         const inStore = quantityOf(item);
-        if (Number.isFinite(requested) && requested > inStore + 1e-9) {
-          throw new ConflictError(`Only ${inStore} ${uomOf(item)} of ${item.itemCode} are left in store, fewer than the ${requested} on this Model 22. Reject it and issue what is left.`);
-        }
         if (Number.isFinite(requested) && requested > 0 && requested < inStore) {
           // The rest stays in store on this record; the disposed units get their own record
           const uom = uomOf(item);
@@ -2988,9 +3007,6 @@ export class StoreService {
 
         const requested = Number((approval.requestDetails as Record<string, any> | null)?.quantity);
         const inStore = quantityOf(item);
-        if (Number.isFinite(requested) && requested > inStore + 1e-9) {
-          throw new ConflictError(`Only ${inStore} ${uomOf(item)} of ${item.itemCode} are left in store, fewer than the ${requested} on this Model 22. Reject it and issue what is left.`);
-        }
         if (Number.isFinite(requested) && requested > 0 && requested < inStore) {
           // The rest stays in store on this record; the issued units get their own record
           const uom = uomOf(item);
@@ -3053,10 +3069,12 @@ export class StoreService {
         toEntity = `${storeName} (AVAILABLE)`;
         histNote = rejectionNote;
       } else if (approval.transactionType === 'STOCK_OUT') {
-        newItemStatus = 'AVAILABLE';
+        // A record another issue took meanwhile stays as that issue left it
+        const stillInStore = item.status === 'AVAILABLE' || item.status === 'PENDING_STOCK_OUT';
+        newItemStatus = stillInStore ? 'AVAILABLE' : item.status;
         historyAction = 'STOCK_OUT_REJECTED';
         fromEntity = 'Issue pending';
-        toEntity = `${storeName} (AVAILABLE)`;
+        toEntity = stillInStore ? `${storeName} (AVAILABLE)` : `${await holderName(item)} (Retained)`;
         histNote = rejectionNote;
       } else {
         throw new BadRequestError(`Unknown request type ${approval.transactionType}.`);

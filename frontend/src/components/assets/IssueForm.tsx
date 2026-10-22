@@ -70,13 +70,12 @@ interface IssueRow {
 let rowKey = 0;
 const newRow = (itemId = '', quantity = 0, slip?: IssueRow['slip']): IssueRow => ({ key: ++rowKey, itemId, quantity, slip });
 
-/** Units that can be issued from a record: those not already on an issue request waiting for approval */
-const unitsOf = (item?: ItemWithRelations) => item?.freeUnits ?? (Number(item?.quantity) || 1);
-/** "12 EA in store", or "20 of 50 EA free" when other issue requests already take some */
+/** Units that can be issued from a record: all in store; issues still waiting for approval hold none */
+const unitsOf = (item?: ItemWithRelations) => Number(item?.quantity) || 1;
+/** "50 EA in store", and "· 30 on issues waiting for approval" when other requests ask for some */
 const stockText = (item: ItemWithRelations) =>
-  item.freeUnits !== undefined && item.freeUnits < (Number(item.quantity) || 1)
-    ? `${item.freeUnits} of ${Number(item.quantity) || 1} ${uomOf(item)} free (the rest on issues waiting for approval)`
-    : `${unitsOf(item)} ${uomOf(item)} in store`;
+  `${unitsOf(item)} ${uomOf(item)} in store` +
+  (item.unitsOnPendingIssues ? ` · ${item.unitsOnPendingIssues} on issues waiting for approval` : '');
 /** When a store record was received, to issue the oldest stock first */
 const receivedOn = (item: ItemWithRelations) => item.ifmisSlipDateGc || String(item.createdAtGc ?? '');
 /** "  oromia   bureau " and "Oromia Bureau" are the same organization */

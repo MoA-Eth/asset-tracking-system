@@ -173,6 +173,7 @@ describe('Chief Director & 10M High-Value Approval Workflow', () => {
     const item = {
       id: 'item-machinery-2',
       itemCode: 'MOA-MACH-002',
+      status: 'PENDING_STOCK_OUT',
       unitCostETB: 15_000_000,
       notes: JSON.stringify({ quantity: 1, uom: 'UNIT' }),
       currentCustodianId: null,
@@ -226,6 +227,7 @@ describe('Chief Director & 10M High-Value Approval Workflow', () => {
     const item = {
       id: 'item-std-1',
       itemCode: 'MOA-STD-001',
+      status: 'PENDING_STOCK_OUT',
       unitCostETB: 50_000,
       notes: JSON.stringify({ quantity: 2, uom: 'PCS' }),
       currentCustodianId: null,

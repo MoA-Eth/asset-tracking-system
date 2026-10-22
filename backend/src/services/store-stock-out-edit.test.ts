@@ -63,7 +63,7 @@ describe('Stock-Out correction before Stage 1 endorsement', () => {
     db.transactionApproval.update.mockImplementation(async ({ data }: any) => ({ ...stage1Request, ...data }));
     db.item.update.mockResolvedValue({});
     // A batch of 10 laptops in store, of which the request issues all 10
-    db.item.findUnique.mockResolvedValue({ id: 'item-1', itemCode: 'MOA-IT-2024-0001', notes: JSON.stringify({ quantity: 10, uom: 'EA' }) });
+    db.item.findUnique.mockResolvedValue({ id: 'item-1', itemCode: 'MOA-IT-2024-0001', status: 'PENDING_STOCK_OUT', notes: JSON.stringify({ quantity: 10, uom: 'EA' }) });
     db.auditLog.create.mockResolvedValue({});
   });
 

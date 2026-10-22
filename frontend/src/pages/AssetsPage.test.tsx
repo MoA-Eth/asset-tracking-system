@@ -216,7 +216,8 @@ describe('Assets page', () => {
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-P1')).toEqual(['Edit transfer', 'Duplicate as new receipt']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-O1')).toEqual(['Edit issue', 'Duplicate as new receipt']);
+    // A record on a pending issue is still in store: another Model 22 can ask for it until the last approver approves
+    expect(await menuFor(user, 'MOA-O1')).toEqual(['Edit issue', 'Issue (Model 22)', 'Duplicate as new receipt']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-X1')).toEqual(['Duplicate as new receipt']);
     await user.keyboard('{Escape}');
@@ -937,7 +938,7 @@ describe('Asset record', () => {
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-O1');
     // Opens in view mode first with prominent Edit issue button
-    expect(toolbarOf(record)).toEqual(['Edit issue']);
+    expect(toolbarOf(record)).toEqual(['Edit issue', 'Issue (Model 22)']);
     expect(within(record).getByText('Issue request pending endorsement · Editable in correction mode')).toBeInTheDocument();
 
     // Clicking Edit issue enters edit mode with Save and Cancel
@@ -949,7 +950,7 @@ describe('Asset record', () => {
 
     // Cancel exits edit mode back to view mode
     await user.click(cancelOf(record, 'stock-out-form'));
-    expect(toolbarOf(record)).toEqual(['Edit issue']);
+    expect(toolbarOf(record)).toEqual(['Edit issue', 'Issue (Model 22)']);
     expect(within(record).getByText('Issue request pending endorsement · Editable in correction mode')).toBeInTheDocument();
   });
 
@@ -2239,14 +2240,14 @@ describe('One row per Model 19', () => {
     expect(within(within(receipt).getByRole('toolbar', { name: 'Receipt actions' })).getByRole('button', { name: 'Issue (Model 22)' })).toBeInTheDocument();
   });
 
-  it('takes the units on a pending issue off "in store" as soon as it is submitted', async () => {
+  it('keeps the units on a pending issue in store, and shows them as requested, until the last approver approves', async () => {
     vi.mocked(api.getItems).mockResolvedValue([
       item('P1', 'Ballpoint pen', 'PENDING_STOCK_OUT', { ifmisSlipNumber: '0000090', itemType: 'CONSUMABLE', quantity: 50, balance: { total: 50, issued: 0, available: 50, pending: 0, requested: 10 } }),
     ] as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('MOA-P1')).closest('tr')!;
     expect(within(row).getByText('10 requested')).toBeInTheDocument();
-    expect(within(row).getByText('40 in store')).toBeInTheDocument();
+    expect(within(row).getByText('50 in store')).toBeInTheDocument();
   });
 
   it('offers no issue when nothing on the receipt is in store', async () => {

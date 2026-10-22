@@ -83,34 +83,33 @@ beforeEach(() => {
 });
 
 describe('a second Model 22 while the first issue waits for approval', () => {
-  it('issues units still free on the record', async () => {
-    const approval = await store().registerStockOut({ ...issue, itemId: item.id, quantity: 20 } as any);
-    expect(approval.requestDetails?.quantity).toBe(20);
+  it('can ask for units another pending issue asks for: they stay in store until the last approver approves', async () => {
+    const approval = await store().registerStockOut({ ...issue, itemId: item.id, quantity: 40 } as any);
+    expect(approval.requestDetails?.quantity).toBe(40);
     expect(db.item.update.mock.calls[0][0].data.status).toBe('PENDING_STOCK_OUT');
   });
 
-  it('takes every unit still free when no quantity is given', async () => {
+  it('takes every unit in store when no quantity is given', async () => {
     const approval = await store().registerStockOut({ ...issue, itemId: item.id } as any);
-    expect(approval.requestDetails?.quantity).toBe(20);
+    expect(approval.requestDetails?.quantity).toBe(50);
   });
 
-  it('refuses more than is left beside the pending issues, and says why', async () => {
-    await expect(store().registerStockOut({ ...issue, itemId: item.id, quantity: 21 } as any)).rejects.toMatchObject({
+  it('refuses only more than is in store', async () => {
+    await expect(store().registerStockOut({ ...issue, itemId: item.id, quantity: 51 } as any)).rejects.toMatchObject({
       statusCode: 400,
-      message: 'MOA-FUR-2026-0001: quantity must be greater than 0 and at most 20: 30 of the 50 EA in store are already on issue requests waiting for approval.',
+      message: 'MOA-FUR-2026-0001: quantity must be greater than 0 and at most 50 (EA in store).',
     });
+    // Even when the pending issues already ask for all of it, or a request from before quantities were kept
     pendingIssues = [{ id: 'first-issue', quantity: 30 }, { id: 'other', quantity: 20 }];
-    await expect(store().registerStockOut({ ...issue, itemId: item.id, quantity: 1 } as any)).rejects.toThrow('all 50 EA in store are already on issue requests');
-    // A request from before quantities were kept takes the whole record
+    expect((await store().registerStockOut({ ...issue, itemId: item.id, quantity: 50 } as any)).requestDetails?.quantity).toBe(50);
     pendingIssues = [{ id: 'old' }];
-    await expect(store().registerStockOut({ ...issue, itemId: item.id, quantity: 1 } as any)).rejects.toThrow('all 50 EA');
-    expect(db.transactionApproval.create).not.toHaveBeenCalled();
+    expect((await store().registerStockOut({ ...issue, itemId: item.id, quantity: 1 } as any)).requestDetails?.quantity).toBe(1);
   });
 
   it('works on a multi-line Model 22 too', async () => {
-    const { approvals } = await store().registerStockOuts({ ...issue, lines: [{ itemId: item.id, quantity: 20 }] } as any);
-    expect(approvals[0].requestDetails?.quantity).toBe(20);
-    await expect(store().registerStockOuts({ ...issue, lines: [{ itemId: item.id, quantity: 25 }] } as any)).rejects.toThrow('at most 20');
+    const { approvals } = await store().registerStockOuts({ ...issue, lines: [{ itemId: item.id, quantity: 45 }] } as any);
+    expect(approvals[0].requestDetails?.quantity).toBe(45);
+    await expect(store().registerStockOuts({ ...issue, lines: [{ itemId: item.id, quantity: 51 }] } as any)).rejects.toThrow('at most 50');
   });
 
   it('is still refused while a transfer or disposal waits on the record: they move the whole asset', async () => {
@@ -123,7 +122,7 @@ describe('a second Model 22 while the first issue waits for approval', () => {
     await expect(store().registerStockOut({ ...issue, itemId: item.id, quantity: 5 } as any)).rejects.toThrow('must be in store');
   });
 
-  it('can be corrected within what the other requests leave', async () => {
+  it('can be corrected up to everything in store', async () => {
     pendingIssues = [{ id: 'first-issue', quantity: 30 }, { id: 'second-issue', quantity: 10 }];
     db.transactionApproval.findUnique.mockResolvedValue({
       id: 'second-issue', transactionType: 'STOCK_OUT', status: 'PENDING', currentStage: 1, itemId: item.id, itemCode: item.itemCode,
@@ -131,9 +130,9 @@ describe('a second Model 22 while the first issue waits for approval', () => {
     });
     db.transactionApproval.update.mockImplementation(async ({ data }: any) => ({ id: 'second-issue', ...data }));
     const edit = { ifmisSlipNumber: '0000202/A', purpose: 'New staff', recipientEmployeeId: 'EMP-A', targetDepartmentId: 'DEP-1' };
-    await expect(store().updateStockOut('second-issue', { ...edit, quantity: 21 } as any, 'EMP-ENC')).rejects.toThrow('at most 20');
-    const saved = await store().updateStockOut('second-issue', { ...edit, quantity: 20 } as any, 'EMP-ENC');
-    expect(saved.requestDetails?.quantity).toBe(20);
+    await expect(store().updateStockOut('second-issue', { ...edit, quantity: 51 } as any, 'EMP-ENC')).rejects.toThrow('at most 50');
+    const saved = await store().updateStockOut('second-issue', { ...edit, quantity: 50 } as any, 'EMP-ENC');
+    expect(saved.requestDetails?.quantity).toBe(50);
   });
 });
 
@@ -176,9 +175,55 @@ describe('deciding one issue while another waits on the same record', () => {
     expect(statusSet()).toBe('AVAILABLE');
   });
 
-  it('never issues more than is left in store', async () => {
+  it('is refused once another issue took the whole record, so it is never issued twice', async () => {
+    item = { ...chairs, status: 'ISSUED', currentCustodianId: 'EMP-C' };
+    await expect(decide('APPROVE', 30)).rejects.toThrow('MOA-FUR-2026-0001 is no longer in store: another issue was approved first and took all of it. Reject this Model 22');
+    expect(db.item.update).not.toHaveBeenCalled();
+  });
+
+  it('cancelling it leaves a record another issue took as that issue left it', async () => {
+    item = { ...chairs, status: 'ISSUED', currentCustodianId: 'EMP-C' };
+    await decide('CANCEL', 30);
+    expect(statusSet()).toBe('ISSUED');
+    expect(db.item.update.mock.calls.at(-1)![0].data.currentCustodianId).toBe('EMP-C');
+  });
+
+  it('the Team Leader is told when endorsing, not only the approver later', async () => {
     item = { ...chairs, notes: JSON.stringify({ quantity: 20, uom: 'EA' }) };
-    await expect(decide('APPROVE', 30)).rejects.toThrow('Only 20 EA of MOA-FUR-2026-0001 are left in store');
+    db.employee.findUnique.mockImplementation(async ({ where }: any) => ({ id: where.id, fullNameEn: 'Team Leader', role: 'TEAM_LEADER', isActive: true }));
+    db.transactionApproval.findUnique.mockResolvedValue({
+      id: 'second-issue', transactionType: 'STOCK_OUT', status: 'PENDING', currentStage: 1, itemId: item.id, itemCode: item.itemCode,
+      ifmisSlipNumber: '0000202/A', requestedById: 'EMP-ENC', requestDetails: { quantity: 30, uom: 'EA' },
+    });
+    await expect(store().handleApproval({ approvalId: 'second-issue', action: 'ENDORSE', reviewedById: 'EMP-LEAD' } as any))
+      .rejects.toThrow('Only 20 EA of MOA-FUR-2026-0001 are left in store, fewer than the 30 on this Model 22: another issue was approved first. Reject it');
+    expect(db.transactionApproval.update).not.toHaveBeenCalled();
+  });
+
+  it('a rejected issue is resubmitted only if it still fits: the requester is asked to lower the quantity', async () => {
+    db.transactionApproval.findMany.mockResolvedValueOnce([{
+      id: 'second-issue', transactionType: 'STOCK_OUT', status: 'RETURNED', itemId: item.id, itemCode: item.itemCode, ifmisSlipNumber: '0000202/A',
+      requestDetails: { quantity: 30 }, item: { itemCode: item.itemCode, status: 'PENDING_STOCK_OUT', notes: JSON.stringify({ quantity: 20, uom: 'EA' }) },
+    }]);
+    await expect(store().resubmitReturned({ approvalIds: ['second-issue'] }, 'EMP-ENC')).rejects.toThrow('fewer than the 30 on this Model 22: another issue was approved first. Lower the quantity, or cancel the request.');
+  });
+
+  it('a correction is refused once another issue took the whole record', async () => {
+    item = { ...chairs, status: 'ISSUED' };
+    db.transactionApproval.findUnique.mockResolvedValue({
+      id: 'second-issue', transactionType: 'STOCK_OUT', status: 'RETURNED', currentStage: 1, itemId: item.id, itemCode: item.itemCode,
+      ifmisSlipNumber: '0000202/A', purposeOrRemarks: 'New staff', recipientEmployeeId: 'EMP-A', targetDepartmentId: 'DEP-1', requestDetails: { quantity: 10, uom: 'EA' },
+    });
+    await expect(store().updateStockOut('second-issue', { ifmisSlipNumber: '0000202/A', purpose: 'New staff', recipientEmployeeId: 'EMP-A', targetDepartmentId: 'DEP-1', quantity: 10 } as any, 'EMP-ENC'))
+      .rejects.toThrow('is no longer in store');
+  });
+
+  it('never issues more than is left in store: the first approved took the units, so this one goes back to its requester', async () => {
+    item = { ...chairs, notes: JSON.stringify({ quantity: 20, uom: 'EA' }) };
+    await expect(decide('APPROVE', 30)).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'Only 20 EA of MOA-FUR-2026-0001 are left in store, fewer than the 30 on this Model 22: another issue was approved first. Reject it, so the requester lowers the quantity and resubmits, or cancels it.',
+    });
     expect(db.item.create).not.toHaveBeenCalled();
   });
 });

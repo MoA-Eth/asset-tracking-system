@@ -177,14 +177,14 @@ describe('Resubmitting a corrected voucher', () => {
 });
 
 describe('An issue returned for correction', () => {
-  it('keeps its units: another issue can only take what is left', async () => {
+  it('holds none of its units: another issue can ask for any in store, but no more', async () => {
     const chairs = { id: 'item-9', itemCode: 'MOA-FUR-1', name: 'Chair', status: 'PENDING_STOCK_OUT', storeLocationId: 'LOC-1', notes: JSON.stringify({ quantity: 10, uom: 'EA' }) };
     db.item.findUnique.mockResolvedValue(chairs);
     db.transactionApproval.findFirst.mockResolvedValue(null);
     db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
       where.transactionType === 'STOCK_OUT' && where.status?.in?.includes('RETURNED') ? [{ requestDetails: { quantity: 8 } }] : []);
-    await expect(store().registerStockOut({ itemId: 'item-9', quantity: 3, ifmisSlipNumber: '0000300', recipientEmployeeId: 'leader', registeredById: 'encoder' } as any))
-      .rejects.toThrow('at most 2');
+    await expect(store().registerStockOut({ itemId: 'item-9', quantity: 11, ifmisSlipNumber: '0000300', recipientEmployeeId: 'leader', registeredById: 'encoder' } as any))
+      .rejects.toThrow('at most 10');
   });
 
 });

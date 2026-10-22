@@ -642,9 +642,9 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                   {[
                     ['Received', totals.total],
                     ['Issued', totals.issued],
-                    // On a pending issue or disposal: still on the shelf, no longer free to issue
-                    ...(totals.requested ? [['Requested', totals.requested]] : []),
                     ['In store', totals.inStore],
+                    // On a pending issue or disposal: part of "in store" until the last approver approves
+                    ...(totals.requested ? [['Requested', totals.requested]] : []),
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-lg bg-slate-50 px-2 py-2">
                       <p className="font-mono text-lg font-extrabold text-slate-900">{value}</p>
