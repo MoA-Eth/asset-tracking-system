@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const db = vi.hoisted(() => ({
   employee: { findFirst: vi.fn() },
-  item: { updateMany: vi.fn(), findMany: vi.fn() },
-  transactionApproval: { findMany: vi.fn() },
+  item: { updateMany: vi.fn(), findMany: vi.fn(), count: vi.fn(), update: vi.fn() },
+  transactionApproval: { findMany: vi.fn(), update: vi.fn() },
+  $transaction: vi.fn(),
   organization: { findMany: vi.fn(), create: vi.fn() },
   auditLog: { create: vi.fn() },
   systemSetting: { findUnique: vi.fn(), create: vi.fn() },
@@ -12,7 +13,7 @@ const db = vi.hoisted(() => ({
 
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
-import { DISPOSALS_GRANT_MARKER, runStartupUpgrades } from './upgrades.service';
+import { DISPOSALS_GRANT_MARKER, REOPEN_REJECTED_MARKER, runStartupUpgrades } from './upgrades.service';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -25,6 +26,56 @@ beforeEach(() => {
   db.transactionApproval.findMany.mockResolvedValue([]);
   db.item.findMany.mockResolvedValue([]);
   db.organization.findMany.mockResolvedValue([]);
+  db.item.count.mockResolvedValue(0);
+  db.$transaction.mockImplementation(async (fn: any) => fn(db));
+});
+
+describe('startup upgrade: reopen old rejected receipts', () => {
+  // Two lines of 0000152 rejected at Stage 2, one of 0001350 at Stage 1
+  const rejected = [
+    { id: 'A1', itemId: 'I1', ifmisSlipNumber: '0000152', reviewedById: 'EMP-HEAD', reviewRemarks: 'Price is entered as USD.', reviewedAtGc: '2026-10-21', reviewedAtEc: '2019-02-11', endorsedById: 'EMP-TL' },
+    { id: 'A2', itemId: 'I2', ifmisSlipNumber: '0000152', reviewedById: 'EMP-HEAD', reviewRemarks: 'Price is entered as USD.', reviewedAtGc: '2026-10-21', reviewedAtEc: '2019-02-11', endorsedById: 'EMP-TL' },
+    { id: 'A3', itemId: 'I3', ifmisSlipNumber: '0001350', reviewedById: 'EMP-TL', reviewRemarks: 'Wrong Buyer Name', reviewedAtGc: '2026-10-19', reviewedAtEc: '2019-02-09', endorsedById: null },
+  ];
+  const isReopen = (call: any[]) => call[0]?.where?.ifmisSlipNumber?.in;
+
+  it('puts them back with their requesters as a rejection does now, keeping who rejected them and why', async () => {
+    db.transactionApproval.findMany.mockImplementation(async (args: any) => (isReopen([args]) ? rejected : []));
+    await runStartupUpgrades();
+    const reopenQuery = db.transactionApproval.findMany.mock.calls.find(isReopen)![0];
+    expect(reopenQuery.where).toMatchObject({ transactionType: 'STOCK_IN', status: 'REJECTED', ifmisSlipNumber: { in: ['0000152', '0001350', '0001351'] }, item: { status: 'REJECTED' } });
+    expect(db.transactionApproval.update).toHaveBeenCalledTimes(3);
+    expect(db.transactionApproval.update.mock.calls[0][0]).toMatchObject({
+      where: { id: 'A1' },
+      data: { status: 'RETURNED', currentStage: 1, returnedById: 'EMP-HEAD', returnRemarks: 'Price is entered as USD.', returnedAtGc: '2026-10-21', returnedFromStage: 2, reviewedById: null, endorsedById: null },
+    });
+    expect(db.transactionApproval.update.mock.calls[2][0].data).toMatchObject({ returnedById: 'EMP-TL', returnRemarks: 'Wrong Buyer Name', returnedFromStage: 1 });
+    expect(db.item.update.mock.calls[0][0]).toMatchObject({ where: { id: 'I1' }, data: { status: 'PENDING_STOCK_IN', history: { create: { action: 'STOCK_IN_REOPENED' } } } });
+    expect(db.systemSetting.create).toHaveBeenCalledWith({ data: { key: REOPEN_REJECTED_MARKER, value: 'done', updatedById: 'system' } });
+    expect(db.auditLog.create.mock.calls.map((c: any[]) => c[0].data.action)).toContain('SYSTEM_UPGRADE_REOPEN_REJECTED');
+  });
+
+  it('leaves a receipt closed when its Model 19 was received again, so nothing is counted twice', async () => {
+    db.transactionApproval.findMany.mockImplementation(async (args: any) => (isReopen([args]) ? rejected : []));
+    db.item.count.mockImplementation(async ({ where }: any) => (where.ifmisSlipNumber === '0000152' ? 2 : 0));
+    await runStartupUpgrades();
+    expect(db.transactionApproval.update.mock.calls.map((c: any[]) => c[0].where.id)).toEqual(['A3']);
+  });
+
+  it('runs once: never again after its marker is set', async () => {
+    db.systemSetting.findUnique.mockImplementation(async ({ where }: any) => (where.key === REOPEN_REJECTED_MARKER ? { key: where.key, value: 'done' } : null));
+    db.transactionApproval.findMany.mockImplementation(async (args: any) => (isReopen([args]) ? rejected : []));
+    await runStartupUpgrades();
+    expect(db.transactionApproval.update).not.toHaveBeenCalled();
+  });
+
+  it('only warns when the database fails, and tries again on the next start', async () => {
+    db.transactionApproval.findMany.mockImplementation(async (args: any) => (isReopen([args]) ? rejected : []));
+    db.$transaction.mockRejectedValue(new Error('connection lost'));
+    await runStartupUpgrades();
+    expect(console.warn).toHaveBeenCalledWith(expect.stringMatching(/reopen rejected receipts/), 'connection lost');
+    expect(db.systemSetting.create).not.toHaveBeenCalledWith({ data: expect.objectContaining({ key: REOPEN_REJECTED_MARKER }) });
+  });
 });
 
 describe('startup upgrade: rejected receipts', () => {
@@ -91,7 +142,7 @@ describe('startup upgrade: disposal permission', () => {
     db.item.updateMany.mockRejectedValue(new Error('connection lost'));
     db.systemSetting.findUnique.mockRejectedValue(new Error('connection lost'));
     await expect(runStartupUpgrades()).resolves.toBeUndefined();
-    expect(console.warn).toHaveBeenCalledTimes(2);
+    expect(console.warn).toHaveBeenCalledTimes(3); // rejected receipts, reopening them, disposal permission
   });
 });
 

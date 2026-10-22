@@ -6,6 +6,15 @@ import { getTodayGcAndEc } from '../utils/eth-date';
 
 /** Marks that the one-time grant of the disposal permission has run, so it never re-adds a removed permission */
 export const DISPOSALS_GRANT_MARKER = 'upgrade.disposalsPermission';
+/** Marks that the old rejected receipts below were reopened, so it never runs again */
+export const REOPEN_REJECTED_MARKER = 'upgrade.reopenRejectedReceipts';
+
+/**
+ * Receipts rejected for good before a rejection went back to its requester (v2.49.0), which the store asked to correct
+ * instead of receiving again (checked on production on 22 Oct 2026): Model 19 No. 0000152 (price entered in USD, 37
+ * lines), 0001350 and 0001351 (wrong buyer name). The other old rejections were received again or were test entries.
+ */
+export const RECEIPTS_TO_REOPEN = ['0000152', '0001350', '0001351'];
 
 /**
  * Data changes that come with a release and must run before the API serves requests.
@@ -14,6 +23,7 @@ export const DISPOSALS_GRANT_MARKER = 'upgrade.disposalsPermission';
  */
 export async function runStartupUpgrades(): Promise<void> {
   await moveRejectedReceipts();
+  await reopenRejectedReceipts();
   await grantDisposalPermission();
   await gatherOrganizations();
   await cleanGeneratedSerialNumbers();
@@ -73,6 +83,89 @@ async function moveRejectedReceipts(): Promise<void> {
     }
   } catch (err: any) {
     console.warn('Upgrade step "rejected receipts" did not run; it will be retried on the next start.', err?.message ?? err);
+  }
+}
+
+/**
+ * Puts the receipts above back with their requesters, as a rejection does now: the request shows "Rejected · with
+ * requester" with its reason, the requester corrects and resubmits it or cancels it, and the records wait as pending
+ * receipts. Only lines still rejected for good are touched, and a receipt whose Model 19 No. was received again
+ * meanwhile stays closed (reopening it would count the goods twice). Runs once.
+ */
+async function reopenRejectedReceipts(): Promise<void> {
+  try {
+    if (await prisma.systemSetting.findUnique({ where: { key: REOPEN_REJECTED_MARKER } })) return;
+    const approvals = await prisma.transactionApproval.findMany({
+      where: { transactionType: 'STOCK_IN' as any, status: 'REJECTED' as any, ifmisSlipNumber: { in: RECEIPTS_TO_REOPEN }, item: { status: 'REJECTED' as any } },
+      select: { id: true, itemId: true, ifmisSlipNumber: true, reviewedById: true, reviewRemarks: true, reviewedAtGc: true, reviewedAtEc: true, endorsedById: true },
+    });
+    const today = getTodayGcAndEc();
+    const reopened: string[] = [];
+    for (const slip of RECEIPTS_TO_REOPEN) {
+      const lines = approvals.filter((a) => a.ifmisSlipNumber === slip);
+      if (lines.length === 0) continue;
+      const receivedAgain = await prisma.item.count({ where: { ifmisSlipNumber: slip, status: { not: 'REJECTED' as any } } });
+      if (receivedAgain > 0) {
+        console.log(`Upgrade: Model 19 ${slip} was received again, so its rejected receipt stays closed.`);
+        continue;
+      }
+      await prisma.$transaction(async (tx) => {
+        for (const a of lines) {
+          const reason = a.reviewRemarks?.trim() || 'Rejected';
+          const stage = a.endorsedById ? 2 : 1;
+          await tx.transactionApproval.update({
+            where: { id: a.id },
+            data: {
+              status: 'RETURNED' as any,
+              currentStage: 1,
+              returnedById: a.reviewedById,
+              returnRemarks: reason,
+              returnedAtGc: a.reviewedAtGc ?? today.gc,
+              returnedAtEc: a.reviewedAtEc ?? today.ec,
+              returnedFromStage: stage,
+              returnCount: { increment: 1 },
+              rejectionFinal: false,
+              // Not decided: endorsed and approved again once corrected
+              reviewedById: null,
+              reviewRemarks: null,
+              reviewedAtGc: null,
+              reviewedAtEc: null,
+              endorsedById: null,
+              endorsementRemarks: null,
+              endorsedAtGc: null,
+              endorsedAtEc: null,
+            },
+          });
+          await tx.item.update({
+            where: { id: a.itemId },
+            data: {
+              status: 'PENDING_STOCK_IN' as any,
+              history: {
+                create: {
+                  dateGc: today.gc,
+                  dateEc: today.ec,
+                  action: 'STOCK_IN_REOPENED',
+                  fromEntity: 'Rejected (Archived)',
+                  toEntity: 'Requester (Correction)',
+                  performedBy: 'System upgrade',
+                  performedByRole: 'SYSTEM_ADMIN' as any,
+                  ifmisSlipNumber: slip,
+                  notes: `Reopened for correction: a rejected receipt now goes back to its requester, who corrects and resubmits it, or cancels it. Rejected because: ${reason}`,
+                },
+              },
+            },
+          });
+        }
+      });
+      reopened.push(`${slip} (${lines.length} ${lines.length === 1 ? 'item' : 'items'})`);
+    }
+    await prisma.systemSetting.create({ data: { key: REOPEN_REJECTED_MARKER, value: 'done', updatedById: 'system' } });
+    if (reopened.length > 0) {
+      console.log(`Upgrade: rejected receipt(s) ${reopened.join(', ')} reopened for their requesters to correct.`);
+      await recordUpgrade('SYSTEM_UPGRADE_REOPEN_REJECTED', `Rejected receipt(s) on Model 19 ${reopened.join(', ')} reopened: back with their requesters to correct and resubmit, or cancel.`);
+    }
+  } catch (err: any) {
+    console.warn('Upgrade step "reopen rejected receipts" did not run; it will be retried on the next start.', err?.message ?? err);
   }
 }
 
