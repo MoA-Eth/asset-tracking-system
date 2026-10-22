@@ -800,7 +800,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               }}
               className={`px-3 py-1.5 rounded-[4px] text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
                 activeTab === tab.id
-                  ? 'bg-emerald-800 text-white font-bold shadow-xs'
+                  ? 'bg-moa-green text-white font-bold shadow-xs'
                   : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -1050,7 +1050,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                             }}
                             className={`px-3 py-1.5 rounded-[4px] font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-2xs ${
                               isActionableForMe
-                                ? 'bg-emerald-800 hover:bg-emerald-900 text-white'
+                                ? 'bg-moa-green hover:bg-moa-green-hover text-white'
                                 : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
                             }`}
                           >
@@ -1088,7 +1088,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               <>
                 <button
                   onClick={() => handleOpenBatchModal('ENDORSE')}
-                  className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-[4px] text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  className="px-3.5 py-1.5 bg-moa-green hover:bg-moa-green-hover text-white rounded-[4px] text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Batch Endorse ({selectedIds.length})</span>
@@ -1104,7 +1104,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             ) : canEndorse ? (
               <button
                 onClick={() => handleOpenBatchModal('ENDORSE')}
-                className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-[4px] text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                className="px-3.5 py-1.5 bg-moa-green hover:bg-moa-green-hover text-white rounded-[4px] text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Batch Endorse ({selectedIds.length})</span>
@@ -1112,7 +1112,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             ) : canApprove ? (
               <button
                 onClick={() => handleOpenBatchModal('APPROVE')}
-                className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-[4px] text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                className="px-3.5 py-1.5 bg-moa-green hover:bg-moa-green-hover text-white rounded-[4px] text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Batch Authorize ({selectedIds.length})</span>
@@ -1348,7 +1348,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     type="button"
                     disabled={actionLoading}
                     onClick={() => handleAction(selectedApproval.id, 'ENDORSE')}
-                    className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                    className="px-5 py-2 bg-moa-green hover:bg-moa-green-hover text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
                   >
                     <CheckCircle2 className="w-4 h-4" /> Endorse (Stage 1)
                   </button>
@@ -1382,7 +1382,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                         type="button"
                         disabled={actionLoading}
                         onClick={() => handleAction(selectedApproval.id, 'APPROVE')}
-                        className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                        className="px-5 py-2 bg-moa-green hover:bg-moa-green-hover text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
                       >
                         <CheckCircle2 className="w-4 h-4" /> Authorize & Sign-Off
                       </button>
@@ -1456,7 +1456,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 className={`px-5 py-2 text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
                   batchActionType === 'REJECT'
                     ? 'bg-rose-700 hover:bg-rose-800'
-                    : 'bg-emerald-800 hover:bg-emerald-900'
+                    : 'bg-moa-green hover:bg-moa-green-hover'
                 }`}
               >
                 {batchProcessing && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}

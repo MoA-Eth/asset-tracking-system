@@ -513,8 +513,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               title={`Account menu (${user.fullNameEn || ROLE_TITLES[role] || role})`}
               className={`inline-flex size-8 items-center justify-center overflow-hidden rounded-full font-bold text-xs transition cursor-pointer select-none ${
                 showUserMenu
-                  ? 'ring-2 ring-emerald-600 bg-emerald-800 text-white shadow-xs'
-                  : 'bg-emerald-700 hover:bg-emerald-800 text-white hover:ring-2 hover:ring-emerald-600/40 shadow-2xs'
+                  ? 'ring-2 ring-emerald-600 bg-moa-green text-white shadow-xs'
+                  : 'bg-moa-green hover:bg-moa-green-hover text-white hover:ring-2 hover:ring-emerald-600/40 shadow-2xs'
               }`}
             >
               <span>{getInitials(user.fullNameEn || user.email)}</span>

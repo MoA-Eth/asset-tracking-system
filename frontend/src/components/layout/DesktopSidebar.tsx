@@ -110,13 +110,13 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   const itemClass = (isActive: boolean) =>
     `group relative w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2 rounded-[4px] text-[13px] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
       isActive
-        ? 'bg-white/[0.09] text-white font-semibold'
-        : 'text-emerald-50/70 hover:bg-white/[0.05] hover:text-white font-medium'
+        ? 'bg-white/[0.13] text-white font-semibold'
+        : 'text-emerald-50/85 hover:bg-white/[0.07] hover:text-white font-medium'
     }`;
 
   const iconClass = (isActive: boolean) =>
     `w-5 h-5 shrink-0 transition-colors ${
-      isActive ? 'text-[#FCDD09]' : 'text-emerald-200/55 group-hover:text-emerald-100'
+      isActive ? 'text-[#FCDD09]' : 'text-emerald-50/75 group-hover:text-emerald-100'
     }`;
 
   const renderItem = (item: NavItem) => {
@@ -141,7 +141,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         <Icon className={iconClass(isActive)} />
         {!collapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
         {!collapsed && item.formTag && !showCount && (
-          <span className="text-[10px] font-mono font-medium text-emerald-200/35 group-hover:text-emerald-200/60">
+          <span className="text-[10px] font-mono font-medium text-emerald-50/55 group-hover:text-emerald-200/60">
             {item.formTag}
           </span>
         )}
@@ -160,7 +160,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
   return (
     <aside
-      className={`no-print hidden lg:flex flex-col bg-gradient-to-b from-[#0B3D25] via-[#08301D] to-[#062414] border-r border-black/20 text-white shadow-xl transition-all duration-300 select-none z-30 shrink-0 h-full overflow-hidden ${
+      className={`no-print hidden lg:flex flex-col bg-gradient-to-b from-moa-green-hover via-[#086034] to-moa-green-deep border-r border-black/20 text-white shadow-xl transition-all duration-300 select-none z-30 shrink-0 h-full overflow-hidden ${
         collapsed ? 'w-14' : 'w-56'
       }`}
     >
@@ -196,7 +196,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               idx > 0 && <div aria-hidden="true" className="mx-3 mb-3 border-t border-white/[0.07]" />
             ) : (
               section.items.length > 1 && (
-                <p className="px-3 mb-1.5 text-xs font-medium text-emerald-200/55">
+                <p className="px-3 mb-1.5 text-xs font-medium text-emerald-50/75">
                   {section.label}
                 </p>
               )
@@ -225,7 +225,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 <>
                   <span className="flex-1 text-left">{SETTINGS_NAV.label}</span>
                   <ChevronDown
-                    className={`w-4 h-4 shrink-0 text-emerald-200/50 transition-transform ${settingsOpen ? '' : '-rotate-90'}`}
+                    className={`w-4 h-4 shrink-0 text-emerald-50/70 transition-transform ${settingsOpen ? '' : '-rotate-90'}`}
                   />
                 </>
               )}
@@ -235,7 +235,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               <div className="mt-1 ml-[21px] pl-3 border-l border-white/[0.08] space-y-2.5 pb-1">
                 {settingsGroups.map((group) => (
                   <div key={group.label}>
-                    <p className="px-2 pt-1 pb-1 text-[11px] font-medium text-emerald-200/45">{group.label}</p>
+                    <p className="px-2 pt-1 pb-1 text-[11px] font-medium text-emerald-50/70">{group.label}</p>
                     <div className="space-y-0.5">
                       {group.items.map((sub) => {
                         const isActive = activeTab === sub.id;
@@ -247,13 +247,13 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                             aria-current={isActive ? 'page' : undefined}
                             className={`group w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[4px] text-[13px] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
                               isActive
-                                ? 'bg-white/[0.09] text-white font-semibold'
-                                : 'text-emerald-50/65 hover:bg-white/[0.05] hover:text-white font-medium'
+                                ? 'bg-white/[0.13] text-white font-semibold'
+                                : 'text-emerald-50/85 hover:bg-white/[0.07] hover:text-white font-medium'
                             }`}
                           >
                             <SubIcon
                               className={`w-4 h-4 shrink-0 ${
-                                isActive ? 'text-[#FCDD09]' : 'text-emerald-200/45 group-hover:text-emerald-100'
+                                isActive ? 'text-[#FCDD09]' : 'text-emerald-50/70 group-hover:text-emerald-100'
                               }`}
                             />
                             <span className="truncate">{sub.label}</span>
@@ -293,7 +293,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               <div className="size-9 rounded-full bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-800 border border-emerald-300/40 text-white flex items-center justify-center font-bold text-xs shadow-md tracking-wider">
                 {getInitials(user.fullNameEn || user.email)}
               </div>
-              <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-400 ring-2 ring-[#08301D]" />
+              <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-400 ring-2 ring-[#086034]" />
             </div>
 
             {!collapsed && (
@@ -306,7 +306,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                     {ROLE_TITLES[role] || role}
                   </span>
                 </div>
-                <ChevronsUpDown className="w-4 h-4 text-emerald-200/40 group-hover:text-emerald-100 shrink-0 transition-colors" />
+                <ChevronsUpDown className="w-4 h-4 text-emerald-50/70 group-hover:text-emerald-100 shrink-0 transition-colors" />
               </>
             )}
           </button>
@@ -318,7 +318,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               aria-label="User Account Menu"
               className={`absolute bottom-full mb-2 ${
                 collapsed ? 'left-1 w-64' : 'left-2 right-2'
-              } bg-[#072417]/95 border border-emerald-500/25 rounded-xl shadow-2xl z-50 overflow-hidden text-white backdrop-blur-2xl animate-fadeIn`}
+              } bg-moa-green-deep/95 border border-emerald-500/25 rounded-xl shadow-2xl z-50 overflow-hidden text-white backdrop-blur-2xl animate-fadeIn`}
               style={{
                 boxShadow: '0 20px 45px -10px rgba(0, 0, 0, 0.8), 0 0 25px rgba(16, 185, 129, 0.12)',
               }}
@@ -329,7 +329,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   <div className="size-10 rounded-full bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-800 border border-emerald-300/40 text-white flex items-center justify-center font-bold text-xs shadow-md">
                     {getInitials(user.fullNameEn || user.email)}
                   </div>
-                  <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-400 ring-2 ring-[#072417]" />
+                  <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-400 ring-2 ring-moa-green-deep" />
                 </div>
                 <div className="min-w-0 flex-1 leading-tight">
                   <span className="block font-bold text-xs text-white truncate">
@@ -346,7 +346,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                       {ROLE_TITLES[role] || role}
                     </span>
                     {user.payrollId && (
-                      <span className="text-[10px] text-emerald-200/50 font-mono">
+                      <span className="text-[10px] text-emerald-50/70 font-mono">
                         ID: {user.payrollId}
                       </span>
                     )}
@@ -418,7 +418,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
           {!collapsed && (
             <p
-              className="mt-2 text-center text-[10px] font-mono text-emerald-200/30 truncate tracking-wide"
+              className="mt-2 text-center text-[10px] font-mono text-emerald-50/50 truncate tracking-wide"
               title={APP_COMMIT ? `Commit ${APP_COMMIT}` : undefined}
             >
               {APP_VERSION}

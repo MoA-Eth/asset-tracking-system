@@ -7,21 +7,15 @@
      evenly spaced (see .font-mono below), so columns of numbers still line up */
   --font-mono: 'Inter', 'Noto Sans Ethiopic', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
-  --color-moa-green-dark: #072F1C;
-  --color-moa-green: #0B3D25;
-  --color-moa-green-light: #12633C;
-  --color-moa-green-accent: #15803D;
-  --color-moa-gold: #D97706;
-  --color-moa-gold-light: #F59E0B;
-  --color-moa-gold-accent: #FCDD09;
+  /* The MoA colours, in one place: change them here and every button, selected tab, the side menu and the sign-in
+     card follow. Status colours (red reject, amber pending…) are not these. */
+  --color-moa-green: #00843D; /* buttons and selected tabs: the MoA green */
+  --color-moa-green-hover: #0B6B3A; /* a button under the pointer; the side menu and the sign-in card */
+  --color-moa-green-deep: #06542D; /* the bottom of the side menu, and its popups */
+  --color-moa-gold: #FCDD09; /* gold accents */
 }
 
 :root {
-  --color-moa-green: #0B3D25;
-  --color-moa-green-dark: #072F1C;
-  --color-moa-green-light: #12633C;
-  --color-moa-gold: #D97706;
-  --color-moa-gold-accent: #FCDD09;
   --color-bg-light: #f8fafc;
   --color-surface-white: #ffffff;
   --color-border-light: #e2e8f0;

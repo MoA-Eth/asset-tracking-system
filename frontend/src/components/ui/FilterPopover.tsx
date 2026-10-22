@@ -182,7 +182,7 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="sm:hidden rounded bg-emerald-700 px-3.5 py-1.5 font-semibold text-white shadow-xs hover:bg-emerald-800 cursor-pointer text-xs"
+              className="sm:hidden rounded bg-moa-green px-3.5 py-1.5 font-semibold text-white shadow-xs hover:bg-moa-green-hover cursor-pointer text-xs"
             >
               Apply
             </button>

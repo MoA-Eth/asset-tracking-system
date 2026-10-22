@@ -265,7 +265,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
                   leftIcon={<Save className="w-3.5 h-3.5" />}
                   onClick={() => setShowConfirmModal(true)}
                   disabled={saving}
-                  className="bg-emerald-700 hover:bg-emerald-800 text-white"
+                  className="bg-moa-green hover:bg-moa-green-hover text-white"
                 >
                   Save changes ({totalUnsavedChanges})
                 </Button>
@@ -588,7 +588,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({ onViewUsers }) => {
                   onClick={saveAllChanges}
                   disabled={saving}
                   leftIcon={saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                  className="bg-emerald-700 hover:bg-emerald-800 text-white"
+                  className="bg-moa-green hover:bg-moa-green-hover text-white"
                 >
                   {saving ? 'Applying Changes…' : 'Confirm & Apply'}
                 </Button>

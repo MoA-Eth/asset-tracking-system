@@ -16,7 +16,7 @@ const ACCENT = {
     step: 'bg-emerald-600 text-white',
     icon: 'text-emerald-700',
     focus: 'focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700',
-    button: 'bg-emerald-700 hover:bg-emerald-800 focus-visible:ring-emerald-500/40',
+    button: 'bg-moa-green hover:bg-moa-green-hover focus-visible:ring-emerald-500/40',
     dropHover: 'hover:border-emerald-400 hover:bg-emerald-50/40',
     total: 'bg-emerald-50 border-emerald-200 text-emerald-900',
   },

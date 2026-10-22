@@ -243,7 +243,7 @@ const AuthenticatedPortal: React.FC = () => {
               <nav aria-label="Settings pages" className="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-4 border-b border-slate-200">
                 {getSettingsGroups(user?.allowedTabs).flatMap(group => group.items).map(item => (
                   <button key={item.id} onClick={() => handleTabChange(item.id)} aria-current={activeTab === item.id ? 'page' : undefined}
-                    className={`shrink-0 rounded-[4px] px-3 py-2 text-xs font-semibold ${activeTab === item.id ? 'bg-emerald-700 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
+                    className={`shrink-0 rounded-[4px] px-3 py-2 text-xs font-semibold ${activeTab === item.id ? 'bg-moa-green text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
                     {item.label}
                   </button>
                 ))}

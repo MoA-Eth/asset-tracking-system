@@ -78,7 +78,7 @@ export const VoucherShell: React.FC<VoucherShellProps> = ({
             <button
               onClick={() => window.print()}
               aria-label={`Print ${model} / PDF`}
-              className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition flex items-center justify-center cursor-pointer shadow-xs h-8 w-8"
+              className="p-2 bg-moa-green hover:bg-moa-green-hover text-white font-bold rounded-xl transition flex items-center justify-center cursor-pointer shadow-xs h-8 w-8"
               title="Print Voucher / Save as PDF"
             >
               <Printer className="w-4 h-4" />

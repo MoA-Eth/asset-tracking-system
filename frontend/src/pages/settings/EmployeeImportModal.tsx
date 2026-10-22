@@ -213,7 +213,7 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
                       onClick={() => setFilter(a)}
                       disabled={count === 0 && a !== 'ALL'}
                       className={`rounded-[4px] border px-2.5 py-1 text-[11px] font-semibold transition cursor-pointer disabled:cursor-default disabled:opacity-40 ${
-                        filter === a ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                        filter === a ? 'border-moa-green bg-moa-green text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
                       }`}
                     >
                       {label} <span className="tabular-nums">{count}</span>

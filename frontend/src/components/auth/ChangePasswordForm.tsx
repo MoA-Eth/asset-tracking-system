@@ -74,7 +74,7 @@ export const ChangePasswordForm: React.FC<{
         <button
           type="submit"
           disabled={submitting || !current || !next || !confirm}
-          className="flex items-center gap-2 rounded-[3px] bg-emerald-700 px-5 py-2 text-xs font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300 cursor-pointer"
+          className="flex items-center gap-2 rounded-[3px] bg-moa-green px-5 py-2 text-xs font-semibold text-white transition hover:bg-moa-green-hover disabled:cursor-not-allowed disabled:bg-slate-300 cursor-pointer"
         >
           {submitting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
           Change password

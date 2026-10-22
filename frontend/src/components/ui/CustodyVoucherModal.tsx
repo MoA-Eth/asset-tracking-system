@@ -89,7 +89,7 @@ export const CustodyVoucherModal: React.FC<CustodyVoucherModalProps> = ({
               onClick={handlePrint}
               aria-label="Print Certificate"
               title="Print Certificate"
-              className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition flex items-center justify-center cursor-pointer shadow-sm h-8 w-8"
+              className="p-2 bg-moa-green hover:bg-moa-green-hover text-white font-bold rounded-xl transition flex items-center justify-center cursor-pointer shadow-sm h-8 w-8"
             >
               <Printer className="w-4 h-4" />
             </button>

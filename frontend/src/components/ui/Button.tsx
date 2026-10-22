@@ -34,8 +34,8 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const variantStyles: Record<ButtonVariant, string> = {
-    primary: 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-900/10',
-    success: 'bg-emerald-800 hover:bg-emerald-900 text-white',
+    primary: 'bg-moa-green hover:bg-moa-green-hover text-white shadow-emerald-900/10',
+    success: 'bg-moa-green hover:bg-moa-green-hover text-white',
     secondary: 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200',
     outline: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300',
     danger: 'bg-red-700 hover:bg-red-800 text-white shadow-red-900/10',

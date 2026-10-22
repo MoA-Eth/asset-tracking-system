@@ -387,7 +387,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <div className="w-3 h-3 rounded-full bg-rose-600 mx-auto mb-2" />
         <h3 className="text-sm font-semibold text-slate-900">Couldn't load the dashboard</h3>
         <p className="text-xs text-slate-600">{error}</p>
-        <button onClick={() => fetchDashboard()} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-[4px] transition cursor-pointer inline-flex items-center gap-1.5">
+        <button onClick={() => fetchDashboard()} className="px-4 py-2 bg-moa-green hover:bg-moa-green-hover text-white font-semibold text-xs rounded-[4px] transition cursor-pointer inline-flex items-center gap-1.5">
           <RefreshCw className="w-3.5 h-3.5" /> Retry
         </button>
       </div>

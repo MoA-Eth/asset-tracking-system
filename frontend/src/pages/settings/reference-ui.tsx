@@ -70,7 +70,7 @@ export const ConfirmDialog: React.FC<{
           onClick={onConfirm}
           disabled={busy}
           className={`flex items-center gap-1.5 rounded-[3px] px-4 py-2 text-xs font-semibold text-white transition disabled:bg-slate-300 cursor-pointer ${
-            danger ? 'bg-red-700 hover:bg-red-800' : 'bg-emerald-700 hover:bg-emerald-800'
+            danger ? 'bg-red-700 hover:bg-red-800' : 'bg-moa-green hover:bg-moa-green-hover'
           }`}
         >
           {busy && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}

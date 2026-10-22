@@ -102,7 +102,7 @@ export const SystemSettingsPage: React.FC = () => {
               disabled={!canEdit || saving}
               aria-pressed={!showScannedSlipField}
               className={`px-3.5 py-1.5 rounded-[4px] text-xs font-bold transition ${
-                !showScannedSlipField ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 enabled:hover:text-slate-900 enabled:hover:bg-slate-100'
+                !showScannedSlipField ? 'bg-moa-green text-white shadow-xs' : 'text-slate-600 enabled:hover:text-slate-900 enabled:hover:bg-slate-100'
               } ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed'} disabled:opacity-80`}
             >
               Off (Single Uploader)
