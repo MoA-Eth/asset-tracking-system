@@ -77,6 +77,7 @@ import {
   daysInStore,
   decidedOn,
   isStale,
+  recipientOf,
 } from '../components/assets/asset-state';
 
 type AssetFilter = 'ALL' | 'IN_STORE' | 'ISSUED' | 'PENDING' | 'REJECTED' | 'DISPOSED';
@@ -296,11 +297,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
   }, [fetchData]);
 
-  // The open request of a record (several issue requests can wait on one record: the oldest is shown)
-  const pendingByItem = useMemo(
-    () => new Map(approvals.filter((a) => a.status === ApprovalStatus.PENDING || a.status === ApprovalStatus.RETURNED).map((a) => [a.itemId, a] as const)),
-    [approvals],
-  );
+  // The open requests of each record, oldest first: several issue requests can wait on one record
+  const openByItem = useMemo(() => {
+    const map = new Map<string, TransactionApproval[]>();
+    for (const a of approvals) {
+      if (a.status === ApprovalStatus.PENDING || a.status === ApprovalStatus.RETURNED) map.set(a.itemId, [...(map.get(a.itemId) ?? []), a]);
+    }
+    const when = (a: TransactionApproval) => String(a.createdAt ?? a.createdAtGc ?? '');
+    for (const list of map.values()) list.sort((x, y) => when(x).localeCompare(when(y)));
+    return map;
+  }, [approvals]);
+  // The open request a record is known by: the oldest
+  const pendingByItem = useMemo(() => new Map([...openByItem].map(([id, list]) => [id, list[0]] as const)), [openByItem]);
+  // Which of a record's open requests is being corrected, when it has several
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
 
   // Decided requests, newest first, grouped two ways:
   // - vouchers: an approved partial issue is filed under the unit it created, whose custody it records
@@ -327,6 +337,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return items
       .map((item) => {
         const request = pendingByItem.get(item.id);
+        const requests = openByItem.get(item.id) ?? [];
         const store = item.storeLocation ? storeLocationLabel(item.storeLocation) : 'Store';
         const holder = item.currentCustodian?.fullNameEn || employeeName(item.currentCustodianId) || item.heldByOrganization || (item.assignedDepartment ? departmentLabel(item.assignedDepartment) : undefined);
         let state: AssetState;
@@ -338,7 +349,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         else state = 'ISSUED';
 
         let goingTo: string | undefined;
-        if (request?.transactionType === 'STOCK_OUT' || request?.transactionType === 'TRANSFER') {
+        if (requests.length > 1) {
+          // Several issues: each recipient, with what they asked for
+          goingTo = requests
+            .map((r) => `${recipientOf(r) || employeeName(r.recipientEmployeeId) || 'Recipient not set'}${r.requestDetails?.quantity ? ` · ${r.requestDetails.quantity} ${(item.uom || 'EA').toLowerCase()}` : ''}`)
+            .join(', ');
+        } else if (request?.transactionType === 'STOCK_OUT' || request?.transactionType === 'TRANSFER') {
           goingTo = request.recipientEmployee?.fullNameEn || employeeName(request.recipientEmployeeId) || request.requestDetails?.organizationName;
         } else if (request?.transactionType === 'RETURN') {
           const target = locations.find((l) => l.id === request.targetLocationId);
@@ -357,6 +373,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           item,
           state,
           request,
+          requests,
           units: Number(item.quantity) || 1,
           where: disposedTo ?? (withSomeone ? holder || '—' : store),
           goingTo,
@@ -365,7 +382,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           lastMove: approved.find((a) => a.transactionType === 'TRANSFER' || a.transactionType === 'RETURN'),
           lastDisposal,
           // A new request replaces the rejected one; until then the row says what happened
-          rejected: !request && (lastRaised?.status === ApprovalStatus.REJECTED || lastRaised?.status === ApprovalStatus.CANCELLED) ? lastRaised : undefined,
+          // (an issued record doesn't show an issue that lost to the one that issued it)
+          rejected:
+            !request &&
+            (lastRaised?.status === ApprovalStatus.REJECTED || lastRaised?.status === ApprovalStatus.CANCELLED) &&
+            !(state === 'ISSUED' && lastRaised.transactionType === 'STOCK_OUT')
+              ? lastRaised
+              : undefined,
           daysInStore: state === 'IN_STORE' ? daysInStore(item, today) : undefined,
         };
       })
@@ -375,7 +398,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         }
         return b.activity.localeCompare(a.activity) || a.item.itemCode.localeCompare(b.item.itemCode);
       });
-  }, [items, pendingByItem, decided, employees, locations]);
+  }, [items, pendingByItem, openByItem, decided, employees, locations]);
 
   const inFilter = (row: AssetRow, f: AssetFilter, locId = locationFilter, cat = categoryFilter) => {
     const matchesState =
@@ -612,10 +635,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     disposing?.itemId === itemId;
 
   /** Open a record straight into correcting what it has pending (its receipt or its request) */
-  const editInRecord = (itemId: string) => {
+  const editInRecord = (itemId: string, requestId?: string) => {
     const target = rows.find((r) => r.item.id === itemId);
     if (target?.state === 'REJECTED' || target?.item.status === ItemStatus.REJECTED) return;
     setSelectedId(itemId);
+    setEditingRequestId(requestId ?? null);
     setEditing(true);
   };
 
@@ -624,7 +648,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
    * toolbar. Only a receipt or request still with the Team Leader can be corrected.
    */
   const editFormFor = (row: AssetRow): { id: string; form: React.ReactNode; actions?: RowAction[] } | undefined => {
-    const { item, request } = row;
+    const { item } = row;
+    // The request chosen from several, else the record's one
+    const request = row.requests?.find((r) => r.id === editingRequestId) ?? row.request;
     const done = (voucher?: unknown, print?: (v: any) => void) => {
       setEditing(false);
       setTransfer(null);
@@ -906,22 +932,23 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           },
         ];
       case 'REQUEST_PENDING': {
-        const kind = requestLabel(request!.transactionType, request!.requestDetails);
         const editPermission: Record<string, boolean> = { STOCK_OUT: canIssue, DISPOSAL: canDispose, TRANSFER: canTransfer, RETURN: canTransfer };
-        const mayEdit = editPermission[request!.transactionType] ?? false;
+        const open = row.requests?.length ? row.requests : [request!];
+        // Several issues: one Edit each, named by its Model 22 No.; a rejected one is resubmitted or cancelled
+        const returned = open.find((r) => r.status === ApprovalStatus.RETURNED);
         return [
-          {
-            label: `Edit ${kind.noun}`,
+          ...open.map((r): RowAction => ({
+            label: `Edit ${requestLabel(r.transactionType, r.requestDetails).noun}${open.length > 1 ? ` ${r.ifmisSlipNumber}` : ''}`,
             icon: Pencil,
-            onClick: () => editInRecord(item.id),
-            hidden: !mayEdit,
-            disabled: request!.currentStage === 2,
-            reason: request!.currentStage === 2 ? ENDORSED_REASON : undefined,
-          },
-          resubmitAction(request),
-          cancelAction(request),
+            onClick: () => editInRecord(item.id, r.id),
+            hidden: !(editPermission[r.transactionType] ?? false),
+            disabled: r.currentStage === 2,
+            reason: r.currentStage === 2 ? (open.length > 1 ? `Model 22 ${r.ifmisSlipNumber}: ${ENDORSED_REASON}` : ENDORSED_REASON) : undefined,
+          })),
+          resubmitAction(returned ?? request),
+          cancelAction(returned ?? request),
           {
-            // The units not on the waiting issue can go on another Model 22 now
+            // Units on issues still waiting stay in store, so another Model 22 can ask for them
             label: 'Issue (Model 22)',
             icon: PackageMinus,
             onClick: () => {

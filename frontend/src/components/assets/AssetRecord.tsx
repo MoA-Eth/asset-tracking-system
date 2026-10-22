@@ -13,7 +13,7 @@ import { valueOf } from '../../utils/item-cost';
 import { isGeneratedSerialNumber, displaySerialNumber } from '../../utils/asset-tag';
 import { storeLocationLabel } from '../../utils/location';
 import { departmentLabel } from '../../utils/department';
-import { AssetRow, AssetStatus, categoryLabel, requestLabel, RejectionNote, stageLabel, shortDate } from './asset-state';
+import { AssetRow, AssetStatus, categoryLabel, requestLabel, RejectionNote, stageLabel, shortDate, recipientOf } from './asset-state';
 
 export interface AssetRecordProps {
   row: AssetRow;
@@ -285,9 +285,11 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
           </div>
           )}
         </div>
-        {!editing && steps.some((a) => a.disabled) && (
-          <p className="text-[11px] text-slate-500">{steps.find((a) => a.disabled)?.reason}</p>
-        )}
+        {/* Why each locked step is locked (several issues on one record can each be locked) */}
+        {!editing &&
+          [...new Set(steps.filter((a) => a.disabled && a.reason).map((a) => a.reason!))].map((reason) => (
+            <p key={reason} className="text-[11px] text-slate-500">{reason}</p>
+          ))}
       </header>
 
       {editing ? (
@@ -296,6 +298,29 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
         <div className="flex-1 overflow-y-auto space-y-4 p-5">
           {/* Status-based field locking notice */}
           {(() => {
+            // Several issues waiting: each one, as it is
+            if (row.state === 'REQUEST_PENDING' && (row.requests?.length ?? 0) > 1) {
+              const open = row.requests!;
+              const noun = requestLabel(open[0].transactionType, open[0].requestDetails).noun;
+              return (
+                <FormNotice icon={Clock} tone="info">
+                  <span className="font-bold">{open.length} {noun} requests are waiting on this record</span>
+                  <ul className="mt-1 space-y-0.5 text-[12px] text-slate-700">
+                    {open.map((r) => (
+                      <li key={r.id}>
+                        <span className="font-semibold">{requestLabel(r.transactionType, r.requestDetails).model} {r.ifmisSlipNumber}</span>
+                        {r.requestDetails?.quantity ? ` · ${r.requestDetails.quantity} ${uom}` : ''}
+                        {recipientOf(r) ? ` → ${recipientOf(r)}` : ''} · {stageLabel(r)}
+                        {r.status === ApprovalStatus.RETURNED && r.returnRemarks ? `: ${r.returnRemarks}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Nothing leaves the store until each is approved; the first approved takes its units. Each can be corrected with its own Edit until the Team Leader endorses it.
+                  </p>
+                </FormNotice>
+              );
+            }
             if (row.request?.status === ApprovalStatus.RETURNED) {
               const r = row.request;
               const noun = requestLabel(r.transactionType, r.requestDetails).noun;
@@ -319,13 +344,13 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <FormNotice icon={isStage1 ? Clock : Lock} tone={isStage1 ? 'warn' : 'info'}>
                   <span className="font-bold">
                     {isStage1
-                      ? `${capital(reqNoun)} request pending endorsement · Editable in correction mode`
-                      : `${capital(reqNoun)} request endorsed · Awaiting Dept. Head approval`}
+                      ? `${capital(reqNoun)} request waiting for the Team Leader`
+                      : `${capital(reqNoun)} request endorsed · waiting for the Department Head`}
                   </span>
                   <p className="mt-0.5 text-[11px] text-slate-500">
                     {isStage1
-                      ? `The ${reqNoun} request (recipient, quantity, slip) can be corrected with the Edit button until the Team Leader endorses it. Inventory master fields are fixed.`
-                      : 'Endorsed by Team Leader — changes are locked while awaiting final Department Head approval.'}
+                      ? `Until the Team Leader endorses it, the request (recipient, quantity, voucher) can be corrected with Edit. The item's own details stay as received.`
+                      : 'The Team Leader has endorsed it, so it can no longer be changed. To correct it, ask an approver to reject it.'}
                   </p>
                 </FormNotice>
               );
@@ -336,13 +361,13 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <FormNotice icon={isStage1 ? Clock : Lock} tone={isStage1 ? 'warn' : 'info'}>
                   <span className="font-bold">
                     {isStage1
-                      ? 'Receipt pending endorsement · Editable in correction mode'
-                      : 'Receipt endorsed · Awaiting Dept. Head approval'}
+                      ? 'Receipt waiting for the Team Leader'
+                      : 'Receipt endorsed · waiting for the Department Head'}
                   </span>
                   <p className="mt-0.5 text-[11px] text-slate-500">
                     {isStage1
-                      ? 'The receipt can be corrected until the Team Leader endorses it.'
-                      : 'Endorsed by Team Leader — changes are locked while awaiting final Department Head approval.'}
+                      ? 'Until the Team Leader endorses it, the receipt can be corrected with Edit.'
+                      : 'The Team Leader has endorsed it, so it can no longer be changed. To correct it, ask an approver to reject it.'}
                   </p>
                 </FormNotice>
               );
@@ -671,7 +696,18 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                   </Row>
                 )}
               </div>
-              {pending && (
+              {pending && (row.requests?.length ?? 0) > 1 && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 text-xs space-y-0.5">
+                  {row.requests!.map((r) => (
+                    <p key={r.id}>
+                      <span className="font-semibold">{requestLabel(r.transactionType, r.requestDetails).pending} · {stageLabel(r, 'waiting')}</span>
+                      {recipientOf(r) ? ` → ${recipientOf(r)}` : ''}
+                      {r.requestDetails?.quantity ? ` · ${r.requestDetails.quantity} ${uom}` : ''}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {pending && (row.requests?.length ?? 0) <= 1 && (
                 <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 text-xs">
                   <p className="font-semibold">
                     {requestLabel(pending.transactionType, pending.requestDetails).pending} · {stageLabel(pending, 'waiting')}

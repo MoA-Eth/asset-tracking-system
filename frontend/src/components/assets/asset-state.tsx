@@ -81,13 +81,19 @@ export const requestLabel = (type?: string, details?: { disposal?: boolean } | n
   (type === 'STOCK_OUT' && details?.disposal ? { noun: 'disposal', pending: 'Disposal pending', model: 'Model 22' } : REQUEST_LABELS[type ?? '']) ??
   { noun: 'request', pending: 'Pending', model: 'voucher' };
 
+/** Who an issue or transfer request is for: the employee, or the outside organization */
+export const recipientOf = (request: TransactionApproval): string | undefined =>
+  request.recipientEmployee?.fullNameEn || request.requestDetails?.organizationName || undefined;
+
 export const ENDORSED_REASON = 'The Team Leader has endorsed it. To correct it, ask an approver to reject it.';
 
 export interface AssetRow {
   item: ItemWithRelations;
   state: AssetState;
-  /** The open request on this record, if any */
+  /** The open request on this record, if any: the oldest when several issue requests wait on it */
   request?: TransactionApproval;
+  /** Every open request on this record, oldest first (several issue requests can wait on one record) */
+  requests?: TransactionApproval[];
   units: number;
   /** Who holds it, or the store it sits in */
   where: string;
@@ -210,6 +216,24 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
           Rejected
         </span>
         <ReturnedNote request={row.request} />
+      </span>
+    );
+  }
+  // Several issues waiting on one record: how many, and where each one is
+  const open = row.requests ?? [];
+  if (open.length > 1) {
+    const noun = requestLabel(open[0].transactionType, open[0].requestDetails).noun;
+    const where = new Map<string, number>();
+    for (const r of open) where.set(stageLabel(r), (where.get(stageLabel(r)) ?? 0) + 1);
+    return (
+      <span className="inline-flex flex-col items-start gap-0.5">
+        <span className={`${pill} ${statusTone.pending}`}>
+          <Clock className="h-3 w-3" />
+          {open.length} {noun}s pending
+        </span>
+        <span className="text-[10px] text-slate-500">
+          {where.size === 1 ? [...where.keys()][0] : [...where].map(([label, n]) => `${n} ${label.replace(/^With /, 'with ').replace(/^Rejected$/, 'rejected')}`).join(' · ')}
+        </span>
       </span>
     );
   }

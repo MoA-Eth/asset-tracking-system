@@ -788,6 +788,53 @@ describe('Asset record', () => {
   };
   const toolbarOf = (record: HTMLElement) => within(within(record).getByRole('toolbar')).getAllByRole('button').map((b) => b.getAttribute('aria-label') || b.textContent?.trim());
 
+  it('shows every issue waiting on a record: status, recipients, the record, and one Edit each', async () => {
+    const user = userEvent.setup();
+    const endale = { id: 'E3', fullNameEn: 'Endale Alebachew', payrollId: 'MOA/3' };
+    // 45 inner tubes; two Model 22s of 5 each, both endorsed and with the Department Head, as on production
+    vi.mocked(api.getItems).mockResolvedValue([item('T1', 'Inner Tube 7.50 X 16', 'PENDING_STOCK_OUT', { quantity: 45, itemType: 'CONSUMABLE', balance: { total: 45, issued: 0, available: 45, pending: 0, requested: 10 } })] as any);
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      request('M102', 'STOCK_OUT', 'T1', { ifmisSlipNumber: '0000102', currentStage: 2, createdAtGc: '2026-10-22T08:00:00Z', recipientEmployeeId: 'E2', recipientEmployee: receiver, requestDetails: { quantity: 5 } }),
+      request('M195', 'STOCK_OUT', 'T1', { ifmisSlipNumber: '0000195', currentStage: 2, createdAtGc: '2026-10-22T09:00:00Z', recipientEmployeeId: 'E3', recipientEmployee: endale, requestDetails: { quantity: 5 } }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const row = (await screen.findByText('MOA-T1')).closest('tr')!;
+    expect(within(row).getByText('2 issues pending')).toBeInTheDocument();
+    expect(within(row).getByText('With Dept. Head')).toBeInTheDocument();
+    expect(within(row).getByText('→ Kebede Alemu · 5 ea, Endale Alebachew · 5 ea')).toBeInTheDocument();
+    const record = await open(user, 'MOA-T1');
+    expect(within(record).getByText('2 issue requests are waiting on this record')).toBeInTheDocument();
+    expect(within(record).getAllByRole('listitem').find((li) => li.textContent?.startsWith('Model 22 0000195'))).toHaveTextContent('Model 22 0000195 · 5 ea → Endale Alebachew · With Dept. Head');
+    // One Edit for each, locked once the Team Leader endorsed it; another Model 22 can still ask for units in store
+    expect(toolbarOf(record)).toEqual(['Edit issue 0000102', 'Edit issue 0000195', 'Issue (Model 22)']);
+    expect(within(within(record).getByRole('toolbar')).getByRole('button', { name: 'Edit issue 0000195' })).toBeDisabled();
+    // The lock says which Model 22 it is about
+    expect(within(record).getAllByText(/^Model 22 0000195: The Team Leader has endorsed it/).length).toBeGreaterThan(0);
+  });
+
+  it('two issues on one record, one with each approver, say where each one is', async () => {
+    vi.mocked(api.getItems).mockResolvedValue([item('T1', 'Inner Tube', 'PENDING_STOCK_OUT', { quantity: 45 })] as any);
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      request('M1', 'STOCK_OUT', 'T1', { currentStage: 2, recipientEmployee: receiver, requestDetails: { quantity: 5 } }),
+      request('M2', 'STOCK_OUT', 'T1', { currentStage: 1, recipientEmployee: holder, requestDetails: { quantity: 2 } }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const row = (await screen.findByText('MOA-T1')).closest('tr')!;
+    expect(within(row).getByText(/^1 with (Dept\. Head|Team Leader) · 1 with (Dept\. Head|Team Leader)$/)).toBeInTheDocument();
+  });
+
+  it("doesn't show an issue that lost to the one that issued the record", async () => {
+    vi.mocked(api.getItems).mockResolvedValue([item('T2', 'Coupon', 'ISSUED')] as any);
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      request('WON', 'STOCK_OUT', 'T2', { status: 'APPROVED', reviewedAtGc: '2026-10-22' }),
+      request('LOST', 'STOCK_OUT', 'T2', { status: 'CANCELLED', reviewedAtGc: '2026-10-22T12:00:00Z', reviewRemarks: 'Nothing left' }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const row = (await screen.findByText('MOA-T2')).closest('tr')!;
+    expect(within(row).getByText('Issued')).toBeInTheDocument();
+    expect(within(row).queryByText(/cancelled|rejected/i)).toBeNull();
+  });
+
   it('opens a row as a full-width record, with the next steps in the toolbar', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
@@ -902,7 +949,7 @@ describe('Asset record', () => {
     const record = await open(user, 'MOA-R1');
     // Opens in view mode first with prominent Edit receipt button
     expect(toolbarOf(record)).toEqual(['Edit receipt']);
-    expect(within(record).getByText('Receipt pending endorsement · Editable in correction mode')).toBeInTheDocument();
+    expect(within(record).getByText('Receipt waiting for the Team Leader')).toBeInTheDocument();
 
     // Clicking Edit receipt enters edit mode with Save and Cancel
     await user.click(within(record).getByRole('button', { name: 'Edit receipt' }));
@@ -948,7 +995,7 @@ describe('Asset record', () => {
     const record = await open(user, 'MOA-O1');
     // Opens in view mode first with prominent Edit issue button
     expect(toolbarOf(record)).toEqual(['Edit issue', 'Issue (Model 22)']);
-    expect(within(record).getByText('Issue request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+    expect(within(record).getByText('Issue request waiting for the Team Leader')).toBeInTheDocument();
 
     // Clicking Edit issue enters edit mode with Save and Cancel
     await user.click(within(record).getByRole('button', { name: 'Edit issue' }));
@@ -960,7 +1007,7 @@ describe('Asset record', () => {
     // Cancel exits edit mode back to view mode
     await user.click(cancelOf(record, 'stock-out-form'));
     expect(toolbarOf(record)).toEqual(['Edit issue', 'Issue (Model 22)']);
-    expect(within(record).getByText('Issue request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+    expect(within(record).getByText('Issue request waiting for the Team Leader')).toBeInTheDocument();
   });
 
   it('opens a pending transfer in view mode, and allows editing with Save and Cancel', async () => {
@@ -970,7 +1017,7 @@ describe('Asset record', () => {
     const record = await open(user, 'MOA-P1');
     // Opens in view mode first with prominent Edit transfer button
     expect(toolbarOf(record)).toEqual(['Edit transfer']);
-    expect(within(record).getByText('Transfer request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+    expect(within(record).getByText('Transfer request waiting for the Team Leader')).toBeInTheDocument();
 
     // Clicking Edit transfer enters edit mode with Save and Cancel
     await user.click(within(record).getByRole('button', { name: 'Edit transfer' }));
@@ -982,7 +1029,7 @@ describe('Asset record', () => {
     // Cancel exits edit mode back to view mode
     await user.click(cancelOf(record, 'transfer-form'));
     expect(toolbarOf(record)).toEqual(['Edit transfer']);
-    expect(within(record).getByText('Transfer request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+    expect(within(record).getByText('Transfer request waiting for the Team Leader')).toBeInTheDocument();
   });
 
   it('opens a pending return in view mode, and allows editing with Save and Cancel', async () => {
@@ -994,7 +1041,7 @@ describe('Asset record', () => {
     const record = await open(user, 'MOA-I1');
     // Opens in view mode first with prominent Edit button
     expect(toolbarOf(record)).toEqual(['Edit return to store']);
-    expect(within(record).getByText('Return to store request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+    expect(within(record).getByText('Return to store request waiting for the Team Leader')).toBeInTheDocument();
 
     // Clicking Edit enters edit mode with Save and Cancel
     await user.click(within(record).getByRole('button', { name: 'Edit return to store' }));
@@ -1006,7 +1053,7 @@ describe('Asset record', () => {
     // Cancel exits edit mode back to view mode
     await user.click(cancelOf(record, 'transfer-form'));
     expect(toolbarOf(record)).toEqual(['Edit return to store']);
-    expect(within(record).getByText('Return to store request pending endorsement · Editable in correction mode')).toBeInTheDocument();
+    expect(within(record).getByText('Return to store request waiting for the Team Leader')).toBeInTheDocument();
   });
 
   it('keeps the header to the name, code and status while a correction form is open', async () => {
@@ -1268,7 +1315,7 @@ describe('Asset record', () => {
     expect(record.querySelector('form#stock-in-form')).toBeNull();
     expect(toolbarOf(record)).toEqual(['Edit receipt']);
     expect(within(record).getByRole('button', { name: 'Edit receipt' })).toBeDisabled();
-    expect(within(record).getByText('Receipt endorsed · Awaiting Dept. Head approval')).toBeInTheDocument();
+    expect(within(record).getByText('Receipt endorsed · waiting for the Department Head')).toBeInTheDocument();
   });
 
   it.each([
@@ -1354,7 +1401,7 @@ describe('Asset record', () => {
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-R1');
     expect(within(within(record).getByRole('toolbar')).getByRole('button', { name: 'Edit receipt' })).toBeDisabled();
-    expect(within(record).getByText(/The Team Leader has endorsed it/)).toBeInTheDocument();
+    expect(within(record).getByText(/The Team Leader has endorsed it, so it can no longer be changed/)).toBeInTheDocument();
   });
 
   it('is read-only for approvers: no actions, and vouchers print from the requests', async () => {
