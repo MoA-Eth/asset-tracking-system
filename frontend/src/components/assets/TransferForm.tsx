@@ -5,7 +5,7 @@ import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
 import { formatVoucherRemark } from '../../utils/voucher-remark';
 import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, FormNotice, QuantityInput, MoneyInput, inputClass, textareaClass, submitOnCtrlEnter } from '../ui/FormKit';
-import { readPdfRows, rowsToText, isModel19, isModel21, parseModel21, parseModel21Particulars, sameEmployeeId, Model21SlipFields, Model21SlipLine, Model21Particulars } from '../../utils/slip-reader';
+import { readPdfRows, rowsToText, isModel19, isModel21, parseModel21, parseModel21Particulars, sameEmployeeId, Model21SlipFields, Model21SlipLine, Model21Particulars, withoutAmounts } from '../../utils/slip-reader';
 import { Part, SlipPreview } from './FormParts';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
 import { useToast } from '../../context/ToastContext';
@@ -365,7 +365,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       .then((rows) => {
         const text = rowsToText(rows);
         if (!text.trim()) return setSlipNote({ tone: 'warn', text: `This PDF is a scan, so nothing could be read from it. Fill in the fields as usual. ${SCAN_HINT}` });
-        if (isModel21(text)) return fillFromModel21(parseModel21(text), parseModel21Particulars(rows));
+        if (isModel21(text)) return fillFromModel21(withoutAmounts.model21(parseModel21(text)), parseModel21Particulars(rows));
         setSlipNote({
           tone: 'warn',
           text: isModel19(text)

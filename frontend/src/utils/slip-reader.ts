@@ -645,3 +645,22 @@ export function parseDisposalForm(rows: PdfRow[]): DisposalSlipFields {
   });
   return found;
 }
+
+/**
+ * Only a Model 19's prices are taken from its PDF. On the other forms the money (transport cost, original cost,
+ * depreciation, book value, prices) is left empty for the person to enter: these drop it from what was read.
+ */
+export const withoutAmounts = {
+  model22: ({ transportationCost: _cost, ...slip }: Model22SlipFields): Model22SlipFields => ({
+    ...slip,
+    lines: slip.lines.map(({ unitPrice: _price, totalAmount: _total, ...line }) => line),
+  }),
+  model21: (slip: Model21SlipFields): Model21SlipFields => ({
+    ...slip,
+    lines: slip.lines.map(({ origCost: _cost, depreciation: _dep, bookValue: _book, ...line }) => line),
+  }),
+  disposal: (form: DisposalSlipFields): DisposalSlipFields => ({
+    ...form,
+    lines: form.lines.map(({ originalCost: _cost, accumulatedDepreciation: _dep, bookValue: _book, ...line }) => line),
+  }),
+};

@@ -366,8 +366,10 @@ describe('Assets page', () => {
       expect(api.transferItem).toHaveBeenNthCalledWith(1, expect.objectContaining({ itemId: 'T1', toEmployeeId: 'E2', model21No: '0004399', ifmisSlipAttachmentUrl: '/api/uploads/slips/model21.pdf' }));
       expect(api.transferItem).toHaveBeenNthCalledWith(
         2,
-        expect.objectContaining({ itemId: 'T2', toEmployeeId: 'E2', model21No: '0004399', book: 'MOA MC BOOK', depreciation: 20000, bookValue: 40000, ifmisSlipAttachmentUrl: '/api/uploads/slips/model21.pdf' }),
+        expect.objectContaining({ itemId: 'T2', toEmployeeId: 'E2', model21No: '0004399', book: 'MOA MC BOOK', ifmisSlipAttachmentUrl: '/api/uploads/slips/model21.pdf' }),
       );
+      // The PDF's depreciation and book value are not taken: they are left to be entered
+      expect(vi.mocked(api.transferItem).mock.calls[1][0]).toMatchObject({ depreciation: undefined, bookValue: undefined });
     });
 
     it('reads a Model 21 to a store man as a return to his store, and returns every asset on it', async () => {
@@ -409,8 +411,9 @@ describe('Assets page', () => {
       expect(api.registerReturn).toHaveBeenNthCalledWith(1, expect.objectContaining({ itemId: 'T1', model21No: '0004400', returnReason: 'Project ended' }));
       expect(api.registerReturn).toHaveBeenNthCalledWith(
         2,
-        expect.objectContaining({ itemId: 'T2', model21No: '0004400', storeRecipientId: 'SM1', depreciation: 20000, bookValue: 40000, ifmisSlipAttachmentUrl: '/api/uploads/slips/model21.pdf' }),
+        expect.objectContaining({ itemId: 'T2', model21No: '0004400', storeRecipientId: 'SM1', ifmisSlipAttachmentUrl: '/api/uploads/slips/model21.pdf' }),
       );
+      expect(vi.mocked(api.registerReturn).mock.calls[1][0]).toMatchObject({ depreciation: undefined, bookValue: undefined });
     });
 
     describe('an asset IFMIS knows by its own tag number', () => {
@@ -650,8 +653,10 @@ describe('Assets page', () => {
     vi.mocked(api.uploadSlip).mockResolvedValue({ url: '/api/uploads/slips/disposal.pdf' } as any);
     await user.click(submitOf(record, 'disposal-form'));
     await vi.waitFor(() => expect(api.registerDisposal).toHaveBeenCalledTimes(2));
-    expect(api.registerDisposal).toHaveBeenNthCalledWith(1, expect.objectContaining({ itemId: 'T43', disposalNo: '0000015/2013', reason: 'DONATION', recipientName: 'Test Region Office', bookValue: 15640, ifmisSlipAttachmentUrl: '/api/uploads/slips/disposal.pdf' }));
-    expect(api.registerDisposal).toHaveBeenNthCalledWith(2, expect.objectContaining({ itemId: 'T44', disposalNo: '0000015/2013', disposalDateGc: '2021-11-26', bookValue: 15640, ifmisSlipAttachmentUrl: '/api/uploads/slips/disposal.pdf' }));
+    expect(api.registerDisposal).toHaveBeenNthCalledWith(1, expect.objectContaining({ itemId: 'T43', disposalNo: '0000015/2013', reason: 'DONATION', recipientName: 'Test Region Office', ifmisSlipAttachmentUrl: '/api/uploads/slips/disposal.pdf' }));
+    expect(api.registerDisposal).toHaveBeenNthCalledWith(2, expect.objectContaining({ itemId: 'T44', disposalNo: '0000015/2013', disposalDateGc: '2021-11-26', ifmisSlipAttachmentUrl: '/api/uploads/slips/disposal.pdf' }));
+    // The form's book value (15,640) is not taken from the PDF
+    expect(vi.mocked(api.registerDisposal).mock.calls.map((c: any[]) => c[0].bookValue)).not.toContain(15640);
   });
 
   it('finds the item on a disposal form by its serial number when its IFMIS tag is not recorded yet', async () => {
@@ -678,11 +683,13 @@ describe('Assets page', () => {
     const record = screen.getByRole('region', { name: 'Asset record MOA-IT-2026-0009' });
     await user.upload(document.querySelector('#disposal-form input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'disposal.pdf', { type: 'application/pdf' }));
 
-    expect(await within(record).findByText(/Filled in from the disposal form: .*disposal type.*book value/)).toBeInTheDocument();
+    expect(await within(record).findByText(/Filled in from the disposal form: .*disposal type/)).toBeInTheDocument();
+    expect(within(record).queryByText(/Filled in from the disposal form: .*book value/)).toBeNull();
     expect(within(record).getByDisplayValue('0001765/2018')).toBeInTheDocument();
     expect(within(record).getByDisplayValue('TRANSFER')).toBeInTheDocument();
     expect(within(record).getByDisplayValue('East Shawa Zone Agriculture Office/Umer Ahmed')).toBeInTheDocument();
-    expect(within(record).getByDisplayValue('0')).toBeInTheDocument();
+    // The book value stays the item's own cost from its Model 19 (the PDF's 0 is not taken), and can be edited
+    expect(within(record).getByLabelText(/Book value/)).not.toHaveValue('0');
     // Found by its serial, so nothing to ask
     expect(within(record).queryByRole('group', { name: 'Unknown IFMIS tag numbers' })).toBeNull();
   });
@@ -756,7 +763,9 @@ describe('Assets page', () => {
     await user.click(within(prompt).getByRole('button', { name: 'Save as its IFMIS tag' }));
 
     expect(api.setIfmisTag).toHaveBeenCalledWith('C1', 'MOA-000350');
-    expect(await within(record).findByText(/Filled in from the disposal form: .*book value/)).toBeInTheDocument();
+    // Read again with the tag known: the book value is still not taken from the PDF
+    expect(await within(record).findByText(/The form was read|Filled in from the disposal form/)).toBeInTheDocument();
+    expect(within(record).queryByText(/Filled in.*book value/)).toBeNull();
   });
 
   it('is read-only for approvers', async () => {

@@ -6,7 +6,7 @@ import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
 import { FieldGrid, Field, ReadOnlyValue, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { Part, SlipPreview } from './FormParts';
-import { readPdfRows, rowsToText, isModel19, isModel21, isDisposalForm, parseDisposalForm, DisposalSlipFields, DisposalSlipLine } from '../../utils/slip-reader';
+import { readPdfRows, rowsToText, isModel19, isModel21, isDisposalForm, parseDisposalForm, DisposalSlipFields, DisposalSlipLine, withoutAmounts } from '../../utils/slip-reader';
 import { OtherAssets } from './OtherAssets';
 import { LearnTagPrompt, taggableAssets } from './LearnTagPrompt';
 import { findByTag, printedTag, tagKey, displaySerialNumber } from '../../utils/asset-tag';
@@ -230,7 +230,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       .then((rows) => {
         const text = rowsToText(rows);
         if (!text.trim()) return setSlipNote({ tone: 'warn', text: `This PDF is a scan, so nothing could be read from it. Fill in the fields as usual. ${SCAN_HINT}` });
-        if (isDisposalForm(text)) return fillFromDisposalForm(parseDisposalForm(rows));
+        if (isDisposalForm(text)) return fillFromDisposalForm(withoutAmounts.disposal(parseDisposalForm(rows)));
         setSlipNote({
           tone: 'warn',
           text: isModel19(text)

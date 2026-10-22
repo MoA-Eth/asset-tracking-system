@@ -16,7 +16,7 @@ import { departmentLabel } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { useSystemSettings } from '../../utils/system-settings';
 import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
-import { readPdfPages, rowsToText, isModel19, isModel21, isModel22, isDisposalForm, parseModel22, Model22SlipFields } from '../../utils/slip-reader';
+import { readPdfPages, rowsToText, isModel19, isModel21, isModel22, isDisposalForm, parseModel22, Model22SlipFields, withoutAmounts } from '../../utils/slip-reader';
 import { Part, SlipPreview } from './FormParts';
 import { cellClass, money } from './SlipLines';
 import { categoryLabel } from './asset-state';
@@ -465,7 +465,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           return;
         }
         setIfmisFile(file);
-        fillFromModel22(parseModel22(pdfRows));
+        fillFromModel22(withoutAmounts.model22(parseModel22(pdfRows)));
         if (pages > pagesRead) toast.warning('Slip only partly read', `This slip has ${pages} pages; only the first ${pagesRead} were read.`);
       })
       .catch(() => {
