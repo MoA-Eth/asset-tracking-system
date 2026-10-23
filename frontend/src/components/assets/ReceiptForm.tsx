@@ -439,12 +439,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   const fillFromModel19 = (read: Model19SlipFields) => {
     const filled: string[] = [];
-    // From a downloaded PDF every line is exact. From a scan, only a line that holds together is used: a unit,
+    // From a downloaded PDF every line is exact. From a scan, only a line that holds together is used: a real unit,
     // and a quantity and unit price whose product is the line total; any other line may be misread, so it is left out
     const holdsTogether = (l: Model19SlipFields['lines'][number]) =>
       !!l.description &&
-      // a unit code (IFMIS also prints ones the app doesn't list, such as RM for a ream)
-      !!l.uom && /^[A-Z]{1,8}$/.test(l.uom.toUpperCase()) &&
+      !!l.uom && COMMON_UOMS.includes(l.uom.toUpperCase()) &&
       !!l.quantity && !!l.unitPrice && !!l.totalAmount &&
       Math.abs(l.quantity * l.unitPrice - l.totalAmount) <= Math.max(1, l.totalAmount * 0.01);
     const unreadable = fromScan.current ? read.lines.map((l, i) => (holdsTogether(l) ? 0 : i + 1)).filter(Boolean) : [];
