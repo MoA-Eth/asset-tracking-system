@@ -80,11 +80,12 @@ import {
   recipientOf,
 } from '../components/assets/asset-state';
 
-type AssetFilter = 'ALL' | 'IN_STORE' | 'ISSUED' | 'PENDING' | 'REJECTED' | 'DISPOSED';
+type AssetFilter = 'ALL' | 'IN_STORE' | 'ISSUED' | 'TRANSFERRED' | 'PENDING' | 'REJECTED' | 'DISPOSED';
 const FILTERS: { value: AssetFilter; label: string }[] = [
   { value: 'ALL', label: 'All' },
   { value: 'IN_STORE', label: 'In store' },
   { value: 'ISSUED', label: 'Issued' },
+  { value: 'TRANSFERRED', label: 'Transferred' },
   { value: 'PENDING', label: 'Pending' },
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'DISPOSED', label: 'Disposed' },
@@ -400,6 +401,17 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       });
   }, [items, pendingByItem, openByItem, decided, employees, locations]);
 
+  const isTransferred = (row: AssetRow) =>
+    row.item.status === ItemStatus.UNDER_TRANSFER ||
+    row.request?.transactionType === 'TRANSFER' ||
+    row.request?.transactionType === 'RETURN' ||
+    row.lastMove?.transactionType === 'TRANSFER' ||
+    row.lastMove?.transactionType === 'RETURN' ||
+    (row.item.history || []).some((h) => h.action === 'TRANSFER_APPROVED' || h.action === 'RETURN_APPROVED') ||
+    (decided.vouchers.get(row.item.id) ?? []).some(
+      (a) => a.status === ApprovalStatus.APPROVED && (a.transactionType === 'TRANSFER' || a.transactionType === 'RETURN'),
+    );
+
   const inFilter = (row: AssetRow, f: AssetFilter, locId = locationFilter, cat = categoryFilter) => {
     const matchesState =
       f === 'ALL' ||
@@ -407,7 +419,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         ? row.state === 'RECEIPT_PENDING' || row.state === 'REQUEST_PENDING'
         : f === 'REJECTED'
           ? row.state === 'REJECTED' || !!row.rejected
-          : row.state === f);
+          : f === 'TRANSFERRED'
+            ? isTransferred(row)
+            : row.state === f);
     if (!matchesState) return false;
 
     if (locId !== 'ALL' && row.item.storeLocationId !== locId) {
