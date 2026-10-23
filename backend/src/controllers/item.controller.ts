@@ -271,8 +271,8 @@ export class ItemController {
     if (req.user) {
       payload.performedById = req.user.id;
     }
-    if (!payload.itemId || !payload.reason) {
-      throw new BadRequestError('Item ID and transfer reason are mandatory.');
+    if (!payload.itemId) {
+      throw new BadRequestError('Item ID is mandatory.');
     }
     if (!payload.performedById) {
       throw new BadRequestError('User identity is required to transfer item.');
