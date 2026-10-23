@@ -47,7 +47,7 @@ describe('LoginPage', () => {
     render(<LoginPage />);
 
     expect(screen.getByTestId('moa-logo')).toBeInTheDocument();
-    expect(screen.getByText('Asset Tracking System')).toBeInTheDocument();
+    expect(screen.getByText('Internal Asset Tracking Portal')).toBeInTheDocument();
     expect(screen.getByText('Ministry of Agriculture (FDRE)')).toBeInTheDocument();
     expect(screen.queryByText('Sign in with your credentials')).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(/name@moa.gov.et/i)).toBeInTheDocument();

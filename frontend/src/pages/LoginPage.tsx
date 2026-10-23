@@ -195,7 +195,7 @@ export const LoginPage: React.FC = () => {
               Ministry of Agriculture (FDRE)
             </p>
             <h1 className="mt-1 text-2xl sm:text-[25px] font-bold text-white tracking-tight drop-shadow-sm">
-              Asset Tracking System
+              Internal Asset Tracking Portal
             </h1>
           </div>
 
