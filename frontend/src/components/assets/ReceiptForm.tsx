@@ -1355,7 +1355,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
       additionalCharges: it.additionalCharges,
       totalAmount: lineTotal,
       // Notes hold the saved form data for newer items: only plain-text notes belong on the slip
-      remark: it.remark || (it.notes && !it.notes.trim().startsWith('{') ? it.notes : ''),
+      remark: it.remark || (it.notes && !it.notes.trim().startsWith('{') && !it.notes.trim().startsWith('Program:') ? it.notes : ''),
     };
   });
 
