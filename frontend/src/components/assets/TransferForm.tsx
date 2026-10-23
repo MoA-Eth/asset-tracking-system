@@ -951,14 +951,20 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
             {!isReturn && (
             <Field label="To directorate" optional hint="Filled in from the new custodian; change it if needed.">
-              <select value={targetDepartmentId} onChange={(e) => setTargetDepartmentId(e.target.value)} className={input()}>
-                <option value="">Select…</option>
-                {departments.map((dep) => (
-                  <option key={dep.id} value={dep.id}>
-                    {departmentLabel(dep)}
-                  </option>
-                ))}
-              </select>
+              <SearchableSelect
+                id="transfer-directorate"
+                value={targetDepartmentId}
+                onChange={(val) => setTargetDepartmentId(val)}
+                placeholder="Select…"
+                searchPlaceholder="Type to search directorates…"
+                groups={[{
+                  label: 'Directorates',
+                  options: departments.map((dep) => ({
+                    value: dep.id,
+                    label: departmentLabel(dep),
+                  })),
+                }]}
+              />
             </Field>
             )}
           </FieldGrid>
