@@ -612,7 +612,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       // The disposal form lists every asset filed on it (the same No.)
       setVoucherDisposal(buildDisposalVoucher(request, { item, employees, printedBy: user?.fullNameEn, requests: approvals, items }));
     } else if (request.transactionType === 'TRANSFER' || request.transactionType === 'RETURN') {
-      setVoucher21(await buildModel21Voucher(request, { item, employees, locations, printedBy: user?.fullNameEn }));
+      setVoucher21(await buildModel21Voucher(request, { item, employees, locations, printedBy: user?.fullNameEn, requests: approvals, items }));
     }
   };
 

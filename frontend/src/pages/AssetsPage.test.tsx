@@ -524,6 +524,44 @@ describe('Assets page', () => {
     expect(api.transferItem).toHaveBeenCalledWith(expect.objectContaining({ itemId: 'I1', toEmployeeId: 'E2', model21No: 'M21-55', book: 'Book 2' }));
   });
 
+  it('transfers multiple assets on the same Model 21 voucher added using Add item button', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.transferItem).mockResolvedValue({} as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await menuFor(user, 'MOA-I1');
+    await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-I1' });
+
+    await user.type(within(record).getByPlaceholderText('Number on the Model 21 form'), 'M21-MULTI');
+    await user.type(within(record).getByPlaceholderText('Book the form comes from'), 'Book Multi');
+    await user.click(within(record).getByRole('combobox', { name: /To employee/ }));
+    await user.click(screen.getByRole('option', { name: /Kebede Alemu/ }));
+
+    // Click "+ Add item" button in table footer
+    const addItemBtn = within(record).getByRole('button', { name: /Add item/i });
+    await user.click(addItemBtn);
+
+    // Pick a second asset in row 2
+    const secondSelect = within(record).getByRole('combobox', { name: 'Item 2 asset' });
+    await user.click(secondSelect);
+    // Select an available item from store, e.g., MOA-S1
+    await user.click(screen.getByRole('option', { name: /^MOA-S1 — Desk/ }));
+
+    expect(submitOf(record, 'transfer-form')).toBeEnabled();
+    await user.click(submitOf(record, 'transfer-form'));
+
+    await vi.waitFor(() => expect(api.transferItem).toHaveBeenCalledTimes(2));
+    expect(api.transferItem).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ itemId: 'I1', toEmployeeId: 'E2', model21No: 'M21-MULTI', book: 'Book Multi' })
+    );
+    expect(api.transferItem).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ itemId: 'S1', toEmployeeId: 'E2', model21No: 'M21-MULTI', book: 'Book Multi' })
+    );
+  });
+
   it('returns an issued asset to store from the transfer form, by choosing a store', async () => {
     const user = userEvent.setup();
     vi.mocked(api.registerReturn).mockResolvedValue({ id: 'ret-1' } as any);

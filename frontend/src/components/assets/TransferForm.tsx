@@ -1,6 +1,6 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, FileText, Car } from 'lucide-react';
+import { Search, FileText, Car, Plus, X } from 'lucide-react';
 import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
 import { formatVoucherRemark } from '../../utils/voucher-remark';
@@ -24,6 +24,7 @@ import { storeLocationLabel } from '../../utils/location';
 import { recallForm, rememberForm } from '../../utils/form-memory';
 import { useSlipRegister, usedMessage } from '../../hooks/useSlipRegister';
 import { approvalNoteOf } from '../../utils/approval-note';
+import { cellClass, money } from './SlipLines';
 
 /** What an open request on an asset is called in the picker */
 /** An asset's status in words, for what a Model 21 can't be used for */
@@ -51,6 +52,17 @@ const accessoriesOf = (jack: number, wrench: number, keys: number, reserveTyre: 
     { name: 'reserve tyre', quantity: reserveTyre },
   ].filter((a) => a.quantity > 0);
 
+/** One line on the Model 21 transfer voucher */
+export interface TransferRow {
+  key: number;
+  itemId: string;
+  quantity: number;
+  depreciation: number;
+  bookValue: number;
+  slip?: Model21SlipLine;
+}
+let transferRowKey = 0;
+
 // ─── Transfer form (inside the pop-up) ──────────────────────────────────────
 
 export interface TransferFormProps {
@@ -64,6 +76,8 @@ export interface TransferFormProps {
   editTransfer?: TransactionApproval;
   /** Asset chosen before the form opened, e.g. from its row in the register */
   initialItemId?: string;
+  /** Assets chosen before the form opened, e.g. from multiple selections */
+  initialItemIds?: string[];
   /** A Model 21 PDF chosen with the form's header button: it is read into the form */
   slip?: File;
   onCancel: () => void;
@@ -72,7 +86,7 @@ export interface TransferFormProps {
   onItemUpdated?: (item: ItemWithRelations) => void;
 }
 
-export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, editTransfer, initialItemId, slip, onCancel, onSaved, onItemUpdated }) => {
+export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, editTransfer, initialItemId, initialItemIds, slip, onCancel, onSaved, onItemUpdated }) => {
   const { user } = useAuth();
   const toast = useToast();
   const details = editTransfer?.requestDetails ?? {};
@@ -82,7 +96,101 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const editItem = editTransfer ? items.find((i) => i.id === editTransfer.itemId) : undefined;
   const qtyOf = (name: string) => details.accessories?.find((a) => a.name === name)?.quantity ?? 0;
 
-  const [selectedItemId, setSelectedItemId] = useState(editTransfer?.itemId ?? '');
+  const startItem = items.find((i) => i.id === initialItemId);
+  const startItems = (initialItemIds ?? []).map((id) => items.find((i) => i.id === id)).filter(Boolean) as ItemWithRelations[];
+
+  const newTransferRow = (itemId = '', quantity = 0, depreciation = 0, bookVal = 0, slip?: Model21SlipLine): TransferRow => {
+    const item = items.find((i) => i.id === itemId);
+    const qty = quantity || (item ? Number(item.quantity) || 1 : 1);
+    const dep = depreciation || 0;
+    const bv = bookVal || (item ? Math.max(0, valueOf(item, qty) - dep) : 0);
+    return {
+      key: ++transferRowKey,
+      itemId,
+      quantity: qty,
+      depreciation: dep,
+      bookValue: bv,
+      slip,
+    };
+  };
+
+  const [rows, setRows] = useState<TransferRow[]>(() =>
+    editTransfer
+      ? [
+          newTransferRow(
+            editTransfer.itemId,
+            Number(details.quantity) || (editItem ? Number(editItem.quantity) || 1 : 1),
+            details.depreciation ?? 0,
+            details.bookValue ?? (editItem ? valueOf(editItem, Number(editItem.quantity) || 1) : 0),
+          ),
+        ]
+      : startItems.length > 0
+        ? startItems.map((item) => newTransferRow(item.id, Number(item.quantity) || 1))
+        : [newTransferRow(startItem?.id ?? '', startItem ? Number(startItem.quantity) || 1 : 1)],
+  );
+
+  const rowItemOf = (row?: TransferRow) => {
+    if (!row) return undefined;
+    if (editTransfer && row.itemId === editTransfer.itemId) return editItem;
+    return items.find((i) => i.id === row.itemId);
+  };
+
+  const setRow = (key: number, patch: Partial<TransferRow>) => {
+    setRows((rs) =>
+      rs.map((r) => {
+        if (r.key !== key) return r;
+        const updated = { ...r, ...patch };
+        const item = rowItemOf(updated);
+        if (item && ('quantity' in patch || 'depreciation' in patch)) {
+          const origCost = valueOf(item, updated.quantity);
+          updated.bookValue = Math.max(0, origCost - (updated.depreciation || 0));
+        }
+        return updated;
+      }),
+    );
+  };
+
+  const chooseRowItem = (key: number, itemId: string) => {
+    const item = items.find((i) => i.id === itemId);
+    const qty = item ? Number(item.quantity) || 1 : 1;
+    const origCost = item ? valueOf(item, qty) : 0;
+    setRows((rs) =>
+      rs.map((r) =>
+        r.key === key
+          ? {
+              ...r,
+              itemId,
+              quantity: qty,
+              depreciation: 0,
+              bookValue: origCost,
+            }
+          : r,
+      ),
+    );
+    if (item && item.status === ItemStatus.AVAILABLE) setReturnToId('');
+    if (key === rows[0]?.key && item) {
+      setChassisNumber(item.serialNumber || '');
+      setPlateNo('');
+      setEngineNo('');
+      setTireSerials('');
+      setDefectRemark('');
+      setJackQty(0);
+      setTireWrenchQty(0);
+      setKeyQty(0);
+      setReserveTyreQty(0);
+    }
+  };
+
+  const addRow = () => setRows((rs) => [...rs, newTransferRow()]);
+  const removeRow = (key: number) => setRows((rs) => rs.filter((r) => r.key !== key));
+
+  const firstRow = rows[0];
+  const selectedItemId = firstRow?.itemId ?? '';
+  const transferQuantity = firstRow?.quantity ?? 1;
+  const depreciation = firstRow?.depreciation ?? 0;
+  const bookValue = firstRow?.bookValue ?? 0;
+  const selectedItemObj = rowItemOf(firstRow);
+
   const [model21No, setModel21No] = useState(editTransfer?.ifmisSlipNumber ?? '');
   const [book, setBook] = useState(details.book ?? memory.book ?? '');
   const [targetEmployeeId, setTargetEmployeeId] = useState(editTransfer?.recipientEmployeeId ?? '');
@@ -91,11 +199,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [chassisNumber, setChassisNumber] = useState(details.chassisNumber ?? editItem?.serialNumber ?? '');
   const [plateNo, setPlateNo] = useState(details.plateNo ?? '');
   const [engineNo, setEngineNo] = useState(details.engineNo ?? '');
-  const [depreciation, setDepreciation] = useState<number>(details.depreciation ?? 0);
-  const [bookValue, setBookValue] = useState<number>(details.bookValue ?? (editItem ? valueOf(editItem, Number(editItem.quantity) || 1) : 0));
-  const [transferQuantity, setTransferQuantity] = useState<number>(
-    Number(details.quantity) || (editItem ? Number(editItem.quantity) || 1 : 1)
-  );
+
   // Accessories start at zero: the encoder enters what was actually handed over
   const [jackQty, setJackQty] = useState(qtyOf('jack with handle'));
   const [tireWrenchQty, setTireWrenchQty] = useState(qtyOf('tire wrench'));
@@ -121,7 +225,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   // Today unless changed; a correction keeps the date it was requested with
   const [transferDateGc, setTransferDateGc] = useState(editTransfer?.ifmisSlipDateGc || todayGc);
 
-  const selectedItemObj = items.find((i) => i.id === selectedItemId);
   // The store man named on the voucher: one of the store men of the store the asset came from
   const keepers = useStoreKeepers();
   // An asset still in store is handed over by its store man, who is then the transferor
@@ -140,31 +243,20 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
   // A newly chosen asset brings its own details
   const handleItemSelect = (itemId: string) => {
-    setSelectedItemId(itemId);
-    const item = items.find((i) => i.id === itemId);
-    if (item && item.status === ItemStatus.AVAILABLE) setReturnToId('');
-    if (item) {
-      const qty = Number(item.quantity) || 1;
-      setTransferQuantity(qty);
-      setDepreciation(0);
-      setBookValue(valueOf(item, qty));
-      setChassisNumber(item.serialNumber || '');
-      setPlateNo('');
-      setEngineNo('');
-      setTireSerials('');
-      setDefectRemark('');
-      setJackQty(0);
-      setTireWrenchQty(0);
-      setKeyQty(0);
-      setReserveTyreQty(0);
+    if (rows[0]) {
+      chooseRowItem(rows[0].key, itemId);
+    } else {
+      setRows([newTransferRow(itemId)]);
     }
   };
 
   // Opened from an asset's row: start with that asset chosen
   useEffect(() => {
-    if (!editTransfer && initialItemId) handleItemSelect(initialItemId);
+    if (!editTransfer && initialItemId && (!rows[0]?.itemId || rows[0].itemId !== initialItemId)) {
+      handleItemSelect(initialItemId);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialItemId]);
 
   const handleSlipSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -290,15 +382,15 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         setReturnToId('');
       }
       if (line?.unit !== undefined && line.unit > 0) {
-        setTransferQuantity(line.unit);
+        if (rows[0]) setRow(rows[0].key, { quantity: line.unit });
         filled.push('quantity');
       }
       if (line?.depreciation !== undefined) {
-        setDepreciation(line.depreciation);
+        if (rows[0]) setRow(rows[0].key, { depreciation: line.depreciation });
         filled.push('depreciation');
       }
       if (line?.bookValue !== undefined) {
-        setBookValue(line.bookValue);
+        if (rows[0]) setRow(rows[0].key, { bookValue: line.bookValue });
         filled.push('book value');
       }
     }
@@ -419,11 +511,18 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const problems: Record<string, string | false> = {};
   const errorOf = (key: string) => (touched[key] && problems[key] ? (problems[key] as string) : undefined);
 
+  const invalidRow = rows.find((r) => {
+    const it = rowItemOf(r);
+    const avail = Number(it?.quantity) || 1;
+    return !r.itemId || !r.quantity || r.quantity <= 0 || (it && r.quantity > avail);
+  });
+
   // Required fields still empty; the request can only be submitted once this is empty
   const missingFields = [
     !selectedItemId && 'asset',
     (!transferQuantity || transferQuantity <= 0) && 'quantity',
     selectedItemObj && transferQuantity > (Number(selectedItemObj.quantity) || 1) && 'quantity exceeds available',
+    invalidRow && 'valid items and quantities',
     !model21No.trim() && 'Model 21 No.',
     !transferDateGc && 'transfer date',
     !book.trim() && 'book',
@@ -437,6 +536,18 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItemId) return void toast.warning('Asset required', 'Choose the asset to transfer.');
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const it = rowItemOf(r);
+      if (!it) return void toast.warning('Asset required', `Choose an asset for row ${i + 1}.`);
+      const avail = Number(it.quantity) || 1;
+      if (!r.quantity || r.quantity <= 0) {
+        return void toast.warning('Invalid quantity', `Enter a valid quantity for ${it.itemCode}.`);
+      }
+      if (r.quantity > avail) {
+        return void toast.warning('Quantity exceeds available', `${it.itemCode} only has ${avail} ${it.uom || 'EA'} available.`);
+      }
+    }
     const effectiveModel21No = model21No.trim() || `PENDING-TRF-${Date.now()}`;
     const effectiveReason = isReturn ? (returnReason.trim() || 'Return to store') : undefined;
     const effectiveTargetEmployeeId = targetEmployeeId || (isReturn ? undefined : employees[0]?.id);
@@ -498,10 +609,50 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           storeRecipientId: storeReceiverId || undefined,
           targetStoreLocationId: returnToId && returnToId !== item?.storeLocationId ? returnToId : undefined,
         });
-        // The other assets on the Model 21, each its own return with the same number, book, date and store
-        const returned: typeof extraReady = [];
+
+        // The other assets on the Model 21: extra rows from the table, plus any extraReady from PDF
+        const returned: { asset: ItemWithRelations; origCost: number; depreciation: number; bookValue: number; unit: number }[] = [];
         const notReturned: string[] = [];
+
+        const extraRows = editTransfer ? [] : rows.slice(1).filter((r) => r.itemId);
+        for (const extra of extraRows) {
+          const extraItem = rowItemOf(extra);
+          if (!extraItem) continue;
+          const extraOrigCost = valueOf(extraItem, extra.quantity);
+          try {
+            await api.registerReturn({
+              itemId: extra.itemId,
+              ifmisSlipNumber: effectiveModel21No,
+              ifmisSlipDateGc: transferDateGc,
+              ifmisSlipAttachmentUrl: slipUrl,
+              returnReason: effectiveReason,
+              condition,
+              returningEmployeeId: extraItem.currentCustodianId || undefined,
+              registeredById: user?.id || '',
+              model21No: model21No.trim(),
+              book: book.trim(),
+              origCost: extraOrigCost,
+              depreciation: extra.depreciation,
+              bookValue: extra.bookValue,
+              storeRecipientId: receiverId || undefined,
+              targetStoreLocationId: returnToId && returnToId !== extraItem.storeLocationId ? returnToId : undefined,
+            });
+            returned.push({
+              asset: extraItem,
+              origCost: extraOrigCost,
+              depreciation: extra.depreciation,
+              bookValue: extra.bookValue,
+              unit: extra.quantity,
+            });
+          } catch (err: any) {
+            notReturned.push(`${extraItem.itemCode}: ${err.message || 'refused'}`);
+          }
+        }
+
         for (const other of editTransfer ? [] : extraReady) {
+          if (rows.some((r) => r.itemId === other.asset.id)) continue;
+          const otherQty = Number(other.asset.quantity) || 1;
+          const otherCost = other.line.origCost ?? valueOf(other.asset, otherQty);
           try {
             await api.registerReturn({
               itemId: other.asset.id,
@@ -514,17 +665,24 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               registeredById: user?.id || '',
               model21No: model21No.trim(),
               book: book.trim(),
-              origCost: other.line.origCost ?? valueOf(other.asset, Number(other.asset.quantity) || 1),
+              origCost: otherCost,
               depreciation: other.line.depreciation,
               bookValue: other.line.bookValue,
               storeRecipientId: receiverId || undefined,
               targetStoreLocationId: returnToId && returnToId !== other.asset.storeLocationId ? returnToId : undefined,
             });
-            returned.push(other);
+            returned.push({
+              asset: other.asset,
+              origCost: otherCost,
+              depreciation: other.line.depreciation ?? 0,
+              bookValue: other.line.bookValue ?? otherCost,
+              unit: otherQty,
+            });
           } catch (err: any) {
             notReturned.push(`${other.asset.itemCode}: ${err.message || 'refused'}`);
           }
         }
+
         if (notReturned.length) toast.warning('Some assets on the form were not returned', notReturned.join(' · '));
         const receiver = returnStoreMen.find((k) => k.employeeId === receiverId);
         const loc = storeLocationLabel(item?.storeLocation);
@@ -560,17 +718,16 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               tireNos: tireList.length > 0 ? tireList : undefined,
               remark: defectRemark.trim() || undefined,
             },
-            // The other assets returned on the same form
             ...returned.map((other, i) => ({
               sNo: i + 2,
               description: other.asset.name || '—',
               tagNumber: printedTag(other.asset) || '—',
               serialNumber: other.asset.serialNumber || '',
               uom: other.asset.uom || 'EA',
-              unit: Number(other.asset.quantity) || 1,
-              origCost: other.line.origCost ?? valueOf(other.asset, Number(other.asset.quantity) || 1),
-              depreciation: other.line.depreciation,
-              bookValue: other.line.bookValue,
+              unit: other.unit,
+              origCost: other.origCost,
+              depreciation: other.depreciation,
+              bookValue: other.bookValue,
               dateGc: transferDateGc,
               dateEc: formatGcToEc(transferDateGc),
               fromLocation: storeLocationLabel(other.asset.storeLocation),
@@ -641,14 +798,54 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         remark: defectRemark.trim() || undefined,
       });
 
-      // The other assets on the Model 21, each its own request with the same number, book, date and recipient
-      const sent: typeof extraReady = [];
+      // The other assets on the Model 21: extra rows from table, plus any extraReady from PDF
+      const sent: { asset: ItemWithRelations; origCost: number; depreciation: number; bookValue: number; unit: number }[] = [];
       const notSent: string[] = [];
+
+      const extraRows = editTransfer ? [] : rows.slice(1).filter((r) => r.itemId);
+      for (const extra of extraRows) {
+        const extraItem = rowItemOf(extra);
+        if (!extraItem) continue;
+        const extraOrigCost = valueOf(extraItem, extra.quantity);
+        try {
+          const men = keepers.ofLocation(extraItem.storeLocationId);
+          await api.transferItem({
+            itemId: extra.itemId,
+            quantity: extra.quantity,
+            ifmisSlipAttachmentUrl: slipUrl,
+            toEmployeeId: targetEmployeeId,
+            toDepartmentId: targetDepartmentId || undefined,
+            toLocationId: targetLocationId || undefined,
+            performedById: user?.id || '',
+            transferredByEmployeeId: men.some((k) => k.employeeId === transferrerId) ? transferrerId : undefined,
+            ifmisSlipDateGc: transferDateGc,
+            model21No: model21No.trim(),
+            book: book.trim(),
+            origCost: extraOrigCost,
+            depreciation: extra.depreciation,
+            bookValue: extra.bookValue,
+          });
+          sent.push({
+            asset: extraItem,
+            origCost: extraOrigCost,
+            depreciation: extra.depreciation,
+            bookValue: extra.bookValue,
+            unit: extra.quantity,
+          });
+        } catch (err: any) {
+          notSent.push(`${extraItem.itemCode}: ${err.message || 'refused'}`);
+        }
+      }
+
       for (const other of isReturn ? [] : extraReady) {
+        if (rows.some((r) => r.itemId === other.asset.id)) continue;
+        const otherQty = Number(other.asset.quantity) || 1;
+        const otherCost = other.line.origCost ?? valueOf(other.asset, otherQty);
         try {
           const men = keepers.ofLocation(other.asset.storeLocationId);
           await api.transferItem({
             itemId: other.asset.id,
+            quantity: otherQty,
             ifmisSlipAttachmentUrl: slipUrl,
             toEmployeeId: targetEmployeeId,
             toDepartmentId: targetDepartmentId || undefined,
@@ -657,11 +854,17 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             ifmisSlipDateGc: transferDateGc,
             model21No: model21No.trim(),
             book: book.trim(),
-            origCost: other.line.origCost ?? valueOf(other.asset, Number(other.asset.quantity) || 1),
+            origCost: otherCost,
             depreciation: other.line.depreciation,
             bookValue: other.line.bookValue,
           });
-          sent.push(other);
+          sent.push({
+            asset: other.asset,
+            origCost: otherCost,
+            depreciation: other.line.depreciation ?? 0,
+            bookValue: other.line.bookValue ?? otherCost,
+            unit: otherQty,
+          });
         } catch (err: any) {
           notSent.push(`${other.asset.itemCode}: ${err.message || 'refused'}`);
         }
@@ -710,14 +913,14 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             tagNumber: printedTag(o.asset),
             serialNumber: o.asset.serialNumber || '',
             uom: o.asset.uom || 'EA',
-            unit: Number(o.asset.quantity) || 1,
-            origCost: o.line.origCost ?? valueOf(o.asset, Number(o.asset.quantity) || 1),
-            depreciation: o.line.depreciation ?? 0,
-            bookValue: o.line.bookValue ?? valueOf(o.asset, Number(o.asset.quantity) || 1),
+            unit: o.unit,
+            origCost: o.origCost,
+            depreciation: o.depreciation,
+            bookValue: o.bookValue,
             dateGc: transferDateGc,
             dateEc: formatGcToEc(transferDateGc),
             fromLocation: storeLocationLabel(o.asset.storeLocation),
-            toLocation: storeLocationLabel(o.asset.storeLocation),
+            toLocation: toLocObj ? storeLocationLabel(toLocObj) : storeLocationLabel(o.asset.storeLocation),
           })),
         ],
         printedBy: user?.fullNameEn,
@@ -735,6 +938,60 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       setSubmitting(false);
     }
   };
+
+  const optionsFor = (row: TransferRow) => [
+    {
+      label: 'Issued assets',
+      options: items
+        .filter(
+          (i) =>
+            i.status === ItemStatus.ISSUED &&
+            !i.heldByOrganization &&
+            i.itemType !== ItemType.CONSUMABLE &&
+            (i.id === row.itemId || !rows.some((r) => r.itemId === i.id))
+        )
+        .map((item) => {
+          const pending = pendingByItem.get(item.id);
+          const blocking = hasBlockingPending(item);
+          return {
+            value: item.id,
+            label: `${item.itemCode} — ${item.name}`,
+            note: `${item.quantity || 1} ${item.uom || 'EA'} · ${item.currentCustodian?.fullNameEn || 'assigned'}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
+            disabled: blocking,
+          };
+        }),
+    },
+    {
+      label: 'In store',
+      options: items
+        .filter(
+          (i) =>
+            i.status === ItemStatus.AVAILABLE &&
+            (i.id === row.itemId || !rows.some((r) => r.itemId === i.id))
+        )
+        .map((item) => {
+          const pending = pendingByItem.get(item.id);
+          const blocking = hasBlockingPending(item);
+          return {
+            value: item.id,
+            label: `${item.itemCode} — ${item.name}`,
+            note: `${item.quantity || 1} ${item.uom || 'EA'} · in ${storeLocationLabel(item.storeLocation)}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
+            disabled: blocking,
+          };
+        }),
+    },
+  ];
+
+  const totalOrigCost = rows.reduce((sum, r) => {
+    const it = rowItemOf(r);
+    return sum + (it ? valueOf(it, r.quantity) : 0);
+  }, 0);
+  const totalDepreciation = rows.reduce((sum, r) => sum + (r.depreciation || 0), 0);
+  const totalBookValue = rows.reduce((sum, r) => sum + (r.bookValue || 0), 0);
+  const hasVehicleLike = rows.some((r) => {
+    const it = rowItemOf(r);
+    return it?.category === 'VEHICLE' || it?.category === 'AGRI_MACHINERY';
+  });
 
   return (
     <form id="transfer-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(!submitting)} className="space-y-4">
@@ -853,197 +1110,176 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         )}
       </Part>
 
-      <Part title="Asset">
-        <div className="space-y-3.5">
-          {editTransfer ? (
-            <Field label="Issued asset" hint="The asset can't be changed. To transfer a different asset, ask an approver to reject this request.">
-              <ReadOnlyValue mono>
-                {editTransfer.itemCode} — {editTransfer.itemName}
-              </ReadOnlyValue>
-            </Field>
-          ) : (
-            <Field label="Asset" optional htmlFor="transfer-item" hint="Fixed assets in store and assets issued to a custodian are listed. Consumables are issued, not transferred. Type a name, code or custodian to find one.">
-              <SearchableSelect
-                id="transfer-item"
-                value={selectedItemId}
-                onChange={handleItemSelect}
-                placeholder="Select an asset…"
-                searchPlaceholder="Search by name, code or custodian…"
-                groups={[
-                  {
-                    label: 'Issued assets',
-                    options: items
-                      .filter((i) => i.status === ItemStatus.ISSUED && !i.heldByOrganization && i.itemType !== ItemType.CONSUMABLE)
-                      .map((item) => {
-                        const pending = pendingByItem.get(item.id);
-                        const blocking = hasBlockingPending(item);
-                        return {
-                          value: item.id,
-                          label: `${item.itemCode} — ${item.name}`,
-                          note: `${item.quantity || 1} ${item.uom || 'EA'} · ${item.currentCustodian?.fullNameEn || 'assigned'}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
-                          disabled: blocking,
-                        };
-                      }),
-                  },
-                  {
-                    label: 'In store',
-                    options: items
-                      .filter((i) => i.status === ItemStatus.AVAILABLE)
-                      .map((item) => {
-                        const pending = pendingByItem.get(item.id);
-                        const blocking = hasBlockingPending(item);
-                        return {
-                          value: item.id,
-                          label: `${item.itemCode} — ${item.name}`,
-                          note: `${item.quantity || 1} ${item.uom || 'EA'} · in ${storeLocationLabel(item.storeLocation)}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
-                          disabled: blocking,
-                        };
-                      }),
-                  },
-                ]}
-              />
-            </Field>
-          )}
+      <Part
+        title={rows.length > 1 ? `Assets (${rows.length})` : 'Asset'}
+        aside={
+          <span className="text-[11px] text-slate-500">
+            Fixed assets in store and assets issued to a custodian are listed. Consumables are issued, not transferred.
+          </span>
+        }
+      >
+        <div className="overflow-hidden rounded-md border border-slate-200">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[820px] text-left text-xs">
+              <thead className="bg-slate-50">
+                <tr className="text-xs font-medium text-slate-600">
+                  <th className="px-2 py-2 w-8">#</th>
+                  <th className="px-2 py-2 min-w-[260px]">Asset</th>
+                  <th className="px-2 py-2 w-16">Unit</th>
+                  <th className="px-2 py-2 min-w-[140px]">Current holder / location</th>
+                  <th className="px-2 py-2 w-20 text-right">Available</th>
+                  <th className="px-2 py-2 w-24 text-right">Qty</th>
+                  <th className="px-2 py-2 w-28 text-right">Orig. cost</th>
+                  <th className="px-2 py-2 w-28 text-right">Book value</th>
+                  <th className="px-2 py-2 w-8" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rows.map((row, i) => {
+                  const n = i + 1;
+                  const item = rowItemOf(row);
+                  const inStore = Number(item?.quantity) || 1;
+                  const overStock = !!item && row.quantity > inStore;
+                  const itemId = n === 1 ? 'transfer-item' : `transfer-item-${n}`;
+                  const qtyId = n === 1 ? 'transfer-quantity' : `transfer-quantity-${n}`;
+                  const rowOrigCost = item ? valueOf(item, row.quantity) : 0;
+                  return (
+                    <tr key={row.key} className="align-top">
+                      <td className="px-2 py-1.5 pt-3.5 font-mono text-slate-500">{n}</td>
+                      <td className="px-2 py-1.5">
+                        {editTransfer ? (
+                          <p className="pt-2 text-slate-800">
+                            <span className="font-mono font-semibold">{editTransfer.itemCode}</span> — {editTransfer.itemName}
+                            <span className="block text-[10px] text-slate-500">
+                              The asset can't be changed. To transfer a different asset, ask an approver to reject this request.
+                            </span>
+                          </p>
+                        ) : (
+                          <>
+                            <label htmlFor={itemId} className="sr-only">
+                              {n === 1 ? 'Asset' : `Item ${n} asset`}
+                            </label>
+                            <SearchableSelect
+                              id={itemId}
+                              value={row.itemId}
+                              onChange={(id) => chooseRowItem(row.key, id)}
+                              placeholder={items.length === 0 ? 'No assets available' : 'Select an asset…'}
+                              searchPlaceholder="Search by name, code or custodian…"
+                              groups={optionsFor(row)}
+                            />
+                            {item && (
+                              <p className="mt-0.5 text-[10px] text-slate-500">
+                                Tag: <span className="font-mono">{item.itemCode}</span>
+                                {item.serialNumber ? ` · S/N: ${item.serialNumber}` : ''}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </td>
+                      <td className="px-2 py-1.5 pt-3.5 font-mono text-slate-700">{item ? (item.uom || 'EA') : '—'}</td>
+                      <td className="px-2 py-1.5 pt-3.5 text-slate-700">
+                        {item
+                          ? item.status === ItemStatus.AVAILABLE
+                            ? `Store: ${storeLocationLabel(item.storeLocation)}`
+                            : item.currentCustodian?.fullNameEn || 'Assigned'
+                          : '—'}
+                      </td>
+                      <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">
+                        {item ? `${inStore} ${item.uom || 'EA'}` : '—'}
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <label htmlFor={qtyId} className="sr-only">
+                          {n === 1 ? 'Quantity to transfer' : `Item ${n} quantity`}
+                        </label>
+                        <QuantityInput
+                          id={qtyId}
+                          min={1}
+                          max={item ? inStore : undefined}
+                          value={row.quantity}
+                          onChange={(q) => setRow(row.key, { quantity: q })}
+                          disabled={!item}
+                          className={cellClass({ align: 'right', mono: true, invalid: overStock })}
+                        />
+                        {overStock && (
+                          <p className="mt-0.5 text-right text-[10px] text-rose-700">
+                            Only {inStore} available
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">
+                        {item ? formatETB(rowOrigCost) : '—'}
+                      </td>
+                      <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700 font-semibold">
+                        {item ? formatETB(row.bookValue) : '—'}
+                      </td>
+                      <td className="px-1 py-1.5 pt-3">
+                        {!editTransfer && rows.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeRow(row.key)}
+                            aria-label={`Remove item ${n}`}
+                            title="Remove this asset from voucher"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="border-t border-slate-200 bg-slate-50/60 text-xs text-slate-600">
+                <tr className="align-middle">
+                  <td colSpan={editTransfer ? 4 : 5} className="px-2 py-1.5">
+                    {!editTransfer && (
+                      <button
+                        type="button"
+                        onClick={addRow}
+                        className="inline-flex items-center gap-1 rounded-[4px] px-2 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 cursor-pointer"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add item
+                      </button>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5 text-right font-medium text-slate-800 whitespace-nowrap">
+                    Total
+                  </td>
+                  <td className="px-2 py-1.5 text-right whitespace-nowrap font-mono tabular-nums text-slate-700">
+                    {formatETB(totalOrigCost)}
+                  </td>
+                  <td className="px-2 py-1.5 text-right whitespace-nowrap">
+                    <span className="block font-mono text-sm font-semibold tabular-nums text-slate-900">
+                      {formatETB(totalBookValue)}
+                    </span>
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
 
-          {selectedItemObj && (
-            <SummaryGrid
-              items={[
-                { label: 'Tag number', value: selectedItemObj.itemCode, mono: true },
-                { label: 'Description', value: selectedItemObj.name },
-                { label: 'Current location', value: storeLocationLabel(selectedItemObj.storeLocation) },
-                {
-                  label: `Original cost (${transferQuantity} ${selectedItemObj.uom || 'EA'})`,
-                  value: formatETB(valueOf(selectedItemObj, transferQuantity)),
-                  mono: true,
-                },
-              ]}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <Field
+            label="Accumulated depreciation (ETB)"
+            optional
+            hint={
+              rows.length > 1
+                ? `Total original cost: ${formatETB(totalOrigCost)} · Net book value: ${formatETB(totalBookValue)}`
+                : `Net book value: ${formatETB(rows[0]?.bookValue || 0)}`
+            }
+          >
+            <MoneyInput
+              value={rows[0]?.depreciation || 0}
+              onChange={(val) => {
+                if (rows[0]) {
+                  setRow(rows[0].key, { depreciation: val });
+                }
+              }}
             />
-          )}
-
-          <FieldGrid cols={2}>
-            <Field
-              label={isReturn ? 'Quantity to return' : 'Quantity to transfer'}
-              required
-              htmlFor="transfer-quantity"
-              hint={
-                selectedItemObj
-                  ? `Available: ${Number(selectedItemObj.quantity) || 1} ${selectedItemObj.uom || 'EA'}`
-                  : 'Select an asset first'
-              }
-            >
-              <QuantityInput
-                id="transfer-quantity"
-                value={transferQuantity}
-                min={1}
-                max={Number(selectedItemObj?.quantity) || 1}
-                onChange={(val) => {
-                  setTransferQuantity(val);
-                  setBookValue(Math.max(0, valueOf(selectedItemObj, val) - depreciation));
-                }}
-                disabled={!selectedItemObj}
-              />
-            </Field>
-
-            <Field label="Accumulated depreciation (ETB)" optional hint={`Net book value: ${formatETB(bookValue)}`}>
-              <MoneyInput
-                value={depreciation}
-                onChange={(val) => {
-                  setDepreciation(val);
-                  setBookValue(Math.max(0, valueOf(selectedItemObj, transferQuantity) - val));
-                }}
-              />
-            </Field>
-          </FieldGrid>
-
-          {!editTransfer && (
-            <div className="rounded-md border border-slate-200 bg-slate-50/50 p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-700">Add another asset to this Model 21</span>
-                <span className="text-[11px] text-slate-500">Attach multiple assets to this voucher</span>
-              </div>
-              <SearchableSelect
-                id="add-extra-asset"
-                value=""
-                onChange={(addId) => {
-                  if (!addId) return;
-                  const assetToAdd = items.find((i) => i.id === addId);
-                  if (!assetToAdd) return;
-                  if (assetToAdd.id === selectedItemId || extraAssets.some((o) => o.asset?.id === assetToAdd.id)) {
-                    toast.warning('Already added', `${assetToAdd.itemCode} is already included in this Model 21.`);
-                    return;
-                  }
-                  const check = checkLine({ tagNumber: assetToAdd.itemCode, description: assetToAdd.name }, {
-                    model21No,
-                    book,
-                    fromEmployeeId: selectedItemObj?.currentCustodian?.payrollId,
-                    toEmployeeId: targetEmployeeId,
-                    lines: [],
-                  });
-                  setExtraAssets((prev) => [
-                    ...prev,
-                    {
-                      key: Date.now(),
-                      line: {
-                        tagNumber: assetToAdd.itemCode,
-                        description: assetToAdd.name,
-                        origCost: valueOf(assetToAdd, 1),
-                      },
-                      asset: assetToAdd,
-                      problem: check.problem,
-                    },
-                  ]);
-                  setMatchedIds((prev) => new Set([...prev, assetToAdd.id]));
-                  toast.success('Asset added', `Added ${assetToAdd.itemCode} to this Model 21 voucher.`);
-                }}
-                placeholder="+ Add another asset to this Model 21…"
-                searchPlaceholder="Search asset to add to voucher…"
-                groups={[
-                  {
-                    label: 'Issued assets',
-                    options: items
-                      .filter(
-                        (i) =>
-                          i.status === ItemStatus.ISSUED &&
-                          !i.heldByOrganization &&
-                          i.itemType !== ItemType.CONSUMABLE &&
-                          i.id !== selectedItemId &&
-                          !extraAssets.some((e) => e.asset?.id === i.id)
-                      )
-                      .map((item) => {
-                        const pending = pendingByItem.get(item.id);
-                        const blocking = hasBlockingPending(item);
-                        return {
-                          value: item.id,
-                          label: `${item.itemCode} — ${item.name}`,
-                          note: `${item.quantity || 1} ${item.uom || 'EA'} · ${item.currentCustodian?.fullNameEn || 'assigned'}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
-                          disabled: blocking,
-                        };
-                      }),
-                  },
-                  {
-                    label: 'In store',
-                    options: items
-                      .filter(
-                        (i) =>
-                          i.status === ItemStatus.AVAILABLE &&
-                          i.id !== selectedItemId &&
-                          !extraAssets.some((e) => e.asset?.id === i.id)
-                      )
-                      .map((item) => {
-                        const pending = pendingByItem.get(item.id);
-                        const blocking = hasBlockingPending(item);
-                        return {
-                          value: item.id,
-                          label: `${item.itemCode} — ${item.name}`,
-                          note: `${item.quantity || 1} ${item.uom || 'EA'} · in ${storeLocationLabel(item.storeLocation)}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
-                          disabled: blocking,
-                        };
-                      }),
-                  },
-                ]}
-              />
-            </div>
-          )}
+          </Field>
         </div>
       </Part>
 
@@ -1185,7 +1421,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       </Part>
 
       {/* ── Vehicle and machinery details: for vehicles and machinery, when the PDF gave some, or when asked for ── */}
-      {!(showVehicle || selectedIsVehicleLike || !!(chassisNumber.trim() || plateNo.trim() || engineNo.trim() || tireSerials.trim())) ? (
+      {!(showVehicle || hasVehicleLike || selectedIsVehicleLike || !!(chassisNumber.trim() || plateNo.trim() || engineNo.trim() || tireSerials.trim())) ? (
         <button
           type="button"
           onClick={() => setShowVehicle(true)}
@@ -1275,7 +1511,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 /** Model 21 voucher for a transfer or return, rebuilt from what was recorded with the request */
 export const buildModel21Voucher = async (
   r: TransactionApproval,
-  context: { item?: ItemWithRelations; employees: Employee[]; locations: Location[]; printedBy?: string },
+  context: { item?: ItemWithRelations; employees: Employee[]; locations: Location[]; printedBy?: string; requests?: TransactionApproval[]; items?: ItemWithRelations[] },
 ): Promise<Model21Voucher> => {
   const { employees, locations } = context;
   const d = r.requestDetails ?? {};
@@ -1303,6 +1539,45 @@ export const buildModel21Voucher = async (
   const storeName = toLocation ? storeLocationLabel(toLocation) : fromLoc || 'Store';
   const todayGc = new Date().toISOString().split('T')[0];
   const requestDateGc = r.ifmisSlipDateGc || String(r.createdAtGc).slice(0, 10);
+
+  const siblings = (context.requests ?? []).filter(
+    (other) =>
+      other.id !== r.id &&
+      other.ifmisSlipNumber &&
+      other.ifmisSlipNumber === r.ifmisSlipNumber &&
+      (other.transactionType === 'TRANSFER' || other.transactionType === 'RETURN')
+  );
+
+  const extraItems = siblings.map((sib, i) => {
+    const sibDetails = sib.requestDetails ?? {};
+    const sibItem = (context.items ?? []).find((it) => it.id === sib.itemId);
+    const sibUnits = Number(sibDetails.quantity) || Number(sibItem?.quantity) || 1;
+    const sibOrigCost = sibDetails.origCost ?? valueOf(sibItem, sibUnits);
+    const sibFromLoc = storeLocationLabel(sibItem?.storeLocation);
+    const sibToLocation = locations.find((l) => l.id === sib.targetLocationId);
+    return {
+      sNo: i + 2,
+      description: sib.itemName,
+      tagNumber: sibItem?.ifmisTagNumber || sib.itemCode,
+      serialNumber: sibItem?.serialNumber || '',
+      chassisNumber: sibDetails.chassisNumber || undefined,
+      uom: sibItem?.uom || 'EA',
+      unit: sibUnits,
+      origCost: sibOrigCost,
+      depreciation: sibDetails.depreciation ?? 0,
+      bookValue: sibDetails.bookValue ?? sibOrigCost,
+      dateGc: requestDateGc,
+      dateEc: r.ifmisSlipDateEc || formatGcToEc(requestDateGc),
+      fromLocation: sibFromLoc,
+      toLocation: sibToLocation ? storeLocationLabel(sibToLocation) : sibFromLoc,
+      plateNo: sibDetails.plateNo || undefined,
+      engineNo: sibDetails.engineNo || undefined,
+      accessories: sibDetails.accessories && sibDetails.accessories.length > 0 ? sibDetails.accessories : undefined,
+      tireNos: sibDetails.tireNos && sibDetails.tireNos.length > 0 ? sibDetails.tireNos : undefined,
+      remark: formatVoucherRemark(sibDetails.remark) || undefined,
+    };
+  });
+
   return {
     approvalState: r.status === ApprovalStatus.PENDING ? 'PENDING' : r.status === ApprovalStatus.RETURNED ? 'RETURNED' : r.status === ApprovalStatus.REJECTED ? 'REJECTED' : r.status === ApprovalStatus.CANCELLED ? 'CANCELLED' : undefined,
     approvalNote: approvalNoteOf(r),
@@ -1337,6 +1612,7 @@ export const buildModel21Voucher = async (
         tireNos: d.tireNos && d.tireNos.length > 0 ? d.tireNos : undefined,
         remark: formatVoucherRemark(d.remark) || undefined,
       },
+      ...extraItems,
     ],
     printedBy: context.printedBy,
     signatories: [
@@ -1345,7 +1621,7 @@ export const buildModel21Voucher = async (
       { label: 'FAMU Accountant' },
       { label: 'Recipient', name: toEmp?.fullNameEn || (r.transactionType === 'RETURN' ? d.storeRecipientName || storeName : '—') },
       getEndorserSignatory(r, { isEndorsed: r.status === ApprovalStatus.APPROVED || r.currentStage >= 2 }),
-      getAuthorizerSignatory(r, { isApproved: r.status === ApprovalStatus.APPROVED, totalAmount: origCost }),
+      getAuthorizerSignatory(r, { isApproved: r.status === ApprovalStatus.APPROVED, totalAmount: origCost + extraItems.reduce((s, it) => s + it.origCost, 0) }),
     ],
   };
 };
