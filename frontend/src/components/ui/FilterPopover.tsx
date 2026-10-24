@@ -104,7 +104,7 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
         <ListFilter className={`w-3.5 h-3.5 shrink-0 transition-colors ${hasActive || isOpen ? 'text-emerald-800' : 'text-slate-700'}`} />
         {showText && <span>{label}</span>}
         {hasActive && (
-          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#0B3D25] px-1 text-[10px] font-bold text-white leading-none">
+          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-moa-green px-1 text-[10px] font-bold text-white leading-none">
             {activeCount}
           </span>
         )}
@@ -359,7 +359,7 @@ export const FilterPill: React.FC<{
     aria-pressed={active}
     className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] text-xs font-semibold transition cursor-pointer select-none ${
       active
-        ? 'bg-[#0B3D25] text-white shadow-xs'
+        ? 'bg-moa-green text-white shadow-xs'
         : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80 hover:text-slate-900'
     }`}
   >
