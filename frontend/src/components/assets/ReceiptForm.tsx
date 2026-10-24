@@ -187,6 +187,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [condition, setCondition] = useState<ItemCondition | ''>(editItem?.condition ?? start?.condition ?? ItemCondition.NEW);
   // The store's note on the whole receipt (e.g. why there is no proper Model 19): kept on every item of it
   const [remark, setRemark] = useState(editItem?.remark ?? '');
+  // Line 1 asset specifications or full description for donations
+  const [item1Remark, setItem1Remark] = useState(editItem?.remark ?? '');
 
   // Section 3: Signatures & Document Scan
   const [deliveredBy, setDeliveredBy] = useState(editItem?.deliveredBy ?? start?.deliveredBy ?? '');
@@ -711,7 +713,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     })(),
     vatApplicable,
     additionalCharges: vatApplicable ? 0 : Number(l.additionalCharges) || 0,
-    remark: remark.trim() || undefined,
+    remark: l.remark?.trim() || remark.trim() || undefined,
   }));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -784,7 +786,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           ifmisItemCode: ifmisItemCode.trim() || undefined,
           poNumber: donation ? undefined : poNumber.trim() || undefined,
           transactionType: effectiveTransactionType,
-          source: donation ? undefined : source.trim() || undefined,
+          source: source.trim() || undefined,
+          donor: donation ? source.trim() || undefined : undefined,
           buyer: donation ? undefined : buyer.trim() || undefined,
           programName: programName.trim() || undefined,
           uom: effectiveUom,
@@ -796,7 +799,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           quantity: effectiveQty,
           deliveredBy: deliveredBy.trim() || undefined,
           receivedByEmployeeId: receivedById || undefined,
-          remark: remark.trim() || undefined,
+          remark: item1Remark.trim() || remark.trim() || undefined,
         });
         // Items added while correcting go on the same Model 19 slip, each as its own record waiting for approval
         if (extraLines.length > 0) {
@@ -814,7 +817,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               provisionType,
               poNumber: donation ? undefined : poNumber.trim() || undefined,
               transactionType: effectiveTransactionType,
-              source: donation ? undefined : source.trim() || undefined,
+              source: source.trim() || undefined,
+              donor: donation ? source.trim() || undefined : undefined,
               buyer: donation ? undefined : buyer.trim() || undefined,
               programName: programName.trim() || undefined,
               deliveredBy: deliveredBy.trim() || undefined,
@@ -888,11 +892,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         ifmisSlipAttachmentUrl: slipUrl,
         isHistoricalData: false,
         registeredById,
-        notes: remark.trim() || undefined,
+        notes: item1Remark.trim() || remark.trim() || undefined,
+        remark: item1Remark.trim() || remark.trim() || undefined,
         provisionType,
         poNumber: donation ? undefined : poNumber.trim() || undefined,
         transactionType: effectiveTransactionType,
-        source: donation ? undefined : source.trim() || undefined,
+        source: source.trim() || undefined,
+        donor: donation ? source.trim() || undefined : undefined,
         buyer: donation ? undefined : buyer.trim() || undefined,
         programName: programName.trim() || undefined,
         deliveredBy: deliveredBy.trim() || undefined,
@@ -919,7 +925,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         vatApplicable,
         additionalCharges: vatApplicable ? 0 : Number(additionalCharges) || 0,
         totalAmount,
-        remark: remark.trim() || '',
+        remark: item1Remark.trim() || remark.trim() || '',
       }, ...extraLines.map((l, i): Model19LineItem => ({
         sNo: i + 2,
         itemCode: (l.itemType === ItemType.CONSUMABLE ? l.ifmisCode : '') || res.items?.[i + 1]?.itemCode || '—',
@@ -941,7 +947,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         })(),
         vatApplicable,
         additionalCharges: vatApplicable ? 0 : Number(l.additionalCharges) || 0,
-        remark: remark.trim() || '',
+        remark: l.remark?.trim() || remark.trim() || '',
       }))];
 
       const generatedVoucher: Model19Voucher = {
@@ -952,7 +958,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         receivedDateGc: ifmisSlipDateGc,
         receivedDateEc: formatGcToEc(ifmisSlipDateGc),
         transactionType: transactionType || '—',
-        source: donation ? '—' : source.trim() || '—',
+        source: source.trim() || '—',
         buyer: donation ? '—' : buyer.trim() || '—',
         programName: programName.trim(),
         storeLocationId,
@@ -988,21 +994,37 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     <tr className="align-middle hover:bg-slate-50/50 transition-colors">
       <td className="px-2 py-2.5 font-mono text-slate-400 text-center text-xs">1</td>
       <td className="px-3 py-2.5">
-        <label htmlFor="stock-in-item-name" className="sr-only">Item description</label>
-        <input
-          id="stock-in-item-name"
-          type="text"
-          placeholder="Item description (e.g. Dell Latitude 5440 Laptop)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={fieldErrors.touch('itemName')}
-          className={cellClass({ invalid: !!fieldErrors.error('itemName') || !!primaryDuplicateAs })}
-        />
-        {primaryDuplicateAs && (
-          <p role="status" className="mt-0.5 text-[10px] font-semibold text-rose-600">
-            Already received as {primaryDuplicateAs} (Model 19 No. {ifmisSlipNumber.trim()}). Duplicate entrance is not permitted.
-          </p>
-        )}
+        <div className="space-y-1.5">
+          <label htmlFor="stock-in-item-name" className="sr-only">Item description</label>
+          <input
+            id="stock-in-item-name"
+            type="text"
+            placeholder={donation ? "Item title / brief description (e.g. Dell Latitude 5440 Laptop)" : "Item description (e.g. Dell Latitude 5440 Laptop)"}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={fieldErrors.touch('itemName')}
+            className={cellClass({ invalid: !!fieldErrors.error('itemName') || !!primaryDuplicateAs })}
+          />
+          {donation && (
+            <div>
+              <label htmlFor="stock-in-item-specs" className="sr-only">Full asset description and technical specifications</label>
+              <textarea
+                id="stock-in-item-specs"
+                aria-label="Full asset description & specifications"
+                rows={2}
+                placeholder="Full asset description, technical specifications & donor grant details…"
+                value={item1Remark}
+                onChange={(e) => setItem1Remark(e.target.value)}
+                className={`${cellClass()} resize-y text-xs text-slate-700 bg-amber-50/30 focus:bg-white`}
+              />
+            </div>
+          )}
+          {primaryDuplicateAs && (
+            <p role="status" className="mt-0.5 text-[10px] font-semibold text-rose-600">
+              Already received as {primaryDuplicateAs} (Model 19 No. {ifmisSlipNumber.trim()}). Duplicate entrance is not permitted.
+            </p>
+          )}
+        </div>
       </td>
       <td className="px-3 py-2.5">
         <div className="space-y-1">
@@ -1161,14 +1183,24 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             </select>
           </Field>
 
-          {/* What it was bought from: a donation (no PO number) has none of it */}
-          {!donation && (
+          {donation ? (
+            <Field label="Donor / Sponsoring organization" optional htmlFor="stock-in-source" hint="Organization or agency providing this donation (e.g. FAO, World Bank, GIZ, USAID)">
+              <input
+                id="stock-in-source"
+                type="text"
+                placeholder="e.g. FAO, World Bank, GIZ, Embassy of..."
+                value={source}
+                onChange={(e) => setSource(e.target.value)}
+                className={input()}
+              />
+            </Field>
+          ) : (
             <>
               <Field label="Source (supplier / vendor)" optional htmlFor="stock-in-source" error={fieldErrors.error('source')}>
                 <input
                   id="stock-in-source"
                   type="text"
-                                    placeholder="Supplier or vendor name"
+                  placeholder="Supplier or vendor name"
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
                   onBlur={fieldErrors.touch('source')}
@@ -1275,12 +1307,12 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           />
 
         )}
-        <Field label="Remarks" optional htmlFor="stock-in-remarks" hint="Anything the approvers should know, e.g. why there is no proper Model 19. Kept on every item and printed on the voucher.">
+        <Field label={donation ? "Overall slip remarks / notes" : "Remarks"} optional htmlFor="stock-in-remarks" hint="Anything the approvers should know, e.g. why there is no proper Model 19. Kept on every item and printed on the voucher.">
           <textarea
             id="stock-in-remarks"
             rows={2}
             maxLength={500}
-            placeholder="e.g. Received without a proper Model 19: …"
+            placeholder={donation ? "e.g. Received under project grant agreement, diplomatic delivery…" : "e.g. Received without a proper Model 19: …"}
             value={remark}
             onChange={(e) => setRemark(e.target.value)}
             className={`${input()} h-auto resize-y py-2`}

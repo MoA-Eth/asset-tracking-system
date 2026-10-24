@@ -468,6 +468,7 @@ export interface CreateStockInRequest {
   poNumber?: string;
   transactionType?: string;
   source?: string;
+  donor?: string;
   buyer?: string;
   programName?: string;
   itemCode?: string;
@@ -532,6 +533,7 @@ export interface UpdateStockInRequest {
   poNumber?: string;
   transactionType?: string;
   source?: string;
+  donor?: string;
   buyer?: string;
   programName?: string;
   uom?: string;

@@ -459,7 +459,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <ReadOnlyValue>{item.transactionType || '—'}</ReadOnlyValue>
               </FormKitField>
 
-              {item.provisionType !== 'DONATION' && (
+              {item.provisionType !== 'DONATION' ? (
                 <>
                   <FormKitField label="Source (supplier / vendor)" optional>
                     <ReadOnlyValue>{item.source || '—'}</ReadOnlyValue>
@@ -469,6 +469,12 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                     <ReadOnlyValue>{item.buyer || '—'}</ReadOnlyValue>
                   </FormKitField>
                 </>
+              ) : (
+                item.source && item.source !== '—' && (
+                  <FormKitField label="Donor / Sponsoring organization" optional>
+                    <ReadOnlyValue>{item.source}</ReadOnlyValue>
+                  </FormKitField>
+                )
               )}
 
               <FormKitField label="Program / project" optional>
@@ -605,7 +611,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               )}
 
               {item.remark && (
-                <FormKitField label="Remark / notes" optional span={item.lotBatchNo && item.subInventory ? undefined : 'sm:col-span-2'}>
+                <FormKitField label={item.provisionType === 'DONATION' ? "Full asset description / technical specifications" : "Remark / notes"} optional span={item.lotBatchNo && item.subInventory ? undefined : 'sm:col-span-2'}>
                   <ReadOnlyValue>{item.remark}</ReadOnlyValue>
                 </FormKitField>
               )}
