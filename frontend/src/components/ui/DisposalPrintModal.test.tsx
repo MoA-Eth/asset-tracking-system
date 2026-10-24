@@ -33,6 +33,11 @@ describe('Disposal voucher', () => {
       expect(screen.getAllByText(heading).length).toBeGreaterThan(0);
     }
     expect(screen.getByText("MOA-FUR-1-2")).toBeInTheDocument();
+    // Asset description cell only contains the description without quantity subtext
+    const descCell = screen.getByText("Office chair", { selector: "td" });
+    expect(descCell.textContent).toBe("Office chair");
+    // Multi-unit quantity is noted in the Remark column
+    expect(screen.getByText("3 EA", { selector: "td" })).toBeInTheDocument();
     // 3 chairs at 1,500 = 4,500 cost, all of it depreciated but the 1,000 book value: so 3,500
     expect(screen.getByText("3,500.00", { selector: "td" })).toBeInTheDocument();
     expect(screen.getByText(/correctly counted and received the items/i)).toBeInTheDocument();

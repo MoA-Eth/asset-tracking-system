@@ -73,14 +73,7 @@ export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, 
             {rows.map(({ item, originalCost, depreciation, bookValue }, idx) => (
               <tr key={`${item.itemCode}-${idx}`}>
                 <td className={`${VOUCHER_TD} text-center font-mono`}>{item.sNo || idx + 1}</td>
-                <td className={`${VOUCHER_TD} font-medium`}>
-                  {item.description}
-                  {item.quantity > 1 && (
-                    <span className="block text-[10px] font-normal text-slate-600">
-                      {item.quantity} {item.uom || 'EA'} @ {formatVoucherAmount(item.unitPrice)}
-                    </span>
-                  )}
-                </td>
+                <td className={`${VOUCHER_TD} font-medium`}>{item.description}</td>
                 <td className={`${VOUCHER_TD} font-mono`}>{orDash(item.itemCode)}</td>
                 <td className={`${VOUCHER_TD} font-mono`}>{orDash(displaySerialNumber(item.serialNo))}</td>
                 <td className={VOUCHER_TD}>{' '}</td>
@@ -90,7 +83,9 @@ export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, 
                 <td className={`${VOUCHER_TD} text-right font-mono`}>{formatVoucherAmount(originalCost)}</td>
                 <td className={`${VOUCHER_TD} text-right font-mono`}>{formatVoucherAmount(depreciation)}</td>
                 <td className={`${VOUCHER_TD} text-right font-mono font-bold`}>{formatVoucherAmount(bookValue)}</td>
-                <td className={VOUCHER_TD}>{voucher.description}</td>
+                <td className={VOUCHER_TD}>
+                  {[item.quantity > 1 ? `${item.quantity} ${item.uom || 'EA'}` : undefined, voucher.description].filter(Boolean).join(' · ')}
+                </td>
               </tr>
             ))}
           </tbody>
