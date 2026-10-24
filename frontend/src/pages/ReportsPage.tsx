@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRealtimeSync } from '../utils/realtime-sync';
 import { costOf, valueOf } from '../utils/item-cost';
 import {
   Search,
@@ -135,12 +136,13 @@ export const ReportsPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    const handleUpdate = () => {
-      loadData();
-    };
-    window.addEventListener('moa_approvals_updated', handleUpdate);
-    return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
   }, []);
+
+  useRealtimeSync(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
 
   const splitsByRoot = useMemo(() => {
     const map = new Map<string, ItemWithRelations[]>();

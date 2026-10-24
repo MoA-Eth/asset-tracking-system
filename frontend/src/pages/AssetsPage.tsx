@@ -23,6 +23,7 @@ import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { CloseButton } from '../components/ui/CloseButton';
 import { AssetsTableSkeleton } from '../components/ui/Skeleton';
+import { broadcastApprovalsUpdated, useRealtimeSync } from '../utils/realtime-sync';
 import { FilterPopover, FilterSection, FilterPill, FilterSelect } from '../components/ui/FilterPopover';
 import { SortableHeader } from '../components/ui/SortableHeader';
 import { Pagination, usePagination } from '../components/ui/Pagination';
@@ -289,13 +290,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     }
   };
 
-  useEffect(() => {
-    const handleUpdate = () => {
+  const isFormActive = Boolean(
+    editing ||
+    receipt ||
+    transfer ||
+    issue ||
+    disposing
+  );
+
+  useRealtimeSync(
+    useCallback(() => {
       fetchData(true);
-    };
-    window.addEventListener('moa_approvals_updated', handleUpdate);
-    return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
-  }, [fetchData]);
+    }, [fetchData]),
+    { enabled: !isFormActive }
+  );
 
   // The open requests of each record, oldest first: several issue requests can wait on one record
   const openByItem = useMemo(() => {
@@ -614,7 +622,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setSortColumn('activity');
     setSortDirection('desc');
     fetchData(true);
-    window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
+    broadcastApprovalsUpdated();
   };
 
   /** Open a record in view mode with its actions in the toolbar */
@@ -816,7 +824,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         'Resubmitted for approval',
         `${VOUCHER_OF[request.transactionType] ?? 'Voucher'} ${request.ifmisSlipNumber}${lines.length > 1 ? ` (${lines.length} items)` : ''} went back to the Team Leader.`,
       );
-      window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
+      broadcastApprovalsUpdated();
       await fetchData(true);
     } catch (err: any) {
       toast.error('Could not resubmit', err?.message || 'Try again.');
@@ -843,7 +851,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         `${VOUCHER_OF[request.transactionType] ?? 'Voucher'} ${request.ifmisSlipNumber}${lines.length > 1 ? ` (${lines.length} items)` : ''} is cancelled and its records are released.`,
       );
       setCancelling(null);
-      window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
+      broadcastApprovalsUpdated();
       await fetchData(true);
     } catch (err: any) {
       toast.error('Could not cancel', err?.message || 'Try again.');

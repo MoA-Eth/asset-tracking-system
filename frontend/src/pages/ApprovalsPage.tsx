@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { broadcastApprovalsUpdated, useRealtimeSync } from '../utils/realtime-sync';
 import {
 
   FileCheck2,
@@ -186,6 +187,13 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   useEffect(() => {
     fetchApprovals();
   }, []);
+
+  useRealtimeSync(
+    useCallback(() => {
+      fetchApprovals();
+    }, []),
+    { enabled: !actionLoading && !batchProcessing }
+  );
 
   // The lines of one voucher (a Model 19 receipt: same slip and PO; a Model 22 issue: same number), waiting at the
   // same stage, are one row: it is reviewed as a whole. Its row stands in for them; slipLines holds the lines behind it.
@@ -425,7 +433,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       setSelectedIds((prev) => prev.filter((id) => id !== approvalId));
       await fetchApprovals();
       onRefreshPendingCount?.();
-      window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
+      broadcastApprovalsUpdated();
 
       if (action === 'ENDORSE') {
         toast.success(
@@ -490,7 +498,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     setSelectedIds([]);
     await fetchApprovals();
     onRefreshPendingCount?.();
-    window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
+    broadcastApprovalsUpdated();
 
     const actionText =
       batchActionType === 'ENDORSE'
