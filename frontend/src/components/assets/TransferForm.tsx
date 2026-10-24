@@ -195,6 +195,18 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const lastRead = useRef<{ slip: Model21SlipFields; vehicle?: Model21Particulars } | null>(null);
   const extraReady = extraAssets.filter((o) => o.asset && !o.problem) as { key: number; line: Model21SlipLine; asset: ItemWithRelations }[];
 
+  /** Whether an asset has a blocking pending request (single assets cannot have any; batch items can have concurrent transfers/returns) */
+  const hasBlockingPending = (asset: ItemWithRelations) => {
+    const pending = pendingByItem.get(asset.id);
+    if (!pending) return false;
+    if (editTransfer && pending.id === editTransfer.id) return false;
+    const qty = Number(asset.quantity) || 1;
+    if (qty > 1 && (pending.transactionType === 'TRANSFER' || pending.transactionType === 'RETURN')) {
+      return false;
+    }
+    return true;
+  };
+
   /**
    * Whether the asset a Model 21 line names can be transferred, in the order of its life: received and approved, a
    * fixed asset, issued to the employee the form transfers it from (or still in store), with no other request waiting.
@@ -210,7 +222,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           ? `${asset.itemCode} is ${STATUS_WORDS[asset.status] ?? asset.status.toLowerCase()}; only an issued asset, or an item in store, can be transferred.`
           : asset.status === ItemStatus.ISSUED && asset.heldByOrganization
             ? `${asset.itemCode} is held by ${asset.heldByOrganization}, outside the Ministry.`
-            : pendingByItem.has(asset.id) && pendingByItem.get(asset.id)!.id !== editTransfer?.id
+            : hasBlockingPending(asset)
               ? `${asset.itemCode} already has a request waiting for approval.`
               : asset.status === ItemStatus.ISSUED && slip.fromEmployeeId && !sameEmployeeId(asset.currentCustodian?.payrollId, slip.fromEmployeeId)
                 ? `${asset.itemCode} is held by ${asset.currentCustodian?.fullNameEn ?? 'someone else'}, not by the employee the form transfers it from (${slip.fromName ?? slip.fromEmployeeId}).`
@@ -399,6 +411,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   }, [slip]);
 
   const usedNo = slips.findUsed(model21No, ['TRANSFER', 'RETURN'], editTransfer?.id);
+  const isPendingModel21 = usedNo?.status === 'PENDING';
 
   // A field shows what is wrong with it once the user has been in it
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -769,7 +782,17 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           okLabel={isReturn ? 'Will be returned' : 'Will be transferred'}
           notLabel={isReturn ? 'Not returned' : 'Not transferred'}
           assets={extraAssets.map((o) => ({ key: o.key, code: o.asset?.itemCode ?? o.line.tagNumber ?? '—', name: o.asset?.name ?? o.line.description, problem: o.problem }))}
-          onLeaveOut={(key) => setExtraAssets((list) => list.filter((x) => x.key !== key))}
+          onLeaveOut={(key) => {
+            const target = extraAssets.find((x) => x.key === key);
+            if (target?.asset?.id) {
+              setMatchedIds((ids) => {
+                const next = new Set(ids);
+                next.delete(target.asset!.id);
+                return next;
+              });
+            }
+            setExtraAssets((list) => list.filter((x) => x.key !== key));
+          }}
         />
       )}
 
@@ -778,7 +801,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           <Field
             label="Model 21 No." optional
             error={errorOf('model21No')}
-            warning={usedNo ? usedMessage(model21No, usedNo) : undefined}
+            warning={usedNo && !isPendingModel21 ? usedMessage(model21No, usedNo) : undefined}
+            hint={isPendingModel21 ? `Appending to pending Model 21 voucher #${model21No.trim()} (${usedNo.itemCode})` : undefined}
           >
             <input
               type="text"
@@ -819,6 +843,14 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             />
           </Field>
         </FieldGrid>
+        {isPendingModel21 && (
+          <div className="mt-3 flex items-center gap-2 rounded-md bg-sky-50 border border-sky-200 p-2.5 text-xs text-sky-800">
+            <FileText className="h-4 w-4 shrink-0 text-sky-600" />
+            <span>
+              <strong>Model 21 #{model21No.trim()}</strong> currently has pending request(s) for <strong>{usedNo.itemCode}</strong>. Submitting this form will append this asset to that voucher.
+            </span>
+          </div>
+        )}
       </Part>
 
       <Part title="Asset">
@@ -844,11 +876,12 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                       .filter((i) => i.status === ItemStatus.ISSUED && !i.heldByOrganization && i.itemType !== ItemType.CONSUMABLE)
                       .map((item) => {
                         const pending = pendingByItem.get(item.id);
+                        const blocking = hasBlockingPending(item);
                         return {
                           value: item.id,
                           label: `${item.itemCode} — ${item.name}`,
                           note: `${item.quantity || 1} ${item.uom || 'EA'} · ${item.currentCustodian?.fullNameEn || 'assigned'}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
-                          disabled: !!pending,
+                          disabled: blocking,
                         };
                       }),
                   },
@@ -858,11 +891,12 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                       .filter((i) => i.status === ItemStatus.AVAILABLE)
                       .map((item) => {
                         const pending = pendingByItem.get(item.id);
+                        const blocking = hasBlockingPending(item);
                         return {
                           value: item.id,
                           label: `${item.itemCode} — ${item.name}`,
                           note: `${item.quantity || 1} ${item.uom || 'EA'} · in ${storeLocationLabel(item.storeLocation)}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
-                          disabled: !!pending,
+                          disabled: blocking,
                         };
                       }),
                   },
@@ -920,6 +954,96 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               />
             </Field>
           </FieldGrid>
+
+          {!editTransfer && (
+            <div className="rounded-md border border-slate-200 bg-slate-50/50 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700">Add another asset to this Model 21</span>
+                <span className="text-[11px] text-slate-500">Attach multiple assets to this voucher</span>
+              </div>
+              <SearchableSelect
+                id="add-extra-asset"
+                value=""
+                onChange={(addId) => {
+                  if (!addId) return;
+                  const assetToAdd = items.find((i) => i.id === addId);
+                  if (!assetToAdd) return;
+                  if (assetToAdd.id === selectedItemId || extraAssets.some((o) => o.asset?.id === assetToAdd.id)) {
+                    toast.warning('Already added', `${assetToAdd.itemCode} is already included in this Model 21.`);
+                    return;
+                  }
+                  const check = checkLine({ tagNumber: assetToAdd.itemCode, description: assetToAdd.name }, {
+                    model21No,
+                    book,
+                    fromEmployeeId: selectedItemObj?.currentCustodian?.payrollId,
+                    toEmployeeId: targetEmployeeId,
+                    lines: [],
+                  });
+                  setExtraAssets((prev) => [
+                    ...prev,
+                    {
+                      key: Date.now(),
+                      line: {
+                        tagNumber: assetToAdd.itemCode,
+                        description: assetToAdd.name,
+                        origCost: valueOf(assetToAdd, 1),
+                      },
+                      asset: assetToAdd,
+                      problem: check.problem,
+                    },
+                  ]);
+                  setMatchedIds((prev) => new Set([...prev, assetToAdd.id]));
+                  toast.success('Asset added', `Added ${assetToAdd.itemCode} to this Model 21 voucher.`);
+                }}
+                placeholder="+ Add another asset to this Model 21…"
+                searchPlaceholder="Search asset to add to voucher…"
+                groups={[
+                  {
+                    label: 'Issued assets',
+                    options: items
+                      .filter(
+                        (i) =>
+                          i.status === ItemStatus.ISSUED &&
+                          !i.heldByOrganization &&
+                          i.itemType !== ItemType.CONSUMABLE &&
+                          i.id !== selectedItemId &&
+                          !extraAssets.some((e) => e.asset?.id === i.id)
+                      )
+                      .map((item) => {
+                        const pending = pendingByItem.get(item.id);
+                        const blocking = hasBlockingPending(item);
+                        return {
+                          value: item.id,
+                          label: `${item.itemCode} — ${item.name}`,
+                          note: `${item.quantity || 1} ${item.uom || 'EA'} · ${item.currentCustodian?.fullNameEn || 'assigned'}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
+                          disabled: blocking,
+                        };
+                      }),
+                  },
+                  {
+                    label: 'In store',
+                    options: items
+                      .filter(
+                        (i) =>
+                          i.status === ItemStatus.AVAILABLE &&
+                          i.id !== selectedItemId &&
+                          !extraAssets.some((e) => e.asset?.id === i.id)
+                      )
+                      .map((item) => {
+                        const pending = pendingByItem.get(item.id);
+                        const blocking = hasBlockingPending(item);
+                        return {
+                          value: item.id,
+                          label: `${item.itemCode} — ${item.name}`,
+                          note: `${item.quantity || 1} ${item.uom || 'EA'} · in ${storeLocationLabel(item.storeLocation)}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
+                          disabled: blocking,
+                        };
+                      }),
+                  },
+                ]}
+              />
+            </div>
+          )}
         </div>
       </Part>
 

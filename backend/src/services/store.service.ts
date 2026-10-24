@@ -800,8 +800,8 @@ const WRITE_PERMISSION: Record<string, string> = {
   STOCK_IN: 'stock-in.write', STOCK_OUT: 'stock-out.write', DISPOSAL: 'disposals.write', TRANSFER: 'transfers.write', RETURN: 'transfers.write',
 };
 
-/** No request may be waiting on the record; `except` lets issue requests (Model 22) share it, each taking its own units */
-async function assertNoPendingApproval(item: { id: string; itemCode: string }, except?: 'STOCK_OUT') {
+/** No request may be waiting on the record; `except` lets issue or transfer requests share it, each taking its own units */
+async function assertNoPendingApproval(item: { id: string; itemCode: string }, except?: 'STOCK_OUT' | 'TRANSFER' | 'RETURN') {
   const pending = await prisma.transactionApproval.findFirst({
     where: { itemId: item.id, status: { in: OPEN_STATUSES }, ...(except ? { transactionType: { not: except as any } } : {}) },
   });
@@ -2034,13 +2034,18 @@ export class StoreService {
     if (item.status === 'AVAILABLE') {
       throw new ConflictError(`${item.itemCode} is already in store. Only an issued item can be returned.`);
     }
-    if (item.status !== 'ISSUED') {
+    const inStore = quantityOf(item);
+    if (item.status === 'UNDER_TRANSFER') {
+      if (inStore <= 1) {
+        throw new ConflictError(`Item ${item.itemCode} cannot be returned to store. Current status: ${item.status}`);
+      }
+    } else if (item.status !== 'ISSUED') {
       throw new ConflictError(`Item ${item.itemCode} cannot be returned to store. Current status: ${item.status}`);
     }
     if (item.heldByOrganization) {
       throw new ConflictError(`${item.itemCode} was issued to ${item.heldByOrganization}. Returning an item issued to an outside organization isn't supported yet.`);
     }
-    await assertNoPendingApproval(item);
+    await assertNoPendingApproval(item, inStore > 1 ? 'RETURN' : undefined);
     const effectiveSlipNo = String(payload.model21No || payload.ifmisSlipNumber || '').trim();
     if (!effectiveSlipNo) throw new BadRequestError('Return Voucher (Model 21 / 22) Slip Number is mandatory.');
     if (isBlank(payload.returnReason)) throw new BadRequestError('Reason for return is required.');
@@ -2488,12 +2493,12 @@ export class StoreService {
       const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true, unitCostETB: true } } } });
       if (approvals.length !== ids.length) throw new NotFoundError('Part of this voucher no longer exists. Refresh the list.');
       const types = new Set(approvals.map((a: any) => a.transactionType));
-      if (types.size > 1 || !(types.has('STOCK_IN') || types.has('STOCK_OUT') || types.has('DISPOSAL'))) {
-        throw new BadRequestError('Only the lines of one receipt (Model 19), one issue (Model 22) or one disposal form are reviewed together.');
+      if (types.size > 1 || !(types.has('STOCK_IN') || types.has('STOCK_OUT') || types.has('DISPOSAL') || types.has('TRANSFER') || types.has('RETURN'))) {
+        throw new BadRequestError('Only the lines of one receipt (Model 19), one issue (Model 22) or one disposal form or transfer (Model 21) are reviewed together.');
       }
-      // A receipt is its slip and PO; an issue or a disposal form is its number alone
-      const issue = types.has('STOCK_OUT') || types.has('DISPOSAL');
-      const voucher = types.has('STOCK_OUT') ? 'Model 22' : types.has('DISPOSAL') ? 'disposal form' : 'Model 19';
+      // A receipt is its slip and PO; an issue, transfer or disposal form is its number alone
+      const issue = types.has('STOCK_OUT') || types.has('DISPOSAL') || types.has('TRANSFER') || types.has('RETURN');
+      const voucher = types.has('STOCK_OUT') ? 'Model 22' : types.has('DISPOSAL') ? 'disposal form' : (types.has('TRANSFER') || types.has('RETURN')) ? 'Model 21' : 'Model 19';
       if (approvals.some((a: any) => a.status !== 'PENDING')) throw new ConflictError(`Part of this ${voucher} has already been decided. Refresh the list.`);
       if (new Set(approvals.map((a: any) => a.currentStage ?? 1)).size > 1) throw new ConflictError(`The lines of this ${voucher} are at different stages. Review them one by one.`);
       const keyOf = (a: any) => `${String(a.ifmisSlipNumber ?? '').trim().toLowerCase()}|${issue ? '' : String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase()}`;
@@ -2515,7 +2520,7 @@ export class StoreService {
   private async voucherTotalOf(approval: any, db: any): Promise<number | undefined> {
     const type = approval.transactionType;
     const slip = String(approval.ifmisSlipNumber ?? '').trim();
-    if (!['STOCK_IN', 'STOCK_OUT', 'DISPOSAL'].includes(type) || !slip || slip.toUpperCase().startsWith('PENDING-')) return undefined;
+    if (!['STOCK_IN', 'STOCK_OUT', 'DISPOSAL', 'TRANSFER', 'RETURN'].includes(type) || !slip || slip.toUpperCase().startsWith('PENDING-')) return undefined;
     const lines = await db.transactionApproval.findMany({
       where: { transactionType: type, status: 'PENDING', currentStage: approval.currentStage, ifmisSlipNumber: { equals: slip, mode: 'insensitive' } },
       include: { item: { select: { notes: true, unitCostETB: true } } },
@@ -3135,6 +3140,16 @@ export class StoreService {
       newItemStatus = 'PENDING_STOCK_OUT';
     }
 
+    if ((approval.transactionType === 'TRANSFER' || approval.transactionType === 'RETURN') && newItemStatus !== 'UNDER_TRANSFER') {
+      const otherTransfer = await db.transactionApproval.findFirst({
+        where: { itemId: item.id, status: { in: OPEN_STATUSES }, transactionType: 'TRANSFER', id: { not: approval.id } },
+        select: { id: true },
+      });
+      if (otherTransfer) {
+        newItemStatus = 'UNDER_TRANSFER';
+      }
+    }
+
     if (cancel) historyAction = historyAction.replace(/_REJECTED$/, '_CANCELLED');
 
     await db.item.update({
@@ -3244,13 +3259,18 @@ export class StoreService {
       throw new ConflictError(`${item.itemCode} is an issued consumable item. Consumables are used up once issued and can't be transferred.`);
     }
     // A fixed asset can be transferred from the store to an employee, or from one holder to another
-    if (item.status !== 'AVAILABLE' && item.status !== 'ISSUED') {
+    const inStore = quantityOf(item);
+    if (item.status === 'UNDER_TRANSFER') {
+      if (inStore <= 1) {
+        throw new ConflictError(`Item ${item.itemCode} cannot be transferred. Current status: ${item.status}`);
+      }
+    } else if (item.status !== 'AVAILABLE' && item.status !== 'ISSUED') {
       throw new ConflictError(`Item ${item.itemCode} cannot be transferred. Current status: ${item.status}`);
     }
     if (item.heldByOrganization) {
       throw new ConflictError(`${item.itemCode} was issued to ${item.heldByOrganization}. Transferring an item issued to an outside organization isn't supported yet.`);
     }
-    await assertNoPendingApproval(item);
+    await assertNoPendingApproval(item, inStore > 1 ? 'TRANSFER' : undefined);
     const slipNo = String(payload.model21No || '').trim();
     if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
     // The reason is optional on a transfer
@@ -3293,7 +3313,6 @@ export class StoreService {
     const newCustodian = payload.toEmployeeId ? newCustodianRecord?.fullNameEn : prevCustodian;
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
 
-    const inStore = quantityOf(item);
     const requested = Number(payload.quantity);
     const quantity = Number.isFinite(requested) && requested > 0 ? requested : inStore;
     if (quantity > inStore) {

@@ -57,7 +57,13 @@ export const approvalRowKey = (a: { transactionType: string; ifmisSlipNumber?: s
 
 /** The voucher a request is made on, as people call it */
 export const voucherName = (transactionType?: string): string =>
-  transactionType === 'STOCK_OUT' ? 'Model 22' : transactionType === 'DISPOSAL' ? 'disposal form' : 'Model 19';
+  transactionType === 'STOCK_OUT'
+    ? 'Model 22'
+    : transactionType === 'DISPOSAL'
+      ? 'disposal form'
+      : transactionType === 'TRANSFER' || transactionType === 'RETURN'
+        ? 'Model 21'
+        : 'Model 19';
 
 /** Above this many birr (a request, or a voucher's grand total) the Chief Director authorizes instead of the Department Head */
 export const HIGH_VALUE_THRESHOLD = 10_000_000;
