@@ -201,8 +201,8 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                   )}
                   {approval.transactionType !== 'STOCK_IN' && approval.transactionType !== 'DISPOSAL' && (
                     <>
-                      <Row label={approval.transactionType === 'RETURN' ? 'Returned by' : 'Recipient'}>
-                        {approval.recipientEmployee?.fullNameEn || approval.requestDetails?.organizationName}
+                      <Row label={approval.transactionType === 'RETURN' ? 'Returned by' : d?.disposal ? 'Sold / transferred / donated to' : 'Recipient'}>
+                        {d?.disposal ? (d?.recipientName || '—') : (approval.recipientEmployee?.fullNameEn || approval.requestDetails?.organizationName)}
                       </Row>
                       {approval.requestDetails?.contactPerson && <Row label="Contact person">{approval.requestDetails.contactPerson}</Row>}
                       {approval.targetDepartmentId && <Row label="Directorate">{deptName(approval.targetDepartmentId)}</Row>}

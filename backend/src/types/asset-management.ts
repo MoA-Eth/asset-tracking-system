@@ -567,6 +567,8 @@ export interface CreateStockOutRequest {
   ifmisSlipAttachmentUrl?: string;
   /** Purpose of the issue (optional: it is not on the IFMIS Model 22); for a disposal, the reason (required) */
   purpose?: string;
+  /** For disposal through Model 22: the entity/person it was sold, transferred, or donated to */
+  recipientName?: string;
   registeredById: string;
 
   // Extended Model 22 fields
@@ -594,6 +596,8 @@ export interface UpdateStockOutRequest {
   organizationId?: string;
   organizationName?: string;
   contactPerson?: string;
+  /** For disposal through Model 22: the entity/person it was sold, transferred, or donated to */
+  recipientName?: string;
   ifmisSlipNumber: string;
   ifmisSlipDateGc: string;
   /** New slip upload; omit to keep the current attachment */

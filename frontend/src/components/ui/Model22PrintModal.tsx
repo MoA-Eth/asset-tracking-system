@@ -38,7 +38,14 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, on
         fields={[
           { label: disposal ? 'Disposal Date' : 'Issued Date', value: voucher.issuedDateGc && `${voucher.issuedDateGc}${voucher.issuedDateEc ? ` (${voucher.issuedDateEc} E.C.)` : ''}` },
           { label: 'Transaction Type', value: disposal ? 'Disposal (write-off)' : voucher.transactionType || 'Move Order Issue' },
-          ...(disposal ? [{ label: 'Reason for Disposal', value: voucher.disposalReason }] : [{ label: 'Destination', value: voucher.destination }]),
+          ...(disposal
+            ? [
+                { label: 'Reason for Disposal', value: voucher.disposalReason },
+                ...(voucher.receivedByName && voucher.receivedByName !== '—'
+                  ? [{ label: 'Sold / Transferred / Donated to', value: voucher.receivedByName }]
+                  : []),
+              ]
+            : [{ label: 'Destination', value: voucher.destination }]),
         ]}
       />
 

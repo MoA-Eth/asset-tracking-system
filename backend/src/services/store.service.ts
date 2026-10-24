@@ -1501,6 +1501,7 @@ export class StoreService {
       targetDepartmentId: approval.targetDepartmentId,
       organizationName: (previousDetails.organizationName as string | undefined) ?? null,
       contactPerson: (previousDetails.contactPerson as string | undefined) ?? null,
+      recipientName: (previousDetails.recipientName as string | undefined) ?? null,
       ifmisSlipNumber: approval.ifmisSlipNumber,
       ifmisSlipDateGc: approval.ifmisSlipDateGc,
       ifmisSlipAttachmentUrl: approval.ifmisSlipAttachmentUrl,
@@ -1512,6 +1513,7 @@ export class StoreService {
       targetDepartmentId: department?.id ?? null,
       organizationName: external?.organizationName ?? null,
       contactPerson: external?.contactPerson ?? null,
+      recipientName: disposal ? (payload.recipientName?.trim() || null) : null,
       ifmisSlipNumber: slipNo,
       ifmisSlipDateGc: payload.ifmisSlipDateGc || approval.ifmisSlipDateGc,
       ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl,
@@ -1536,6 +1538,7 @@ export class StoreService {
       if (k === 'targetDepartmentId') return `directorate ${previousDepartment?.nameEn ?? '—'} → ${department?.nameEn ?? '—'}`;
       if (k === 'organizationName') return `organization ${before.organizationName ?? '—'} → ${after.organizationName ?? '—'}`;
       if (k === 'contactPerson') return `contact person ${before.contactPerson ?? '—'} → ${after.contactPerson ?? '—'}`;
+      if (k === 'recipientName') return `recipient ${before.recipientName ?? '—'} → ${after.recipientName ?? '—'}`;
       if (k === 'ifmisSlipAttachmentUrl') return 'slip attachment replaced';
       return `${k} ${before[k] ?? '—'} → ${after[k] ?? '—'}`;
     };
@@ -1558,13 +1561,14 @@ export class StoreService {
           purposeOrRemarks: after.purposeOrRemarks,
           // Switching between an employee and an organization replaces the other side's details
           requestDetails: {
-            ...Object.fromEntries(Object.entries(previousDetails).filter(([k]) => !['recipientType', 'organizationName', 'contactPerson', 'issuedByEmployeeId', 'issuedByName'].includes(k))),
+            ...Object.fromEntries(Object.entries(previousDetails).filter(([k]) => !['recipientType', 'organizationName', 'contactPerson', 'issuedByEmployeeId', 'issuedByName', 'recipientName'].includes(k))),
             quantity,
             uom,
             ...(issuer
               ? { issuedByEmployeeId: issuer.employeeId, issuedByName: issuer.fullNameEn }
               : previousIssuer.issuedByEmployeeId ? { issuedByEmployeeId: previousIssuer.issuedByEmployeeId, issuedByName: previousIssuer.issuedByName } : {}),
             ...(external ? { recipientType: 'EXTERNAL', ...external } : {}),
+            ...(disposal && payload.recipientName?.trim() ? { recipientName: payload.recipientName.trim() } : {}),
           } as any,
         },
         include: APPROVAL_INCLUDES,
@@ -1579,7 +1583,7 @@ export class StoreService {
               dateEc: today.ec,
               action: 'STOCK_OUT_EDITED',
               fromEntity: `${await storeLabel(item.storeLocationId)} (Available)`,
-              toEntity: `${disposal ? 'Disposal' : external ? external.organizationName : recipient?.fullNameEn} (Pending Approval)`,
+              toEntity: `${disposal ? (payload.recipientName?.trim() ? `Disposal: to ${payload.recipientName.trim()}` : 'Disposal') : external ? external.organizationName : recipient?.fullNameEn} (Pending Approval)`,
               performedBy: actor ? actor.fullNameEn : actorId,
               performedByRole: (actor?.role ?? 'DATA_ENCODER') as any,
               ifmisSlipNumber: after.ifmisSlipNumber,
@@ -1699,7 +1703,7 @@ export class StoreService {
             action: 'STOCK_OUT_REQUESTED',
             fromEntity: `${await storeLabel(item.storeLocationId)} (${item.status === 'PENDING_STOCK_OUT' ? 'Issue pending' : 'Available'})`,
             toEntity: disposal
-              ? 'Disposal (Pending Approval)'
+              ? (payload.recipientName?.trim() ? `Disposal: to ${payload.recipientName.trim()} (Pending Approval)` : 'Disposal (Pending Approval)')
               : external
                 ? `${external.organizationName} (Pending Approval)`
                 : recipient ? `${recipient.fullNameEn} (Pending Approval)` : 'Recipient not set (Pending Approval)',
@@ -1729,7 +1733,7 @@ export class StoreService {
         requestDetails: {
           quantity,
           uom,
-          ...(disposal ? { disposal: true } : {}),
+          ...(disposal ? { disposal: true, ...(payload.recipientName?.trim() ? { recipientName: payload.recipientName.trim() } : {}) } : {}),
           ...(issuer ? { issuedByEmployeeId: issuer.employeeId, issuedByName: issuer.fullNameEn } : {}),
           ...(external ? { recipientType: 'EXTERNAL', ...external } : {}),
           // As printed on the Model 22: its transaction type, and the transport cost (kept on the voucher's first line)
@@ -1748,7 +1752,7 @@ export class StoreService {
       'STOCK_OUT',
       item.id,
       disposal
-        ? `Disposal through Model 22 requested for ${item.itemCode}. IFMIS: ${payload.ifmisSlipNumber}`
+        ? `Disposal through Model 22 requested for ${item.itemCode}${payload.recipientName?.trim() ? ` to ${payload.recipientName.trim()}` : ''}. IFMIS: ${payload.ifmisSlipNumber}`
         : `Issue requested for ${item.itemCode} to ${external ? external.organizationName : recipient?.fullNameEn || 'a recipient not yet set'}. IFMIS: ${payload.ifmisSlipNumber}`,
       payload.ifmisSlipNumber,
     );
@@ -2996,10 +3000,11 @@ export class StoreService {
         }
       } else if (approval.transactionType === 'STOCK_OUT' && (approval.requestDetails as Record<string, any> | null)?.disposal === true) {
         // Disposal through Model 22: the units leave the register as disposed, like a disposal-form disposal
+        const recipientName = (approval.requestDetails as Record<string, any> | null)?.recipientName?.trim();
         newItemStatus = 'DISPOSED';
         historyAction = 'DISPOSAL_APPROVED';
         fromEntity = storeName;
-        toEntity = 'Disposed (Model 22)';
+        toEntity = recipientName ? `Disposed to ${recipientName} (Model 22)` : 'Disposed (Model 22)';
         histNote = `Disposal approved. ${approval.purposeOrRemarks}`;
         custodianId = null;
         departmentId = null;
@@ -3020,7 +3025,7 @@ export class StoreService {
             custodianId: null,
             departmentId: null,
             historyAction: 'DISPOSAL_APPROVED',
-            toEntity: 'Disposed (Model 22)',
+            toEntity: recipientName ? `Disposed to ${recipientName} (Model 22)` : 'Disposed (Model 22)',
             notes: `${requested} ${uom} disposed of from ${item.itemCode} (Model 22 ${approval.ifmisSlipNumber}). ${approval.purposeOrRemarks}`,
             detailsKey: 'disposedItemCode',
           };

@@ -207,12 +207,71 @@ describe('Issue items (Model 22): disposal', () => {
     expect(screen.getByRole('combobox', { name: /Received by/ })).toBeInTheDocument();
   });
 
+  it('allows specifying Sold / transferred / donated to when marked as disposal', async () => {
+    const user = userEvent.setup();
+    const onSuccess = vi.fn();
+    render(<StockOutForm availableItems={[item()]} departments={[department]} employees={[employee]} initialItemId="item-1" onCancel={vi.fn()} onSuccess={onSuccess} />);
+    await user.click(screen.getByRole('checkbox', { name: 'Mark as disposal' }));
+
+    const recipientInput = screen.getByLabelText(/Sold \/ transferred \/ donated to/);
+    expect(recipientInput).toBeInTheDocument();
+    await user.type(recipientInput, 'East Shawa Zone Agriculture Office');
+
+    const submit = screen.getByRole('button', { name: 'Submit disposal for approval' });
+    await user.type(screen.getByPlaceholderText('e.g. 0004653/A Inventory'), 'M22-010');
+    await user.type(screen.getByPlaceholderText(/Expired, damaged beyond repair/), 'Donated');
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+
+    const payload = vi.mocked(api.registerStockOut).mock.calls[0][0];
+    expect(payload).toMatchObject({
+      itemId: 'item-1',
+      disposal: true,
+      transactionType: 'Disposal',
+      purpose: 'Donated',
+      recipientName: 'East Shawa Zone Agriculture Office',
+      destination: 'Disposal: to East Shawa Zone Agriculture Office',
+    });
+    expect(onSuccess.mock.calls[0][1]).toMatchObject({
+      transactionType: 'Disposal',
+      destination: 'Disposal: to East Shawa Zone Agriculture Office',
+      receivedByName: 'East Shawa Zone Agriculture Office',
+      disposalReason: 'Donated',
+    });
+  });
+
   it('prints a recorded disposal as a Disposal, with no recipient', () => {
     const voucher = buildModel22Voucher(
       { id: 'a1', transactionType: 'STOCK_OUT', itemId: 'item-1', itemCode: 'MOA-1', itemName: 'Paper', ifmisSlipNumber: 'M22-009', status: 'PENDING', currentStage: 1, purposeOrRemarks: 'Expired', requestDetails: { quantity: 3, disposal: true } } as any,
       { employees: [], departments: [], item: undefined } as any,
     );
     expect(voucher).toMatchObject({ transactionType: 'Disposal', destination: 'Disposal (write-off)', receivedByName: '—' });
+  });
+
+  it('prints a recorded disposal with Sold/Transferred/Donated to recipient and signatory', () => {
+    const voucher = buildModel22Voucher(
+      {
+        id: 'a1',
+        transactionType: 'STOCK_OUT',
+        itemId: 'item-1',
+        itemCode: 'MOA-1',
+        itemName: 'Paper',
+        ifmisSlipNumber: 'M22-010',
+        status: 'PENDING',
+        currentStage: 1,
+        purposeOrRemarks: 'Transferred',
+        requestDetails: { quantity: 5, disposal: true, recipientName: 'East Shawa Zone Agriculture Office' },
+      } as any,
+      { employees: [], departments: [], item: undefined } as any,
+    );
+    expect(voucher).toMatchObject({
+      transactionType: 'Disposal',
+      destination: 'Disposal: to East Shawa Zone Agriculture Office',
+      receivedByName: 'East Shawa Zone Agriculture Office',
+    });
+    expect(voucher.signatories).toEqual(
+      expect.arrayContaining([{ label: 'Received By', name: 'East Shawa Zone Agriculture Office' }]),
+    );
   });
 });
 

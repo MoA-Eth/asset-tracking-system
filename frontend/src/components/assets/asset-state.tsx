@@ -83,7 +83,7 @@ export const requestLabel = (type?: string, details?: { disposal?: boolean } | n
 
 /** Who an issue or transfer request is for: the employee, or the outside organization */
 export const recipientOf = (request: TransactionApproval): string | undefined =>
-  request.recipientEmployee?.fullNameEn || request.requestDetails?.organizationName || undefined;
+  request.recipientEmployee?.fullNameEn || request.requestDetails?.organizationName || request.requestDetails?.recipientName || undefined;
 
 export const ENDORSED_REASON = 'The Team Leader has endorsed it. To correct it, ask an approver to reject it.';
 

@@ -165,9 +165,12 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     if (listed) setOrganizationId(listed.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizations]);
-  // A disposal has no recipient and gives its reason; an issue has no purpose (a correction keeps an older one)
+  // A disposal specifies its reason and optionally who it was sold / transferred / donated to; an issue has no purpose (a correction keeps an older one)
   const isDisposal = isEdit ? editApproval?.requestDetails?.disposal === true : transactionType === DISPOSAL_TRANSACTION_TYPE;
   const isExternal = !isDisposal && recipientType === 'EXTERNAL';
+  const [disposalRecipient, setDisposalRecipient] = useState<string>(
+    editApproval?.requestDetails?.recipientName || (editApproval?.requestDetails?.disposal ? editApproval?.requestDetails?.organizationName : '') || ''
+  );
   const [purpose, setPurpose] = useState<string>(isEdit ? editNotes.purpose : '');
   // Remark is no longer asked; a correction keeps what an older request has
   const remark = editNotes.remark;
@@ -268,7 +271,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const fieldErrors = useFieldErrors({});
 
   const recipientFields = isDisposal
-    ? { disposal: true as const }
+    ? { disposal: true as const, ...(disposalRecipient.trim() ? { recipientName: disposalRecipient.trim() } : {}) }
     : isExternal
     ? { recipientType: 'EXTERNAL' as const, ...(organizationId ? { organizationId } : {}), organizationName: organizationName.trim(), contactPerson: contactPerson.trim() || undefined }
     : { recipientType: 'INTERNAL' as const, recipientEmployeeId, targetDepartmentId: destinationDepartmentId };
@@ -287,6 +290,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     setOrganizationId('');
     setOrganizationName('');
     setContactPerson('');
+    setDisposalRecipient('');
     setSuggestedOrganization(null);
     setPurpose('');
     setIfmisFile(null);
@@ -350,10 +354,18 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       filled.push('received by (organization)');
     } else if (slip.receivedBy && !isDisposal) {
       setSuggestedOrganization(slip.receivedBy);
+    } else if (isDisposal) {
+      if (slip.receivedBy && !disposalRecipient.trim()) {
+        setDisposalRecipient(slip.receivedBy);
+        filled.push('sold / transferred / donated to');
+      } else if (slip.destination && !['disposal', 'write-off', 'disposal (write-off)'].includes(slip.destination.toLowerCase()) && !disposalRecipient.trim()) {
+        setDisposalRecipient(slip.destination);
+        filled.push('sold / transferred / donated to');
+      }
     }
     const destination = slip.destination?.trim().toLowerCase();
     const dept = destination ? departments.find((d) => [d.nameEn, departmentLabel(d)].some((n) => n?.toLowerCase() === destination)) : undefined;
-    if (dept && !receiver) {
+    if (dept && !receiver && !isDisposal) {
       setDestinationDepartmentId(dept.id);
       filled.push('destination directorate');
     }
@@ -502,7 +514,10 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     const effectiveIssuedDate = issuedDateGc || today;
     const effectiveTransactionType = transactionType || DEFAULT_TRANSACTION_TYPE;
     const effectiveRecipientFields = isDisposal
-      ? { disposal: true as const }
+      ? {
+          disposal: true as const,
+          ...(disposalRecipient.trim() ? { recipientName: disposalRecipient.trim() } : {}),
+        }
       : isExternal
       ? {
           recipientType: 'EXTERNAL' as const,
@@ -549,7 +564,15 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
     const recipient = employees.find((e) => e.id === recipientEmployeeId);
     const dept = departments.find((d) => d.id === destinationDepartmentId);
-    const destination = isDisposal ? 'Disposal (write-off)' : isExternal ? organizationName.trim() : dept ? departmentLabel(dept) : destinationDepartmentId;
+    const destination = isDisposal
+      ? disposalRecipient.trim()
+        ? `Disposal: to ${disposalRecipient.trim()}`
+        : 'Disposal (write-off)'
+      : isExternal
+      ? organizationName.trim()
+      : dept
+      ? departmentLabel(dept)
+      : destinationDepartmentId;
     const subInventory = firstItem?.subInventory || firstItem?.storeLocation?.roomNumber || '';
 
     try {
@@ -590,7 +613,11 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         destinationDepartmentId: isDisposal || isExternal ? undefined : destinationDepartmentId,
         subInventory,
         issuedByName: issuerName || user?.fullNameEn || '—',
-        receivedByName: isDisposal ? '—' : isExternal ? externalReceiverName(organizationName, contactPerson) : recipient?.fullNameEn || '—',
+        receivedByName: isDisposal
+          ? (disposalRecipient.trim() || '—')
+          : isExternal
+          ? externalReceiverName(organizationName, contactPerson)
+          : recipient?.fullNameEn || '—',
         receivedByEmployeeId: isDisposal || isExternal ? undefined : recipientEmployeeId,
         disposalReason: isDisposal ? purpose.trim() : undefined,
         items: rows.map((r, i) => {
@@ -620,7 +647,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       toast.success(
         isDisposal ? 'Model 22 Disposal Submitted' : 'Model 22 Issue Voucher Submitted',
         isDisposal
-          ? `Disposal (${model22No.trim()}) registered for approval. The units leave the register once it is approved.`
+          ? `Disposal (${model22No.trim()}${disposalRecipient.trim() ? ` to ${disposalRecipient.trim()}` : ''}) registered for approval. The units leave the register once it is approved.`
           : `Receipt for Articles Or Property Issued (${model22No.trim()}${count > 1 ? `, ${count} items` : ''}) to ${isExternal ? organizationName.trim() : recipient?.fullNameEn || 'staff'} registered for approval.`
       );
       // A disposal is never carried over to the next issue
@@ -686,7 +713,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         aside={
           !isEdit || isDisposal ? (
             <label
-              title="Write the items off on this Model 22: no recipient, a reason instead, and it prints as a disposal. For a sale or donation, use Dispose."
+              title="Record as a disposal on this Model 22: writes the items off, or records who they were sold, transferred, or donated to."
               className={`inline-flex items-center gap-2 text-xs font-medium ${isDisposal ? 'text-rose-800' : 'text-slate-700'} ${isEdit ? 'cursor-default' : 'cursor-pointer'}`}
             >
               <input
@@ -694,7 +721,13 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                 type="checkbox"
                 checked={isDisposal}
                 disabled={isEdit}
-                onChange={(e) => setTransactionType(e.target.checked ? DISPOSAL_TRANSACTION_TYPE : issueType.current)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setTransactionType(checked ? DISPOSAL_TRANSACTION_TYPE : issueType.current);
+                  if (checked && !disposalRecipient.trim() && organizationName.trim()) {
+                    setDisposalRecipient(organizationName.trim());
+                  }
+                }}
                 className="h-4 w-4 accent-rose-700"
               />
               Mark as disposal
@@ -924,19 +957,43 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             </>
           )}
 
-          {/* Only a disposal asks why; an issue has no purpose field, as on the IFMIS Model 22 */}
+          {/* A disposal can be written off, sold, transferred, or donated */}
           {isDisposal && (
-            <Field label="Reason for disposal" optional htmlFor="stock-out-purpose" error={fieldErrors.error('purpose')}>
-              <input
-                id="stock-out-purpose"
-                type="text"
-                placeholder="e.g. Expired, damaged beyond repair, used up"
-                value={purpose}
-                onChange={(e) => setPurpose(e.target.value)}
-                onBlur={fieldErrors.touch('purpose')}
-                className={input({ invalid: !!fieldErrors.error('purpose') })}
-              />
-            </Field>
+            <>
+              <Field
+                label="Sold / transferred / donated to"
+                optional
+                htmlFor="stock-out-disposal-recipient"
+                hint="The body or person it goes to, as on the form (e.g. buyer, receiving office, or donation beneficiary)"
+              >
+                <input
+                  id="stock-out-disposal-recipient"
+                  type="text"
+                  list="stock-out-disposal-organizations"
+                  placeholder="e.g. East Shawa Zone Agriculture Office / Umer Ahmed"
+                  value={disposalRecipient}
+                  onChange={(e) => setDisposalRecipient(e.target.value)}
+                  className={input()}
+                />
+                <datalist id="stock-out-disposal-organizations">
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.name} />
+                  ))}
+                </datalist>
+              </Field>
+
+              <Field label="Reason for disposal" optional htmlFor="stock-out-purpose" error={fieldErrors.error('purpose')}>
+                <input
+                  id="stock-out-purpose"
+                  type="text"
+                  placeholder="e.g. Expired, damaged beyond repair, used up"
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                  onBlur={fieldErrors.touch('purpose')}
+                  className={input({ invalid: !!fieldErrors.error('purpose') })}
+                />
+              </Field>
+            </>
           )}
 
           <StoreManField
@@ -1056,11 +1113,19 @@ export const buildModel22Voucher = (
     // As recorded with the request; older requests were all move orders
     transactionType: details.disposal ? 'Disposal' : details.transactionType || 'Move Order Issue',
     disposalReason: details.disposal ? splitPurposeAndRemark(approval.purposeOrRemarks ?? '').purpose : undefined,
-    destination: details.disposal ? 'Disposal (write-off)' : outside || (targetDept ? departmentLabel(targetDept) : '—'),
+    destination: details.disposal
+      ? details.recipientName?.trim()
+        ? `Disposal: to ${details.recipientName.trim()}`
+        : 'Disposal (write-off)'
+      : outside || (targetDept ? departmentLabel(targetDept) : '—'),
     destinationDepartmentId: approval.targetDepartmentId,
     subInventory,
     issuedByName: details.issuedByName || requester?.fullNameEn || '—',
-    receivedByName: outside ? externalReceiverName(outside, details.contactPerson) : recipient?.fullNameEn || '—',
+    receivedByName: details.disposal
+      ? details.recipientName?.trim() || '—'
+      : outside
+      ? externalReceiverName(outside, details.contactPerson)
+      : recipient?.fullNameEn || '—',
     receivedByEmployeeId: approval.recipientEmployeeId,
     items: lines.map(({ transportationCost: _cost, ...line }) => line),
     total: totalAmount,
@@ -1070,6 +1135,7 @@ export const buildModel22Voucher = (
     signatories: details.disposal
       ? [
           { label: 'Disposed By', name: details.issuedByName || requester?.fullNameEn || '—' },
+          ...(details.recipientName?.trim() ? [{ label: 'Received By', name: details.recipientName.trim() }] : []),
           getEndorserSignatory(approval, { isEndorsed: approval.status === 'APPROVED' || approval.currentStage >= 2 }),
           getAuthorizerSignatory(approval, { isApproved: approval.status === 'APPROVED', totalAmount: totalAmount + transportationCost }),
         ]
