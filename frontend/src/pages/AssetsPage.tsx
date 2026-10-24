@@ -908,7 +908,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             hidden: !canIssue,
           },
           {
-            // A fixed asset can be handed straight from the store to an employee; consumables are issued only
+            // A fixed asset or consumable in store can be transferred (Model 21)
             label: 'Transfer (Model 21)',
             icon: ArrowRightLeft,
             onClick: () => {
@@ -917,7 +917,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               setIssue(null);
               setDisposing(null);
             },
-            hidden: !canTransfer || item.itemType === 'CONSUMABLE',
+            hidden: !canTransfer,
           },
           {
             label: 'Dispose',
@@ -987,6 +987,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const issueSlip = (key: string, members: AssetGroup[]) => {
     openSlip(key);
     setIssue({ slip: key, itemIds: issuableOf(members) });
+  };
+  /** The items of a Model 19 that can be transferred now: in store, approved, with nothing pending on them */
+  const transferableOf = (members: AssetGroup[]) => members.map((g) => g.row.item.id).filter((id) => availableItems.some((i) => i.id === id));
+  /** A Model 21 transferring an item of a Model 19 still in store */
+  const transferSlip = (key: string, members: AssetGroup[]) => {
+    const ids = transferableOf(members);
+    if (!ids.length) return;
+    openRecord(ids[0], key);
+    setTransfer({ itemId: ids[0] });
   };
   /** A Model 19 of several items, every item on it, as a new receipt */
   const duplicateSlip = (members: AssetGroup[]) => {
@@ -1250,6 +1259,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               resubmitAction(returnedReceiptOf(members)),
               cancelAction(returnedReceiptOf(members)),
               { label: 'Issue (Model 22)', icon: PackageMinus, onClick: () => issueSlip(key, members), hidden: !canIssue || issuableOf(members).length === 0 },
+              { label: 'Transfer (Model 21)', icon: ArrowRightLeft, onClick: () => transferSlip(key, members), hidden: !canTransfer || transferableOf(members).length === 0 },
               { label: 'Print Model 19', icon: Printer, onClick: () => printSlip(members) },
               { label: 'Duplicate as new receipt', icon: Copy, onClick: () => duplicateSlip(members), hidden: !canReceive },
             ]}
@@ -1509,6 +1519,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               onPrint={() => printSlip(selectedSlipMembers)}
               onDuplicate={canReceive ? () => duplicateSlip(selectedSlipMembers) : undefined}
               onIssue={canIssue && issuableOf(selectedSlipMembers).length > 0 ? () => issueSlip(selectedSlip!, selectedSlipMembers) : undefined}
+              onTransfer={canTransfer && transferableOf(selectedSlipMembers).length > 0 ? () => transferSlip(selectedSlip!, selectedSlipMembers) : undefined}
               onResubmit={(() => {
                 const returned = returnedReceiptOf(selectedSlipMembers);
                 return returned && canReceive ? () => void resubmit(returned) : undefined;

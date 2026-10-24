@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, FileText, PackageMinus, Paperclip, Printer, Send } from 'lucide-react';
+import { ArrowRightLeft, Copy, FileText, PackageMinus, Paperclip, Printer, Send } from 'lucide-react';
 import { btn, pill, statusTone } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { SlipViewerModal } from '../ui/SlipViewerModal';
@@ -92,6 +92,8 @@ export interface SlipRecordProps {
   onDuplicate?: () => void;
   /** Opens a Model 22 with this receipt's items still in store; absent when none is, or this person can't issue */
   onIssue?: () => void;
+  /** Opens a Model 21 with this receipt's items still in store; absent when none is, or this person can't transfer */
+  onTransfer?: () => void;
   /** Sends this rejected receipt back to the Team Leader; absent when it isn't rejected or this person can't */
   onResubmit?: () => void;
   /** Withdraws this rejected receipt; absent when it isn't rejected or this person can't */
@@ -105,7 +107,7 @@ export interface SlipRecordProps {
  * A Model 19 receipt of several items, opened from its one row in the register: what the slip says, its total and
  * scanned copy, and its items, each opening its own record (where it is issued, transferred, corrected…).
  */
-export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrint, onDuplicate, onIssue, onResubmit, onCancelRequest, form, onClose }) => {
+export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrint, onDuplicate, onIssue, onTransfer, onResubmit, onCancelRequest, form, onClose }) => {
   const [viewingSlip, setViewingSlip] = useState(false);
   const lead = rows[0].item;
   const total = rows.reduce((sum, r) => sum + slipLineTotal(r.item), 0);
@@ -145,6 +147,11 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
             {onIssue && (
               <button type="button" onClick={onIssue} className={btn.primary}>
                 <PackageMinus className="h-3.5 w-3.5" /> Issue (Model 22)
+              </button>
+            )}
+            {onTransfer && (
+              <button type="button" onClick={onTransfer} className={btn.secondary}>
+                <ArrowRightLeft className="h-3.5 w-3.5" /> Transfer (Model 21)
               </button>
             )}
             <button type="button" onClick={onPrint} className={btn.secondary}>

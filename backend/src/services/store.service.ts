@@ -3239,9 +3239,9 @@ export class StoreService {
   public async transferItem(payload: CreateTransferRequest): Promise<TransactionApproval> {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
     if (!item) throw new NotFoundError(`Item ${payload.itemId} not found.`);
-    // A consumable is issued (Model 22) and used up; it is never transferred
-    if (item.itemType === 'CONSUMABLE') {
-      throw new ConflictError(`${item.itemCode} is a consumable item. Consumables are issued (Model 22) and can't be transferred.`);
+    // A consumable in store can be transferred (Model 21); once issued, it is used up and can't be transferred
+    if (item.itemType === 'CONSUMABLE' && item.status !== 'AVAILABLE') {
+      throw new ConflictError(`${item.itemCode} is an issued consumable item. Consumables are used up once issued and can't be transferred.`);
     }
     // A fixed asset can be transferred from the store to an employee, or from one holder to another
     if (item.status !== 'AVAILABLE' && item.status !== 'ISSUED') {

@@ -204,10 +204,10 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     const asset = findByTag(items, line.tagNumber, learnedTags.current);
     if (!asset) return { problem: `No asset here has the tag ${line.tagNumber}. If it was received under another code, record the tag on it below; otherwise it has to be received on a Model 19 and approved first.` };
     const problem =
-      asset.itemType === ItemType.CONSUMABLE
-        ? `${asset.itemCode} is a consumable item; consumables are issued, not transferred.`
+      asset.itemType === ItemType.CONSUMABLE && asset.status !== ItemStatus.AVAILABLE
+        ? `${asset.itemCode} is an issued consumable item; consumables are used up once issued and can't be transferred.`
         : asset.status !== ItemStatus.ISSUED && asset.status !== ItemStatus.AVAILABLE
-          ? `${asset.itemCode} is ${STATUS_WORDS[asset.status] ?? asset.status.toLowerCase()}; only an issued asset, or a fixed asset in store, can be transferred.`
+          ? `${asset.itemCode} is ${STATUS_WORDS[asset.status] ?? asset.status.toLowerCase()}; only an issued asset, or an item in store, can be transferred.`
           : asset.status === ItemStatus.ISSUED && asset.heldByOrganization
             ? `${asset.itemCode} is held by ${asset.heldByOrganization}, outside the Ministry.`
             : pendingByItem.has(asset.id) && pendingByItem.get(asset.id)!.id !== editTransfer?.id
@@ -853,9 +853,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                       }),
                   },
                   {
-                    label: 'In store (fixed assets)',
+                    label: 'In store',
                     options: items
-                      .filter((i) => i.status === ItemStatus.AVAILABLE && i.itemType !== ItemType.CONSUMABLE)
+                      .filter((i) => i.status === ItemStatus.AVAILABLE)
                       .map((item) => {
                         const pending = pendingByItem.get(item.id);
                         return {

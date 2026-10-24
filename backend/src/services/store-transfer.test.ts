@@ -297,16 +297,21 @@ describe('Asset Transfer approval workflow', () => {
       expect(itemUpdateData().status).toBe('UNDER_TRANSFER');
     });
 
-    it('never transfers a consumable item, in store or issued', async () => {
-      for (const status of ['AVAILABLE', 'ISSUED']) {
-        db.item.findUnique.mockResolvedValue({ ...issuedItem, itemType: 'CONSUMABLE', status, currentCustodianId: status === 'ISSUED' ? 'EMP-A' : null });
-        await expect(store().transferItem(transferPayload as any)).rejects.toMatchObject({
-          statusCode: 409,
-          message: "MOA-IT-2026-0001 is a consumable item. Consumables are issued (Model 22) and can't be transferred.",
-        });
-      }
+    it('refuses to transfer an issued consumable item', async () => {
+      db.item.findUnique.mockResolvedValue({ ...issuedItem, itemType: 'CONSUMABLE', status: 'ISSUED', currentCustodianId: 'EMP-A' });
+      await expect(store().transferItem(transferPayload as any)).rejects.toMatchObject({
+        statusCode: 409,
+        message: "MOA-IT-2026-0001 is an issued consumable item. Consumables are used up once issued and can't be transferred.",
+      });
       expect(db.transactionApproval.create).not.toHaveBeenCalled();
       expect(db.item.update).not.toHaveBeenCalled();
+    });
+
+    it('allows transferring a consumable item in store', async () => {
+      db.item.findUnique.mockResolvedValue({ ...issuedItem, itemType: 'CONSUMABLE', status: 'AVAILABLE', currentCustodianId: null });
+      const approval = await store().transferItem(transferPayload as any);
+      expect(approval.transactionType).toBe('TRANSFER');
+      expect(db.transactionApproval.create).toHaveBeenCalled();
     });
 
     it('still refuses an item that is neither in store nor issued', async () => {
