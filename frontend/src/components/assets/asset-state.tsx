@@ -185,66 +185,94 @@ export const ReturnedNote: React.FC<{ request: TransactionApproval }> = ({ reque
 /** `partly`: a batch with some units out and the rest still in store */
 export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row, partly }) => {
   const settled =
-    row.state === 'REJECTED' ? <span className={`${pill} ${statusTone.rejected}`}>{row.rejected?.status === 'CANCELLED' ? 'Cancelled' : 'Rejected'}</span>
-    : row.state === 'DISPOSED' ? <span className={`${pill} ${statusTone.neutral}`}>Disposed</span>
-    : row.state === 'IN_STORE' && partly ? <span className={`${pill} ${statusTone.partly}`}>Partly issued</span>
-    : row.state === 'IN_STORE' ? <span className={`${pill} ${statusTone.inStore}`}>In store</span>
-    : row.state === 'ISSUED' ? <span className={`${pill} ${statusTone.issued}`}>Issued</span>
-    : null;
-  if (settled) {
-    return (
-      <span className="inline-flex flex-col items-start gap-0.5">
-        {settled}
-        {row.state === 'IN_STORE' && isStale(row) && (
-          <span
-            className="text-[10px] font-semibold text-amber-800"
-            title={`Waiting in store longer than ${STALE_IN_STORE_DAYS} days; items should be issued sooner`}
-          >
-            {row.daysInStore} days in store
-          </span>
-        )}
-        {row.rejected && <RejectionNote request={row.rejected} />}
+    row.state === 'REJECTED' ? (
+      <span
+        className={`${pill} ${statusTone.rejected}`}
+        title={
+          row.rejected
+            ? [
+                row.rejected.status === 'CANCELLED' ? 'Receipt cancelled' : 'Receipt rejected',
+                row.rejected.reviewedAtGc ? shortDate(row.rejected.reviewedAtGc) : undefined,
+                row.rejected.reviewRemarks?.trim() ? `Reason: ${row.rejected.reviewRemarks.trim()}` : undefined,
+              ].filter(Boolean).join(' · ')
+            : undefined
+        }
+      >
+        {row.rejected?.status === 'CANCELLED' ? 'Cancelled' : 'Rejected'}
       </span>
-    );
+    )
+    : row.state === 'DISPOSED' ? (
+      <span className={`${pill} ${statusTone.neutral}`} title="Disposed">
+        Disposed
+      </span>
+    )
+    : row.state === 'IN_STORE' ? (
+      <span
+        className={`${pill} ${partly ? statusTone.partly : statusTone.inStore}`}
+        title={[
+          partly ? 'Partly issued' : 'In store',
+          isStale(row) ? `${row.daysInStore} days in store` : undefined,
+          row.rejected ? `${requestLabel(row.rejected.transactionType, row.rejected.requestDetails).noun} rejected · ${row.rejected.reviewRemarks || ''}` : undefined,
+        ].filter(Boolean).join(' · ')}
+      >
+        {partly ? 'Partly issued' : 'In store'}
+      </span>
+    )
+    : row.state === 'ISSUED' ? (
+      <span className={`${pill} ${statusTone.issued}`} title="Issued">
+        Issued
+      </span>
+    )
+    : null;
+
+  if (settled) {
+    return settled;
   }
+
   // Rejected and with its requester, to correct and resubmit or cancel
   if (row.request?.status === 'RETURNED') {
+    const reason = row.request.returnRemarks?.trim();
+    const by = row.request.returnedFromStage === 2 ? 'by Department Head' : 'by Team Leader';
+    const detail = [by ? `${by}:` : undefined, reason, shortDate(row.request.returnedAtGc)].filter(Boolean).join(' ');
     return (
-      <span className="inline-flex flex-col items-start gap-0.5">
-        <span className={`${pill} ${statusTone.rejected}`}>
-          <Undo2 className="h-3 w-3" />
-          Rejected
-        </span>
-        <ReturnedNote request={row.request} />
+      <span
+        className={`${pill} ${statusTone.rejected}`}
+        title={detail || 'Rejected'}
+      >
+        <Undo2 className="h-3 w-3" />
+        Rejected
       </span>
     );
   }
+
   // Several issues waiting on one record: how many, and where each one is
   const open = row.requests ?? [];
   if (open.length > 1) {
     const noun = requestLabel(open[0].transactionType, open[0].requestDetails).noun;
     const where = new Map<string, number>();
     for (const r of open) where.set(stageLabel(r), (where.get(stageLabel(r)) ?? 0) + 1);
+    const whereText = where.size === 1
+      ? [...where.keys()][0]
+      : [...where].map(([label, n]) => `${n} ${label.replace(/^With /, 'with ').replace(/^Rejected$/, 'rejected')}`).join(' · ');
     return (
-      <span className="inline-flex flex-col items-start gap-0.5">
-        <span className={`${pill} ${statusTone.pending}`}>
-          <Clock className="h-3 w-3" />
-          {open.length} {noun}s pending
-        </span>
-        <span className="text-[10px] text-slate-500">
-          {where.size === 1 ? [...where.keys()][0] : [...where].map(([label, n]) => `${n} ${label.replace(/^With /, 'with ').replace(/^Rejected$/, 'rejected')}`).join(' · ')}
-        </span>
+      <span
+        className={`${pill} ${statusTone.pending}`}
+        title={`${open.length} ${noun}s pending · ${whereText}`}
+      >
+        <Clock className="h-3 w-3" />
+        {open.length} {noun}s pending
       </span>
     );
   }
+
   const label = requestLabel(row.request?.transactionType ?? 'STOCK_IN', row.request?.requestDetails).pending;
   return (
-    <span className="inline-flex flex-col items-start gap-0.5">
-      <span className={`${pill} ${statusTone.pending}`}>
-        <Clock className="h-3 w-3" />
-        {label}
-      </span>
-      {row.request && <span className="text-[10px] text-slate-500">{stageLabel(row.request)}</span>}
+    <span
+      className={`${pill} ${statusTone.pending}`}
+      title={row.request ? `${label} · ${stageLabel(row.request)}` : label}
+    >
+      <Clock className="h-3 w-3" />
+      {label}
     </span>
   );
 };

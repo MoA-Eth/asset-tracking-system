@@ -9,7 +9,7 @@ import { ItemWithRelations } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
 import { storeLocationLabel } from '../../utils/location';
 import { getSlipDisplayName } from '../../utils/slip-upload';
-import { AssetRow, AssetState, AssetStatus, ItemTypeBadge, requestLabel } from './asset-state';
+import { AssetRow, AssetState, AssetStatus, ItemTypeBadge, requestLabel, shortDate } from './asset-state';
 
 /** What a line of a receipt cost, as on its Model 19 (VAT or other charges included) */
 export const slipLineTotal = (item: ItemWithRelations): number => {
@@ -114,6 +114,7 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
   const total = rows.reduce((sum, r) => sum + slipLineTotal(r.item), 0);
   const slipUrl = rows.find((r) => r.item.ifmisSlipAttachmentUrl)?.item.ifmisSlipAttachmentUrl;
   const value = (v?: string | null) => v?.trim() || '—';
+  const rejected = rows.find((r) => r.rejected)?.rejected;
 
   return (
     <section
@@ -180,6 +181,17 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
         <div className="flex-1 overflow-y-auto px-6 py-5">{form}</div>
       ) : (
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+        {rejected && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-900">
+            <p className="font-semibold text-red-800">
+              {rejected.status === 'CANCELLED' ? 'Receipt cancelled' : 'Receipt rejected'}
+              {rejected.reviewedAtGc ? ` · ${shortDate(rejected.reviewedAtGc)}` : ''}
+            </p>
+            {rejected.reviewRemarks?.trim() && (
+              <p className="mt-1 text-red-700">{rejected.reviewRemarks.trim()}</p>
+            )}
+          </div>
+        )}
         <FieldGrid>
           <FormKitField label="Received date (G.C.)" hint={lead.ifmisSlipDateEc ? `${lead.ifmisSlipDateEc} E.C.` : undefined}>
             <ReadOnlyValue mono>{value(lead.ifmisSlipDateGc)}</ReadOnlyValue>

@@ -133,7 +133,7 @@ describe('Assets page', () => {
     // The unit issued from MOA-S1 is folded under its batch
     expect(screen.getAllByRole('row').slice(1)).toHaveLength(items.length - 1);
     expect(rowOf('MOA-R1')).toHaveTextContent('Receipt pending');
-    expect(rowOf('MOA-R1')).toHaveTextContent('With Dept. Head');
+    expect(within(rowOf('MOA-R1')).getByTitle(/With Dept\. Head/)).toBeInTheDocument();
     expect(rowOf('MOA-S2')).toHaveTextContent('In store');
     expect(rowOf('MOA-S2')).toHaveTextContent('Head office · Central Store');
     expect(rowOf('MOA-P1')).toHaveTextContent('Transfer pending');
@@ -178,12 +178,12 @@ describe('Assets page', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     expect(rowOf('MOA-S2')).toHaveTextContent('In store');
-    expect(rowOf('MOA-S2')).toHaveTextContent('Issue rejected · 30 Sept 2026');
-    expect(rowOf('MOA-S2')).toHaveTextContent('Budget line closed');
+    expect(within(rowOf('MOA-S2')).getByTitle(/issue rejected/i)).toBeInTheDocument();
+    expect(within(rowOf('MOA-S2')).getByTitle(/Budget line closed/)).toBeInTheDocument();
     // Approved requests leave no note
-    expect(rowOf('MOA-I1')).not.toHaveTextContent('rejected');
+    expect(within(rowOf('MOA-I1')).queryByTitle(/rejected/i)).not.toBeInTheDocument();
     // The batch's later issue was approved (its record is the unit it created), so the old rejection is gone
-    expect(rowOf('MOA-S1')).not.toHaveTextContent('rejected');
+    expect(within(rowOf('MOA-S1')).queryByTitle(/rejected/i)).not.toBeInTheDocument();
   });
 
   it('filters by state and counts each filter', async () => {
@@ -844,7 +844,7 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('MOA-T1')).closest('tr')!;
     expect(within(row).getByText('2 issues pending')).toBeInTheDocument();
-    expect(within(row).getByText('With Dept. Head')).toBeInTheDocument();
+    expect(within(row).getByTitle(/With Dept\. Head/)).toBeInTheDocument();
     expect(within(row).getByText('→ Kebede Alemu · 5 ea, Endale Alebachew · 5 ea')).toBeInTheDocument();
     const record = await open(user, 'MOA-T1');
     expect(within(record).getByText('2 issue requests are waiting on this record')).toBeInTheDocument();
@@ -864,7 +864,7 @@ describe('Asset record', () => {
     ] as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('MOA-T1')).closest('tr')!;
-    expect(within(row).getByText(/^1 with (Dept\. Head|Team Leader) · 1 with (Dept\. Head|Team Leader)$/)).toBeInTheDocument();
+    expect(within(row).getByTitle(/1 with (Dept\. Head|Team Leader) · 1 with (Dept\. Head|Team Leader)/)).toBeInTheDocument();
   });
 
   it("doesn't show an issue that lost to the one that issued the record", async () => {
@@ -1775,7 +1775,7 @@ describe('AssetsPage: time in store, totals and remembered view', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     // Desk (batch remainder), Generator and Camera are in store; issued and pending records are not tagged
-    expect(screen.getAllByText('36 days in store')).toHaveLength(3);
+    expect(screen.getAllByTitle(/36 days in store/)).toHaveLength(3);
   });
 
   it('filters to stale stock and remembers the filter after the page is opened again', async () => {
@@ -2405,8 +2405,7 @@ describe('Assets: a rejected request', () => {
     const row = (await screen.findByText('MOA-R1')).closest('tr')!;
     expect(within(row).getByText('Rejected')).toBeInTheDocument();
     // Who rejected it (by stage) and why; the name and date are on hover
-    expect(within(row).getByText('by Department Head:')).toBeInTheDocument();
-    expect(within(row).getByText('Price is entered as USD.')).toBeInTheDocument();
+    expect(within(row).getByTitle(/by Department Head: Price is entered as USD\./)).toBeInTheDocument();
 
     expect(await menuFor(user, 'MOA-R1')).toEqual(['Edit receipt', 'Resubmit Model 19', 'Duplicate as new receipt', 'Cancel request']);
     await user.click(screen.getByRole('menuitem', { name: 'Resubmit Model 19' }));
@@ -2455,7 +2454,7 @@ describe('Assets: a rejected request', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('MOA-X1')).closest('tr')!;
     expect(within(row).getByText('Cancelled')).toBeInTheDocument();
-    expect(within(row).getByText(/Receipt cancelled/)).toBeInTheDocument();
+    expect(within(row).getByTitle(/Receipt cancelled/)).toBeInTheDocument();
     expect(await menuFor(user, 'MOA-X1')).toEqual(['Duplicate as new receipt']);
   });
 

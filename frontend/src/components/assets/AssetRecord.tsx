@@ -699,6 +699,9 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               )}
               <div>
                 <Row label={row.state === 'ISSUED' || item.currentCustodian ? 'Held by' : 'Kept in'}>{row.where}</Row>
+                {row.state === 'IN_STORE' && row.daysInStore !== undefined && (
+                  <Row label="Time in store">{row.daysInStore} days in store</Row>
+                )}
                 {item.currentCustodian?.payrollId && <Row label="Payroll ID" mono>{item.currentCustodian.payrollId}</Row>}
                 {item.heldByContact && <Row label="Contact person">{item.heldByContact}</Row>}
                 {item.heldByOrganization && (
