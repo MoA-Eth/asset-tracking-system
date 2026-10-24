@@ -24,6 +24,8 @@ describe('Program / project', () => {
     expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['None', ...PROGRAMS, '+ Other (type the name)…']);
     await user.selectOptions(field, 'Food System Resilience Program (FSRP)');
     expect(screen.getByRole('status')).toHaveTextContent('Food System Resilience Program (FSRP)');
+    await user.selectOptions(field, 'MoA');
+    expect(screen.getByRole('status')).toHaveTextContent('MoA');
   });
 
   it('takes a typed name when the program is not on the list', async () => {

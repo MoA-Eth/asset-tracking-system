@@ -54,6 +54,7 @@ export const COMMON_UOMS = [
 
 /** The ministry's programs and projects goods are received for (Program / project on Model 19) */
 export const PROGRAMS = [
+  'MoA',
   'Food and Nutrition Project team',
   'Productive Safety Net Programme (PSNP)',
   'Food System Resilience Program (FSRP)',
