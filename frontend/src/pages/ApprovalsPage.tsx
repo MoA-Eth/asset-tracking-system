@@ -320,7 +320,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, slipLines, activeTab, typeFilter, valueFilter, searchTerm, canEndorse, canApprove]);
 
-  type ApprovalSortColumn = 'type' | 'item' | 'slip' | 'stage' | 'requester';
+  type ApprovalSortColumn = 'type' | 'item' | 'stage' | 'requester';
   const [sortColumn, setSortColumn] = useState<ApprovalSortColumn>('type');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -343,10 +343,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         const itemA = a.itemName || a.itemCode || '';
         const itemB = b.itemName || b.itemCode || '';
         diff = itemA.localeCompare(itemB);
-      } else if (sortColumn === 'slip') {
-        const slipA = a.ifmisSlipNumber || '';
-        const slipB = b.ifmisSlipNumber || '';
-        diff = slipA.localeCompare(slipB);
       } else if (sortColumn === 'stage') {
         diff = (a.currentStage ?? 1) - (b.currentStage ?? 1);
       } else if (sortColumn === 'requester') {
@@ -893,11 +889,11 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
            ══════════════════════════════════════════════════════════════════════ */
         <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-[13px] min-w-[940px]">
+            <table className="w-full text-left border-collapse text-[13px] min-w-[800px]">
               <thead>
                 <tr className={table.headRow}>
                   {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
-                    <th className="py-1.5 px-3 w-10 text-center shrink-0">
+                    <th className="py-2 px-3 w-10 text-center shrink-0">
                       <input
                         type="checkbox"
                         checked={isAllSelected}
@@ -913,7 +909,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-1.5 px-3 w-32 whitespace-nowrap shrink-0"
+                    thClassName="py-2 px-3.5 w-36 whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
                     label="Asset"
@@ -921,15 +917,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-1.5 px-3 min-w-[190px]"
-                  />
-                  <SortableHeader
-                    label="IFMIS slip"
-                    columnKey="slip"
-                    currentSortColumn={sortColumn}
-                    currentSortDirection={sortDirection}
-                    onSort={handleSort}
-                    thClassName="py-1.5 px-3 w-36 whitespace-nowrap shrink-0"
+                    thClassName="py-2 px-3.5 min-w-[220px]"
                   />
                   <SortableHeader
                     label="Stage"
@@ -937,7 +925,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-1.5 px-3 w-36 whitespace-nowrap shrink-0"
+                    thClassName="py-2 px-3.5 w-40 whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
                     label="Requested by"
@@ -945,9 +933,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-1.5 px-3 min-w-[170px]"
+                    thClassName="py-2 px-3.5 min-w-[200px]"
                   />
-                  <th className="sticky right-0 z-[1] bg-slate-100 py-1.5 px-3 text-right w-36 whitespace-nowrap shrink-0 font-normal">Review</th>
+                  <th className="sticky right-0 z-[1] bg-slate-100 py-2 px-3 text-right w-44 whitespace-nowrap shrink-0 font-normal">Review</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -972,7 +960,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       }`}
                     >
                       {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
-                        <td className="py-2 px-3 text-center">
+                        <td className="py-2.5 px-3 text-center">
                           {isActionableForMe ? (
                             <input
                               type="checkbox"
@@ -987,51 +975,43 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       )}
 
                       {/* Statutory Type Badge */}
-                      <td className="py-2 px-3 whitespace-nowrap">
+                      <td className="py-2.5 px-3.5 whitespace-nowrap">
                         {getTypeBadge(appr.transactionType, appr.requestDetails)}
                       </td>
 
                       {/* Tracking Code & Item Name */}
-                      <td className="py-2 px-3">
+                      <td className="py-2.5 px-3.5">
                         <div className="flex flex-col">
-                          <span className="text-slate-900 line-clamp-1">{appr.itemName}</span>
-                          <span className="flex items-center gap-x-1.5 whitespace-nowrap">
+                          <span className="text-slate-900 font-medium line-clamp-1">{appr.itemName}</span>
+                          <span className="flex flex-wrap items-center gap-x-1.5 whitespace-nowrap">
                             <span className={table.code}>{appr.itemCode}</span>
-                            {/* A voucher of several lines lists each quantity when reviewed; its row would show only the first */}
                             {!slipLines.has(appr.id) && approvalUnits(appr) && <span className="text-xs text-sky-800">· {approvalUnits(appr)}</span>}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* IFMIS Slip Number & Slip Date */}
-                      <td className="py-2 px-3 whitespace-nowrap">
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-1">
-                            <span className="tabular-nums text-slate-700">{appr.ifmisSlipNumber}</span>
+                            {appr.poNumber && <span className="text-xs text-slate-500">PO {appr.poNumber}</span>}
                             {appr.ifmisSlipAttachmentUrl && (
                               <button
                                 type="button"
-                                onClick={() => setViewingSlipUrl(appr.ifmisSlipAttachmentUrl ?? null)}
-                                className="p-1 rounded text-emerald-700 hover:bg-emerald-50 transition cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewingSlipUrl(appr.ifmisSlipAttachmentUrl ?? null);
+                                }}
+                                className="inline-flex items-center gap-0.5 p-0.5 rounded text-emerald-700 hover:bg-emerald-50 transition cursor-pointer"
                                 title="View attached slip"
-                                aria-label={`View attached slip for ${appr.ifmisSlipNumber}`}
+                                aria-label={`View attached slip for ${appr.ifmisSlipNumber || appr.itemCode}`}
                               >
                                 <Paperclip className="w-3.5 h-3.5" />
                               </button>
                             )}
-                          </div>
-                          <span className="text-xs text-slate-500">{appr.ifmisSlipDateEc} E.C.</span>
-                          {appr.poNumber && <span className="text-xs text-slate-500">PO {appr.poNumber}</span>}
+                          </span>
                         </div>
                       </td>
 
                       {/* 2-Stage Progress Indicator */}
-                      <td className="py-2 px-3 whitespace-nowrap">
+                      <td className="py-2.5 px-3.5 whitespace-nowrap">
                         {getStageIndicator(appr)}
                       </td>
 
                       {/* Requester & Justification */}
-                      <td className="py-2 px-3 max-w-xs">
+                      <td className="py-2.5 px-3.5 max-w-sm">
                         <div className="flex flex-col text-slate-600">
                           <span className="text-slate-800 truncate">
                             {appr.requestedBy?.fullNameEn || '—'}
@@ -1043,7 +1023,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       </td>
 
                       {/* Review & Signing Button: pinned to the right edge so it never needs sideways scrolling */}
-                      <td className="sticky right-0 z-[1] bg-white py-2 px-3 text-right whitespace-nowrap shadow-[-10px_0_10px_-10px_rgba(15,23,42,0.18)]">
+                      <td className="sticky right-0 z-[1] bg-white py-2.5 px-3 text-right whitespace-nowrap shadow-[-10px_0_10px_-10px_rgba(15,23,42,0.18)]">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
