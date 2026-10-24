@@ -92,18 +92,35 @@ const FILTERS: { value: AssetFilter; label: string }[] = [
   { value: 'DISPOSED', label: 'Disposed' },
 ];
 
-export type SortColumn = 'activity' | 'name' | 'status' | 'units' | 'where' | 'slip' | 'cost';
+/** Format ISO or YYYY-MM-DD date to MM/DD/YYYY (e.g. 03/16/2026) */
+function formatCreatedDate(raw?: string): string {
+  if (!raw) return '—';
+  const clean = String(raw).trim();
+  const match = clean.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, yyyy, mm, dd] = match;
+    return `${mm}/${dd}/${yyyy}`;
+  }
+  const d = new Date(clean);
+  if (isNaN(d.getTime())) return '—';
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${mm}/${dd}/${yyyy}`;
+}
+
+export type SortColumn = 'activity' | 'name' | 'status' | 'units' | 'where' | 'created' | 'cost';
 const SORT_LABELS: Record<SortColumn, string> = {
   activity: 'latest activity',
   name: 'asset',
   status: 'status',
   units: 'quantity',
   where: 'held by / where',
-  slip: 'slip / date',
+  created: 'date created',
   cost: 'unit cost',
 };
 export type SortDirection = 'asc' | 'desc';
-const SORT_COLUMNS: SortColumn[] = ['activity', 'name', 'status', 'units', 'where', 'slip', 'cost'];
+const SORT_COLUMNS: SortColumn[] = ['activity', 'name', 'status', 'units', 'where', 'created', 'cost'];
 
 /** Filters and sort, remembered per person in this browser so a refresh keeps the view */
 interface SavedView {
@@ -535,10 +552,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           res = aVal.localeCompare(bVal, undefined, { sensitivity: 'base' });
           break;
         }
-        case 'slip': {
-          const aVal = a.row.item.ifmisSlipNumber || '';
-          const bVal = b.row.item.ifmisSlipNumber || '';
-          res = aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' });
+        case 'created': {
+          const aVal = a.row.item.createdAtGc || a.row.item.createdAt || '';
+          const bVal = b.row.item.createdAtGc || b.row.item.createdAt || '';
+          res = aVal.localeCompare(bVal);
           break;
         }
         case 'cost': {
@@ -1135,7 +1152,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           item.id === lastTouchedId ? table.rowHighlight : nested ? 'bg-slate-50/70 hover:bg-slate-100/70 transition' : table.row
         }`}
       >
-        <td className={`py-2 pr-3 ${nested ? 'pl-10' : 'pl-5'}`}>
+        <td className={`py-2.5 pr-4 ${nested ? 'pl-10' : 'pl-5'}`}>
           <span className="block text-slate-900">
             {nested && <span className="mr-1 text-slate-400" aria-hidden="true">↳</span>}
             {item.name}
@@ -1158,10 +1175,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </button>
           )}
         </td>
-        <td className="px-2.5 py-2">
+        <td className="px-3 py-2.5">
           <AssetStatus row={row} partly={isBatch && issuedUnits > 0 && inStoreUnits > 0} />
         </td>
-        <td className="px-2.5 py-2 text-right tabular-nums text-slate-600">
+        <td className="px-3 py-2.5 tabular-nums text-slate-600">
           <span className="whitespace-nowrap">
             {isBatch || requestedUnits > 0 ? totalUnits : row.units} {uom.toLowerCase()}
           </span>
@@ -1175,7 +1192,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </span>
           )}
         </td>
-        <td className="px-2.5 py-2 text-slate-700">
+        <td className="pl-4 pr-3 py-2.5 text-slate-700">
           <span className="block">{row.state === 'DISPOSED' || (isBatch && row.state !== 'ISSUED' && inStoreUnits === 0) ? '—' : row.where}</span>
           {row.goingTo && (
             <span className="block text-xs text-amber-800">
@@ -1188,12 +1205,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </span>
           )}
         </td>
-        <td className="px-2.5 py-2 tabular-nums text-slate-700 whitespace-nowrap">
-          <span className="block">{item.ifmisSlipNumber || '—'}</span>
-          <span className="block text-xs text-slate-500">{item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10) || '—'}</span>
+        <td className="px-3.5 py-2.5 tabular-nums text-slate-600 whitespace-nowrap">
+          {formatCreatedDate(item.createdAtGc || item.createdAt)}
         </td>
-        <td className="px-2.5 py-2 text-right tabular-nums text-slate-700 whitespace-nowrap">{costOf(item) > 0 ? formatETB(Math.round(costOf(item) * 100) / 100) : '—'}</td>
-        <td className={`px-2.5 py-2 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
+        <td className="pl-2 pr-4 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">{costOf(item) > 0 ? formatETB(Math.round(costOf(item) * 100) / 100) : '—'}</td>
+        <td className={`py-2.5 pl-1 pr-3 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
           <RowActionsMenu
             label={item.itemCode}
             actions={[
@@ -1234,7 +1250,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         }}
         className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${touched ? table.rowHighlight : table.row}`}
       >
-        <td className="py-2 pr-2.5 pl-5">
+        <td className="py-2.5 pr-4 pl-5">
           {/* Searching by an item's name puts that item first, so the row shows what was looked for, not "+1" */}
           <span className="block text-slate-900">
             {slipNames([
@@ -1244,23 +1260,23 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           </span>
           <span className="flex items-center gap-x-1.5 whitespace-nowrap text-xs text-slate-600">
             <span className="rounded-[4px] border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-semibold text-slate-700">Model 19</span>
+            {lead.ifmisSlipNumber && <span className="font-mono text-[11px] text-slate-500">· {lead.ifmisSlipNumber}</span>}
+            {lead.poNumber && <span className="text-[11px] text-slate-500">PO {lead.poNumber}</span>}
           </span>
         </td>
-        <td className="px-2.5 py-2">
+        <td className="px-3 py-2.5">
           <SlipStatus rows={rowsOf} />
         </td>
-        <td className="px-2.5 py-2 text-right tabular-nums text-slate-600 whitespace-nowrap">{members.length} items</td>
-        <td className="px-2.5 py-2 text-slate-700">{places.length === 1 ? places[0] : 'Several places'}</td>
-        <td className="px-2.5 py-2 tabular-nums text-slate-700 whitespace-nowrap">
-          <span className="block">{lead.ifmisSlipNumber}</span>
-          <span className="block text-xs text-slate-500">{lead.ifmisSlipDateGc || String(lead.createdAtGc || '').slice(0, 10) || '—'}</span>
-          {lead.poNumber && <span className="block text-xs text-slate-500">PO {lead.poNumber}</span>}
+        <td className="px-3 py-2.5 tabular-nums text-slate-600 whitespace-nowrap">{members.length} items</td>
+        <td className="pl-4 pr-3 py-2.5 text-slate-700">{places.length === 1 ? places[0] : 'Several places'}</td>
+        <td className="px-3.5 py-2.5 tabular-nums text-slate-600 whitespace-nowrap">
+          {formatCreatedDate(lead.createdAtGc || lead.createdAt || lead.ifmisSlipDateGc)}
         </td>
-        <td className="px-2.5 py-2 text-right tabular-nums text-slate-700 whitespace-nowrap">
+        <td className="pl-2 pr-4 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
           {formatETB(total)}
           <span className="block text-[10px] text-slate-500">total</span>
         </td>
-        <td className={`px-2.5 py-2 ${table.actionsCell}`}>
+        <td className={`py-2.5 pl-1 pr-3 ${table.actionsCell}`}>
           <RowActionsMenu
             label={`Model 19 ${lead.ifmisSlipNumber}`}
             actions={[
@@ -1903,7 +1919,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="pl-5 pr-3 py-1.5 min-w-[256px]"
+                      thClassName="pl-5 pr-4 py-2 min-w-[240px]"
                     />
                     <SortableHeader
                       label="Status"
@@ -1911,7 +1927,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-2.5 py-1.5 w-36"
+                      thClassName="px-3 py-2 w-32 min-w-[120px]"
                     />
                     <SortableHeader
                       label="Qty"
@@ -1919,8 +1935,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      align="right"
-                      thClassName="px-2.5 py-1.5 w-20 text-right"
+                      thClassName="px-3 py-2 w-24 min-w-[80px]"
                     />
                     <SortableHeader
                       label="Held by / where"
@@ -1928,15 +1943,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-2.5 py-1.5 min-w-[150px]"
+                      thClassName="pl-4 pr-3 py-2 min-w-[180px]"
                     />
                     <SortableHeader
-                      label="Slip / Date"
-                      columnKey="slip"
+                      label="Date created"
+                      columnKey="created"
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-2.5 py-1.5 w-36 whitespace-nowrap"
+                      thClassName="px-3.5 py-2 w-32 min-w-[120px] whitespace-nowrap"
                     />
                     <SortableHeader
                       label="Unit cost"
@@ -1945,9 +1960,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
                       align="right"
-                      thClassName="px-2.5 py-1.5 w-28 text-right whitespace-nowrap"
+                      thClassName="pl-2 pr-4 py-2 w-28 min-w-[110px] text-right whitespace-nowrap"
                     />
-                    <th className={`px-2.5 py-1.5 ${table.actionsHead}`}>
+                    <th className={`py-2 pl-1 pr-3 ${table.actionsHead}`}>
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>
