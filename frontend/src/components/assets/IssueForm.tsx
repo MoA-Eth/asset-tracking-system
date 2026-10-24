@@ -12,7 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ItemWithRelations, TransactionApproval, Department, Employee, Model22Voucher, Organization } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { costOf } from '../../utils/item-cost';
-import { departmentLabel } from '../../utils/department';
+import { departmentLabel, isUnassignedDepartment } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { useSystemSettings } from '../../utils/system-settings';
 import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
@@ -945,7 +945,16 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                   />
                 </Field>
               ) : (
-                <Field label="Destination directorate" optional htmlFor="stock-out-directorate">
+                <Field
+                  label="Destination directorate"
+                  optional
+                  htmlFor="stock-out-directorate"
+                  warning={
+                    isUnassignedDepartment(departments.find((d) => d.id === destinationDepartmentId))
+                      ? 'Directorate is unassigned. Go to Settings → Employees to assign their directorate.'
+                      : undefined
+                  }
+                >
                   <select id="stock-out-directorate" value={destinationDepartmentId} onChange={(e) => setDestinationDepartmentId(e.target.value)} className={input()}>
                     <option value="" disabled>Select…</option>
                     {departments.map((dept) => (

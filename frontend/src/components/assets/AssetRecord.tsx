@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload, AlertCircle } from 'lucide-react';
 import { btn, statusTone, pill } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { BackButton } from '../ui/BackButton';
@@ -13,7 +13,7 @@ import { formatETB } from '../../utils/eth-date';
 import { valueOf } from '../../utils/item-cost';
 import { isGeneratedSerialNumber, displaySerialNumber } from '../../utils/asset-tag';
 import { storeLocationLabel } from '../../utils/location';
-import { departmentLabel } from '../../utils/department';
+import { departmentLabel, isUnassignedDepartment } from '../../utils/department';
 import { AssetRow, AssetStatus, categoryLabel, requestLabel, RejectionNote, stageLabel, shortDate, recipientOf } from './asset-state';
 
 export interface AssetRecordProps {
@@ -706,7 +706,17 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                     Issued to an outside organization. Return and transfer aren't available for it yet.
                   </p>
                 )}
-                {item.assignedDepartment && <Row label="Directorate">{departmentLabel(item.assignedDepartment)}</Row>}
+                {item.assignedDepartment && (
+                  <div>
+                    <Row label="Directorate">{departmentLabel(item.assignedDepartment)}</Row>
+                    {isUnassignedDepartment(item.assignedDepartment) && (
+                      <p className="mt-1 flex items-start gap-1 text-[11px] font-medium text-amber-800">
+                        <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-amber-600" />
+                        Directorate is unassigned. Go to Settings → Employees to assign their directorate.
+                      </p>
+                    )}
+                  </div>
+                )}
                 {batch && (
                   <Row label="Part of">
                     <button type="button" onClick={() => onSelect(batch.item.id)} className="font-mono font-bold text-emerald-800 hover:underline cursor-pointer">

@@ -18,7 +18,7 @@ import { LearnTagPrompt, taggableAssets } from './LearnTagPrompt';
 import { findByTag, printedTag } from '../../utils/asset-tag';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { valueOf } from '../../utils/item-cost';
-import { departmentLabel } from '../../utils/department';
+import { departmentLabel, isUnassignedDepartment } from '../../utils/department';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { storeLocationLabel } from '../../utils/location';
 import { recallForm, rememberForm } from '../../utils/form-memory';
@@ -1346,7 +1346,16 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             )}
 
             {!isReturn && (
-            <Field label="To directorate" optional hint="Filled in from the new custodian; change it if needed.">
+            <Field
+              label="To directorate"
+              optional
+              hint={isUnassignedDepartment(departments.find((d) => d.id === targetDepartmentId)) ? undefined : "Filled in from the new custodian; change it if needed."}
+              warning={
+                isUnassignedDepartment(departments.find((d) => d.id === targetDepartmentId))
+                  ? 'Directorate is unassigned. Go to Settings → Employees to assign their directorate.'
+                  : undefined
+              }
+            >
               <SearchableSelect
                 id="transfer-directorate"
                 value={targetDepartmentId}
