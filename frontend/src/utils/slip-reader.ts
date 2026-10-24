@@ -311,10 +311,17 @@ export interface Model19SlipFields {
 }
 
 /** Whether the text is an IFMIS Model 19 at all */
-export const isModel19 = (text: string): boolean => /inv\.?\s*model\s*19\s*no|print\s*model\s*19/i.test(text);
+export const isModel19 = (text: string): boolean => {
+  if (isModel21(text) || isModel22(text) || isDisposalForm(text)) return false;
+  return (
+    /(?:inv\.?\s*)?model\s*[-/]?\s*19\b/i.test(text) ||
+    /print\s*model\s*19|ሞዴል\s*[-/]?\s*19/i.test(text) ||
+    /goods\s*receiving\s*(?:note|voucher)|po\s*receipt\b|petty\s*cash\s*purchase\s*receipt/i.test(text)
+  );
+};
 
 const HEADER_LABELS: { key: Exclude<keyof Model19SlipFields, 'lines' | 'programName'>; label: RegExp }[] = [
-  { key: 'model19No', label: /^inv\.?\s*model\s*19\s*no\.?/i },
+  { key: 'model19No', label: /^(?:inv\.?\s*)?model\s*[-/]?\s*19\s*(?:no\.?|number)?/i },
   { key: 'poNumber', label: /^p\.?\s?o\.?\s*number/i },
   { key: 'receivedDate', label: /^received\s*date/i },
   { key: 'transactionType', label: /^transaction\s*type/i },

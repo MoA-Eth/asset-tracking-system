@@ -38,6 +38,12 @@ describe('reading an IFMIS Model 19', () => {
   it('knows the form', () => {
     expect(isModel19(rowsToText(MODEL19))).toBe(true);
     expect(isModel19('Fixed Asset Internal Transfer Form')).toBe(false);
+    expect(isModel19('Model 19 No. : 0000044')).toBe(true);
+    expect(isModel19('Model-19 Receipt')).toBe(true);
+    expect(isModel19('የዕቃ ገቢ ደረሰኝ (ሞዴል 19)')).toBe(true);
+    expect(isModel19('Goods Receiving Note')).toBe(true);
+    expect(isModel19('Receipt For Articles Or Property Issued Model 22')).toBe(false);
+    expect(isModel19('Fixed Asset Disposal Form Model/22/B')).toBe(false);
   });
 
   it('reads the header, joining a source name that wraps onto the next line', () => {

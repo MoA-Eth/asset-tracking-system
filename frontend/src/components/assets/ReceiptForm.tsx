@@ -634,10 +634,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           return;
         }
         const text = rowsToText(rows);
-        // A scanned PDF has no text: read with OCR
-        if (!text.trim()) return void readScan(file);
+        // A scanned PDF has no text, or only minimal scanner/page metadata (< 200 chars): read with OCR
+        if (!text.trim() || (!isModel19(text) && text.trim().length < 200)) return void readScan(file);
         if (!isModel19(text)) {
-          setSlipNote({ tone: 'warn', text: 'Only an IFMIS Model 19 PDF can be read here. It was not attached and nothing was filled in.' });
+          setIfmisFile(file);
+          setSlipNote({
+            tone: 'warn',
+            text: 'Could not automatically read Model 19 fields from this PDF. The PDF has been attached to this receipt — please fill in the fields manually.',
+          });
+          toast.warning('Slip attached', 'Could not autofill from this PDF. It has been attached to the receipt so you can enter the details manually.');
           return;
         }
         setIfmisFile(file);
@@ -651,7 +656,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       })
       .catch(() => {
         if (latestSlip.current !== file) return;
-        setSlipNote({ tone: 'warn', text: "The PDF couldn't be read, so nothing was filled in. If it is the signed scan, attach it under Signed copy." });
+        setIfmisFile(file);
+        setSlipNote({
+          tone: 'warn',
+          text: "The PDF couldn't be read for autofill, but has been attached to this receipt. Please fill in the fields manually.",
+        });
       });
   };
 
