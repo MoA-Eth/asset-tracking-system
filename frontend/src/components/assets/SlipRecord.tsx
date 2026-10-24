@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowRightLeft, Copy, FileText, PackageMinus, Paperclip, Printer, Send } from 'lucide-react';
 import { btn, pill, statusTone } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
+import { BackButton } from '../ui/BackButton';
 import { SlipViewerModal } from '../ui/SlipViewerModal';
 import { FieldGrid, Field as FormKitField, ReadOnlyValue, TotalValue } from '../ui/FormKit';
 import { ItemWithRelations } from '../../types/asset-management';
@@ -124,11 +125,14 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
           <CloseButton onClose={onClose} label="Close receipt" title="Back to assets (Esc)" />
         </div>
         <div className="flex flex-col gap-3 pr-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-extrabold text-slate-900">Model 19 #{lead.ifmisSlipNumber}</h3>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-              <span>{rows.length} items{lead.poNumber ? ` · PO ${lead.poNumber}` : ''}</span>
-              <SlipStatus rows={rows} />
+          <div className="flex items-start gap-2.5 min-w-0">
+            <BackButton onBack={onClose} label="Back to assets" title="Back to assets (Esc)" />
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-extrabold text-slate-900">Model 19 #{lead.ifmisSlipNumber}</h3>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                <span>{rows.length} items{lead.poNumber ? ` · PO ${lead.poNumber}` : ''}</span>
+                <SlipStatus rows={rows} />
+              </div>
             </div>
           </div>
           {/* While a form is open, its own Submit and Cancel replace these */}

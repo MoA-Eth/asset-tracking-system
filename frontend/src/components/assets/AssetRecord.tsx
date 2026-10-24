@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload } from 'lucide-react';
 import { btn, statusTone, pill } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
+import { BackButton } from '../ui/BackButton';
 import { Row } from '../ui/RecordDetailModal';
 import { SlipViewerModal } from '../ui/SlipViewerModal';
 import { RowAction } from '../ui/RowActionsMenu';
@@ -36,6 +37,8 @@ export interface AssetRecordProps {
   onPrintRequest: (request: TransactionApproval) => void;
   onSelect: (itemId: string) => void;
   onClose: () => void;
+  /** Cancels the currently open form (issue, transfer, disposal, edit) to return to the record */
+  onCancelForm?: () => void;
   /** Where this record sits in the list, and the way to the one before and after it */
   position?: { index: number; total: number };
   onPrevious?: () => void;
@@ -171,6 +174,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   onPrintRequest,
   onSelect,
   onClose,
+  onCancelForm,
   position,
   onPrevious,
   onNext,
@@ -225,17 +229,25 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
           <CloseButton onClose={onClose} label="Close record" title="Back to assets (Esc)" />
         </div>
         <div className={`flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between ${editing && formActions?.length ? 'pr-32 lg:pr-40' : !editing && position ? 'pr-44' : 'pr-8'}`}>
-          <div className="min-w-0">
-            {backTo && (
-              <button
-                type="button"
-                onClick={backTo.onClick}
-                className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer"
-              >
-                <ChevronLeft className="h-3 w-3" /> {backTo.label}
-              </button>
+          <div className="flex items-start gap-2.5 min-w-0">
+            {editing && (
+              <BackButton
+                onBack={onCancelForm || onClose}
+                label="Back to asset record"
+                title="Back to asset record"
+              />
             )}
-            <h3 className="truncate text-base font-extrabold text-slate-900" title={item.name}>{item.name}</h3>
+            <div className="min-w-0">
+              {backTo && (
+                <button
+                  type="button"
+                  onClick={backTo.onClick}
+                  className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer"
+                >
+                  <ChevronLeft className="h-3 w-3" /> {backTo.label}
+                </button>
+              )}
+              <h3 className="truncate text-base font-extrabold text-slate-900" title={item.name}>{item.name}</h3>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
               <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-slate-700 bg-slate-100 pl-2 pr-1 py-0.5 rounded-md border border-slate-200">
                 {item.itemCode}
@@ -263,6 +275,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               )}
             </div>
           </div>
+        </div>
 
           {/* While a form is open, its own Submit and Cancel at the bottom replace these */}
           {!editing && steps.length > 0 && (

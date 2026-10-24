@@ -22,6 +22,7 @@ import {
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
 import { CloseButton } from '../components/ui/CloseButton';
+import { BackButton } from '../components/ui/BackButton';
 import { AssetsTableSkeleton } from '../components/ui/Skeleton';
 import { broadcastApprovalsUpdated, useRealtimeSync } from '../utils/realtime-sync';
 import { FilterPopover, FilterSection, FilterPill, FilterSelect } from '../components/ui/FilterPopover';
@@ -1469,7 +1470,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 <div className="absolute right-3 top-3 flex items-center gap-1.5">
                   <CloseButton onClose={() => setReceipt(null)} label="Close registration" title="Back to assets (Esc)" />
                 </div>
-                <div className="pr-8">
+                <div className="flex items-center gap-2.5 pr-8">
+                  <BackButton onBack={() => setReceipt(null)} label="Back to assets" title="Back to assets (Esc)" />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2.5">
                       <h3 className="text-base font-extrabold text-slate-900">
@@ -1595,6 +1597,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               onPrintRequest={(r) => printRequest(r, selectedRow.item)}
               onSelect={openRecord}
               onClose={closeRecord}
+              onCancelForm={() => {
+                setIssue(null);
+                setTransfer(null);
+                setDisposing(null);
+                setEditing(false);
+              }}
               position={recordIndex >= 0 ? { index: recordIndex, total: flatSelectableIds.length } : undefined}
               onPrevious={previousId ? () => openRecord(previousId) : undefined}
               onNext={nextId ? () => openRecord(nextId) : undefined}
