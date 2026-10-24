@@ -2273,7 +2273,7 @@ describe('One row per Model 19', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     const slipRow = await screen.findByRole('row', { name: 'Open Model 19 0000051' });
     await user.click(within(slipRow).getByRole('button', { name: 'Actions for Model 19 0000051' }));
-    expect(screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())).toEqual(['Duplicate as new receipt', 'Print Model 19']);
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())).toEqual(['Duplicate as new receipt']);
     await user.click(screen.getByRole('menuitem', { name: 'Duplicate as new receipt' }));
 
     const panel = screen.getByRole('region', { name: 'Receive items' });
@@ -2304,7 +2304,7 @@ describe('One row per Model 19', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     const slipRow = await screen.findByRole('row', { name: 'Open Model 19 0000051' });
     await user.click(within(slipRow).getByRole('button', { name: 'Actions for Model 19 0000051' }));
-    expect(screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Duplicate as new receipt', 'Print Model 19']);
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Duplicate as new receipt']);
     await user.click(screen.getByRole('menuitem', { name: 'Issue (Model 22)' }));
 
     // The receipt opens with the Model 22 in place of its details: the two items still in store, the issued one left out
@@ -2431,9 +2431,11 @@ describe('Assets: a rejected request', () => {
     const menu = await menuFor(user, 'MOA-CON-1');
     expect(menu).toContain('Issue (Model 22)');
     expect(menu).toContain('Transfer (Model 21)');
+    expect(menu).not.toContain('Print Model 19');
+    expect(menu).not.toContain('Print Model 22');
   });
 
-  it('provides Transfer (Model 21) in addition to Issue (Model 22) on a Model 19 row when items are in store', async () => {
+  it('provides Transfer (Model 21) in addition to Issue (Model 22) on a Model 19 row when items are in store and has no print option in 3-dot menu', async () => {
     const user = userEvent.setup();
     vi.mocked(api.getItems).mockResolvedValue([
       item('SLIP-1', 'Stapler', 'AVAILABLE', { ifmisSlipNumber: 'M19-999', itemType: 'CONSUMABLE', quantity: 10 }),
@@ -2445,5 +2447,7 @@ describe('Assets: a rejected request', () => {
     const options = screen.getAllByRole('menuitem').map((m) => m.textContent?.trim());
     expect(options).toContain('Issue (Model 22)');
     expect(options).toContain('Transfer (Model 21)');
+    expect(options).not.toContain('Print Model 19');
+    expect(options).not.toContain('Print Model 22');
   });
 });

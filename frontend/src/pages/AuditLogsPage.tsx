@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, RefreshCw, ShieldCheck, AlertCircle, Download, Printer, ChevronRight, MoreVertical } from 'lucide-react';
+import { Search, RefreshCw, ShieldCheck, AlertCircle, Download, ChevronRight, MoreVertical } from 'lucide-react';
 import { api } from '../api/client';
 import { AuditLogEntry } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
@@ -333,21 +333,6 @@ export const AuditLogsPage: React.FC = () => {
                   >
                     <Download className="w-3.5 h-3.5 text-slate-500" />
                     <span>Export CSV</span>
-                  </button>
-
-                  <div className="my-1 border-t border-slate-100" />
-
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setIsActionsMenuOpen(false);
-                      window.print();
-                    }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Print Log</span>
                   </button>
                 </div>
               )}

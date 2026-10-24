@@ -15,7 +15,6 @@ import {
   Trash2,
   Copy,
   MoreVertical,
-  Printer,
   Info,
   Send,
   XCircle,
@@ -1260,7 +1259,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               cancelAction(returnedReceiptOf(members)),
               { label: 'Issue (Model 22)', icon: PackageMinus, onClick: () => issueSlip(key, members), hidden: !canIssue || issuableOf(members).length === 0 },
               { label: 'Transfer (Model 21)', icon: ArrowRightLeft, onClick: () => transferSlip(key, members), hidden: !canTransfer || transferableOf(members).length === 0 },
-              { label: 'Print Model 19', icon: Printer, onClick: () => printSlip(members) },
               { label: 'Duplicate as new receipt', icon: Copy, onClick: () => duplicateSlip(members), hidden: !canReceive },
             ]}
           />
@@ -1743,21 +1741,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     >
                       <Download className="w-3.5 h-3.5 text-slate-500" />
                       <span>Export CSV</span>
-                    </button>
-
-                    <div className="my-1 border-t border-slate-100" />
-
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsActionsMenuOpen(false);
-                        window.print();
-                      }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
-                    >
-                      <Printer className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Print register</span>
                     </button>
                   </div>
                 )}
