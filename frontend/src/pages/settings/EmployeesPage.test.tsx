@@ -81,6 +81,24 @@ describe('Employees page', () => {
     expect(screen.getByText(/Employee ID must be 8 digits/)).toBeInTheDocument();
   });
 
+  it('refuses to add an employee when department is missing or Unassigned', async () => {
+    const user = userEvent.setup();
+    render(<EmployeesPage />);
+    await user.click(await screen.findByRole('button', { name: 'Add employee' }));
+    await user.type(screen.getByLabelText(/Full name .English./), 'Hana Tesfaye');
+    await user.type(screen.getByLabelText(/Employee ID/), '00000200');
+    // Department left empty
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add employee' }));
+    expect(api.createEmployee).not.toHaveBeenCalled();
+    expect(screen.getByText(/Fill in: Department/)).toBeInTheDocument();
+
+    // Department typed as Unassigned
+    await user.type(screen.getByLabelText(/^Department/), 'Unassigned');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add employee' }));
+    expect(api.createEmployee).not.toHaveBeenCalled();
+    expect(screen.getByText(/Choose a specific department/)).toBeInTheDocument();
+  });
+
   it('validates and restricts Full name (Amharic) to Ethiopic script', async () => {
     const user = userEvent.setup();
     render(<EmployeesPage />);

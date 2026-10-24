@@ -24,6 +24,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Department, Employee, EmployeeInput, UserRole } from '../../types/asset-management';
 import { EMPLOYEE_FIELDS, EMPLOYEE_ID_FORMAT, EMPLOYEE_ID_PATTERN, EmployeeField } from '../../utils/employee-import';
+import { isUnassignedDepartment } from '../../utils/department';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../../components/ui/FilterPopover';
 import { SortableHeader, SortDirection } from '../../components/ui/SortableHeader';
 import { EmployeesTableRowsSkeleton } from '../../components/ui/Skeleton';
@@ -137,6 +138,10 @@ const EmployeeForm: React.FC<{
       setError(`Fill in: ${missing.join(', ')}.`);
       return;
     }
+    if (isUnassignedDepartment({ nameEn: form.departmentName, code: form.departmentName })) {
+      setError('Choose a specific department (cannot be Unassigned).');
+      return;
+    }
     if (amharicError) {
       setError(amharicError);
       return;
@@ -161,7 +166,7 @@ const EmployeeForm: React.FC<{
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} noValidate className="space-y-4">
       {/* Same fields, in the same order, as the import template (see EMPLOYEE_FIELDS) */}
       <FormSection step={1} title="Employee details" subtitle="የሰራተኛ መረጃ · the same fields as the Excel template" icon={IdCard} accent="emerald">
         <FieldGrid cols={2}>
@@ -198,6 +203,7 @@ const EmployeeForm: React.FC<{
                   <>
                     <input
                       {...common}
+                      required={field.required}
                       list="emp-department-options"
                       autoComplete="off"
                       placeholder={PLACEHOLDERS.department}
@@ -205,7 +211,7 @@ const EmployeeForm: React.FC<{
                       autoFocus={index === 0}
                     />
                     <datalist id="emp-department-options">
-                      {departments.map((d) => (
+                      {departments.filter((d) => !isUnassignedDepartment(d)).map((d) => (
                         <option key={d.id} value={d.nameEn} />
                       ))}
                     </datalist>
@@ -219,6 +225,7 @@ const EmployeeForm: React.FC<{
                 ) : (
                   <input
                     {...common}
+                    required={field.required}
                     type={field.key === 'email' ? 'email' : field.key === 'phone' ? 'tel' : 'text'}
                     lang={isAmharic ? 'am' : undefined}
                     dir={isAmharic ? 'ltr' : undefined}

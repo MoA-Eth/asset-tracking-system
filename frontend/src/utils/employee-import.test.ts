@@ -48,11 +48,12 @@ describe('HR spreadsheet reading', () => {
     expect(sheet.rows[1]).toMatchObject({ payrollId: 'MOA/2' });
   });
 
-  it('needs no particular column: a sheet with only names, or only IDs and departments, is read', () => {
-    expect(rowsFromSheet([['Employee ID', 'Full name'], ['1', 'A']]).missing).toEqual([]);
-    const names = rowsFromSheet([['Staff list 2026'], ['Full name', 'Job title'], ['Hana Tesfaye', 'Accountant']]);
-    expect(names.columns).toEqual(['fullNameEn', 'jobTitle']);
-    expect(names.rows).toEqual([expect.objectContaining({ row: 3, fullNameEn: 'Hana Tesfaye', jobTitle: 'Accountant', payrollId: '' })]);
+  it('requires department column: reports missing department when not present', () => {
+    expect(rowsFromSheet([['Employee ID', 'Full name'], ['1', 'A']]).missing).toEqual(['department']);
+    const withDept = rowsFromSheet([['Staff list 2026'], ['Full name', 'Department'], ['Hana Tesfaye', 'Finance']]);
+    expect(withDept.columns).toEqual(['fullNameEn', 'department']);
+    expect(withDept.missing).toEqual([]);
+    expect(withDept.rows).toEqual([expect.objectContaining({ row: 3, fullNameEn: 'Hana Tesfaye', department: 'Finance', payrollId: '' })]);
     expect(rowsFromSheet([['Something', 'Else'], ['1', 'A']]).columns).toEqual([]);
   });
 

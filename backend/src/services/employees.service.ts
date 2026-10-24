@@ -258,12 +258,23 @@ async function resolveDepartment(tx: any, input: EmployeeInput): Promise<{ id: s
     const id = text(input.departmentId, 'Department', 40, true)!;
     const department = await tx.department.findUnique({ where: { id } });
     if (!department) throw new BadRequestError('The selected department no longer exists.');
+    if ([department.nameEn, department.nameAm, department.code].some((v) => v && matchKey(v) === matchKey(UNASSIGNED_DEPARTMENT))) {
+      throw new BadRequestError('Department is required.');
+    }
     return department;
+  }
+  if (matchKey(name) === matchKey(UNASSIGNED_DEPARTMENT)) {
+    throw new BadRequestError('Department is required.');
   }
   const departments = await tx.department.findMany();
   const wanted = matchKey(name);
   const existing = departments.find((d: any) => [d.nameEn, d.nameAm, d.code].some((v) => v && matchKey(v) === wanted));
-  if (existing) return existing;
+  if (existing) {
+    if ([existing.nameEn, existing.nameAm, existing.code].some((v) => v && matchKey(v) === matchKey(UNASSIGNED_DEPARTMENT))) {
+      throw new BadRequestError('Department is required.');
+    }
+    return existing;
+  }
   const row = newDepartmentRow(name, new Set<string>(departments.map((d: any) => String(d.code).toUpperCase())));
   await tx.department.create({ data: row });
   return { ...row, isNew: true };
@@ -463,7 +474,7 @@ const FIELD_LABELS: Record<DetailField, string> = {
 };
 
 const cellText = (value: unknown) => (value === undefined || value === null ? '' : String(value).trim());
-const matchKey = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ');
+const matchKey = (value: unknown) => String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
 /**
  * Checks HR rows and, when `apply` is true, saves them. Rows are matched to existing staff by employee ID:
@@ -524,6 +535,10 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
         fail('The row has no employee ID and no name.');
         continue;
       }
+      if (!departmentText || matchKey(departmentText) === matchKey(UNASSIGNED_DEPARTMENT)) {
+        fail('Department is required.');
+        continue;
+      }
       if (departmentText.length > 160) {
         fail('Department must be 160 characters or fewer.');
         continue;
@@ -542,7 +557,7 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
       const payrollId = givenId || current?.payrollId || `${TEMPORARY_ID_PREFIX}${randomUUID().slice(0, 8).toUpperCase()}`;
       base.payrollId = payrollId;
 
-      const knownDept = departmentText ? deptByKey.get(matchKey(departmentText)) : undefined;
+      const knownDept = deptByKey.get(matchKey(departmentText));
       let details: ReturnType<typeof checkDetails>;
       try {
         details = checkDetails({
@@ -551,8 +566,7 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
           fullNameEn: nameEn || current?.fullNameEn || nameAm,
           fullNameAm: raw?.fullNameAm,
           // Checked before a missing department is planned, so a bad row never creates one.
-          // No department: staff on file keep theirs; new staff go to Unassigned.
-          departmentId: knownDept?.id ?? (departmentText ? 'NEW' : current?.departmentId ?? 'UNASSIGNED'),
+          departmentId: knownDept?.id ?? 'NEW',
           jobTitle: raw?.jobTitle,
           unit: raw?.unit,
           gender: raw?.gender,
@@ -590,12 +604,7 @@ export async function importEmployees(rawRows: unknown, apply: unknown, actorId:
       }
 
       // The row is good: use its department, planning a new one if the file names one we don't have.
-      // None named: staff on file keep theirs, new staff go to Unassigned.
-      const dept = departmentText
-        ? knownDept ?? planDepartment(departmentText.replace(/\s+/g, ' '))
-        : current
-          ? deptByKey.get(matchKey(current.departmentId)) ?? { id: current.departmentId, nameEn: '' }
-          : unassigned();
+      const dept = knownDept ?? planDepartment(departmentText.replace(/\s+/g, ' '));
       details.departmentId = dept.id;
       base.department = dept.nameEn;
 

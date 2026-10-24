@@ -247,26 +247,36 @@ describe('Importing a partial HR sheet: every column is optional', () => {
     db.employee.findMany.mockResolvedValue(saved);
   });
 
-  it('adds new staff with no ID, no department or no English name', async () => {
+  it('adds new staff with no ID or no English name, creating their department', async () => {
     const result = await importEmployees([
-      { row: 2, fullNameEn: 'Hana Tesfaye', jobTitle: 'Accountant' },
-      { row: 3, payrollId: '00000009', fullNameAm: 'ሐና ተስፋዬ' },
+      { row: 2, fullNameEn: 'Hana Tesfaye', jobTitle: 'Accountant', department: 'Finance' },
+      { row: 3, payrollId: '00000009', fullNameAm: 'ሐና ተስፋዬ', department: 'Finance' },
     ], true, 'admin');
     expect(result.counts).toEqual({ create: 2, update: 0, unchanged: 0, error: 0 });
-    const [unassigned] = db.department.createMany.mock.calls[0][0].data;
-    expect(unassigned).toMatchObject({ nameEn: 'Unassigned' });
+    const [finance] = db.department.createMany.mock.calls[0][0].data;
+    expect(finance).toMatchObject({ nameEn: 'Finance' });
     const added = db.employee.createMany.mock.calls[0][0].data;
-    // A temporary ID until HR's is entered; Unassigned until a department is chosen
-    expect(added[0]).toMatchObject({ fullNameEn: 'Hana Tesfaye', jobTitle: 'Accountant', departmentId: unassigned.id });
+    // A temporary ID until HR's is entered
+    expect(added[0]).toMatchObject({ fullNameEn: 'Hana Tesfaye', jobTitle: 'Accountant', departmentId: finance.id });
     expect(added[0].payrollId).toMatch(/^NOID-[0-9A-F]{8}$/);
     // The Amharic name stands in for the English one
-    expect(added[1]).toMatchObject({ payrollId: '00000009', fullNameEn: 'ሐና ተስፋዬ', fullNameAm: 'ሐና ተስፋዬ', departmentId: unassigned.id });
+    expect(added[1]).toMatchObject({ payrollId: '00000009', fullNameEn: 'ሐና ተስፋዬ', fullNameAm: 'ሐና ተስፋዬ', departmentId: finance.id });
+  });
+
+  it('requires department for each row in an import and rejects Unassigned', async () => {
+    const result = await importEmployees([
+      { row: 2, fullNameEn: 'Hana Tesfaye', jobTitle: 'Accountant' },
+      { row: 3, payrollId: '00000009', fullNameEn: 'Sara Ali', department: 'Unassigned' },
+    ], false, 'admin');
+    expect(result.counts).toEqual({ create: 0, update: 0, unchanged: 0, error: 2 });
+    expect(result.rows[0].message).toBe('Department is required.');
+    expect(result.rows[1].message).toBe('Department is required.');
   });
 
   it('finds staff on file by name when the row has no ID, and keeps what the row leaves out', async () => {
     const result = await importEmployees([
-      { row: 2, fullNameEn: 'abebe kebede', jobTitle: 'Senior Driver' },
-      { row: 3, payrollId: '00000001', fullNameEn: 'Abebe Kebede' },
+      { row: 2, fullNameEn: 'abebe kebede', jobTitle: 'Senior Driver', department: 'Procurement & Property' },
+      { row: 3, payrollId: '00000001', fullNameEn: 'Abebe Kebede', department: 'Procurement & Property' },
     ], true, 'admin');
     expect(result.rows[0]).toMatchObject({ action: 'update', payrollId: '00000001', changes: ['name', 'job title'], department: 'Procurement & Property' });
     // The same person twice in one file is still caught
@@ -277,7 +287,7 @@ describe('Importing a partial HR sheet: every column is optional', () => {
 
   it('asks for the ID when several staff share the name, and skips a row with neither ID nor name', async () => {
     const result = await importEmployees([
-      { row: 2, fullNameEn: 'Sara Ali', phone: '+251911000000' },
+      { row: 2, fullNameEn: 'Sara Ali', phone: '+251911000000', department: 'Procurement & Property' },
       { row: 3, jobTitle: 'Clerk', department: 'Procurement & Property' },
     ], false, 'admin');
     expect(result.rows[0].message).toBe('No employee ID, and 2 staff are named Sara Ali: add the ID to this row.');

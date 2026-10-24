@@ -140,10 +140,10 @@ export const EmployeeImportModal: React.FC<{ isOpen: boolean; onClose: () => voi
                 ))}
               </p>
               <p className="mt-1.5">
-                Every column is optional: a row needs only an employee ID or a name. Other columns in HR's file (row number,
-                salary, step…) are ignored. Staff are matched by employee ID, or by name when the row has none: new ones are
-                added, existing ones are updated, and empty cells keep what is saved. New staff without an ID get a temporary
-                one (NOID-…) and those without a department go to Unassigned; correct them later on the employee. Departments
+                Department is required for every employee row. A row also needs an employee ID or a name. Other columns
+                in HR's file (row number, salary, step…) are ignored. Staff are matched by employee ID, or by name when
+                the row has none: new ones are added, existing ones are updated, and empty cells keep what is saved.
+                New staff without an ID get a temporary one (NOID-…); correct it later on the employee. Departments
                 that don't exist yet are created. You'll see a preview before anything is saved.
               </p>
             </FormNotice>

@@ -37,8 +37,8 @@ export const EMPLOYEE_FIELDS: {
 ];
 
 export const fieldInfo = (key: EmployeeField) => EMPLOYEE_FIELDS.find((f) => f.key === key)!;
-/** Columns an import must have: none for now, HR sheets are often partial (a row needs only an ID or a name). The form still requires its fields. */
-export const REQUIRED_COLUMNS: EmployeeField[] = [];
+/** Columns an import sheet must have: Department is required when importing employees. */
+export const REQUIRED_COLUMNS: EmployeeField[] = ['department'];
 export const COLUMN_LABELS = Object.fromEntries(EMPLOYEE_FIELDS.map((f) => [f.key, f.label])) as Record<EmployeeField, string>;
 
 /** One employee row read from a spreadsheet; `row` is the spreadsheet row number */
