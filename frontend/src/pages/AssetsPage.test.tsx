@@ -2487,4 +2487,46 @@ describe('Assets: a rejected request', () => {
     expect(options).not.toContain('Print Model 19');
     expect(options).not.toContain('Print Model 22');
   });
+
+  it('allows adjusting a rejected multi-item batch together with Edit receipt and resubmitting', async () => {
+    const user = userEvent.setup();
+    const batchItems = [
+      item('BATCH-1', 'Laptop Dell', 'PENDING_STOCK_IN', { ifmisSlipNumber: '0000888', poNumber: 'PO-99', category: 'IT_EQUIPMENT', itemType: 'FIXED', ifmisItemCode: '305101101.0001', unitCostETB: 45000, quantity: 2 }),
+      item('BATCH-2', 'Monitor Dell', 'PENDING_STOCK_IN', { ifmisSlipNumber: '0000888', poNumber: 'PO-99', category: 'IT_EQUIPMENT', itemType: 'FIXED', ifmisItemCode: '305101101.0002', unitCostETB: 12000, quantity: 2 }),
+    ];
+    const batchApprovals = [
+      request('APPR-B1', 'STOCK_IN', 'BATCH-1', { ifmisSlipNumber: '0000888', poNumber: 'PO-99', status: 'RETURNED', returnRemarks: 'Fix unit prices' }),
+      request('APPR-B2', 'STOCK_IN', 'BATCH-2', { ifmisSlipNumber: '0000888', poNumber: 'PO-99', status: 'RETURNED', returnRemarks: 'Fix unit prices' }),
+    ];
+    vi.mocked(api.getItems).mockResolvedValue(batchItems as any);
+    vi.mocked(api.getApprovals).mockResolvedValue(batchApprovals as any);
+    vi.mocked(api.updateStockIn).mockResolvedValue({} as any);
+
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('Model 19');
+    await user.click(screen.getByRole('button', { name: 'Actions for Model 19 0000888' }));
+    const options = screen.getAllByRole('menuitem').map((m) => m.textContent?.trim());
+    expect(options).toContain('Edit receipt');
+    expect(options).toContain('Resubmit Model 19');
+
+    // Click Edit receipt to open the batch edit form
+    await user.click(screen.getByRole('menuitem', { name: 'Edit receipt' }));
+    expect(await screen.findByText(/Edit receipt · Model 19 #0000888 \(2 items\)/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Laptop Dell')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Monitor Dell')).toBeInTheDocument();
+
+    // Verify submit button shows batch save & resubmit count
+    const submitBtn = screen.getByRole('button', { name: 'Save and resubmit 2 items' });
+    expect(submitBtn).toBeInTheDocument();
+
+    // Click submit
+    await user.click(submitBtn);
+    expect(api.updateStockIn).toHaveBeenCalledWith('BATCH-1', expect.anything());
+    expect(api.updateStockIn).toHaveBeenCalledWith('BATCH-2', expect.anything());
+    expect(toast.success).toHaveBeenCalledWith(
+      'Receipt updated',
+      'Model 19 #0000888 (2 items) was adjusted and resubmitted for Team Leader endorsement.'
+    );
+  });
 });
+

@@ -226,7 +226,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
 
   // Pop-ups: one per form, each either new (from a row or the header) or correcting a pending request
-  const [receipt, setReceipt] = useState<{ edit?: ItemWithRelations; template?: ReceiptTemplate; templateKey?: string; copyOf?: string } | null>(null);
+  const [receipt, setReceipt] = useState<{
+    edit?: ItemWithRelations;
+    template?: ReceiptTemplate;
+    templateKey?: string;
+    copyOf?: string;
+    editBatch?: ItemWithRelations[];
+    returned?: boolean;
+  } | null>(null);
   // A new issue of one item, or of the items of a Model 19 (`slip` is its key, `itemIds` its items in store)
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval; slip?: string; itemIds?: string[] } | null>(null);
   const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
@@ -247,7 +254,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setDisposing(null);
     setEditing(false);
   };
-  const openReceipt = (edit?: ItemWithRelations, template?: ReceiptTemplate, templateKey?: string, copyOf?: string) => {
+  const openReceipt = (
+    edit?: ItemWithRelations,
+    template?: ReceiptTemplate,
+    templateKey?: string,
+    copyOf?: string,
+    editBatch?: ItemWithRelations[],
+    returned?: boolean
+  ) => {
     setSelectedId(null);
     setSelectedSlip(null);
     setSlipBack(null);
@@ -255,7 +269,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setIssue(null);
     setDisposing(null);
     setEditing(false);
-    setReceipt({ edit, template, templateKey, copyOf });
+    setReceipt({ edit, template, templateKey, copyOf, editBatch, returned });
   };
   const [voucher19, setVoucher19] = useState<Model19Voucher | null>(null);
   const [voucher22, setVoucher22] = useState<Model22Voucher | null>(null);
@@ -699,6 +713,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       if (voucher && print) print(voucher);
     };
     if (row.state === 'RECEIPT_PENDING') {
+      const slipKeyOfItem = slipOfItem.get(item.id);
+      const siblingMembers = slipKeyOfItem ? slips.get(slipKeyOfItem) : undefined;
+      const isMultiItemBatch = siblingMembers && siblingMembers.length > 1;
+      const batchItems = isMultiItemBatch
+        ? [item, ...siblingMembers.map((g) => g.row.item).filter((i) => i.id !== item.id)]
+        : undefined;
       return {
         id: 'stock-in-form',
         form: (
@@ -707,8 +727,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             locations={locations}
             employees={employees}
             editItem={item}
+            editBatch={batchItems}
             returned={pendingByItem.get(item.id)?.status === ApprovalStatus.RETURNED}
-            registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && i.id !== item.id).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
+            registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (batchItems ? !batchItems.some((b) => b.id === i.id) : i.id !== item.id)).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
             onCancel={() => setEditing(false)}
             onSuccess={(_result, voucher) => done(voucher, setVoucher19)}
           />
@@ -1027,6 +1048,19 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const lead = members[0].row.item;
     openReceipt(undefined, templateFromSlip(members.map((g) => g.row.item)), `copy-slip-${lead.id}-${Date.now()}`, `Model 19 #${lead.ifmisSlipNumber} · ${members.length} items`);
   };
+  /** Adjust a whole rejected Model 19 of several items together and resubmit */
+  const editSlip = (members: AssetGroup[]) => {
+    const itemsOfSlip = members.map((g) => g.row.item);
+    const returned = returnedReceiptOf(members);
+    openReceipt(
+      itemsOfSlip[0],
+      undefined,
+      `edit-slip-${itemsOfSlip[0].id}-${Date.now()}`,
+      undefined,
+      itemsOfSlip,
+      !!returned
+    );
+  };
 
 // Note: error UI is rendered before main return below to keep hook execution order unconditional
 
@@ -1280,6 +1314,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <RowActionsMenu
             label={`Model 19 ${lead.ifmisSlipNumber}`}
             actions={[
+              {
+                label: 'Edit receipt',
+                icon: Pencil,
+                onClick: () => editSlip(members),
+                hidden: !canReceive || !returnedReceiptOf(members),
+              },
               resubmitAction(returnedReceiptOf(members)),
               cancelAction(returnedReceiptOf(members)),
               { label: 'Issue (Model 22)', icon: PackageMinus, onClick: () => issueSlip(key, members), hidden: !canIssue || issuableOf(members).length === 0 },
@@ -1491,7 +1531,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2.5">
                       <h3 className="text-base font-extrabold text-slate-900">
-                        {receipt.edit
+                        {receipt.editBatch && receipt.editBatch.length > 1
+                          ? `Edit receipt · Model 19 #${receipt.edit?.ifmisSlipNumber || ''} (${receipt.editBatch.length} items)`
+                          : receipt.edit
                           ? `Edit receipt · ${receipt.edit.itemCode}`
                           // A copy keeps the item's real name; the title says which record it was copied from
                           : receipt.copyOf
@@ -1519,8 +1561,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     locations={locations}
                     employees={employees}
                     editItem={receipt.edit}
+                    editBatch={receipt.editBatch}
+                    returned={receipt.returned ?? (receipt.edit ? pendingByItem.get(receipt.edit.id)?.status === ApprovalStatus.RETURNED : false)}
                     template={receipt.template}
-                    registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (!receipt.edit || i.id !== receipt.edit.id)).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
+                    registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (receipt.editBatch ? !receipt.editBatch.some((b) => b.id === i.id) : (!receipt.edit || i.id !== receipt.edit.id))).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
                     onCancel={() => setReceipt(null)}
                     onSuccess={(result, voucher) => {
                       setReceipt(null);
@@ -1544,6 +1588,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               onDuplicate={canReceive ? () => duplicateSlip(selectedSlipMembers) : undefined}
               onIssue={canIssue && issuableOf(selectedSlipMembers).length > 0 ? () => issueSlip(selectedSlip!, selectedSlipMembers) : undefined}
               onTransfer={canTransfer && transferableOf(selectedSlipMembers).length > 0 ? () => transferSlip(selectedSlip!, selectedSlipMembers) : undefined}
+              onEdit={canReceive && returnedReceiptOf(selectedSlipMembers) ? () => editSlip(selectedSlipMembers) : undefined}
               onResubmit={(() => {
                 const returned = returnedReceiptOf(selectedSlipMembers);
                 return returned && canReceive ? () => void resubmit(returned) : undefined;

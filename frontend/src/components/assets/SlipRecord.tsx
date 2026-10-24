@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRightLeft, Copy, FileText, PackageMinus, Paperclip, Printer, Send } from 'lucide-react';
+import { ArrowRightLeft, Copy, FileText, PackageMinus, Paperclip, Pencil, Printer, Send } from 'lucide-react';
 import { btn, pill, statusTone } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { BackButton } from '../ui/BackButton';
@@ -95,6 +95,8 @@ export interface SlipRecordProps {
   onIssue?: () => void;
   /** Opens a Model 21 with this receipt's items still in store; absent when none is, or this person can't transfer */
   onTransfer?: () => void;
+  /** Opens the receipt form to adjust every item of this rejected receipt together */
+  onEdit?: () => void;
   /** Sends this rejected receipt back to the Team Leader; absent when it isn't rejected or this person can't */
   onResubmit?: () => void;
   /** Withdraws this rejected receipt; absent when it isn't rejected or this person can't */
@@ -108,7 +110,7 @@ export interface SlipRecordProps {
  * A Model 19 receipt of several items, opened from its one row in the register: what the slip says, its total and
  * scanned copy, and its items, each opening its own record (where it is issued, transferred, corrected…).
  */
-export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrint, onDuplicate, onIssue, onTransfer, onResubmit, onCancelRequest, form, onClose }) => {
+export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrint, onDuplicate, onIssue, onTransfer, onEdit, onResubmit, onCancelRequest, form, onClose }) => {
   const [viewingSlip, setViewingSlip] = useState(false);
   const lead = rows[0].item;
   const total = rows.reduce((sum, r) => sum + slipLineTotal(r.item), 0);
@@ -139,8 +141,18 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
           {/* While a form is open, its own Submit and Cancel replace these */}
           {!form && (
           <div role="toolbar" aria-label="Receipt actions" className="flex flex-wrap items-center gap-2">
+            {onEdit && (
+              <button type="button" onClick={onEdit} className={btn.primary}>
+                <Pencil className="h-3.5 w-3.5" /> Edit receipt
+              </button>
+            )}
             {onResubmit && (
-              <button type="button" onClick={onResubmit} className={btn.primary} title="Correct its items first: open each from the list below">
+              <button
+                type="button"
+                onClick={onResubmit}
+                className={onEdit ? btn.secondary : btn.primary}
+                title={onEdit ? "Resubmit Model 19 as-is" : "Correct its items first: open each from the list below"}
+              >
                 <Send className="h-3.5 w-3.5" /> Resubmit Model 19
               </button>
             )}
@@ -183,10 +195,21 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
         {rejected && (
           <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-900">
-            <p className="font-semibold text-red-800">
-              {rejected.status === 'CANCELLED' ? 'Receipt cancelled' : 'Receipt rejected'}
-              {rejected.reviewedAtGc ? ` · ${shortDate(rejected.reviewedAtGc)}` : ''}
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-semibold text-red-800">
+                {rejected.status === 'CANCELLED' ? 'Receipt cancelled' : 'Receipt rejected'}
+                {rejected.reviewedAtGc ? ` · ${shortDate(rejected.reviewedAtGc)}` : ''}
+              </p>
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 transition-colors cursor-pointer"
+                >
+                  <Pencil className="h-3 w-3" /> Adjust &amp; Resubmit
+                </button>
+              )}
+            </div>
             {rejected.reviewRemarks?.trim() && (
               <p className="mt-1 text-red-700">{rejected.reviewRemarks.trim()}</p>
             )}
@@ -251,7 +274,7 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
           </table>
         </div>
         <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
-          <FileText className="h-3.5 w-3.5" /> Open an item to issue, transfer or correct it on its own.
+          <FileText className="h-3.5 w-3.5" /> Open an item to issue, transfer or view its record.
         </p>
       </div>
       )}

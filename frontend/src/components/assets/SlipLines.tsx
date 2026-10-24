@@ -9,6 +9,10 @@ import { formatETB } from '../../utils/eth-date';
 /** One more item line from the same Model 19, registered as its own record when the receipt is submitted */
 export interface SlipLine {
   key: number;
+  /** Existing item ID when adjusting a multi-item batch */
+  id?: string;
+  /** Existing system item code */
+  itemCode?: string;
   name: string;
   category: AssetCategory | '';
   itemType: ItemType | '';
@@ -60,7 +64,7 @@ export const lineMissing = (l: SlipLine, _donation = false): string[] =>
   [
     !l.name.trim() && 'description',
     !l.category && 'category',
-    !l.ifmisCode?.trim() && 'item code',
+    !l.ifmisCode?.trim() && !(l.id && l.itemType) && 'item code',
     !l.itemType && 'item type',
     !l.uom.trim() && 'unit',
     !(Number.isFinite(l.quantity) && l.quantity > 0) && 'quantity',
@@ -205,6 +209,7 @@ export const ReceiptItems: React.FC<{
                         onChange={(e) => set(l.key, { name: e.target.value })}
                         className={cellClass({ invalid: !l.name.trim() })}
                       />
+                      {l.itemCode && <span className="font-mono text-[10px] text-slate-500 font-medium block">{l.itemCode}</span>}
                       {donation && (
                         <div>
                           <label htmlFor={`stock-in-line-specs-${l.key}`} className="sr-only">Item {n} full asset description and technical specifications</label>

@@ -38,6 +38,8 @@ export interface StockInFormProps {
   onSuccess: (result: any, voucher?: Model19Voucher) => void;
   /** When set, the form corrects this registration instead of creating a new one */
   editItem?: ItemWithRelations;
+  /** When editing a batch of 2 or more items (e.g. a rejected Model 19) */
+  editBatch?: ItemWithRelations[];
   /** A new receipt that starts from an earlier item or slip rather than empty */
   template?: ReceiptTemplate;
   /** A slip chosen with the form's header button: it is attached and read as if picked in the form */
@@ -131,10 +133,11 @@ export const templateFromSlip = (items: ItemWithRelations[]): ReceiptTemplate =>
   };
 };
 
-export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem, template, initialSlip, registered, returned }) => {
+export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem: rawEditItem, editBatch, template, initialSlip, registered, returned }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const editItem = rawEditItem ?? (editBatch && editBatch.length > 0 ? editBatch[0] : undefined);
   const isEdit = !!editItem;
   // A new receipt starts from the last one this person made: the same store, transaction type and the number to continue from
   const memory = isEdit ? {} : recallForm(user?.id, 'receipt');
@@ -264,8 +267,29 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const base1 = (Number(quantity) || 0) * (Number(unitCostETB) || 0);
   const vat1 = vatApplicable ? Math.round(base1 * 0.15 * 100) / 100 : 0;
   const totalAmount = donation ? 0 : base1 + (vatApplicable ? vat1 : (Number(additionalCharges) || 0));
-  // The other item lines of a Model 19 read from its PDF: each is registered as its own record on submit
-  const [extraLines, setExtraLines] = useState<SlipLine[]>(start?.lines ?? []);
+  // The other item lines of a Model 19: when adjusting a multi-item batch, pre-populated with existing items
+  const [extraLines, setExtraLines] = useState<SlipLine[]>(() => {
+    if (editBatch && editBatch.length > 1) {
+      return editBatch.slice(1).map((item, i) => ({
+        key: Date.now() + i + Math.random(),
+        id: item.id,
+        itemCode: item.itemCode,
+        name: item.name,
+        category: (item.category as AssetCategory) ?? '',
+        itemType: (item.itemType as ItemType) ?? '',
+        condition: (item.condition as ItemCondition) ?? ItemCondition.NEW,
+        uom: item.uom || 'EA',
+        quantity: item.balance?.total || Number(item.quantity) || 1,
+        unitPrice: item.unitCostETB || 0,
+        vatApplicable: item.vatApplicable,
+        additionalCharges: item.additionalCharges || 0,
+        ifmisCode: item.ifmisItemCode,
+        subInventory: item.subInventory,
+        remark: item.remark,
+      }));
+    }
+    return start?.lines ?? [];
+  });
   const extraTotal = donation ? 0 : extraLines.reduce((sum, l) => {
     const base = (l.quantity || 0) * (l.unitPrice || 0);
     const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
@@ -307,10 +331,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     )?.itemCode;
   };
 
-  const primaryDuplicateAs = findDuplicateRegistered(ifmisSlipNumber, name);
+  const primaryDuplicateAs = isEdit ? undefined : findDuplicateRegistered(ifmisSlipNumber, name);
   const linesWithDuplicates = useMemo(() => extraLines.map((l) => ({
     ...l,
-    alreadyAs: l.alreadyAs || findDuplicateRegistered(ifmisSlipNumber, l.name),
+    alreadyAs: l.id ? undefined : (l.alreadyAs || findDuplicateRegistered(ifmisSlipNumber, l.name)),
   })), [extraLines, ifmisSlipNumber, registered]);
 
   const duplicateLines = linesWithDuplicates.filter((l) => Boolean(l.alreadyAs));
@@ -801,10 +825,65 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           receivedByEmployeeId: receivedById || undefined,
           remark: item1Remark.trim() || remark.trim() || undefined,
         });
+        // Existing sibling items in the batch are updated too
+        const existingLines = extraLines.filter((l) => !!l.id);
+        const newLines = extraLines.filter((l) => !l.id);
+
+        for (const line of existingLines) {
+          const lineCat = COMMON_CATEGORIES.find((c) => c.value === line.category);
+          await api.updateStockIn(line.id!, {
+            storeLocationId: effectiveStoreLocId || editItem.storeLocationId,
+            ifmisSlipNumber: slipNo,
+            ifmisSlipDateGc,
+            ifmisSlipAttachmentUrl: slipUrl ?? editItem.ifmisSlipAttachmentUrl ?? undefined,
+            name: line.name.trim(),
+            category: (line.category || effectiveCategory) as AssetCategory,
+            itemType: (line.itemType || effectiveType) as ItemType,
+            condition: (line.condition as ItemCondition) || (condition as ItemCondition) || editItem.condition || ItemCondition.NEW,
+            unitCostETB: donation ? 0 : Number(line.unitPrice) || 0,
+            vatApplicable,
+            additionalCharges: donation || vatApplicable ? 0 : Number(line.additionalCharges) || 0,
+            ifmisItemCode: line.ifmisCode?.trim() || undefined,
+            provisionType,
+            poNumber: donation ? undefined : poNumber.trim() || undefined,
+            transactionType: effectiveTransactionType,
+            source: source.trim() || undefined,
+            donor: donation ? source.trim() || undefined : undefined,
+            buyer: donation ? undefined : buyer.trim() || undefined,
+            programName: programName.trim() || undefined,
+            uom: line.uom || effectiveUom,
+            subInventory: line.subInventory?.trim() || undefined,
+            itemCategoryDisplay: lineCat?.label || selectedCat?.label,
+            quantity: Number(line.quantity) || 1,
+            deliveredBy: deliveredBy.trim() || undefined,
+            receivedByEmployeeId: receivedById || undefined,
+            remark: line.remark?.trim() || undefined,
+          });
+        }
+
         // Items added while correcting go on the same Model 19 slip, each as its own record waiting for approval
-        if (extraLines.length > 0) {
+        if (newLines.length > 0) {
           try {
-            const added = extraPayload();
+            const added = newLines.map((l) => ({
+              ifmisItemCode: l.ifmisCode?.trim() || undefined,
+              name: l.name.trim(),
+              category: (l.category || effectiveCategory) as AssetCategory,
+              itemType: (l.itemType || effectiveType) as ItemType,
+              unitCostETB: donation ? 0 : Number(l.unitPrice) || 0,
+              condition: (l.condition as ItemCondition) || ItemCondition.NEW,
+              uom: (l.uom || effectiveUom).trim(),
+              itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
+              subInventory: l.subInventory?.trim() || undefined,
+              quantity: Number(l.quantity) || 1,
+              totalAmount: donation ? 0 : (() => {
+                const base = Number(l.quantity || 1) * Number(l.unitPrice || 0);
+                const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+                return base + (vatApplicable ? vat : Number(l.additionalCharges) || 0);
+              })(),
+              vatApplicable,
+              additionalCharges: vatApplicable ? 0 : Number(l.additionalCharges) || 0,
+              remark: l.remark?.trim() || remark.trim() || undefined,
+            }));
             await api.registerStockIn({
               ...added[0],
               serialNumber: '',
@@ -833,11 +912,15 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             return;
           }
         }
+        const isMultiBatch = Boolean(editBatch && editBatch.length > 1);
+        const totalItemsCount = 1 + extraLines.length;
         toast.success(
           'Receipt updated',
-          extraLines.length > 0
-            ? `${editItem.itemCode} was corrected and ${extraLines.length} item${extraLines.length === 1 ? '' : 's'} added to Model 19 #${slipNo}. All wait for Team Leader endorsement.`
-            : `${editItem.itemCode} was corrected. ${returned ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`
+          isMultiBatch
+            ? `Model 19 #${slipNo} (${totalItemsCount} items) was adjusted and resubmitted for Team Leader endorsement.`
+            : extraLines.length > 0
+              ? `${editItem.itemCode} was corrected and ${extraLines.length} item${extraLines.length === 1 ? '' : 's'} added to Model 19 #${slipNo}. All wait for Team Leader endorsement.`
+              : `${editItem.itemCode} was corrected. ${returned ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`
         );
         onSuccess(res);
       } catch (err: any) {
@@ -1327,7 +1410,21 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       <FormFooter
         accent="emerald"
         submitting={submitting}
-        submitLabel={isEdit ? (extraLines.length > 0 ? `Save changes and add ${extraLines.length} item${extraLines.length === 1 ? '' : 's'}` : returned ? 'Save and resubmit' : 'Save changes') : extraLines.length > 0 ? `Submit ${extraLines.length + 1} items for approval` : 'Submit for approval'}
+        submitLabel={
+          isEdit
+            ? editBatch && editBatch.length > 1
+              ? returned
+                ? `Save and resubmit ${extraLines.length + 1} items`
+                : `Save changes (${extraLines.length + 1} items)`
+              : extraLines.length > 0
+                ? `Save changes and add ${extraLines.length} item${extraLines.length === 1 ? '' : 's'}`
+                : returned
+                  ? 'Save and resubmit'
+                  : 'Save changes'
+            : extraLines.length > 0
+              ? `Submit ${extraLines.length + 1} items for approval`
+              : 'Submit for approval'
+        }
         allowIncomplete={true}
         submitDisabled={hasDuplicates}
         note={
