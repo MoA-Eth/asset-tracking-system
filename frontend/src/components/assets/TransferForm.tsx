@@ -93,6 +93,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [engineNo, setEngineNo] = useState(details.engineNo ?? '');
   const [depreciation, setDepreciation] = useState<number>(details.depreciation ?? 0);
   const [bookValue, setBookValue] = useState<number>(details.bookValue ?? (editItem ? valueOf(editItem, Number(editItem.quantity) || 1) : 0));
+  const [transferQuantity, setTransferQuantity] = useState<number>(
+    Number(details.quantity) || (editItem ? Number(editItem.quantity) || 1 : 1)
+  );
   // Accessories start at zero: the encoder enters what was actually handed over
   const [jackQty, setJackQty] = useState(qtyOf('jack with handle'));
   const [tireWrenchQty, setTireWrenchQty] = useState(qtyOf('tire wrench'));
@@ -141,8 +144,10 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     const item = items.find((i) => i.id === itemId);
     if (item && item.status === ItemStatus.AVAILABLE) setReturnToId('');
     if (item) {
+      const qty = Number(item.quantity) || 1;
+      setTransferQuantity(qty);
       setDepreciation(0);
-      setBookValue(valueOf(item, Number(item.quantity) || 1));
+      setBookValue(valueOf(item, qty));
       setChassisNumber(item.serialNumber || '');
       setPlateNo('');
       setEngineNo('');
@@ -272,6 +277,10 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       } else if (!editTransfer) {
         setReturnToId('');
       }
+      if (line?.unit !== undefined && line.unit > 0) {
+        setTransferQuantity(line.unit);
+        filled.push('quantity');
+      }
       if (line?.depreciation !== undefined) {
         setDepreciation(line.depreciation);
         filled.push('depreciation');
@@ -400,6 +409,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   // Required fields still empty; the request can only be submitted once this is empty
   const missingFields = [
     !selectedItemId && 'asset',
+    (!transferQuantity || transferQuantity <= 0) && 'quantity',
+    selectedItemObj && transferQuantity > (Number(selectedItemObj.quantity) || 1) && 'quantity exceeds available',
     !model21No.trim() && 'Model 21 No.',
     !transferDateGc && 'transfer date',
     !book.trim() && 'book',
@@ -450,7 +461,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           onSaved();
           return;
         }
-        const origCost = valueOf(item, Number(item?.quantity) || 1);
+        const origCost = valueOf(item, transferQuantity);
         await api.registerReturn({
           itemId: selectedItemId,
           ifmisSlipNumber: effectiveModel21No,
@@ -522,7 +533,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               serialNumber: item?.serialNumber || '',
               chassisNumber: chassisNumber.trim() || undefined,
               uom: item?.uom || 'EA',
-              unit: Number(item?.quantity) || 1,
+              unit: transferQuantity,
               origCost,
               depreciation,
               bookValue,
@@ -568,6 +579,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
       if (editTransfer) {
         await api.updateTransfer(editTransfer.id, {
+          quantity: transferQuantity,
           model21No: model21No.trim(),
           ifmisSlipAttachmentUrl: slipUrl,
           toEmployeeId: targetEmployeeId,
@@ -592,9 +604,10 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       }
 
       const selectedItem = selectedItemObj;
-      const origCost = valueOf(selectedItem, Number(selectedItem?.quantity) || 1);
+      const origCost = valueOf(selectedItem, transferQuantity);
       await api.transferItem({
         itemId: selectedItemId,
+        quantity: transferQuantity,
         ifmisSlipAttachmentUrl: slipUrl,
         toEmployeeId: targetEmployeeId,
         toDepartmentId: targetDepartmentId || undefined,
@@ -663,7 +676,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             serialNumber: selectedItem?.serialNumber || '',
             chassisNumber: chassisNumber.trim() || undefined,
             uom: selectedItem?.uom || 'EA',
-            unit: Number(selectedItem?.quantity) || 1,
+            unit: transferQuantity,
             origCost,
             depreciation,
             bookValue,
@@ -865,8 +878,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                 { label: 'Description', value: selectedItemObj.name },
                 { label: 'Current location', value: storeLocationLabel(selectedItemObj.storeLocation) },
                 {
-                  label: `Original cost (${selectedItemObj.quantity || 1} ${selectedItemObj.uom || 'EA'})`,
-                  value: formatETB(valueOf(selectedItemObj, Number(selectedItemObj.quantity) || 1)),
+                  label: `Original cost (${transferQuantity} ${selectedItemObj.uom || 'EA'})`,
+                  value: formatETB(valueOf(selectedItemObj, transferQuantity)),
                   mono: true,
                 },
               ]}
@@ -874,12 +887,35 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           )}
 
           <FieldGrid cols={2}>
+            <Field
+              label={isReturn ? 'Quantity to return' : 'Quantity to transfer'}
+              required
+              htmlFor="transfer-quantity"
+              hint={
+                selectedItemObj
+                  ? `Available: ${Number(selectedItemObj.quantity) || 1} ${selectedItemObj.uom || 'EA'}`
+                  : 'Select an asset first'
+              }
+            >
+              <QuantityInput
+                id="transfer-quantity"
+                value={transferQuantity}
+                min={1}
+                max={Number(selectedItemObj?.quantity) || 1}
+                onChange={(val) => {
+                  setTransferQuantity(val);
+                  setBookValue(Math.max(0, valueOf(selectedItemObj, val) - depreciation));
+                }}
+                disabled={!selectedItemObj}
+              />
+            </Field>
+
             <Field label="Accumulated depreciation (ETB)" optional hint={`Net book value: ${formatETB(bookValue)}`}>
               <MoneyInput
                 value={depreciation}
                 onChange={(val) => {
                   setDepreciation(val);
-                  setBookValue(Math.max(0, valueOf(selectedItemObj, Number(selectedItemObj?.quantity) || 1) - val));
+                  setBookValue(Math.max(0, valueOf(selectedItemObj, transferQuantity) - val));
                 }}
               />
             </Field>
@@ -1105,7 +1141,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         submitting={submitting}
         submitLabel={editTransfer ? (editTransfer.status === 'RETURNED' ? 'Save and resubmit' : 'Save changes') : isReturn ? 'Submit return to store for approval' : 'Submit transfer for approval'}
         missingFields={missingFields}
-        fieldTargets={{ recipient: '#transfer-recipient', 'store man': '#transfer-store-man', 'signed copy': '#transfer-signed-copy input[type=file]' }}
+        fieldTargets={{ quantity: '#transfer-quantity', recipient: '#transfer-recipient', 'store man': '#transfer-store-man', 'signed copy': '#transfer-signed-copy input[type=file]' }}
         onCancel={onCancel}
       />
     </form>
@@ -1136,7 +1172,7 @@ export const buildModel21Voucher = async (
     r.transactionType === 'TRANSFER'
       ? employees.find((e) => e.id === r.recipientEmployeeId) || r.recipientEmployee
       : employees.find((e) => e.id === d.storeRecipientId);
-  const units = Number(item?.quantity) || 1;
+  const units = Number(d.quantity) || Number(item?.quantity) || 1;
   const origCost = d.origCost ?? valueOf(item, units);
   const fromLoc = storeLocationLabel(item?.storeLocation);
   const toLocation = locations.find((l) => l.id === r.targetLocationId);

@@ -811,6 +811,8 @@ export interface CreateTransferRequest {
   toLocationId?: string;
   reason?: string;
   performedById: string;
+  /** Units to transfer; defaults to all units of the asset record */
+  quantity?: number;
 
   // Extended Model 21 fields
   model21No?: string;
@@ -885,6 +887,8 @@ export interface Model21RequestDetails {
   issuedItemCode?: string;
   /** Disposal: code of the record split off for a partial disposal, set on approval */
   disposedItemCode?: string;
+  /** Transfer: code of the record split off for a partial transfer, set on approval */
+  transferredItemCode?: string;
   /** Transfer, return or disposal reason */
   reason?: string;
   /** Disposal: justification */
@@ -922,6 +926,7 @@ export interface UpdateTransferRequest {
   toDepartmentId?: string;
   toLocationId?: string;
   reason?: string;
+  quantity?: number;
   book?: string;
   chassisNumber?: string;
   plateNo?: string;

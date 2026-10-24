@@ -2262,9 +2262,17 @@ export class StoreService {
       payload.transferredByEmployeeId && item.storeLocationId
         ? await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.transferredByEmployeeId, 'the transfer')
         : null;
+    const inStore = quantityOf(item);
+    const requested = Number(payload.quantity);
+    const quantity = Number.isFinite(requested) && requested > 0 ? requested : (Number(previous.quantity) || inStore);
+    if (quantity > inStore) {
+      throw new BadRequestError(`Cannot transfer ${quantity} ${uomOf(item)}. Only ${inStore} are held.`);
+    }
     const details: Model21RequestDetails = {
       ...previous,
       ...(transferrer ? { transferredByEmployeeId: transferrer.employeeId, transferredByName: transferrer.fullNameEn } : {}),
+      quantity,
+      uom: uomOf(item),
       reason: reason || undefined,
       remark: payload.remark?.trim() || undefined,
       book: payload.book?.trim() || undefined,
@@ -2852,15 +2860,16 @@ export class StoreService {
     const storeName = await storeLabel(item.storeLocationId);
     let approvedById: string | null = item.approvedById;
     let approvedCondition: string | undefined;
-    // Set when a Stock-Out or disposal covers only part of the record's units: those units get their own record
+    // Set when a Stock-Out, transfer or disposal covers only part of the record's units: those units get their own record
     let split: {
       quantity: number;
       remaining: number;
       uom: string;
       code: string;
-      status: 'ISSUED' | 'DISPOSED';
+      status: 'ISSUED' | 'DISPOSED' | 'AVAILABLE';
       custodianId: string | null;
       departmentId: string | null;
+      locationId?: string | null;
       /** Issued to an outside organization instead of an employee */
       heldByOrganization?: string | null;
       heldByContact?: string | null;
@@ -2869,7 +2878,7 @@ export class StoreService {
       toEntity: string;
       notes: string;
       /** Where the approval remembers the split-off record's code */
-      detailsKey: 'issuedItemCode' | 'disposedItemCode';
+      detailsKey: 'issuedItemCode' | 'disposedItemCode' | 'transferredItemCode';
     } | null = null;
 
     if (isApprove) {
@@ -2909,6 +2918,40 @@ export class StoreService {
         toEntity = toEmp ? toEmp.fullNameEn : 'Store';
         histNote = payload.reviewRemarks || `Model 21 transfer approved: ${approval.purposeOrRemarks}`;
         approvedById = payload.reviewedById;
+
+        const requested = Number((approval.requestDetails as Record<string, any> | null)?.quantity);
+        const inStore = quantityOf(item);
+        if (Number.isFinite(requested) && requested > 0 && requested < inStore) {
+          // The rest stays with the original custodian (or store) on this record; the transferred units get their own record
+          const uom = uomOf(item);
+          const code = await nextSplitCode(db, item);
+          const recipientName = toEntity;
+          split = {
+            quantity: requested,
+            remaining: Math.round((inStore - requested) * 10000) / 10000,
+            uom,
+            code,
+            status: newItemStatus as 'ISSUED' | 'AVAILABLE',
+            custodianId,
+            departmentId,
+            locationId,
+            heldByOrganization: null,
+            heldByContact: null,
+            historyAction: 'TRANSFER_APPROVED',
+            toEntity: recipientName,
+            notes: `${requested} ${uom} transferred from ${item.itemCode} (Model 21 ${approval.ifmisSlipNumber}). ${approval.purposeOrRemarks}`,
+            detailsKey: 'transferredItemCode',
+          };
+          newItemStatus = statusForCustodian(item.currentCustodianId);
+          custodianId = item.currentCustodianId;
+          departmentId = item.assignedDepartmentId;
+          locationId = item.storeLocationId;
+          heldByOrganization = item.heldByOrganization ?? null;
+          heldByContact = item.heldByContact ?? null;
+          approvedById = item.approvedById;
+          toEntity = `${fromEntity} (${newItemStatus})`;
+          histNote = `Transferred ${requested} of ${inStore} ${uom} as ${code} to ${recipientName}; ${inStore - requested} ${uom} retained. ${approval.purposeOrRemarks}`;
+        }
       } else if (approval.transactionType === 'DISPOSAL') {
         const details = (approval.requestDetails ?? {}) as Model21RequestDetails;
         const disposedTo = details.recipientName ? `Disposed: to ${details.recipientName}` : 'Disposed';
@@ -3129,7 +3172,7 @@ export class StoreService {
           status: split.status as any,
           condition: (split.condition ?? item.condition) as any,
           itemType: (item.itemType ?? 'FIXED') as any,
-          storeLocationId: item.storeLocationId,
+          storeLocationId: split.locationId !== undefined ? (split.locationId ?? item.storeLocationId) : item.storeLocationId,
           currentCustodianId: split.custodianId,
           assignedDepartmentId: split.departmentId,
           heldByOrganization: split.heldByOrganization ?? null,
@@ -3176,7 +3219,7 @@ export class StoreService {
       isApprove ? `APPROVE_${approval.transactionType}` : `CANCEL_${approval.transactionType}`,
       'APPROVAL',
       item.id,
-      `${approval.transactionType} ${isApprove ? 'APPROVED' : 'CANCELLED'} by ${reviewerName} for item ${item.itemCode}.${split ? ` Partial ${split.status === 'ISSUED' ? 'issue' : 'disposal'}: ${split.quantity} ${split.uom} as ${split.code}.` : ''} Remarks: ${updatedApproval.reviewRemarks}`,
+      `${approval.transactionType} ${isApprove ? 'APPROVED' : 'CANCELLED'} by ${reviewerName} for item ${item.itemCode}.${split ? ` Partial ${split.status === 'ISSUED' ? (approval.transactionType === 'TRANSFER' ? 'transfer' : 'issue') : split.status === 'AVAILABLE' ? 'transfer' : 'disposal'}: ${split.quantity} ${split.uom} as ${split.code}.` : ''} Remarks: ${updatedApproval.reviewRemarks}`,
       approval.ifmisSlipNumber,
       undefined,
       undefined,
@@ -3245,9 +3288,18 @@ export class StoreService {
     const newCustodian = payload.toEmployeeId ? newCustodianRecord?.fullNameEn : prevCustodian;
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
 
+    const inStore = quantityOf(item);
+    const requested = Number(payload.quantity);
+    const quantity = Number.isFinite(requested) && requested > 0 ? requested : inStore;
+    if (quantity > inStore) {
+      throw new BadRequestError(`Cannot transfer ${quantity} ${uomOf(item)}. Only ${inStore} are held.`);
+    }
+
     const transferDetails: Model21RequestDetails = {
       ...(item.status === 'AVAILABLE' ? { fromStore: true } : {}),
       ...(transferrer ? { transferredByEmployeeId: transferrer.employeeId, transferredByName: transferrer.fullNameEn } : {}),
+      quantity,
+      uom: uomOf(item),
       reason,
       remark: payload.remark,
       book: payload.book,
@@ -3298,7 +3350,7 @@ export class StoreService {
         recipientEmployeeId: payload.toEmployeeId,
         targetDepartmentId: payload.toDepartmentId,
         targetLocationId: payload.toLocationId,
-        purposeOrRemarks: `Transfer from ${prevCustodian} to ${newCustodian}. ${model21Details}`,
+        purposeOrRemarks: `Transfer from ${prevCustodian} to ${newCustodian}. ${quantity < inStore ? `(${quantity} of ${inStore} ${uomOf(item)}) ` : ''}${model21Details}`,
         requestDetails: transferDetails as any,
         status: 'PENDING' as any,
         createdAtGc: today.gc,
