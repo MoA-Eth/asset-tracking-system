@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../api/client';
 import { MoaLogo } from '../components/ui/MoaLogo';
-import { Lock, Eye, EyeOff, KeyRound, CheckCircle2, RefreshCw, LogOut } from 'lucide-react';
+import { Lock, Eye, EyeOff, KeyRound, CheckCircle2, RefreshCw, LogOut, ShieldCheck } from 'lucide-react';
 
 export const ChangePasswordPage: React.FC = () => {
   const { user, refreshSession, logout } = useAuth();
@@ -50,7 +50,7 @@ export const ChangePasswordPage: React.FC = () => {
       className="auth-dark-bg min-h-screen w-full overflow-y-auto overflow-x-hidden flex flex-col items-center justify-center relative selection:bg-amber-400 selection:text-emerald-950 font-sans p-3 sm:p-4 py-4 sm:py-6"
       style={{
         background:
-          'radial-gradient(ellipse at 50% 30%, #0F5C36 0%, #0A4429 50%, #062E1C 100%)',
+          'linear-gradient(168deg, #0B6B3A 0%, #086034 50%, #06542D 100%)',
       }}
     >
       {/* Background glow */}
@@ -133,7 +133,7 @@ export const ChangePasswordPage: React.FC = () => {
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Min. 8 characters"
                   autoFocus
-                  className="w-full h-9 sm:h-10 pl-9 pr-9 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                  className="w-full h-9 sm:h-10 pl-9 pr-9 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
                   style={{
                     background: 'rgba(3, 56, 29, 0.72)',
                     borderColor: 'rgba(255, 255, 255, 0.22)',
@@ -142,7 +142,7 @@ export const ChangePasswordPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowNew(!showNew)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-600 hover:text-emerald-300 transition-colors cursor-pointer p-1"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-200/80 hover:text-white transition-colors cursor-pointer p-1"
                 >
                   {showNew ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
@@ -162,7 +162,7 @@ export const ChangePasswordPage: React.FC = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-type new password"
-                  className="w-full h-9 sm:h-10 pl-9 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                  className="w-full h-9 sm:h-10 pl-9 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
                   style={{
                     background: 'rgba(3, 56, 29, 0.72)',
                     borderColor: 'rgba(255, 255, 255, 0.22)',
@@ -212,6 +212,17 @@ export const ChangePasswordPage: React.FC = () => {
             </button>
           </div>
         </form>
+
+        {/* Security & Institutional Footer */}
+        <div className="mt-4 text-center space-y-1">
+          <p className="flex items-center justify-center gap-1.5 text-xs text-emerald-200/80 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#FCDD09]" />
+            <span>Authorized MoA personnel only · Secure portal</span>
+          </p>
+          <p className="text-[11px] text-emerald-200/60">
+            Federal Democratic Republic of Ethiopia
+          </p>
+        </div>
       </main>
     </div>
   );

@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   KeyRound,
   RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 import { MoaLogo } from "../components/ui/MoaLogo";
 
@@ -132,7 +133,7 @@ export const LoginPage: React.FC = () => {
       className="auth-dark-bg min-h-screen w-screen flex items-center justify-center relative overflow-x-hidden selection:bg-amber-400 selection:text-emerald-950 font-sans p-4 sm:p-6"
       style={{
         background:
-          "radial-gradient(ellipse at 50% 30%, #0F5C36 0%, #0A4429 50%, #062E1C 100%)",
+          "linear-gradient(168deg, #0B6B3A 0%, #086034 50%, #06542D 100%)",
       }}
     >
       {/* Background glow */}
@@ -155,19 +156,19 @@ export const LoginPage: React.FC = () => {
       />
 
       {/* Main Login Arena - Centered in Viewport */}
-      <main className="w-full max-w-[440px] z-10 animate-fadeIn">
+      <main className="w-full max-w-[420px] z-10 animate-fadeIn my-auto">
         {/* Error Banner */}
         {errorMsg && (
-          <div className="mb-4 p-3.5 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-shake shadow-lg">
+          <div className="mb-4 p-3.5 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-shake shadow-lg backdrop-blur-md">
             <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
             <span className="font-medium">{errorMsg}</span>
           </div>
         )}
 
-        {/* Authentic MoA Card with Rich Height and Balanced Depth */}
+        {/* Authentic MoA Card with Balanced Proportions */}
         <form
           onSubmit={handleFormSubmit}
-          className="rounded-3xl border border-white/20 backdrop-blur-2xl py-8 sm:py-11 px-6 sm:px-10 relative overflow-hidden ring-1 ring-white/10"
+          className="rounded-3xl border border-white/20 backdrop-blur-2xl py-8 sm:py-9 px-6 sm:px-8 relative overflow-hidden shadow-[0_24px_50px_-12px_rgba(0,35,16,0.65),0_8px_20px_-8px_rgba(0,0,0,0.5)] ring-1 ring-white/10"
           style={{
             background:
               "linear-gradient(168deg, rgba(11, 107, 58, 0.97) 0%, rgba(8, 96, 52, 0.98) 50%, rgba(6, 84, 45, 0.98) 100%)",
@@ -182,28 +183,31 @@ export const LoginPage: React.FC = () => {
           <div className="absolute top-1.5 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
 
           {/* Brand Header with Majestic Logo and Spacing */}
-          <div className="text-center mb-7 sm:mb-8 pt-1">
-            <div className="relative inline-block mb-3.5 sm:mb-4">
+          <div className="text-center mb-6 pt-1">
+            <div className="relative inline-block mb-3">
               <div className="absolute inset-0 rounded-full bg-emerald-500/25 blur-2xl -z-10 scale-125" />
               <MoaLogo
-                className="w-20 h-20 sm:w-22 sm:h-22 mx-auto drop-shadow-[0_12px_20px_rgba(0,0,0,0.55)] transition-transform hover:scale-105"
+                className="w-18 h-18 sm:w-20 sm:h-20 mx-auto drop-shadow-[0_10px_20px_rgba(0,0,0,0.45)] transition-transform hover:scale-105 duration-200"
                 alt="Ministry of Agriculture"
               />
             </div>
 
-            <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.14em] text-[#FCDD09]/90">
+            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#FCDD09]">
               Ministry of Agriculture (FDRE)
             </p>
-            <h1 className="mt-1 text-2xl sm:text-[25px] font-bold text-white tracking-tight drop-shadow-sm">
+            <h1 className="mt-1 text-xl sm:text-2xl font-bold text-white tracking-tight drop-shadow-sm">
               Internal Asset Tracking Portal
             </h1>
+            <p className="text-xs text-emerald-100/80 mt-1">
+              Sign in with your organizational credentials
+            </p>
           </div>
 
           {/* Form Inputs with Generous Height & Touch Targets */}
-          <div className="space-y-5 sm:space-y-6">
+          <div className="space-y-4 sm:space-y-5">
             {/* Email / Payroll ID */}
             <div>
-              <label className="block text-xs sm:text-[13px] font-semibold text-emerald-300/90 mb-2">
+              <label className="block text-xs font-semibold text-emerald-100 mb-1.5">
                 Email or Employee ID
               </label>
               <div className="relative group">
@@ -214,7 +218,7 @@ export const LoginPage: React.FC = () => {
                   value={usernameOrEmail}
                   onChange={(e) => setUsernameOrEmail(e.target.value)}
                   placeholder="name@moa.gov.et or payroll ID"
-                  className="w-full h-11 sm:h-12 pl-10 sm:pl-11 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                  className="w-full h-11 pl-10 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
                   style={{
                     background: "rgba(3, 56, 29, 0.72)",
                     borderColor: "rgba(255, 255, 255, 0.22)",
@@ -225,7 +229,7 @@ export const LoginPage: React.FC = () => {
 
             {/* Password & Forgot Password Link */}
             <div>
-              <div className="flex items-center justify-between text-xs sm:text-[13px] font-semibold text-emerald-300/90 mb-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-emerald-100 mb-1.5">
                 <span>Password</span>
 
                 <button
@@ -236,9 +240,9 @@ export const LoginPage: React.FC = () => {
                     setResetSuccessMessage(null);
                     setShowForgotModal(true);
                   }}
-                  className="text-xs font-medium text-emerald-400 hover:text-amber-300 transition-colors cursor-pointer inline-flex items-center gap-1.5 group"
+                  className="text-xs font-medium text-[#FCDD09] hover:text-white transition-colors cursor-pointer inline-flex items-center gap-1 group"
                 >
-                  <KeyRound className="w-3.5 h-3.5 text-emerald-400 group-hover:text-amber-300 transition-colors" />
+                  <KeyRound className="w-3.5 h-3.5 text-[#FCDD09] group-hover:text-white transition-colors" />
                   <span>Reset password</span>
                 </button>
               </div>
@@ -250,7 +254,7 @@ export const LoginPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full h-11 sm:h-12 pl-10 sm:pl-11 pr-11 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                  className="w-full h-11 pl-10 pr-11 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
                   style={{
                     background: "rgba(3, 56, 29, 0.72)",
                     borderColor: "rgba(255, 255, 255, 0.22)",
@@ -259,7 +263,7 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-600 hover:text-emerald-300 transition-colors cursor-pointer p-1"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-200/80 hover:text-white transition-colors cursor-pointer p-1"
                   title={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -298,6 +302,17 @@ export const LoginPage: React.FC = () => {
             </div>
           </div>
         </form>
+
+        {/* Security & Institutional Footer */}
+        <div className="mt-5 text-center space-y-1">
+          <p className="flex items-center justify-center gap-1.5 text-xs text-emerald-200/80 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#FCDD09]" />
+            <span>Authorized MoA personnel only · Secure portal</span>
+          </p>
+          <p className="text-[11px] text-emerald-200/60">
+            Federal Democratic Republic of Ethiopia
+          </p>
+        </div>
       </main>
 
       {/* ─── Change Password Dialog Modal: Matching Login Card Styling & Atmosphere ─── */}
@@ -405,7 +420,7 @@ export const LoginPage: React.FC = () => {
 
                 {/* Email or Payroll ID */}
                 <div>
-                  <label className="block text-xs font-semibold text-emerald-300/90 mb-1.5">
+                  <label className="block text-xs font-semibold text-emerald-100 mb-1.5">
                     Email or Employee ID
                   </label>
                   <div className="relative group">
@@ -415,8 +430,8 @@ export const LoginPage: React.FC = () => {
                       required
                       value={resetIdentifier}
                       onChange={(e) => setResetIdentifier(e.target.value)}
-              placeholder="e.g. name@moa.gov.et or payroll ID"
-                      className="w-full h-11 pl-10 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                      placeholder="e.g. name@moa.gov.et or payroll ID"
+                      className="w-full h-11 pl-10 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
                       style={{
                         background: "rgba(3, 56, 29, 0.72)",
                         borderColor: "rgba(255, 255, 255, 0.22)",
@@ -427,7 +442,7 @@ export const LoginPage: React.FC = () => {
 
                 {/* Current / Temporary Password */}
                 <div>
-                  <label className="block text-xs font-semibold text-emerald-300/90 mb-1.5">
+                  <label className="block text-xs font-semibold text-emerald-100 mb-1.5">
                     Current or Temporary Password
                   </label>
                   <div className="relative group">
@@ -438,7 +453,7 @@ export const LoginPage: React.FC = () => {
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       placeholder="Current password"
-                      className="w-full h-11 pl-10 pr-10 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                      className="w-full h-11 pl-10 pr-10 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
                       style={{
                         background: "rgba(3, 56, 29, 0.72)",
                         borderColor: "rgba(255, 255, 255, 0.22)",
@@ -447,7 +462,7 @@ export const LoginPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-600 hover:text-emerald-300 transition-colors cursor-pointer p-1"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-200/80 hover:text-white transition-colors cursor-pointer p-1"
                       title={showCurrentPassword ? "Hide" : "Show"}
                     >
                       {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -458,7 +473,7 @@ export const LoginPage: React.FC = () => {
                 {/* New Password & Confirm Password */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-emerald-300/90 mb-1.5">
+                    <label className="block text-xs font-semibold text-emerald-100 mb-1.5">
                       New Password
                     </label>
                     <div className="relative group">
@@ -468,7 +483,7 @@ export const LoginPage: React.FC = () => {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Min. 8 characters"
-                        className="w-full h-11 pl-3.5 pr-9 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                        className="w-full h-11 pl-3.5 pr-9 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
                         style={{
                           background: "rgba(3, 56, 29, 0.72)",
                           borderColor: "rgba(255, 255, 255, 0.22)",
@@ -477,7 +492,7 @@ export const LoginPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-600 hover:text-emerald-300 transition-colors p-1 cursor-pointer"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-200/80 hover:text-white transition-colors p-1 cursor-pointer"
                         title={showNewPassword ? "Hide" : "Show"}
                       >
                         {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -486,7 +501,7 @@ export const LoginPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-emerald-300/90 mb-1.5">
+                    <label className="block text-xs font-semibold text-emerald-100 mb-1.5">
                       Confirm New Password
                     </label>
                     <input
@@ -495,7 +510,7 @@ export const LoginPage: React.FC = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-type new password"
-                      className="w-full h-11 px-3.5 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40"
+                      className="w-full h-11 px-3.5 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
                       style={{
                         background: "rgba(3, 56, 29, 0.72)",
                         borderColor: "rgba(255, 255, 255, 0.22)",
