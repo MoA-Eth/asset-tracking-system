@@ -21,7 +21,11 @@ describe('Program / project', () => {
     const user = userEvent.setup();
     render(<Harness />);
     const field = screen.getByLabelText('Program / project');
-    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['None', ...PROGRAMS, '+ Other (type the name)…']);
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'None',
+      ...PROGRAMS,
+      '+ Other (type the name)…',
+    ]);
     await user.selectOptions(field, 'Food System Resilience Program (FSRP)');
     expect(screen.getByRole('status')).toHaveTextContent('Food System Resilience Program (FSRP)');
     await user.selectOptions(field, 'MoA');
@@ -49,4 +53,15 @@ describe('Program / project', () => {
     expect(screen.getByLabelText('Program / project')).toHaveValue('Rural Economic Development and Food Security (RED&FS)');
     expect(screen.queryByRole('option', { name: /\(REDFS\)/ })).toBeNull();
   });
+
+  it('allows editing an existing custom program name', async () => {
+    const user = userEvent.setup();
+    render(<Harness start="Irrigation Development" />);
+    await user.selectOptions(screen.getByLabelText('Program / project'), '+ Other (type the name)…');
+    const input = screen.getByLabelText('Program / project');
+    expect(input).toHaveValue('Irrigation Development');
+    await user.type(input, ' Phase 2');
+    expect(screen.getByRole('status')).toHaveTextContent('Irrigation Development Phase 2');
+  });
 });
+

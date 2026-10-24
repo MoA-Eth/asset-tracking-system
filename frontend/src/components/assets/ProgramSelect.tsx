@@ -20,7 +20,7 @@ export const ProgramSelect: React.FC<{
 
   if (typing) {
     return (
-      <div className="relative">
+      <div className="relative w-full">
         <input
           id={id}
           type="text"
@@ -28,14 +28,14 @@ export const ProgramSelect: React.FC<{
           placeholder="Name of the program or project"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`${className} pr-8`}
+          className={`${className} pr-8 w-full`}
         />
         <button
           type="button"
           onClick={() => setTyping(false)}
-          title="Choose from the list"
+          title="Choose from the list of programs"
           aria-label="Back to the list of programs"
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-emerald-700 cursor-pointer"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-emerald-700 cursor-pointer p-0.5"
         >
           ✕
         </button>
@@ -50,12 +50,12 @@ export const ProgramSelect: React.FC<{
       onChange={(e) => {
         if (e.target.value === OTHER) {
           setTyping(true);
-          onChange('');
+          if (known) onChange('');
         } else {
           onChange(e.target.value);
         }
       }}
-      className={`${className} cursor-pointer`}
+      className={`${className} cursor-pointer w-full`}
     >
       <option value="">None</option>
       {value.trim() && !known && <option value={value}>{value}</option>}
