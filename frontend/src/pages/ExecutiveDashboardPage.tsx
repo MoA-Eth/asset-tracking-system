@@ -302,8 +302,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
     return null;
   });
   const [isStaleExpanded, setIsStaleExpanded] = useState(false);
-  const [isLowStockExpanded, setIsLowStockExpanded] = useState(true);
-  const [lowStockCriticalOnly, setLowStockCriticalOnly] = useState(false);
+  const [isLowStockExpanded, setIsLowStockExpanded] = useState(false);
   const [locationsViewMode, setLocationsViewMode] = useState<'table' | 'grid'>('table');
 
   // Synchronize store selection from TopHeader with dashboard filters
@@ -861,129 +860,97 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         </section>
       )}
 
-      {/* ── Low-stock consumable supplies ───────────────────────────────────── */}
+      {/* ── Low-stock consumable supplies (Compact Alert Banner) ────────── */}
       {lowStock.itemCount > 0 && (
         <div id="low-stock-consumables" className="scroll-mt-20">
-          <Panel
-            title="Low-stock consumable supplies"
-            subtitle="አላቂ ዕቃዎች ክምችት ማስጠንቀቂያ · Consumable items in store at or below reorder threshold"
-            action={
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setLowStockCriticalOnly(!lowStockCriticalOnly)}
-                  className={`text-xs px-2.5 py-1 rounded border font-medium transition cursor-pointer ${
-                    lowStockCriticalOnly
-                      ? 'bg-rose-50 border-rose-300 text-rose-800'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+          <div
+            className={`rounded-xl border p-3 transition-all shadow-xs ${
+              lowStock.criticalCount > 0
+                ? 'border-rose-200 bg-rose-50/60 text-rose-900'
+                : 'border-amber-200 bg-amber-50/60 text-amber-900'
+            }`}
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded font-mono text-[10px] font-bold shrink-0 ${
+                    lowStock.criticalCount > 0 ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
                   }`}
                 >
-                  {lowStockCriticalOnly ? 'Showing critical only' : 'Filter critical (≤1)'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsLowStockExpanded(!isLowStockExpanded)}
-                  className="text-xs text-slate-500 hover:text-slate-800 p-1 cursor-pointer"
-                  aria-label={isLowStockExpanded ? 'Collapse low stock' : 'Expand low stock'}
-                >
-                  {isLowStockExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-              </div>
-            }
-          >
-            <div className="space-y-4">
-              {/* Alert Banner */}
-              <div
-                className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${
-                  lowStock.criticalCount > 0
-                    ? 'border-rose-200 bg-rose-50/70 text-rose-900'
-                    : 'border-amber-200 bg-amber-50/70 text-amber-900'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <span
-                    className={`flex h-7 px-2.5 shrink-0 items-center justify-center rounded font-mono text-[11px] font-bold ${
-                      lowStock.criticalCount > 0 ? 'bg-rose-100 text-rose-900' : 'bg-amber-100 text-amber-900'
-                    }`}
-                  >
-                    {lowStock.criticalCount > 0 ? 'CRITICAL' : 'REORDER'}
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold">
-                      {lowStock.criticalCount > 0
-                        ? `${lowStock.criticalCount} consumable ${lowStock.criticalCount === 1 ? 'item is' : 'items are'} critically low (≤1 unit left in store)`
-                        : `${lowStock.itemCount} consumable supplies have reached their reorder threshold`}
-                    </p>
-                    <p className="text-xs mt-0.5 opacity-90">
-                      Total remaining in store: {lowStock.units.toLocaleString()} units across {lowStock.itemCount} consumable lines in central and depot stores. Replenish via Model 19 (Stock-In).
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => onNavigate('assets')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded bg-white border border-slate-300 shadow-sm text-slate-700 hover:bg-slate-50 transition cursor-pointer"
-                  >
-                    Go to Assets &rarr;
-                  </button>
+                  {lowStock.criticalCount > 0 ? 'CRITICAL' : 'LOW STOCK'}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold truncate">
+                    {lowStock.criticalCount > 0
+                      ? `${lowStock.criticalCount} consumable ${lowStock.criticalCount === 1 ? 'item is' : 'items are'} critically low (≤1 unit)`
+                      : `${lowStock.itemCount} consumable supplies at or below reorder threshold`}
+                    <span className="ml-1.5 text-[11px] font-normal opacity-80">
+                      ({lowStock.units.toLocaleString()} units remaining)
+                    </span>
+                  </p>
                 </div>
               </div>
 
-              {/* Table of low stock items */}
-              {isLowStockExpanded && (
-                <div className="overflow-x-auto rounded-lg border border-slate-200">
-                  <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
-                    <thead className="bg-slate-50 font-semibold text-slate-700">
-                      <tr>
-                        <th className="py-2.5 px-3">Item Code</th>
-                        <th className="py-2.5 px-3">Description</th>
-                        <th className="py-2.5 px-3">Category</th>
-                        <th className="py-2.5 px-3">Store Location</th>
-                        <th className="py-2.5 px-3 text-right">Remaining Stock</th>
-                        <th className="py-2.5 px-3 text-center">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {(lowStockCriticalOnly ? lowStockItems.filter((i) => i.isCritical) : lowStockItems).map((it) => (
-                        <tr key={it.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-2.5 px-3 font-mono font-medium text-slate-900">{it.itemCode}</td>
-                          <td className="py-2.5 px-3 font-medium text-slate-800">{it.name}</td>
-                          <td className="py-2.5 px-3 text-slate-500">
-                            {CATEGORY_STYLE[it.category]?.en || it.category}
-                          </td>
-                          <td className="py-2.5 px-3 text-slate-600">
-                            {it.storeName} · {it.locationName}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-semibold tabular-nums text-slate-900">
-                            {it.unitsInStore} {it.uom}
-                            <span className="text-[10px] text-slate-400 font-normal ml-1">
-                              (limit: ≤{it.threshold})
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-center">
-                            {it.unitsInStore === 0 ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-800 border border-rose-200">
-                                Out of Stock
-                              </span>
-                            ) : it.isCritical ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                                Critical · {it.unitsInStore} {it.uom}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                                Low Stock · {it.unitsInStore} {it.uom}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsLowStockExpanded(!isLowStockExpanded)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 shadow-xs cursor-pointer transition"
+                >
+                  {isLowStockExpanded ? 'Hide items' : `Show ${lowStock.itemCount} items`}
+                  {isLowStockExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('assets')}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded bg-white hover:bg-slate-50 border border-slate-300 shadow-xs text-slate-800 cursor-pointer transition"
+                >
+                  Manage &rarr;
+                </button>
+              </div>
             </div>
-          </Panel>
+
+            {/* Compact Table (toggled open) */}
+            {isLowStockExpanded && (
+              <div className="mt-2.5 pt-2.5 border-t border-slate-200/70 overflow-x-auto">
+                <table className="min-w-full text-left text-xs bg-white rounded border border-slate-200">
+                  <thead className="bg-slate-50 font-semibold text-slate-700">
+                    <tr>
+                      <th className="py-2 px-3">Item Code</th>
+                      <th className="py-2 px-3">Description</th>
+                      <th className="py-2 px-3">Category</th>
+                      <th className="py-2 px-3">Store Location</th>
+                      <th className="py-2 px-3 text-right">In Store</th>
+                      <th className="py-2 px-3 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {lowStockItems.map((it) => (
+                      <tr key={it.id} className="hover:bg-slate-50/80">
+                        <td className="py-1.5 px-3 font-mono font-medium text-slate-900">{it.itemCode}</td>
+                        <td className="py-1.5 px-3 font-medium text-slate-800">{it.name}</td>
+                        <td className="py-1.5 px-3 text-slate-500">{CATEGORY_STYLE[it.category]?.en || it.category}</td>
+                        <td className="py-1.5 px-3 text-slate-600">{it.storeName} · {it.locationName}</td>
+                        <td className="py-1.5 px-3 text-right font-semibold tabular-nums text-slate-900">
+                          {it.unitsInStore} {it.uom}
+                          <span className="text-[10px] text-slate-400 font-normal ml-1">(≤{it.threshold})</span>
+                        </td>
+                        <td className="py-1.5 px-3 text-center">
+                          {it.unitsInStore === 0 ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-800">Out of Stock</span>
+                          ) : it.isCritical ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">Critical</span>
+                          ) : (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">Low Stock</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

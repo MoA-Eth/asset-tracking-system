@@ -144,12 +144,17 @@ describe('Dashboard low-stock consumables banner', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Low-stock consumable supplies')).toBeInTheDocument();
-    expect(screen.getByText('Low-stock consumables')).toBeInTheDocument();
+    expect(await screen.findByText('Low-stock consumables')).toBeInTheDocument();
+    expect(screen.getByText(/1 consumable item is critically low/)).toBeInTheDocument();
+
+    const toggleBtn = screen.getByRole('button', { name: /Show 2 items/ });
+    expect(toggleBtn).toBeInTheDocument();
+    fireEvent.click(toggleBtn);
+
     expect(screen.getByText('Demo toner')).toBeInTheDocument();
     expect(screen.getByText('Demo stapler')).toBeInTheDocument();
-    expect(screen.getByText(/1 consumable item is critically low/)).toBeInTheDocument();
-    expect(screen.getByText('Critical · 1 EA')).toBeInTheDocument();
+    expect(screen.getByText('Critical')).toBeInTheDocument();
   });
 });
+
 
