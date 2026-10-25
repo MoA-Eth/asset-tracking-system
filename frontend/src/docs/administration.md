@@ -75,3 +75,14 @@ The ATS platform includes built-in OpenAPI 3.0 documentation and monitoring endp
 - **Edit** fixes a name or contact; past issues keep the name they were made with.
 - **Deactivate** an organization that no longer receives items: it is no longer offered on the issue form, and past records keep its name. **Reactivate** brings it back.
 - Organizations typed on issues before this list existed were added to it automatically, once each.
+
+## Programs and projects
+
+**Settings → Programs & Projects** lists the ministry programs, initiatives, and donor projects that assets and consumables are received for (e.g. PSNP, FSRP, AGP, CREW).
+
+- **Add program:** enter the full name (e.g. Food System Resilience Program (FSRP)), an optional **short code** (e.g. FSRP) and an optional **description or partner notes**. Encoders can also add new programs directly from the receipt form when recording a Model 19.
+- **Edit:** update a program's name, code, or description. Existing vouchers and records keep their saved historical information.
+- **Deactivate:** deactivates a program so it is no longer offered on receipt dropdowns. Past records and receipts retain their program association. **Reactivate** brings it back to active pickers.
+- **Delete:** removes a project from the reference list if no longer needed.
+- Existing standard ministry programs and any past program names saved on item records are pre-seeded into the directory automatically.
+

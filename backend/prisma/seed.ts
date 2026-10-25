@@ -78,6 +78,33 @@ async function main() {
   }
   console.log(`  ✅ ${organizationSeeds.length} organizations seeded`);
 
+  // ── Programs & Projects (Settings → Programs) ─────────────────────────────
+  const programSeeds = [
+    { id: 'PRG-MOA', name: 'MoA', code: 'MoA', description: 'Ministry of Agriculture core operations' },
+    { id: 'PRG-FNP', name: 'Food and Nutrition Project team', code: 'FNP', description: 'Food and nutrition security project' },
+    { id: 'PRG-PSNP', name: 'Productive Safety Net Programme (PSNP)', code: 'PSNP', description: 'Productive Safety Net Programme' },
+    { id: 'PRG-FSRP', name: 'Food System Resilience Program (FSRP)', code: 'FSRP', description: 'Food System Resilience Program' },
+    { id: 'PRG-CREW', name: 'Climate Resilient Wheat Value Chain Development (CREW) Project', code: 'CREW', description: 'Climate Resilient Wheat Value Chain' },
+    { id: 'PRG-IDCA', name: 'Italian Development Cooperation Agriculture value chain project', code: 'IDCA', description: 'Italian Development Cooperation Agriculture value chain' },
+    { id: 'PRG-NAP', name: 'National Avocado Program', code: 'NAP', description: 'National avocado production and value chain' },
+    { id: 'PRG-CRGE', name: 'Climate Resilient Green Economy Projects', code: 'CRGE', description: 'Climate Resilient Green Economy initiative' },
+    { id: 'PRG-SDRP', name: 'Strengthening Drought Resilience project', code: 'SDRP', description: 'Strengthening drought resilience in pastoral and agro-pastoral areas' },
+    { id: 'PRG-WEGO', name: 'WE_GO', code: 'WE_GO', description: 'Women Economic Growth and Opportunities' },
+    { id: 'PRG-DRDIP', name: 'Development Response to Displacement Impact Project Phase II', code: 'DRDIP II', description: 'Displacement impact project phase 2' },
+    { id: 'PRG-REDFS', name: 'Rural Economic Development and Food Security (RED&FS)', code: 'RED&FS', description: 'Rural Economic Development and Food Security Sector Working Group' },
+    { id: 'PRG-DRIVE', name: 'DRIVE and BREFONS', code: 'DRIVE', description: 'De-risking, inclusion and value enhancement of pastoral economies' },
+    { id: 'PRG-LFSDP', name: 'Livestock and Fisheries Sector Development Project (LFSDP)', code: 'LFSDP', description: 'Livestock and Fisheries Sector Development Project' },
+    { id: 'PRG-PACT', name: 'Participatory Agriculture and Climate Transformation Program', code: 'PACT', description: 'Participatory Agriculture and Climate Transformation Program' },
+    { id: 'PRG-SLMP', name: 'Sustainable Land Use Management Project (SLMP)', code: 'SLMP', description: 'Sustainable Land Management Project' },
+    { id: 'PRG-CALM', name: 'Climate Action through Landscape Management (CALM)', code: 'CALM', description: 'Climate Action through Landscape Management' },
+    { id: 'PRG-DERI', name: 'MoA-DE-RI & Value Enhancement of Pastoral Economies in the Horn of Africa', code: 'DE-RI', description: 'Value Enhancement of Pastoral Economies' },
+  ];
+  for (const prg of programSeeds) {
+    await prisma.program.upsert({ where: { name: prg.name }, update: { code: prg.code, description: prg.description }, create: { ...prg, isActive: true } });
+  }
+  console.log(`  ✅ ${programSeeds.length} programs seeded`);
+
+
   // ── Employees & Demo Accounts ─────────────────────────────────────────────
   const employees = await Promise.all([
     // Super Administrator (SUPER_ADMIN)

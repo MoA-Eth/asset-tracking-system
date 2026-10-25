@@ -33,7 +33,7 @@ export const PERMISSION_GROUPS = [
 
 export type Permission = typeof PERMISSION_GROUPS[number]['permissions'][number]['key'];
 
-const referenceTabs = ['settings-employees', 'settings-stores', 'settings-organizations', 'settings-system'];
+const referenceTabs = ['settings-employees', 'settings-stores', 'settings-organizations', 'settings-programs', 'settings-system'];
 const readPermissions: Permission[] = ['inventory.read', 'references.read'];
 
 // Authoritative policy for API guards, the role directory, and session navigation.
@@ -58,7 +58,7 @@ export const ROLE_POLICY: Record<UserRole, {
     name: 'Data Encoder', description: 'Records stock-in, requests stock-out, initiates transfers and returns, and requests disposals.',
     approvalResponsibility: 'Submits requests; cannot approve',
     permissions: [...readPermissions, 'stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write', 'slips.upload', 'approvals.read', 'reports.read'],
-    allowedTabs: ['assets', 'reports', 'settings-employees', 'settings-stores', 'settings-organizations'], landingTab: 'assets',
+    allowedTabs: ['assets', 'reports', 'settings-employees', 'settings-stores', 'settings-organizations', 'settings-programs'], landingTab: 'assets',
   },
   TEAM_LEADER: {
     name: 'Team Leader', description: 'Reviews technical details before final authorization.',

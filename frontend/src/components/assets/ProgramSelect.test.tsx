@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
 import { ProgramSelect } from './ProgramSelect';
 import { PROGRAMS } from './receipt-options';
 
@@ -63,5 +64,22 @@ describe('Program / project', () => {
     await user.type(input, ' Phase 2');
     expect(screen.getByRole('status')).toHaveTextContent('Irrigation Development Phase 2');
   });
+
+  it('loads dynamic programs from API when available', async () => {
+    const { api } = await import('../../api/client');
+    const spy = vi.spyOn(api, 'getPrograms').mockResolvedValueOnce([
+      { id: 'PRG-1', name: 'Custom Dynamic Project', isActive: true },
+      { id: 'PRG-2', name: 'Another Project', isActive: true },
+    ] as any);
+
+    render(<Harness />);
+    await waitFor(() => {
+      const options = screen.getAllByRole('option');
+      expect(options.map((o) => o.textContent)).toContain('Custom Dynamic Project');
+      expect(options.map((o) => o.textContent)).toContain('Another Project');
+    });
+    spy.mockRestore();
+  });
 });
+
 

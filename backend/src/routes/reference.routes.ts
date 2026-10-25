@@ -35,4 +35,12 @@ router.post('/organizations', requirePermission('references.manage', 'stock-out.
 router.put('/organizations/:id', requirePermission('references.manage'), controller.updateOrganization);
 router.patch('/organizations/:id/status', requirePermission('references.manage'), controller.setOrganizationStatus);
 
+// Programs & projects: anyone who records receipts may add one from the receipt form; changing them is for administrators
+router.get('/programs', requirePermission('references.read'), controller.getPrograms);
+router.post('/programs', requirePermission('references.manage', 'stock-in.write'), controller.createProgram);
+router.put('/programs/:id', requirePermission('references.manage'), controller.updateProgram);
+router.patch('/programs/:id/status', requirePermission('references.manage'), controller.setProgramStatus);
+router.delete('/programs/:id', requirePermission('references.manage'), controller.deleteProgram);
+
 export default router;
+

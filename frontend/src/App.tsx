@@ -20,6 +20,7 @@ const RolesPage = lazy(() => import('./pages/settings/RolesPage').then(m => ({ d
 const EmployeesPage = lazy(() => import('./pages/settings/EmployeesPage').then(m => ({ default: m.EmployeesPage })));
 const StoresPage = lazy(() => import('./pages/settings/StoresPage').then(m => ({ default: m.StoresPage })));
 const OrganizationsPage = lazy(() => import('./pages/settings/OrganizationsPage').then(m => ({ default: m.OrganizationsPage })));
+const ProgramsPage = lazy(() => import('./pages/settings/ProgramsPage').then(m => ({ default: m.ProgramsPage })));
 const ApiKeysPage = lazy(() => import('./pages/settings/ApiKeysPage').then(m => ({ default: m.ApiKeysPage })));
 const ProfilePage = lazy(() => import('./pages/settings/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
@@ -287,6 +288,7 @@ const AuthenticatedPortal: React.FC = () => {
             {activeTab === 'settings-employees' && <EmployeesPage />}
             {activeTab === 'settings-stores' && <StoresPage />}
             {activeTab === 'settings-organizations' && <OrganizationsPage />}
+            {activeTab === 'settings-programs' && <ProgramsPage />}
             {activeTab === 'settings-api-keys' && <ApiKeysPage />}
             {activeTab === 'settings-system' && (
               <SystemSettingsPage />

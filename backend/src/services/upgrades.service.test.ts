@@ -6,6 +6,7 @@ const db = vi.hoisted(() => ({
   transactionApproval: { findMany: vi.fn(), update: vi.fn() },
   $transaction: vi.fn(),
   organization: { findMany: vi.fn(), create: vi.fn() },
+  program: { findMany: vi.fn(), create: vi.fn() },
   auditLog: { create: vi.fn() },
   systemSetting: { findUnique: vi.fn(), create: vi.fn() },
   rolePermissionSet: { findMany: vi.fn(), update: vi.fn() },
@@ -14,6 +15,17 @@ const db = vi.hoisted(() => ({
 vi.mock('../lib/prisma', () => ({ prisma: db }));
 
 import { DISPOSALS_GRANT_MARKER, REOPEN_REJECTED_MARKER, runStartupUpgrades } from './upgrades.service';
+
+const DEFAULT_PROGRAM_NAMES = [
+  'MoA', 'Food and Nutrition Project team', 'Productive Safety Net Programme (PSNP)',
+  'Food System Resilience Program (FSRP)', 'Climate Resilient Wheat Value Chain Development (CREW) Project',
+  'Italian Development Cooperation Agriculture value chain project', 'National Avocado Program',
+  'Climate Resilient Green Economy Projects', 'Strengthening Drought Resilience project', 'WE_GO',
+  'Development Response to Displacement Impact Project Phase II', 'Rural Economic Development and Food Security (RED&FS)',
+  'DRIVE and BREFONS', 'Livestock and Fisheries Sector Development Project (LFSDP)',
+  'Participatory Agriculture and Climate Transformation Program', 'Sustainable Land Use Management Project (SLMP)',
+  'Climate Action through Landscape Management (CALM)', 'MoA-DE-RI & Value Enhancement of Pastoral Economies in the Horn of Africa',
+];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -26,6 +38,8 @@ beforeEach(() => {
   db.transactionApproval.findMany.mockResolvedValue([]);
   db.item.findMany.mockResolvedValue([]);
   db.organization.findMany.mockResolvedValue([]);
+  db.program.findMany.mockResolvedValue(DEFAULT_PROGRAM_NAMES.map((name) => ({ name })));
+  db.program.create.mockImplementation(async ({ data }: any) => data);
   db.item.count.mockResolvedValue(0);
   db.$transaction.mockImplementation(async (fn: any) => fn(db));
 });
@@ -173,6 +187,46 @@ describe('startup upgrade: organizations from past issues', () => {
     expect(db.organization.create).not.toHaveBeenCalled();
   });
 });
+
+describe('startup upgrade: programs from default list and past items', () => {
+  it('seeds default programs and gathers past item programs', async () => {
+    db.program.findMany.mockResolvedValue([{ name: 'MoA' }]);
+    db.item.findMany.mockResolvedValue([{ notes: JSON.stringify({ programName: 'Special Ag Project' }) }]);
+    await runStartupUpgrades();
+    const createdNames = db.program.create.mock.calls.map((c) => c[0].data.name);
+    expect(createdNames).toContain('Special Ag Project');
+    expect(createdNames).toContain('Food System Resilience Program (FSRP)');
+    expect(createdNames).not.toContain('MoA');
+    expect(db.auditLog.create.mock.calls.map((c) => c[0].data.action)).toContain('SYSTEM_UPGRADE_PROGRAMS');
+  });
+
+  it('adds nothing when all programs are already listed', async () => {
+    db.program.findMany.mockResolvedValue([
+      { name: 'MoA' },
+      { name: 'Food and Nutrition Project team' },
+      { name: 'Productive Safety Net Programme (PSNP)' },
+      { name: 'Food System Resilience Program (FSRP)' },
+      { name: 'Climate Resilient Wheat Value Chain Development (CREW) Project' },
+      { name: 'Italian Development Cooperation Agriculture value chain project' },
+      { name: 'National Avocado Program' },
+      { name: 'Climate Resilient Green Economy Projects' },
+      { name: 'Strengthening Drought Resilience project' },
+      { name: 'WE_GO' },
+      { name: 'Development Response to Displacement Impact Project Phase II' },
+      { name: 'Rural Economic Development and Food Security (RED&FS)' },
+      { name: 'DRIVE and BREFONS' },
+      { name: 'Livestock and Fisheries Sector Development Project (LFSDP)' },
+      { name: 'Participatory Agriculture and Climate Transformation Program' },
+      { name: 'Sustainable Land Use Management Project (SLMP)' },
+      { name: 'Climate Action through Landscape Management (CALM)' },
+      { name: 'MoA-DE-RI & Value Enhancement of Pastoral Economies in the Horn of Africa' },
+    ]);
+    db.item.findMany.mockResolvedValue([]);
+    await runStartupUpgrades();
+    expect(db.program.create).not.toHaveBeenCalled();
+  });
+});
+
 
 describe('startup upgrade: clean generated serial numbers', () => {
   it('identifies and clears timestamp-generated serial numbers, leaving real serials untouched', async () => {

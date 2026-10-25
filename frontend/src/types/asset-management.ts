@@ -122,6 +122,24 @@ export interface Organization {
   isActive: boolean;
 }
 
+/** A ministry program or project goods are received for (Settings → Programs) */
+export interface Program {
+  id: string;
+  name: string;
+  /** e.g. "PSNP", "FSRP": short code or abbreviation */
+  code?: string;
+  /** Description or notes about the program/project */
+  description?: string;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface ProgramInput {
+  name: string;
+  code?: string;
+  description?: string;
+}
+
 /** A key another system's server uses to read this app's key figures; its secret is never listed */
 export interface ApiKey {
   id: string;

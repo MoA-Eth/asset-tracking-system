@@ -10,6 +10,7 @@ import {
 } from '../services/reference.service';
 import { grantAccess, removeAccess, resetPassword } from '../services/access.service';
 import { listOrganizations, createOrganization, updateOrganization, setOrganizationActive } from '../services/organizations.service';
+import { listPrograms, createProgram, updateProgram, setProgramActive, deleteProgram } from '../services/programs.service';
 
 const idParam = (req: Request) => String(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
 
@@ -187,5 +188,35 @@ export class ReferenceController {
   public setOrganizationStatus = asyncHandler(async (req: Request, res: Response) => {
     const updated = await setOrganizationActive(idParam(req), req.body?.active, req.user!.id);
     return sendSuccess(res, updated, `${updated.name} ${updated.isActive ? 'reactivated' : 'deactivated'}`);
+  });
+
+  /** GET /api/reference/programs?includeInactive=true — ministry programs / projects goods are received for */
+  public getPrograms = asyncHandler(async (req: Request, res: Response) => {
+    const programs = await listPrograms({ includeInactive: req.query.includeInactive === 'true' });
+    return sendSuccess(res, programs, 'Programs list retrieved');
+  });
+
+  /** POST /api/reference/programs  { name, code, description } */
+  public createProgram = asyncHandler(async (req: Request, res: Response) => {
+    const created = await createProgram(req.body ?? {}, req.user!.id);
+    return sendSuccess(res, created, `${created.name} added`, 201);
+  });
+
+  /** PUT /api/reference/programs/:id  { name, code, description } */
+  public updateProgram = asyncHandler(async (req: Request, res: Response) => {
+    const updated = await updateProgram(idParam(req), req.body ?? {}, req.user!.id);
+    return sendSuccess(res, updated, `${updated.name} updated`);
+  });
+
+  /** PATCH /api/reference/programs/:id/status  { active } */
+  public setProgramStatus = asyncHandler(async (req: Request, res: Response) => {
+    const updated = await setProgramActive(idParam(req), req.body?.active, req.user!.id);
+    return sendSuccess(res, updated, `${updated.name} ${updated.isActive ? 'reactivated' : 'deactivated'}`);
+  });
+
+  /** DELETE /api/reference/programs/:id */
+  public deleteProgram = asyncHandler(async (req: Request, res: Response) => {
+    await deleteProgram(idParam(req), req.user!.id);
+    return sendSuccess(res, null, 'Program deleted');
   });
 }

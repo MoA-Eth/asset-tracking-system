@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
-import { PROGRAMS } from './receipt-options';
+import React, { useEffect, useState } from 'react';
+import { api } from '../../api/client';
+import { PROGRAMS as FALLBACK_PROGRAMS } from './receipt-options';
 
 const OTHER = '__OTHER__';
 /** Names compared without case or '&', so one saved as "(REDFS)" is still "(RED&FS)" on the list */
-const same = (a: string, b: string) => a.trim().toLowerCase().replace(/&/g, '') === b.trim().toLowerCase().replace(/&/g, '');
+const same = (a: string, b: string) =>
+  a.trim().toLowerCase().replace(/&/g, '') === b.trim().toLowerCase().replace(/&/g, '');
 
 /**
- * Program / project: chosen from the ministry's list, or typed when it isn't there. A name that isn't on the list
- * (read from a slip, or saved earlier) is shown as it is.
+ * Program / project: chosen from the database (Settings → Programs), with standard fallbacks,
+ * or typed when it isn't there. A name that isn't on the list (read from a slip, or saved earlier)
+ * is shown as it is.
  */
 export const ProgramSelect: React.FC<{
   id?: string;
@@ -16,7 +19,28 @@ export const ProgramSelect: React.FC<{
   className: string;
 }> = ({ id, value, onChange, className }) => {
   const [typing, setTyping] = useState(false);
-  const known = PROGRAMS.some((p) => same(p, value));
+  const [programs, setPrograms] = useState<string[]>(FALLBACK_PROGRAMS);
+
+  useEffect(() => {
+    let active = true;
+    if (typeof api?.getPrograms === 'function') {
+      api.getPrograms()
+        .then((items) => {
+          if (active && Array.isArray(items) && items.length > 0) {
+            const names = items.map((p) => p.name).filter(Boolean);
+            if (names.length > 0) setPrograms(names);
+          }
+        })
+        .catch(() => {
+          // Gracefully keep fallback programs
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const known = programs.some((p) => same(p, value));
 
   if (typing) {
     return (
@@ -46,7 +70,7 @@ export const ProgramSelect: React.FC<{
   return (
     <select
       id={id}
-      value={known ? PROGRAMS.find((p) => same(p, value)) : value}
+      value={known ? programs.find((p) => same(p, value)) : value}
       onChange={(e) => {
         if (e.target.value === OTHER) {
           setTyping(true);
@@ -59,8 +83,10 @@ export const ProgramSelect: React.FC<{
     >
       <option value="">None</option>
       {value.trim() && !known && <option value={value}>{value}</option>}
-      {PROGRAMS.map((p) => (
-        <option key={p} value={p}>{p}</option>
+      {programs.map((p) => (
+        <option key={p} value={p}>
+          {p}
+        </option>
       ))}
       <option value={OTHER}>+ Other (type the name)…</option>
     </select>

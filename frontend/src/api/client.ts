@@ -15,6 +15,8 @@ import {
   StoreInput,
   Organization,
   OrganizationInput,
+  Program,
+  ProgramInput,
   EmployeeImportResult,
   Location,
   CreateStockInRequest,
@@ -360,6 +362,28 @@ export const api = {
   setOrganizationActive: (id: string, active: boolean) => {
     return request<Organization>(`/reference/organizations/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ active }) });
   },
+
+  getPrograms: (opts: { includeInactive?: boolean } = {}) => {
+    return request<Program[]>(`/reference/programs${opts.includeInactive ? '?includeInactive=true' : ''}`);
+  },
+
+  /** Anyone who records receipts can add one (from the receipt form); editing is for administrators */
+  createProgram: (input: ProgramInput) => {
+    return request<Program>('/reference/programs', { method: 'POST', body: JSON.stringify(input) });
+  },
+
+  updateProgram: (id: string, input: ProgramInput) => {
+    return request<Program>(`/reference/programs/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) });
+  },
+
+  setProgramStatus: (id: string, active: boolean) => {
+    return request<Program>(`/reference/programs/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ active }) });
+  },
+
+  deleteProgram: (id: string) => {
+    return request<null>(`/reference/programs/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
+
 
   createStore: (input: StoreInput) => {
     return request<Store>('/reference/stores', { method: 'POST', body: JSON.stringify(input) });

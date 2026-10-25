@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { organizationKey } from './organizations.service';
+import { programKey } from './programs.service';
 import { DECISION_PERMISSIONS } from '../security/role-policy';
 import { getTodayGcAndEc } from '../utils/eth-date';
 
@@ -26,6 +27,7 @@ export async function runStartupUpgrades(): Promise<void> {
   await reopenRejectedReceipts();
   await grantDisposalPermission();
   await gatherOrganizations();
+  await gatherPrograms();
   await cleanGeneratedSerialNumbers();
 }
 
@@ -65,6 +67,89 @@ async function gatherOrganizations(): Promise<void> {
     console.warn('Upgrade step "organizations" did not run; it will be retried on the next start.', err?.message ?? err);
   }
 }
+
+const DEFAULT_PROGRAMS: { name: string; code?: string; description?: string }[] = [
+  { name: 'MoA', code: 'MoA', description: 'Ministry of Agriculture core operations' },
+  { name: 'Food and Nutrition Project team', code: 'FNP', description: 'Food and nutrition security project' },
+  { name: 'Productive Safety Net Programme (PSNP)', code: 'PSNP', description: 'Productive Safety Net Programme' },
+  { name: 'Food System Resilience Program (FSRP)', code: 'FSRP', description: 'Food System Resilience Program' },
+  { name: 'Climate Resilient Wheat Value Chain Development (CREW) Project', code: 'CREW', description: 'Climate Resilient Wheat Value Chain' },
+  { name: 'Italian Development Cooperation Agriculture value chain project', code: 'IDCA', description: 'Italian Development Cooperation Agriculture value chain' },
+  { name: 'National Avocado Program', code: 'NAP', description: 'National avocado production and value chain' },
+  { name: 'Climate Resilient Green Economy Projects', code: 'CRGE', description: 'Climate Resilient Green Economy initiative' },
+  { name: 'Strengthening Drought Resilience project', code: 'SDRP', description: 'Strengthening drought resilience in pastoral and agro-pastoral areas' },
+  { name: 'WE_GO', code: 'WE_GO', description: 'Women Economic Growth and Opportunities' },
+  { name: 'Development Response to Displacement Impact Project Phase II', code: 'DRDIP II', description: 'Displacement impact project phase 2' },
+  { name: 'Rural Economic Development and Food Security (RED&FS)', code: 'RED&FS', description: 'Rural Economic Development and Food Security Sector Working Group' },
+  { name: 'DRIVE and BREFONS', code: 'DRIVE', description: 'De-risking, inclusion and value enhancement of pastoral economies' },
+  { name: 'Livestock and Fisheries Sector Development Project (LFSDP)', code: 'LFSDP', description: 'Livestock and Fisheries Sector Development Project' },
+  { name: 'Participatory Agriculture and Climate Transformation Program', code: 'PACT', description: 'Participatory Agriculture and Climate Transformation Program' },
+  { name: 'Sustainable Land Use Management Project (SLMP)', code: 'SLMP', description: 'Sustainable Land Management Project' },
+  { name: 'Climate Action through Landscape Management (CALM)', code: 'CALM', description: 'Climate Action through Landscape Management' },
+  { name: 'MoA-DE-RI & Value Enhancement of Pastoral Economies in the Horn of Africa', code: 'DE-RI', description: 'Value Enhancement of Pastoral Economies' },
+];
+
+/**
+ * Seeds default ministry programs / projects and gathers any custom program names from past item registrations.
+ * Names already in the list are preserved.
+ */
+export async function gatherPrograms(): Promise<void> {
+  try {
+    const existingRows = await prisma.program.findMany({ select: { name: true } });
+    const existing = new Set(existingRows.map((p) => programKey(p.name)));
+    const toCreate: { name: string; code: string; description: string }[] = [];
+
+    for (const def of DEFAULT_PROGRAMS) {
+      const key = programKey(def.name);
+      if (!existing.has(key)) {
+        existing.add(key);
+        toCreate.push({ name: def.name, code: def.code ?? '', description: def.description ?? '' });
+      }
+    }
+
+    // Also scan past items for any custom programs
+    const items = await prisma.item.findMany({ where: { notes: { not: null } }, select: { notes: true } });
+    for (const item of items) {
+      try {
+        if (!item.notes) continue;
+        const d = JSON.parse(item.notes);
+        if (typeof d.programName === 'string' && d.programName.trim()) {
+          const name = d.programName.trim().replace(/\s+/g, ' ').slice(0, 150);
+          const key = programKey(name);
+          if (!existing.has(key)) {
+            existing.add(key);
+            toCreate.push({ name, code: '', description: '' });
+          }
+        }
+      } catch {
+        // Notes may contain plain text remarks rather than JSON
+      }
+    }
+
+    if (toCreate.length === 0) return;
+
+    for (const p of toCreate) {
+      await prisma.program.create({
+        data: {
+          id: `PRG-${randomUUID().slice(0, 8).toUpperCase()}`,
+          name: p.name,
+          code: p.code,
+          description: p.description,
+          isActive: true,
+        },
+      });
+    }
+
+    console.log(`Upgrade: ${toCreate.length} program(s) seeded/gathered into the programs list.`);
+    await recordUpgrade(
+      'SYSTEM_UPGRADE_PROGRAMS',
+      `${toCreate.length} program(s) added to the program directory: ${toCreate.map((p) => p.name).join(', ')}.`
+    );
+  } catch (err: any) {
+    console.warn('Upgrade step "programs" did not run; it will be retried on the next start.', err?.message ?? err);
+  }
+}
+
 
 /**
  * Rejected receipts used to be marked DISPOSED. They now have their own status, REJECTED, and DISPOSED

@@ -130,6 +130,22 @@ model Organization {
   @@map("organizations")
 }
 
+/// A ministry program or project goods are received for (e.g. PSNP, FSRP, AGP).
+/// Administered in Settings, and offered in program/project pickers across the app.
+model Program {
+  id          String   @id
+  name        String   @unique
+  /// e.g. "PSNP", "FSRP": short code or abbreviation
+  code        String   @default("")
+  /// Description, scope, or notes about the program/project
+  description String   @default("")
+  /// Deactivated programs can't be picked on forms, but stay on past records
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@map("programs")
+}
+
 /// A key another system's server uses to read this app's figures (e.g. a KPI dashboard). Only a hash of its secret
 /// is kept; the key itself is shown once, when it is created.
 model ApiKey {
