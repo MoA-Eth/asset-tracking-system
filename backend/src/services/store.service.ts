@@ -3712,7 +3712,7 @@ export class StoreService {
           unitCostETB: (i.costPerUnit ?? i.unitCostETB ?? 0),
           valueETB: (i.costPerUnit ?? i.unitCostETB ?? 0) * currentUnits,
           threshold,
-          storeName: i.storeLocation?.store?.name ?? 'Store',
+          storeName: i.storeLocation?.storeName ?? 'Store',
           locationName: i.storeLocation?.name ?? 'Central Store',
           storeLocationId: i.storeLocationId,
           isCritical: currentUnits <= 1,
