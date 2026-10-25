@@ -119,7 +119,7 @@ export const ProgramSelect: React.FC<{
           type="button"
           onClick={() => openAddModal()}
           title="Add new program or project to the directory"
-          aria-label="Add new program"
+          aria-label="Quick add"
           className="shrink-0 p-2 rounded-[4px] border border-slate-300 hover:border-emerald-700 hover:bg-emerald-50 text-slate-600 hover:text-emerald-800 transition-colors cursor-pointer"
         >
           <Plus className="w-4 h-4" />
