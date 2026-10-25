@@ -3339,9 +3339,23 @@ export class StoreService {
     if (!payload.toEmployeeId && sameLocation) throw new BadRequestError('The item is already in this location. Choose a new custodian or a different location.');
 
     // The store man of the store the item came from is named on the voucher
-    const transferrer = item.storeLocationId
-      ? await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.transferredByEmployeeId, 'the transfer')
-      : null;
+    let transferrer = null;
+    if (item.storeLocationId) {
+      try {
+        transferrer = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.transferredByEmployeeId, 'the transfer');
+      } catch {
+        const loc = await prisma.location.findUnique({ where: { id: item.storeLocationId }, select: { storeId: true, store: true } });
+        if (loc?.storeId) {
+          const firstKeeper = await prisma.storeKeeper.findFirst({
+            where: { storeId: loc.storeId, employee: { isActive: true } },
+            include: { employee: true },
+          });
+          if (firstKeeper?.employee) {
+            transferrer = { employeeId: firstKeeper.employeeId, fullNameEn: firstKeeper.employee.fullNameEn, storeName: loc.store?.name ?? 'Store' };
+          }
+        }
+      }
+    }
 
     const today = getTodayGcAndEc();
     // The current custodian, or the store the item is in

@@ -77,6 +77,8 @@ async function runStatusConsistencyTests() {
       body: {
         name: `Precision Flow Meter ${ts1}`,
         category: 'AGRI_MACHINERY',
+        itemType: 'FIXED',
+        ifmisItemCode: '008101101.0001',
         serialNumber: `PFM-${ts1}`,
         unitCostETB: 88000,
         condition: 'NEW',
@@ -140,6 +142,8 @@ async function runStatusConsistencyTests() {
       body: {
         name: `Defective Sensor Unit ${ts2}`,
         category: 'IT_EQUIPMENT',
+        itemType: 'FIXED',
+        ifmisItemCode: '008101101.0001',
         serialNumber: `DEF-${ts2}`,
         unitCostETB: 35000,
         condition: 'NEW',
@@ -155,13 +159,20 @@ async function runStatusConsistencyTests() {
     const pendings2 = await request('/items/approvals/pending', {}, teamleadToken);
     const app2 = pendings2.data.find(a => a.itemId === item2Id);
 
-    // Reject at Stage 1 by Team Leader
+    // Reject at Stage 1 by Team Leader (returns to requester as RETURNED)
     const rej1Res = await request('/items/approvals/action', {
       method: 'POST',
       body: { approvalId: app2.id, action: 'REJECT', reviewRemarks: 'Physical defect detected on arrival, rejected' },
     }, teamleadToken);
     assert(rej1Res.ok, 'Rejection processed by Team Leader');
-    assert(rej1Res.data.status === 'REJECTED', 'Approval status finalized as REJECTED');
+    assert(rej1Res.data.status === 'RETURNED', 'Approval status returned to requester for correction or cancellation');
+
+    // Requester confirms cancellation
+    const cancelRes = await request('/items/approvals/cancel', {
+      method: 'POST',
+      body: { approvalIds: [app2.id], reason: 'Confirmed defect, returning to vendor' },
+    }, encoderToken);
+    assert(cancelRes.ok && cancelRes.data[0]?.status === 'CANCELLED', 'Approval status finalized as CANCELLED');
 
     const item2After = await request(`/items/${item2Id}`, {}, encoderToken);
     assert(item2After.data.status === 'REJECTED', 'ON REJECTION: Stock-In item status transitioned to REJECTED (not in stock)');
@@ -224,6 +235,8 @@ async function runStatusConsistencyTests() {
       body: {
         name: `Spare Laptop ${ts4}`,
         category: 'IT_EQUIPMENT',
+        itemType: 'FIXED',
+        ifmisItemCode: '008101101.0001',
         serialNumber: `LAP-${ts4}`,
         unitCostETB: 55000,
         condition: 'GOOD',
@@ -260,12 +273,19 @@ async function runStatusConsistencyTests() {
     const item4Pending = await request(`/items/${item4Id}`, {}, encoderToken);
     assert(item4Pending.data.status === 'PENDING_STOCK_OUT', 'Item entered PENDING_STOCK_OUT');
 
-    // Reject Stock-Out at Stage 1
+    // Reject Stock-Out at Stage 1 (returns to requester)
     const rejOut4 = await request('/items/approvals/action', {
       method: 'POST',
       body: { approvalId: out4ApprovalId, action: 'REJECT', reviewRemarks: 'Asset required for central office, loan denied' },
     }, teamleadToken);
-    assert(rejOut4.ok && rejOut4.data.status === 'REJECTED', 'Stock-Out rejected');
+    assert(rejOut4.ok && rejOut4.data.status === 'RETURNED', 'Stock-Out returned to requester');
+
+    // Requester cancels stock-out request, atomically reverting item to AVAILABLE
+    const cancelOut4 = await request('/items/approvals/cancel', {
+      method: 'POST',
+      body: { approvalIds: [out4ApprovalId], reason: 'Cancelled by requester' },
+    }, encoderToken);
+    assert(cancelOut4.ok && cancelOut4.data[0]?.status === 'CANCELLED', 'Stock-out cancellation finalized');
 
     // Check that item REVERTS to AVAILABLE
     const item4Reverted = await request(`/items/${item4Id}`, {}, encoderToken);

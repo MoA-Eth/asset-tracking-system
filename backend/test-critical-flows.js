@@ -94,6 +94,8 @@ async function runTests() {
       body: {
         name: 'Demo Lenovo ThinkPad P16 Workstation',
         category: 'IT_EQUIPMENT',
+        itemType: 'FIXED',
+        ifmisItemCode: '008101101.0001',
         serialNumber: `SN-LENOVO-${Date.now().toString().slice(-5)}`,
         unitCostETB: 120000,
         storeLocationId: 'LOC-01',
@@ -124,7 +126,7 @@ async function runTests() {
       body: { approvalId: testApprovalId, action: 'APPROVE', reviewRemarks: 'Premature approval attempt' },
     });
     assert(
-      prematureRes.status === 500 || prematureRes.status === 400,
+      prematureRes.status === 403 || prematureRes.status === 400 || prematureRes.status === 500,
       'Sequence Guard: Stage 2 approval rejected before Stage 1 endorsement'
     );
 
