@@ -41,9 +41,14 @@ IFMIS gives every fixed asset its own tag number (e.g. MOA-016341) and prints it
 
 A tag belongs to one asset only. Once recorded, PDFs find the asset by it, search finds it, and the printed Model 21 and disposal form show it in place of the record code.
 
-## Batches
+## Batches & split records
 
-A delivery is one row. Units issued out of it appear underneath (**Show N records**), and the quantity reads like "3 issued · 7 in store".
+A multi-unit delivery is displayed as one primary row. As units are issued, transferred, or returned to store, split child records (e.g. `MOA-FUR-2026-0004-1`) appear underneath (**Show N records** or under **Units & split records from this batch** in the asset details), with live balances showing units in store versus issued. Each split record maintains full genealogy back to its root parent item.
+
+## Fast copying & navigation
+
+- **Instant copy:** Item codes, IFMIS tag numbers, serial numbers, and PO numbers feature one-click copy buttons with instant visual feedback.
+- **Record navigation:** Use the Up and Down arrow keys (or the `<` and `>` buttons) to page through asset records in order without closing the side panel. Press **Esc** to return to the register.
 
 ## Printing
 

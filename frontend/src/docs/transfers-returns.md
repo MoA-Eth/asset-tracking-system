@@ -19,18 +19,22 @@ Use the same form for an **Issued** asset that is coming back.
 
 1. Open **Transfer (Model 21)** on the asset and fill in the **Model 21 No.**, the **Book** and the date.
 2. In **Return to store**, choose the store it goes back to. **To employee** and **To directorate** disappear.
-3. **Received by (store man)** is a store man of that store, chosen for you when there is only one. If the store has none, the transfer still goes ahead with no store man named.
-4. Enter the **Reason for return**. Note any defects or missing parts.
-5. Attach the **Signed copy** (required only if your administrator says so).
-6. Press **Submit return to store for approval**.
+3. If the asset holds multiple units (batch), specify the **Quantity to return**. You can return a **partial quantity**: upon approval, the returned units go back to store as an **In store** record, while the remaining units stay with the employee.
+4. **Received by (store man)** is a storekeeper of that store, chosen for you when there is only one. If the store has none, the transfer still goes ahead with no storekeeper named.
+5. Select the **Return condition** (`Good`, `Needs repair`, or `Damaged`) and enter the **Reason for return**. Note any defects or missing parts under **Defects / remarks**.
+6. Attach the **Signed copy** (required only if your administrator says so).
+7. Press **Submit return to store for approval**.
 
 The printed voucher keeps the IFMIS title, **Fixed Asset Internal Transfer Form**, as IFMIS prints a return on the same form. Under the title it shows **Transaction Type: Return to store** and the **Reason for return**, so the signers can tell it is a return.
 
 ## Good to know
 
-- You can **edit** a pending transfer until the Team Leader endorses it. A return to store keeps its **Return to store** choice.
+- You can **edit** a pending transfer or return until the Team Leader endorses it. A return to store keeps its store and quantity choices.
+- **Partial transfers and returns:** When transferring or returning part of a batch, the system automatically creates a child split record (e.g. `MOA-FUR-2026-0004-1`) upon Stage 2 authorization. The parent record retains the remaining units with its updated valuation.
 - A request on an asset blocks a second one: only one open request per record.
-- **Approved transfer to an employee:** the new holder and directorate apply. **Approved transfer to store:** the asset is **In store** and no one holds it. **Rejected:** nothing changes.
+- **Approved transfer to an employee:** the new holder, directorate and location apply.
+- **Approved return to store:** the returned units are **In store** under the selected storekeeper with condition recorded.
+- **Rejected:** nothing changes; full custody and quantities remain intact.
 - An asset that is already **In store** can only be transferred to an employee; **Return to store** is offered for issued assets.
 - Assets issued to an outside organization stay with it: they are not transferred or returned through the system.
 

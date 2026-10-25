@@ -25,13 +25,15 @@ Tick the boxes of the requests, then use the bar that appears: **Batch Endorse**
 | Request | Approved | Rejected |
 | :--- | :--- | :--- |
 | **Receipt (Model 19)** | The asset is **In store**. | The receipt stays as **Rejected**. |
-| **Issue (Model 22)** | The asset is **Issued** to the recipient. Part of a batch is split off. | It stays in store. |
-| **Transfer (Model 21)** | The new holder, directorate and location apply. | Nothing changes. |
-| **Return to store (Model 21)** | The asset is back in store. | It stays with its holder. |
-| **Disposal** | The asset is **Disposed**. Part of a batch is split off. | It stays in store. |
+| **Issue (Model 22)** | The asset is **Issued** to the recipient. Part of a batch is split off as a new record. | It stays in store. |
+| **Transfer (Model 21)** | The new holder, directorate and location apply. Part of a batch is split off to the new holder. | Nothing changes. |
+| **Return to store (Model 21)** | The asset is back in store. For a partial return, returned units split off as **In store**; remaining units stay with the employee. | It stays with its holder. |
+| **Disposal** | The asset is **Disposed**. Part of a batch is split off as disposed. | It stays in store. |
 
 ## The tabs
 
-**Pending My Action**, **Stage 1 (Team Leader)**, **Stage 2 (Dept Head)**, **Approved History**, **Rejected** and **All Records**, each with a count.
+**Pending My Action**, **Stage 1 (Team Leader)**, **Stage 2 (Dept Head)**, **Approved History**, **Rejected** and **All Records**, each with a live count.
 
-> **Tip:** once endorsed, a request can no longer be edited by the person who made it. If something is wrong, reject it with the reason and ask them to resubmit.
+> **High-Value Authorizations:** Requests valued above **10,000,000 ETB** are flagged as High-Value and require Stage 2 authorization by the **Chief Director**.
+>
+> **Tip:** Once endorsed by the Team Leader, a request can no longer be edited by the person who made it. If something needs correction, reject it with a reason so the requester can amend and resubmit.
