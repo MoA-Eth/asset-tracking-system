@@ -94,7 +94,62 @@ describe('Dashboard filters', () => {
     await user.selectOptions(await screen.findByLabelText('All categories'), 'FUEL_LUBRICANTS');
     await user.selectOptions(screen.getByLabelText('Fixed assets and consumables'), 'CONSUMABLE');
     await vi.waitFor(() => expect(api.getExecutiveDashboard).toHaveBeenLastCalledWith({ storeId: '', category: 'FUEL_LUBRICANTS', itemType: 'CONSUMABLE', from: '', to: '' }));
-    const chips = screen.getAllByRole('button', { name: /Remove filter/ }).map((b) => b.getAttribute('aria-label'));
+    const chips = screen.getAllByRole.bind(screen)('button', { name: /Remove filter/ }).map((b) => b.getAttribute('aria-label'));
     expect(chips).toEqual(['Remove filter Fuel & Lubricants', 'Remove filter Consumables']);
   });
 });
+
+describe('Dashboard low-stock consumables banner', () => {
+  it('displays low-stock alert banner and items table when consumables are low', async () => {
+    vi.mocked(api.getExecutiveDashboard).mockResolvedValueOnce({
+      ...figures(10),
+      lowStockConsumables: {
+        thresholdDefault: 5,
+        itemCount: 2,
+        criticalCount: 1,
+        units: 3,
+        valueETB: 450,
+        items: [
+          {
+            id: 'item-1',
+            itemCode: 'MOA-OFS-2026-0038',
+            name: 'Demo toner',
+            category: 'OFFICE_SUPPLIES',
+            unitsInStore: 1,
+            uom: 'EA',
+            unitCostETB: 60,
+            threshold: 5,
+            storeName: 'Head office',
+            locationName: 'Central Store',
+            isCritical: true,
+            isLow: true,
+          },
+          {
+            id: 'item-2',
+            itemCode: 'MOA-OFS-2026-0037',
+            name: 'Demo stapler',
+            category: 'OFFICE_SUPPLIES',
+            unitsInStore: 2,
+            uom: 'EA',
+            unitCostETB: 25,
+            threshold: 5,
+            storeName: 'Head office',
+            locationName: 'Central Store',
+            isCritical: false,
+            isLow: true,
+          },
+        ],
+      },
+    } as any);
+
+    renderPage();
+
+    expect(await screen.findByText('Low-stock consumable supplies')).toBeInTheDocument();
+    expect(screen.getByText('Low-stock consumables')).toBeInTheDocument();
+    expect(screen.getByText('Demo toner')).toBeInTheDocument();
+    expect(screen.getByText('Demo stapler')).toBeInTheDocument();
+    expect(screen.getByText(/1 consumable item is critically low/)).toBeInTheDocument();
+    expect(screen.getByText('Critical · 1 EA')).toBeInTheDocument();
+  });
+});
+

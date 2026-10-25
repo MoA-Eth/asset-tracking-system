@@ -120,3 +120,40 @@ describe('dashboard: totals count approved assets only', () => {
     expect(d.locationUtilization[0]).toMatchObject({ itemCount: 8, totalValueETB: 8000, pendingCount: 4 });
   });
 });
+
+describe('dashboard: low-stock consumables', () => {
+  it('flags consumables in store that are at or below reorder threshold', async () => {
+    db.item.findMany.mockResolvedValue([
+      record('TONER-LOW', 'AVAILABLE', 5, {
+        itemType: 'CONSUMABLE',
+        category: 'OFFICE_SUPPLIES',
+        notes: JSON.stringify({ quantity: 2, uom: 'EA' }),
+      }),
+      record('PEN-CRITICAL', 'AVAILABLE', 2, {
+        itemType: 'CONSUMABLE',
+        category: 'OFFICE_SUPPLIES',
+        notes: JSON.stringify({ quantity: 1, uom: 'PCS' }),
+      }),
+      record('PAPER-HEALTHY', 'AVAILABLE', 10, {
+        itemType: 'CONSUMABLE',
+        category: 'OFFICE_SUPPLIES',
+        notes: JSON.stringify({ quantity: 50, uom: 'REAM' }),
+      }),
+      record('LAPTOP-FIXED', 'AVAILABLE', 10, {
+        itemType: 'FIXED',
+        category: 'IT_EQUIPMENT',
+        notes: JSON.stringify({ quantity: 1, uom: 'EA' }),
+      }),
+    ]);
+
+    const { lowStockConsumables } = await StoreService.getInstance().getExecutiveDashboard();
+
+    expect(lowStockConsumables.thresholdDefault).toBe(5);
+    expect(lowStockConsumables.itemCount).toBe(2);
+    expect(lowStockConsumables.criticalCount).toBe(1);
+    expect(lowStockConsumables.units).toBe(3);
+    expect(lowStockConsumables.items[0]).toMatchObject({ itemCode: 'PEN-CRITICAL', unitsInStore: 1, isCritical: true, isLow: true });
+    expect(lowStockConsumables.items[1]).toMatchObject({ itemCode: 'TONER-LOW', unitsInStore: 2, isCritical: false, isLow: true });
+  });
+});
+

@@ -3694,6 +3694,34 @@ export class StoreService {
       .filter((i) => i.daysInStore > STALE_IN_STORE_DAYS)
       .sort((a, b) => b.daysInStore - a.daysInStore);
 
+    // Consumable supplies with low available stock in store (at or below reorder threshold)
+    const LOW_STOCK_DEFAULT_THRESHOLD = 5;
+    const lowStockConsumables = scopedItems
+      .filter((i) => i.itemType === 'CONSUMABLE' && IN_STORE_STATUSES.includes(i.status))
+      .map((i) => {
+        const meta = readItemMeta(i.notes);
+        const threshold = Number(meta.minStockLevel) > 0 ? Number(meta.minStockLevel) : LOW_STOCK_DEFAULT_THRESHOLD;
+        const currentUnits = unitsOf(i);
+        return {
+          id: i.id,
+          itemCode: i.itemCode,
+          name: i.name,
+          category: i.category,
+          unitsInStore: currentUnits,
+          uom: i.uom || 'EA',
+          unitCostETB: (i.costPerUnit ?? i.unitCostETB ?? 0),
+          valueETB: (i.costPerUnit ?? i.unitCostETB ?? 0) * currentUnits,
+          threshold,
+          storeName: i.storeLocation?.store?.name ?? 'Store',
+          locationName: i.storeLocation?.name ?? 'Central Store',
+          storeLocationId: i.storeLocationId,
+          isCritical: currentUnits <= 1,
+          isLow: currentUnits <= threshold,
+        };
+      })
+      .filter((i) => i.isLow)
+      .sort((a, b) => a.unitsInStore - b.unitsInStore);
+
     // Units received and issued per month, for the last 6 months including this one
     const [thisYear, thisMonth] = getTodayGcAndEc().gc.split('-').map(Number);
     const monthsBetween = (a: string, b: string) => {
@@ -3822,6 +3850,14 @@ export class StoreService {
         units: staleItems.reduce((sum, i) => sum + i.unitsInStore, 0),
         valueETB: staleItems.reduce((sum, i) => sum + i.valueETB, 0),
         items: staleItems,
+      },
+      lowStockConsumables: {
+        thresholdDefault: LOW_STOCK_DEFAULT_THRESHOLD,
+        itemCount: lowStockConsumables.length,
+        criticalCount: lowStockConsumables.filter((i) => i.isCritical).length,
+        units: lowStockConsumables.reduce((sum, i) => sum + i.unitsInStore, 0),
+        valueETB: lowStockConsumables.reduce((sum, i) => sum + i.valueETB, 0),
+        items: lowStockConsumables,
       },
       departmentDistribution,
       conditionDistribution,
