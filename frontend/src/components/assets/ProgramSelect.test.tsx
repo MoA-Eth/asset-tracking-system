@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi } from 'vitest';
 import { ProgramSelect } from './ProgramSelect';
 import { PROGRAMS } from './receipt-options';
+import { api } from '../../api/client';
+
+const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
+vi.mock('../../context/ToastContext', () => ({ useToast: () => toast }));
 
 const Harness: React.FC<{ start?: string }> = ({ start = '' }) => {
   const [value, setValue] = useState(start);
@@ -25,7 +28,7 @@ describe('Program / project', () => {
     expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
       'None',
       ...PROGRAMS,
-      '+ Other (type the name)…',
+      '+ Add new program / project…',
     ]);
     await user.selectOptions(field, 'Food System Resilience Program (FSRP)');
     expect(screen.getByRole('status')).toHaveTextContent('Food System Resilience Program (FSRP)');
@@ -33,20 +36,42 @@ describe('Program / project', () => {
     expect(screen.getByRole('status')).toHaveTextContent('MoA');
   });
 
-  it('takes a typed name when the program is not on the list', async () => {
+  it('opens quick-add modal when choosing "+ Add new program" or clicking "+" button', async () => {
     const user = userEvent.setup();
+    const createSpy = vi.spyOn(api, 'createProgram').mockResolvedValueOnce({
+      id: 'PRG-99',
+      name: 'New Donor Project',
+      code: 'NDP',
+      description: 'Donor funded',
+      isActive: true,
+    } as any);
+
     render(<Harness />);
-    await user.selectOptions(screen.getByLabelText('Program / project'), '+ Other (type the name)…');
-    await user.type(screen.getByLabelText('Program / project'), 'New donor project');
-    expect(screen.getByRole('status')).toHaveTextContent('New donor project');
-    // Back to the list keeps the typed name as a choice
-    await user.click(screen.getByRole('button', { name: 'Back to the list of programs' }));
-    expect(screen.getByLabelText('Program / project')).toHaveValue('New donor project');
+    await user.selectOptions(screen.getByLabelText('Program / project'), '+ Add new program / project…');
+
+    expect(screen.getByRole('heading', { name: 'Add program / project' })).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/Program \/ project name/i), 'New Donor Project');
+    await user.type(screen.getByLabelText(/Code \/ abbreviation/i), 'NDP');
+    await user.type(screen.getByLabelText(/Description \/ donor/i), 'Donor funded');
+
+    await user.click(screen.getByRole('button', { name: 'Add and select program' }));
+
+    await waitFor(() => {
+      expect(createSpy).toHaveBeenCalledWith({
+        name: 'New Donor Project',
+        code: 'NDP',
+        description: 'Donor funded',
+      });
+      expect(screen.getByRole('status')).toHaveTextContent('New Donor Project');
+    });
+
+    createSpy.mockRestore();
   });
 
-  it('shows a name read from a slip or saved earlier as it is', () => {
+  it('shows a name read from a slip or saved earlier as unregistered choice', () => {
     render(<Harness start="Office renewal" />);
     expect(screen.getByLabelText('Program / project')).toHaveValue('Office renewal');
+    expect(screen.getByRole('option', { name: 'Office renewal (unregistered)' })).toBeInTheDocument();
   });
 
   it('lists RED&FS, and shows one saved as "(REDFS)" as that entry, not a second one', () => {
@@ -55,18 +80,7 @@ describe('Program / project', () => {
     expect(screen.queryByRole('option', { name: /\(REDFS\)/ })).toBeNull();
   });
 
-  it('allows editing an existing custom program name', async () => {
-    const user = userEvent.setup();
-    render(<Harness start="Irrigation Development" />);
-    await user.selectOptions(screen.getByLabelText('Program / project'), '+ Other (type the name)…');
-    const input = screen.getByLabelText('Program / project');
-    expect(input).toHaveValue('Irrigation Development');
-    await user.type(input, ' Phase 2');
-    expect(screen.getByRole('status')).toHaveTextContent('Irrigation Development Phase 2');
-  });
-
   it('loads dynamic programs from API when available', async () => {
-    const { api } = await import('../../api/client');
     const spy = vi.spyOn(api, 'getPrograms').mockResolvedValueOnce([
       { id: 'PRG-1', name: 'Custom Dynamic Project', isActive: true },
       { id: 'PRG-2', name: 'Another Project', isActive: true },
@@ -81,5 +95,3 @@ describe('Program / project', () => {
     spy.mockRestore();
   });
 });
-
-
