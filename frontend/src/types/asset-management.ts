@@ -780,6 +780,7 @@ export interface UpdateStockOutRequest {
 
 export interface CreateReturnRequest {
   itemId: string;
+  quantity?: number;
   ifmisSlipNumber: string;
   ifmisSlipDateGc: string;
   ifmisSlipAttachmentUrl?: string;
@@ -946,6 +947,7 @@ export interface UpdateTransferRequest {
 
 /** Corrections to a return request while it still waits for Stage 1 endorsement. The item can't change. */
 export interface UpdateReturnRequest {
+  quantity?: number;
   model21No: string;
   ifmisSlipDateGc: string;
   /** New slip upload; omit to keep the current attachment */

@@ -6,7 +6,7 @@ const db = vi.hoisted(() => ({
   // Any store or department that is picked exists and is active
   location: { findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, siteName: 'Store', isActive: true })) },
   department: { findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, nameEn: 'Directorate', isActive: true })) },
-  item: { findUnique: vi.fn(), update: vi.fn() },
+  item: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), count: vi.fn() },
   transactionApproval: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
   auditLog: { create: vi.fn() },
   // A decision runs in one transaction: the stand-in simply runs it against the same client
@@ -350,6 +350,77 @@ describe('Asset Transfer approval workflow', () => {
       await expect(
         store().registerReturn({ itemId: 'item-1', ifmisSlipNumber: 'M21-2', returnReason: 'Done', condition: 'GOOD' } as any)
       ).rejects.toThrow(/cannot be returned/);
+    });
+
+    it('refuses to return more units than the custodian holds', async () => {
+      db.item.findUnique.mockResolvedValue({ ...issuedItem, notes: JSON.stringify({ quantity: 5, uom: 'EA' }) });
+
+      await expect(
+        store().registerReturn({
+          itemId: 'item-1',
+          quantity: 10,
+          ifmisSlipNumber: 'M21-2',
+          returnReason: 'Excess',
+          condition: 'GOOD',
+        } as any)
+      ).rejects.toThrow(/Cannot return 10 EA. Only 5 are held/);
+    });
+
+    it('approving a partial return splits returned units into store (AVAILABLE) and keeps remaining with custodian', async () => {
+      const batchItem = {
+        ...issuedItem,
+        notes: JSON.stringify({ quantity: 10, uom: 'EA', totalAmount: 5000 }),
+        unitCostETB: 500,
+      };
+      db.item.findUnique.mockImplementation(async ({ where }: any) => {
+        if (where?.itemCode) return null;
+        return batchItem;
+      });
+      db.item.count.mockResolvedValue(0);
+
+      const partialReturnApproval = {
+        ...pendingTransfer,
+        transactionType: 'RETURN',
+        status: 'PENDING',
+        currentStage: 2,
+        targetLocationId: 'LOC-01',
+        requestDetails: {
+          quantity: 4,
+          reason: 'Excess tools returned to central store',
+          condition: 'GOOD',
+        },
+      };
+      db.transactionApproval.findUnique.mockResolvedValue(partialReturnApproval);
+      db.transactionApproval.update.mockResolvedValue({ ...partialReturnApproval, status: 'APPROVED' });
+
+      await (store() as any).applyDecision(
+        { approvalId: 'appr-1', action: 'APPROVE', reviewedById: 'EMP-HEAD' },
+        db
+      );
+
+      // Remaining 6 units remain with custodian (EMP-A) on item-1
+      expect(db.item.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'item-1' },
+          data: expect.objectContaining({
+            status: 'ISSUED',
+            currentCustodianId: 'EMP-A',
+            notes: expect.stringContaining('"quantity":6'),
+          }),
+        })
+      );
+
+      // 4 returned units become AVAILABLE in store as a split record
+      expect(db.item.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'AVAILABLE',
+            currentCustodianId: null,
+            assignedDepartmentId: null,
+            notes: expect.stringContaining('"quantity":4'),
+          }),
+        })
+      );
     });
   });
 });

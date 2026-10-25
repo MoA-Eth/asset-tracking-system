@@ -2080,7 +2080,15 @@ export class StoreService {
       assertActiveEmployee(named, 'the store receiver');
     }
 
+    const requested = Number(payload.quantity);
+    const quantity = Number.isFinite(requested) && requested > 0 ? requested : inStore;
+    if (quantity > inStore) {
+      throw new BadRequestError(`Cannot return ${quantity} ${uomOf(item)}. Only ${inStore} are held.`);
+    }
+
     const returnDetails: Model21RequestDetails = {
+      quantity,
+      uom: uomOf(item),
       reason: payload.returnReason,
       // No condition given: the item keeps the one it has
       condition: (payload.condition || item.condition || 'GOOD') as ItemCondition,
@@ -2113,7 +2121,7 @@ export class StoreService {
             performedBy: user ? user.fullNameEn : payload.registeredById,
             performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
             ifmisSlipNumber: effectiveSlipNo,
-            notes: model21Details,
+            notes: quantity < inStore ? `Partial return: ${quantity} of ${inStore} ${uomOf(item)}. ${model21Details}` : model21Details,
           },
         },
       },
@@ -2372,7 +2380,7 @@ export class StoreService {
     if (payload.storeRecipientId && !storeRecipient) throw new BadRequestError('The selected store receiver no longer exists.');
     assertActiveEmployee(storeRecipient, 'the store receiver');
     // The store it goes back to: the one chosen now, else the one the request already has, else the item's own
-    const returning = await prisma.item.findUnique({ where: { id: approval.itemId }, select: { storeLocationId: true } });
+    const returning = await prisma.item.findUnique({ where: { id: approval.itemId }, select: { storeLocationId: true, notes: true, itemCode: true } });
     const targetId: string | null =
       payload.targetStoreLocationId === undefined
         ? approval.targetLocationId
@@ -2392,8 +2400,17 @@ export class StoreService {
         : null;
 
     const previous = requestDetailsOf(approval) ?? {};
+    const inStore = quantityOf(returning);
+    const requested = payload.quantity !== undefined ? Number(payload.quantity) : Number(previous.quantity);
+    const quantity = Number.isFinite(requested) && requested > 0 ? requested : inStore;
+    if (quantity > inStore) {
+      throw new BadRequestError(`Cannot return ${quantity} ${uomOf(returning)}. Only ${inStore} are held.`);
+    }
+
     const details: Model21RequestDetails = {
       ...previous,
+      quantity,
+      uom: uomOf(returning),
       reason,
       condition: payload.condition || previous.condition,
       remark: payload.defectRemark?.trim() || undefined,
@@ -2887,7 +2904,7 @@ export class StoreService {
       toEntity: string;
       notes: string;
       /** Where the approval remembers the split-off record's code */
-      detailsKey: 'issuedItemCode' | 'disposedItemCode' | 'transferredItemCode';
+      detailsKey: 'issuedItemCode' | 'disposedItemCode' | 'transferredItemCode' | 'returnedItemCode';
     } | null = null;
 
     if (isApprove) {
@@ -2899,6 +2916,7 @@ export class StoreService {
         histNote = payload.reviewRemarks || 'Receipt approved. The item is in store and can be issued.';
         approvedById = payload.reviewedById;
       } else if (approval.transactionType === 'RETURN') {
+        const details = (approval.requestDetails ?? {}) as Model21RequestDetails;
         newItemStatus = 'AVAILABLE';
         historyAction = 'RETURN_APPROVED';
         fromEntity = await holderName(item);
@@ -2906,12 +2924,45 @@ export class StoreService {
         locationId = approval.targetLocationId ?? item.storeLocationId;
         const returnStoreName = approval.targetLocationId ? await storeLabel(approval.targetLocationId) : storeName;
         toEntity = `${returnStoreName} (AVAILABLE)`;
-        histNote = payload.reviewRemarks || `Model 22 Return approved. Item returned to ${returnStoreName} (AVAILABLE).`;
+        histNote = payload.reviewRemarks || `Model 21 Return approved. Item returned to ${returnStoreName} (AVAILABLE).`;
         // Older returns set the condition when submitted and have no requestDetails
-        approvedCondition = (approval.requestDetails as Model21RequestDetails | null)?.condition;
+        approvedCondition = details.condition;
         custodianId = null;
         departmentId = null;
         approvedById = payload.reviewedById;
+
+        const requested = Number(details.quantity);
+        const inStore = quantityOf(item);
+        if (Number.isFinite(requested) && requested > 0 && requested < inStore) {
+          // The rest stays with the custodian on this record; the returned units go back to store as their own record
+          const uom = uomOf(item);
+          const code = await nextSplitCode(db, item);
+          split = {
+            quantity: requested,
+            remaining: Math.round((inStore - requested) * 10000) / 10000,
+            uom,
+            code,
+            status: 'AVAILABLE',
+            custodianId: null,
+            departmentId: null,
+            locationId,
+            condition: details.condition,
+            historyAction: 'RETURN_APPROVED',
+            toEntity: `${returnStoreName} (AVAILABLE)`,
+            notes: `${requested} ${uom} returned to store from ${item.itemCode} (Model 21 ${approval.ifmisSlipNumber}). ${approval.purposeOrRemarks}`,
+            detailsKey: 'returnedItemCode',
+          };
+          newItemStatus = statusForCustodian(item.currentCustodianId);
+          custodianId = item.currentCustodianId;
+          departmentId = item.assignedDepartmentId;
+          locationId = item.storeLocationId;
+          heldByOrganization = item.heldByOrganization ?? null;
+          heldByContact = item.heldByContact ?? null;
+          approvedCondition = undefined;
+          approvedById = item.approvedById;
+          toEntity = `${fromEntity} (${newItemStatus})`;
+          histNote = `Returned ${requested} of ${inStore} ${uom} as ${code} to ${returnStoreName}; ${inStore - requested} ${uom} remain with custodian. ${approval.purposeOrRemarks}`;
+        }
       } else if (approval.transactionType === 'TRANSFER') {
         // Apply the custody / department / location change only now, after Stage 2 sign-off
         custodianId = approval.recipientEmployeeId ?? item.currentCustodianId;
@@ -3239,7 +3290,7 @@ export class StoreService {
       isApprove ? `APPROVE_${approval.transactionType}` : `CANCEL_${approval.transactionType}`,
       'APPROVAL',
       item.id,
-      `${approval.transactionType} ${isApprove ? 'APPROVED' : 'CANCELLED'} by ${reviewerName} for item ${item.itemCode}.${split ? ` Partial ${split.status === 'ISSUED' ? (approval.transactionType === 'TRANSFER' ? 'transfer' : 'issue') : split.status === 'AVAILABLE' ? 'transfer' : 'disposal'}: ${split.quantity} ${split.uom} as ${split.code}.` : ''} Remarks: ${updatedApproval.reviewRemarks}`,
+      `${approval.transactionType} ${isApprove ? 'APPROVED' : 'CANCELLED'} by ${reviewerName} for item ${item.itemCode}.${split ? ` Partial ${split.status === 'ISSUED' ? (approval.transactionType === 'TRANSFER' ? 'transfer' : 'issue') : split.status === 'AVAILABLE' ? (approval.transactionType === 'RETURN' ? 'return' : 'transfer') : 'disposal'}: ${split.quantity} ${split.uom} as ${split.code}.` : ''} Remarks: ${updatedApproval.reviewRemarks}`,
       approval.ifmisSlipNumber,
       undefined,
       undefined,

@@ -564,6 +564,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         const item = selectedItemObj;
         if (editTransfer) {
           await api.updateReturn(editTransfer.id, {
+            quantity: transferQuantity,
             model21No: effectiveModel21No,
             ifmisSlipDateGc: transferDateGc,
             ifmisSlipAttachmentUrl: slipUrl,
@@ -588,6 +589,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         const origCost = valueOf(item, transferQuantity);
         await api.registerReturn({
           itemId: selectedItemId,
+          quantity: transferQuantity,
           ifmisSlipNumber: effectiveModel21No,
           ifmisSlipDateGc: transferDateGc,
           ifmisSlipAttachmentUrl: slipUrl,
@@ -622,6 +624,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           try {
             await api.registerReturn({
               itemId: extra.itemId,
+              quantity: extra.quantity,
               ifmisSlipNumber: effectiveModel21No,
               ifmisSlipDateGc: transferDateGc,
               ifmisSlipAttachmentUrl: slipUrl,
@@ -656,6 +659,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           try {
             await api.registerReturn({
               itemId: other.asset.id,
+              quantity: otherQty,
               ifmisSlipNumber: effectiveModel21No,
               ifmisSlipDateGc: transferDateGc,
               ifmisSlipAttachmentUrl: slipUrl,
