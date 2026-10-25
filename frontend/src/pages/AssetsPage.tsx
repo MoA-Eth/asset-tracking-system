@@ -179,6 +179,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>(savedView.category);
   // Fixed asset or consumable item (not remembered between visits)
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [programFilter, setProgramFilter] = useState<string>('ALL');
+  const [dbPrograms, setDbPrograms] = useState<string[]>([]);
   const [staleOnly, setStaleOnly] = useState<boolean>(savedView.staleOnly);
   const [search, setSearch] = useState('');
   const [sortColumn, setSortColumn] = useState<SortColumn>(savedView.sortColumn);
@@ -281,18 +283,25 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     else setLoading(true);
     setError(null);
     try {
-      const [itemsRes, approvalsRes, locsRes, empsRes, deptsRes] = await Promise.all([
+      const progsPromise = typeof api.getPrograms === 'function'
+        ? api.getPrograms().catch(() => [])
+        : Promise.resolve([]);
+      const [itemsRes, approvalsRes, locsRes, empsRes, deptsRes, progsRes] = await Promise.all([
         api.getItems(),
         api.getApprovals(),
         api.getLocations(),
         api.getEmployees(),
         api.getDepartments(),
+        progsPromise,
       ]);
       setItems(itemsRes);
       setApprovals(approvalsRes);
       setLocations(locsRes);
       setEmployees(empsRes);
       setDepartments(deptsRes);
+      if (Array.isArray(progsRes)) {
+        setDbPrograms(progsRes.map((p: any) => p.name));
+      }
     } catch (err: any) {
       console.error('Failed to load assets:', err);
       setError(err.message || 'The assets could not be loaded.');
@@ -475,6 +484,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       return false;
     }
 
+    if (programFilter !== 'ALL' && (row.item.programName || '') !== programFilter) {
+      return false;
+    }
+
     if (staleOnly && !(row.state === 'IN_STORE' && isStale(row))) {
       return false;
     }
@@ -510,7 +523,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const matchesSearch = (row: AssetRow) => {
     if (!q) return true;
     const { item } = row;
-    return [item.name, item.itemCode, item.ifmisTagNumber, item.ifmisItemCode, item.serialNumber, item.ifmisSlipNumber, item.itemCategoryDisplay, item.category, row.where, row.goingTo, row.request?.ifmisSlipNumber]
+    return [item.name, item.itemCode, item.ifmisTagNumber, item.ifmisItemCode, item.serialNumber, item.ifmisSlipNumber, item.itemCategoryDisplay, item.category, item.programName, row.where, row.goingTo, row.request?.ifmisSlipNumber]
       .some((v) => (v || '').toLowerCase().includes(q));
   };
   /** The batch shows when it or any of its units matches; with a filter or search, only the matching units unfold */
@@ -524,7 +537,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const shown = useMemo(
     () => groups.map((g) => visibleGroup(g, filter, locationFilter, categoryFilter)).filter((g): g is ShownGroup => !!g),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [groups, filter, locationFilter, categoryFilter, typeFilter, staleOnly, search],
+    [groups, filter, locationFilter, categoryFilter, typeFilter, programFilter, staleOnly, search],
   );
 
   const sortedShown = useMemo(() => {
@@ -621,7 +634,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return out;
   }, [sortedShown, slips, slipOfItem]);
 
-  const pager = usePagination(listed, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}|${lastTouchedId}` });
+  const pager = usePagination(listed, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${programFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}|${lastTouchedId}` });
   const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
   const toggleBatch = (id: string) =>
     setOpenBatches((prev) => {
@@ -1437,11 +1450,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   }, [selectedId, flatSelectableIds, voucher19, voucher21, voucher22, voucherDisposal, receipt, issue, transfer, disposing]);
 
 
+  const programOptions = useMemo(() => {
+    const set = new Set(dbPrograms);
+    for (const item of items) {
+      if (item.programName?.trim()) set.add(item.programName.trim());
+    }
+    return Array.from(set).sort().map((name) => ({ value: name, label: name }));
+  }, [dbPrograms, items]);
+
   // The status is in the tabs, always in sight: only the filters inside the popover are counted
   const activeFilterCount =
     (locationFilter !== 'ALL' ? 1 : 0) +
     (categoryFilter !== 'ALL' ? 1 : 0) +
     (typeFilter !== 'ALL' ? 1 : 0) +
+    (programFilter !== 'ALL' ? 1 : 0) +
     (staleOnly ? 1 : 0);
   // Anything that narrows or reorders the list: filters, search or a non-default sort
   const viewChanged = activeFilterCount > 0 || !!search || sortColumn !== 'activity' || sortDirection !== 'desc';
@@ -1450,6 +1472,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setLocationFilter('ALL');
     setCategoryFilter('ALL');
     setTypeFilter('ALL');
+    setProgramFilter('ALL');
     setStaleOnly(false);
   };
   const resetView = () => {
@@ -1759,6 +1782,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   />
                 </FilterSection>
 
+                {/* Program or donor project */}
+                {programOptions.length > 0 && (
+                  <FilterSection label="Program or project" htmlFor="filter-program-project">
+                    <FilterSelect
+                      id="filter-program-project"
+                      ariaLabel="Filter by program or project"
+                      placeholder="All programs and projects"
+                      value={programFilter}
+                      onChange={setProgramFilter}
+                      options={programOptions}
+                    />
+                  </FilterSection>
+                )}
+
                 {/* Stock waiting too long to be issued */}
                 <FilterSection label="Time in store">
                   <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -1879,6 +1916,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     onClick={() => setTypeFilter('ALL')}
                     title="Remove item type filter"
                     aria-label="Remove item type filter"
+                    className="hover:text-emerald-950 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {programFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                  <span>Project: {programFilter}</span>
+                  <button
+                    type="button"
+                    onClick={() => setProgramFilter('ALL')}
+                    title="Remove program filter"
+                    aria-label="Remove program filter"
                     className="hover:text-emerald-950 cursor-pointer"
                   >
                     <X className="w-3 h-3" />

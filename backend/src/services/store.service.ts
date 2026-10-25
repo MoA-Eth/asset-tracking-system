@@ -948,6 +948,7 @@ export class StoreService {
     itemType?: ItemType;
     departmentId?: string;
     locationId?: string;
+    programName?: string;
     search?: string;
   }): Promise<ItemWithRelations[]> {
     const where: any = {};
@@ -957,6 +958,9 @@ export class StoreService {
     if (filter?.itemType && ITEM_TYPES.includes(filter.itemType)) where.itemType = filter.itemType;
     if (filter?.departmentId) where.assignedDepartmentId = filter.departmentId;
     if (filter?.locationId) where.storeLocationId = filter.locationId;
+    if (filter?.programName) {
+      where.notes = { contains: filter.programName.trim(), mode: 'insensitive' };
+    }
     if (filter?.search) {
       const q = filter.search.trim();
       where.OR = [

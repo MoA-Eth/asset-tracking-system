@@ -35,6 +35,7 @@ vi.mock('../utils/slip-ocr', async (importOriginal) => ({
 vi.mock('../api/client', () => ({
   api: {
     getOrganizations: vi.fn(async () => []), createOrganization: vi.fn(), getItems: vi.fn(), getDepartments: vi.fn(), getEmployees: vi.fn(), getLocations: vi.fn(), getStores: vi.fn(), getApprovals: vi.fn(),
+    getPrograms: vi.fn(async () => []),
     getItemById: vi.fn(), transferItem: vi.fn(), updateTransfer: vi.fn(), registerReturn: vi.fn(), registerStockOut: vi.fn(),
     registerStockIn: vi.fn(), updateStockIn: vi.fn(), uploadSlip: vi.fn(), registerDisposal: vi.fn(), updateDisposal: vi.fn(), setIfmisTag: vi.fn(),
     resubmitApprovals: vi.fn(), cancelApprovals: vi.fn(),

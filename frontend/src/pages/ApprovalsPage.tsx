@@ -998,7 +998,13 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                           <span className="text-slate-900 font-medium line-clamp-1">{appr.itemName}</span>
                           <span className="flex flex-wrap items-center gap-x-1.5 whitespace-nowrap">
                             <span className={table.code}>{appr.itemCode}</span>
-                            {!slipLines.has(appr.id) && approvalUnits(appr) && <span className="text-xs text-sky-800">· {approvalUnits(appr)}</span>}
+                            {slipLines.has(appr.id) ? (
+                              <span className="px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                                Batch · {slipLines.get(appr.id)!.length} items
+                              </span>
+                            ) : approvalUnits(appr) ? (
+                              <span className="text-xs text-sky-800">· {approvalUnits(appr)}</span>
+                            ) : null}
                             {appr.poNumber && <span className="text-xs text-slate-500">PO {appr.poNumber}</span>}
                             {appr.ifmisSlipAttachmentUrl && (
                               <button
@@ -1195,12 +1201,19 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   {getTypeBadge(selectedApproval.transactionType, selectedApproval.requestDetails)}
                 </div>
                 <p className="font-mono text-slate-800 font-bold">{selectedApproval.itemCode}</p>
-                {!slipLines.has(selectedApproval.id) && approvalUnits(selectedApproval) && (
+                {slipLines.has(selectedApproval.id) ? (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Batch Voucher:</span>
+                    <span className="px-1.5 py-0.5 rounded-[4px] text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                      {slipLines.get(selectedApproval.id)!.length} items decided together
+                    </span>
+                  </div>
+                ) : approvalUnits(selectedApproval) ? (
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Quantity:</span>
                     <span className="font-mono font-semibold text-sky-800">{approvalUnits(selectedApproval)!.replace(/^Qty /, '')}</span>
                   </div>
-                )}
+                ) : null}
                 <div className="flex items-center justify-between pt-1 border-t border-slate-200">
                   <span className="text-slate-500">IFMIS Slip:</span>
                   <span className="font-mono text-slate-800 font-semibold bg-white border border-slate-200 px-1.5 py-0.5 rounded">
