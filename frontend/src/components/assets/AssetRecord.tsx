@@ -754,7 +754,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               )}
               {units.length > 0 && (
                 <div>
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Issued from this batch</p>
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Units & split records from this batch</p>
                   <ul className="divide-y divide-slate-100 rounded-md border border-slate-200 text-xs">
                     {units.map((u) => (
                       <li key={u.item.id}>
