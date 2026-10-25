@@ -164,9 +164,9 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                   <Row label="Status">
                     {requestStatus && <span className={`${pill} ${statusTone[requestStatus.tone]}`}>{requestStatus.label}</span>}
                   </Row>
-                  {(approval.transactionType === 'STOCK_OUT' || approval.transactionType === 'DISPOSAL') && (
+                  {d?.quantity !== undefined && (
                     <Row label="Quantity" mono>
-                      {d?.quantity ? `${d.quantity} ${uom}` : undefined}
+                      {d.quantity} {uom}
                     </Row>
                   )}
                   <Row label="IFMIS slip" mono>
@@ -199,9 +199,36 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                       {d?.description && <Row label="Remark">{d.description}</Row>}
                     </>
                   )}
-                  {approval.transactionType !== 'STOCK_IN' && approval.transactionType !== 'DISPOSAL' && (
+                  {approval.transactionType === 'RETURN' && (
                     <>
-                      <Row label={approval.transactionType === 'RETURN' ? 'Returned by' : d?.disposal ? 'Sold / transferred / donated to' : 'Recipient'}>
+                      <Row label="Returned by">
+                        {item.currentCustodian?.fullNameEn || item.heldByOrganization || '—'}
+                      </Row>
+                      {approval.recipientEmployee && (
+                        <Row label="Store receiver">
+                          {approval.recipientEmployee.fullNameEn}
+                        </Row>
+                      )}
+                      <Row label="Target store">
+                        {locationName(approval.targetLocationId) || item.storeLocation?.siteName || '—'}
+                      </Row>
+                      {d?.condition && (
+                        <Row label="Return condition">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            d.condition === 'GOOD' ? 'bg-emerald-100 text-emerald-800' :
+                            d.condition === 'NEEDS_REPAIR' ? 'bg-amber-100 text-amber-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {d.condition.replace(/_/g, ' ')}
+                          </span>
+                        </Row>
+                      )}
+                      {d?.remark && <Row label="Defect notes">{d.remark}</Row>}
+                    </>
+                  )}
+                  {approval.transactionType !== 'STOCK_IN' && approval.transactionType !== 'DISPOSAL' && approval.transactionType !== 'RETURN' && (
+                    <>
+                      <Row label={d?.disposal ? 'Sold / transferred / donated to' : 'Recipient'}>
                         {d?.disposal ? (d?.recipientName || '—') : (approval.recipientEmployee?.fullNameEn || approval.requestDetails?.organizationName)}
                       </Row>
                       {approval.requestDetails?.contactPerson && <Row label="Contact person">{approval.requestDetails.contactPerson}</Row>}
@@ -210,7 +237,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                     </>
                   )}
                   {d?.reason && <Row label="Reason">{d.reason}</Row>}
-                  {d?.remark && <Row label={approval.transactionType === 'RETURN' ? 'Defects' : 'Remark'}>{d.remark}</Row>}
+                  {approval.transactionType !== 'RETURN' && d?.remark && <Row label="Remark">{d.remark}</Row>}
                   {!d?.reason && approval.purposeOrRemarks && <Row label="Purpose / remark">{approval.purposeOrRemarks}</Row>}
                   {approval.endorsedBy && (
                     <Row label="Endorsed by">

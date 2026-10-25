@@ -45,6 +45,8 @@ import {
   TransactionType,
   UserRole,
   Employee,
+  Department,
+  Location,
 } from '../types/asset-management';
 import { getTodayGcAndEc } from '../utils/eth-date';
 import { useAuth } from '../context/AuthContext';
@@ -104,9 +106,14 @@ const typeText = (type?: string, details?: { disposal?: boolean } | null) =>
 
 const approvalUnits = (a: TransactionApproval): string | null => {
   const uom = a.requestDetails?.uom || a.itemUom || 'EA';
-  if ((a.transactionType === 'STOCK_OUT' || a.transactionType === 'DISPOSAL') && a.requestDetails?.quantity) {
+  if (a.requestDetails?.quantity) {
+    const isHeld = a.transactionType === 'TRANSFER' || a.transactionType === 'RETURN';
     const partOf =
-      a.status === 'PENDING' && a.itemUnits && a.requestDetails.quantity < a.itemUnits ? ` of ${a.itemUnits} in store` : '';
+      a.status === 'PENDING' && a.itemUnits && a.requestDetails.quantity < a.itemUnits
+        ? isHeld
+          ? ` of ${a.itemUnits} held`
+          : ` of ${a.itemUnits} in store`
+        : '';
     return `Qty ${a.requestDetails.quantity} ${uom}${partOf}`;
   }
   return a.status === 'PENDING' && a.itemUnits ? `Qty ${a.itemUnits} ${uom}` : null;
@@ -140,6 +147,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const [approvals, setApprovals] = useState<TransactionApproval[]>([]);
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
 
   // Navigation Controls
   const [activeTab, setActiveTab] = useState<TabFilter>('MY_QUEUE');
@@ -170,12 +179,16 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const fetchApprovals = async () => {
     setLoading(true);
     try {
-      const [apprs, emps] = await Promise.all([
+      const [apprs, emps, deps, locs] = await Promise.all([
         api.getApprovals(),
         api.getEmployees(),
+        typeof api.getDepartments === 'function' ? api.getDepartments().catch(() => []) : Promise.resolve([]),
+        typeof api.getLocations === 'function' ? api.getLocations().catch(() => []) : Promise.resolve([]),
       ]);
       setApprovals(apprs);
       setEmployees(emps);
+      setDepartments(deps);
+      setLocations(locs);
     } catch (err: any) {
       console.error('Failed to load approvals:', err);
       toast.error('Approvals Load Failed', err.message || 'Failed to load approvals list.');
@@ -1205,6 +1218,103 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     <span className="text-slate-500">PO number:</span>
                     <span className="font-mono text-slate-800">{selectedApproval.poNumber}</span>
                   </div>
+                )}
+                {/* Specific operational parameters */}
+                {selectedApproval.transactionType === 'STOCK_OUT' && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Recipient:</span>
+                    <span className="font-semibold text-slate-800">
+                      {selectedApproval.recipientEmployee?.fullNameEn || selectedApproval.requestDetails?.organizationName || '—'}
+                      {selectedApproval.recipientEmployee?.departmentId && (() => {
+                        const dep = departments.find((d) => d.id === selectedApproval.recipientEmployee?.departmentId);
+                        return dep ? ` (${dep.nameEn})` : '';
+                      })()}
+                    </span>
+                  </div>
+                )}
+                {selectedApproval.transactionType === 'TRANSFER' && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">New Recipient:</span>
+                      <span className="font-semibold text-slate-800">
+                        {selectedApproval.recipientEmployee?.fullNameEn || selectedApproval.requestDetails?.organizationName || '—'}
+                      </span>
+                    </div>
+                    {selectedApproval.targetDepartmentId && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Target Directorate:</span>
+                        <span className="text-slate-800">{departments.find((d) => d.id === selectedApproval.targetDepartmentId)?.nameEn || '—'}</span>
+                      </div>
+                    )}
+                    {selectedApproval.targetLocationId && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Target Location:</span>
+                        <span className="text-slate-800">{locations.find((l) => l.id === selectedApproval.targetLocationId)?.siteName || '—'}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+                {selectedApproval.transactionType === 'RETURN' && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Target Store:</span>
+                      <span className="font-semibold text-slate-800">
+                        {locations.find((l) => l.id === selectedApproval.targetLocationId)?.siteName || 'Store'}
+                      </span>
+                    </div>
+                    {selectedApproval.recipientEmployee && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Store Receiver:</span>
+                        <span className="text-slate-800">{selectedApproval.recipientEmployee.fullNameEn}</span>
+                      </div>
+                    )}
+                    {selectedApproval.requestDetails?.condition && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Return Condition:</span>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                          selectedApproval.requestDetails.condition === 'GOOD' ? 'bg-emerald-100 text-emerald-800' :
+                          selectedApproval.requestDetails.condition === 'NEEDS_REPAIR' ? 'bg-amber-100 text-amber-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {selectedApproval.requestDetails.condition.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                    )}
+                    {selectedApproval.requestDetails?.remark && (
+                      <div className="flex items-center justify-between text-amber-800">
+                        <span className="text-slate-500">Defect Notes:</span>
+                        <span className="font-medium">{selectedApproval.requestDetails.remark}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+                {selectedApproval.transactionType === 'DISPOSAL' && (
+                  <>
+                    {selectedApproval.requestDetails?.recipientName && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Disposed To:</span>
+                        <span className="font-semibold text-slate-800">{selectedApproval.requestDetails.recipientName}</span>
+                      </div>
+                    )}
+                    {selectedApproval.requestDetails?.reason && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Disposal Method:</span>
+                        <span className="text-slate-800">{selectedApproval.requestDetails.reason}</span>
+                      </div>
+                    )}
+                    {selectedApproval.requestDetails?.bookValue !== undefined && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Book Value:</span>
+                        <span className="font-mono text-slate-800">{formatETB(selectedApproval.requestDetails.bookValue)}</span>
+                      </div>
+                    )}
+                    {selectedApproval.requestDetails?.proceedsETB !== undefined && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Proceeds:</span>
+                        <span className="font-mono text-slate-800">{formatETB(selectedApproval.requestDetails.proceedsETB)}</span>
+                      </div>
+                    )}
+                  </>
                 )}
                 {selectedApproval.purposeOrRemarks && (
                   <div className="pt-1 border-t border-slate-200 text-slate-700">

@@ -800,7 +800,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                     r.transactionType === 'STOCK_OUT' || r.transactionType === 'TRANSFER'
                       ? r.recipientEmployee?.fullNameEn || r.requestDetails?.organizationName
                       : r.transactionType === 'RETURN'
-                        ? 'Store'
+                        ? r.requestDetails?.storeRecipientName ? `Store (${r.requestDetails.storeRecipientName})` : 'Store'
                         : r.transactionType === 'DISPOSAL'
                           ? r.requestDetails?.recipientName || 'Disposal'
                           : undefined;
@@ -815,7 +815,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                       <p className="text-slate-600">
                         {shortDate(r.createdAtGc)}
                         {to ? ` · to ${to}` : ''}
-                        {r.transactionType === 'STOCK_OUT' && r.requestDetails?.quantity ? ` · ${r.requestDetails.quantity} ${uom}` : ''}
+                        {r.requestDetails?.quantity ? ` · ${r.requestDetails.quantity} ${uom}` : ''}
                       </p>
                       {r.status === ApprovalStatus.REJECTED && r.reviewRemarks && <p className="text-red-700">Reason: {r.reviewRemarks}</p>}
                       {r.returnRemarks && (
