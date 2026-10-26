@@ -749,9 +749,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const itemsMissing = [
       [
         !name.trim() && 'description',
-        !ifmisItemCode.trim() && !(isEdit && itemType) && 'item code',
+        !donation && !ifmisItemCode.trim() && !(isEdit && itemType) && 'item code',
         !category && 'category',
-        !itemType && 'item type',
+        !donation && !itemType && 'item type',
         !(Number(quantity) > 0) && 'quantity',
       ].filter(Boolean) as string[],
       ...extraLines.map((l) => lineMissing(l, donation)),
@@ -774,7 +774,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const effectiveQty = Number(quantity) > 0 ? Number(quantity) : 1;
     const effectiveUom = uom.trim() || "EA";
     const effectiveUnitCost = Number(unitCostETB) >= 0 ? Number(unitCostETB) : 0;
-    const effectiveIfmisItemCode = ifmisItemCode.trim() || (effectiveType === ItemType.CONSUMABLE ? "108101101.0001" : "305101101.0001");
     if (hasDuplicates) {
       const msg = duplicateMessage || 'Duplicate entrance is not permitted.';
       setFormError(msg);
@@ -965,7 +964,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       const res = await api.registerStockIn({
         name: name.trim(),
         category: category as AssetCategory,
-        itemType: itemType as ItemType,
+        itemType: (itemType || effectiveType) as ItemType,
+        ifmisItemCode: ifmisItemCode.trim() || undefined,
         serialNumber: serialNumber.trim() || '',
         unitCostETB: Number(unitCostETB) || 0,
         condition: (condition as ItemCondition) || ItemCondition.NEW,
@@ -1102,20 +1102,22 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             id="stock-in-ifmis-code"
             type="text"
             required={false}
-            placeholder="e.g. 108101101.0021"
+            placeholder={donation ? 'Optional' : 'e.g. 108101101.0021'}
             value={ifmisItemCode}
             onChange={(e) => changeIfmisCode(e.target.value)}
             onBlur={fieldErrors.touch('itemType')}
-            className={cellClass({ mono: true, invalid: !!fieldErrors.error('itemType') })}
+            className={cellClass({ mono: true, invalid: !donation && !!fieldErrors.error('itemType') })}
           />
-          <ItemTypeTag
-            type={itemType}
-            code={ifmisItemCode}
-            label="Item type"
-            onToggle={() =>
-              setItemType(itemType === ItemType.CONSUMABLE ? ItemType.FIXED : ItemType.CONSUMABLE)
-            }
-          />
+          {!donation && (
+            <ItemTypeTag
+              type={itemType}
+              code={ifmisItemCode}
+              label="Item type"
+              onToggle={() =>
+                setItemType(itemType === ItemType.CONSUMABLE ? ItemType.FIXED : ItemType.CONSUMABLE)
+              }
+            />
+          )}
         </div>
       </td>
       <td className="px-3 py-2.5">
@@ -1305,7 +1307,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           </div>
         }
       >
-        <p className="-mt-1 mb-2 text-[11px] text-slate-500">{ITEM_CODE_RULE} Click the badge under a code to change the type.</p>
+        <p className="-mt-1 mb-2 text-[11px] text-slate-500">
+          {!donation
+            ? `${ITEM_CODE_RULE} Click the badge under a code to change the type.`
+            : 'IFMIS inventory item codes are optional for donation receipts.'}
+        </p>
         <ReceiptItems
           first={firstRow}
           lines={linesWithDuplicates}

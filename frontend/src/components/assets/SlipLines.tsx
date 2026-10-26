@@ -60,12 +60,12 @@ export const isLineFixed = (l: { ifmisCode?: string; itemType?: ItemType | '' })
 export const oneIfFixed = (l: SlipLine): SlipLine => l;
 
 /** What a line still needs before the receipt can be submitted */
-export const lineMissing = (l: SlipLine, _donation = false): string[] =>
+export const lineMissing = (l: SlipLine, donation = false): string[] =>
   [
     !l.name.trim() && 'description',
     !l.category && 'category',
-    !l.ifmisCode?.trim() && !(l.id && l.itemType) && 'item code',
-    !l.itemType && 'item type',
+    !donation && !l.ifmisCode?.trim() && !(l.id && l.itemType) && 'item code',
+    !donation && !l.itemType && 'item type',
     !l.uom.trim() && 'unit',
     !(Number.isFinite(l.quantity) && l.quantity > 0) && 'quantity',
   ].filter(Boolean) as string[];
@@ -179,7 +179,9 @@ export const ReceiptItems: React.FC<{
             <tr className="text-xs font-semibold text-slate-600">
               <th className="px-2 py-2.5 text-center">#</th>
               <th className="px-3 py-2.5 text-left">Item description</th>
-              <th className="px-3 py-2.5 text-left">IFMIS code</th>
+              <th className="px-3 py-2.5 text-left" title={donation ? 'Optional for donations' : undefined}>
+                IFMIS code{donation ? ' (opt.)' : ''}
+              </th>
               <th className="px-3 py-2.5 text-left">Category</th>
               <th className="px-2 py-2.5 text-center">Unit</th>
               <th className="px-2 py-2.5 text-center">Qty</th>
@@ -217,21 +219,23 @@ export const ReceiptItems: React.FC<{
                     <div className="space-y-1">
                       <input
                         aria-label={`Item ${n} item code`}
-                        placeholder="e.g. 108101101.0021"
+                        placeholder={donation ? 'Optional' : 'e.g. 108101101.0021'}
                         value={l.ifmisCode ?? ''}
                         onChange={(e) => set(l.key, { ifmisCode: e.target.value })}
-                        className={cellClass({ mono: true, invalid: !l.ifmisCode?.trim() || !l.itemType })}
+                        className={cellClass({ mono: true, invalid: !donation && (!l.ifmisCode?.trim() || !l.itemType) })}
                       />
-                      <ItemTypeTag
-                        type={l.itemType}
-                        code={l.ifmisCode}
-                        label={`Item ${n} item type`}
-                        onToggle={() =>
-                          set(l.key, {
-                            itemType: l.itemType === ItemType.CONSUMABLE ? ItemType.FIXED : ItemType.CONSUMABLE,
-                          })
-                        }
-                      />
+                      {!donation && (
+                        <ItemTypeTag
+                          type={l.itemType}
+                          code={l.ifmisCode}
+                          label={`Item ${n} item type`}
+                          onToggle={() =>
+                            set(l.key, {
+                              itemType: l.itemType === ItemType.CONSUMABLE ? ItemType.FIXED : ItemType.CONSUMABLE,
+                            })
+                          }
+                        />
+                      )}
                     </div>
                   </td>
                   <td className="px-3 py-2.5">

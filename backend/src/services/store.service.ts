@@ -1129,7 +1129,7 @@ export class StoreService {
       if (tag) {
         if (tags.some((t) => t.toLowerCase() === tag.toLowerCase())) throw new BadRequestError(`Two lines on this slip have tag number ${tag}.`);
         tags.push(tag);
-      } else if (!ifmisCode) {
+      } else if (!ifmisCode && !donation) {
         throw new BadRequestError(`Enter the item code of ${name}, e.g. 108101101.0021. An item is known by its IFMIS item code.`);
       }
     }

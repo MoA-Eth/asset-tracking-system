@@ -25,8 +25,8 @@ The bar at the bottom stays in view with **Submit**. While something is missing 
 2. Attach the Model 19 PDF (see below), or fill in by hand.
 3. **Voucher:** enter the Model 19 No., received date and transaction type. **The PO number decides purchase or donation**, as on the IFMIS slip:
    - **With a PO number: a purchase.** Enter the **Source** (supplier). Buyer and program are optional.
-   - **Donation:** Enter the **Donor / Sponsoring organization**. Price fields (unit price, charges, and total) are available and recorded like a normal PO receipt.
-4. **Items:** for each row enter the **IFMIS item code**, description, category, unit, quantity and, for a purchase, unit price.
+   - **Donation:** Enter the **Donor / Sponsoring organization**. The IFMIS code is optional for donations. Price fields (unit price, charges, and total) are available and recorded like a normal PO receipt.
+4. **Items:** for each row enter the **IFMIS item code** (optional for donations), description, category, unit, quantity and, for a purchase, unit price.
    - The code's first digit says what it is: **1 is a Consumable**, **0 is a Fixed asset**. Nobody picks it.
    - A **fixed asset is one item**: its quantity is 1.
    - **Add item** adds a row for another line of the same Model 19; **×** at the end of a row removes it.

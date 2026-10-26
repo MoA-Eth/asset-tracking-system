@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ReceiptItems, SlipLine } from './SlipLines';
+import { lineMissing, ReceiptItems, SlipLine } from './SlipLines';
 import { AssetCategory, ItemCondition, ItemType } from '../../types/asset-management';
 
 const TestReceiptTable: React.FC = () => {
@@ -134,5 +134,54 @@ describe('Model 19 ReceiptItems: VAT and Additional Charges Scenarios', () => {
 
     // Badge should now display "Consumable"
     expect(screen.getByLabelText('Item 2 item type')).toHaveTextContent('Consumable');
+  });
+
+  it('makes IFMIS item code and item type optional when donation is true', () => {
+    const line: SlipLine = {
+      key: 1,
+      name: 'Mule',
+      category: AssetCategory.OTHER_SUPPLIES,
+      itemType: '',
+      condition: ItemCondition.NEW,
+      uom: 'EA',
+      quantity: 1,
+      unitPrice: 5000,
+      vatApplicable: false,
+      additionalCharges: 0,
+      ifmisCode: '',
+    };
+
+    // When purchase (donation = false), missing item code and item type
+    expect(lineMissing(line, false)).toEqual(['item code', 'item type']);
+
+    // When donation (donation = true), item code and item type are optional
+    expect(lineMissing(line, true)).toEqual([]);
+  });
+
+  it('does not render item type badge when donation is true', () => {
+    const line: SlipLine = {
+      key: 1,
+      name: 'Mule',
+      category: AssetCategory.OTHER_SUPPLIES,
+      itemType: '',
+      condition: ItemCondition.NEW,
+      uom: 'EA',
+      quantity: 1,
+      unitPrice: 0,
+      vatApplicable: false,
+      additionalCharges: 0,
+      ifmisCode: '',
+    };
+
+    render(
+      <ReceiptItems
+        first={<tr data-testid="first-row"><td colSpan={10}>First Item</td></tr>}
+        lines={[line]}
+        donation={true}
+        onChange={() => {}}
+      />
+    );
+
+    expect(screen.queryByLabelText('Item 2 item type')).toBeNull();
   });
 });

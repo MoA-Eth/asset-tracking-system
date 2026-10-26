@@ -116,6 +116,25 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(meta1).toMatchObject({ provisionType: 'DONATION', totalAmount: 600 });
   });
 
+  it('allows registering a donation without an IFMIS item code', async () => {
+    const { itemCode: _tag, ifmisItemCode: _code, ...noCodes } = basePayload;
+    await StoreService.getInstance().registerStockIn({
+      ...noCodes,
+      name: 'mule',
+      serialNumber: '',
+      provisionType: 'DONATION',
+      isHistoricalData: true,
+      itemType: 'FIXED',
+    } as any);
+    expect(db.item.create).toHaveBeenCalledTimes(1);
+    const created = db.item.create.mock.calls[0][0].data;
+    expect(created.name).toBe('mule');
+    expect(created.itemType).toBe('FIXED');
+    const meta = JSON.parse(created.notes);
+    expect(meta.provisionType).toBe('DONATION');
+    expect(meta.ifmisItemCode).toBeUndefined();
+  });
+
   it('records a purchase by default, and refuses an unknown type of provision', async () => {
     await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, poNumber: '186' } as any);
     expect(JSON.parse(db.item.create.mock.calls[0][0].data.notes)).toMatchObject({ provisionType: 'PURCHASE', poNumber: '186' });
