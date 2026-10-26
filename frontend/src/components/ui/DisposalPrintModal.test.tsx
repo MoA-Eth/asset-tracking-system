@@ -29,15 +29,16 @@ describe('Disposal voucher', () => {
     expect(screen.getByText("Kality School", { selector: "dd" })).toBeInTheDocument();
     // Not on the IFMIS form, though an older request recorded them
     for (const gone of ["Fair", "DC/12/2026", "Committee Decision Ref. :", "Proceeds (ETB) :", "Condition :"]) expect(screen.queryByText(gone)).toBeNull();
-    for (const heading of ["Tag Number", "Serial Number", "Chassis No", "Engine No", "Declaration Number", "Disposal Type", "Original Cost", "Accumulated Depreciation", "Book Value", "Remark"]) {
+    for (const heading of ["Tag Number", "Serial Number", "Chassis No", "Engine No", "Declaration Number", "Disposal Type", "Qty", "UOM", "Original Cost", "Accumulated Depreciation", "Book Value", "Remark"]) {
       expect(screen.getAllByText(heading).length).toBeGreaterThan(0);
     }
     expect(screen.getByText("MOA-FUR-1-2")).toBeInTheDocument();
     // Asset description cell only contains the description without quantity subtext
     const descCell = screen.getByText("Office chair", { selector: "td" });
     expect(descCell.textContent).toBe("Office chair");
-    // Multi-unit quantity is noted in the Remark column
-    expect(screen.getByText("3 EA", { selector: "td" })).toBeInTheDocument();
+    // Multi-unit quantity and UOM are in dedicated columns
+    expect(screen.getByText("3", { selector: "td" })).toBeInTheDocument();
+    expect(screen.getByText("EA", { selector: "td" })).toBeInTheDocument();
     // 3 chairs at 1,500 = 4,500 cost, all of it depreciated but the 1,000 book value: so 3,500
     expect(screen.getByText("3,500.00", { selector: "td" })).toBeInTheDocument();
     expect(screen.getByText(/correctly counted and received the items/i)).toBeInTheDocument();
