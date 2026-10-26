@@ -165,7 +165,6 @@ export const NotificationProvider: React.FC<{
         return merged;
       });
       setHasNewArrival(false);
-      setArrivalAlert(null);
     },
     [notifications, user?.id]
   );
@@ -225,7 +224,7 @@ export const NotificationProvider: React.FC<{
             playNotificationChime();
           }
 
-          // In-App Telegram/Gmail Style Bottom Alert
+          // In-App Bottom Notification Snackbar (Telegram / Gmail style)
           if (newArrivals.length === 1) {
             const item = newArrivals[0];
             const typeLabel =
@@ -393,6 +392,7 @@ export const NotificationProvider: React.FC<{
           duration={8000}
           onReview={() => {
             setArrivalAlert(null);
+            setHasNewArrival(false);
             const navigateAction = onNavigateToApprovals ?? (() => {
               window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'approvals' }));
             });
