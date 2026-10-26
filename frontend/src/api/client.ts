@@ -293,9 +293,13 @@ export const api = {
   getMyAssets: () => request<MyAsset[]>('/items/mine'),
 
   // Approvals Workflow
-  getApprovals: (status?: ApprovalStatus) => {
+  getApprovals: (status?: ApprovalStatus, requesterId?: string) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (requesterId) params.set('requesterId', requesterId);
+    const qs = params.toString();
     return request<TransactionApproval[]>(
-      `/items/approvals/pending${status ? `?status=${status}` : ''}`
+      `/items/approvals/pending${qs ? `?${qs}` : ''}`
     );
   },
 

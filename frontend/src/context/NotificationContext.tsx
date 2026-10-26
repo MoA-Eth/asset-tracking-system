@@ -42,6 +42,8 @@ interface ArrivalAlertItem {
   title: string;
   message: string;
   count: number;
+  actionLabel?: string;
+  targetTab?: 'approvals' | 'assets';
 }
 
 export const NotificationProvider: React.FC<{
@@ -174,130 +176,240 @@ export const NotificationProvider: React.FC<{
     setArrivalAlert(null);
   }, []);
 
-  // Approver authority flags
+  // Authority & Role flags
   const canEndorse = user?.permissions?.includes('approvals.endorse') ?? (role === UserRole.TEAM_LEADER);
   const canAuthorize = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD || role === UserRole.CHIEF_DIRECTOR);
   const isApprover = canEndorse || canAuthorize;
+  const isRequester = user?.permissions?.some((p) =>
+    ['stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write'].includes(p)
+  ) ?? (role === UserRole.DATA_ENCODER || role === UserRole.SUPER_ADMIN);
+  const hasNotificationAccess = isApprover || isRequester;
 
-  // Track known approval IDs to detect genuinely NEW arrivals
+  // Track known approval IDs to detect genuinely NEW arrivals (Approvers)
   const knownApprovalIdsRef = useRef<Set<string>>(new Set());
+  // Track known status & stage to detect decisions on submitted requests (Requesters)
+  const knownRequesterMapRef = useRef<Map<string, { status: ApprovalStatus; stage: number }>>(new Map());
   const isFirstFetchRef = useRef<boolean>(true);
 
   // Core fetch & diffing engine
   const fetchAndDiffNotifications = useCallback(async () => {
-    if (!isAuthenticated || !isApprover) {
+    if (!isAuthenticated || !hasNotificationAccess) {
       setNotifications([]);
       return;
     }
 
     try {
-      const data = await api.getApprovals(ApprovalStatus.PENDING);
-      let rows = approvalRows(data);
+      let finalNotifications: TransactionApproval[] = [];
 
-      if (canEndorse && !canAuthorize) {
-        rows = rows.filter((r) => (r.lead.currentStage ?? 1) === 1);
-      } else if (canAuthorize && !canEndorse) {
-        rows = rows.filter((r) => r.lead.currentStage === 2);
-        if (role === UserRole.CHIEF_DIRECTOR) rows = rows.filter((r) => needsChiefDirector(r.total));
-        else if (role === UserRole.DEPARTMENT_HEAD) rows = rows.filter((r) => !needsChiefDirector(r.total));
-      } else if (!canEndorse && !canAuthorize) {
-        rows = [];
-      }
+      // ── 1. Approver Notifications (Pending Vouchers in Queue) ────────────────
+      if (isApprover) {
+        const pendingData = await api.getApprovals(ApprovalStatus.PENDING);
+        let rows = approvalRows(pendingData);
 
-      const formattedNotifications: TransactionApproval[] = rows.map((r) =>
-        r.members.length > 1
-          ? { ...r.lead, itemName: `${slipNames(r.members.map((m) => m.itemName))} (${r.members.length} items)` }
-          : r.lead
-      );
+        if (canEndorse && !canAuthorize) {
+          rows = rows.filter((r) => (r.lead.currentStage ?? 1) === 1);
+        } else if (canAuthorize && !canEndorse) {
+          rows = rows.filter((r) => r.lead.currentStage === 2);
+          if (role === UserRole.CHIEF_DIRECTOR) rows = rows.filter((r) => needsChiefDirector(r.total));
+          else if (role === UserRole.DEPARTMENT_HEAD) rows = rows.filter((r) => !needsChiefDirector(r.total));
+        } else if (!canEndorse && !canAuthorize) {
+          rows = [];
+        }
 
-      const currentIds = new Set(formattedNotifications.map((n) => n.id));
+        const approverList: TransactionApproval[] = rows.map((r) =>
+          r.members.length > 1
+            ? { ...r.lead, itemName: `${slipNames(r.members.map((m) => m.itemName))} (${r.members.length} items)` }
+            : r.lead
+        );
 
-      // Detect genuinely new items if this is NOT the initial load
-      if (!isFirstFetchRef.current) {
-        const newArrivals = formattedNotifications.filter((n) => !knownApprovalIdsRef.current.has(n.id));
+        const currentPendingIds = new Set(approverList.map((n) => n.id));
 
-        if (newArrivals.length > 0) {
-          setHasNewArrival(true);
+        // Detect genuinely new pending arrivals
+        if (!isFirstFetchRef.current) {
+          const newArrivals = approverList.filter((n) => !knownApprovalIdsRef.current.has(n.id));
 
-          // Audio chime
-          if (soundEnabled) {
-            playNotificationChime();
-          }
+          if (newArrivals.length > 0) {
+            setHasNewArrival(true);
 
-          // In-App Bottom Notification Snackbar (Telegram / Gmail style)
-          if (newArrivals.length === 1) {
-            const item = newArrivals[0];
-            const typeLabel =
-              item.transactionType === TransactionType.STOCK_IN
-                ? 'Model 19 (Receipt)'
-                : item.transactionType === TransactionType.STOCK_OUT
-                ? 'Model 22 (Issue)'
-                : item.transactionType === TransactionType.RETURN
-                ? 'Model 21 (Return)'
-                : item.transactionType === TransactionType.DISPOSAL
-                ? 'Disposal Form'
-                : 'Model 21 (Transfer)';
-            const stageText = (item.currentStage ?? 1) === 1 ? 'Endorsement' : 'Authorization';
-
-            setArrivalAlert({
-              id: item.id,
-              title: `New ${typeLabel} Pending ${stageText}`,
-              message: `Voucher #${item.ifmisSlipNumber} (${item.itemName}) requires your review.`,
-              count: 1,
-            });
-
-            const navigateAction = onNavigateToApprovals ?? (() => {
-              window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'approvals' }));
-            });
-
-            // Desktop push notification
-            if (desktopEnabled && desktopPermission === 'granted') {
-              sendDesktopNotification(
-                `MoA-ATS: New ${typeLabel} Pending Review`,
-                {
-                  body: `Slip #${item.ifmisSlipNumber} (${item.itemName}) awaits your ${stageText.toLowerCase()}.`,
-                  tag: item.id,
-                },
-                navigateAction
-              );
+            if (soundEnabled) {
+              playNotificationChime();
             }
-          } else {
-            const count = newArrivals.length;
-            setArrivalAlert({
-              id: newArrivals[0].id,
-              title: `${count} New Requests Pending Approval`,
-              message: 'New vouchers have arrived in your queue awaiting review.',
-              count,
-            });
 
-            const navigateAction = onNavigateToApprovals ?? (() => {
-              window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'approvals' }));
-            });
+            if (newArrivals.length === 1) {
+              const item = newArrivals[0];
+              const typeLabel =
+                item.transactionType === TransactionType.STOCK_IN
+                  ? 'Model 19 (Receipt)'
+                  : item.transactionType === TransactionType.STOCK_OUT
+                  ? 'Model 22 (Issue)'
+                  : item.transactionType === TransactionType.RETURN
+                  ? 'Model 21 (Return)'
+                  : item.transactionType === TransactionType.DISPOSAL
+                  ? 'Disposal Form'
+                  : 'Model 21 (Transfer)';
+              const stageText = (item.currentStage ?? 1) === 1 ? 'Endorsement' : 'Authorization';
 
-            if (desktopEnabled && desktopPermission === 'granted') {
-              sendDesktopNotification(
-                `MoA-ATS: ${count} New Approvals Pending`,
-                {
-                  body: `${count} new vouchers arrived awaiting your review.`,
-                  tag: 'multiple-approvals',
-                },
-                navigateAction
-              );
+              setArrivalAlert({
+                id: item.id,
+                title: `New ${typeLabel} Pending ${stageText}`,
+                message: `Voucher #${item.ifmisSlipNumber} (${item.itemName}) requires your review.`,
+                count: 1,
+                actionLabel: 'Review',
+                targetTab: 'approvals',
+              });
+
+              const navigateAction = onNavigateToApprovals ?? (() => {
+                window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'approvals' }));
+              });
+
+              if (desktopEnabled && desktopPermission === 'granted') {
+                sendDesktopNotification(
+                  `MoA-ATS: New ${typeLabel} Pending Review`,
+                  {
+                    body: `Slip #${item.ifmisSlipNumber} (${item.itemName}) awaits your ${stageText.toLowerCase()}.`,
+                    tag: item.id,
+                  },
+                  navigateAction
+                );
+              }
+            } else {
+              const count = newArrivals.length;
+              setArrivalAlert({
+                id: newArrivals[0].id,
+                title: `${count} New Requests Pending Approval`,
+                message: 'New vouchers have arrived in your queue awaiting review.',
+                count,
+                actionLabel: 'Review',
+                targetTab: 'approvals',
+              });
+
+              const navigateAction = onNavigateToApprovals ?? (() => {
+                window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'approvals' }));
+              });
+
+              if (desktopEnabled && desktopPermission === 'granted') {
+                sendDesktopNotification(
+                  `MoA-ATS: ${count} New Approvals Pending`,
+                  {
+                    body: `${count} new vouchers arrived awaiting your review.`,
+                    tag: 'multiple-approvals',
+                  },
+                  navigateAction
+                );
+              }
             }
           }
         }
+
+        knownApprovalIdsRef.current = currentPendingIds;
+        finalNotifications = approverList;
       }
 
-      // Update refs
-      knownApprovalIdsRef.current = currentIds;
+      // ── 2. Requester Notifications (Approval / Rejection / Void Decisions) ──
+      if (isRequester && user?.id) {
+        const requesterData = await api.getApprovals(undefined, user.id);
+        const reqRows = approvalRows(requesterData);
+        const requesterList: TransactionApproval[] = reqRows.map((r) =>
+          r.members.length > 1
+            ? { ...r.lead, itemName: `${slipNames(r.members.map((m) => m.itemName))} (${r.members.length} items)` }
+            : r.lead
+        );
+
+        if (!isFirstFetchRef.current) {
+          for (const item of requesterList) {
+            const prev = knownRequesterMapRef.current.get(item.id);
+            if (prev) {
+              const typeLabel =
+                item.transactionType === TransactionType.STOCK_IN
+                  ? 'Model 19 (Receipt)'
+                  : item.transactionType === TransactionType.STOCK_OUT
+                  ? 'Model 22 (Issue)'
+                  : item.transactionType === TransactionType.RETURN
+                  ? 'Model 21 (Return)'
+                  : item.transactionType === TransactionType.DISPOSAL
+                  ? 'Disposal Form'
+                  : 'Model 21 (Transfer)';
+
+              let title = '';
+              let message = '';
+              let actionLabel = 'View';
+
+              if (prev.status === ApprovalStatus.PENDING && item.status === ApprovalStatus.APPROVED) {
+                title = `${typeLabel} Approved`;
+                message = `Voucher #${item.ifmisSlipNumber} (${item.itemName}) was fully approved.`;
+                actionLabel = 'View';
+              } else if (prev.status === ApprovalStatus.PENDING && item.status === ApprovalStatus.REJECTED) {
+                const reason = item.returnRemarks || item.reviewRemarks || 'Returned for correction.';
+                title = `${typeLabel} Returned / Rejected`;
+                message = `Slip #${item.ifmisSlipNumber} was returned: "${reason}"`;
+                actionLabel = 'Correct';
+              } else if (prev.status !== ApprovalStatus.VOIDED && item.status === ApprovalStatus.VOIDED) {
+                const reason = item.voidDetails?.voidReason || 'Reversed by Administrator.';
+                title = `${typeLabel} Voided`;
+                message = `Approved voucher #${item.ifmisSlipNumber} was voided: "${reason}"`;
+                actionLabel = 'View';
+              } else if (prev.stage === 1 && item.currentStage === 2 && item.status === ApprovalStatus.PENDING) {
+                title = `${typeLabel} Endorsed (Stage 1 Passed)`;
+                message = `Slip #${item.ifmisSlipNumber} was endorsed by Team Leader and forwarded for final approval.`;
+                actionLabel = 'View';
+              }
+
+              if (title) {
+                setHasNewArrival(true);
+                if (soundEnabled) {
+                  playNotificationChime();
+                }
+
+                setArrivalAlert({
+                  id: item.id,
+                  title,
+                  message,
+                  count: 1,
+                  actionLabel,
+                  targetTab: 'assets',
+                });
+
+                const navigateAction = () => {
+                  window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'assets' }));
+                };
+
+                if (desktopEnabled && desktopPermission === 'granted') {
+                  sendDesktopNotification(
+                    `MoA-ATS: ${title}`,
+                    { body: message, tag: item.id },
+                    navigateAction
+                  );
+                }
+                break; // One snackbar alert per poll cycle to prevent visual flooding
+              }
+            }
+          }
+        }
+
+        // Update requester map
+        const nextReqMap = new Map<string, { status: ApprovalStatus; stage: number }>();
+        for (const item of requesterList) {
+          nextReqMap.set(item.id, { status: item.status, stage: item.currentStage ?? 1 });
+        }
+        knownRequesterMapRef.current = nextReqMap;
+
+        // If user is requester only, notifications feed shows their recent requests
+        if (!isApprover) {
+          finalNotifications = requesterList.slice(0, 30);
+        }
+      }
+
       isFirstFetchRef.current = false;
-      setNotifications(formattedNotifications);
+      setNotifications(finalNotifications);
     } catch {
       // Background poll silently fails on temporary network hiccups
     }
   }, [
     isAuthenticated,
+    hasNotificationAccess,
     isApprover,
+    isRequester,
+    user?.id,
     canEndorse,
     canAuthorize,
     role,
@@ -311,19 +423,20 @@ export const NotificationProvider: React.FC<{
   useEffect(() => {
     isFirstFetchRef.current = true;
     knownApprovalIdsRef.current = new Set();
+    knownRequesterMapRef.current = new Map();
     setHasNewArrival(false);
 
-    if (isAuthenticated && isApprover) {
+    if (isAuthenticated && hasNotificationAccess) {
       setLoading(true);
       fetchAndDiffNotifications().finally(() => setLoading(false));
     } else {
       setNotifications([]);
     }
-  }, [user?.id, role, isAuthenticated, isApprover, fetchAndDiffNotifications]);
+  }, [user?.id, role, isAuthenticated, hasNotificationAccess, fetchAndDiffNotifications]);
 
   // Active polling timer & tab visibility listeners
   useEffect(() => {
-    if (!isAuthenticated || !isApprover) return;
+    if (!isAuthenticated || !hasNotificationAccess) return;
 
     // Periodic polling
     const intervalId = setInterval(() => {
@@ -357,7 +470,7 @@ export const NotificationProvider: React.FC<{
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('moa_approvals_updated', handleCustomUpdate);
     };
-  }, [isAuthenticated, isApprover, fetchAndDiffNotifications]);
+  }, [isAuthenticated, hasNotificationAccess, fetchAndDiffNotifications]);
 
   const unreadCount = notifications.filter((n) => !readIds.includes(n.id)).length;
 
@@ -390,13 +503,19 @@ export const NotificationProvider: React.FC<{
           message={arrivalAlert.message}
           count={arrivalAlert.count}
           duration={8000}
+          actionLabel={arrivalAlert.actionLabel}
           onReview={() => {
             setArrivalAlert(null);
             setHasNewArrival(false);
-            const navigateAction = onNavigateToApprovals ?? (() => {
-              window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'approvals' }));
-            });
-            navigateAction();
+            const target = arrivalAlert.targetTab ?? 'approvals';
+            if (target === 'approvals') {
+              const navigateAction = onNavigateToApprovals ?? (() => {
+                window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'approvals' }));
+              });
+              navigateAction();
+            } else {
+              window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'assets' }));
+            }
           }}
           onClose={() => setArrivalAlert(null)}
         />

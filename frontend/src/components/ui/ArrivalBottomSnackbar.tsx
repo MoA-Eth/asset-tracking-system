@@ -7,6 +7,7 @@ export interface ArrivalBottomSnackbarProps {
   message: string;
   count?: number;
   duration?: number; // ms, default 8000
+  actionLabel?: string;
   onReview: () => void;
   onClose: () => void;
 }
@@ -17,6 +18,7 @@ export const ArrivalBottomSnackbar: React.FC<ArrivalBottomSnackbarProps> = ({
   message,
   count = 1,
   duration = 8000,
+  actionLabel = 'Review',
   onReview,
   onClose,
 }) => {
@@ -103,7 +105,7 @@ export const ArrivalBottomSnackbar: React.FC<ArrivalBottomSnackbarProps> = ({
               onClick={onReview}
               className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-white rounded-[4px] text-xs font-medium cursor-pointer transition shadow-2xs flex items-center gap-1 active:scale-95"
             >
-              <span>Review</span>
+              <span>{actionLabel}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
             <button

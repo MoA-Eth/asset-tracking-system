@@ -34,6 +34,8 @@ import {
   Clock,
   Users,
   User,
+  AlertTriangle,
+  Ban,
 } from 'lucide-react';
 import { getTodayGcAndEc } from '../../utils/eth-date';
 import { UserRole, TransactionApproval, TransactionType, ApprovalStatus, Location } from '../../types/asset-management';
@@ -124,6 +126,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const canEndorse = user?.permissions?.includes('approvals.endorse') ?? (role === UserRole.TEAM_LEADER);
   const canAuthorize = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD || role === UserRole.CHIEF_DIRECTOR);
   const isApprover = canEndorse || canAuthorize;
+  const isRequester = user?.permissions?.some((p) =>
+    ['stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write'].includes(p)
+  ) ?? (role === UserRole.DATA_ENCODER || role === UserRole.SUPER_ADMIN);
+  const showBell = isApprover || isRequester;
 
   const displayBadgeCount = notifications.length > 0 ? unreadCount : pendingApprovalsCount;
 
@@ -272,8 +278,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           </select>
         </div> */}
 
-        {/* Pending Approvals Bell & Interactive Notification Popover */}
-        {isApprover && (
+        {/* Approvals & Activity Notifications Bell & Interactive Popover */}
+        {showBell && (
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => {
@@ -288,8 +294,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   ? 'bg-amber-100/70 text-slate-900 border border-amber-300 shadow-xs'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
               }`}
-              title="Pending Approvals & Notifications"
-              aria-label="Pending Approvals & Notifications"
+              title="Approvals & Activity Notifications"
+              aria-label="Approvals & Activity Notifications"
             >
               <Bell className={`w-4 h-4 ${hasNewArrival ? 'text-amber-700 animate-bounce' : ''}`} />
               {displayBadgeCount > 0 && (
@@ -349,6 +355,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                         title={
                           desktopPermission === 'granted'
                             ? desktopEnabled
+                              ? 'Desktop push notifications enabled (click to disable)'
+                              : 'Desktop push notifications disabled (click to enable)'
                             : 'Click to enable desktop alerts'
                         }
                         aria-label="Desktop notifications"
@@ -420,12 +428,78 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                         : isStockOut
                         ? 'Issue'
                         : item.transactionType === TransactionType.RETURN
-                        ? 'Return to Store'
+                        ? 'Return'
                         : item.transactionType === TransactionType.DISPOSAL
                         ? 'Disposal'
-                        : 'Asset Transfer';
+                        : 'Transfer';
                       const stageText = stage === 1 ? 'Endorsement' : 'Authorization';
                       const isRead = readIds.includes(item.id);
+
+                      const isApproved = item.status === ApprovalStatus.APPROVED;
+                      const isRejected = item.status === ApprovalStatus.REJECTED;
+                      const isVoided = item.status === ApprovalStatus.VOIDED;
+
+                      let statusBadge = (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                          Pending
+                        </span>
+                      );
+                      let messageText = `${item.itemName} awaits ${stageText.toLowerCase()}`;
+                      let iconEl = (
+                        <div
+                          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                            isStockIn
+                              ? 'bg-emerald-50 text-emerald-600'
+                              : isStockOut
+                              ? 'bg-blue-50 text-blue-600'
+                              : 'bg-purple-50 text-purple-600'
+                          }`}
+                        >
+                          {isStockIn && <PackagePlus className="w-4 h-4" />}
+                          {isStockOut && <PackageMinus className="w-4 h-4" />}
+                          {!isStockIn && !isStockOut && <ArrowRightLeft className="w-4 h-4" />}
+                        </div>
+                      );
+
+                      if (isApproved) {
+                        messageText = `${item.itemName} approved by Department Head`;
+                        statusBadge = (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Approved
+                          </span>
+                        );
+                        iconEl = (
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-emerald-50 text-emerald-600">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </div>
+                        );
+                      } else if (isRejected) {
+                        const reason = item.returnRemarks || item.reviewRemarks || 'Returned for correction';
+                        messageText = `${item.itemName} returned: "${reason}"`;
+                        statusBadge = (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-red-50 text-red-700 border border-red-200">
+                            Rejected
+                          </span>
+                        );
+                        iconEl = (
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-red-50 text-red-600">
+                            <AlertTriangle className="w-4 h-4" />
+                          </div>
+                        );
+                      } else if (isVoided) {
+                        const reason = item.voidDetails?.voidReason || 'Reversed';
+                        messageText = `${item.itemName} voided: "${reason}"`;
+                        statusBadge = (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                            Voided
+                          </span>
+                        );
+                        iconEl = (
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-slate-100 text-slate-600">
+                            <Ban className="w-4 h-4" />
+                          </div>
+                        );
+                      }
 
                       return (
                         <div
@@ -433,31 +507,29 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                           onClick={() => {
                             markAsRead(item.id);
                             setShowNotifications(false);
-                            onNavigate('approvals');
+                            if (isApproved || isRejected || isVoided || !isApprover) {
+                              window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'assets' }));
+                              onNavigate('assets');
+                            } else {
+                              window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'approvals' }));
+                              onNavigate('approvals');
+                            }
                           }}
                           className={`px-4 py-3 transition cursor-pointer flex items-start gap-3 select-none ${
                             isRead
-                              ? 'bg-white opacity-75 hover:bg-emerald-50'
+                              ? 'bg-white opacity-75 hover:bg-slate-50'
                               : 'bg-emerald-50/25 hover:bg-emerald-50'
                           }`}
                         >
-                          <div
-                            className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                              isStockIn
-                                ? 'bg-emerald-50 text-emerald-600'
-                                : isStockOut
-                                ? 'bg-blue-50 text-blue-600'
-                                : 'bg-purple-50 text-purple-600'
-                            }`}
-                          >
-                            {isStockIn && <PackagePlus className="w-4 h-4" />}
-                            {isStockOut && <PackageMinus className="w-4 h-4" />}
-                            {!isStockIn && !isStockOut && <ArrowRightLeft className="w-4 h-4" />}
-                          </div>
+                          {iconEl}
 
                           <div className="flex-1 min-w-0 pr-1">
-                            <p className={`text-xs leading-snug line-clamp-2 ${isRead ? 'text-slate-600 font-normal' : 'text-slate-900 font-semibold'}`}>
-                              <span className="font-semibold text-slate-900">{typeLabel}</span>: {item.itemName} awaits {stageText.toLowerCase()}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-semibold text-slate-900 text-xs">{typeLabel}</span>
+                              {statusBadge}
+                            </div>
+                            <p className={`text-xs leading-snug line-clamp-2 mt-0.5 ${isRead ? 'text-slate-600 font-normal' : 'text-slate-900 font-medium'}`}>
+                              {messageText}
                             </p>
                             <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400">
                               <span>Slip #{item.ifmisSlipNumber}</span>

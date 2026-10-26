@@ -287,8 +287,8 @@ export class ItemController {
    * Retrieves pending or filtered workflow authorization queue.
    */
   public getApprovals = asyncHandler(async (req: Request, res: Response) => {
-    const { status } = req.query;
-    const approvals = await this.store.getApprovals(status as ApprovalStatus);
+    const { status, requesterId } = req.query;
+    const approvals = await this.store.getApprovals(status as ApprovalStatus, requesterId as string | undefined);
     return sendSuccess(res, approvals, 'Approvals list retrieved');
   });
 

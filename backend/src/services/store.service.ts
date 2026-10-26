@@ -4049,9 +4049,12 @@ export class StoreService {
 
   // ── Queries ─────────────────────────────────────────────────────────────
 
-  public async getApprovals(status?: ApprovalStatus): Promise<TransactionApproval[]> {
+  public async getApprovals(status?: ApprovalStatus, requesterId?: string): Promise<TransactionApproval[]> {
     const isVoidedFilter = status === ('VOIDED' as any);
     const where: any = status ? (isVoidedFilter ? { status: 'CANCELLED' } : { status }) : {};
+    if (requesterId) {
+      where.requestedById = requesterId;
+    }
     const rows = await prisma.transactionApproval.findMany({
       where,
       include: APPROVAL_INCLUDES,
