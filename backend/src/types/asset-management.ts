@@ -43,6 +43,8 @@ export enum ApprovalStatus {
   REJECTED = 'REJECTED',
   /** Withdrawn by its requester after it was rejected; closed, its record released */
   CANCELLED = 'CANCELLED',
+  /** Formally voided after approval; inventory movements reversed with full audit trail */
+  VOIDED = 'VOIDED',
 }
 
 export enum AssetCategory {
@@ -423,6 +425,15 @@ export interface TransactionApproval {
   returnCount?: number;
   /** A final rejection: the voucher can't be entered again */
   rejectionFinal?: boolean;
+  /** Set when an approved request is formally voided and reversed */
+  voidDetails?: {
+    voided: boolean;
+    voidedAtGc?: string;
+    voidedAtEc?: string;
+    voidedById?: string;
+    voidedByName?: string;
+    voidReason?: string;
+  };
   requestedBy?: Employee;
   recipientEmployee?: Employee;
 }

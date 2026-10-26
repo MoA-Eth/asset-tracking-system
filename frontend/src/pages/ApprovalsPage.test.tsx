@@ -12,7 +12,7 @@ const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.
 vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../context/ToastContext', () => ({ useToast: () => toast }));
 vi.mock('../api/client', () => ({
-  api: { getApprovals: vi.fn(), getEmployees: vi.fn(), handleApproval: vi.fn(), handleSlipApproval: vi.fn() },
+  api: { getApprovals: vi.fn(), getEmployees: vi.fn(), handleApproval: vi.fn(), handleSlipApproval: vi.fn(), voidApprovals: vi.fn() },
 }));
 
 const receiptLine = (id: string, name: string, extra: object = {}) => ({
@@ -221,5 +221,99 @@ describe('Approvals: rejecting', () => {
     expect(within(row).getByText('Cancelled')).toBeInTheDocument();
     expect(within(row).getByText(/^by the requester · 22 Oct/)).toBeInTheDocument();
     expect(within(row).getByText('Entered twice')).toBeInTheDocument();
+  });
+});
+
+describe('Approvals: voiding an approved request', () => {
+  afterEach(() => {
+    auth.role = 'TEAM_LEADER';
+    auth.user.permissions = ['approvals.endorse'];
+  });
+
+  it('allows an authorized user to void an approved voucher with an audit justification', async () => {
+    const user = userEvent.setup();
+    auth.role = 'DEPARTMENT_HEAD';
+    auth.user.permissions = ['approvals.authorize', 'approvals.void'];
+
+    const approvedLine = receiptLine('APP1', 'Dell Server', {
+      status: 'APPROVED',
+      reviewedBy: { fullNameEn: 'Dept Head' },
+      reviewedAtGc: '2026-10-21',
+    });
+    vi.mocked(api.getApprovals).mockResolvedValue([approvedLine] as any);
+    vi.mocked(api.voidApprovals).mockResolvedValue({ voidedCount: 1 } as any);
+
+    render(<ApprovalsPage currentRole={UserRole.DEPARTMENT_HEAD} onNavigate={vi.fn()} />);
+
+    // Switch to Approved tab
+    await user.click((await screen.findAllByRole('button', { name: /^Approved History/ }))[0]);
+    const row = screen.getByText('Dell Server').closest('tr')!;
+    expect(within(row).getByText('Approved')).toBeInTheDocument();
+
+    // Click the Void button on the approved row
+    const voidBtn = within(row).getByRole('button', { name: /Void/i });
+    expect(voidBtn).toBeInTheDocument();
+    await user.click(voidBtn);
+
+    // Void modal opens
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/Void Approved Model 19/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Audited Statutory Reversal/i)).toBeInTheDocument();
+
+    // Confirm button is disabled until at least 10 characters are typed
+    const confirmBtn = within(dialog).getByRole('button', { name: /Confirm Void & Reversal/i });
+    expect(confirmBtn).toBeDisabled();
+
+    // Type a short reason (< 10 chars)
+    const reasonInput = within(dialog).getByPlaceholderText(/Explain why this approved voucher is being voided/i);
+    await user.type(reasonInput, 'Too short');
+    expect(confirmBtn).toBeDisabled();
+
+    // Type valid reason
+    await user.clear(reasonInput);
+    await user.type(reasonInput, 'Received wrong specifications from supplier; returned.');
+    expect(confirmBtn).not.toBeDisabled();
+
+    // Click confirm
+    await user.click(confirmBtn);
+
+    expect(api.voidApprovals).toHaveBeenCalledWith(
+      ['APP1'],
+      'Received wrong specifications from supplier; returned.'
+    );
+    expect(toast.success).toHaveBeenCalledWith(
+      'Transaction Voided',
+      expect.stringContaining('Successfully voided Model 19')
+    );
+  });
+
+  it('renders voided vouchers under the Voided tab with void details', async () => {
+    const user = userEvent.setup();
+    auth.role = 'DEPARTMENT_HEAD';
+    auth.user.permissions = ['approvals.authorize', 'approvals.void'];
+
+    const voidedLine = receiptLine('VOID1', 'Cisco Switch', {
+      status: 'VOIDED',
+      voidDetails: {
+        voided: true,
+        voidedById: 'dept-head',
+        voidedByName: 'Dept Head',
+        voidedAtGc: '2026-10-22',
+        voidReason: 'Procurement cancelled by ministry directive.',
+      },
+    });
+    vi.mocked(api.getApprovals).mockResolvedValue([voidedLine] as any);
+
+    render(<ApprovalsPage currentRole={UserRole.DEPARTMENT_HEAD} onNavigate={vi.fn()} />);
+
+    // Click Voided tab
+    const voidedTab = (await screen.findAllByRole('button', { name: /^Voided/ }))[0];
+    expect(voidedTab).toBeInTheDocument();
+    await user.click(voidedTab);
+
+    const row = screen.getByText('Cisco Switch').closest('tr')!;
+    expect(within(row).getByText('Voided')).toBeInTheDocument();
+    expect(within(row).getByText(/^by Dept Head · 22 Oct/)).toBeInTheDocument();
+    expect(within(row).getByText('Procurement cancelled by ministry directive.')).toBeInTheDocument();
   });
 });

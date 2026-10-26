@@ -66,7 +66,7 @@ export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose }) => 
             api.getApprovals().catch(() => []),
             api.getItems().catch(() => []),
           ]);
-          next = { kind: 'model22', voucher: buildModel22Voucher(approval, { item, departments, employees, printedBy, requests, items }) };
+          next = { kind: 'model22', voucher: { ...buildModel22Voucher(approval, { item, departments, employees, printedBy, requests, items }), approvalState: stateOf(approval) } };
         } else if (type === 'DISPOSAL') {
           // The other assets filed on the same disposal form are printed with it
           const [employees, requests, items]: [Employee[], TransactionApproval[], ItemWithRelations[]] = await Promise.all([
@@ -74,10 +74,10 @@ export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose }) => 
             api.getApprovals().catch(() => []),
             api.getItems().catch(() => []),
           ]);
-          next = { kind: 'disposal', voucher: buildDisposalVoucher(approval, { item, employees, printedBy, requests, items }) };
+          next = { kind: 'disposal', voucher: { ...buildDisposalVoucher(approval, { item, employees, printedBy, requests, items }), approvalState: stateOf(approval) } };
         } else if (type === 'TRANSFER' || type === 'RETURN') {
           const [employees, locations]: [Employee[], Location[]] = await Promise.all([api.getEmployees(), api.getLocations()]);
-          next = { kind: 'model21', voucher: await buildModel21Voucher(approval, { item, employees, locations, printedBy }) };
+          next = { kind: 'model21', voucher: { ...(await buildModel21Voucher(approval, { item, employees, locations, printedBy })), approvalState: stateOf(approval) } };
         } else {
           throw new Error('no voucher for this request');
         }
@@ -120,9 +120,10 @@ export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose }) => 
   }
 };
 
-/** The banner a voucher shows: pending requests and rejected ones say so, an approved one prints clean */
-function stateOf(approval: TransactionApproval): 'PENDING' | 'REJECTED' | 'CANCELLED' | undefined {
+/** The banner a voucher shows: pending requests and rejected ones say so, an approved one prints clean, voided shows VOID */
+function stateOf(approval: TransactionApproval): 'PENDING' | 'REJECTED' | 'CANCELLED' | 'VOIDED' | undefined {
   if (approval.status === 'PENDING') return 'PENDING';
+  if (approval.status === 'VOIDED' || (approval.status === 'CANCELLED' && Boolean(approval.voidDetails?.voided))) return 'VOIDED';
   if (approval.status === 'CANCELLED') return 'CANCELLED';
   if (approval.status === 'REJECTED') return 'REJECTED';
   return undefined;

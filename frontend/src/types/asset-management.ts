@@ -42,6 +42,8 @@ export enum ApprovalStatus {
   REJECTED = 'REJECTED',
   /** Withdrawn by its requester after it was rejected; closed, its record released */
   CANCELLED = 'CANCELLED',
+  /** Formally voided after approval; inventory movements reversed with full audit trail */
+  VOIDED = 'VOIDED',
 }
 
 export enum AssetCategory {
@@ -341,8 +343,8 @@ export interface VoucherSignatory {
 }
 
 export interface Model19Voucher {
-  /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
-  approvalState?: 'PENDING' | 'REJECTED' | 'CANCELLED';
+  /** Set when the request is not approved yet (or was rejected/voided), so the printed copy says so */
+  approvalState?: 'PENDING' | 'REJECTED' | 'CANCELLED' | 'VOIDED';
   /** Who returned or rejected the request, when and why, printed under the banner */
   approvalNote?: string;
   invModel19No: string;
@@ -406,8 +408,8 @@ export interface MyAsset {
 }
 
 export interface Model22Voucher {
-  /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
-  approvalState?: 'PENDING' | 'REJECTED' | 'CANCELLED';
+  /** Set when the request is not approved yet (or was rejected/voided), so the printed copy says so */
+  approvalState?: 'PENDING' | 'REJECTED' | 'CANCELLED' | 'VOIDED';
   /** Who returned or rejected the request, when and why, printed under the banner */
   approvalNote?: string;
   model22No: string;
@@ -433,8 +435,8 @@ export interface Model22Voucher {
 
 /** Printed record of a disposal request (Asset Disposal Certificate) */
 export interface DisposalVoucher {
-  /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
-  approvalState?: 'PENDING' | 'REJECTED' | 'CANCELLED';
+  /** Set when the request is not approved yet (or was rejected/voided), so the printed copy says so */
+  approvalState?: 'PENDING' | 'REJECTED' | 'CANCELLED' | 'VOIDED';
   /** Who returned or rejected the request, when and why, printed under the banner */
   approvalNote?: string;
   disposalNo: string;
@@ -495,8 +497,8 @@ export interface Model21LineItem {
 }
 
 export interface Model21Voucher {
-  /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
-  approvalState?: 'PENDING' | 'REJECTED' | 'CANCELLED';
+  /** Set when the request is not approved yet (or was rejected/voided), so the printed copy says so */
+  approvalState?: 'PENDING' | 'REJECTED' | 'CANCELLED' | 'VOIDED';
   /** Who returned or rejected the request, when and why, printed under the banner */
   approvalNote?: string;
   model21No: string;
@@ -605,6 +607,15 @@ export interface TransactionApproval {
   returnedAtEc?: string;
   returnedFromStage?: number;
   returnCount?: number;
+  /** Set when an approved request is formally voided and reversed */
+  voidDetails?: {
+    voided: boolean;
+    voidedAtGc?: string;
+    voidedAtEc?: string;
+    voidedById?: string;
+    voidedByName?: string;
+    voidReason?: string;
+  };
   requestedBy?: Employee;
   recipientEmployee?: Employee;
 }

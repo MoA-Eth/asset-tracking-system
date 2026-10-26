@@ -31,6 +31,7 @@ import {
   ShieldCheck,
   Paperclip,
   ArrowRightLeft,
+  Ban,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { ApprovalsSkeleton } from '../components/ui/Skeleton';
@@ -65,7 +66,7 @@ interface ApprovalsPageProps {
   onRefreshPendingCount?: () => void;
 }
 
-type TabFilter = 'MY_QUEUE' | 'STAGE_1' | 'STAGE_2' | 'APPROVED' | 'REJECTED' | 'ALL';
+type TabFilter = 'MY_QUEUE' | 'STAGE_1' | 'STAGE_2' | 'APPROVED' | 'REJECTED' | 'VOIDED' | 'ALL';
 
 /**
  * Queue tabs shown to a role. Stage approvers only get their own queue
@@ -74,15 +75,21 @@ type TabFilter = 'MY_QUEUE' | 'STAGE_1' | 'STAGE_2' | 'APPROVED' | 'REJECTED' | 
 export { HIGH_VALUE_THRESHOLD } from '../components/assets/slip-groups';
 
 export function getVisibleQueueTabs(role: UserRole, permissions?: string[]): TabFilter[] {
+  const canVoid = permissions ? permissions.includes('approvals.void') : (role === UserRole.SUPER_ADMIN);
   if (role === UserRole.SUPER_ADMIN) {
-    return ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'REJECTED', 'ALL'];
+    return ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'REJECTED', 'VOIDED', 'ALL'];
   }
   const canEndorse = permissions ? permissions.includes('approvals.endorse') : (role === UserRole.TEAM_LEADER);
   const canAuthorize = permissions ? permissions.includes('approvals.authorize') : (role === UserRole.DEPARTMENT_HEAD || role === UserRole.CHIEF_DIRECTOR);
   const isSingleStageApprover = (canEndorse && !canAuthorize) || (!canEndorse && canAuthorize);
-  return isSingleStageApprover
-    ? ['MY_QUEUE', 'APPROVED', 'REJECTED', 'ALL']
-    : ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'REJECTED', 'ALL'];
+  const base: TabFilter[] = isSingleStageApprover
+    ? ['MY_QUEUE', 'APPROVED', 'REJECTED']
+    : ['MY_QUEUE', 'STAGE_1', 'STAGE_2', 'APPROVED', 'REJECTED'];
+  if (canVoid) {
+    base.push('VOIDED');
+  }
+  base.push('ALL');
+  return base;
 }
 
 
@@ -143,6 +150,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const canEndorse = user?.permissions?.includes('approvals.endorse') ?? (role === UserRole.TEAM_LEADER);
   const canApprove = user?.permissions?.includes('approvals.authorize') ?? (isDeptHead || isChiefDirector);
   const canReview = canEndorse || canApprove;
+  const canVoid = user?.permissions?.includes('approvals.void') ?? (
+    role === UserRole.SUPER_ADMIN ||
+    role === UserRole.SYSTEM_ADMIN ||
+    role === UserRole.DEPARTMENT_HEAD ||
+    role === UserRole.CHIEF_DIRECTOR
+  );
 
   const [approvals, setApprovals] = useState<TransactionApproval[]>([]);
   const [loading, setLoading] = useState(true);
@@ -169,6 +182,11 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const [viewingApproval, setViewingApproval] = useState<TransactionApproval | null>(null);
   // Rejected straight from its row: only the reason is asked
   const [rejecting, setRejecting] = useState<TransactionApproval | null>(null);
+  // Voiding an already approved voucher
+  const [voidingApproval, setVoidingApproval] = useState<TransactionApproval | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidLoading, setVoidLoading] = useState(false);
+  const [voidError, setVoidError] = useState<string | null>(null);
   const [reviewRemarks, setReviewRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -242,8 +260,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     const pending = rows.filter((a) => a.status === ApprovalStatus.PENDING);
     const stage1 = pending.filter((a) => (a.currentStage ?? 1) === 1);
     const stage2 = pending.filter((a) => a.currentStage === 2);
-    const approved = rows.filter((a) => a.status === ApprovalStatus.APPROVED);
+    const approved = rows.filter((a) => a.status === ApprovalStatus.APPROVED && !a.voidDetails?.voided);
     const rejected = rows.filter((a) => a.status === ApprovalStatus.REJECTED);
+    const voided = rows.filter((a) => a.status === ApprovalStatus.VOIDED || Boolean(a.voidDetails?.voided));
 
     let myQueueCount = 0;
     if (canEndorse && canApprove) {
@@ -266,6 +285,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       stage2Count: stage2.length,
       approvedCount: approved.length,
       rejectedCount: rejected.length,
+      voidedCount: voided.length,
       totalCount: rows.length,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -293,9 +313,11 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       } else if (activeTab === 'STAGE_2') {
         if (item.status !== ApprovalStatus.PENDING || item.currentStage !== 2) return false;
       } else if (activeTab === 'APPROVED') {
-        if (item.status !== ApprovalStatus.APPROVED) return false;
+        if (item.status !== ApprovalStatus.APPROVED || item.voidDetails?.voided) return false;
       } else if (activeTab === 'REJECTED') {
         if (item.status !== ApprovalStatus.REJECTED) return false;
+      } else if (activeTab === 'VOIDED') {
+        if (item.status !== ApprovalStatus.VOIDED && !item.voidDetails?.voided) return false;
       }
 
       // 2. Type Filter
@@ -496,6 +518,59 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     }
   };
 
+  const getVoidReversalDescription = (appr: TransactionApproval): string => {
+    switch (appr.transactionType) {
+      case TransactionType.STOCK_OUT:
+        return 'Restores issued asset/quantity back into store inventory as Available and clears custodian assignment.';
+      case TransactionType.STOCK_IN:
+        return 'Marks received asset as Cancelled (removed from active store inventory).';
+      case TransactionType.TRANSFER:
+        return 'Reverts asset custody back to the previous holder / source department.';
+      case TransactionType.RETURN:
+        return 'Reverts asset from store back into custodian custody.';
+      case TransactionType.DISPOSAL:
+        return 'Restores disposed asset/units back to Available in store inventory.';
+      default:
+        return 'Reverses this approved transaction and updates item inventory records.';
+    }
+  };
+
+  const handleVoidApproved = async () => {
+    if (!voidingApproval) return;
+    const reason = voidReason.trim();
+    if (reason.length < 10) {
+      setVoidError('Please provide a specific audit justification (minimum 10 characters required).');
+      return;
+    }
+
+    setVoidLoading(true);
+    setVoidError(null);
+
+    const lines = slipLines.get(voidingApproval.id);
+    const targetIds = lines && lines.length > 0 ? lines.map((l) => l.id) : [voidingApproval.id];
+    const voucherDesc = voucherName(voidingApproval.transactionType);
+    const slipDesc = voidingApproval.ifmisSlipNumber ? `#${voidingApproval.ifmisSlipNumber}` : voidingApproval.itemCode;
+
+    try {
+      const res = await api.voidApprovals(targetIds, reason);
+      toast.success(
+        'Transaction Voided',
+        `Successfully voided ${voucherDesc} ${slipDesc} (${res.length} item(s)). Inventory states and custody have been restored.`
+      );
+      setVoidingApproval(null);
+      setVoidReason('');
+      await fetchApprovals();
+      onRefreshPendingCount?.();
+      broadcastApprovalsUpdated();
+    } catch (err: any) {
+      const msg = err.message || 'Failed to void transaction.';
+      setVoidError(msg);
+      toast.error('Void Action Failed', msg);
+    } finally {
+      setVoidLoading(false);
+    }
+  };
+
   // Batch Multi-Item Processing
   const handleOpenBatchModal = (action: 'ENDORSE' | 'APPROVE' | 'REJECT') => {
     if (selectedIds.length === 0) return;
@@ -613,21 +688,30 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
   // Clean, understated stage stepper
   const getStageIndicator = (appr: TransactionApproval) => {
-    // Decided or returned: the outcome, who by (their role) and when, and the reason on one line; the rest on hover
+    // Decided, returned or voided: the outcome, who by (their role) and when, and the reason on one line; the rest on hover
     if (appr.status !== ApprovalStatus.PENDING) {
+      const isVoided = appr.status === ApprovalStatus.VOIDED || Boolean(appr.voidDetails?.voided);
       const cancelled = appr.status === ApprovalStatus.CANCELLED;
       const rejected = appr.status === ApprovalStatus.REJECTED;
-      const person = appr.returnedBy || appr.reviewedBy;
+      const person = isVoided
+        ? { fullNameEn: appr.voidDetails?.voidedByName || 'Admin', role: 'ADMIN' }
+        : (appr.returnedBy || appr.reviewedBy);
       const stage = appr.returnedFromStage || (appr.status === ApprovalStatus.APPROVED ? 2 : appr.currentStage);
-      const by = cancelled ? 'the requester' : deciderRole(person?.role, stage);
-      const date = appr.returnedAtGc || appr.reviewedAtGc;
-      const reason = (appr.returnRemarks || appr.reviewRemarks)?.trim();
-      const tone = rejected
-        ? { badge: 'bg-rose-50 text-rose-700 border-rose-200', text: 'text-rose-700', icon: <XCircle className="w-3 h-3 text-rose-600" />, label: 'Rejected' }
-        : cancelled
-          ? { badge: 'bg-slate-100 text-slate-700 border-slate-300', text: 'text-slate-600', icon: <XCircle className="w-3 h-3 text-slate-500" />, label: 'Cancelled' }
-          : { badge: 'bg-emerald-50 text-emerald-800 border-emerald-200', text: '', icon: <CheckCircle2 className="w-3 h-3 text-emerald-700" />, label: 'Approved' };
-      const detail = [person?.fullNameEn, shortDate(date), reason].filter(Boolean).join(' · ');
+      const by = isVoided
+        ? (appr.voidDetails?.voidedByName || 'Administrator')
+        : (cancelled ? 'the requester' : deciderRole(person?.role, stage));
+      const date = isVoided
+        ? (appr.voidDetails?.voidedAtGc || appr.reviewedAtGc)
+        : (appr.returnedAtGc || appr.reviewedAtGc);
+      const reason = (isVoided ? appr.voidDetails?.voidReason : (appr.returnRemarks || appr.reviewRemarks))?.trim();
+      const tone = isVoided
+        ? { badge: 'bg-rose-50 text-rose-800 border-rose-300 font-bold', text: 'text-rose-700', icon: <Ban className="w-3 h-3 text-rose-700" />, label: 'Voided' }
+        : rejected
+          ? { badge: 'bg-rose-50 text-rose-700 border-rose-200', text: 'text-rose-700', icon: <XCircle className="w-3 h-3 text-rose-600" />, label: 'Rejected' }
+          : cancelled
+            ? { badge: 'bg-slate-100 text-slate-700 border-slate-300', text: 'text-slate-600', icon: <XCircle className="w-3 h-3 text-slate-500" />, label: 'Cancelled' }
+            : { badge: 'bg-emerald-50 text-emerald-800 border-emerald-200', text: '', icon: <CheckCircle2 className="w-3 h-3 text-emerald-700" />, label: 'Approved' };
+      const detail = [isVoided ? `Voided by ${appr.voidDetails?.voidedByName || 'Admin'}` : person?.fullNameEn, shortDate(date), reason].filter(Boolean).join(' · ');
       return (
         <div className="flex min-w-[150px] max-w-[220px] flex-col gap-0.5" title={detail}>
           <span className={`inline-flex w-fit items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${tone.badge}`}>
@@ -676,6 +760,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       { id: 'STAGE_2' as TabFilter, label: 'Stage 2 (Dept Head)', count: metrics.stage2Count },
       { id: 'APPROVED' as TabFilter, label: 'Approved History', count: metrics.approvedCount },
       { id: 'REJECTED' as TabFilter, label: 'Rejected', count: metrics.rejectedCount },
+      { id: 'VOIDED' as TabFilter, label: 'Voided', count: metrics.voidedCount },
       { id: 'ALL' as TabFilter, label: 'All Records', count: metrics.totalCount },
     ].filter((tab) => getVisibleQueueTabs(role, user?.permissions).includes(tab.id));
   }, [role, user?.permissions, metrics]);
@@ -1106,6 +1191,21 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                             <XCircle className="w-3.5 h-3.5" />
                             <span>Reject</span>
                           </button>
+                          )}
+                          {canVoid && appr.status === ApprovalStatus.APPROVED && !appr.voidDetails?.voided && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setVoidingApproval(appr);
+                                setVoidReason('');
+                                setVoidError(null);
+                              }}
+                              className="px-2.5 py-1.5 rounded-[4px] border border-rose-300 bg-white font-bold text-xs text-rose-700 transition cursor-pointer flex items-center gap-1 shadow-2xs hover:bg-rose-50"
+                              title="Void this approved voucher and reverse inventory movements"
+                            >
+                              <Ban className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Void</span>
+                            </button>
                           )}
                         </div>
                       </td>
@@ -1577,6 +1677,101 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               >
                 <XCircle className="h-3.5 w-3.5" />
                 {actionLoading ? 'Rejecting…' : 'Reject'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {voidingApproval && (
+        <Modal
+          isOpen
+          onClose={() => !voidLoading && setVoidingApproval(null)}
+          title={`Void Approved ${voucherName(voidingApproval.transactionType)} ${voidingApproval.ifmisSlipNumber ? `#${voidingApproval.ifmisSlipNumber}` : ''}?`}
+          subtitle="Administrative reversal: voids the approved voucher, records an immutable audit log, and restores inventory to its prior state."
+          size="md"
+        >
+          <div className="space-y-3.5 text-xs">
+            {/* Warning alert */}
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-bold text-amber-950 block">Audited Statutory Reversal</span>
+                <p className="text-[11px] leading-relaxed">
+                  {getVoidReversalDescription(voidingApproval)}
+                </p>
+                {slipLines.get(voidingApproval.id) && (
+                  <p className="text-[11px] font-semibold text-amber-900 mt-1">
+                    Affects {slipLines.get(voidingApproval.id)!.length} line items grouped on this voucher.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Voucher and item summary */}
+            <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3 space-y-1.5 text-slate-700">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-slate-900">{voidingApproval.itemName}</span>
+                <span className="font-mono text-slate-600">{voidingApproval.itemCode}</span>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                {voidingApproval.ifmisSlipNumber && <span>Slip: <strong className="text-slate-700">{voidingApproval.ifmisSlipNumber}</strong></span>}
+                {voidingApproval.poNumber && <span>PO: <strong className="text-slate-700">{voidingApproval.poNumber}</strong></span>}
+                {voidingApproval.totalAmount ? <span>Amount: <strong className="text-slate-700">{formatETB(voidingApproval.totalAmount)}</strong></span> : null}
+                {voidingApproval.recipientEmployee && (
+                  <span>Recipient: <strong className="text-slate-700">{voidingApproval.recipientEmployee.fullNameEn}</strong></span>
+                )}
+              </div>
+            </div>
+
+            {voidError && (
+              <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700 text-xs">
+                {voidError}
+              </p>
+            )}
+
+            {/* Mandatory audit reason input */}
+            <label className="block space-y-1.5">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-slate-800">
+                  Mandatory Audit Reason <span className="text-red-600">*</span>
+                </span>
+                <span className={`text-[10px] ${voidReason.trim().length >= 10 ? 'text-emerald-700 font-semibold' : 'text-slate-600'}`}>
+                  {voidReason.trim().length}/10 chars min
+                </span>
+              </div>
+              <textarea
+                autoFocus
+                rows={3}
+                value={voidReason}
+                maxLength={500}
+                onChange={(e) => setVoidReason(e.target.value)}
+                placeholder="Explain why this approved voucher is being voided (e.g. Issued to incorrect department; physical item returned unissued)..."
+                className="w-full resize-y rounded-[4px] border border-slate-300 px-3 py-2 text-xs focus:border-red-600 focus:outline-none"
+              />
+              <p className="text-[11px] text-slate-500">
+                This explanation is permanently logged in the item audit trail and stamped on all printed voucher records.
+              </p>
+            </label>
+
+            {/* Action buttons */}
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setVoidingApproval(null)}
+                disabled={voidLoading}
+                className={btn.secondary}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleVoidApproved}
+                disabled={voidLoading || voidReason.trim().length < 10}
+                className="inline-flex items-center gap-1.5 rounded-md bg-red-700 px-4 py-2 text-xs font-bold text-white hover:bg-red-800 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed shadow-2xs transition"
+              >
+                <Ban className="h-3.5 w-3.5" />
+                {voidLoading ? 'Voiding & Reversing…' : 'Confirm Void & Reversal'}
               </button>
             </div>
           </div>

@@ -285,7 +285,17 @@ function mapApproval(raw: any): TransactionApproval {
     poNumber: raw.transactionType === 'STOCK_IN' ? readItemMeta(raw.item?.notes).poNumber || undefined : undefined,
     totalAmount: calculateApprovalTotalAmount(raw),
     requiredRole: needsChiefDirector(calculateApprovalTotalAmount(raw)) ? 'CHIEF_DIRECTOR' : 'DEPARTMENT_HEAD',
-    status: raw.status as ApprovalStatus,
+    status: ((raw.requestDetails as Record<string, any> | null)?.voided ? 'VOIDED' : raw.status) as ApprovalStatus,
+    voidDetails: (raw.requestDetails as Record<string, any> | null)?.voided
+      ? {
+          voided: true,
+          voidedAtGc: (raw.requestDetails as any).voidedAtGc,
+          voidedAtEc: (raw.requestDetails as any).voidedAtEc,
+          voidedById: (raw.requestDetails as any).voidedById,
+          voidedByName: (raw.requestDetails as any).voidedByName,
+          voidReason: (raw.requestDetails as any).voidReason,
+        }
+      : undefined,
     currentStage: raw.currentStage ?? 1,
     endorsedById: raw.endorsedById ?? undefined,
     endorsementRemarks: raw.endorsementRemarks ?? undefined,
@@ -2704,6 +2714,497 @@ export class StoreService {
   }
 
   /**
+   * Formally voids an approved request or multi-line voucher and reverses the inventory movements:
+   * - Model 19 (Receipt): Reverses received stock if no downstream issues/transfers exist.
+   * - Model 22 (Issue): Restores issued units back to store inventory if asset/units are still held.
+   * - Model 21 (Transfer): Restores custody back to previous custodian/department.
+   * - Model 21 (Return): Restores custody back to custodian from store.
+   * - Model 20 (Disposal): Restores disposed asset/units back to active inventory.
+   * Preserves full statutory audit history and records voidReason, voidedAt, and voidedById.
+   */
+  public async voidApprovedRequests(payload: { approvalIds?: unknown; reason?: unknown }, actorId: string): Promise<TransactionApproval[]> {
+    const ids = [...new Set((Array.isArray(payload.approvalIds) ? payload.approvalIds : []).filter((id): id is string => typeof id === 'string' && !!id))];
+    if (ids.length === 0) throw new BadRequestError('Choose the approved request to void.');
+    if (ids.length > MAX_SLIP_LINES) throw new BadRequestError(`A voucher can be voided up to ${MAX_SLIP_LINES} lines at a time.`);
+    if (typeof payload.reason !== 'string' || !payload.reason.trim()) {
+      throw new BadRequestError('A reason must be provided when voiding an approved request.');
+    }
+    const reason = payload.reason.trim();
+    if (reason.length < 10) {
+      throw new BadRequestError('Give a clear reason for voiding this approved voucher (at least 10 characters).');
+    }
+    if (reason.length > 500) {
+      throw new BadRequestError('The reason must be 500 characters or fewer.');
+    }
+
+    const actor = await prisma.employee.findUnique({ where: { id: actorId } });
+    if (!actor) throw new UnauthorizedError('User not found.');
+    if (!hasPermission(actor.role, 'approvals.void' as any) && actor.role !== UserRole.SUPER_ADMIN && actor.role !== UserRole.SYSTEM_ADMIN) {
+      throw new ForbiddenError('Your role does not permit voiding approved requests.');
+    }
+
+    const today = getTodayGcAndEc();
+    const actorName = `${actor.fullNameEn} (${(actor.role && ROLE_POLICY[actor.role as UserRole]?.name) || actor.role})`;
+
+    return prisma.$transaction(async (db: any) => {
+      const approvals = await db.transactionApproval.findMany({
+        where: { id: { in: ids } },
+        include: { item: { include: { storeLocation: true } } },
+      });
+      if (approvals.length !== ids.length) throw new NotFoundError('Part of this request no longer exists. Refresh the list.');
+      if (approvals.some((a: any) => a.status !== 'APPROVED')) {
+        throw new ConflictError('Only approved requests can be voided. Refresh the list.');
+      }
+      const types = new Set(approvals.map((a: any) => a.transactionType));
+      if (types.size > 1) throw new BadRequestError('Void one voucher at a time.');
+      const type = String(approvals[0].transactionType);
+      const keyOf = (a: any) => `${String(a.ifmisSlipNumber ?? '').trim().toLowerCase()}|${type === 'STOCK_IN' ? String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase() : ''}`;
+      if (new Set(approvals.map(keyOf)).size > 1) throw new BadRequestError(`These requests are not on the same ${VOUCHER_NAMES[type] ?? 'voucher'}.`);
+
+      const voidedResults: TransactionApproval[] = [];
+
+      for (const approval of approvals) {
+        const item = approval.item;
+        if (!item) throw new NotFoundError(`Asset record ${approval.itemId} not found.`);
+
+        const details = (approval.requestDetails ?? {}) as Record<string, any>;
+        const storeName = await storeLabel(item.storeLocationId);
+
+        const formatBlockingVouchers = (list: { transactionType: string; ifmisSlipNumber?: string | null; status: string }[]) => {
+          return list
+            .map((d) => `${VOUCHER_NAMES[d.transactionType] || d.transactionType} #${d.ifmisSlipNumber || 'N/A'} (${d.status})`)
+            .join(', ');
+        };
+
+        if (approval.transactionType === 'STOCK_IN') {
+          // Check downstream: any approvals on this item or on split children?
+          const childItems = await db.item.findMany({
+            where: { parentItemId: item.id, id: { not: item.id } },
+            select: { id: true, itemCode: true, status: true },
+          });
+          const allItemIds = [item.id, ...childItems.map((c: any) => c.id)];
+
+          const downstreamList = await db.transactionApproval.findMany({
+            where: {
+              itemId: { in: allItemIds },
+              id: { not: approval.id },
+              status: { in: ['PENDING', 'APPROVED'] },
+            },
+            select: { transactionType: true, ifmisSlipNumber: true, status: true, itemCode: true },
+            orderBy: { createdAt: 'desc' },
+          });
+
+          if (downstreamList.length > 0) {
+            const blocking = formatBlockingVouchers(downstreamList);
+            throw new BadRequestError(
+              `Cannot void Model 19 receipt for ${item.itemCode}: active subsequent transactions must be reversed first: ${blocking}. Please void them in reverse chronological order.`
+            );
+          }
+
+          if (item.status !== 'AVAILABLE') {
+            throw new BadRequestError(
+              `Cannot void Model 19 receipt for ${item.itemCode}: current status is ${item.status}. The asset must be in store (AVAILABLE) with no active subsequent vouchers before the receipt can be voided.`
+            );
+          }
+
+          // Mark item as REJECTED (removed from active store inventory)
+          const notesMeta = readItemMeta(item.notes);
+          await db.item.update({
+            where: { id: item.id },
+            data: {
+              status: 'REJECTED' as any,
+              notes: JSON.stringify({ ...notesMeta, voided: true, voidReason: reason }),
+              history: {
+                create: {
+                  dateGc: today.gc,
+                  dateEc: today.ec,
+                  action: 'STOCK_IN_VOIDED',
+                  fromEntity: `${storeName} (AVAILABLE)`,
+                  toEntity: 'Voided Receipt / Cancelled',
+                  performedBy: actorName,
+                  performedByRole: actor.role as any,
+                  ifmisSlipNumber: approval.ifmisSlipNumber,
+                  notes: `Model 19 receipt voided by ${actor.fullNameEn}: ${reason}`,
+                },
+              },
+            },
+          });
+
+        } else if (approval.transactionType === 'STOCK_OUT') {
+          const splitCode = details.issuedItemCode || details.disposedItemCode;
+          if (splitCode) {
+            const splitItem = await db.item.findUnique({ where: { itemCode: splitCode } });
+            if (!splitItem) throw new NotFoundError(`Split record ${splitCode} not found.`);
+            const downstreamList = await db.transactionApproval.findMany({
+              where: { itemId: splitItem.id, id: { not: approval.id }, status: { in: ['PENDING', 'APPROVED'] } },
+              select: { transactionType: true, ifmisSlipNumber: true, status: true },
+              orderBy: { createdAt: 'desc' },
+            });
+            if (splitItem.status !== 'ISSUED' && splitItem.status !== 'DISPOSED') {
+              throw new BadRequestError(`Cannot void Model 22 for ${splitCode}: the asset is no longer in issued status.`);
+            }
+            if (downstreamList.length > 0) {
+              const blocking = formatBlockingVouchers(downstreamList);
+              throw new BadRequestError(
+                `Cannot void Model 22 for ${splitCode}: active subsequent transactions must be reversed first: ${blocking}. Reverse those vouchers first.`
+              );
+            }
+
+            // Restore units to parent item
+            const splitQty = quantityOf(splitItem);
+            const parentQty = quantityOf(item);
+            const restoredQty = Math.round((parentQty + splitQty) * 10000) / 10000;
+            await db.item.update({
+              where: { id: item.id },
+              data: {
+                status: 'AVAILABLE' as any,
+                notes: notesWithQuantity(item.notes, restoredQty, item.unitCostETB),
+                history: {
+                  create: {
+                    dateGc: today.gc,
+                    dateEc: today.ec,
+                    action: 'STOCK_OUT_VOIDED',
+                    fromEntity: `${splitCode} (${splitItem.status})`,
+                    toEntity: `${storeName} (AVAILABLE)`,
+                    performedBy: actorName,
+                    performedByRole: actor.role as any,
+                    ifmisSlipNumber: approval.ifmisSlipNumber,
+                    notes: `Model 22 issue voided by ${actor.fullNameEn}. ${splitQty} ${uomOf(item)} returned to store batch (total now ${restoredQty}). Reason: ${reason}`,
+                  },
+                },
+              },
+            });
+
+            // Mark split item as REJECTED and zero out quantity
+            await db.item.update({
+              where: { id: splitItem.id },
+              data: {
+                status: 'REJECTED' as any,
+                notes: notesWithQuantity(splitItem.notes, 0, splitItem.unitCostETB),
+                history: {
+                  create: {
+                    dateGc: today.gc,
+                    dateEc: today.ec,
+                    action: 'STOCK_OUT_VOIDED',
+                    fromEntity: `${splitCode} (${splitItem.status})`,
+                    toEntity: 'Voided & Returned to Parent Batch',
+                    performedBy: actorName,
+                    performedByRole: actor.role as any,
+                    ifmisSlipNumber: approval.ifmisSlipNumber,
+                    notes: `Issued units voided and returned to ${item.itemCode} by ${actor.fullNameEn}: ${reason}`,
+                  },
+                },
+              },
+            });
+          } else {
+            // Whole item was issued
+            const downstreamList = await db.transactionApproval.findMany({
+              where: { itemId: item.id, id: { not: approval.id }, status: { in: ['PENDING', 'APPROVED'] } },
+              select: { transactionType: true, ifmisSlipNumber: true, status: true },
+              orderBy: { createdAt: 'desc' },
+            });
+            if (item.status !== 'ISSUED' && item.status !== 'DISPOSED') {
+              throw new BadRequestError(`Cannot void Model 22 for ${item.itemCode}: the asset is no longer in issued status.`);
+            }
+            if (downstreamList.length > 0) {
+              const blocking = formatBlockingVouchers(downstreamList);
+              throw new BadRequestError(
+                `Cannot void Model 22 for ${item.itemCode}: active subsequent transactions must be reversed first: ${blocking}. Reverse those vouchers first.`
+              );
+            }
+
+            await db.item.update({
+              where: { id: item.id },
+              data: {
+                status: 'AVAILABLE' as any,
+                currentCustodianId: null,
+                assignedDepartmentId: null,
+                heldByOrganization: null,
+                heldByContact: null,
+                history: {
+                  create: {
+                    dateGc: today.gc,
+                    dateEc: today.ec,
+                    action: 'STOCK_OUT_VOIDED',
+                    fromEntity: await holderName(item),
+                    toEntity: `${storeName} (AVAILABLE)`,
+                    performedBy: actorName,
+                    performedByRole: actor.role as any,
+                    ifmisSlipNumber: approval.ifmisSlipNumber,
+                    notes: `Model 22 issue voided by ${actor.fullNameEn}. Asset returned to store. Reason: ${reason}`,
+                  },
+                },
+              },
+            });
+          }
+
+        } else if (approval.transactionType === 'TRANSFER') {
+          const splitCode = details.transferredItemCode;
+          if (splitCode) {
+            const splitItem = await db.item.findUnique({ where: { itemCode: splitCode } });
+            if (!splitItem) throw new NotFoundError(`Split record ${splitCode} not found.`);
+            const downstreamList = await db.transactionApproval.findMany({
+              where: { itemId: splitItem.id, id: { not: approval.id }, status: { in: ['PENDING', 'APPROVED'] } },
+              select: { transactionType: true, ifmisSlipNumber: true, status: true },
+              orderBy: { createdAt: 'desc' },
+            });
+            if (downstreamList.length > 0) {
+              const blocking = formatBlockingVouchers(downstreamList);
+              throw new BadRequestError(
+                `Cannot void transfer for ${splitCode}: active subsequent transactions must be reversed first: ${blocking}. Reverse those vouchers first.`
+              );
+            }
+
+            const splitQty = quantityOf(splitItem);
+            const parentQty = quantityOf(item);
+            const restoredQty = Math.round((parentQty + splitQty) * 10000) / 10000;
+            await db.item.update({
+              where: { id: item.id },
+              data: {
+                notes: notesWithQuantity(item.notes, restoredQty, item.unitCostETB),
+                history: {
+                  create: {
+                    dateGc: today.gc,
+                    dateEc: today.ec,
+                    action: 'TRANSFER_VOIDED',
+                    fromEntity: `${splitCode}`,
+                    toEntity: `${item.itemCode}`,
+                    performedBy: actorName,
+                    performedByRole: actor.role as any,
+                    ifmisSlipNumber: approval.ifmisSlipNumber,
+                    notes: `Model 21 transfer voided by ${actor.fullNameEn}. ${splitQty} ${uomOf(item)} returned to original record. Reason: ${reason}`,
+                  },
+                },
+              },
+            });
+            await db.item.update({
+              where: { id: splitItem.id },
+              data: {
+                status: 'REJECTED' as any,
+                notes: notesWithQuantity(splitItem.notes, 0, splitItem.unitCostETB),
+              },
+            });
+          } else {
+            const downstreamList = await db.transactionApproval.findMany({
+              where: { itemId: item.id, id: { not: approval.id }, status: { in: ['PENDING', 'APPROVED'] } },
+              select: { transactionType: true, ifmisSlipNumber: true, status: true },
+              orderBy: { createdAt: 'desc' },
+            });
+            if (downstreamList.length > 0) {
+              const blocking = formatBlockingVouchers(downstreamList);
+              throw new BadRequestError(
+                `Cannot void transfer for ${item.itemCode}: active subsequent transactions must be reversed first: ${blocking}. Reverse those vouchers first.`
+              );
+            }
+
+            const prevTransfer = await db.itemHistory.findFirst({
+              where: { itemId: item.id, action: 'TRANSFER_APPROVED', ifmisSlipNumber: approval.ifmisSlipNumber },
+              orderBy: { createdAt: 'desc' },
+            });
+            const prevCustodian = details.fromCustodianId ?? approval.requestedById;
+            await db.item.update({
+              where: { id: item.id },
+              data: {
+                currentCustodianId: prevCustodian ?? null,
+                status: (prevCustodian ? 'ISSUED' : 'AVAILABLE') as any,
+                history: {
+                  create: {
+                    dateGc: today.gc,
+                    dateEc: today.ec,
+                    action: 'TRANSFER_VOIDED',
+                    fromEntity: await holderName(item),
+                    toEntity: prevTransfer?.fromEntity ?? 'Previous Holder',
+                    performedBy: actorName,
+                    performedByRole: actor.role as any,
+                    ifmisSlipNumber: approval.ifmisSlipNumber,
+                    notes: `Model 21 transfer voided by ${actor.fullNameEn}. Custody restored to previous holder. Reason: ${reason}`,
+                  },
+                },
+              },
+            });
+          }
+
+        } else if (approval.transactionType === 'RETURN') {
+          const splitCode = details.returnedItemCode;
+          if (splitCode) {
+            const splitItem = await db.item.findUnique({ where: { itemCode: splitCode } });
+            if (!splitItem) throw new NotFoundError(`Split record ${splitCode} not found.`);
+            const downstreamList = await db.transactionApproval.findMany({
+              where: { itemId: splitItem.id, id: { not: approval.id }, status: { in: ['PENDING', 'APPROVED'] } },
+              select: { transactionType: true, ifmisSlipNumber: true, status: true },
+              orderBy: { createdAt: 'desc' },
+            });
+            if (splitItem.status !== 'AVAILABLE') {
+              throw new BadRequestError(`Cannot void return for ${splitCode}: units in store have already been issued out.`);
+            }
+            if (downstreamList.length > 0) {
+              const blocking = formatBlockingVouchers(downstreamList);
+              throw new BadRequestError(
+                `Cannot void return for ${splitCode}: units in store have subsequent active vouchers: ${blocking}. Reverse those vouchers first.`
+              );
+            }
+            const splitQty = quantityOf(splitItem);
+            const parentQty = quantityOf(item);
+            const restoredQty = Math.round((parentQty + splitQty) * 10000) / 10000;
+            await db.item.update({
+              where: { id: item.id },
+              data: {
+                notes: notesWithQuantity(item.notes, restoredQty, item.unitCostETB),
+                history: {
+                  create: {
+                    dateGc: today.gc,
+                    dateEc: today.ec,
+                    action: 'RETURN_VOIDED',
+                    fromEntity: `${storeName} (AVAILABLE)`,
+                    toEntity: await holderName(item),
+                    performedBy: actorName,
+                    performedByRole: actor.role as any,
+                    ifmisSlipNumber: approval.ifmisSlipNumber,
+                    notes: `Model 21 return voided by ${actor.fullNameEn}. ${splitQty} ${uomOf(item)} returned to custodian (total now ${restoredQty}). Reason: ${reason}`,
+                  },
+                },
+              },
+            });
+            await db.item.update({
+              where: { id: splitItem.id },
+              data: {
+                status: 'REJECTED' as any,
+                notes: notesWithQuantity(splitItem.notes, 0, splitItem.unitCostETB),
+              },
+            });
+          } else {
+            const downstreamList = await db.transactionApproval.findMany({
+              where: { itemId: item.id, id: { not: approval.id }, status: { in: ['PENDING', 'APPROVED'] } },
+              select: { transactionType: true, ifmisSlipNumber: true, status: true },
+              orderBy: { createdAt: 'desc' },
+            });
+            if (item.status !== 'AVAILABLE') {
+              throw new BadRequestError(`Cannot void return for ${item.itemCode}: asset in store has already been issued out.`);
+            }
+            if (downstreamList.length > 0) {
+              const blocking = formatBlockingVouchers(downstreamList);
+              throw new BadRequestError(
+                `Cannot void return for ${item.itemCode}: asset in store has subsequent active vouchers: ${blocking}. Reverse those vouchers first.`
+              );
+            }
+            await db.item.update({
+              where: { id: item.id },
+              data: {
+                currentCustodianId: prevCustodian ?? null,
+                status: (prevCustodian ? 'ISSUED' : 'AVAILABLE') as any,
+                history: {
+                  create: {
+                    dateGc: today.gc,
+                    dateEc: today.ec,
+                    action: 'RETURN_VOIDED',
+                    fromEntity: `${storeName} (AVAILABLE)`,
+                    toEntity: 'Custodian',
+                    performedBy: actorName,
+                    performedByRole: actor.role as any,
+                    ifmisSlipNumber: approval.ifmisSlipNumber,
+                    notes: `Model 21 return voided by ${actor.fullNameEn}. Custody restored to custodian. Reason: ${reason}`,
+                  },
+                },
+              },
+            });
+          }
+
+        } else if (approval.transactionType === 'DISPOSAL') {
+          const splitCode = details.disposedItemCode;
+          if (splitCode) {
+            const splitItem = await db.item.findUnique({ where: { itemCode: splitCode } });
+            if (!splitItem) throw new NotFoundError(`Split record ${splitCode} not found.`);
+            const splitQty = quantityOf(splitItem);
+            const parentQty = quantityOf(item);
+            const restoredQty = Math.round((parentQty + splitQty) * 10000) / 10000;
+            await db.item.update({
+              where: { id: item.id },
+              data: {
+                status: 'AVAILABLE' as any,
+                notes: notesWithQuantity(item.notes, restoredQty, item.unitCostETB),
+                history: {
+                  create: {
+                    dateGc: today.gc,
+                    dateEc: today.ec,
+                    action: 'DISPOSAL_VOIDED',
+                    fromEntity: 'Disposed',
+                    toEntity: `${storeName} (AVAILABLE)`,
+                    performedBy: actorName,
+                    performedByRole: actor.role as any,
+                    ifmisSlipNumber: approval.ifmisSlipNumber,
+                    notes: `Disposal voided by ${actor.fullNameEn}. ${splitQty} ${uomOf(item)} restored to store inventory. Reason: ${reason}`,
+                  },
+                },
+              },
+            });
+            await db.item.update({
+              where: { id: splitItem.id },
+              data: {
+                status: 'REJECTED' as any,
+                notes: notesWithQuantity(splitItem.notes, 0, splitItem.unitCostETB),
+              },
+            });
+          } else {
+            await db.item.update({
+              where: { id: item.id },
+              data: {
+                status: 'AVAILABLE' as any,
+                history: {
+                  create: {
+                    dateGc: today.gc,
+                    dateEc: today.ec,
+                    action: 'DISPOSAL_VOIDED',
+                    fromEntity: 'Disposed',
+                    toEntity: `${storeName} (AVAILABLE)`,
+                    performedBy: actorName,
+                    performedByRole: actor.role as any,
+                    ifmisSlipNumber: approval.ifmisSlipNumber,
+                    notes: `Disposal voided by ${actor.fullNameEn}. Asset restored to store inventory. Reason: ${reason}`,
+                  },
+                },
+              },
+            });
+          }
+        }
+
+        // Update transaction approval to CANCELLED with voidDetails
+        const updated = await db.transactionApproval.update({
+          where: { id: approval.id },
+          data: {
+            status: 'CANCELLED' as any,
+            requestDetails: {
+              ...details,
+              voided: true,
+              voidedAtGc: today.gc,
+              voidedAtEc: today.ec,
+              voidedById: actor.id,
+              voidedByName: actor.fullNameEn,
+              voidReason: reason,
+            },
+          },
+          include: APPROVAL_INCLUDES,
+        });
+
+        await addAuditLog(
+          actorId,
+          `VOID_${approval.transactionType}`,
+          'APPROVAL',
+          approval.itemId,
+          `${approval.transactionType} #${approval.ifmisSlipNumber} for item ${approval.itemCode} VOIDED by ${actorName}. Inventory reversed. Reason: ${reason}`,
+          approval.ifmisSlipNumber,
+          undefined,
+          undefined,
+          db,
+        );
+
+        voidedResults.push(mapApproval(updated));
+      }
+
+      return voidedResults;
+    }, { timeout: Math.min(25000 + ids.length * 2000, 120000) });
+  }
+
+  /**
    * A request returned for correction goes back to the Team Leader once it is corrected, with the rest of its voucher
    * still returned (the other lines of its Model 19, Model 22 or disposal form). Nothing happens to a request that
    * wasn't returned. `ref` is the request, or for a receipt the record it registers.
@@ -3548,13 +4049,21 @@ export class StoreService {
   // ── Queries ─────────────────────────────────────────────────────────────
 
   public async getApprovals(status?: ApprovalStatus): Promise<TransactionApproval[]> {
-    const where: any = status ? { status } : {};
+    const isVoidedFilter = status === ('VOIDED' as any);
+    const where: any = status ? (isVoidedFilter ? { status: 'CANCELLED' } : { status }) : {};
     const rows = await prisma.transactionApproval.findMany({
       where,
       include: APPROVAL_INCLUDES,
       orderBy: { createdAt: 'desc' },
     });
-    return withVoucherApprover(rows.map(mapApproval));
+    const mapped = withVoucherApprover(rows.map(mapApproval));
+    if (isVoidedFilter) {
+      return mapped.filter((a) => a.status === ('VOIDED' as any));
+    }
+    if (status === 'CANCELLED') {
+      return mapped.filter((a) => a.status === 'CANCELLED');
+    }
+    return mapped;
   }
 
   public async getAuditLogs(): Promise<AuditLogEntry[]> {

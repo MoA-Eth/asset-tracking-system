@@ -330,6 +330,14 @@ export const api = {
     });
   },
 
+  /** Formally voids an approved request or voucher and reverses inventory movements */
+  voidApprovals: (approvalIds: string[], reason: string) => {
+    return request<TransactionApproval[]>('/items/approvals/void', {
+      method: 'POST',
+      body: JSON.stringify({ approvalIds, reason }),
+    });
+  },
+
   // Audit Logs
   getAuditLogs: () => {
     return request<AuditLogEntry[]>('/items/audit/logs');

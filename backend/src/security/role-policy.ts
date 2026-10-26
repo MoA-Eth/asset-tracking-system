@@ -13,6 +13,7 @@ export const PERMISSION_GROUPS = [
     { key: 'approvals.read', label: 'See the status of requests' },
     { key: 'approvals.endorse', label: 'Endorse or reject Stage 1' },
     { key: 'approvals.authorize', label: 'Authorize or reject Stage 2' },
+    { key: 'approvals.void', label: 'Void an approved request with reversal' },
   ] },
   { name: 'Reports & Audit', permissions: [
     { key: 'dashboard.read', label: 'View executive dashboard' },
@@ -51,7 +52,7 @@ export const ROLE_POLICY: Record<UserRole, {
   SYSTEM_ADMIN: {
     name: 'System Administrator', description: 'Administers user access and platform governance.',
     approvalResponsibility: 'No approval authority',
-    permissions: [...readPermissions, 'dashboard.read', 'reports.read', 'audit.read', 'roles.read', 'roles.assign', 'employees.manage', 'references.manage'],
+    permissions: [...readPermissions, 'approvals.void', 'dashboard.read', 'reports.read', 'audit.read', 'roles.read', 'roles.assign', 'employees.manage', 'references.manage'],
     allowedTabs: ['dashboard', 'reports', 'audit', 'settings-users', 'settings-roles', ...referenceTabs], landingTab: 'dashboard',
   },
   DATA_ENCODER: {
@@ -69,13 +70,13 @@ export const ROLE_POLICY: Record<UserRole, {
   DEPARTMENT_HEAD: {
     name: 'Department Head', description: 'Authorizes endorsed requests and oversees directorate assets.',
     approvalResponsibility: 'Stage 2 — authorize or reject',
-    permissions: [...readPermissions, 'approvals.read', 'approvals.authorize', 'reports.read', 'audit.read'],
+    permissions: [...readPermissions, 'approvals.read', 'approvals.authorize', 'approvals.void', 'reports.read', 'audit.read'],
     allowedTabs: ['approvals', 'assets', 'reports', 'audit', ...referenceTabs], landingTab: 'approvals',
   },
   CHIEF_DIRECTOR: {
     name: 'Chief Director', description: 'Authorizes high-value asset transactions exceeding 10,000,000 ETB and oversees ministry asset portfolio.',
     approvalResponsibility: 'Stage 2 (High-Value > 10M ETB) — authorize or reject',
-    permissions: [...readPermissions, 'approvals.read', 'approvals.authorize', 'dashboard.read', 'reports.read', 'audit.read'],
+    permissions: [...readPermissions, 'approvals.read', 'approvals.authorize', 'approvals.void', 'dashboard.read', 'reports.read', 'audit.read'],
     allowedTabs: ['approvals', 'dashboard', 'assets', 'reports', 'audit', ...referenceTabs], landingTab: 'approvals',
   },
   MANAGER: {

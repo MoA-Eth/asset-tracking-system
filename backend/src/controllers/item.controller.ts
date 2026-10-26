@@ -357,6 +357,16 @@ export class ItemController {
   });
 
   /**
+   * POST /api/items/approvals/void  { approvalIds, reason }
+   * Administrator or Authorizing Manager voids an approved request and reverses inventory movements.
+   */
+  public voidApproved = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) throw new UnauthorizedError('Authentication is required.');
+    const result = await this.store.voidApprovedRequests(req.body ?? {}, req.user.id);
+    return sendSuccess(res, result, result.length > 1 ? `Approved voucher voided (${result.length} items)` : 'Approved request voided');
+  });
+
+  /**
    * GET /api/items/audit/logs
    * Immutable statutory audit trail of all store operations.
    */
