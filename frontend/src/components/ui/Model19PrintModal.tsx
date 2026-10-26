@@ -80,8 +80,8 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
                 </div>
               </th>
               <th className={`${VOUCHER_TH} text-right w-12`}>Qty</th>
-              {!donation && <th className={`${VOUCHER_TH} text-right w-20`}>Unit Price</th>}
-              {!donation && <th className={`${VOUCHER_TH} text-right w-24`}>Total Amount</th>}
+              <th className={`${VOUCHER_TH} text-right w-20`}>Unit Price</th>
+              <th className={`${VOUCHER_TH} text-right w-24`}>Total Amount</th>
               <th className={`${VOUCHER_TH} min-w-[70px]`}>Remark</th>
             </tr>
           </thead>
@@ -106,14 +106,12 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
                   </div>
                 </td>
                 <td className={`${VOUCHER_TD} text-right font-mono font-bold`}>{item.quantity}</td>
-                {!donation && <td className={`${VOUCHER_TD} text-right font-mono`}>{formatVoucherAmount(item.unitPrice)}</td>}
-                {!donation && (
-                  <td className={`${VOUCHER_TD} text-right font-mono font-bold`}>
-                    {formatVoucherAmount(item.totalAmount)}
-                    {added(item).vat > 0 && <span className="block text-[10px] font-normal text-slate-600">incl. VAT {formatVoucherAmount(added(item).vat)}</span>}
-                    {added(item).charges > 0 && <span className="block text-[10px] font-normal text-slate-600">incl. charges {formatVoucherAmount(added(item).charges)}</span>}
-                  </td>
-                )}
+                <td className={`${VOUCHER_TD} text-right font-mono`}>{formatVoucherAmount(item.unitPrice)}</td>
+                <td className={`${VOUCHER_TD} text-right font-mono font-bold`}>
+                  {formatVoucherAmount(item.totalAmount)}
+                  {added(item).vat > 0 && <span className="block text-[10px] font-normal text-slate-600">incl. VAT {formatVoucherAmount(added(item).vat)}</span>}
+                  {added(item).charges > 0 && <span className="block text-[10px] font-normal text-slate-600">incl. charges {formatVoucherAmount(added(item).charges)}</span>}
+                </td>
                 <td className={`${VOUCHER_TD} text-slate-700`}>{orDash(formatVoucherRemark(item.remark))}</td>
               </tr>
             ))}
@@ -121,17 +119,15 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
         </table>
       </div>
 
-      {!donation && (
-        <VoucherTotals
-          rows={[
-            // The breakdown only when something was added to quantity × unit price
-            ...(sums.vat > 0 || sums.charges > 0 ? [{ label: 'Subtotal (Qty × Unit Price)', value: round2(sums.base) }] : []),
-            ...(sums.vat > 0 ? [{ label: 'VAT (15%)', value: round2(sums.vat) }] : []),
-            ...(sums.charges > 0 ? [{ label: 'Additional charges', value: round2(sums.charges) }] : []),
-            { label: 'Grand Total', value: grandTotal },
-          ]}
-        />
-      )}
+      <VoucherTotals
+        rows={[
+          // The breakdown only when something was added to quantity × unit price
+          ...(sums.vat > 0 || sums.charges > 0 ? [{ label: 'Subtotal (Qty × Unit Price)', value: round2(sums.base) }] : []),
+          ...(sums.vat > 0 ? [{ label: 'VAT (15%)', value: round2(sums.vat) }] : []),
+          ...(sums.charges > 0 ? [{ label: 'Additional charges', value: round2(sums.charges) }] : []),
+          { label: 'Grand Total', value: grandTotal },
+        ]}
+      />
 
       <VoucherSignatures
         signatories={

@@ -170,9 +170,9 @@ export const ReceiptItems: React.FC<{
             <col style={{ width: '140px' }} />
             <col style={{ width: '70px' }} />
             <col style={{ width: '54px' }} />
-            {!donation && <col style={{ width: '96px' }} />}
-            {!donation && <col style={{ width: '82px' }} />}
-            {!donation && <col style={{ width: '108px' }} />}
+            <col style={{ width: '96px' }} />
+            <col style={{ width: '82px' }} />
+            <col style={{ width: '108px' }} />
             <col style={{ width: '36px' }} />
           </colgroup>
           <thead className="bg-slate-50/90 border-b border-slate-200/90 shadow-2xs">
@@ -183,9 +183,9 @@ export const ReceiptItems: React.FC<{
               <th className="px-3 py-2.5 text-left">Category</th>
               <th className="px-2 py-2.5 text-center">Unit</th>
               <th className="px-2 py-2.5 text-center">Qty</th>
-              {!donation && <th className="px-3 py-2.5 text-right">Unit price</th>}
-              {!donation && <th className="px-3 py-2.5 text-right" title="Additional charges (transport, installation…); not with VAT">Charges</th>}
-              {!donation && <th className="px-3 py-2.5 text-right">Total</th>}
+              <th className="px-3 py-2.5 text-right">Unit price</th>
+              <th className="px-3 py-2.5 text-right" title="Additional charges (transport, installation…); not with VAT">Charges</th>
+              <th className="px-3 py-2.5 text-right">Total</th>
               <th className="px-2 py-2.5 text-center" />
             </tr>
           </thead>
@@ -196,7 +196,7 @@ export const ReceiptItems: React.FC<{
               const isVat = Boolean(vatApplicable ?? l.vatApplicable);
               const lineBase = (l.quantity || 0) * (l.unitPrice || 0);
               const lineVat = isVat ? Math.round(lineBase * 0.15 * 100) / 100 : 0;
-              const lineTotal = donation ? 0 : lineBase + (isVat ? lineVat : (l.additionalCharges || 0));
+              const lineTotal = lineBase + (isVat ? lineVat : (l.additionalCharges || 0));
               return (
                 <tr key={l.key} className="align-middle hover:bg-slate-50/50 transition-colors">
                   <td className="px-2 py-2.5 font-mono text-slate-400 text-center text-xs">{n}</td>
@@ -269,38 +269,32 @@ export const ReceiptItems: React.FC<{
                       className={cellClass({ align: 'center', mono: true, invalid: !(l.quantity > 0) })}
                     />
                   </td>
-                  {!donation && (
-                    <td className="px-3 py-2.5">
-                      <MoneyInput
-                        aria-label={`Item ${n} unit price`}
-                        suffix=""
-                        value={l.unitPrice}
-                        onChange={(v) => set(l.key, { unitPrice: v })}
-                        placeholder="0.00"
-                        inputClassName="!h-9 !px-2.5 !text-xs font-medium !rounded-md"
-                      />
-                    </td>
-                  )}
-                  {!donation && (
-                    <td className="px-3 py-2.5">
-                      <MoneyInput
-                        aria-label={`Item ${n} additional charges`}
-                        suffix=""
-                        disabled={isVat}
-                        value={isVat ? 0 : (l.additionalCharges || 0)}
-                        onChange={(v) => set(l.key, { additionalCharges: v })}
-                        placeholder="0.00"
-                        title={isVat ? 'Additional charges not allowed when price includes VAT' : undefined}
-                        inputClassName={`!h-9 !px-2.5 !text-xs !rounded-md ${isVat ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
-                      />
-                    </td>
-                  )}
-                  {!donation && (
-                    <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap">
-                      {money(lineTotal)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
-                      {isVat && lineVat > 0 && <span className="block text-[10px] font-normal text-emerald-700">incl. VAT {money(lineVat)}</span>}
-                    </td>
-                  )}
+                  <td className="px-3 py-2.5">
+                    <MoneyInput
+                      aria-label={`Item ${n} unit price`}
+                      suffix=""
+                      value={l.unitPrice}
+                      onChange={(v) => set(l.key, { unitPrice: v })}
+                      placeholder="0.00"
+                      inputClassName="!h-9 !px-2.5 !text-xs font-medium !rounded-md"
+                    />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <MoneyInput
+                      aria-label={`Item ${n} additional charges`}
+                      suffix=""
+                      disabled={isVat}
+                      value={isVat ? 0 : (l.additionalCharges || 0)}
+                      onChange={(v) => set(l.key, { additionalCharges: v })}
+                      placeholder="0.00"
+                      title={isVat ? 'Additional charges not allowed when price includes VAT' : undefined}
+                      inputClassName={`!h-9 !px-2.5 !text-xs !rounded-md ${isVat ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
+                    />
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap">
+                    {money(lineTotal)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
+                    {isVat && lineVat > 0 && <span className="block text-[10px] font-normal text-emerald-700">incl. VAT {money(lineVat)}</span>}
+                  </td>
                   <td className="px-1.5 py-2.5 text-center">
                     <button
                       type="button"
@@ -331,11 +325,9 @@ export const ReceiptItems: React.FC<{
         ) : (
           <span />
         )}
-        {!donation && (
-          <p className="text-xs text-slate-600">
-            Grand total <span className="ml-1 font-mono text-sm font-semibold tabular-nums text-slate-900">{formatETB(total)}</span>
-          </p>
-        )}
+        <p className="text-xs text-slate-600">
+          Grand total <span className="ml-1 font-mono text-sm font-semibold tabular-nums text-slate-900">{formatETB(total)}</span>
+        </p>
       </div>
     </div>
   );

@@ -129,7 +129,7 @@ describe('Model19PrintModal Component', () => {
     expect(screen.queryByText('PO Receipt')).toBeNull();
   });
 
-  it('prints a donation with its PO number, source and buyer rows empty, and no prices or grand total', () => {
+  it('prints a donation with its PO number, source and buyer rows empty, displaying prices and grand total', () => {
     render(<Model19PrintModal isOpen onClose={vi.fn()} voucher={{ ...mockVoucher, provisionType: 'DONATION', poNumber: '—', source: '—', buyer: '—' }} />);
     // No Type of Provision line: the IFMIS Model 19 has none
     expect(screen.queryByText(/Type of Provision/)).toBeNull();
@@ -138,8 +138,8 @@ describe('Model19PrintModal Component', () => {
       const row = screen.getByText(`${label} :`).closest('div')!;
       expect(row.querySelector('dd')?.textContent).toBe('');
     }
-    expect(screen.queryByText('Unit Price')).toBeNull();
-    expect(screen.queryByText('Grand Total')).toBeNull();
+    expect(screen.getByText('Unit Price')).toBeInTheDocument();
+    expect(screen.getByText('Grand Total:')).toBeInTheDocument();
     // The items themselves are still listed with their quantities
     expect(screen.getByText('Sulfa Drug In Vial')).toBeTruthy();
   });

@@ -550,7 +550,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 </ReadOnlyValue>
               </FormKitField>
 
-              {item.provisionType !== 'DONATION' && (() => {
+              {(() => {
                 const totalUnits = totals ? totals.total : row.units;
                 const baseTotal = (item.unitCostETB || 0) * (totalUnits || 1);
                 const isVat = Boolean(item.vatApplicable) || (!!item.totalAmount && Math.abs(Number(item.totalAmount) - Math.round(baseTotal * 1.15 * 100) / 100) < 0.05);

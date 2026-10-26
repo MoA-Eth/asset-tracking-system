@@ -2159,9 +2159,9 @@ describe('Receiving form: provision from the PO number on the Model 19', () => {
     const panel = await readSlip([]);
     expect(within(panel).getByLabelText(/PO number/i)).toHaveValue('');
     expect(within(panel).getByLabelText(/Transaction type/i)).toHaveValue('Donation / Grant Receipt');
-    // A donation has no supplier or price
+    // A donation has no supplier or buyer fields, but displays unit price like a normal receipt
     expect(within(panel).queryByLabelText(/Source/i)).toBeNull();
-    expect(within(panel).queryByLabelText(/Unit price/i)).toBeNull();
+    expect(within(panel).getByLabelText(/Unit price/i)).toBeInTheDocument();
   });
 
   it('displays pricing columns without requiring a PO number for non-donation transaction types', async () => {

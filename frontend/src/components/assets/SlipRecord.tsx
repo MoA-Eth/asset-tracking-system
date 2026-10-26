@@ -13,7 +13,6 @@ import { AssetRow, AssetState, AssetStatus, ItemTypeBadge, requestLabel, shortDa
 
 /** What a line of a receipt cost, as on its Model 19 (VAT or other charges included) */
 export const slipLineTotal = (item: ItemWithRelations): number => {
-  if (item.provisionType === 'DONATION') return 0;
   if (Number(item.totalAmount) > 0) return Number(item.totalAmount);
   const qty = item.balance?.total || Number(item.quantity) || 1;
   const base = (Number(item.unitCostETB) || 0) * qty;

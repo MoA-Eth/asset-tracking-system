@@ -266,7 +266,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [slipQuantity, setSlipQuantity] = useState(0);
   const base1 = (Number(quantity) || 0) * (Number(unitCostETB) || 0);
   const vat1 = vatApplicable ? Math.round(base1 * 0.15 * 100) / 100 : 0;
-  const totalAmount = donation ? 0 : base1 + (vatApplicable ? vat1 : (Number(additionalCharges) || 0));
+  const totalAmount = base1 + (vatApplicable ? vat1 : (Number(additionalCharges) || 0));
   // The other item lines of a Model 19: when adjusting a multi-item batch, pre-populated with existing items
   const [extraLines, setExtraLines] = useState<SlipLine[]>(() => {
     if (editBatch && editBatch.length > 1) {
@@ -290,7 +290,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     }
     return start?.lines ?? [];
   });
-  const extraTotal = donation ? 0 : extraLines.reduce((sum, l) => {
+  const extraTotal = extraLines.reduce((sum, l) => {
     const base = (l.quantity || 0) * (l.unitPrice || 0);
     const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
     return sum + base + (vatApplicable ? vat : (Number(l.additionalCharges) || 0));
@@ -724,14 +724,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     name: l.name.trim(),
     category: l.category as AssetCategory,
     itemType: l.itemType as ItemType,
-    unitCostETB: donation ? 0 : l.unitPrice,
+    unitCostETB: Number(l.unitPrice) || 0,
     condition: (l.condition as ItemCondition) || ItemCondition.NEW,
     uom: l.uom.trim(),
     itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
     subInventory: l.subInventory?.trim() || undefined,
     quantity: l.quantity,
-    totalAmount: donation ? 0 : (() => {
-      const base = l.quantity * l.unitPrice;
+    totalAmount: (() => {
+      const base = l.quantity * (Number(l.unitPrice) || 0);
       const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
       return base + (vatApplicable ? vat : Number(l.additionalCharges) || 0);
     })(),
@@ -773,7 +773,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const effectiveName = name.trim() || "Unspecified Item";
     const effectiveQty = Number(quantity) > 0 ? Number(quantity) : 1;
     const effectiveUom = uom.trim() || "EA";
-    const effectiveUnitCost = donation ? 0 : (Number(unitCostETB) >= 0 ? Number(unitCostETB) : 0);
+    const effectiveUnitCost = Number(unitCostETB) >= 0 ? Number(unitCostETB) : 0;
     const effectiveIfmisItemCode = ifmisItemCode.trim() || (effectiveType === ItemType.CONSUMABLE ? "108101101.0001" : "305101101.0001");
     if (hasDuplicates) {
       const msg = duplicateMessage || 'Duplicate entrance is not permitted.';
@@ -840,9 +840,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             category: (line.category || effectiveCategory) as AssetCategory,
             itemType: (line.itemType || effectiveType) as ItemType,
             condition: (line.condition as ItemCondition) || (condition as ItemCondition) || editItem.condition || ItemCondition.NEW,
-            unitCostETB: donation ? 0 : Number(line.unitPrice) || 0,
+            unitCostETB: Number(line.unitPrice) || 0,
             vatApplicable,
-            additionalCharges: donation || vatApplicable ? 0 : Number(line.additionalCharges) || 0,
+            additionalCharges: vatApplicable ? 0 : Number(line.additionalCharges) || 0,
             ifmisItemCode: line.ifmisCode?.trim() || undefined,
             provisionType,
             poNumber: donation ? undefined : poNumber.trim() || undefined,
@@ -869,13 +869,13 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               name: l.name.trim(),
               category: (l.category || effectiveCategory) as AssetCategory,
               itemType: (l.itemType || effectiveType) as ItemType,
-              unitCostETB: donation ? 0 : Number(l.unitPrice) || 0,
+              unitCostETB: Number(l.unitPrice) || 0,
               condition: (l.condition as ItemCondition) || ItemCondition.NEW,
               uom: (l.uom || effectiveUom).trim(),
               itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label,
               subInventory: l.subInventory?.trim() || undefined,
               quantity: Number(l.quantity) || 1,
-              totalAmount: donation ? 0 : (() => {
+              totalAmount: (() => {
                 const base = Number(l.quantity || 1) * Number(l.unitPrice || 0);
                 const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
                 return base + (vatApplicable ? vat : Number(l.additionalCharges) || 0);
@@ -941,7 +941,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         category: effectiveCategory,
         itemType: effectiveType,
         serialNumber: serialNumber.trim() || undefined,
-        unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
+        unitCostETB: Number(unitCostETB) || 0,
         condition: (condition as ItemCondition) || ItemCondition.NEW,
         uom: effectiveUom,
         subInventory: subInventory.trim() || undefined,
@@ -950,7 +950,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         printedPadFrom: printedPadFrom.trim() || undefined,
         printedPadTo: printedPadTo.trim() || undefined,
         quantity: effectiveQty,
-        totalAmount: donation ? 0 : (() => {
+        totalAmount: (() => {
           const base = effectiveQty * effectiveUnitCost;
           const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
           return base + (vatApplicable ? vat : Number(additionalCharges) || 0);
@@ -967,7 +967,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         category: category as AssetCategory,
         itemType: itemType as ItemType,
         serialNumber: serialNumber.trim() || '',
-        unitCostETB: donation ? 0 : Number(unitCostETB) || 0,
+        unitCostETB: Number(unitCostETB) || 0,
         condition: (condition as ItemCondition) || ItemCondition.NEW,
         storeLocationId: effectiveStoreLocId,
         ifmisSlipNumber: slipNo,
@@ -1004,7 +1004,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         printedPadFrom: printedPadFrom.trim() || '',
         printedPadTo: printedPadTo.trim() || '',
         quantity: Number(quantity) || 1,
-        unitPrice: donation ? 0 : Number(unitCostETB) || 0,
+        unitPrice: Number(unitCostETB) || 0,
         vatApplicable,
         additionalCharges: vatApplicable ? 0 : Number(additionalCharges) || 0,
         totalAmount,
@@ -1022,9 +1022,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         printedPadFrom: '',
         printedPadTo: '',
         quantity: l.quantity,
-        unitPrice: donation ? 0 : l.unitPrice,
-        totalAmount: donation ? 0 : (() => {
-          const base = l.quantity * l.unitPrice;
+        unitPrice: Number(l.unitPrice) || 0,
+        totalAmount: (() => {
+          const base = l.quantity * (Number(l.unitPrice) || 0);
           const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
           return base + (vatApplicable ? vat : Number(l.additionalCharges) || 0);
         })(),
@@ -1156,43 +1156,37 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           className={cellClass({ align: 'center', mono: true })}
         />
       </td>
-      {!donation && (
-        <td className="px-3 py-2.5">
-          <label htmlFor="stock-in-unit-cost" className="sr-only">Unit price (ETB)</label>
-          <MoneyInput
-            id="stock-in-unit-cost"
-            suffix=""
-            value={unitCostETB}
-            onChange={setUnitCostETB}
-            onBlur={fieldErrors.touch('unitCost')}
-            invalid={!!fieldErrors.error('unitCost')}
-            placeholder="0.00"
-            inputClassName="!h-9 !px-2.5 !text-xs font-medium !rounded-md"
-          />
-        </td>
-      )}
-      {!donation && (
-        <td className="px-3 py-2.5">
-          <label htmlFor="stock-in-addl-charges" className="sr-only">Additional charges (ETB)</label>
-          <MoneyInput
-            id="stock-in-addl-charges"
-            aria-label="Item 1 additional charges"
-            suffix=""
-            disabled={vatApplicable}
-            value={vatApplicable ? 0 : additionalCharges}
-            onChange={setAdditionalCharges}
-            placeholder="0.00"
-            title={vatApplicable ? 'Additional charges not allowed when price includes VAT' : undefined}
-            inputClassName={`!h-9 !px-2.5 !text-xs !rounded-md ${vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
-          />
-        </td>
-      )}
-      {!donation && (
-        <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap">
-          {money(totalAmount)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
-          {vatApplicable && vat1 > 0 && <span className="block text-[10px] font-normal text-emerald-700">incl. VAT {money(vat1)}</span>}
-        </td>
-      )}
+      <td className="px-3 py-2.5">
+        <label htmlFor="stock-in-unit-cost" className="sr-only">Unit price (ETB)</label>
+        <MoneyInput
+          id="stock-in-unit-cost"
+          suffix=""
+          value={unitCostETB}
+          onChange={setUnitCostETB}
+          onBlur={fieldErrors.touch('unitCost')}
+          invalid={!!fieldErrors.error('unitCost')}
+          placeholder="0.00"
+          inputClassName="!h-9 !px-2.5 !text-xs font-medium !rounded-md"
+        />
+      </td>
+      <td className="px-3 py-2.5">
+        <label htmlFor="stock-in-addl-charges" className="sr-only">Additional charges (ETB)</label>
+        <MoneyInput
+          id="stock-in-addl-charges"
+          aria-label="Item 1 additional charges"
+          suffix=""
+          disabled={vatApplicable}
+          value={vatApplicable ? 0 : additionalCharges}
+          onChange={setAdditionalCharges}
+          placeholder="0.00"
+          title={vatApplicable ? 'Additional charges not allowed when price includes VAT' : undefined}
+          inputClassName={`!h-9 !px-2.5 !text-xs !rounded-md ${vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
+        />
+      </td>
+      <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap">
+        {money(totalAmount)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
+        {vatApplicable && vat1 > 0 && <span className="block text-[10px] font-normal text-emerald-700">incl. VAT {money(vat1)}</span>}
+      </td>
       <td className="px-2 py-2.5 text-center" />
     </tr>
   );
@@ -1293,23 +1287,21 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         title={`Items (${extraLines.length + 1})`}
         aside={
           <div className="flex flex-wrap items-center gap-3">
-            {!donation && (
-              <label
-                htmlFor="stock-in-vat-master"
-                className="inline-flex items-center gap-1.5 cursor-pointer select-none bg-emerald-50/80 hover:bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200 transition-colors"
-                title="15% VAT auto-calculated for all items (no additional charges allowed)"
-              >
-                <input
-                  id="stock-in-vat-master"
-                  aria-label="VAT applicable (15% for all items)"
-                  type="checkbox"
-                  checked={vatApplicable}
-                  onChange={(e) => handleToggleVat(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
-                />
-                <span className="text-xs font-semibold text-emerald-800">15% VAT (all items)</span>
-              </label>
-            )}
+            <label
+              htmlFor="stock-in-vat-master"
+              className="inline-flex items-center gap-1.5 cursor-pointer select-none bg-emerald-50/80 hover:bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200 transition-colors"
+              title="15% VAT auto-calculated for all items (no additional charges allowed)"
+            >
+              <input
+                id="stock-in-vat-master"
+                aria-label="VAT applicable (15% for all items)"
+                type="checkbox"
+                checked={vatApplicable}
+                onChange={(e) => handleToggleVat(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+              />
+              <span className="text-xs font-semibold text-emerald-800">15% VAT (all items)</span>
+            </label>
           </div>
         }
       >
@@ -1448,10 +1440,9 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
 
   const isDonation = item.provisionType === 'DONATION';
   const voucherItems: Model19LineItem[] = targetItems.map((it, idx) => {
-    const lineDonation = isDonation || it.provisionType === 'DONATION';
     const qty = it.balance?.total || Number(it.quantity) || 1;
     const base = (Number(it.unitCostETB) || 0) * qty;
-    const lineTotal = lineDonation ? 0 : (it.totalAmount !== undefined && it.totalAmount !== null && Number(it.totalAmount) > 0
+    const lineTotal = (it.totalAmount !== undefined && it.totalAmount !== null && Number(it.totalAmount) > 0
       ? Number(it.totalAmount)
       : (() => {
           const vat = it.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
@@ -1473,7 +1464,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
       printedPadFrom: it.printedPadFrom || '',
       printedPadTo: it.printedPadTo || '',
       quantity: qty,
-      unitPrice: lineDonation ? 0 : Number(it.unitCostETB) || 0,
+      unitPrice: Number(it.unitCostETB) || 0,
       vatApplicable: it.vatApplicable,
       additionalCharges: it.additionalCharges,
       totalAmount: lineTotal,

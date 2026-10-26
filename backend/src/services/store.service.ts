@@ -1114,12 +1114,6 @@ export class StoreService {
         }];
     if (payload.provisionType && !PROVISION_TYPES.includes(payload.provisionType)) throw new BadRequestError('Choose Purchase or Donation as the type of provision.');
     const donation = payload.provisionType === 'DONATION';
-    if (donation) {
-      for (const line of rawItems) {
-        line.unitCostETB = 0;
-        line.totalAmount = 0;
-      }
-    }
     // A line of several fixed assets is received as it is on the slip (quantity 1 by default, any quantity allowed).
     // Every line is known by its IFMIS inventory item code; the system gives each record its own code (a tag sent
     // with a fixed asset is used instead).
@@ -1310,8 +1304,7 @@ export class StoreService {
     const name = (payload.name || '').trim();
     if (payload.provisionType && !PROVISION_TYPES.includes(payload.provisionType)) throw new BadRequestError('Choose Purchase or Donation as the type of provision.');
     const donation = payload.provisionType === 'DONATION';
-    // A donation has no price
-    const unitCost = donation ? 0 : Number(payload.unitCostETB);
+    const unitCost = payload.unitCostETB !== undefined ? Number(payload.unitCostETB) : (Number(item.unitCostETB) || 0);
     const quantity = Number(payload.quantity ?? 1);
     if (!slipNo) throw new BadRequestError('IFMIS Slip Number is always mandatory.');
     if (!name) throw new BadRequestError('Item description is required.');
@@ -1342,11 +1335,11 @@ export class StoreService {
       previousMeta = {};
     }
     const remark = payload.remark?.trim() || undefined;
-    const vatApplicable = donation ? false : (payload.vatApplicable !== undefined ? Boolean(payload.vatApplicable) : Boolean(previousMeta.vatApplicable));
-    const addlCharges = donation || vatApplicable ? 0 : (payload.additionalCharges !== undefined ? (Number(payload.additionalCharges) || 0) : (Number(previousMeta.additionalCharges) || 0));
+    const vatApplicable = payload.vatApplicable !== undefined ? Boolean(payload.vatApplicable) : Boolean(previousMeta.vatApplicable);
+    const addlCharges = vatApplicable ? 0 : (payload.additionalCharges !== undefined ? (Number(payload.additionalCharges) || 0) : (Number(previousMeta.additionalCharges) || 0));
     const baseAmount = unitCost * quantity;
     const vatAmount = vatApplicable ? Math.round(baseAmount * 0.15 * 100) / 100 : 0;
-    const totalAmount = donation ? 0 : (baseAmount + (vatApplicable ? vatAmount : addlCharges));
+    const totalAmount = baseAmount + (vatApplicable ? vatAmount : addlCharges);
     const meta = {
       ...previousMeta,
       provisionType: donation ? 'DONATION' : 'PURCHASE',

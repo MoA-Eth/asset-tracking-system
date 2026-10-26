@@ -25,7 +25,7 @@ The bar at the bottom stays in view with **Submit**. While something is missing 
 2. Attach the Model 19 PDF (see below), or fill in by hand.
 3. **Voucher:** enter the Model 19 No., received date and transaction type. **The PO number decides purchase or donation**, as on the IFMIS slip:
    - **With a PO number: a purchase.** Enter the **Source** (supplier). Buyer and program are optional.
-   - **No PO number: a donation.** Source, buyer and the price columns are hidden; prices are saved as 0.
+   - **Donation:** Enter the **Donor / Sponsoring organization**. Price fields (unit price, charges, and total) are available and recorded like a normal PO receipt.
 4. **Items:** for each row enter the **IFMIS item code**, description, category, unit, quantity and, for a purchase, unit price.
    - The code's first digit says what it is: **1 is a Consumable**, **0 is a Fixed asset**. Nobody picks it.
    - A **fixed asset is one item**: its quantity is 1.
@@ -53,8 +53,8 @@ Choose it in **IFMIS Model 19 PDF** at the top. The form fills in what is still 
 | Items on **different** Model 19s | One receipt per Model 19. Submit this one, then press **Receive items** again. |
 | An item that is **not** on this Model 19 | Don't add it here: it would be saved under this slip's number. Register it with its own Model 19. |
 | No Model 19 yet | It can't be registered yet: the Model 19 No. is required. |
-| Donation | Leave the PO number empty. No source, buyer or prices. |
-| Petty-cash purchase (no PO number on the slip) | It comes in as a donation. If it was bought, type the PO number, or ask your supervisor how to record it. |
+| Donation | Select 'Donation / Grant Receipt'. Enter donor organization, and fill item price fields like a normal PO receipt. |
+| Petty-cash purchase (no PO number on the slip) | Select transaction type. Prices and details are filled in as normal. |
 | Usual flow: IFMIS PDF, then the signed printout | Choose the IFMIS PDF at the top (it fills the form), then attach the signed scan under **Signed copy**. |
 | Only a scan or photo, no IFMIS PDF | Choose it in the IFMIS PDF box: it is read with OCR and kept as the copy. Check every value against the paper, and add the items it could not read. |
 | A Model 21, Model 22 or disposal form | Refused here and not attached; the note says which form it belongs to. |
@@ -68,4 +68,4 @@ The assets become **In store** and can be issued.
 
 ## The printed Model 19
 
-Same header as the IFMIS slip: Model 19 No., PO Number, Received Date, Transaction Type, Source, Buyer. On a donation, PO Number, Source and Buyer are printed empty, with no prices or grand total. All rows of the receipt print on one voucher.
+Same header as the IFMIS slip: Model 19 No., PO Number, Received Date, Transaction Type, Source, Buyer. On a donation, PO Number and Buyer are printed empty; unit price, total amount, and grand total are printed. All rows of the receipt print on one voucher.

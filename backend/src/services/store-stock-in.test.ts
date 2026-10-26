@@ -89,7 +89,7 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(JSON.parse(db.item.create.mock.calls[1][0].data.notes).uom).toBe('EA');
   });
 
-  it('records a donation without PO number, supplier, buyer or price, whatever is sent', async () => {
+  it('records a donation without PO number, supplier, or buyer, preserving prices when provided', async () => {
     await StoreService.getInstance().registerStockIn({
       ...basePayload,
       isHistoricalData: true,
@@ -103,14 +103,17 @@ describe('StoreService.registerStockIn approval gate', () => {
       ],
     } as any);
     expect(db.item.create).toHaveBeenCalledTimes(2);
-    for (const [call] of db.item.create.mock.calls) {
-      expect(call.data.unitCostETB).toBe(0);
-      const meta = JSON.parse(call.data.notes);
-      expect(meta).toMatchObject({ provisionType: 'DONATION', totalAmount: 0 });
-      expect(meta.poNumber).toBeUndefined();
-      expect(meta.source).toBeUndefined();
-      expect(meta.buyer).toBeUndefined();
-    }
+    const calls = db.item.create.mock.calls;
+    expect(calls[0][0].data.unitCostETB).toBe(9000);
+    const meta0 = JSON.parse(calls[0][0].data.notes);
+    expect(meta0).toMatchObject({ provisionType: 'DONATION', totalAmount: 9000 });
+    expect(meta0.poNumber).toBeUndefined();
+    expect(meta0.source).toBeUndefined();
+    expect(meta0.buyer).toBeUndefined();
+
+    expect(calls[1][0].data.unitCostETB).toBe(300);
+    const meta1 = JSON.parse(calls[1][0].data.notes);
+    expect(meta1).toMatchObject({ provisionType: 'DONATION', totalAmount: 600 });
   });
 
   it('records a purchase by default, and refuses an unknown type of provision', async () => {
