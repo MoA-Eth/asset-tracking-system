@@ -2738,7 +2738,7 @@ export class StoreService {
     }
 
     const actor = await prisma.employee.findUnique({ where: { id: actorId } });
-    if (!actor) throw new UnauthorizedError('User not found.');
+    if (!actor) throw new NotFoundError('User not found.');
     if (!hasPermission(actor.role, 'approvals.void' as any) && actor.role !== UserRole.SUPER_ADMIN && actor.role !== UserRole.SYSTEM_ADMIN) {
       throw new ForbiddenError('Your role does not permit voiding approved requests.');
     }
@@ -3087,6 +3087,7 @@ export class StoreService {
                 `Cannot void return for ${item.itemCode}: asset in store has subsequent active vouchers: ${blocking}. Reverse those vouchers first.`
               );
             }
+            const prevCustodian = details.fromCustodianId ?? approval.requestedById;
             await db.item.update({
               where: { id: item.id },
               data: {
