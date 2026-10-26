@@ -380,6 +380,25 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return { vouchers, raised };
   }, [approvals, items]);
 
+  // What can go on a Model 21: records in store or issued, whose waiting requests (if any) are only Model 21 (transfers/returns) with remaining balance
+  const transferableItems = useMemo(() => {
+    const onTransfers = new Map<string, number>();
+    const blocked = new Set<string>();
+    for (const a of approvals) {
+      if (a.status !== ApprovalStatus.PENDING) continue;
+      if (a.transactionType !== 'TRANSFER' && a.transactionType !== 'RETURN') blocked.add(a.itemId);
+      else onTransfers.set(a.itemId, (onTransfers.get(a.itemId) ?? 0) + (Number(a.requestDetails?.quantity) || 1));
+    }
+    return items.filter((i) => {
+      if (blocked.has(i.id)) return false;
+      if (i.heldByOrganization) return false;
+      if (i.itemType === 'CONSUMABLE' && i.status !== ItemStatus.AVAILABLE) return false;
+      const total = Number(i.quantity) || 1;
+      const pending = onTransfers.get(i.id) ?? 0;
+      return total - pending > 0;
+    });
+  }, [items, approvals]);
+
   const rows = useMemo<AssetRow[]>(() => {
     const employeeName = (id?: string | null) => employees.find((e) => e.id === id)?.fullNameEn;
     const today = new Date();
@@ -760,6 +779,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             departments={departments}
             locations={locations}
             pendingByItem={pendingByItem}
+            openByItem={openByItem}
             editTransfer={transfer.edit}
             initialItemId={item.id}
             onItemUpdated={itemUpdated}
@@ -847,6 +867,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             departments={departments}
             locations={locations}
             pendingByItem={pendingByItem}
+            openByItem={openByItem}
             editTransfer={request}
             onItemUpdated={itemUpdated}
             onCancel={() => setEditing(false)}
@@ -1032,6 +1053,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             },
             hidden: !canIssue || !availableItems.some((i) => i.id === item.id),
           },
+          {
+            // Remaining units on transfers/returns still waiting can be transferred on another Model 21
+            label: 'Transfer (Model 21)',
+            icon: ArrowRightLeft,
+            onClick: () => {
+              setSelectedId(item.id);
+              setTransfer({ itemId: item.id });
+              setIssue(null);
+              setDisposing(null);
+            },
+            hidden: !canTransfer || !transferableItems.some((i) => i.id === item.id),
+          },
         ];
       }
       default:
@@ -1047,8 +1080,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     openSlip(key);
     setIssue({ slip: key, itemIds: issuableOf(members) });
   };
-  /** The items of a Model 19 that can be transferred now: in store, approved, with nothing pending on them */
-  const transferableOf = (members: AssetGroup[]) => members.map((g) => g.row.item.id).filter((id) => availableItems.some((i) => i.id === id));
+  /** The items of a Model 19 that can be transferred now: in store, approved, with nothing pending or remaining balance */
+  const transferableOf = (members: AssetGroup[]) => members.map((g) => g.row.item.id).filter((id) => transferableItems.some((i) => i.id === id));
   /** A Model 21 transferring an item of a Model 19 still in store */
   const transferSlip = (key: string, members: AssetGroup[]) => {
     const ids = transferableOf(members);

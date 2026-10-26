@@ -801,13 +801,53 @@ const WRITE_PERMISSION: Record<string, string> = {
 };
 
 /** No request may be waiting on the record; `except` lets issue or transfer requests share it, each taking its own units */
-async function assertNoPendingApproval(item: { id: string; itemCode: string }, except?: 'STOCK_OUT' | 'TRANSFER' | 'RETURN') {
+async function assertNoPendingApproval(
+  item: { id: string; itemCode: string },
+  except?: 'STOCK_OUT' | 'TRANSFER' | 'RETURN' | Array<'STOCK_OUT' | 'TRANSFER' | 'RETURN'>,
+) {
+  let transactionTypeFilter: any;
+  if (Array.isArray(except)) {
+    if (except.length === 1) transactionTypeFilter = { not: except[0] };
+    else if (except.length > 1) transactionTypeFilter = { notIn: except };
+  } else if (except) {
+    transactionTypeFilter = { not: except };
+  }
   const pending = await prisma.transactionApproval.findFirst({
-    where: { itemId: item.id, status: { in: OPEN_STATUSES }, ...(except ? { transactionType: { not: except as any } } : {}) },
+    where: {
+      itemId: item.id,
+      status: { in: OPEN_STATUSES },
+      ...(transactionTypeFilter ? { transactionType: transactionTypeFilter } : {}),
+    },
   });
   if (pending) {
     throw new ConflictError(`Item ${item.itemCode} already has a pending ${pending.transactionType} approval (${pending.ifmisSlipNumber}).`);
   }
+}
+
+/**
+ * Units of a record on open Model 21 requests (transfer or return) still waiting for approval.
+ * Multiple requests can queue up or run in parallel as long as the cumulative requested amount
+ * does not exceed the total available/held quantity.
+ */
+async function unitsOnPendingModel21(
+  db: any,
+  itemId: string,
+  exceptApprovalId?: string,
+): Promise<number> {
+  const pending = await db.transactionApproval.findMany({
+    where: {
+      itemId,
+      status: { in: OPEN_STATUSES },
+      transactionType: { in: ['TRANSFER', 'RETURN'] },
+      ...(exceptApprovalId ? { id: { not: exceptApprovalId } } : {}),
+    },
+    select: { requestDetails: true },
+  });
+  const units = (Array.isArray(pending) ? pending : []).reduce(
+    (sum: number, a: any) => sum + (Number(a.requestDetails?.quantity) || 1),
+    0,
+  );
+  return Math.round(units * 10000) / 10000;
 }
 
 /**
@@ -2039,9 +2079,15 @@ export class StoreService {
       throw new ConflictError(`${item.itemCode} is already in store. Only an issued item can be returned.`);
     }
     const inStore = quantityOf(item);
+    const pendingUnits = await unitsOnPendingModel21(prisma, item.id);
+    const remainingBalance = Math.max(0, Math.round((inStore - pendingUnits) * 10000) / 10000);
+
     if (item.status === 'UNDER_TRANSFER') {
       if (inStore <= 1) {
         throw new ConflictError(`Item ${item.itemCode} cannot be returned to store. Current status: ${item.status}`);
+      }
+      if (remainingBalance <= 0) {
+        throw new ConflictError(`Item ${item.itemCode} cannot be returned to store. All ${inStore} ${uomOf(item)} are already on pending transfer/return requests.`);
       }
     } else if (item.status !== 'ISSUED') {
       throw new ConflictError(`Item ${item.itemCode} cannot be returned to store. Current status: ${item.status}`);
@@ -2049,7 +2095,7 @@ export class StoreService {
     if (item.heldByOrganization) {
       throw new ConflictError(`${item.itemCode} was issued to ${item.heldByOrganization}. Returning an item issued to an outside organization isn't supported yet.`);
     }
-    await assertNoPendingApproval(item, inStore > 1 ? 'RETURN' : undefined);
+    await assertNoPendingApproval(item, remainingBalance > 0 ? ['TRANSFER', 'RETURN'] : undefined);
     const effectiveSlipNo = String(payload.model21No || payload.ifmisSlipNumber || '').trim();
     if (!effectiveSlipNo) throw new BadRequestError('Return Voucher (Model 21 / 22) Slip Number is mandatory.');
     if (isBlank(payload.returnReason)) throw new BadRequestError('Reason for return is required.');
@@ -2085,8 +2131,16 @@ export class StoreService {
     }
 
     const requested = Number(payload.quantity);
-    const quantity = Number.isFinite(requested) && requested > 0 ? requested : inStore;
-    if (quantity > inStore) {
+    const quantity = Number.isFinite(requested) && requested > 0 ? requested : (remainingBalance > 0 ? remainingBalance : inStore);
+    if (quantity <= 0) {
+      throw new BadRequestError(`Cannot return 0 ${uomOf(item)}. Enter a valid quantity.`);
+    }
+    if (pendingUnits + quantity > inStore + 1e-9) {
+      if (pendingUnits > 0) {
+        throw new BadRequestError(
+          `Cannot return ${quantity} ${uomOf(item)}. Cumulative requested amount (${Math.round((pendingUnits + quantity) * 10000) / 10000}) exceeds total held quantity (${inStore}). Remaining balance: ${remainingBalance}.`,
+        );
+      }
       throw new BadRequestError(`Cannot return ${quantity} ${uomOf(item)}. Only ${inStore} are held.`);
     }
 
@@ -2284,9 +2338,19 @@ export class StoreService {
         ? await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.transferredByEmployeeId, 'the transfer')
         : null;
     const inStore = quantityOf(item);
+    const pendingUnits = await unitsOnPendingModel21(prisma, item.id, approval.id);
+    const remainingBalance = Math.max(0, Math.round((inStore - pendingUnits) * 10000) / 10000);
     const requested = Number(payload.quantity);
-    const quantity = Number.isFinite(requested) && requested > 0 ? requested : (Number(previous.quantity) || inStore);
-    if (quantity > inStore) {
+    const quantity = Number.isFinite(requested) && requested > 0 ? requested : (Number(previous.quantity) || remainingBalance);
+    if (quantity <= 0) {
+      throw new BadRequestError(`Cannot transfer 0 ${uomOf(item)}. Enter a valid quantity.`);
+    }
+    if (pendingUnits + quantity > inStore + 1e-9) {
+      if (pendingUnits > 0) {
+        throw new BadRequestError(
+          `Cannot transfer ${quantity} ${uomOf(item)}. Cumulative requested amount (${Math.round((pendingUnits + quantity) * 10000) / 10000}) exceeds total available quantity (${inStore}). Remaining balance: ${remainingBalance}.`,
+        );
+      }
       throw new BadRequestError(`Cannot transfer ${quantity} ${uomOf(item)}. Only ${inStore} are held.`);
     }
     const details: Model21RequestDetails = {
@@ -2405,10 +2469,17 @@ export class StoreService {
 
     const previous = requestDetailsOf(approval) ?? {};
     const inStore = quantityOf(returning);
+    const pendingUnits = await unitsOnPendingModel21(prisma, approval.itemId, approval.id);
+    const remainingBalance = Math.max(0, Math.round((inStore - pendingUnits) * 10000) / 10000);
     const requested = payload.quantity !== undefined ? Number(payload.quantity) : Number(previous.quantity);
-    const quantity = Number.isFinite(requested) && requested > 0 ? requested : inStore;
-    if (quantity > inStore) {
-      throw new BadRequestError(`Cannot return ${quantity} ${uomOf(returning)}. Only ${inStore} are held.`);
+    const quantity = Number.isFinite(requested) && requested > 0 ? requested : remainingBalance;
+    if (quantity <= 0) {
+      throw new BadRequestError(`Cannot return 0 ${uomOf(returning)}. Enter a valid quantity.`);
+    }
+    if (pendingUnits + quantity > inStore + 1e-9) {
+      throw new BadRequestError(
+        `Cannot return ${quantity} ${uomOf(returning)}. Cumulative requested amount (${Math.round((pendingUnits + quantity) * 10000) / 10000}) exceeds total held quantity (${inStore}). Remaining balance: ${remainingBalance}.`,
+      );
     }
 
     const details: Model21RequestDetails = {
@@ -3315,9 +3386,17 @@ export class StoreService {
     }
     // A fixed asset can be transferred from the store to an employee, or from one holder to another
     const inStore = quantityOf(item);
+    const pendingUnits = await unitsOnPendingModel21(prisma, item.id);
+    const remainingBalance = Math.max(0, Math.round((inStore - pendingUnits) * 10000) / 10000);
+
     if (item.status === 'UNDER_TRANSFER') {
       if (inStore <= 1) {
         throw new ConflictError(`Item ${item.itemCode} cannot be transferred. Current status: ${item.status}`);
+      }
+      if (remainingBalance <= 0) {
+        throw new ConflictError(
+          `Item ${item.itemCode} cannot be transferred. All ${inStore} ${uomOf(item)} are already on pending transfer/return requests.`,
+        );
       }
     } else if (item.status !== 'AVAILABLE' && item.status !== 'ISSUED') {
       throw new ConflictError(`Item ${item.itemCode} cannot be transferred. Current status: ${item.status}`);
@@ -3325,7 +3404,7 @@ export class StoreService {
     if (item.heldByOrganization) {
       throw new ConflictError(`${item.itemCode} was issued to ${item.heldByOrganization}. Transferring an item issued to an outside organization isn't supported yet.`);
     }
-    await assertNoPendingApproval(item, inStore > 1 ? 'TRANSFER' : undefined);
+    await assertNoPendingApproval(item, remainingBalance > 0 ? ['TRANSFER', 'RETURN'] : undefined);
     const slipNo = String(payload.model21No || '').trim();
     if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
     // The reason is optional on a transfer
@@ -3383,8 +3462,16 @@ export class StoreService {
     const performer = payload.performedById ? await prisma.employee.findUnique({ where: { id: payload.performedById } }) : null;
 
     const requested = Number(payload.quantity);
-    const quantity = Number.isFinite(requested) && requested > 0 ? requested : inStore;
-    if (quantity > inStore) {
+    const quantity = Number.isFinite(requested) && requested > 0 ? requested : remainingBalance;
+    if (quantity <= 0) {
+      throw new BadRequestError(`Cannot transfer 0 ${uomOf(item)}. Enter a valid quantity.`);
+    }
+    if (pendingUnits + quantity > inStore + 1e-9) {
+      if (pendingUnits > 0) {
+        throw new BadRequestError(
+          `Cannot transfer ${quantity} ${uomOf(item)}. Cumulative requested amount (${Math.round((pendingUnits + quantity) * 10000) / 10000}) exceeds total available quantity (${inStore}). Remaining balance: ${remainingBalance}.`,
+        );
+      }
       throw new BadRequestError(`Cannot transfer ${quantity} ${uomOf(item)}. Only ${inStore} are held.`);
     }
 

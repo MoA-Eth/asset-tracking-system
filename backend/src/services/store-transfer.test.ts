@@ -423,4 +423,68 @@ describe('Asset Transfer approval workflow', () => {
       );
     });
   });
+
+  describe('parallel Model 21 requests for remaining balance', () => {
+    const batchItem = {
+      ...issuedItem,
+      status: 'ISSUED',
+      notes: JSON.stringify({ quantity: 10, uom: 'EA' }),
+    };
+
+    it('allows a second transfer for the remaining balance when cumulative quantity fits', async () => {
+      db.item.findUnique.mockResolvedValue({ ...batchItem });
+      // 4 units already pending on first transfer
+      db.transactionApproval.findMany.mockResolvedValue([
+        { id: 'appr-1', requestDetails: { quantity: 4 } },
+      ]);
+
+      // Request 5 units (4 + 5 = 9 <= 10)
+      const res = await store().transferItem({ ...transferPayload, quantity: 5 } as any);
+      expect(res).toMatchObject({ transactionType: 'TRANSFER' });
+      expect(db.transactionApproval.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            requestDetails: expect.objectContaining({ quantity: 5 }),
+          }),
+        })
+      );
+    });
+
+    it('refuses when cumulative requested amount exceeds total available quantity', async () => {
+      db.item.findUnique.mockResolvedValue({ ...batchItem });
+      // 6 units already pending
+      db.transactionApproval.findMany.mockResolvedValue([
+        { id: 'appr-1', requestDetails: { quantity: 6 } },
+      ]);
+
+      // Request 5 units (6 + 5 = 11 > 10)
+      await expect(
+        store().transferItem({ ...transferPayload, quantity: 5 } as any)
+      ).rejects.toThrow(/Cumulative requested amount \(11\) exceeds total available quantity \(10\)\. Remaining balance: 4/);
+    });
+
+    it('allows requesting the exact remaining balance', async () => {
+      db.item.findUnique.mockResolvedValue({ ...batchItem });
+      // 6 units already pending
+      db.transactionApproval.findMany.mockResolvedValue([
+        { id: 'appr-1', requestDetails: { quantity: 6 } },
+      ]);
+
+      // Request exact remaining 4 units (6 + 4 = 10 <= 10)
+      const res = await store().transferItem({ ...transferPayload, quantity: 4 } as any);
+      expect(res).toMatchObject({ transactionType: 'TRANSFER' });
+    });
+
+    it('refuses new requests when all units are already on pending requests', async () => {
+      db.item.findUnique.mockResolvedValue({ ...batchItem, status: 'UNDER_TRANSFER' });
+      // All 10 units already pending
+      db.transactionApproval.findMany.mockResolvedValue([
+        { id: 'appr-1', requestDetails: { quantity: 10 } },
+      ]);
+
+      await expect(
+        store().transferItem({ ...transferPayload, quantity: 1 } as any)
+      ).rejects.toThrow(/All 10 EA are already on pending transfer\/return requests/);
+    });
+  });
 });

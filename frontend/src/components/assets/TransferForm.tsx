@@ -72,6 +72,8 @@ export interface TransferFormProps {
   locations: Location[];
   /** Open request per item: those items can't be chosen until it is decided */
   pendingByItem: Map<string, TransactionApproval>;
+  /** All open pending requests per item: allows parallel Model 21 requests for remaining balance */
+  openByItem?: Map<string, TransactionApproval[]>;
   /** When set, the form corrects this pending transfer instead of creating a new one */
   editTransfer?: TransactionApproval;
   /** Asset chosen before the form opened, e.g. from its row in the register */
@@ -86,7 +88,7 @@ export interface TransferFormProps {
   onItemUpdated?: (item: ItemWithRelations) => void;
 }
 
-export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, editTransfer, initialItemId, initialItemIds, slip, onCancel, onSaved, onItemUpdated }) => {
+export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, openByItem, editTransfer, initialItemId, initialItemIds, slip, onCancel, onSaved, onItemUpdated }) => {
   const { user } = useAuth();
   const toast = useToast();
   const details = editTransfer?.requestDetails ?? {};
@@ -96,12 +98,27 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const editItem = editTransfer ? items.find((i) => i.id === editTransfer.itemId) : undefined;
   const qtyOf = (name: string) => details.accessories?.find((a) => a.name === name)?.quantity ?? 0;
 
+  const pendingUnitsOf = (assetId: string, excludeApprovalId?: string) => {
+    const list = openByItem?.get(assetId) ?? (pendingByItem.get(assetId) ? [pendingByItem.get(assetId)!] : []);
+    return list
+      .filter((a) => (!excludeApprovalId || a.id !== excludeApprovalId) && (a.transactionType === 'TRANSFER' || a.transactionType === 'RETURN'))
+      .reduce((sum, a) => sum + (Number(a.requestDetails?.quantity) || 1), 0);
+  };
+
+  const remainingBalanceOf = (item?: ItemWithRelations, excludeApprovalId?: string) => {
+    if (!item) return 1;
+    const total = Number(item.quantity) || 1;
+    const pending = pendingUnitsOf(item.id, excludeApprovalId);
+    return Math.max(0, Math.round((total - pending) * 10000) / 10000);
+  };
+
   const startItem = items.find((i) => i.id === initialItemId);
   const startItems = (initialItemIds ?? []).map((id) => items.find((i) => i.id === id)).filter(Boolean) as ItemWithRelations[];
 
   const newTransferRow = (itemId = '', quantity = 0, depreciation = 0, bookVal = 0, slip?: Model21SlipLine): TransferRow => {
     const item = items.find((i) => i.id === itemId);
-    const qty = quantity || (item ? Number(item.quantity) || 1 : 1);
+    const rem = remainingBalanceOf(item, editTransfer?.id);
+    const qty = quantity || rem || (item ? Number(item.quantity) || 1 : 1);
     const dep = depreciation || 0;
     const bv = bookVal || (item ? Math.max(0, valueOf(item, qty) - dep) : 0);
     return {
@@ -152,7 +169,8 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
   const chooseRowItem = (key: number, itemId: string) => {
     const item = items.find((i) => i.id === itemId);
-    const qty = item ? Number(item.quantity) || 1 : 1;
+    const rem = remainingBalanceOf(item, editTransfer?.id);
+    const qty = rem || (item ? Number(item.quantity) || 1 : 1);
     const origCost = item ? valueOf(item, qty) : 0;
     setRows((rs) =>
       rs.map((r) =>
@@ -287,16 +305,17 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const lastRead = useRef<{ slip: Model21SlipFields; vehicle?: Model21Particulars } | null>(null);
   const extraReady = extraAssets.filter((o) => o.asset && !o.problem) as { key: number; line: Model21SlipLine; asset: ItemWithRelations }[];
 
-  /** Whether an asset has a blocking pending request (single assets cannot have any; batch items can have concurrent transfers/returns) */
+  /** Whether an asset has a blocking pending request (Model 21 allows parallel requests up to total quantity) */
   const hasBlockingPending = (asset: ItemWithRelations) => {
-    const pending = pendingByItem.get(asset.id);
-    if (!pending) return false;
-    if (editTransfer && pending.id === editTransfer.id) return false;
-    const qty = Number(asset.quantity) || 1;
-    if (qty > 1 && (pending.transactionType === 'TRANSFER' || pending.transactionType === 'RETURN')) {
-      return false;
+    const list = openByItem?.get(asset.id) ?? (pendingByItem.get(asset.id) ? [pendingByItem.get(asset.id)!] : []);
+    if (!list.length) return false;
+    if (editTransfer && list.length === 1 && list[0].id === editTransfer.id) return false;
+    // Any non-Model 21 request (STOCK_IN, STOCK_OUT, DISPOSAL) blocks transfers
+    if (list.some((a) => a.transactionType !== 'TRANSFER' && a.transactionType !== 'RETURN')) {
+      return true;
     }
-    return true;
+    // For Model 21 requests, blocked only if remaining balance is 0
+    return remainingBalanceOf(asset, editTransfer?.id) <= 0;
   };
 
   /**
@@ -513,7 +532,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
   const invalidRow = rows.find((r) => {
     const it = rowItemOf(r);
-    const avail = Number(it?.quantity) || 1;
+    const avail = remainingBalanceOf(it, editTransfer?.id);
     return !r.itemId || !r.quantity || r.quantity <= 0 || (it && r.quantity > avail);
   });
 
@@ -521,7 +540,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const missingFields = [
     !selectedItemId && 'asset',
     (!transferQuantity || transferQuantity <= 0) && 'quantity',
-    selectedItemObj && transferQuantity > (Number(selectedItemObj.quantity) || 1) && 'quantity exceeds available',
+    selectedItemObj && transferQuantity > remainingBalanceOf(selectedItemObj, editTransfer?.id) && 'quantity exceeds available',
     invalidRow && 'valid items and quantities',
     !model21No.trim() && 'Model 21 No.',
     !transferDateGc && 'transfer date',
@@ -540,12 +559,15 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       const r = rows[i];
       const it = rowItemOf(r);
       if (!it) return void toast.warning('Asset required', `Choose an asset for row ${i + 1}.`);
-      const avail = Number(it.quantity) || 1;
+      const rem = remainingBalanceOf(it, editTransfer?.id);
       if (!r.quantity || r.quantity <= 0) {
         return void toast.warning('Invalid quantity', `Enter a valid quantity for ${it.itemCode}.`);
       }
-      if (r.quantity > avail) {
-        return void toast.warning('Quantity exceeds available', `${it.itemCode} only has ${avail} ${it.uom || 'EA'} available.`);
+      if (r.quantity > rem) {
+        return void toast.warning(
+          'Quantity exceeds available balance',
+          `${it.itemCode} only has ${rem} ${it.uom || 'EA'} remaining (${it.quantity || 1} total).`,
+        );
       }
     }
     const effectiveModel21No = model21No.trim() || `PENDING-TRF-${Date.now()}`;
@@ -957,10 +979,16 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         .map((item) => {
           const pending = pendingByItem.get(item.id);
           const blocking = hasBlockingPending(item);
+          const total = Number(item.quantity) || 1;
+          const rem = remainingBalanceOf(item, editTransfer?.id);
+          const pendingUnits = pendingUnitsOf(item.id, editTransfer?.id);
+          const pendingText = pendingUnits > 0
+            ? `${rem} of ${total} ${item.uom || 'EA'} available (${pendingUnits} pending on Model 21)`
+            : `${total} ${item.uom || 'EA'}`;
           return {
             value: item.id,
             label: `${item.itemCode} — ${item.name}`,
-            note: `${item.quantity || 1} ${item.uom || 'EA'} · ${item.currentCustodian?.fullNameEn || 'assigned'}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
+            note: `${pendingText} · ${item.currentCustodian?.fullNameEn || 'assigned'}${pending && pendingUnits === 0 ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
             disabled: blocking,
           };
         }),
@@ -970,16 +998,22 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       options: items
         .filter(
           (i) =>
-            i.status === ItemStatus.AVAILABLE &&
+            (i.status === ItemStatus.AVAILABLE || i.status === ItemStatus.UNDER_TRANSFER) &&
             (i.id === row.itemId || !rows.some((r) => r.itemId === i.id))
         )
         .map((item) => {
           const pending = pendingByItem.get(item.id);
           const blocking = hasBlockingPending(item);
+          const total = Number(item.quantity) || 1;
+          const rem = remainingBalanceOf(item, editTransfer?.id);
+          const pendingUnits = pendingUnitsOf(item.id, editTransfer?.id);
+          const pendingText = pendingUnits > 0
+            ? `${rem} of ${total} ${item.uom || 'EA'} available (${pendingUnits} pending on Model 21)`
+            : `${total} ${item.uom || 'EA'}`;
           return {
             value: item.id,
             label: `${item.itemCode} — ${item.name}`,
-            note: `${item.quantity || 1} ${item.uom || 'EA'} · in ${storeLocationLabel(item.storeLocation)}${pending ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
+            note: `${pendingText} · in ${storeLocationLabel(item.storeLocation)}${pending && pendingUnits === 0 ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
             disabled: blocking,
           };
         }),
@@ -1142,8 +1176,9 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                 {rows.map((row, i) => {
                   const n = i + 1;
                   const item = rowItemOf(row);
-                  const inStore = Number(item?.quantity) || 1;
-                  const overStock = !!item && row.quantity > inStore;
+                  const total = Number(item?.quantity) || 1;
+                  const remaining = remainingBalanceOf(item, editTransfer?.id);
+                  const overStock = !!item && row.quantity > remaining;
                   const itemId = n === 1 ? 'transfer-item' : `transfer-item-${n}`;
                   const qtyId = n === 1 ? 'transfer-quantity' : `transfer-quantity-${n}`;
                   const rowOrigCost = item ? valueOf(item, row.quantity) : 0;
@@ -1189,7 +1224,11 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                           : '—'}
                       </td>
                       <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">
-                        {item ? `${inStore} ${item.uom || 'EA'}` : '—'}
+                        {item
+                          ? remaining < total
+                            ? `${remaining} of ${total} ${item.uom || 'EA'}`
+                            : `${total} ${item.uom || 'EA'}`
+                          : '—'}
                       </td>
                       <td className="px-2 py-1.5">
                         <label htmlFor={qtyId} className="sr-only">
@@ -1198,7 +1237,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                         <QuantityInput
                           id={qtyId}
                           min={1}
-                          max={item ? inStore : undefined}
+                          max={item ? remaining : undefined}
                           value={row.quantity}
                           onChange={(q) => setRow(row.key, { quantity: q })}
                           disabled={!item}
@@ -1206,7 +1245,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                         />
                         {overStock && (
                           <p className="mt-0.5 text-right text-[10px] text-rose-700">
-                            Only {inStore} available
+                            Only {remaining} remaining
                           </p>
                         )}
                       </td>
