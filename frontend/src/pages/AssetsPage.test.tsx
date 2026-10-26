@@ -2390,7 +2390,44 @@ describe('One row per Model 19', () => {
     expect(within(slipRow).getByText('Toner, Dell Latitude +1')).toBeInTheDocument();
     expect(screen.queryByText('MOA-L4')).toBeNull();
   });
+
+  it('finds assets when searching for other models (Model 20, 21, 22) and their voucher numbers', async () => {
+    vi.mocked(api.getItems).mockResolvedValue(items as any);
+    vi.mocked(api.getApprovals).mockResolvedValue(approvals as any);
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+
+    const searchBox = screen.getByRole('textbox', { name: 'Search assets' });
+
+    // Search by Model 22 issue voucher number
+    await user.clear(searchBox);
+    await user.type(searchBox, 'REQ-ISS');
+    expect(screen.getByText('MOA-S1')).toBeInTheDocument();
+    expect(screen.queryByText('MOA-I1')).toBeNull();
+
+    // Search by Model 21 transfer voucher number
+    await user.clear(searchBox);
+    await user.type(searchBox, 'REQ-OLD');
+    expect(screen.getByText('MOA-I1')).toBeInTheDocument();
+    expect(screen.queryByText('MOA-S1')).toBeNull();
+
+    // Search by keyword "Model 22" finds assets with Model 22 issues
+    await user.clear(searchBox);
+    await user.type(searchBox, 'Model 22');
+    expect(screen.getByText('MOA-S1')).toBeInTheDocument();
+    expect(screen.getByText('MOA-O1')).toBeInTheDocument();
+    expect(screen.queryByText('MOA-I1')).toBeNull();
+
+    // Search by keyword "Model 21" finds assets with Model 21 transfers
+    await user.clear(searchBox);
+    await user.type(searchBox, 'Model 21');
+    expect(screen.getByText('MOA-I1')).toBeInTheDocument();
+    expect(screen.getByText('MOA-P1')).toBeInTheDocument();
+    expect(screen.queryByText('MOA-S2')).toBeNull();
+  });
 });
+
 
 describe('Assets: a rejected request', () => {
   const rejectedReceipt = request('A-R1', 'STOCK_IN', 'R1', {

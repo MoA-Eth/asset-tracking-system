@@ -247,14 +247,36 @@ export const ReportsPage: React.FC = () => {
       // 5. Search Term Filter
       if (searchTerm.trim()) {
         const q = searchTerm.trim().toLowerCase();
-        const match =
-          item.name.toLowerCase().includes(q) ||
-          item.itemCode.toLowerCase().includes(q) ||
-          item.ifmisSlipNumber.toLowerCase().includes(q) ||
-          (item.serialNumber && item.serialNumber.toLowerCase().includes(q)) ||
-          (item.currentCustodian?.fullNameEn && item.currentCustodian.fullNameEn.toLowerCase().includes(q)) ||
-          (item.heldByOrganization && item.heldByOrganization.toLowerCase().includes(q)) ||
-          (item.assignedDepartment?.nameEn && item.assignedDepartment.nameEn.toLowerCase().includes(q));
+        const historySlips = (item.history || []).map((h) => `${h.ifmisSlipNumber || ''} ${h.notes || ''}`).join(' ');
+        const hasModel19 = Boolean(item.ifmisSlipNumber);
+        const hasModel22 = item.status === 'ISSUED' || (item.history || []).some((h) => h.action.includes('STOCK_OUT') || h.action.includes('ISSUE'));
+        const hasModel21 = (item.history || []).some((h) => h.action.includes('TRANSFER') || h.action.includes('RETURN'));
+        const hasModel20 = item.status === 'DISPOSED' || (item.history || []).some((h) => h.action.includes('DISPOSAL'));
+
+        const modelTags = [
+          hasModel19 ? 'model 19 model-19 model19 m19 receipt receiving' : '',
+          hasModel22 ? 'model 22 model-22 model22 m22 issue siv' : '',
+          hasModel21 ? 'model 21 model-21 model21 m21 transfer return' : '',
+          hasModel20 ? 'model 20 model-20 model20 m20 disposal model 22/b' : '',
+        ].filter(Boolean).join(' ');
+
+        const targets = [
+          item.name,
+          item.itemCode,
+          item.ifmisSlipNumber,
+          item.ifmisTagNumber,
+          item.serialNumber,
+          item.currentCustodian?.fullNameEn,
+          item.currentCustodian?.fullNameAm,
+          item.heldByOrganization,
+          item.assignedDepartment?.nameEn,
+          item.programName,
+          historySlips,
+          modelTags,
+        ].filter(Boolean).join(' ').toLowerCase();
+
+        const words = q.split(/\s+/).filter(Boolean);
+        const match = targets.includes(q) || (words.length > 1 && words.every((w) => targets.includes(w)));
         if (!match) return false;
       }
 

@@ -1010,6 +1010,8 @@ export class StoreService {
         { serialNumber: { contains: q, mode: 'insensitive' } },
         { ifmisSlipNumber: { contains: q, mode: 'insensitive' } },
         { notes: { contains: q, mode: 'insensitive' } },
+        { history: { some: { ifmisSlipNumber: { contains: q, mode: 'insensitive' } } } },
+        { approvals: { some: { ifmisSlipNumber: { contains: q, mode: 'insensitive' } } } },
       ];
     }
 

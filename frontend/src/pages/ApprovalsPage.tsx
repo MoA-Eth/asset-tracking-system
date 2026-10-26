@@ -313,17 +313,44 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
       // 4. Search Filter
       if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase();
-        const matches =
-          item.itemCode.toLowerCase().includes(q) ||
-          item.itemName.toLowerCase().includes(q) ||
-          item.ifmisSlipNumber.toLowerCase().includes(q) ||
-          (item.purposeOrRemarks && item.purposeOrRemarks.toLowerCase().includes(q)) ||
-          (item.requestedBy?.fullNameEn && item.requestedBy.fullNameEn.toLowerCase().includes(q)) ||
-          (item.endorsedBy?.fullNameEn && item.endorsedBy.fullNameEn.toLowerCase().includes(q)) ||
-          (item.poNumber && item.poNumber.toLowerCase().includes(q)) ||
-          // A receipt is found by any of its items
-          (slipLines.get(item.id) ?? []).some((l) => l.itemName.toLowerCase().includes(q) || l.itemCode.toLowerCase().includes(q));
+        const q = searchTerm.trim().toLowerCase();
+        const vName = voucherName(item.transactionType).toLowerCase();
+        const altModel =
+          item.transactionType === 'STOCK_IN'
+            ? 'model 19 model-19 model19 m19 receipt receiving'
+            : item.transactionType === 'STOCK_OUT'
+              ? 'model 22 model-22 model22 m22 issue siv'
+              : item.transactionType === 'TRANSFER' || item.transactionType === 'RETURN'
+                ? 'model 21 model-21 model21 m21 transfer return'
+                : 'model 20 model-20 model20 m20 disposal model 22/b';
+
+        const lines = slipLines.get(item.id) ?? [];
+        const targets = [
+          item.itemCode,
+          item.itemName,
+          item.ifmisSlipNumber,
+          item.poNumber,
+          item.purposeOrRemarks,
+          item.requestedBy?.fullNameEn,
+          item.requestedBy?.fullNameAm,
+          item.endorsedBy?.fullNameEn,
+          item.endorsedBy?.fullNameAm,
+          item.recipientEmployee?.fullNameEn,
+          item.recipientEmployee?.fullNameAm,
+          item.requestDetails?.organizationName,
+          item.requestDetails?.recipientName,
+          item.targetDepartmentId ? departments.find((d) => d.id === item.targetDepartmentId)?.nameEn : undefined,
+          item.targetLocationId ? locations.find((l) => l.id === item.targetLocationId)?.siteName : undefined,
+          vName,
+          altModel,
+          ...lines.flatMap((l) => [l.itemName, l.itemCode, l.ifmisSlipNumber]),
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+
+        const words = q.split(/\s+/).filter(Boolean);
+        const matches = targets.includes(q) || (words.length > 1 && words.every((w) => targets.includes(w)));
         if (!matches) return false;
       }
 

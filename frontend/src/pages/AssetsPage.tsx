@@ -543,8 +543,86 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const matchesSearch = (row: AssetRow) => {
     if (!q) return true;
     const { item } = row;
-    return [item.name, item.itemCode, item.ifmisTagNumber, item.ifmisItemCode, item.serialNumber, item.ifmisSlipNumber, item.itemCategoryDisplay, item.category, item.programName, row.where, row.goingTo, row.request?.ifmisSlipNumber]
-      .some((v) => (v || '').toLowerCase().includes(q));
+
+    const hasModel19 = Boolean(item.ifmisSlipNumber || row.request?.transactionType === 'STOCK_IN');
+    const hasModel22 =
+      Boolean(row.lastIssue) ||
+      row.request?.transactionType === 'STOCK_OUT' ||
+      (row.requests || []).some((r) => r.transactionType === 'STOCK_OUT') ||
+      row.rejected?.transactionType === 'STOCK_OUT' ||
+      (item.history || []).some((h) => h.action.includes('STOCK_OUT') || h.action.includes('ISSUE')) ||
+      (decided.vouchers.get(item.id) || []).some((v) => v.transactionType === 'STOCK_OUT');
+    const hasModel21 =
+      Boolean(row.lastMove) ||
+      row.request?.transactionType === 'TRANSFER' ||
+      row.request?.transactionType === 'RETURN' ||
+      (row.requests || []).some((r) => r.transactionType === 'TRANSFER' || r.transactionType === 'RETURN') ||
+      row.rejected?.transactionType === 'TRANSFER' ||
+      row.rejected?.transactionType === 'RETURN' ||
+      (item.history || []).some((h) => h.action.includes('TRANSFER') || h.action.includes('RETURN')) ||
+      (decided.vouchers.get(item.id) || []).some((v) => v.transactionType === 'TRANSFER' || v.transactionType === 'RETURN');
+    const hasModel20 =
+      Boolean(row.lastDisposal) ||
+      row.request?.transactionType === 'DISPOSAL' ||
+      (row.requests || []).some((r) => r.transactionType === 'DISPOSAL') ||
+      row.rejected?.transactionType === 'DISPOSAL' ||
+      (item.history || []).some((h) => h.action.includes('DISPOSAL')) ||
+      (decided.vouchers.get(item.id) || []).some((v) => v.transactionType === 'DISPOSAL');
+
+    const modelTags = [
+      hasModel19 ? 'model 19 model-19 model19 m19 receipt receiving' : '',
+      hasModel22 ? 'model 22 model-22 model22 m22 issue siv' : '',
+      hasModel21 ? 'model 21 model-21 model21 m21 transfer return' : '',
+      hasModel20 ? 'model 20 model-20 model20 m20 disposal model 22/b' : '',
+    ].filter(Boolean).join(' ');
+
+    const slipNumbers = [
+      item.ifmisSlipNumber,
+      item.poNumber,
+      row.lastIssue?.ifmisSlipNumber,
+      row.lastMove?.ifmisSlipNumber,
+      row.lastDisposal?.ifmisSlipNumber,
+      row.request?.ifmisSlipNumber,
+      row.request?.poNumber,
+      row.rejected?.ifmisSlipNumber,
+      ...(row.requests || []).map((r) => r.ifmisSlipNumber),
+      ...(decided.vouchers.get(item.id) || []).map((v) => v.ifmisSlipNumber),
+      ...(item.history || []).map((h) => h.ifmisSlipNumber),
+      ...(item.history || []).map((h) => h.notes),
+    ];
+
+    const targets = [
+      item.name,
+      item.itemCode,
+      item.ifmisTagNumber,
+      item.ifmisItemCode,
+      item.serialNumber,
+      item.itemCategoryDisplay,
+      item.category,
+      item.programName,
+      item.source,
+      item.buyer,
+      item.notes,
+      row.where,
+      row.goingTo,
+      item.currentCustodian?.fullNameEn,
+      item.currentCustodian?.fullNameAm,
+      item.heldByOrganization,
+      row.request?.recipientEmployee?.fullNameEn,
+      row.request?.recipientEmployee?.fullNameAm,
+      row.request?.requestDetails?.organizationName,
+      row.request?.requestDetails?.recipientName,
+      row.request?.purposeOrRemarks,
+      ...slipNumbers,
+      modelTags,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    if (targets.includes(q)) return true;
+    const words = q.split(/\s+/).filter(Boolean);
+    return words.length > 1 && words.every((w) => targets.includes(w));
   };
   /** The batch shows when it or any of its units matches; with a filter or search, only the matching units unfold */
   const visibleGroup = (g: AssetGroup, f: AssetFilter, locId = locationFilter, cat = categoryFilter): ShownGroup | null => {
@@ -1335,8 +1413,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           {/* Searching by an item's name puts that item first, so the row shows what was looked for, not "+1" */}
           <span className="block text-slate-900">
             {slipNames([
-              ...rowsOf.filter((r) => q && r.item.name.toLowerCase().includes(q)),
-              ...rowsOf.filter((r) => !(q && r.item.name.toLowerCase().includes(q))),
+              ...rowsOf.filter((r) => q && matchesSearch(r)),
+              ...rowsOf.filter((r) => !(q && matchesSearch(r))),
             ].map((r) => r.item.name))}
           </span>
           <span className="flex items-center gap-x-1.5 whitespace-nowrap text-xs text-slate-600">
