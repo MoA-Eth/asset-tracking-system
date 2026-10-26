@@ -65,6 +65,7 @@ const AuthLoadingFallback: React.FC = () => (
 );
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { UserRole } from './types/asset-management';
 import { api } from './api/client';
 import { MoaLogo } from './components/ui/MoaLogo';
@@ -75,6 +76,7 @@ import { approvalRowTotals, countApprovalRows, needsChiefDirector } from './comp
 
 const AuthenticatedPortal: React.FC = () => {
   const { user, role, isAuthenticated, isLoading } = useAuth();
+  const { notifications } = useNotifications();
 
   const [requestedTab, setRequestedTab] = useState<string>(() => localStorage.getItem('moa_active_tab') || '');
   const activeTab = getValidTab(user, requestedTab);
@@ -106,6 +108,15 @@ const AuthenticatedPortal: React.FC = () => {
     // The forms need the system-wide rules (e.g. whether a scanned slip is required)
     if (user?.id) loadSystemSettings().catch(() => {});
   }, [user?.id]);
+
+  useEffect(() => {
+    const handleNav = (e: Event) => {
+      const tab = (e as CustomEvent).detail;
+      if (typeof tab === 'string') handleTabChange(tab);
+    };
+    window.addEventListener('moa_navigate_tab', handleNav);
+    return () => window.removeEventListener('moa_navigate_tab', handleNav);
+  }, [user]);
 
   useEffect(() => {
     if (mainRef.current) {
@@ -207,6 +218,8 @@ const AuthenticatedPortal: React.FC = () => {
     );
   }
 
+  const effectivePendingCount = notifications.length > 0 ? notifications.length : pendingApprovalsCount;
+
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#EEF1F5] text-slate-800 flex flex-row font-sans selection:bg-emerald-600 selection:text-white antialiased">
       {/* Desktop Sidebar (lg screens) */}
@@ -214,7 +227,7 @@ const AuthenticatedPortal: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={handleTabChange}
         currentRole={role}
-        pendingApprovalsCount={pendingApprovalsCount}
+        pendingApprovalsCount={effectivePendingCount}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
@@ -232,7 +245,7 @@ const AuthenticatedPortal: React.FC = () => {
           onNavigate={handleTabChange}
           selectedCenter={selectedCenter}
           setSelectedCenter={setSelectedCenter}
-          pendingApprovalsCount={pendingApprovalsCount}
+          pendingApprovalsCount={effectivePendingCount}
         />
 
         {/* Page Content - Strictly Gated to Authorized Role */}
@@ -301,7 +314,7 @@ const AuthenticatedPortal: React.FC = () => {
         <MobileBottomNav
           activeTab={activeTab}
           setActiveTab={handleTabChange}
-          pendingApprovalsCount={pendingApprovalsCount}
+          pendingApprovalsCount={effectivePendingCount}
         />
       </div>
     </div>
@@ -312,7 +325,9 @@ export const App: React.FC = () => {
   return (
     <AuthProvider>
       <ToastProvider>
-        <AuthenticatedPortal />
+        <NotificationProvider>
+          <AuthenticatedPortal />
+        </NotificationProvider>
       </ToastProvider>
     </AuthProvider>
   );

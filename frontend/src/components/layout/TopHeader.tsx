@@ -4,6 +4,9 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Bell,
+  BellRing,
+  Volume2,
+  VolumeX,
   Building2,
   Briefcase,
   UserCheck2,
@@ -35,6 +38,7 @@ import {
 import { getTodayGcAndEc } from '../../utils/eth-date';
 import { UserRole, TransactionApproval, TransactionType, ApprovalStatus, Location } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { api } from '../../api/client';
 import { GlobalSearch } from './GlobalSearch';
 import { MoaLogo } from '../ui/MoaLogo';
@@ -83,31 +87,26 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const [showAmDate, setShowAmDate] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [notifications, setNotifications] = useState<TransactionApproval[]>([]);
-  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const {
+    notifications,
+    unreadCount,
+    loading: loadingNotifications,
+    hasNewArrival,
+    clearNewArrival,
+    soundEnabled,
+    toggleSound,
+    desktopPermission,
+    desktopEnabled,
+    requestDesktopPermission,
+    toggleDesktop,
+    markAsRead,
+    markAllAsRead,
+    readIds,
+  } = useNotifications();
+
   const [locations, setLocations] = useState<Location[]>([]);
-  const [readIds, setReadIds] = useState<string[]>(() => {
-    try {
-      const key = `moa_read_notifs_${user?.id || 'default'}`;
-      const stored = localStorage.getItem(key);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
   const dropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
-
-  // Sync stored read IDs when user switches
-  useEffect(() => {
-    try {
-      const key = `moa_read_notifs_${user?.id || 'default'}`;
-      const stored = localStorage.getItem(key);
-      setReadIds(stored ? JSON.parse(stored) : []);
-    } catch {
-      setReadIds([]);
-    }
-  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.permissions?.includes('references.read')) return;
@@ -126,79 +125,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const canAuthorize = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD || role === UserRole.CHIEF_DIRECTOR);
   const isApprover = canEndorse || canAuthorize;
 
-  const fetchNotificationItems = async () => {
-    try {
-      setLoadingNotifications(true);
-      const data = await api.getApprovals(ApprovalStatus.PENDING);
-      // As the approvals queue shows them: a voucher of several lines is one notification, by its grand total
-      let rows = approvalRows(data);
-      if (canEndorse && !canAuthorize) {
-        rows = rows.filter((r) => (r.lead.currentStage ?? 1) === 1);
-      } else if (canAuthorize && !canEndorse) {
-        rows = rows.filter((r) => r.lead.currentStage === 2);
-        // Above 10 million birr is the Chief Director's; the rest the Department Head's
-        if (role === UserRole.CHIEF_DIRECTOR) rows = rows.filter((r) => needsChiefDirector(r.total));
-        else if (role === UserRole.DEPARTMENT_HEAD) rows = rows.filter((r) => !needsChiefDirector(r.total));
-      } else if (!canEndorse && !canAuthorize) {
-        rows = [];
-      }
-      setNotifications(
-        rows.map((r) => (r.members.length > 1 ? { ...r.lead, itemName: `${slipNames(r.members.map((m) => m.itemName))} (${r.members.length} items)` } : r.lead)),
-      );
-    } catch {
-      // ignore
-    } finally {
-      setLoadingNotifications(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isApprover) {
-      fetchNotificationItems();
-    }
-  }, [isApprover, user?.id]);
-
-  useEffect(() => {
-    if (showNotifications && isApprover) {
-      fetchNotificationItems();
-    }
-  }, [showNotifications, isApprover]);
-
-  useEffect(() => {
-    const handleUpdate = () => {
-      if (isApprover) {
-        fetchNotificationItems();
-      }
-    };
-    window.addEventListener('moa_approvals_updated', handleUpdate);
-    return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
-  }, [isApprover]);
-
-  const markAsRead = (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setReadIds((prev) => {
-      if (prev.includes(id)) return prev;
-      const updated = [...prev, id];
-      try {
-        localStorage.setItem(`moa_read_notifs_${user?.id || 'default'}`, JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
-  };
-
-  const markAllAsRead = (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    const allIds = notifications.map((n) => n.id);
-    setReadIds((prev) => {
-      const merged = Array.from(new Set([...prev, ...allIds]));
-      try {
-        localStorage.setItem(`moa_read_notifs_${user?.id || 'default'}`, JSON.stringify(merged));
-      } catch {}
-      return merged;
-    });
-  };
-
-  const unreadCount = notifications.filter((n) => !readIds.includes(n.id)).length;
   const displayBadgeCount = notifications.length > 0 ? unreadCount : pendingApprovalsCount;
 
   // Click outside and escape key listener for dropdowns
@@ -351,19 +277,30 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => {
-                setShowNotifications((prev) => !prev);
+                setShowNotifications((prev) => {
+                  const next = !prev;
+                  if (next) clearNewArrival();
+                  return next;
+                });
               }}
-              className={`relative p-2 rounded-[4px] transition cursor-pointer ${
+              className={`relative p-2 rounded-[4px] transition cursor-pointer select-none ${
                 showNotifications
                   ? 'bg-amber-100/70 text-slate-900 border border-amber-300 shadow-xs'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
               }`}
               title="Pending Approvals & Notifications"
+              aria-label="Pending Approvals & Notifications"
             >
-              <Bell className="w-4 h-4" />
+              <Bell className={`w-4 h-4 ${hasNewArrival ? 'text-amber-700 animate-bounce' : ''}`} />
               {displayBadgeCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-amber-400 text-slate-950 font-extrabold text-[10px] flex items-center justify-center shadow-xs">
-                  {displayBadgeCount}
+                <span
+                  className={`absolute top-0.5 right-0.5 w-4 h-4 rounded-full font-extrabold text-[10px] flex items-center justify-center shadow-xs ${
+                    hasNewArrival
+                      ? 'bg-red-600 text-white animate-pulse ring-2 ring-red-300'
+                      : 'bg-amber-400 text-slate-950'
+                  }`}
+                >
+                  {displayBadgeCount > 99 ? '99+' : displayBadgeCount}
                 </span>
               )}
             </button>
@@ -372,7 +309,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             {showNotifications && (
               <div className="fixed sm:absolute top-14 sm:top-full left-2 right-2 sm:left-auto sm:right-0 mt-0 sm:mt-2 sm:w-96 max-w-sm sm:max-w-none bg-white rounded-md border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-fadeIn text-slate-800">
                 {/* Header */}
-                <div className="px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between">
+                <div className="px-4 py-3 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm text-slate-900">Notifications</span>
                     {unreadCount > 0 ? (
@@ -385,15 +322,51 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    {/* Sound Alert Toggle */}
+                    <button
+                      type="button"
+                      onClick={toggleSound}
+                      className={`p-1 rounded-[4px] transition cursor-pointer ${
+                        soundEnabled ? 'text-emerald-700 hover:bg-emerald-50' : 'text-slate-400 hover:bg-slate-200/60'
+                      }`}
+                      title={soundEnabled ? 'Sound alerts on (click to mute)' : 'Sound alerts muted (click to unmute)'}
+                      aria-label={soundEnabled ? 'Mute sound' : 'Unmute sound'}
+                    >
+                      {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                    </button>
+
+                    {/* Desktop Push Alert Toggle / Request */}
+                    {desktopPermission !== 'unsupported' && (
+                      <button
+                        type="button"
+                        onClick={desktopPermission === 'granted' ? toggleDesktop : requestDesktopPermission}
+                        className={`p-1 rounded-[4px] transition cursor-pointer ${
+                          desktopPermission === 'granted' && desktopEnabled
+                            ? 'text-blue-700 hover:bg-blue-50'
+                            : 'text-slate-400 hover:bg-slate-200/60'
+                        }`}
+                        title={
+                          desktopPermission === 'granted'
+                            ? desktopEnabled
+                              ? 'Desktop notifications active (click to pause)'
+                              : 'Desktop notifications paused (click to resume)'
+                            : 'Click to enable desktop alerts'
+                        }
+                        aria-label="Desktop notifications"
+                      >
+                        <BellRing className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
                     {unreadCount > 0 && (
                       <button
                         onClick={markAllAsRead}
-                        className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-800 hover:bg-slate-100 rounded-[4px] transition cursor-pointer flex items-center gap-1"
+                        className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-800 hover:bg-slate-200/50 rounded-[4px] transition cursor-pointer flex items-center gap-1"
                         title="Mark all notifications as read"
                       >
                         <CheckCheck className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Mark all read</span>
+                        <span className="hidden sm:inline">Mark read</span>
                       </button>
                     )}
                     <button
@@ -405,6 +378,22 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* Optional Desktop Alert Promo Banner when permission is default */}
+                {desktopPermission === 'default' && (
+                  <div className="bg-emerald-50 px-4 py-2 border-b border-emerald-100 flex items-center justify-between text-xs text-emerald-950">
+                    <div className="flex items-center gap-2">
+                      <BellRing className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                      <span className="text-[11px]">Desktop alerts when new vouchers arrive?</span>
+                    </div>
+                    <button
+                      onClick={requestDesktopPermission}
+                      className="px-2 py-0.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[11px] font-semibold cursor-pointer shrink-0 ml-2 shadow-2xs"
+                    >
+                      Enable
+                    </button>
+                  </div>
+                )}
 
                 {/* Notification Items List */}
                 <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
