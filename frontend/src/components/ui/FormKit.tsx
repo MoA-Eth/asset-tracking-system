@@ -47,24 +47,40 @@ interface QuantityInputProps
   min?: number;
   /** Largest sensible number. A bigger one is flagged in red, not changed. */
   max?: number;
+  /** Quantity available in store (or on hand). When provided, displays available stock while editing. */
+  availableInStore?: number;
+  /** Unit of measure label (e.g. 'EA', 'PCS', 'KG') shown alongside availableInStore. */
+  uom?: string;
+  /** Custom label for stock availability (defaults to 'in store'). */
+  availableLabel?: string;
+  /** Whether to show the available in store helper text (defaults to true when availableInStore is provided). */
+  showAvailableHint?: boolean;
 }
 
 /**
  * Whole-number input for counts. The user types any number: nothing is capped, rewritten or put back
  * while typing or on leaving the field. An empty field shows the placeholder "0" and counts as 0.
  * A number outside min..max is marked in red, and the form decides what to do about it.
+ * When availableInStore is provided, clearly indicates stock available in store while editing.
  */
 export const QuantityInput: React.FC<QuantityInputProps> = ({
   value,
   onChange,
   min = 0,
   max,
+  availableInStore,
+  uom,
+  availableLabel,
+  showAvailableHint = true,
   placeholder = '0',
   className,
+  onFocus,
+  onBlur,
   ...props
 }) => {
   const asText = (n: number) => (n === 0 ? '' : String(n));
   const [draft, setDraft] = useState(asText(value));
+  const [isFocused, setIsFocused] = useState(false);
 
   // Follow outside changes (form reset, record loaded) without overwriting what the user is typing
   useEffect(() => {
@@ -87,10 +103,28 @@ export const QuantityInput: React.FC<QuantityInputProps> = ({
     onChange(Number.isFinite(n) ? n : 0);
   };
 
-  const entered = draft === '' ? undefined : Number(draft);
-  const outOfRange = entered !== undefined && ((min > 0 && entered < min) || (max !== undefined && entered > max));
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setIsFocused(true);
+    onFocus?.(e);
+  };
 
-  return (
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    setIsFocused(false);
+    onBlur?.(e);
+  };
+
+  const entered = draft === '' ? undefined : Number(draft);
+  const effectiveMax = max !== undefined ? max : availableInStore;
+  const outOfRange = entered !== undefined && ((min > 0 && entered < min) || (effectiveMax !== undefined && entered > effectiveMax));
+  const overAvailable = entered !== undefined && availableInStore !== undefined && entered > availableInStore;
+
+  const uomSuffix = uom ? ` ${uom}` : '';
+  const labelText = availableLabel ?? 'in store';
+  const tooltipText =
+    props.title ??
+    (availableInStore !== undefined ? `${availableInStore}${uomSuffix} ${labelText}` : undefined);
+
+  const inputElement = (
     <input
       {...props}
       type="text"
@@ -99,9 +133,47 @@ export const QuantityInput: React.FC<QuantityInputProps> = ({
       placeholder={placeholder}
       value={draft}
       onChange={handleChange}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       aria-invalid={outOfRange || undefined}
+      title={tooltipText}
       className={className ?? inputClass('emerald', { mono: true, align: 'right', invalid: outOfRange })}
     />
+  );
+
+  if (availableInStore === undefined || !showAvailableHint) {
+    return inputElement;
+  }
+
+  const isZeroStock = availableInStore === 0;
+
+  return (
+    <div className="w-full">
+      {inputElement}
+      <p
+        data-testid="quantity-available-hint"
+        className={`mt-0.5 text-right text-[10px] leading-tight transition-colors ${
+          overAvailable || isZeroStock
+            ? 'text-rose-700 font-semibold'
+            : isFocused
+              ? 'text-emerald-700 font-semibold'
+              : 'text-slate-500 font-medium'
+        }`}
+      >
+        {isZeroStock ? (
+          `0${uomSuffix} ${labelText} (out of stock)`
+        ) : overAvailable ? (
+          `Only ${availableInStore}${uomSuffix} ${labelText}`
+        ) : isFocused ? (
+          <>
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1 align-middle animate-pulse" />
+            {availableInStore}{uomSuffix} available {labelText === 'in store' ? 'in store' : labelText}
+          </>
+        ) : (
+          `${availableInStore}${uomSuffix} ${labelText}`
+        )}
+      </p>
+    </div>
   );
 };
 

@@ -1238,16 +1238,14 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                           id={qtyId}
                           min={1}
                           max={item ? remaining : undefined}
+                          availableInStore={item ? remaining : undefined}
+                          uom={item ? (item.uom || 'EA') : undefined}
+                          availableLabel={item && item.status !== ItemStatus.AVAILABLE ? 'available' : 'in store'}
                           value={row.quantity}
                           onChange={(q) => setRow(row.key, { quantity: q })}
                           disabled={!item}
                           className={cellClass({ align: 'right', mono: true, invalid: overStock })}
                         />
-                        {overStock && (
-                          <p className="mt-0.5 text-right text-[10px] text-rose-700">
-                            Only {remaining} remaining
-                          </p>
-                        )}
                       </td>
                       <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">
                         {item ? formatETB(rowOrigCost) : '—'}

@@ -827,8 +827,16 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                       <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? `${inStore} ${uomOf(item)} in store` : '—'}</td>
                       <td className="px-2 py-1.5">
                         <label htmlFor={qtyId} className="sr-only">{n === 1 ? 'Quantity to issue' : `Item ${n} quantity`}</label>
-                        <QuantityInput id={qtyId} min={0.0001} max={item ? inStore : undefined} value={row.quantity} onChange={(q) => setRow(row.key, { quantity: q })} className={cellClass({ align: 'right', mono: true, invalid: overStock })} />
-                        {overStock && <p className="mt-0.5 text-right text-[10px] text-rose-700">Only {inStore} {uomOf(item)} in store</p>}
+                        <QuantityInput
+                          id={qtyId}
+                          min={0.0001}
+                          max={item ? inStore : undefined}
+                          availableInStore={item ? inStore : undefined}
+                          uom={item ? uomOf(item) : undefined}
+                          value={row.quantity}
+                          onChange={(q) => setRow(row.key, { quantity: q })}
+                          className={cellClass({ align: 'right', mono: true, invalid: overStock })}
+                        />
                       </td>
                       <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? money(costOf(item)) : '—'}</td>
                       <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? money(Math.round(costOf(item) * (row.quantity || 0) * 100) / 100) : '—'}</td>

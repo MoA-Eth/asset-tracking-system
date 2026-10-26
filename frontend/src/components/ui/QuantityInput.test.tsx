@@ -48,7 +48,7 @@ describe('QuantityInput', () => {
     expect(field).toHaveAttribute('placeholder', '0');
   });
 
-    it('ignores anything that is not a digit or decimal point, accepting float numbers', async () => {
+  it('ignores anything that is not a digit or decimal point, accepting float numbers', async () => {
     render(<Demo initial={0} />);
     const field = screen.getByLabelText('Quantity');
 
@@ -108,5 +108,48 @@ describe('QuantityInput', () => {
     render(<Demo initial={12} />);
     await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
     expect(screen.getByLabelText('Quantity')).toHaveValue('1');
+  });
+
+  it('displays available in store when availableInStore is provided', () => {
+    render(<QuantityInput value={5} onChange={() => {}} availableInStore={25} uom="EA" />);
+    expect(screen.getByTestId('quantity-available-hint')).toHaveTextContent('25 EA in store');
+    expect(screen.getByRole('textbox')).toHaveAttribute('title', '25 EA in store');
+  });
+
+  it('highlights available in store while editing (focused)', async () => {
+    render(<QuantityInput value={5} onChange={() => {}} availableInStore={25} uom="EA" />);
+    const field = screen.getByRole('textbox');
+    const hint = screen.getByTestId('quantity-available-hint');
+
+    await userEvent.click(field);
+    expect(hint).toHaveTextContent('25 EA available in store');
+    expect(hint.className).toContain('text-emerald-700');
+
+    await userEvent.tab();
+    expect(hint).toHaveTextContent('25 EA in store');
+    expect(hint.className).toContain('text-slate-500');
+  });
+
+  it('shows warning in red when quantity exceeds available in store', async () => {
+    const Component = () => {
+      const [val, setVal] = useState(5);
+      return <QuantityInput value={val} onChange={setVal} availableInStore={10} uom="BAG" />;
+    };
+    render(<Component />);
+    const field = screen.getByRole('textbox');
+    const hint = screen.getByTestId('quantity-available-hint');
+
+    await userEvent.clear(field);
+    await userEvent.type(field, '15');
+
+    expect(hint).toHaveTextContent('Only 10 BAG in store');
+    expect(hint.className).toContain('text-rose-700');
+  });
+
+  it('displays out of stock message when availableInStore is 0', () => {
+    render(<QuantityInput value={0} onChange={() => {}} availableInStore={0} uom="PCS" />);
+    const hint = screen.getByTestId('quantity-available-hint');
+    expect(hint).toHaveTextContent('0 PCS in store (out of stock)');
+    expect(hint.className).toContain('text-rose-700');
   });
 });

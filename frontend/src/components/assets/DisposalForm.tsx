@@ -454,8 +454,16 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
           </Field>
           {/* A batch in store can be disposed of in part; a fixed asset is always one */}
           {inStore > 1 && (
-            <Field label="Quantity to dispose of" optional htmlFor="disposal-quantity" hint={quantity > inStore ? `Only ${inStore} ${uom} in store` : `${inStore} ${uom} in store`}>
-              <QuantityInput id="disposal-quantity" min={1} max={inStore} value={quantity} onChange={setQuantity} />
+            <Field label="Quantity to dispose of" optional htmlFor="disposal-quantity">
+              <QuantityInput
+                id="disposal-quantity"
+                min={1}
+                max={inStore}
+                availableInStore={inStore}
+                uom={uom}
+                value={quantity}
+                onChange={setQuantity}
+              />
             </Field>
           )}
           <Field label="Original cost (ETB)">
