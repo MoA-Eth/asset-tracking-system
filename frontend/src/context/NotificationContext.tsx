@@ -11,6 +11,7 @@ import {
   requestDesktopNotificationPermission,
   sendDesktopNotification,
 } from '../utils/desktop-notifications';
+import { ArrivalBottomSnackbar } from '../components/ui/ArrivalBottomSnackbar';
 
 export interface NotificationContextValue {
   notifications: TransactionApproval[];
@@ -36,16 +37,24 @@ const NotificationContext = createContext<NotificationContextValue | undefined>(
 // Polling interval in ms (25 seconds for responsive, near-real-time push updates)
 const POLL_INTERVAL_MS = 25000;
 
+interface ArrivalAlertItem {
+  id: string;
+  title: string;
+  message: string;
+  count: number;
+}
+
 export const NotificationProvider: React.FC<{
   children: React.ReactNode;
   onNavigateToApprovals?: () => void;
 }> = ({ children, onNavigateToApprovals }) => {
   const { user, role, isAuthenticated } = useAuth();
-  const { info, success, warning } = useToast();
+  const { success, warning } = useToast();
 
   const [notifications, setNotifications] = useState<TransactionApproval[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasNewArrival, setHasNewArrival] = useState(false);
+  const [arrivalAlert, setArrivalAlert] = useState<ArrivalAlertItem | null>(null);
 
   // Sound preference: on by default
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
@@ -156,12 +165,14 @@ export const NotificationProvider: React.FC<{
         return merged;
       });
       setHasNewArrival(false);
+      setArrivalAlert(null);
     },
     [notifications, user?.id]
   );
 
   const clearNewArrival = useCallback(() => {
     setHasNewArrival(false);
+    setArrivalAlert(null);
   }, []);
 
   // Approver authority flags
@@ -214,7 +225,7 @@ export const NotificationProvider: React.FC<{
             playNotificationChime();
           }
 
-          // In-App Toast Alert
+          // In-App Telegram/Gmail Style Bottom Alert
           if (newArrivals.length === 1) {
             const item = newArrivals[0];
             const typeLabel =
@@ -229,11 +240,12 @@ export const NotificationProvider: React.FC<{
                 : 'Model 21 (Transfer)';
             const stageText = (item.currentStage ?? 1) === 1 ? 'Endorsement' : 'Authorization';
 
-            info(
-              `New ${typeLabel} Pending ${stageText}`,
-              `Voucher #${item.ifmisSlipNumber} (${item.itemName}) requires your review.`,
-              7000
-            );
+            setArrivalAlert({
+              id: item.id,
+              title: `New ${typeLabel} Pending ${stageText}`,
+              message: `Voucher #${item.ifmisSlipNumber} (${item.itemName}) requires your review.`,
+              count: 1,
+            });
 
             const navigateAction = onNavigateToApprovals ?? (() => {
               window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'approvals' }));
@@ -252,11 +264,12 @@ export const NotificationProvider: React.FC<{
             }
           } else {
             const count = newArrivals.length;
-            info(
-              `${count} New Requests Pending Approval`,
-              `New vouchers have arrived in your queue awaiting review.`,
-              7000
-            );
+            setArrivalAlert({
+              id: newArrivals[0].id,
+              title: `${count} New Requests Pending Approval`,
+              message: 'New vouchers have arrived in your queue awaiting review.',
+              count,
+            });
 
             const navigateAction = onNavigateToApprovals ?? (() => {
               window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'approvals' }));
@@ -292,7 +305,6 @@ export const NotificationProvider: React.FC<{
     soundEnabled,
     desktopEnabled,
     desktopPermission,
-    info,
     onNavigateToApprovals,
   ]);
 
@@ -372,6 +384,23 @@ export const NotificationProvider: React.FC<{
       }}
     >
       {children}
+      {arrivalAlert && (
+        <ArrivalBottomSnackbar
+          id={arrivalAlert.id}
+          title={arrivalAlert.title}
+          message={arrivalAlert.message}
+          count={arrivalAlert.count}
+          duration={8000}
+          onReview={() => {
+            setArrivalAlert(null);
+            const navigateAction = onNavigateToApprovals ?? (() => {
+              window.dispatchEvent(new CustomEvent('moa_navigate_tab', { detail: 'approvals' }));
+            });
+            navigateAction();
+          }}
+          onClose={() => setArrivalAlert(null)}
+        />
+      )}
     </NotificationContext.Provider>
   );
 };
