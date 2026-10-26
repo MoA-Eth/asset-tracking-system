@@ -37,6 +37,7 @@ import {
   RoleDirectory,
   ApiKey,
 } from '../types/asset-management';
+import { broadcastApprovalsUpdated } from '../utils/realtime-sync';
 
 const BASE_URL = '/api';
 // Generous enough for a 10 MB slip upload on a slow connection
@@ -99,6 +100,16 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     } catch {
       throw new Error('The ATS server returned an invalid response. Check that you opened the correct app address.');
     }
+
+    const method = (options?.method || 'GET').toUpperCase();
+    if (
+      method !== 'GET' &&
+      !endpoint.startsWith('/auth/') &&
+      !endpoint.startsWith('/uploads/')
+    ) {
+      broadcastApprovalsUpdated({ endpoint, method });
+    }
+
     return json.data;
   } finally {
     window.clearTimeout(timeout);

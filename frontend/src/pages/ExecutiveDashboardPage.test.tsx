@@ -155,6 +155,31 @@ describe('Dashboard low-stock consumables banner', () => {
     expect(screen.getByText('Demo stapler')).toBeInTheDocument();
     expect(screen.getByText('Critical')).toBeInTheDocument();
   });
+
+  it('auto-refreshes when a realtime update event is dispatched anywhere in the app', async () => {
+    renderPage();
+    expect(await screen.findByRole('button', { name: /Filter the dashboard/ })).toBeInTheDocument();
+    expect(api.getExecutiveDashboard).toHaveBeenCalledTimes(1);
+
+    window.dispatchEvent(new CustomEvent('moa_approvals_updated'));
+
+    await vi.waitFor(() => {
+      expect(api.getExecutiveDashboard).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('refreshes metrics when clicking the manual refresh button', async () => {
+    renderPage();
+    const refreshBtn = await screen.findByRole('button', { name: 'Refresh dashboard' });
+    expect(refreshBtn).toBeInTheDocument();
+    expect(api.getExecutiveDashboard).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(refreshBtn);
+
+    await vi.waitFor(() => {
+      expect(api.getExecutiveDashboard).toHaveBeenCalledTimes(2);
+    });
+  });
 });
 
 

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { costOf } from '../utils/item-cost';
 import { approvalPolicy } from '../components/assets/slip-groups';
+import { useRealtimeSync } from '../utils/realtime-sync';
 import {
   RefreshCw,
   Eye,
@@ -292,6 +293,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const toast = useToast();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<DashboardFilters>(recallFilters);
   const [stores, setStores] = useState<Store[]>([]);
@@ -358,31 +360,38 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const categoryName = CATEGORY_OPTIONS.find((c) => c.value === filters.category)?.label ?? filters.category;
   const itemTypeName = ITEM_TYPE_OPTIONS.find((t) => t.value === filters.itemType)?.label ?? filters.itemType;
 
-  const fetchDashboard = async (current: typeof request = request) => {
-    setLoading(true);
-    setError(null);
+  const fetchDashboard = async (current: typeof request = request, background = false) => {
+    if (!background && !data) setLoading(true);
+    else if (background) setRefreshing(true);
     try {
       const res = await api.getExecutiveDashboard(current);
       setData(res);
+      setError(null);
     } catch (err: any) {
       const msg = err.message || 'Failed to load executive metrics.';
-      setError(msg);
-      toast.error('Dashboard Sync Error', msg);
+      if (!background || !data) {
+        setError(msg);
+        toast.error('Dashboard Sync Error', msg);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  // Load again whenever the filters change, and when a request is decided elsewhere
+  // Initial load and whenever the filters change
   useEffect(() => {
     fetchDashboard(request);
-    const handleUpdate = () => {
-      fetchDashboard(request);
-    };
-    window.addEventListener('moa_approvals_updated', handleUpdate);
-    return () => window.removeEventListener('moa_approvals_updated', handleUpdate);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request.storeId, request.category, request.itemType, request.from, request.to]);
+
+  // Auto-refresh: syncs with changes everywhere in real-time, window focus/visibility, and 15s interval polling
+  useRealtimeSync(
+    useCallback(() => {
+      fetchDashboard(request, true);
+    }, [request.storeId, request.category, request.itemType, request.from, request.to]),
+    { intervalMs: 15000, throttleMs: 2000 }
+  );
 
   if (loading && !data) {
     return <DashboardSkeleton />;
@@ -591,9 +600,15 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
 
   const headerContent = (
     <div className="flex items-center gap-2">
-      {loading && data && (
-        <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-600" aria-label="Updating" />
-      )}
+      <button
+        type="button"
+        onClick={() => fetchDashboard(request, false)}
+        title="Refresh dashboard"
+        aria-label="Refresh dashboard"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 cursor-pointer transition shadow-xs"
+      >
+        <RefreshCw className={`h-3.5 w-3.5 ${(loading || refreshing) ? 'animate-spin text-emerald-600' : ''}`} />
+      </button>
       {filterPopoverElement}
     </div>
   );
