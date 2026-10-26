@@ -1082,26 +1082,12 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           <input
             id="stock-in-item-name"
             type="text"
-            placeholder={donation ? "Item title / brief description (e.g. Dell Latitude 5440 Laptop)" : "Item description (e.g. Dell Latitude 5440 Laptop)"}
+            placeholder="Item description (e.g. Dell Latitude 5440 Laptop)"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onBlur={fieldErrors.touch('itemName')}
             className={cellClass({ invalid: !!fieldErrors.error('itemName') || !!primaryDuplicateAs })}
           />
-          {donation && (
-            <div>
-              <label htmlFor="stock-in-item-specs" className="sr-only">Full asset description and technical specifications</label>
-              <textarea
-                id="stock-in-item-specs"
-                aria-label="Full asset description & specifications"
-                rows={2}
-                placeholder="Full asset description, technical specifications & donor grant details…"
-                value={item1Remark}
-                onChange={(e) => setItem1Remark(e.target.value)}
-                className={`${cellClass()} resize-y text-xs text-slate-700 bg-amber-50/30 focus:bg-white`}
-              />
-            </div>
-          )}
           {primaryDuplicateAs && (
             <p role="status" className="mt-0.5 text-[10px] font-semibold text-rose-600">
               Already received as {primaryDuplicateAs} (Model 19 No. {ifmisSlipNumber.trim()}). Duplicate entrance is not permitted.

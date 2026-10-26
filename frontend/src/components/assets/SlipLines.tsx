@@ -178,7 +178,7 @@ export const ReceiptItems: React.FC<{
           <thead className="bg-slate-50/90 border-b border-slate-200/90 shadow-2xs">
             <tr className="text-xs font-semibold text-slate-600">
               <th className="px-2 py-2.5 text-center">#</th>
-              <th className="px-3 py-2.5 text-left">{donation ? 'Item description & specifications' : 'Item description'}</th>
+              <th className="px-3 py-2.5 text-left">Item description</th>
               <th className="px-3 py-2.5 text-left">IFMIS code</th>
               <th className="px-3 py-2.5 text-left">Category</th>
               <th className="px-2 py-2.5 text-center">Unit</th>
@@ -204,26 +204,12 @@ export const ReceiptItems: React.FC<{
                     <div className="space-y-1.5">
                       <input
                         aria-label={`Item ${n} description`}
-                        placeholder={donation ? "Item title / brief description" : "Item description"}
+                        placeholder="Item description"
                         value={l.name}
                         onChange={(e) => set(l.key, { name: e.target.value })}
                         className={cellClass({ invalid: !l.name.trim() })}
                       />
                       {l.itemCode && <span className="font-mono text-[10px] text-slate-500 font-medium block">{l.itemCode}</span>}
-                      {donation && (
-                        <div>
-                          <label htmlFor={`stock-in-line-specs-${l.key}`} className="sr-only">Item {n} full asset description and technical specifications</label>
-                          <textarea
-                            id={`stock-in-line-specs-${l.key}`}
-                            aria-label={`Item ${n} full description & specifications`}
-                            rows={2}
-                            placeholder="Full asset description, technical specifications & donor grant details…"
-                            value={l.remark || ''}
-                            onChange={(e) => set(l.key, { remark: e.target.value })}
-                            className={`${cellClass()} resize-y text-xs text-slate-700 bg-amber-50/30 focus:bg-white`}
-                          />
-                        </div>
-                      )}
                       {l.alreadyAs && <p className="mt-0.5 text-[10px] font-semibold text-rose-600">Already received as {l.alreadyAs}. Duplicate entrance is not permitted.</p>}
                     </div>
                   </td>
