@@ -1505,7 +1505,7 @@ export const buildModel19Voucher = (record: ItemWithRelations, allItems: ItemWit
   const endorsed = approved || (!!approval && !rejected && approval.currentStage >= 2);
 
   return {
-    approvalState: approval?.status === 'RETURNED' ? 'RETURNED' : approval?.status === 'CANCELLED' ? 'CANCELLED' : pending ? 'PENDING' : rejected ? 'REJECTED' : undefined,
+    approvalState: approval?.status === 'CANCELLED' ? 'CANCELLED' : approval?.status === 'REJECTED' || rejected ? 'REJECTED' : pending ? 'PENDING' : undefined,
     approvalNote: approvalNoteOf(approval),
     invModel19No: item.ifmisSlipNumber,
     provisionType: item.provisionType,

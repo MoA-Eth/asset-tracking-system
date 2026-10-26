@@ -292,7 +292,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       const fileUrl = copy ? (await api.uploadSlip(copy)).url : undefined;
       if (editApproval) {
         const res = await api.updateDisposal(editApproval.id, { ...payload, ifmisSlipAttachmentUrl: fileUrl });
-        toast.success('Disposal request updated', `The request for ${editApproval.itemCode} was corrected. ${editApproval.status === 'RETURNED' ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`);
+        toast.success('Disposal request updated', `The request for ${editApproval.itemCode} was corrected. ${editApproval.status === 'REJECTED' ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`);
         onSuccess(res.approval);
         return;
       }
@@ -525,7 +525,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       <FormFooter
         accent="emerald"
         submitting={submitting}
-        submitLabel={isEdit ? (editApproval?.status === 'RETURNED' ? 'Save and resubmit' : 'Save changes') : 'Submit for approval'}
+        submitLabel={isEdit ? (editApproval?.status === 'REJECTED' ? 'Save and resubmit' : 'Save changes') : 'Submit for approval'}
         missingFields={missingFields}
         fieldTargets={{
           'disposal form no.': '#disposal-no',
@@ -591,7 +591,7 @@ export const buildDisposalVoucher = (
   const formTotal = lines.reduce((sum, l) => sum + (Number(l.unitPrice) || 0) * (Number(l.quantity) || 1), 0);
   const dateGc = approval.ifmisSlipDateGc || (approval.createdAtGc || '').split('T')[0];
   return {
-    approvalState: approval.status === 'PENDING' ? 'PENDING' : approval.status === 'RETURNED' ? 'RETURNED' : approval.status === 'REJECTED' ? 'REJECTED' : approval.status === 'CANCELLED' ? 'CANCELLED' : undefined,
+    approvalState: approval.status === 'PENDING' ? 'PENDING' : approval.status === 'REJECTED' ? 'REJECTED' : approval.status === 'CANCELLED' ? 'CANCELLED' : undefined,
     approvalNote: approvalNoteOf(approval),
     disposalNo: approval.ifmisSlipNumber || '',
     dateGc,

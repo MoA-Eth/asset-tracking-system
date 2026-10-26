@@ -785,12 +785,12 @@ async function attachBalances(items: ItemWithRelations[], rawItems: any[]): Prom
   });
 }
 
-/** A request still open: waiting for an approver, or returned to its requester to correct and resubmit */
-const OPEN_STATUSES = ['PENDING', 'RETURNED'] as any[];
+/** A request still open: waiting for an approver */
+const OPEN_STATUSES = ['PENDING'] as any[];
 
-/** Whether a request can be corrected now: before the Team Leader endorses it, or once it is returned for correction */
+/** Whether a request can be corrected now: before the Team Leader endorses it, or once it is rejected */
 const correctable = (a: { status: string; currentStage?: number | null }) =>
-  a.status === 'RETURNED' || (a.status === 'PENDING' && (a.currentStage ?? 1) === 1);
+  a.status === 'REJECTED' || (a.status === 'PENDING' && (a.currentStage ?? 1) === 1);
 
 /** What a voucher is called, by the request made on it */
 const VOUCHER_NAMES: Record<string, string> = { STOCK_IN: 'Model 19', STOCK_OUT: 'Model 22', TRANSFER: 'Model 21', RETURN: 'Model 21', DISPOSAL: 'Disposal form' };
@@ -1123,7 +1123,7 @@ export class StoreService {
           });
           if (duplicate) {
             const rejected = duplicate.status === 'PENDING_STOCK_IN'
-              ? await prisma.transactionApproval.findFirst({ where: { itemId: duplicate.id, transactionType: 'STOCK_IN' as any, status: 'RETURNED' as any }, select: { id: true } })
+              ? await prisma.transactionApproval.findFirst({ where: { itemId: duplicate.id, transactionType: 'STOCK_IN' as any, status: 'REJECTED' as any }, select: { id: true } })
               : null;
             if (rejected) {
               throw new ConflictError(
@@ -2566,7 +2566,7 @@ export class StoreService {
     return prisma.$transaction(async (db: any) => {
       const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true, status: true, itemCode: true } } } });
       if (approvals.length !== ids.length) throw new NotFoundError('Part of this request no longer exists. Refresh the list.');
-      if (approvals.some((a: any) => a.status !== 'RETURNED')) throw new ConflictError('Only a request returned for correction can be resubmitted. Refresh the list.');
+      if (approvals.some((a: any) => a.status !== 'REJECTED')) throw new ConflictError('Only a rejected request can be resubmitted. Refresh the list.');
       const types = new Set(approvals.map((a: any) => a.transactionType));
       if (types.size > 1) throw new BadRequestError('Resubmit one voucher at a time.');
       const type = String(approvals[0].transactionType);
@@ -2579,7 +2579,7 @@ export class StoreService {
       for (const id of ids) {
         const a = approvals.find((x: any) => x.id === id);
         const saved = await db.transactionApproval.update({
-          where: { id, status: 'RETURNED' as any },
+          where: { id, status: 'REJECTED' as any },
           data: { status: 'PENDING' as any, currentStage: 1 },
           include: APPROVAL_INCLUDES,
         }).catch((err: any) => { throw err?.code === 'P2025' ? new ConflictError('Someone else has just acted on this request. Refresh the list.') : err; });
@@ -2624,7 +2624,7 @@ export class StoreService {
     return prisma.$transaction(async (db: any) => {
       const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true } } } });
       if (approvals.length !== ids.length) throw new NotFoundError('Part of this request no longer exists. Refresh the list.');
-      if (approvals.some((a: any) => a.status !== 'RETURNED')) throw new ConflictError('Only a rejected request can be cancelled. Refresh the list.');
+      if (approvals.some((a: any) => a.status !== 'REJECTED')) throw new ConflictError('Only a rejected request can be cancelled. Refresh the list.');
       const types = new Set(approvals.map((a: any) => a.transactionType));
       if (types.size > 1) throw new BadRequestError('Cancel one voucher at a time.');
       const type = String(approvals[0].transactionType);
@@ -2646,14 +2646,14 @@ export class StoreService {
     const include = { item: { select: { notes: true } } };
     const approval: any = 'approvalId' in ref
       ? await prisma.transactionApproval.findUnique({ where: { id: ref.approvalId }, include })
-      : await prisma.transactionApproval.findFirst({ where: { itemId: ref.itemId, transactionType: ref.transactionType as any, status: 'RETURNED' as any }, include });
-    if (!approval || approval.status !== 'RETURNED') return [];
+      : await prisma.transactionApproval.findFirst({ where: { itemId: ref.itemId, transactionType: ref.transactionType as any, status: 'REJECTED' as any }, include });
+    if (!approval || approval.status !== 'REJECTED') return [];
     const type = String(approval.transactionType);
     const keyOf = (a: any) => `${String(a.ifmisSlipNumber ?? '').trim().toLowerCase()}|${type === 'STOCK_IN' ? String(readItemMeta(a.item?.notes).poNumber ?? '').trim().toLowerCase() : ''}`;
     const slip = String(approval.ifmisSlipNumber ?? '').trim();
     const voucherOfLines = ['STOCK_IN', 'STOCK_OUT', 'DISPOSAL'].includes(type) && slip && !slip.toUpperCase().startsWith('PENDING-');
     const siblings: any[] = voucherOfLines
-      ? await prisma.transactionApproval.findMany({ where: { transactionType: type as any, status: 'RETURNED' as any, ifmisSlipNumber: { equals: slip, mode: 'insensitive' } }, include })
+      ? await prisma.transactionApproval.findMany({ where: { transactionType: type as any, status: 'REJECTED' as any, ifmisSlipNumber: { equals: slip, mode: 'insensitive' } }, include })
       : [];
     const ids = [approval.id, ...(Array.isArray(siblings) ? siblings : []).filter((a) => a.id !== approval.id && keyOf(a) === keyOf(approval)).map((a) => a.id)];
     return this.resubmitReturned({ approvalIds: ids }, actorId);
@@ -2667,10 +2667,10 @@ export class StoreService {
     const approval = await db.transactionApproval.findUnique({ where: { id: payload.approvalId } });
     if (!approval) throw new NotFoundError('This request no longer exists. Refresh the list.');
     // A rejected request is with its requester: corrected and resubmitted, or cancelled by them
-    const returned = approval.status === 'RETURNED';
-    if (cancel ? !returned : approval.status !== 'PENDING') {
+    const isRejected = approval.status === 'REJECTED';
+    if (cancel ? !isRejected : approval.status !== 'PENDING') {
       throw new ConflictError(
-        returned
+        isRejected
           ? 'This request was rejected and is with its requester to correct or cancel. It can be reviewed again once it is resubmitted.'
           : `This request is ${String(approval.status).toLowerCase()}. Refresh the list.`,
       );
@@ -2776,7 +2776,7 @@ export class StoreService {
       const updatedApproval = await db.transactionApproval.update({
         where: stillWaiting,
         data: {
-          status: 'RETURNED' as any,
+          status: 'REJECTED' as any,
           currentStage: 1,
           returnedById: payload.reviewedById,
           returnRemarks: rejectionReason,
@@ -3567,7 +3567,7 @@ export class StoreService {
     // Counted as the approvals queue shows them: a voucher of several lines once, by its grand total
     const itemById = new Map(allItemsRaw.map((i: any) => [i.id, i]));
     const rejectedRows = await prisma.transactionApproval.findMany({
-      where: { status: 'RETURNED' as any },
+      where: { status: 'REJECTED' as any },
       select: { id: true, itemId: true, createdAtGc: true, transactionType: true, ifmisSlipNumber: true },
     });
     const rejectedWaiting = new Set(

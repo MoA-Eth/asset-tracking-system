@@ -75,9 +75,8 @@ enum ItemCondition {
 enum ApprovalStatus {
   PENDING
   APPROVED
+  /// Rejected by an approver and with its requester to correct/resubmit or cancel
   REJECTED
-  /// Rejected by an approver and with its requester: still open, corrected and resubmitted, or cancelled
-  RETURNED
   /// Withdrawn by its requester after it was rejected; closed, its record released
   CANCELLED
 }

@@ -180,7 +180,7 @@ describe('Asset Transfer approval workflow', () => {
     });
 
     it('keeps the current custody and restores the status when the rejected transfer is cancelled', async () => {
-      db.transactionApproval.findUnique.mockResolvedValue({ ...pendingTransfer, status: 'RETURNED', currentStage: 1 });
+      db.transactionApproval.findUnique.mockResolvedValue({ ...pendingTransfer, status: 'REJECTED', currentStage: 1 });
       await cancel('appr-1', 'Wrong recipient');
 
       expect(itemUpdateData()).toMatchObject({
@@ -203,7 +203,7 @@ describe('Asset Transfer approval workflow', () => {
     it('sends it back to the requester with the reason; the history names the stage and the person who rejected', async () => {
       await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: '  Wrong recipient  ' } as any);
 
-      expect(db.transactionApproval.update.mock.calls[0][0].data).toMatchObject({ status: 'RETURNED', returnRemarks: 'Wrong recipient', returnedById: 'EMP-HEAD', returnedFromStage: 2 });
+      expect(db.transactionApproval.update.mock.calls[0][0].data).toMatchObject({ status: 'REJECTED', returnRemarks: 'Wrong recipient', returnedById: 'EMP-HEAD', returnedFromStage: 2 });
       expect(JSON.stringify(db.item.update.mock.calls[0][0])).toContain('Rejected at Stage 2 (Department Head) by Employee EMP-HEAD, back to the requester to correct or cancel: Wrong recipient');
       // Nothing moves while it is with the requester
       expect(db.item.update.mock.calls[0][0].data.status).toBeUndefined();
@@ -274,7 +274,7 @@ describe('Asset Transfer approval workflow', () => {
     });
 
     it('restores AVAILABLE when the rejected transfer of a store item without a custodian is cancelled', async () => {
-      db.transactionApproval.findUnique.mockResolvedValue({ ...pendingTransfer, status: 'RETURNED', currentStage: 1 });
+      db.transactionApproval.findUnique.mockResolvedValue({ ...pendingTransfer, status: 'REJECTED', currentStage: 1 });
       db.item.findUnique.mockResolvedValue({ ...issuedItem, status: 'UNDER_TRANSFER', currentCustodianId: null });
 
       await cancel('appr-1', 'Wrong recipient');

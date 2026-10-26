@@ -103,8 +103,8 @@ describe('Stock-Out correction before Stage 1 endorsement', () => {
     await expect(store().updateStockOut('appr-1', { ...edit, quantity: 0 }, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('is allowed once the request is returned for correction, and leaves it returned until resubmitted', async () => {
-    db.transactionApproval.findUnique.mockResolvedValue({ ...stage1Request, status: 'RETURNED', returnRemarks: 'Wrong recipient' });
+  it('is allowed once the request is rejected, and leaves it rejected until resubmitted', async () => {
+    db.transactionApproval.findUnique.mockResolvedValue({ ...stage1Request, status: 'REJECTED', returnRemarks: 'Wrong recipient' });
     await store().updateStockOut('appr-1', edit, 'EMP-ENC');
     const data = db.transactionApproval.update.mock.calls[0][0].data;
     expect(data.status).toBeUndefined();
@@ -116,7 +116,7 @@ describe('Stock-Out correction before Stage 1 endorsement', () => {
     expect(db.transactionApproval.update).not.toHaveBeenCalled();
   });
 
-  it.each(['APPROVED', 'REJECTED'])('is refused when the request is %s', async (status) => {
+  it.each(['APPROVED', 'CANCELLED'])('is refused when the request is %s', async (status) => {
     db.transactionApproval.findUnique.mockResolvedValue({ ...stage1Request, status });
     await expect(store().updateStockOut('appr-1', edit, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 409 });
   });

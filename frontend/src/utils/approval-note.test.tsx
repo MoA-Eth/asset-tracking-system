@@ -9,7 +9,7 @@ const request = (extra: object) => ({ id: 'A', transactionType: 'STOCK_IN', stat
 describe('why a voucher is not approved', () => {
   it('says who rejected it, when and why, while it is with its requester', () => {
     expect(approvalNoteOf(request({
-      status: 'RETURNED', returnedFromStage: 2, returnedAtGc: '2026-10-21', returnRemarks: 'Wrong buyer name',
+      status: 'REJECTED', returnedFromStage: 2, returnedAtGc: '2026-10-21', returnRemarks: 'Wrong buyer name',
       returnedBy: { fullNameEn: 'Getaneh G/mariam', role: 'DEPARTMENT_HEAD' },
     }))).toBe('Rejected by Getaneh G/mariam (Department Head) · 21 Oct 2026: Wrong buyer name');
   });
@@ -34,10 +34,10 @@ describe('why a voucher is not approved', () => {
 });
 
 describe('the banner of a rejected request', () => {
-  it('says it is rejected and with its requester, not waiting for the approvers, and why', () => {
-    render(<VoucherStatusBanner state="RETURNED" note="Rejected by Getnet Taye (Team Leader) · 21 Oct 2026: Price is entered as USD." />);
+  it('says it is rejected and not waiting for the approvers, and why', () => {
+    render(<VoucherStatusBanner state="REJECTED" note="Rejected by Getnet Taye (Team Leader) · 21 Oct 2026: Price is entered as USD." />);
     expect(screen.getByText('REJECTED · ውድቅ ተደርጓል')).toBeInTheDocument();
-    expect(screen.getByText(/sent back to its requester to correct and resubmit, or cancel/)).toBeInTheDocument();
+    expect(screen.getByText(/This request was rejected/)).toBeInTheDocument();
     expect(screen.queryByText(/waiting for the Team Leader and the Department Head/)).toBeNull();
     expect(screen.getByText(/Price is entered as USD\./)).toBeInTheDocument();
   });

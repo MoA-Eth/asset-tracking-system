@@ -229,7 +229,7 @@ describe('deciding on a disposal', () => {
   });
 
   it('puts the item back in store when the rejected disposal is cancelled', async () => {
-    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingDisposal({ quantity: 3 }), status: 'RETURNED' });
+    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingDisposal({ quantity: 3 }), status: 'REJECTED' });
     db.item.findUnique.mockResolvedValue({ ...chairs, status: 'PENDING_DISPOSAL' });
 
     await cancel('appr-1', 'Repair it instead');
@@ -247,7 +247,7 @@ describe('deciding on a disposal', () => {
   });
 
   it('marks a cancelled receipt REJECTED, not DISPOSED', async () => {
-    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingDisposal({}), transactionType: 'STOCK_IN', status: 'RETURNED' });
+    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingDisposal({}), transactionType: 'STOCK_IN', status: 'REJECTED' });
     db.item.findUnique.mockResolvedValue({ ...chairs, status: 'PENDING_STOCK_IN' });
     await cancel('appr-1', 'Wrong supplier');
     expect(db.item.update.mock.calls[0][0].data.status).toBe('REJECTED');

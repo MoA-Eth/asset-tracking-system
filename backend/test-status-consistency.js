@@ -159,13 +159,13 @@ async function runStatusConsistencyTests() {
     const pendings2 = await request('/items/approvals/pending', {}, teamleadToken);
     const app2 = pendings2.data.find(a => a.itemId === item2Id);
 
-    // Reject at Stage 1 by Team Leader (returns to requester as RETURNED)
+    // Reject at Stage 1 by Team Leader (returns to requester as REJECTED)
     const rej1Res = await request('/items/approvals/action', {
       method: 'POST',
       body: { approvalId: app2.id, action: 'REJECT', reviewRemarks: 'Physical defect detected on arrival, rejected' },
     }, teamleadToken);
     assert(rej1Res.ok, 'Rejection processed by Team Leader');
-    assert(rej1Res.data.status === 'RETURNED', 'Approval status returned to requester for correction or cancellation');
+    assert(rej1Res.data.status === 'REJECTED', 'Approval status rejected and with requester for correction or cancellation');
 
     // Requester confirms cancellation
     const cancelRes = await request('/items/approvals/cancel', {
@@ -278,7 +278,7 @@ async function runStatusConsistencyTests() {
       method: 'POST',
       body: { approvalId: out4ApprovalId, action: 'REJECT', reviewRemarks: 'Asset required for central office, loan denied' },
     }, teamleadToken);
-    assert(rejOut4.ok && rejOut4.data.status === 'RETURNED', 'Stock-Out returned to requester');
+    assert(rejOut4.ok && rejOut4.data.status === 'REJECTED', 'Stock-Out rejected and with requester');
 
     // Requester cancels stock-out request, atomically reverting item to AVAILABLE
     const cancelOut4 = await request('/items/approvals/cancel', {

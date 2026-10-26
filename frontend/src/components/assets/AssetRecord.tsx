@@ -97,7 +97,7 @@ const RequestStatus: React.FC<{ request: TransactionApproval }> = ({ request }) 
     </span>
   ) : (
     <span className={`${pill} ${request.status === ApprovalStatus.APPROVED ? statusTone.approved : statusTone.rejected}`}>
-      {request.status === ApprovalStatus.APPROVED ? 'Approved' : request.status === ApprovalStatus.CANCELLED ? 'Cancelled' : request.status === ApprovalStatus.RETURNED ? 'Rejected · with requester' : 'Rejected'}
+      {request.status === ApprovalStatus.APPROVED ? 'Approved' : request.status === ApprovalStatus.CANCELLED ? 'Cancelled' : 'Rejected'}
     </span>
   );
 
@@ -324,7 +324,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                         <span className="font-semibold">{requestLabel(r.transactionType, r.requestDetails).model} {r.ifmisSlipNumber}</span>
                         {r.requestDetails?.quantity ? ` · ${r.requestDetails.quantity} ${uom}` : ''}
                         {recipientOf(r) ? ` → ${recipientOf(r)}` : ''} · {stageLabel(r)}
-                        {r.status === ApprovalStatus.RETURNED && r.returnRemarks ? `: ${r.returnRemarks}` : ''}
+                        {r.status === ApprovalStatus.REJECTED && r.returnRemarks ? `: ${r.returnRemarks}` : ''}
                       </li>
                     ))}
                   </ul>
@@ -334,7 +334,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 </FormNotice>
               );
             }
-            if (row.request?.status === ApprovalStatus.RETURNED) {
+            if (row.request?.status === ApprovalStatus.REJECTED) {
               const r = row.request;
               const noun = requestLabel(r.transactionType, r.requestDetails).noun;
               const stage = r.returnedFromStage === 2 ? 'Department Head' : 'Team Leader';
@@ -820,7 +820,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                       {r.status === ApprovalStatus.REJECTED && r.reviewRemarks && <p className="text-red-700">Reason: {r.reviewRemarks}</p>}
                       {r.returnRemarks && (
                         <p className="text-amber-800">
-                          {r.status === ApprovalStatus.RETURNED ? 'Rejected, to correct' : `Rejected earlier${(r.returnCount ?? 0) > 1 ? ` (${r.returnCount} times)` : ''}`}: {r.returnRemarks}
+                          {r.status === ApprovalStatus.REJECTED ? 'Rejected, to correct' : `Rejected earlier${(r.returnCount ?? 0) > 1 ? ` (${r.returnCount} times)` : ''}`}: {r.returnRemarks}
                         </p>
                       )}
                       <button

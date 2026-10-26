@@ -220,7 +220,7 @@ describe('approving an issue to an outside organization', () => {
   });
 
   it('puts the item back in store, with no organization, when the rejected issue is cancelled', async () => {
-    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingIssue({ currentStage: 1 }), status: 'RETURNED' });
+    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingIssue({ currentStage: 1 }), status: 'REJECTED' });
     db.item.findUnique.mockResolvedValue({ ...chairs, status: 'PENDING_STOCK_OUT' });
 
     await cancel('appr-1', 'Not needed');
@@ -287,7 +287,7 @@ describe('disposing of stock through Model 22', () => {
   });
 
   it('puts the stock back in store when the rejected disposal is cancelled', async () => {
-    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingIssue({ currentStage: 1 }, { disposal: true }), status: 'RETURNED' });
+    db.transactionApproval.findUnique.mockResolvedValue({ ...pendingIssue({ currentStage: 1 }, { disposal: true }), status: 'REJECTED' });
     db.item.findUnique.mockResolvedValue({ ...chairs, status: 'PENDING_STOCK_OUT' });
 
     await cancel('appr-1', 'Keep it');

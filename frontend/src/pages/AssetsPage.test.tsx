@@ -2394,7 +2394,7 @@ describe('One row per Model 19', () => {
 
 describe('Assets: a rejected request', () => {
   const rejectedReceipt = request('A-R1', 'STOCK_IN', 'R1', {
-    status: 'RETURNED', currentStage: 1, returnedFromStage: 2, returnRemarks: 'Price is entered as USD.',
+    status: 'REJECTED', currentStage: 1, returnedFromStage: 2, returnRemarks: 'Price is entered as USD.',
     returnedBy: { fullNameEn: 'Getnet Taye' }, returnedAtGc: '2026-10-21',
   });
 
@@ -2496,8 +2496,8 @@ describe('Assets: a rejected request', () => {
       item('BATCH-2', 'Monitor Dell', 'PENDING_STOCK_IN', { ifmisSlipNumber: '0000888', poNumber: 'PO-99', category: 'IT_EQUIPMENT', itemType: 'FIXED', ifmisItemCode: '305101101.0002', unitCostETB: 12000, quantity: 2 }),
     ];
     const batchApprovals = [
-      request('APPR-B1', 'STOCK_IN', 'BATCH-1', { ifmisSlipNumber: '0000888', poNumber: 'PO-99', status: 'RETURNED', returnRemarks: 'Fix unit prices' }),
-      request('APPR-B2', 'STOCK_IN', 'BATCH-2', { ifmisSlipNumber: '0000888', poNumber: 'PO-99', status: 'RETURNED', returnRemarks: 'Fix unit prices' }),
+      request('APPR-B1', 'STOCK_IN', 'BATCH-1', { ifmisSlipNumber: '0000888', poNumber: 'PO-99', status: 'REJECTED', returnRemarks: 'Fix unit prices' }),
+      request('APPR-B2', 'STOCK_IN', 'BATCH-2', { ifmisSlipNumber: '0000888', poNumber: 'PO-99', status: 'REJECTED', returnRemarks: 'Fix unit prices' }),
     ];
     vi.mocked(api.getItems).mockResolvedValue(batchItems as any);
     vi.mocked(api.getApprovals).mockResolvedValue(batchApprovals as any);

@@ -39,9 +39,8 @@ export enum ItemCondition {
 export enum ApprovalStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
   /** Rejected by an approver and with its requester: still open, corrected and resubmitted, or cancelled */
-  RETURNED = 'RETURNED',
+  REJECTED = 'REJECTED',
   /** Withdrawn by its requester after it was rejected; closed, its record released */
   CANCELLED = 'CANCELLED',
 }

@@ -350,7 +350,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const openByItem = useMemo(() => {
     const map = new Map<string, TransactionApproval[]>();
     for (const a of approvals) {
-      if (a.status === ApprovalStatus.PENDING || a.status === ApprovalStatus.RETURNED) map.set(a.itemId, [...(map.get(a.itemId) ?? []), a]);
+      if (a.status === ApprovalStatus.PENDING) map.set(a.itemId, [...(map.get(a.itemId) ?? []), a]);
     }
     const when = (a: TransactionApproval) => String(a.createdAt ?? a.createdAtGc ?? '');
     for (const list of map.values()) list.sort((x, y) => when(x).localeCompare(when(y)));
@@ -370,7 +370,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const raised = new Map<string, TransactionApproval[]>();
     const add = (map: Map<string, TransactionApproval[]>, id: string, a: TransactionApproval) => map.set(id, [...(map.get(id) ?? []), a]);
     for (const a of approvals) {
-      if (a.status === ApprovalStatus.PENDING || a.status === ApprovalStatus.RETURNED) continue;
+      if (a.status === ApprovalStatus.PENDING) continue;
       // A partial issue or disposal is filed under the record split off for those units
       const splitCode = a.status === ApprovalStatus.APPROVED ? a.requestDetails?.issuedItemCode ?? a.requestDetails?.disposedItemCode : undefined;
       add(vouchers, (splitCode && idByCode.get(splitCode)) || a.itemId, a);
@@ -385,7 +385,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const today = new Date();
     return items
       .map((item) => {
-        const request = pendingByItem.get(item.id);
+        const request = pendingByItem.get(item.id) ?? (item.status === ItemStatus.PENDING_STOCK_IN ? decided.raised.get(item.id)?.[0] : undefined);
         const requests = openByItem.get(item.id) ?? [];
         const store = item.storeLocation ? storeLocationLabel(item.storeLocation) : 'Store';
         const holder = item.currentCustodian?.fullNameEn || employeeName(item.currentCustodianId) || item.heldByOrganization || (item.assignedDepartment ? departmentLabel(item.assignedDepartment) : undefined);
@@ -741,7 +741,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             employees={employees}
             editItem={item}
             editBatch={batchItems}
-            returned={pendingByItem.get(item.id)?.status === ApprovalStatus.RETURNED}
+            returned={(pendingByItem.get(item.id) ?? decided.raised.get(item.id)?.[0])?.status === ApprovalStatus.REJECTED}
             registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (batchItems ? !batchItems.some((b) => b.id === i.id) : i.id !== item.id)).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
             onCancel={() => setEditing(false)}
             onSuccess={(_result, voucher) => done(voucher, setVoucher19)}
@@ -862,7 +862,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const voucherOfRequest = (request: TransactionApproval) => {
     const norm = (v?: string | null) => (v ?? '').trim().toLowerCase();
     const key = (a: TransactionApproval) => `${a.transactionType}|${norm(a.ifmisSlipNumber)}|${a.transactionType === 'STOCK_IN' ? norm(a.poNumber) : ''}`;
-    return approvals.filter((a) => a.status === ApprovalStatus.RETURNED && key(a) === key(request));
+    return approvals.filter((a) => a.status === ApprovalStatus.REJECTED && key(a) === key(request));
   };
   const VOUCHER_OF: Record<string, string> = { STOCK_IN: 'Model 19', STOCK_OUT: 'Model 22', TRANSFER: 'Model 21', RETURN: 'Model 21', DISPOSAL: 'disposal form' };
   const [resubmitting, setResubmitting] = useState(false);
@@ -914,13 +914,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     label: 'Cancel request',
     icon: XCircle,
     onClick: () => request && askCancel(request),
-    hidden: !request || request.status !== ApprovalStatus.RETURNED || !mayCorrect(request.transactionType),
+    hidden: !request || request.status !== ApprovalStatus.REJECTED || !mayCorrect(request.transactionType),
   });
   const resubmitAction = (request?: TransactionApproval): RowAction => ({
     label: `Resubmit ${VOUCHER_OF[request?.transactionType ?? ''] ?? 'request'}`,
     icon: Send,
     onClick: () => request && void resubmit(request),
-    hidden: !request || request.status !== ApprovalStatus.RETURNED || !mayCorrect(request.transactionType),
+    hidden: !request || request.status !== ApprovalStatus.REJECTED || !mayCorrect(request.transactionType),
     disabled: resubmitting,
   });
 
@@ -1008,7 +1008,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         const editPermission: Record<string, boolean> = { STOCK_OUT: canIssue, DISPOSAL: canDispose, TRANSFER: canTransfer, RETURN: canTransfer };
         const open = row.requests?.length ? row.requests : [request!];
         // Several issues: one Edit each, named by its Model 22 No.; a rejected one is resubmitted or cancelled
-        const returned = open.find((r) => r.status === ApprovalStatus.RETURNED);
+        const returned = open.find((r) => r.status === ApprovalStatus.REJECTED);
         return [
           ...open.map((r): RowAction => ({
             label: `Edit ${requestLabel(r.transactionType, r.requestDetails).noun}${open.length > 1 ? ` ${r.ifmisSlipNumber}` : ''}`,
@@ -1346,7 +1346,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
   /** The receipt request of a rejected Model 19, still with its requester, if it is */
   const returnedReceiptOf = (members: AssetGroup[]) =>
-    members.map((g) => pendingByItem.get(g.row.item.id)).find((a) => a?.status === ApprovalStatus.RETURNED && a.transactionType === 'STOCK_IN');
+    members.map((g) => pendingByItem.get(g.row.item.id) ?? decided.raised.get(g.row.item.id)?.[0]).find((a) => a?.status === ApprovalStatus.REJECTED && a.transactionType === 'STOCK_IN');
   /** The Model 19 of a receipt of several items, with its approvers' signatures once approved */
   const printSlip = (members: AssetGroup[]) => {
     const lead = members[0].row.item;
@@ -1509,7 +1509,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const onIssues = new Map<string, number>();
     const blocked = new Set<string>();
     for (const a of approvals) {
-      if (a.status !== ApprovalStatus.PENDING && a.status !== ApprovalStatus.RETURNED) continue;
+      if (a.status !== ApprovalStatus.PENDING) continue;
       if (a.transactionType !== 'STOCK_OUT') blocked.add(a.itemId);
       else onIssues.set(a.itemId, (onIssues.get(a.itemId) ?? 0) + (Number(a.requestDetails?.quantity) || 0));
     }
@@ -1585,7 +1585,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     employees={employees}
                     editItem={receipt.edit}
                     editBatch={receipt.editBatch}
-                    returned={receipt.returned ?? (receipt.edit ? pendingByItem.get(receipt.edit.id)?.status === ApprovalStatus.RETURNED : false)}
+                    returned={receipt.returned ?? (receipt.edit ? (pendingByItem.get(receipt.edit.id) ?? decided.raised.get(receipt.edit.id)?.[0])?.status === ApprovalStatus.REJECTED : false)}
                     template={receipt.template}
                     registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (receipt.editBatch ? !receipt.editBatch.some((b) => b.id === i.id) : (!receipt.edit || i.id !== receipt.edit.id))).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
                     onCancel={() => setReceipt(null)}

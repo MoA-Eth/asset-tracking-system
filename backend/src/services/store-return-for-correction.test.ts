@@ -66,7 +66,7 @@ describe('Rejecting', () => {
 
   it('sends the request back to its requester, still open, with who, why, when and from which stage', async () => {
     const result = await decide('A', 'REJECT', 'leader', 'Price is entered as USD.');
-    expect(result).toMatchObject({ status: 'RETURNED', currentStage: 1, returnRemarks: 'Price is entered as USD.', returnedFromStage: 1, returnCount: 1 });
+    expect(result).toMatchObject({ status: 'REJECTED', currentStage: 1, returnRemarks: 'Price is entered as USD.', returnedFromStage: 1, returnCount: 1 });
     const data = db.transactionApproval.update.mock.calls[0][0].data;
     expect(data).toMatchObject({ returnedById: 'leader', returnedAtGc: expect.any(String) });
     // The record doesn't move: still waiting for its receipt to be approved
@@ -80,20 +80,20 @@ describe('Rejecting', () => {
   it('from the Department Head too: it goes back to the start and the endorsement is cleared', async () => {
     lines[0] = line('A', { currentStage: 2, endorsedById: 'leader', endorsementRemarks: 'ok', endorsedAtGc: '2026-10-21' });
     const result = await decide('A', 'REJECT', 'head', 'Wrong buyer name');
-    expect(result).toMatchObject({ status: 'RETURNED', currentStage: 1, returnedFromStage: 2 });
+    expect(result).toMatchObject({ status: 'REJECTED', currentStage: 1, returnedFromStage: 2 });
     expect(db.transactionApproval.update.mock.calls[0][0].data).toMatchObject({ endorsedById: null, endorsementRemarks: null, endorsedAtGc: null });
   });
 
   it('rejects a whole Model 19 at once; RETURN, its older name, does the same', async () => {
     const result = await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'REJECT', reviewedById: 'leader', reviewRemarks: 'Price in USD' });
-    expect(result.map((a) => a.status)).toEqual(['RETURNED', 'RETURNED']);
+    expect(result.map((a) => a.status)).toEqual(['REJECTED', 'REJECTED']);
     lines = [line('A'), line('B')];
-    expect((await decide('A', 'RETURN', 'leader', 'Price in USD')).status).toBe('RETURNED');
+    expect((await decide('A', 'RETURN', 'leader', 'Price in USD')).status).toBe('REJECTED');
   });
 
   it('a whole Model 19, all lines together', async () => {
     const result = await store().handleSlipApproval({ approvalIds: ['A', 'B'], action: 'REJECT', reviewedById: 'leader', reviewRemarks: 'Price in USD' });
-    expect(result.map((a) => a.status)).toEqual(['RETURNED', 'RETURNED']);
+    expect(result.map((a) => a.status)).toEqual(['REJECTED', 'REJECTED']);
   });
 
   it('is not reviewed while it is with its requester', async () => {
@@ -133,7 +133,7 @@ describe('Cancelling a rejected voucher', () => {
     await expect(store().cancelRejected({ approvalIds: [] }, 'encoder')).rejects.toMatchObject({ statusCode: 400 });
     lines.push(line('C'));
     await expect(store().cancelRejected({ approvalIds: ['A', 'C'] }, 'encoder')).rejects.toMatchObject({ statusCode: 409, message: expect.stringContaining('Only a rejected request') });
-    lines.push(line('D', { status: 'RETURNED', ifmisSlipNumber: '0000153' }));
+    lines.push(line('D', { status: 'REJECTED', ifmisSlipNumber: '0000153' }));
     await expect(store().cancelRejected({ approvalIds: ['A', 'D'] }, 'encoder')).rejects.toMatchObject({ statusCode: 400 });
     await expect(store().cancelRejected({ approvalIds: ['A', 'B'] }, 'leader')).rejects.toMatchObject({ statusCode: 403 });
     expect(db.transactionApproval.update).not.toHaveBeenCalled();
@@ -162,8 +162,8 @@ describe('Resubmitting a corrected voucher', () => {
   it('refuses what is not returned, another voucher, or a role that cannot make such a request', async () => {
     await expect(store().resubmitReturned({ approvalIds: [] }, 'encoder')).rejects.toMatchObject({ statusCode: 400 });
     lines.push(line('C'));
-    await expect(store().resubmitReturned({ approvalIds: ['A', 'C'] }, 'encoder')).rejects.toMatchObject({ statusCode: 409, message: expect.stringContaining('Only a request returned for correction') });
-    lines.push(line('D', { status: 'RETURNED', ifmisSlipNumber: '0000153' }));
+    await expect(store().resubmitReturned({ approvalIds: ['A', 'C'] }, 'encoder')).rejects.toMatchObject({ statusCode: 409, message: expect.stringContaining('Only a rejected request') });
+    lines.push(line('D', { status: 'REJECTED', ifmisSlipNumber: '0000153' }));
     await expect(store().resubmitReturned({ approvalIds: ['A', 'D'] }, 'encoder')).rejects.toMatchObject({ statusCode: 400, message: 'These requests are not on the same Model 19.' });
     await expect(store().resubmitReturned({ approvalIds: ['A', 'B'] }, 'leader')).rejects.toMatchObject({ statusCode: 403 });
     expect(db.transactionApproval.update).not.toHaveBeenCalled();
@@ -182,7 +182,7 @@ describe('An issue returned for correction', () => {
     db.item.findUnique.mockResolvedValue(chairs);
     db.transactionApproval.findFirst.mockResolvedValue(null);
     db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
-      where.transactionType === 'STOCK_OUT' && where.status?.in?.includes('RETURNED') ? [{ requestDetails: { quantity: 8 } }] : []);
+      where.transactionType === 'STOCK_OUT' && (where.status === 'REJECTED' || where.status?.in?.includes('REJECTED')) ? [{ requestDetails: { quantity: 8 } }] : []);
     await expect(store().registerStockOut({ itemId: 'item-9', quantity: 11, ifmisSlipNumber: '0000300', recipientEmployeeId: 'leader', registeredById: 'encoder' } as any))
       .rejects.toThrow('at most 10');
   });
@@ -210,9 +210,9 @@ describe('Saving a correction of a returned request', () => {
   });
 
   it('leaves another receipt on the same number but another PO alone', async () => {
-    lines.push(line('C', { status: 'RETURNED', item: { notes: JSON.stringify({ quantity: 1, poNumber: 'PO-8' }) } }));
+    lines.push(line('C', { status: 'REJECTED', item: { notes: JSON.stringify({ quantity: 1, poNumber: 'PO-8' }) } }));
     await store().resubmitAfterCorrection({ approvalId: 'A' }, 'encoder');
-    expect(lines.find((l) => l.id === 'C')!.status).toBe('RETURNED');
+    expect(lines.find((l) => l.id === 'C')!.status).toBe('REJECTED');
   });
 
   it('does nothing to a request that was not returned', async () => {

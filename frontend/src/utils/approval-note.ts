@@ -23,15 +23,12 @@ const longDate = (gc?: string) =>
  */
 export function approvalNoteOf(a?: TransactionApproval): string | undefined {
   if (!a) return undefined;
-  if (a.status === 'RETURNED') {
-    const when = longDate(a.returnedAtGc);
-    const reason = a.returnRemarks?.trim();
-    return `Rejected by ${decider(a.returnedBy, a.returnedFromStage)}${when ? ` · ${when}` : ''}${reason ? `: ${reason}` : ''}`;
-  }
   if (a.status === 'REJECTED') {
-    const when = longDate(a.reviewedAtGc);
-    const reason = a.reviewRemarks?.trim();
-    return `Rejected by ${decider(a.reviewedBy, a.currentStage)}${when ? ` · ${when}` : ''}${reason ? `: ${reason}` : ''}`;
+    const when = longDate(a.returnedAtGc || a.reviewedAtGc);
+    const reason = (a.returnRemarks || a.reviewRemarks)?.trim();
+    const person = a.returnedBy || a.reviewedBy;
+    const stage = a.returnedFromStage || a.currentStage;
+    return `Rejected by ${decider(person, stage)}${when ? ` · ${when}` : ''}${reason ? `: ${reason}` : ''}`;
   }
   if (a.status === 'CANCELLED') {
     const when = longDate(a.reviewedAtGc);

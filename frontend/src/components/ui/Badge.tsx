@@ -79,9 +79,6 @@ export const StatusBadge: React.FC<{ status: ItemStatus | ApprovalStatus | strin
     case ApprovalStatus.REJECTED:
       return <Badge variant="danger">Rejected</Badge>;
 
-    case ApprovalStatus.RETURNED:
-      return <Badge variant="danger">Rejected</Badge>;
-
     case ApprovalStatus.CANCELLED:
       return <Badge variant="neutral">Cancelled</Badge>;
 

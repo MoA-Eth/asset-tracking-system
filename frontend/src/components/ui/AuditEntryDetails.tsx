@@ -42,10 +42,9 @@ export function relatedRequest(log: AuditLogEntry, approvals: TransactionApprova
 /** Where a request stands now */
 const requestStatus = (a: TransactionApproval): string =>
   a.status === 'PENDING' ? `Waiting · stage ${a.currentStage ?? 1} (${(a.currentStage ?? 1) === 2 ? 'Department Head' : 'Team Leader'})`
-  : a.status === 'RETURNED' ? 'Rejected · with the requester to correct or cancel'
   : a.status === 'CANCELLED' ? 'Cancelled by the requester'
   : a.status === 'APPROVED' ? 'Approved'
-  : a.status === 'REJECTED' ? 'Rejected'
+  : a.status === 'REJECTED' ? 'Rejected · with the requester to correct or cancel'
   : String(a.status);
 
 /** Names for the recorded fields that read badly spelled out from code */
@@ -192,7 +191,7 @@ export const AuditEntryDetails: React.FC<{ log: AuditLogEntry; context: AuditCon
             </Row>
           )}
           {request.returnRemarks && (
-            <Row label={request.status === 'RETURNED' ? 'Rejected by' : 'Last rejected by'}>
+            <Row label={request.status === 'REJECTED' ? 'Rejected by' : 'Last rejected by'}>
               {byOn(request.returnedBy, request.returnedAtGc)}
               {(request.returnCount ?? 0) > 1 ? ` · ${request.returnCount} times` : ''}
               <span className="block text-amber-800">{request.returnRemarks}</span>

@@ -122,7 +122,7 @@ describe('Audit log: an opened entry', () => {
     vi.mocked(api.getEmployees).mockResolvedValue([] as any);
     vi.mocked(api.getApprovals).mockResolvedValue([
       {
-        id: 'r1', transactionType: 'STOCK_IN', itemId: 'i', ifmisSlipNumber: 'M19-0044', status: 'RETURNED', currentStage: 1, createdAtGc: '2026-10-01',
+        id: 'r1', transactionType: 'STOCK_IN', itemId: 'i', ifmisSlipNumber: 'M19-0044', status: 'REJECTED', currentStage: 1, createdAtGc: '2026-10-01',
         totalAmount: 85000, requestedBy: { fullNameEn: 'Store Encoder' }, returnedBy: { fullNameEn: 'Getnet Taye' }, returnedAtGc: '2026-10-21',
         returnRemarks: 'Price is entered as USD.', returnCount: 2,
       },

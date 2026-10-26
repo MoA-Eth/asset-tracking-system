@@ -65,7 +65,7 @@ export const STAGE_LABELS: Record<number, string> = {
  * its voucher is above 10 million birr (the server says so in requiredRole, from the voucher's grand total).
  */
 export const stageLabel = (request: { status?: string; currentStage?: number; requiredRole?: string }, fallback = 'Waiting for approval'): string =>
-  request.status === 'RETURNED' ? 'Rejected'
+  request.status === 'REJECTED' ? 'Rejected'
   : request.currentStage === 2 && request.requiredRole === 'CHIEF_DIRECTOR' ? 'With Chief Director' : STAGE_LABELS[request.currentStage ?? 1] ?? fallback;
 
 export const REQUEST_LABELS: Record<string, { noun: string; pending: string; model: string }> = {
@@ -230,7 +230,7 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
   }
 
   // Rejected and with its requester, to correct and resubmit or cancel
-  if (row.request?.status === 'RETURNED') {
+  if (row.request?.status === 'REJECTED') {
     const reason = row.request.returnRemarks?.trim();
     const by = row.request.returnedFromStage === 2 ? 'by Department Head' : 'by Team Leader';
     const detail = [by ? `${by}:` : undefined, reason, shortDate(row.request.returnedAtGc)].filter(Boolean).join(' ');

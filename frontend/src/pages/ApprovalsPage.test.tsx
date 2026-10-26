@@ -200,13 +200,13 @@ describe('Approvals: rejecting', () => {
 
   it('lists a rejected receipt, still with its requester, under Rejected, with nothing for the approver to do', async () => {
     const user = userEvent.setup();
-    const rejected = { status: 'RETURNED', returnedBy: { fullNameEn: 'Getnet Taye' }, returnedFromStage: 1, returnedAtGc: '2026-10-21', returnRemarks: 'Price is entered as USD.' };
+    const rejected = { status: 'REJECTED', returnedBy: { fullNameEn: 'Getnet Taye' }, returnedFromStage: 1, returnedAtGc: '2026-10-21', returnRemarks: 'Price is entered as USD.' };
     vi.mocked(api.getApprovals).mockResolvedValue([receiptLine('A', 'Dell Latitude', rejected), receiptLine('B', 'HP Printer', rejected)] as any);
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     expect(screen.queryByRole('button', { name: /^Returned/ })).toBeNull();
     await user.click((await screen.findAllByRole('button', { name: /^Rejected/ }))[0]);
     const row = screen.getByText('Dell Latitude, HP Printer').closest('tr')!;
-    expect(within(row).getByText('Rejected · with requester')).toBeInTheDocument();
+    expect(within(row).getByText('Rejected')).toBeInTheDocument();
     expect(within(row).getByText(/^by Team Leader · 21 Oct/)).toBeInTheDocument();
     expect(within(row).getByText('Price is entered as USD.')).toBeInTheDocument();
     expect(within(row).queryByRole('button', { name: /Endorse|Reject/ })).toBeNull();

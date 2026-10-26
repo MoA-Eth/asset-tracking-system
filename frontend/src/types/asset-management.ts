@@ -40,8 +40,6 @@ export enum ApprovalStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
-  /** Rejected by an approver and with its requester: still open, corrected and resubmitted, or cancelled */
-  RETURNED = 'RETURNED',
   /** Withdrawn by its requester after it was rejected; closed, its record released */
   CANCELLED = 'CANCELLED',
 }
@@ -344,7 +342,7 @@ export interface VoucherSignatory {
 
 export interface Model19Voucher {
   /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
-  approvalState?: 'PENDING' | 'RETURNED' | 'REJECTED' | 'CANCELLED';
+  approvalState?: 'PENDING' | 'REJECTED' | 'CANCELLED';
   /** Who returned or rejected the request, when and why, printed under the banner */
   approvalNote?: string;
   invModel19No: string;
@@ -409,7 +407,7 @@ export interface MyAsset {
 
 export interface Model22Voucher {
   /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
-  approvalState?: 'PENDING' | 'RETURNED' | 'REJECTED' | 'CANCELLED';
+  approvalState?: 'PENDING' | 'REJECTED' | 'CANCELLED';
   /** Who returned or rejected the request, when and why, printed under the banner */
   approvalNote?: string;
   model22No: string;
@@ -436,7 +434,7 @@ export interface Model22Voucher {
 /** Printed record of a disposal request (Asset Disposal Certificate) */
 export interface DisposalVoucher {
   /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
-  approvalState?: 'PENDING' | 'RETURNED' | 'REJECTED' | 'CANCELLED';
+  approvalState?: 'PENDING' | 'REJECTED' | 'CANCELLED';
   /** Who returned or rejected the request, when and why, printed under the banner */
   approvalNote?: string;
   disposalNo: string;
@@ -498,7 +496,7 @@ export interface Model21LineItem {
 
 export interface Model21Voucher {
   /** Set when the request is not approved yet (or was rejected), so the printed copy says so */
-  approvalState?: 'PENDING' | 'RETURNED' | 'REJECTED' | 'CANCELLED';
+  approvalState?: 'PENDING' | 'REJECTED' | 'CANCELLED';
   /** Who returned or rejected the request, when and why, printed under the banner */
   approvalNote?: string;
   model21No: string;

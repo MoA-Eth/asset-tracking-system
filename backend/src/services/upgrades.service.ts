@@ -201,7 +201,7 @@ async function reopenRejectedReceipts(): Promise<void> {
           await tx.transactionApproval.update({
             where: { id: a.id },
             data: {
-              status: 'RETURNED' as any,
+              status: 'REJECTED' as any,
               currentStage: 1,
               returnedById: a.reviewedById,
               returnRemarks: reason,

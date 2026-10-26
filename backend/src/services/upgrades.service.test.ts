@@ -61,7 +61,7 @@ describe('startup upgrade: reopen old rejected receipts', () => {
     expect(db.transactionApproval.update).toHaveBeenCalledTimes(3);
     expect(db.transactionApproval.update.mock.calls[0][0]).toMatchObject({
       where: { id: 'A1' },
-      data: { status: 'RETURNED', currentStage: 1, returnedById: 'EMP-HEAD', returnRemarks: 'Price is entered as USD.', returnedAtGc: '2026-10-21', returnedFromStage: 2, reviewedById: null, endorsedById: null },
+      data: { status: 'REJECTED', currentStage: 1, returnedById: 'EMP-HEAD', returnRemarks: 'Price is entered as USD.', returnedAtGc: '2026-10-21', returnedFromStage: 2, reviewedById: null, endorsedById: null },
     });
     expect(db.transactionApproval.update.mock.calls[2][0].data).toMatchObject({ returnedById: 'EMP-TL', returnRemarks: 'Wrong Buyer Name', returnedFromStage: 1 });
     expect(db.item.update.mock.calls[0][0]).toMatchObject({ where: { id: 'I1' }, data: { status: 'PENDING_STOCK_IN', history: { create: { action: 'STOCK_IN_REOPENED' } } } });

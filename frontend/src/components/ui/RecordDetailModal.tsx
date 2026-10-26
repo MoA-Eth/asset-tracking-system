@@ -128,7 +128,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
       : ITEM_STATUS[item.status] ?? { label: item.status, tone: 'neutral' as const }
     : null;
   const requestStatus = approval
-    ? approval.status === 'RETURNED'
+    ? approval.status === 'REJECTED'
       ? { label: 'Rejected · with requester', tone: 'rejected' as const }
       : approval.status === 'CANCELLED'
       ? { label: 'Cancelled', tone: 'rejected' as const }
@@ -245,7 +245,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                       {approval.endorsementRemarks ? ` — ${approval.endorsementRemarks}` : ''}
                     </Row>
                   )}
-                  {approval.status === 'RETURNED' && (approval.returnedBy || approval.returnRemarks) && (
+                  {approval.status === 'REJECTED' && (approval.returnedBy || approval.returnRemarks) && (
                     <Row label="Rejected by">
                       {approval.returnedBy?.fullNameEn ?? '—'}
                       {approval.returnRemarks ? ` — ${approval.returnRemarks}` : ''}

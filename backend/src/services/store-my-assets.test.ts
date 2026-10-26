@@ -59,8 +59,8 @@ describe('My assets', () => {
     }
   });
 
-  it('shows a waiting transfer or return, also while it is returned for correction', async () => {
-    const open = (where: any) => Array.isArray(where.status?.in) && where.status.in.includes('PENDING') && where.status.in.includes('RETURNED');
+  it('shows a waiting transfer or return', async () => {
+    const open = (where: any) => Array.isArray(where.status?.in) && where.status.in.includes('PENDING');
     db.transactionApproval.findMany.mockImplementation(async ({ where }: any) => (open(where) ? [{ itemId: 'item-1', transactionType: 'RETURN', currentStage: 2 }] : []));
     const [asset] = await store().getMyAssets('EMP-ME');
     expect(asset.pendingRequest).toEqual({ type: 'RETURN', stage: 2 });

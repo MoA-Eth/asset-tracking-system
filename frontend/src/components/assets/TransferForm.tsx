@@ -582,7 +582,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             storeRecipientId: receiverId || undefined,
             targetStoreLocationId: returnToId,
           });
-          toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} to store was corrected. ${editTransfer.status === 'RETURNED' ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`);
+          toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} to store was corrected. ${editTransfer.status === 'REJECTED' ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`);
           onSaved();
           return;
         }
@@ -772,7 +772,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           transferredByEmployeeId: transferredById || undefined,
           ifmisSlipDateGc: transferDateGc,
         });
-        toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} was corrected. ${editTransfer.status === 'RETURNED' ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`);
+        toast.success('Transfer updated', `The transfer of ${editTransfer.itemCode} was corrected. ${editTransfer.status === 'REJECTED' ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`);
         onSaved();
         return;
       }
@@ -1512,7 +1512,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       <FormFooter
         accent="emerald"
         submitting={submitting}
-        submitLabel={editTransfer ? (editTransfer.status === 'RETURNED' ? 'Save and resubmit' : 'Save changes') : isReturn ? 'Submit return to store for approval' : 'Submit transfer for approval'}
+        submitLabel={editTransfer ? (editTransfer.status === 'REJECTED' ? 'Save and resubmit' : 'Save changes') : isReturn ? 'Submit return to store for approval' : 'Submit transfer for approval'}
         missingFields={missingFields}
         fieldTargets={{ quantity: '#transfer-quantity', recipient: '#transfer-recipient', 'store man': '#transfer-store-man', 'signed copy': '#transfer-signed-copy input[type=file]' }}
         onCancel={onCancel}
@@ -1592,7 +1592,7 @@ export const buildModel21Voucher = async (
   });
 
   return {
-    approvalState: r.status === ApprovalStatus.PENDING ? 'PENDING' : r.status === ApprovalStatus.RETURNED ? 'RETURNED' : r.status === ApprovalStatus.REJECTED ? 'REJECTED' : r.status === ApprovalStatus.CANCELLED ? 'CANCELLED' : undefined,
+    approvalState: r.status === ApprovalStatus.PENDING ? 'PENDING' : r.status === ApprovalStatus.REJECTED ? 'REJECTED' : r.status === ApprovalStatus.CANCELLED ? 'CANCELLED' : undefined,
     approvalNote: approvalNoteOf(r),
     model21No: r.ifmisSlipNumber || '—',
     fromEmployeeName: fromName,

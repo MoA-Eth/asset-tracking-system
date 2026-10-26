@@ -38,6 +38,6 @@ export function useSlipRegister() {
 /** "Already used for MOA-IT-2026-0007 (issue, pending)" */
 export function usedMessage(number: string, used: TransactionApproval): string {
   const kind = used.transactionType === 'STOCK_OUT' ? 'issue' : used.transactionType === 'RETURN' ? 'return to store' : used.transactionType.toLowerCase();
-  const state = used.status === 'PENDING' ? 'pending' : used.status === 'RETURNED' ? 'rejected, to correct or cancel' : used.status.toLowerCase();
+  const state = used.status === 'PENDING' ? 'pending' : used.status === 'REJECTED' ? 'rejected, to correct or cancel' : used.status.toLowerCase();
   return `${number.trim()} is already used for ${used.itemCode} (${kind}, ${state}). Check the number on the slip.`;
 }

@@ -95,7 +95,7 @@ const TYPE_TEXT: Record<string, { label: string; approved: string }> = {
   STOCK_IN: { label: 'Model 19 receipt', approved: 'The item is now available in store.' },
   STOCK_OUT: { label: 'Model 22 issue', approved: 'Asset is now ISSUED to staff custodian.' },
   TRANSFER: { label: 'Model 21 Transfer', approved: 'Custody has moved to the new custodian.' },
-  RETURN: { label: 'Model 21 Return', approved: 'Asset is now RETURNED to store inventory.' },
+  RETURN: { label: 'Model 21 Return', approved: 'Asset is now returned to store inventory.' },
   DISPOSAL: { label: 'Disposal request', approved: 'The asset is now recorded as DISPOSED.' },
 };
 // A Model 22 can be a disposal (write-off) instead of an issue
@@ -243,8 +243,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     const stage1 = pending.filter((a) => (a.currentStage ?? 1) === 1);
     const stage2 = pending.filter((a) => a.currentStage === 2);
     const approved = rows.filter((a) => a.status === ApprovalStatus.APPROVED);
-    // Rejected: with the requester to correct (RETURNED), or closed before rejections went back to the requester
-    const rejected = rows.filter((a) => a.status === ApprovalStatus.REJECTED || a.status === ApprovalStatus.RETURNED);
+    const rejected = rows.filter((a) => a.status === ApprovalStatus.REJECTED);
 
     let myQueueCount = 0;
     if (canEndorse && canApprove) {
@@ -296,7 +295,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       } else if (activeTab === 'APPROVED') {
         if (item.status !== ApprovalStatus.APPROVED) return false;
       } else if (activeTab === 'REJECTED') {
-        if (item.status !== ApprovalStatus.REJECTED && item.status !== ApprovalStatus.RETURNED) return false;
+        if (item.status !== ApprovalStatus.REJECTED) return false;
       }
 
       // 2. Type Filter
@@ -589,17 +588,15 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const getStageIndicator = (appr: TransactionApproval) => {
     // Decided or returned: the outcome, who by (their role) and when, and the reason on one line; the rest on hover
     if (appr.status !== ApprovalStatus.PENDING) {
-      // Rejected now: with its requester (RETURNED); rejected and closed before; or cancelled by its requester
-      const withRequester = appr.status === ApprovalStatus.RETURNED;
       const cancelled = appr.status === ApprovalStatus.CANCELLED;
-      const rejected = withRequester || appr.status === ApprovalStatus.REJECTED;
-      const person = withRequester ? appr.returnedBy : appr.reviewedBy;
-      const stage = withRequester ? appr.returnedFromStage : appr.status === ApprovalStatus.APPROVED ? 2 : appr.currentStage;
+      const rejected = appr.status === ApprovalStatus.REJECTED;
+      const person = appr.returnedBy || appr.reviewedBy;
+      const stage = appr.returnedFromStage || (appr.status === ApprovalStatus.APPROVED ? 2 : appr.currentStage);
       const by = cancelled ? 'the requester' : deciderRole(person?.role, stage);
-      const date = withRequester ? appr.returnedAtGc : appr.reviewedAtGc;
-      const reason = (withRequester ? appr.returnRemarks : rejected || cancelled ? appr.reviewRemarks : undefined)?.trim();
+      const date = appr.returnedAtGc || appr.reviewedAtGc;
+      const reason = (appr.returnRemarks || appr.reviewRemarks)?.trim();
       const tone = rejected
-        ? { badge: 'bg-rose-50 text-rose-700 border-rose-200', text: 'text-rose-700', icon: <XCircle className="w-3 h-3 text-rose-600" />, label: withRequester ? 'Rejected · with requester' : 'Rejected' }
+        ? { badge: 'bg-rose-50 text-rose-700 border-rose-200', text: 'text-rose-700', icon: <XCircle className="w-3 h-3 text-rose-600" />, label: 'Rejected' }
         : cancelled
           ? { badge: 'bg-slate-100 text-slate-700 border-slate-300', text: 'text-slate-600', icon: <XCircle className="w-3 h-3 text-slate-500" />, label: 'Cancelled' }
           : { badge: 'bg-emerald-50 text-emerald-800 border-emerald-200', text: '', icon: <CheckCircle2 className="w-3 h-3 text-emerald-700" />, label: 'Approved' };

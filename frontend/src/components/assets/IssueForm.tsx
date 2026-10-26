@@ -552,7 +552,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           purpose: purpose.trim() || undefined,
           remark: remark.trim() || undefined,
         });
-        toast.success('Issue request updated', `The request for ${editApproval.itemCode} was corrected. ${editApproval.status === 'RETURNED' ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`);
+        toast.success('Issue request updated', `The request for ${editApproval.itemCode} was corrected. ${editApproval.status === 'REJECTED' ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`);
         onSuccess(res.approval);
       } catch (err: any) {
         setFormError(`Update failed: ${err.message || 'Server error'}`);
@@ -1043,7 +1043,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         submitting={submitting}
         submitLabel={
           isEdit
-            ? editApproval?.status === 'RETURNED' ? 'Save and resubmit' : 'Save changes'
+            ? editApproval?.status === 'REJECTED' ? 'Save and resubmit' : 'Save changes'
             : isDisposal
               ? rows.length > 1 ? `Submit disposal of ${rows.length} items for approval` : 'Submit disposal for approval'
               : rows.length > 1 ? `Submit ${rows.length} items for approval` : 'Submit for approval'
@@ -1114,7 +1114,7 @@ export const buildModel22Voucher = (
   const transportationCost = lines.reduce((sum, l) => sum + l.transportationCost, 0);
 
   return {
-    approvalState: approval.status === 'PENDING' ? 'PENDING' : approval.status === 'RETURNED' ? 'RETURNED' : approval.status === 'REJECTED' ? 'REJECTED' : approval.status === 'CANCELLED' ? 'CANCELLED' : undefined,
+    approvalState: approval.status === 'PENDING' ? 'PENDING' : approval.status === 'REJECTED' ? 'REJECTED' : approval.status === 'CANCELLED' ? 'CANCELLED' : undefined,
     approvalNote: approvalNoteOf(approval),
     model22No: approval.ifmisSlipNumber || '',
     issuedDateGc,

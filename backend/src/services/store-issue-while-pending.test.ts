@@ -140,7 +140,7 @@ describe('deciding one issue while another waits on the same record', () => {
   // CANCEL: the first issue was rejected, and its requester withdraws it
   const decide = (action: 'APPROVE' | 'CANCEL', quantity: number) => {
     const approval = {
-      id: 'first-issue', transactionType: 'STOCK_OUT', status: action === 'CANCEL' ? 'RETURNED' : 'PENDING', currentStage: action === 'CANCEL' ? 1 : 2, itemId: item.id, itemCode: item.itemCode, itemName: item.name,
+      id: 'first-issue', transactionType: 'STOCK_OUT', status: action === 'CANCEL' ? 'REJECTED' : 'PENDING', currentStage: action === 'CANCEL' ? 1 : 2, itemId: item.id, itemCode: item.itemCode, itemName: item.name,
       ifmisSlipNumber: '0000201/A', purposeOrRemarks: 'Field office', requestedById: 'EMP-ENC', recipientEmployeeId: 'EMP-B', targetDepartmentId: 'DEP-2',
       requestDetails: { quantity, uom: 'EA' },
     };
@@ -202,7 +202,7 @@ describe('deciding one issue while another waits on the same record', () => {
 
   it('a rejected issue is resubmitted only if it still fits: the requester is asked to lower the quantity', async () => {
     db.transactionApproval.findMany.mockResolvedValueOnce([{
-      id: 'second-issue', transactionType: 'STOCK_OUT', status: 'RETURNED', itemId: item.id, itemCode: item.itemCode, ifmisSlipNumber: '0000202/A',
+      id: 'second-issue', transactionType: 'STOCK_OUT', status: 'REJECTED', itemId: item.id, itemCode: item.itemCode, ifmisSlipNumber: '0000202/A',
       requestDetails: { quantity: 30 }, item: { itemCode: item.itemCode, status: 'PENDING_STOCK_OUT', notes: JSON.stringify({ quantity: 20, uom: 'EA' }) },
     }]);
     await expect(store().resubmitReturned({ approvalIds: ['second-issue'] }, 'EMP-ENC')).rejects.toThrow('fewer than the 30 on this Model 22: another issue was approved first. Lower the quantity, or cancel the request.');
@@ -211,7 +211,7 @@ describe('deciding one issue while another waits on the same record', () => {
   it('a correction is refused once another issue took the whole record', async () => {
     item = { ...chairs, status: 'ISSUED' };
     db.transactionApproval.findUnique.mockResolvedValue({
-      id: 'second-issue', transactionType: 'STOCK_OUT', status: 'RETURNED', currentStage: 1, itemId: item.id, itemCode: item.itemCode,
+      id: 'second-issue', transactionType: 'STOCK_OUT', status: 'REJECTED', currentStage: 1, itemId: item.id, itemCode: item.itemCode,
       ifmisSlipNumber: '0000202/A', purposeOrRemarks: 'New staff', recipientEmployeeId: 'EMP-A', targetDepartmentId: 'DEP-1', requestDetails: { quantity: 10, uom: 'EA' },
     });
     await expect(store().updateStockOut('second-issue', { ifmisSlipNumber: '0000202/A', purpose: 'New staff', recipientEmployeeId: 'EMP-A', targetDepartmentId: 'DEP-1', quantity: 10 } as any, 'EMP-ENC'))
