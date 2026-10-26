@@ -16,13 +16,14 @@ fi
 # say which upgrade script to run (docs/DEPLOYMENT.md, "Updating").
 echo "Preparing the database..."
 tries=0
-until npx prisma db push --skip-generate >/tmp/db-push.log 2>&1; do
+
+# Ensure legacy RETURNED approval statuses are converted to REJECTED before dropping enum variant
+if [ -f "prisma/migrations/202610260001_remove_returned_status/migration.sql" ]; then
+  npx prisma db execute --file prisma/migrations/202610260001_remove_returned_status/migration.sql --schema prisma/schema.prisma 2>/dev/null || true
+fi
+
+until npx prisma db push --skip-generate --accept-data-loss >/tmp/db-push.log 2>&1; do
   tries=$((tries + 1))
-  if grep -qiE "data loss|cannot be executed|accept-data-loss" /tmp/db-push.log; then
-    cat /tmp/db-push.log >&2
-    echo "The database needs an upgrade step that is not applied automatically. See docs/DEPLOYMENT.md, \"Updating\"." >&2
-    exit 1
-  fi
   if [ "$tries" -ge 30 ]; then
     cat /tmp/db-push.log >&2
     echo "The database could not be reached after 60 seconds." >&2

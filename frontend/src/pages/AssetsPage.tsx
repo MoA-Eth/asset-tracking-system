@@ -390,6 +390,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       else onTransfers.set(a.itemId, (onTransfers.get(a.itemId) ?? 0) + (Number(a.requestDetails?.quantity) || 1));
     }
     return items.filter((i) => {
+      if (i.status !== ItemStatus.AVAILABLE && i.status !== ItemStatus.ISSUED && i.status !== ItemStatus.UNDER_TRANSFER) return false;
       if (blocked.has(i.id)) return false;
       if (i.heldByOrganization) return false;
       if (i.itemType === 'CONSUMABLE' && i.status !== ItemStatus.AVAILABLE) return false;
