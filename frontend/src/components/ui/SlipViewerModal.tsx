@@ -97,7 +97,7 @@ const browserShowsPdf = () => typeof navigator === 'undefined' || (navigator as 
 const MAX_DRAWN_PAGES = 10;
 
 /** A PDF drawn page by page by the app (pdf.js), for browsers without a PDF viewer of their own */
-const PdfPages: React.FC<{ objectUrl: string; fileName: string; heightClass: string }> = ({ objectUrl, fileName, heightClass }) => {
+const PdfPages: React.FC<{ objectUrl: string; fileName: string; heightClass: string; what?: string }> = ({ objectUrl, fileName, heightClass, what = 'IFMIS slip' }) => {
   const [pages, setPages] = useState<string[] | null>(null);
   const [total, setTotal] = useState(0);
   const [failed, setFailed] = useState(false);
@@ -154,7 +154,7 @@ const PdfPages: React.FC<{ objectUrl: string; fileName: string; heightClass: str
   }
   if (!pages) return <DocumentSkeleton heightClass={heightClass} />;
   return (
-    <div className={`overflow-y-auto bg-slate-100 p-2 space-y-2 ${heightClass}`} aria-label={`IFMIS slip ${fileName}`}>
+    <div className={`overflow-y-auto bg-slate-100 p-2 space-y-2 ${heightClass}`} aria-label={`${what} ${fileName}`}>
       {pages.map((src, i) => (
         <img key={i} src={src} alt={`${fileName}, page ${i + 1} of ${total}`} className="block w-full bg-white shadow-sm" />
       ))}
@@ -168,22 +168,23 @@ const PdfPages: React.FC<{ objectUrl: string; fileName: string; heightClass: str
 };
 
 /** The slip itself: the PDF in the browser's own viewer (or drawn by the app where there is none), or the image */
-export const SlipContent: React.FC<{ state: SlipState; fileName: string; heightClass?: string }> = ({ state, fileName, heightClass = 'h-[78vh]' }) => (
+/** `what` names the document for screen readers: an IFMIS slip by default */
+export const SlipContent: React.FC<{ state: SlipState; fileName: string; heightClass?: string; what?: string }> = ({ state, fileName, heightClass = 'h-[78vh]', what = 'IFMIS slip' }) => (
   <>
     {state.status === 'loading' && (
       <DocumentSkeleton heightClass={heightClass} />
     )}
 
     {state.status === 'ready' && state.kind === 'image' && (
-      <img src={state.objectUrl} alt={`IFMIS slip ${fileName}`} className="block mx-auto object-contain max-h-[78vh]" />
+      <img src={state.objectUrl} alt={`${what} ${fileName}`} className="block mx-auto object-contain max-h-[78vh]" />
     )}
 
     {state.status === 'ready' && state.kind === 'pdf' && browserShowsPdf() && (
-      <iframe src={`${state.objectUrl}${PDF_OPEN}`} title={`IFMIS slip ${fileName}`} className={`w-full border-0 bg-white ${heightClass}`} />
+      <iframe src={`${state.objectUrl}${PDF_OPEN}`} title={`${what} ${fileName}`} className={`w-full border-0 bg-white ${heightClass}`} />
     )}
 
     {state.status === 'ready' && state.kind === 'pdf' && !browserShowsPdf() && (
-      <PdfPages objectUrl={state.objectUrl} fileName={fileName} heightClass={heightClass} />
+      <PdfPages objectUrl={state.objectUrl} fileName={fileName} heightClass={heightClass} what={what} />
     )}
 
     {state.status === 'missing' && (

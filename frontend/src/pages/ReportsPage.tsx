@@ -28,8 +28,11 @@ import { downloadCsv } from '../utils/csv';
 import { useToast } from '../context/ToastContext';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
 import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../components/ui/FilterPopover';
-import { RecordDetailModal } from '../components/ui/RecordDetailModal';
+import { RecordPdfViewer } from '../components/reports/RecordPdfViewer';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
+import { ReportPdfViewer } from '../components/reports/ReportPdfViewer';
+import { buildReportPdf } from '../utils/report-pdf';
+import { useAuth } from '../context/AuthContext';
 import { CATEGORY_OPTIONS } from '../components/assets/asset-state';
 import { isGeneratedSerialNumber, displaySerialNumber } from '../utils/asset-tag';
 
@@ -65,6 +68,10 @@ export const ReportsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [viewerSlipUrl, setViewerSlipUrl] = useState<string | null>(null);
+  // The report as a PDF, shown in the viewer
+  const [reportPdf, setReportPdf] = useState<File | null>(null);
+  const [buildingPdf, setBuildingPdf] = useState(false);
+  const { user } = useAuth();
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -445,111 +452,55 @@ export const ReportsPage: React.FC = () => {
     }
   };
 
-  // PDF Export handler
+  // PDF: the formatted report, shown in the viewer (Download and the browser's print are there)
   const handleExportPDF = async () => {
     if (filteredItems.length === 0) {
       toast.warning('No Records', 'There are no asset records matching current filters to export.');
       return;
     }
-
+    if (buildingPdf) return;
+    setBuildingPdf(true);
     try {
-      // The PDF library is large, so it is loaded only when someone exports
-      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
-      const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'pt',
-        format: 'a4',
+      const category = selectedCategory === 'ALL' ? 'All categories' : CATEGORY_OPTIONS.find((c) => c.value === selectedCategory)?.label ?? selectedCategory.replace(/_/g, ' ');
+      const location = selectedLocation === 'ALL' ? 'All stores' : storeLocationLabel(locations.find((l) => l.id === selectedLocation));
+      const blob = await buildReportPdf({
+        title: `Asset Register: ${getReportTypeLabel()}`,
+        summary: [
+          ['Period', getTimeframeLabel()],
+          ['Category', category],
+          ['Store or location', location],
+          ['Registrations', String(filteredItems.length)],
+          ['Units received', unitTotals.total.toLocaleString()],
+          ['Units issued', unitTotals.issued.toLocaleString()],
+          ['Units in store', unitTotals.available.toLocaleString()],
+          ['Total valuation', formatETB(totalValuation)],
+        ],
+        head: ['#', 'Code', 'Asset', 'Category', 'Status', 'Received', 'Issued', 'In store', 'Date (E.C.)', 'Held by / where', 'Unit cost (ETB)'],
+        rows: filteredItems.map((item, idx) => [
+          String(idx + 1),
+          item.itemCode,
+          item.name,
+          CATEGORY_OPTIONS.find((c) => c.value === item.category)?.label ?? item.category.replace(/_/g, ' '),
+          statusLabel(item),
+          String(balanceOf(item).total),
+          String(balanceOf(item).issued),
+          String(balanceOf(item).available),
+          item.ifmisSlipDateEc || item.createdAtEc || '',
+          item.currentCustodian?.fullNameEn || item.heldByOrganization || item.assignedDepartment?.nameEn || storeLocationLabel(item.storeLocation),
+          formatETB(costOf(item)).replace(/^ETB\s*/, ''),
+        ]),
+        totals: ['', 'Total', `${filteredItems.length} registrations`, '', '', String(unitTotals.total), String(unitTotals.issued), String(unitTotals.available), '', 'Valuation', formatETB(totalValuation).replace(/^ETB\s*/, '')],
+        numeric: [0, 5, 6, 7, 10],
+        widths: { 0: 24, 1: 82, 3: 92, 4: 62, 5: 46, 6: 40, 7: 44, 8: 60, 10: 74 },
+        dateGc: dateInfo.gc,
+        dateEc: dateInfo.ecFormattedEn,
+        preparedBy: user?.fullNameEn,
       });
-
-      const pw = doc.internal.pageSize.width;
-
-      // Header Band (#0A3F24 Ethiopian MoA Dark Emerald)
-      doc.setFillColor(10, 63, 36);
-      doc.rect(0, 0, pw, 44, 'F');
-
-      // Tricolor Ribbon
-      doc.setFillColor(7, 137, 48);
-      doc.rect(0, 44, pw / 3, 3, 'F');
-      doc.setFillColor(252, 221, 9);
-      doc.rect(pw / 3, 44, pw / 3, 3, 'F');
-      doc.setFillColor(218, 18, 26);
-      doc.rect((pw * 2) / 3, 44, pw / 3, 3, 'F');
-
-      // Header Text
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA', 24, 18);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text('MINISTRY OF AGRICULTURE (MoA) • ASSET TRACKING SYSTEM', 24, 32);
-
-      doc.setFontSize(8);
-      doc.text(`Generated: ${dateInfo.gc} (G.C.) / ${dateInfo.ecFormattedAm}`, pw - 24, 25, { align: 'right' });
-
-      // Report Title & Period Subheader
-      doc.setTextColor(15, 23, 42);
-      doc.setFontSize(13);
-      doc.setFont('helvetica', 'bold');
-      doc.text(getReportTypeLabel(), 24, 68);
-
-      doc.setFontSize(8.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(71, 85, 105);
-      doc.text(
-        `Timeframe: ${getTimeframeLabel()}  |  Category: ${selectedCategory.replace(/_/g, ' ')}  |  Registrations: ${filteredItems.length}  |  Units: ${unitTotals.total} received, ${unitTotals.issued} issued, ${unitTotals.available} in store  |  Total Valuation: ${formatETB(totalValuation)}`,
-        24,
-        82
-      );
-
-      const tableHead = [['#', 'Tracking Code', 'Asset Name', 'Category', 'Status', 'Received', 'Issued', 'In Store', 'IFMIS Slip #', 'Date (E.C.)', 'Custodian / Dept', 'Unit Cost (ETB)']];
-      const tableBody = filteredItems.map((item, idx) => [
-        idx + 1,
-        item.itemCode,
-        item.name,
-        item.category.replace(/_/g, ' '),
-        statusLabel(item),
-        balanceOf(item).total,
-        balanceOf(item).issued,
-        balanceOf(item).available,
-        item.ifmisSlipNumber,
-        item.ifmisSlipDateEc || item.createdAtEc,
-        item.currentCustodian?.fullNameEn || item.heldByOrganization || item.assignedDepartment?.nameEn || storeLocationLabel(item.storeLocation),
-        formatETB(costOf(item)),
-      ]);
-
-      autoTable(doc, {
-        head: tableHead,
-        body: tableBody,
-        startY: 92,
-        theme: 'grid',
-        headStyles: { fillColor: [10, 63, 36], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-        bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59] },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        margin: { left: 24, right: 24 },
-      });
-
-      const pageCount = (doc as any).internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(7.5);
-        doc.setTextColor(148, 163, 184);
-        doc.text(
-          `Federal Democratic Republic of Ethiopia • Ministry of Agriculture • Page ${i} of ${pageCount}`,
-          pw / 2,
-          doc.internal.pageSize.height - 10,
-          { align: 'center' }
-        );
-      }
-
-      doc.save(`MoA_Asset_Report_${reportType}_${dateInfo.gc.replace(/\s+/g, '_')}.pdf`);
-
-      toast.success(
-        'PDF Report Generated',
-        `Official statutory summary (${filteredItems.length} records) downloaded.`
-      );
+      setReportPdf(new File([blob], `MoA_Asset_Report_${reportType}_${dateInfo.gc}.pdf`, { type: 'application/pdf' }));
     } catch (err: any) {
       toast.error('PDF Export Failed', err.message || 'Failed to render PDF document.');
+    } finally {
+      setBuildingPdf(false);
     }
   };
 
@@ -916,11 +867,12 @@ export const ReportsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleExportPDF}
-                  title="Generate official statutory PDF report"
+                  disabled={buildingPdf}
+                  title="View the report as a formatted PDF, to print or download"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-[4px] border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-semibold shadow-2xs transition cursor-pointer select-none"
                 >
                   <FileDown className="w-3.5 h-3.5 text-slate-500" />
-                  <span>PDF</span>
+                  <span>{buildingPdf ? 'Preparing…' : 'PDF'}</span>
                 </button>
               </div>
             </div>
@@ -1115,17 +1067,17 @@ export const ReportsPage: React.FC = () => {
         </div>
 {/* Data Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-[13px] min-w-[1140px]">
+          <table className="w-full text-left text-[13px]">
             <thead className={table.headRow}>
               <tr>
-                <th className="py-1.5 px-3 w-10 text-center shrink-0 font-normal">#</th>
+                <th className="hidden sm:table-cell py-1.5 px-3 w-10 text-center shrink-0 font-normal">#</th>
                 <SortableHeader
                   label="Code"
                   columnKey="code"
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
-                  thClassName="py-1.5 px-3 w-32 shrink-0 whitespace-nowrap"
+                  thClassName="hidden 2xl:table-cell py-1.5 px-3 w-32 shrink-0 whitespace-nowrap"
                 />
                 <SortableHeader
                   label="Asset"
@@ -1133,7 +1085,7 @@ export const ReportsPage: React.FC = () => {
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
-                  thClassName="py-1.5 px-3 min-w-[180px] max-w-[260px]"
+                  thClassName="py-1.5 px-3 min-w-[140px] max-w-[260px]"
                 />
                 <SortableHeader
                   label="Category"
@@ -1141,7 +1093,7 @@ export const ReportsPage: React.FC = () => {
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
-                  thClassName="py-1.5 px-3 w-28 shrink-0 whitespace-nowrap"
+                  thClassName="hidden 2xl:table-cell py-1.5 px-3 w-28 shrink-0 whitespace-nowrap"
                 />
                 <SortableHeader
                   label="Status"
@@ -1169,7 +1121,7 @@ export const ReportsPage: React.FC = () => {
                   onSort={handleSort}
                   align="right"
                   title="Sort by Units with custodians"
-                  thClassName="py-1.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
+                  thClassName="hidden md:table-cell py-1.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
                 />
                 <SortableHeader
                   label="In store"
@@ -1179,15 +1131,7 @@ export const ReportsPage: React.FC = () => {
                   onSort={handleSort}
                   align="right"
                   title="Sort by Units in store"
-                  thClassName="py-1.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
-                />
-                <SortableHeader
-                  label="IFMIS slip"
-                  columnKey="slip"
-                  currentSortColumn={sortColumn}
-                  currentSortDirection={sortDirection}
-                  onSort={handleSort}
-                  thClassName="py-1.5 px-3 w-32 shrink-0 whitespace-nowrap"
+                  thClassName="hidden md:table-cell py-1.5 px-3 w-16 shrink-0 text-right whitespace-nowrap"
                 />
                 <SortableHeader
                   label="Date (E.C.)"
@@ -1195,7 +1139,7 @@ export const ReportsPage: React.FC = () => {
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
-                  thClassName="py-1.5 px-3 w-28 shrink-0 whitespace-nowrap"
+                  thClassName="hidden 2xl:table-cell py-1.5 px-3 w-28 shrink-0 whitespace-nowrap"
                 />
                 <SortableHeader
                   label="Custodian / location"
@@ -1203,7 +1147,7 @@ export const ReportsPage: React.FC = () => {
                   currentSortColumn={sortColumn}
                   currentSortDirection={sortDirection}
                   onSort={handleSort}
-                  thClassName="py-1.5 px-3 min-w-[150px] max-w-[220px]"
+                  thClassName="hidden md:table-cell py-1.5 px-3 max-w-[180px]"
                 />
                 <SortableHeader
                   label="Unit cost & value"
@@ -1220,7 +1164,7 @@ export const ReportsPage: React.FC = () => {
             <tbody className="divide-y divide-slate-200">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-16 text-center text-slate-400 space-y-1">
+                  <td colSpan={12} className="py-16 text-center text-slate-400 space-y-1">
                     <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto" />
                     <p className="font-bold text-slate-700 text-sm">No Assets Found</p>
                     <p className="text-xs text-slate-400">
@@ -1241,16 +1185,17 @@ export const ReportsPage: React.FC = () => {
                       title="Click to view complete asset details and voucher history"
                       className="hover:bg-slate-50/80 transition cursor-pointer select-none group"
                     >
-                      <td className="py-2 px-3 text-center text-slate-400 tabular-nums text-xs w-10 shrink-0">
+                      <td className="hidden sm:table-cell py-2 px-3 text-center text-slate-400 tabular-nums text-xs w-10 shrink-0">
                         {pager.from + idx}
                       </td>
-                      <td className="py-2 px-3 tabular-nums text-slate-700 whitespace-nowrap w-32 shrink-0">
+                      <td className="hidden 2xl:table-cell py-2 px-3 tabular-nums text-slate-700 whitespace-nowrap w-32 shrink-0">
                         {item.itemCode}
                       </td>
-                      <td className="py-2 px-3 min-w-[180px] max-w-[260px]">
+                      <td className="py-2 px-3 min-w-[140px] max-w-[260px]">
                         <div className="text-slate-900 truncate" title={item.name}>
                           {item.name}
                         </div>
+                        <div className="2xl:hidden text-[11px] text-slate-500 tabular-nums">{item.itemCode}</div>
                         {item.serialNumber && !isGeneratedSerialNumber(item.serialNumber) && (
                           <div
                             className="text-xs text-slate-500 truncate"
@@ -1260,7 +1205,7 @@ export const ReportsPage: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td className="py-2 px-3 text-slate-600 whitespace-nowrap w-28 shrink-0">
+                      <td className="hidden 2xl:table-cell py-2 px-3 text-slate-600 whitespace-nowrap w-28 shrink-0">
                         {item.itemCategoryDisplay || CATEGORY_OPTIONS.find((o) => o.value === item.category)?.label || item.category}
                       </td>
                       <td className="py-2 px-3 whitespace-nowrap w-28 shrink-0">
@@ -1281,34 +1226,16 @@ export const ReportsPage: React.FC = () => {
                       <td className="py-2 px-3 text-right tabular-nums text-slate-900 whitespace-nowrap w-16 shrink-0">
                         {balanceOf(item).total} <span className="text-slate-500">{(item.uom || 'EA').toLowerCase()}</span>
                       </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-slate-700 whitespace-nowrap w-16 shrink-0">
+                      <td className="hidden md:table-cell py-2 px-3 text-right tabular-nums text-slate-700 whitespace-nowrap w-16 shrink-0">
                         {balanceOf(item).issued}
                       </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-emerald-800 whitespace-nowrap w-16 shrink-0">
+                      <td className="hidden md:table-cell py-2 px-3 text-right tabular-nums text-emerald-800 whitespace-nowrap w-16 shrink-0">
                         {balanceOf(item).available}
                       </td>
-                      <td className="py-2 px-3 tabular-nums text-slate-700 whitespace-nowrap w-32 shrink-0">
-                        {item.ifmisSlipAttachmentUrl ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setViewerSlipUrl(item.ifmisSlipAttachmentUrl!);
-                            }}
-                            title={`Preview or download attached voucher for slip ${item.ifmisSlipNumber}`}
-                            className="inline-flex items-center gap-1 font-mono text-emerald-800 hover:text-emerald-950 hover:underline cursor-pointer"
-                          >
-                            <FileText className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                            <span>{item.ifmisSlipNumber}</span>
-                          </button>
-                        ) : (
-                          <span className="font-mono">{item.ifmisSlipNumber}</span>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 tabular-nums text-slate-600 whitespace-nowrap w-28 shrink-0">
+                      <td className="hidden 2xl:table-cell py-2 px-3 tabular-nums text-slate-600 whitespace-nowrap w-28 shrink-0">
                         {item.ifmisSlipDateEc || item.createdAtEc}
                       </td>
-                      <td className="py-2 px-3 text-slate-700 min-w-[150px] max-w-[220px]">
+                      <td className="hidden md:table-cell py-2 px-3 text-slate-700 max-w-[180px]">
                         {item.currentCustodian ? (
                           <div
                             className="text-slate-900 truncate"
@@ -1425,11 +1352,16 @@ export const ReportsPage: React.FC = () => {
       </div>
 
 
-      {/* ── Asset Detail Modal (Full specs, approval timeline, custody and vouchers) ── */}
-      {selectedItemId && (
-        <RecordDetailModal
-          itemId={selectedItemId}
-          onClose={() => setSelectedItemId(null)}
+      {/* ── An item's record, as a formatted PDF ── */}
+      {selectedItemId && <RecordPdfViewer itemId={selectedItemId} onClose={() => setSelectedItemId(null)} />}
+
+      {/* ── The report as a PDF ── */}
+      {reportPdf && (
+        <ReportPdfViewer
+          file={reportPdf}
+          title={`Asset Register: ${getReportTypeLabel()}`}
+          subtitle={`${getTimeframeLabel()} · ${filteredItems.length} registrations · ${dateInfo.ecFormattedEn}`}
+          onClose={() => setReportPdf(null)}
         />
       )}
 

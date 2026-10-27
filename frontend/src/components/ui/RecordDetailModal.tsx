@@ -47,6 +47,20 @@ const ITEM_STATUS: Record<string, { label: string; tone: keyof typeof statusTone
   [ItemStatus.REJECTED]: { label: 'Rejected', tone: 'rejected' },
 };
 
+/** An item's status as shown to people: "Partly issued" when some units are out and some still in store */
+export const itemStatusOf = (item: ItemWithRelations): { label: string; tone: keyof typeof statusTone } => {
+  const b = item.balance;
+  if (b && b.issued > 0 && b.available > 0) return { label: 'Partly issued', tone: 'partly' };
+  return ITEM_STATUS[item.status] ?? { label: item.status, tone: 'neutral' };
+};
+
+/** An item's total valuation: the recorded total, or unit price × units plus VAT or additional charges */
+export const itemValuation = (item: ItemWithRelations): number => {
+  if (item.totalAmount && Number(item.totalAmount) > 0) return Number(item.totalAmount);
+  const base = (item.unitCostETB || 0) * (item.balance?.total || item.quantity || 1);
+  return base + (item.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : Number(item.additionalCharges) || 0);
+};
+
 /** Label / value pair; empty values show a dash */
 export const Row: React.FC<{ label: string; children?: React.ReactNode; mono?: boolean }> = ({ label, children, mono }) => (
   <div className="flex items-start justify-between gap-3 py-1.5 border-b border-slate-100 last:border-b-0">
@@ -121,12 +135,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
   const d = approval?.requestDetails;
   const uom = d?.uom || approval?.itemUom || item?.uom || 'EA';
   const b = item?.balance;
-  const partly = !!b && b.issued > 0 && b.available > 0;
-  const itemStatus = item
-    ? partly
-      ? { label: 'Partly issued', tone: 'partly' as const }
-      : ITEM_STATUS[item.status] ?? { label: item.status, tone: 'neutral' as const }
-    : null;
+  const itemStatus = item ? itemStatusOf(item) : null;
   const requestStatus = approval
     ? approval.status === 'REJECTED'
       ? { label: 'Rejected · with requester', tone: 'rejected' as const }
@@ -282,15 +291,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
                   <Row label="Addl charges">{formatETB(Number(item.additionalCharges))}</Row>
                 )}
                 <Row label="Total valuation">
-                  {formatETB(
-                    item.totalAmount && Number(item.totalAmount) > 0
-                      ? Number(item.totalAmount)
-                      : (() => {
-                          const base = (item.unitCostETB || 0) * (b?.total || item.quantity || 1);
-                          const vat = item.vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
-                          return base + (item.vatApplicable ? vat : Number(item.additionalCharges) || 0);
-                        })()
-                  )}
+                  {formatETB(itemValuation(item))}
                 </Row>
                 <Row label="Serial number" mono>{displaySerialNumber(item.serialNumber)}</Row>
                 <Row label="Store">{item.storeLocation?.siteName}</Row>

@@ -6,6 +6,7 @@ import { ReportsPage } from './ReportsPage';
 import { api } from '../api/client';
 
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn() }) }));
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { fullNameEn: 'Test User' } }) }));
 vi.mock('../api/client', () => ({ api: { getItems: vi.fn(), getDepartments: vi.fn(), getLocations: vi.fn() } }));
 
 const registration = (code: string, status: string, balance: { total: number; issued: number; available: number; pending: number }) => ({
@@ -43,8 +44,9 @@ describe('Reports count approved assets only', () => {
     const user = userEvent.setup();
     render(<ReportsPage />);
 
-    expect(await screen.findByText('IN-STORE')).toBeInTheDocument();
-    expect(screen.getByText('WITH-STAFF')).toBeInTheDocument();
+    // Each code is in its column and, for narrower screens, under the asset's name
+    expect(await screen.findAllByText('IN-STORE')).toHaveLength(2);
+    expect(screen.getAllByText('WITH-STAFF')).toHaveLength(2);
     expect(screen.queryByText('AWAITING')).not.toBeInTheDocument();
     expect(screen.queryByText('REJECTED')).not.toBeInTheDocument();
     expect(screen.getByText(/Showing 2 of 2 registrations · Units: 6 received, 2 issued, 4 in store/)).toBeInTheDocument();
