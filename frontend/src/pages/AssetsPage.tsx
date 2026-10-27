@@ -87,7 +87,7 @@ const FILTERS: { value: AssetFilter; label: string }[] = [
   { value: 'ALL', label: 'All' },
   { value: 'IN_STORE', label: 'In store' },
   { value: 'ISSUED', label: 'Issued' },
-  { value: 'TRANSFERRED', label: 'Transferred' },
+  { value: 'TRANSFERRED', label: 'Transferred / returned' },
   { value: 'PENDING', label: 'Pending' },
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'DISPOSED', label: 'Disposed' },

@@ -1541,7 +1541,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             <Field label="Jack with handle (qty)" htmlFor="transfer-jack">
               <QuantityInput id="transfer-jack" value={jackQty} onChange={setJackQty} />
             </Field>
-            <Field label="Tire wrench (qty)" htmlFor="transfer-wrench">
+            <Field label="Tyre wrench (qty)" htmlFor="transfer-wrench">
               <QuantityInput id="transfer-wrench" value={tireWrenchQty} onChange={setTireWrenchQty} />
             </Field>
             <Field label="Keys (qty)" htmlFor="transfer-keys">
@@ -1552,7 +1552,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
             </Field>
           </FieldGrid>
 
-          <Field label="Tire serial numbers" optional htmlFor="transfer-tires" hint="Separate with commas or new lines">
+          <Field label="Tyre serial numbers" optional htmlFor="transfer-tires" hint="Separate with commas or new lines">
             <input
               id="transfer-tires"
               type="text"

@@ -700,7 +700,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               <div>
                 <Row label={row.state === 'ISSUED' || item.currentCustodian ? 'Held by' : 'Kept in'}>{row.where}</Row>
                 {row.state === 'IN_STORE' && row.daysInStore !== undefined && (
-                  <Row label="Time in store">{row.daysInStore} days in store</Row>
+                  <Row label="Time in store">{row.daysInStore === 1 ? '1 day' : `${row.daysInStore} days`}</Row>
                 )}
                 {item.currentCustodian?.payrollId && <Row label="Payroll ID" mono>{item.currentCustodian.payrollId}</Row>}
                 {item.heldByContact && <Row label="Contact person">{item.heldByContact}</Row>}
@@ -800,7 +800,11 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                     r.transactionType === 'STOCK_OUT' || r.transactionType === 'TRANSFER'
                       ? r.recipientEmployee?.fullNameEn || r.requestDetails?.organizationName
                       : r.transactionType === 'RETURN'
-                        ? r.requestDetails?.storeRecipientName ? `Store (${r.requestDetails.storeRecipientName})` : 'Store'
+                        ? [
+                            // The store it goes back to: its own, unless the return names another
+                            r.targetLocationId && r.targetLocationId !== item.storeLocationId ? 'another store' : item.storeLocation ? storeLocationLabel(item.storeLocation) : 'store',
+                            r.requestDetails?.storeRecipientName ? `received by ${r.requestDetails.storeRecipientName}` : '',
+                          ].filter(Boolean).join(' · ')
                         : r.transactionType === 'DISPOSAL'
                           ? r.requestDetails?.recipientName || 'Disposal'
                           : undefined;

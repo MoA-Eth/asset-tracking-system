@@ -423,7 +423,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
 
       <Part title="Voucher">
         <FieldGrid>
-          <Field label="No." optional htmlFor="disposal-no" error={fieldErrors.error('disposalNo')} hint="As printed at the top right of the IFMIS form">
+          <Field label="Disposal form No." optional htmlFor="disposal-no" error={fieldErrors.error('disposalNo')} hint="As printed at the top right of the IFMIS form">
             <input
               id="disposal-no"
             type="text"
@@ -532,7 +532,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
       <Part title="Store and signatures">
         <StoreManField
           id="disposal-storekeeper"
-          label="Storekeeper (store man)"
+          label="Store man"
           keepers={storeMen}
           ready={keepers.ready}
           storeName={keepers.storeName(item.storeLocation?.storeId)}

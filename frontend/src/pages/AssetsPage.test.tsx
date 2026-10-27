@@ -669,7 +669,7 @@ describe('Assets page', () => {
     // Submit is the form's own button and stays off until the required fields are filled
     expect(submitOf(record, 'disposal-form')).toBeEnabled();
 
-    await user.type(within(record).getByLabelText(/^No\./), 'DSP-0007');
+    await user.type(within(record).getByLabelText(/^Disposal form No\./), 'DSP-0007');
     // Typed as IFMIS names it; saved in capitals as IFMIS prints it
     await user.type(within(record).getByLabelText(/Disposal type/), 'donation');
     await user.type(within(record).getByLabelText(/Sold \/ transferred \/ donated to/), 'Kality School');
