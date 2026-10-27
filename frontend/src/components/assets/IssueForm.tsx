@@ -16,7 +16,8 @@ import { departmentLabel, isUnassignedDepartment } from '../../utils/department'
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { useSystemSettings } from '../../utils/system-settings';
 import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
-import { readPdfPages, rowsToText, isModel19, isModel21, isModel22, isDisposalForm, parseModel22, Model22SlipFields, withoutAmounts } from '../../utils/slip-reader';
+import { readPdfPages, rowsToText, isModel19, isModel21, isModel22, isDisposalForm, parseModel22, Model22SlipFields, withoutAmounts, PdfRow } from '../../utils/slip-reader';
+import { ocrRows, isImageFile } from '../../utils/slip-ocr';
 import { Part, SlipPreview } from './FormParts';
 import { cellClass, money } from './SlipLines';
 import { categoryLabel } from './asset-state';
@@ -338,10 +339,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       setTransactionType(known ?? slip.transactionType);
       filled.push('transaction type');
     }
-    if (slip.transportationCost && !transportationCost) {
-      setTransportationCost(slip.transportationCost);
-      filled.push('transport cost');
-    }
     // Recipient: the employee named on the slip, then their directorate; else the destination as a directorate
     const receiver = slip.receivedBy ? employees.find((e) => nameKey(e.fullNameEn) === nameKey(slip.receivedBy!)) : undefined;
     const listed = !receiver && slip.receivedBy ? organizations.find((o) => [o.name, o.shortName].some((n) => n && orgKey(n) === orgKey(slip.receivedBy!))) : undefined;
@@ -444,6 +441,40 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     }
   };
 
+  /** Read a scanned PDF or a photo of a Model 22 with OCR */
+  const readScan = async (file: File) => {
+    if (!isImageFile(file) && !(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
+      return scanGiven(file, 'This file is not a PDF or photo.');
+    }
+    setSlipNote({ tone: 'info', text: 'Reading the scan with OCR… this can take up to a minute on an older computer.' });
+    let rows: PdfRow[] = [];
+    try {
+      rows = await ocrRows(file, MAX_SLIP_PAGES);
+    } catch {
+      rows = [];
+    }
+    if (latestSlip.current !== file) return;
+    const text = rowsToText(rows);
+    const other = isModel19(text)
+      ? 'a Model 19 receipt. Read it from Receive items (Model 19)'
+      : isModel21(text)
+        ? 'a Model 21 transfer form. Read it from the transfer form of the asset'
+        : isDisposalForm(text)
+          ? 'a Fixed Asset Disposal Form (Model 22/B). Read it from the disposal form of the asset'
+          : undefined;
+    if (other) {
+      const message = `This is ${other}. The issue form takes only a Model 22, so it was not attached and nothing was filled in.`;
+      setSlipNote({ tone: 'warn', text: message });
+      toast.warning('Not a Model 22', message);
+      return;
+    }
+    if (!text.trim() || !isModel22(text)) {
+      return scanGiven(file, "This scan or photo couldn't be read as a Model 22.");
+    }
+    setIfmisFile(file);
+    fillFromModel22(withoutAmounts.model22(parseModel22(rows)));
+  };
+
   const takeSlip = (file: File) => {
     const error = validateSlipFile(file);
     if (error) {
@@ -453,36 +484,36 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     }
     setFormError(null);
     latestSlip.current = file;
-    // A picture is a scan: only a PDF saved from IFMIS carries text to read
+    // An image file is read with OCR
+    if (isImageFile(file)) return void readScan(file);
     if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return scanGiven(file, 'This is a photo or scan.');
     setSlipNote({ tone: 'info', text: 'Reading the slip…' });
     readPdfPages(file, MAX_SLIP_PAGES)
       .then(({ rows: pdfRows, pages, pagesRead }) => {
         if (latestSlip.current !== file) return;
         const text = rowsToText(pdfRows);
-        if (!text.trim()) return scanGiven(file, 'This PDF is a scan (it has no text).');
         const other = isModel19(text)
           ? 'a Model 19 receipt. Read it from Receive items (Model 19)'
           : isModel21(text)
             ? 'a Model 21 transfer form. Read it from the transfer form of the asset'
             : isDisposalForm(text)
               ? 'a Fixed Asset Disposal Form (Model 22/B). Read it from the disposal form of the asset'
-              : !isModel22(text)
-                ? 'not an IFMIS Model 22'
-                : undefined;
+              : undefined;
         if (other) {
           const message = `This is ${other}. The issue form takes only a Model 22, so it was not attached and nothing was filled in.`;
           setSlipNote({ tone: 'warn', text: message });
           toast.warning('Not a Model 22', message);
           return;
         }
+        // A scanned PDF has no text or is not Model 22: read with OCR
+        if (!text.trim() || !isModel22(text)) return void readScan(file);
         setIfmisFile(file);
         fillFromModel22(withoutAmounts.model22(parseModel22(pdfRows)));
         if (pages > pagesRead) toast.warning('Slip only partly read', `This slip has ${pages} pages; only the first ${pagesRead} were read.`);
       })
       .catch(() => {
         if (latestSlip.current !== file) return;
-        setSlipNote({ tone: 'warn', text: "The PDF couldn't be read, so nothing was filled in. If it is the signed scan, attach it under Signed copy." });
+        readScan(file);
       });
   };
   const fileChosen = (take: (file: File) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {

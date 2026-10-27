@@ -6,7 +6,7 @@ import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
 import { FieldGrid, Field, ReadOnlyValue, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { Part, SlipPreview } from './FormParts';
-import { readPdfRows, rowsToText, isModel19, isModel21, isDisposalForm, parseDisposalForm, DisposalSlipFields, DisposalSlipLine, withoutAmounts } from '../../utils/slip-reader';
+import { readPdfRows, rowsToText, isModel19, isModel21, isDisposalForm, parseDisposalForm, DisposalSlipFields, DisposalSlipLine, withoutAmounts, PdfRow } from '../../utils/slip-reader';
 import { OtherAssets } from './OtherAssets';
 import { LearnTagPrompt, taggableAssets } from './LearnTagPrompt';
 import { findByTag, printedTag, tagKey, displaySerialNumber } from '../../utils/asset-tag';
@@ -17,6 +17,7 @@ import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { costOf } from '../../utils/item-cost';
 import { getSystemSettings, useSystemSettings } from '../../utils/system-settings';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
+import { ocrRows, isImageFile } from '../../utils/slip-ocr';
 import { approvalNoteOf } from '../../utils/approval-note';
 
 /** Disposal types as IFMIS prints them in the Disposal Type column; another can be typed as IFMIS names it */
@@ -148,6 +149,7 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
   const [matchedIds, setMatchedIds] = useState<Set<string>>(new Set());
   const learnedTags = useRef(new Map<string, string>());
   const lastRead = useRef<DisposalSlipFields | null>(null);
+  const latestSlip = useRef<File | null>(null);
   // This record is always one of the assets, also when correcting a request (which has no list)
   const knownItems = allItems.some((i) => i.id === item.id) ? allItems : [item, ...allItems];
 
@@ -192,11 +194,6 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     // This record's own line
     const own = form.lines.find((l) => assetOf(l)?.id === item.id);
     if (!own) problems.push(`${item.itemCode} isn't on this disposal form${item.ifmisTagNumber ? ` (its IFMIS tag is ${item.ifmisTagNumber})` : ''}.`);
-    else if (own.bookValue !== undefined && !bookValueEdited) {
-      setBookValueText(String(own.bookValue));
-      setBookValueEdited(true);
-      filled.push('book value');
-    }
     // The others, each checked the same way; a correction keeps to its one record
     const others = isEdit ? [] : form.lines.filter((l) => l !== own).map((l, i) => ({ key: i, line: l, ...checkLine(l) }));
     setExtraAssets(others);
@@ -209,27 +206,60 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
     else setSlipNote({ tone: 'info', text: `The form was read, but every field it covers is already filled in.${more}` });
   };
 
-  // The IFMIS PDF the form was read from
+  /** A scan or photo that couldn't be read: it becomes the signed copy, and what was filled in stays */
+  const scanGiven = (file: File, what: string) => {
+    setAttachmentFile(file);
+    setAttachmentFileName(file.name);
+    setSlipNote({
+      tone: 'info',
+      text: `${what} It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. ${SCAN_HINT}`,
+    });
+  };
+
+  /** Read a scanned PDF or a photo of a disposal form (Model 22/B) with OCR */
+  const readScan = async (file: File) => {
+    if (!isImageFile(file) && !(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
+      return scanGiven(file, 'This file is not a PDF or photo.');
+    }
+    setSlipNote({ tone: 'info', text: 'Reading the scan with OCR… this can take up to a minute on an older computer.' });
+    let rows: PdfRow[] = [];
+    try {
+      rows = await ocrRows(file, 2);
+    } catch {
+      rows = [];
+    }
+    if (latestSlip.current !== file) return;
+    const text = rowsToText(rows);
+    if (!text.trim() || !isDisposalForm(text)) {
+      return scanGiven(file, "This scan or photo couldn't be read as a disposal form.");
+    }
+    setAttachmentFile(file);
+    setAttachmentFileName(file.name);
+    setReadFile(file);
+    fillFromDisposalForm(withoutAmounts.disposal(parseDisposalForm(rows)));
+  };
+
   /** Only a disposal form is read here; another IFMIS form is named, so it can be taken to its own form */
   const readSlip = (file: File) => {
-    // A photo can't be read: it is kept as the request's copy, and what was filled in stays
-    if (file.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(file.name)) {
-      const error = validateSlipFile(file);
-      if (error) return void setSlipNote({ tone: 'warn', text: error });
-      setAttachmentFile(file);
-      setAttachmentFileName(file.name);
-      return void setSlipNote({
-        tone: 'info',
-        text: `This is a photo. It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. ${SCAN_HINT}`,
-      });
+    const error = validateSlipFile(file);
+    if (error) {
+      toast.warning('Invalid file', error);
+      return void setSlipNote({ tone: 'warn', text: error });
     }
-    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return void setSlipNote({ tone: 'warn', text: 'Choose the disposal form as a PDF saved from IFMIS.' });
+    latestSlip.current = file;
+    // A photo / image is attached as the signed copy directly; only PDFs go through OCR
+    if (isImageFile(file)) return void scanGiven(file, 'This is a photo.');
+    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
+      return void setSlipNote({ tone: 'warn', text: 'Choose the disposal form as a PDF saved from IFMIS, or a photo/scan.' });
+    }
     setReadFile(file);
     setSlipNote({ tone: 'info', text: 'Reading the disposal form…' });
     readPdfRows(file)
       .then((rows) => {
+        if (latestSlip.current !== file) return;
         const text = rowsToText(rows);
-        if (!text.trim()) return setSlipNote({ tone: 'warn', text: `This PDF is a scan, so nothing could be read from it. Fill in the fields as usual. ${SCAN_HINT}` });
+        // A scanned PDF has no text: read with OCR
+        if (!text.trim() || (!isDisposalForm(text) && text.trim().length < 200)) return void readScan(file);
         if (isDisposalForm(text)) return fillFromDisposalForm(withoutAmounts.disposal(parseDisposalForm(rows)));
         setSlipNote({
           tone: 'warn',
@@ -240,7 +270,10 @@ export const DisposalForm: React.FC<DisposalFormProps> = ({ item, editApproval, 
               : 'Only an IFMIS Fixed Asset Disposal Form (Model 22/B) PDF can be read here.',
         });
       })
-      .catch(() => setSlipNote({ tone: 'warn', text: "The PDF couldn't be read. Fill in the fields as usual." }));
+      .catch(() => {
+        if (latestSlip.current !== file) return;
+        readScan(file);
+      });
   };
 
   /** A tag was recorded on an asset: the form is read again, so that asset is found */

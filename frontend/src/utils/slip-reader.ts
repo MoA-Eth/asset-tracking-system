@@ -53,7 +53,7 @@ export async function readPdfPages(file: File, maxPages = 5): Promise<{ rows: Pd
         const text = item.str?.trim();
         if (!text || !item.transform) continue;
         const [, , , , x, y] = item.transform;
-        const row = rows.find((r) => Math.abs(r.y - y) <= 2) ?? rows[rows.push({ y, cells: [] }) - 1];
+        const row = rows.find((r) => Math.abs(r.y - y) <= 3.5) ?? rows[rows.push({ y, cells: [] }) - 1];
         row.cells.push({ x, text });
       }
       rows
@@ -125,12 +125,14 @@ export interface Model21SlipFields {
 }
 
 /** Whether the text is an IFMIS transfer form at all */
-export const isModel21 = (text: string): boolean => /model\s*\/\s*21\b|internal\s+transfer\s+form/i.test(text);
+export const isModel21 = (text: string): boolean => /model\s*[-/]?\s*21\b|internal\s+transfer(?:\s+form)?|ሞዴል\s*[-/]?\s*21/i.test(text);
 
 /** The fields of an IFMIS Model 21; anything not found is left out */
 export function parseModel21(text: string): Model21SlipFields {
   const found: Model21SlipFields = { lines: [] };
-  found.model21No = /model\s*#\s*([A-Za-z0-9][A-Za-z0-9/\-]*)/i.exec(text)?.[1];
+  found.model21No =
+    /(?:model\s*(?:21\s*)?(?:#|no\.?|number)|internal\s+transfer\s+no\.?)\s*[:#№]?\s*([A-Za-z0-9][A-Za-z0-9/\-]*)/i.exec(text)?.[1] ??
+    /model\s*#\s*([A-Za-z0-9][A-Za-z0-9/\-]*)/i.exec(text)?.[1];
 
   // "From Employee Name :  Borecha, Wosene  To : Lenjisso, Daniel"
   const names = /from\s+employee\s+name\s*:\s*(.*?)\s+to\s*:\s*(.+?)\s*$/im.exec(text);
@@ -138,7 +140,7 @@ export function parseModel21(text: string): Model21SlipFields {
   // "From Employee ID :  109870  To : 110347"
   const ids = /from\s+employee\s+id\s*:\s*([A-Za-z0-9/\-]*)\s+to\s*:\s*([A-Za-z0-9/\-]+)/i.exec(text);
   if (ids) [found.fromEmployeeId, found.toEmployeeId] = [ids[1] || undefined, ids[2]];
-  found.book = /^\s*book\s*:\s*(.+?)\s*$/im.exec(text)?.[1];
+  found.book = /(?:^|\b)book\s*:\s*(.+?)(?:\s{2,}|$)/im.exec(text)?.[1]?.trim() ?? /^\s*book\s*:\s*(.+?)\s*$/im.exec(text)?.[1]?.trim();
 
   // "MoA SarisDefaultDefaultDefault  MoA Gurd ShollaDefaultDefaultDefault"
   const places = text.split('\n').find((l) => /\S(?:Default){2,}/.test(l));
@@ -310,23 +312,48 @@ export interface Model19SlipFields {
   lines: Model19SlipLine[];
 }
 
+/** Primary identifiers that uniquely define a Model 19 / Goods Receiving / Store Receipt voucher */
+const MODEL19_PRIMARY =
+  /(?:inv\.?\s*)?model\s*[-/]?\s*19\b|print\s*model\s*19|ሞዴል\s*[-/]?\s*19|goods\s*(?:receiving|receipt)\s*(?:note|voucher)|store\s*(?:receiving|receipt)\s*(?:note|voucher)|direct\s*delivery\s*receipt|የዕቃ\s*ገቢ\s*(?:ደረሰኝ)?|inv_model19/i;
+
+const MODEL19_SECONDARY =
+  /po\s*receipt\b|petty\s*cash\s*purchase\s*receipt|store\s*receipt\b|transfer\s*receipt\b/i;
+
 /** Whether the text is an IFMIS Model 19 at all */
 export const isModel19 = (text: string): boolean => {
+  // If the document explicitly identifies itself as a Model 19 / Goods Receipt / Store Receipt, it IS a Model 19
+  if (MODEL19_PRIMARY.test(text)) return true;
+  // If it's explicitly identified as another form (Model 21, Model 22, Disposal), it is not Model 19
   if (isModel21(text) || isModel22(text) || isDisposalForm(text)) return false;
-  return (
-    /(?:inv\.?\s*)?model\s*[-/]?\s*19\b/i.test(text) ||
-    /print\s*model\s*19|ሞዴል\s*[-/]?\s*19/i.test(text) ||
-    /goods\s*receiving\s*(?:note|voucher)|po\s*receipt\b|petty\s*cash\s*purchase\s*receipt/i.test(text)
-  );
+  // Otherwise check secondary receipt transaction types
+  return MODEL19_SECONDARY.test(text);
 };
 
 const HEADER_LABELS: { key: Exclude<keyof Model19SlipFields, 'lines' | 'programName'>; label: RegExp }[] = [
-  { key: 'model19No', label: /^(?:inv\.?\s*)?model\s*[-/]?\s*19\s*(?:no\.?|number)?/i },
-  { key: 'poNumber', label: /^p\.?\s?o\.?\s*number/i },
-  { key: 'receivedDate', label: /^received\s*date/i },
-  { key: 'transactionType', label: /^transaction\s*type/i },
-  { key: 'source', label: /^source\b/i },
-  { key: 'buyer', label: /^buyer\b/i },
+  {
+    key: 'model19No',
+    label: /^(?:(?:inv\.?\s*)?model\s*[-/]?\s*19\s*(?:no\.?|number|#)?|(?:store\s*receipt\s*voucher|goods\s*(?:receiving|receipt)\s*(?:note|voucher))\s*(?:no\.?|number|#)?|voucher\s*(?:no\.?|number|#)?|receipt\s*no\.?)/i,
+  },
+  {
+    key: 'poNumber',
+    label: /^(?:p\.?\s*o\.?\s*(?:number|no\.?|#|:\s*$)|purchase\s*order\s*(?:number|no\.?|#)?)/i,
+  },
+  {
+    key: 'receivedDate',
+    label: /^(?:received\s*date|receipt\s*date|date\s*received|transaction\s*date|date\b)/i,
+  },
+  {
+    key: 'transactionType',
+    label: /^(?:transaction\s*type|receipt\s*type)/i,
+  },
+  {
+    key: 'source',
+    label: /^(?:source|supplier|vendor|received\s*from)\b/i,
+  },
+  {
+    key: 'buyer',
+    label: /^(?:buyer|purchaser|purchased\s*by|procurement\s*officer)\b/i,
+  },
 ];
 
 /** Rows that end the item table, or start a new page's copy of its header */
@@ -338,26 +365,39 @@ const asNumber = (text: string) => Number(text.replace(/,/g, ''));
 export function parseModel19(rows: PdfRow[]): Model19SlipFields {
   const found: Model19SlipFields = { lines: [] };
 
-  // Header: "Label :" then its value, either in the same piece or the next one
+  // Header: "Label :" then its value, either in the same piece or in subsequent pieces on the same row
   rows.forEach((row, index) => {
     row.cells.forEach((cell, i) => {
       for (const { key, label } of HEADER_LABELS) {
         if (found[key] || !label.test(cell.text)) continue;
-        const inline = cell.text.replace(label, '').replace(/^\s*[:.]?\s*/, '').trim();
-        const next = row.cells[i + 1];
-        let value = inline || (next && !HEADER_LABELS.some((h) => h.label.test(next.text)) ? next.text.replace(/^:\s*/, '').trim() : '');
-        const valueX = inline ? cell.x : next?.x;
+        const inline = cell.text.replace(label, '').replace(/^\s*[:.\-]+\s*/, '').trim();
+        // Look ahead for the first subsequent cell in this row that holds a value (skipping standalone ":" or punctuation)
+        let candidate: PdfCell | undefined;
+        for (let j = i + 1; j < row.cells.length; j++) {
+          const c = row.cells[j];
+          if (HEADER_LABELS.some((h) => h.label.test(c.text))) break;
+          const clean = c.text.replace(/^[:.\-\s]+/, '').trim();
+          if (clean.length > 0) {
+            candidate = c;
+            break;
+          }
+        }
+        let value = inline || (candidate ? candidate.text.replace(/^[:.\-\s]+/, '').trim() : '');
+        const valueX = inline ? cell.x : candidate?.x;
         // A long value (such as a company name) wraps onto the line below, under the value
         const below = rows[index + 1];
-        // (when the label and value came as one piece, the value starts somewhere right of the label)
-        const underValue = (x: number) => (inline ? x > cell.x : valueX !== undefined && Math.abs(x - valueX) < 6);
+        const underValue = (x: number) => (inline ? x > cell.x : valueX !== undefined && Math.abs(x - valueX) < 15);
         if (key === 'source' && value && below && below.cells.length === 1 && underValue(below.cells[0].x) && !/:/.test(below.cells[0].text) && below.top - row.top < 25) {
           value += ' ' + below.cells[0].text;
         }
         if (!value || value === ':') continue;
         if (key === 'receivedDate') found.receivedDate = toIsoDate(value);
-        else if (key === 'model19No' || key === 'poNumber') found[key] = /^[A-Za-z0-9][A-Za-z0-9/\-.]*/.exec(value)?.[0];
-        else found[key] = value;
+        else if (key === 'model19No' || key === 'poNumber') {
+          const cleanVal = value.replace(/^[#№:.\s]+/, '');
+          found[key] = /^[A-Za-z0-9][A-Za-z0-9/\-.]*/.exec(cleanVal)?.[0];
+        } else {
+          found[key] = value;
+        }
       }
     });
   });
@@ -396,32 +436,42 @@ export function parseModel19(rows: PdfRow[]): Model19SlipFields {
  */
 function parseItemLines(rows: PdfRow[]): Model19SlipLine[] {
   const lines: Model19SlipLine[] = [];
-  // The figure columns, from their headings: IFMIS prints a line's total and its remark as one piece of text
-  // ("12918 968765"), so the figures are placed by column rather than taken as the last three numbers
   const headingX = (pattern: RegExp) => rows.flatMap((r) => r.cells).find((c) => pattern.test(c.text))?.x;
   const columns = { qty: headingX(/^qty$/i), price: headingX(/^unit\s*price$/i), total: headingX(/^total\s*amount$/i), remark: headingX(/^remark$/i) };
   const byColumn = columns.qty !== undefined && columns.price !== undefined && columns.total !== undefined;
 
-  // Items: a row that starts with its number and an item code
-  const starts = rows
-    .map((row, index) => ({ row, index }))
-    .filter(({ row }) => row.cells.length >= 3 && /^\d{1,3}$/.test(row.cells[0].text) && /\d/.test(row.cells[1].text) && /^[A-Za-z0-9][A-Za-z0-9.\-/]{3,}$/.test(row.cells[1].text));
+  // Items: a row that starts with its number and an item code (either in cell 0 & 1, or combined in cell 0)
+  const starts: { row: PdfRow; index: number; codeText: string; restCells: PdfCell[] }[] = [];
+  rows.forEach((row, index) => {
+    if (row.cells.length < 2) return;
+    const c0 = row.cells[0]?.text?.trim() ?? '';
+    const c1 = row.cells[1]?.text?.trim() ?? '';
+    if (/^\d{1,3}\.?$/.test(c0) && /\d/.test(c1) && /^[A-Za-z0-9][A-Za-z0-9.\-/]{3,}$/.test(c1)) {
+      starts.push({ row, index, codeText: c1, restCells: row.cells.slice(2) });
+      return;
+    }
+    const parts = c0.split(/\s+/);
+    if (parts.length >= 2 && /^\d{1,3}\.?$/.test(parts[0]) && /\d/.test(parts[1]) && /^[A-Za-z0-9][A-Za-z0-9.\-/]{3,}$/.test(parts[1])) {
+      const rest = [{ x: row.cells[0].x + 30, text: parts.slice(2).join(' ') }, ...row.cells.slice(1)].filter((c) => c.text.trim());
+      starts.push({ row, index, codeText: parts[1], restCells: rest });
+    }
+  });
 
-  starts.forEach(({ row, index }, n) => {
+  starts.forEach(({ row, index, codeText, restCells }, n) => {
     const end = n + 1 < starts.length ? starts[n + 1].index : rows.length;
     const band: PdfRow[] = [row];
     for (let r = index + 1; r < end; r++) {
       if (TABLE_STOP.test(rowsToText([rows[r]]))) break;
       band.push(rows[r]);
     }
-    const [, code, ...rest] = row.cells;
-    // Columns are found from the first line: description, then the unit (EA, PKT…), the sub inventory and the category
-    const uomIndex = rest.findIndex((c, i) => i > 0 && /^[A-Za-z]{1,6}$/.test(c.text) && c.text === c.text.toUpperCase());
-    const uom = uomIndex >= 0 ? rest[uomIndex] : undefined;
-    const sub = uom ? rest[uomIndex + 1] : undefined;
-    const cat = sub && !NUMBER.test(rest[uomIndex + 2]?.text ?? '0') ? rest[uomIndex + 2] : undefined;
-    const descX = rest[0]?.x ?? code.x;
-    const near = (a: PdfCell, b?: PdfCell) => !!b && Math.abs(a.x - b.x) < 6;
+
+    const uomPattern = /^(?:EA|PCS|SET|BOX|BAG|PKT|ROLL|KG|QUINTAL|LTR|CAN|BOTTLE|VIAL|PAIR|M|DRUM|DOZEN|PACK|RM|REAM|UNIT|UNITS|CTN|CARTON|TUBE|SHEET|BDL|MTR|LTR|PC)$/i;
+    const uomIndex = restCells.findIndex((c, i) => i > 0 && (uomPattern.test(c.text.trim()) || (/^[A-Za-z]{1,6}$/.test(c.text.trim()) && c.text === c.text.toUpperCase() && !NUMBER.test(c.text))));
+    const uom = uomIndex >= 0 ? restCells[uomIndex] : undefined;
+    const sub = uom && !NUMBER.test(restCells[uomIndex + 1]?.text ?? '') ? restCells[uomIndex + 1] : undefined;
+    const cat = sub && !NUMBER.test(restCells[uomIndex + 2]?.text ?? '0') ? restCells[uomIndex + 2] : undefined;
+    const descX = restCells[0]?.x ?? row.cells[0].x + 40;
+    const near = (a: PdfCell, b?: PdfCell) => !!b && Math.abs(a.x - b.x) < 8;
 
     const description: string[] = [];
     const subInventory: string[] = [];
@@ -429,16 +479,16 @@ function parseItemLines(rows: PdfRow[]): Model19SlipLine[] {
     const numbers: PdfCell[] = [];
     for (const r of band) {
       for (const cell of r.cells) {
-        if (cell === row.cells[0] || cell === code) continue;
-        if (NUMBER.test(cell.text) && cell.x > (cat ?? sub ?? uom ?? code).x + 20) numbers.push(cell);
+        if (cell === row.cells[0] || cell.text === codeText) continue;
+        if (NUMBER.test(cell.text) && cell.x > (cat ?? sub ?? uom ?? { x: descX + 80 }).x + 10) numbers.push(cell);
         else if (uom && cell.x >= descX - 2 && cell.x < uom.x - 2) description.push(cell.text);
+        else if (!uom && cell.x >= descX - 2 && (!columns.qty || cell.x < columns.qty - 50)) description.push(cell.text);
         else if (near(cell, cat)) category.push(cell.text);
         else if (near(cell, sub)) subInventory.push(cell.text);
       }
     }
     let figures: { quantity?: number; unitPrice?: number; totalAmount?: number } = {};
     if (byColumn) {
-      // Each figure belongs to the column it starts in; a piece like "12918 968765" is the total, then the remark
       const { qty, price, total, remark } = columns as Required<typeof columns>;
       for (const cell of row.cells) {
         const first = cell.text.split(/\s+/)[0];
@@ -449,13 +499,12 @@ function parseItemLines(rows: PdfRow[]): Model19SlipLine[] {
         else if (remark === undefined || cell.x < remark) figures.totalAmount ??= value;
       }
     } else {
-      // Without headings: quantity, unit price and total are the last three figures on the line
       numbers.sort((c1, c2) => c1.x - c2.x);
       const [quantity, unitPrice, totalAmount] = numbers.slice(-3).map((c) => asNumber(c.text));
       if (numbers.length >= 3) figures = { quantity, unitPrice, totalAmount };
     }
     lines.push({
-      itemCode: code.text,
+      itemCode: codeText,
       description: description.join(' ').replace(/\s+/g, ' ').trim() || undefined,
       uom: uom?.text,
       subInventory: subInventory.join(' ').trim() || undefined,
@@ -493,7 +542,8 @@ export interface DisposalSlipFields {
 
 /** Whether the text is an IFMIS issue voucher (Model 22, "Receipt For Articles Or Property Issued") */
 export const isModel22 = (text: string): boolean =>
-  /receipt\s+for\s+articles\s+or\s+property\s+issued|\bmodel\s*22\s*no\b/i.test(text);
+  (/receipt\s+for\s+articles\s+or\s+property\s+issued|\bmodel\s*[-/]?\s*22(?:\s*(?:no\.?|#))?(?![-/]?\s*b\b)|\bሞዴል\s*[-/]?\s*22(?![-/]?\s*b\b)/i.test(text)) &&
+  !/model\s*[-/]?\s*22\s*[-/]?\s*b\b|fixed\s+asset\s+disposal/i.test(text);
 
 /** What an IFMIS issue voucher (Model 22, "Receipt For Articles Or Property Issued") says */
 export interface Model22SlipFields {
@@ -513,10 +563,10 @@ export interface Model22SlipFields {
 }
 
 const M22_LABELS: { key: 'model22No' | 'issuedDate' | 'transactionType' | 'destination'; label: RegExp }[] = [
-  { key: 'model22No', label: /^model\s*22\s*no\.?/i },
-  { key: 'issuedDate', label: /^issued\s*date/i },
-  { key: 'transactionType', label: /^transaction\s*type/i },
-  { key: 'destination', label: /^destination\b/i },
+  { key: 'model22No', label: /(?:^|\b)model\s*22\s*no\.?/i },
+  { key: 'issuedDate', label: /(?:^|\b)issued\s*date/i },
+  { key: 'transactionType', label: /(?:^|\b)transaction\s*type/i },
+  { key: 'destination', label: /(?:^|\b)destination\b/i },
 ];
 
 /**
@@ -535,7 +585,11 @@ export function parseModel22(rows: PdfRow[]): Model22SlipFields {
         if (found[key] || !label.test(cell.text)) continue;
         const inline = cell.text.replace(label, '').replace(/^\s*[:.]?\s*/, '').trim();
         const next = row.cells[i + 1];
-        const value = inline || (next && !M22_LABELS.some((h) => h.label.test(next.text)) ? next.text.replace(/^:\s*/, '').trim() : '');
+        let value = inline || (next && !M22_LABELS.some((h) => h.label.test(next.text)) ? next.text.replace(/^:\s*/, '').trim() : '');
+        if (key === 'model22No') {
+          const match = /(?:model\s*22\s*no\.?|#)\s*[:.\-]?\s*([A-Za-z0-9][A-Za-z0-9/\-]*)/i.exec(cell.text);
+          if (match) value = match[1];
+        }
         if (!value || value === ':') continue;
         found[key] = key === 'issuedDate' ? toIsoDate(value) : value;
       }
@@ -570,7 +624,8 @@ export function parseModel22(rows: PdfRow[]): Model22SlipFields {
 }
 
 /** Whether the text is an IFMIS disposal form at all */
-export const isDisposalForm = (text: string): boolean => /fixed\s+asset\s+disposal\s+form|model\s*\/\s*22\s*\/\s*b\b/i.test(text);
+export const isDisposalForm = (text: string): boolean =>
+  /fixed\s+asset\s+disposal\s+form|model\s*[-/]?\s*22\s*[-/]?\s*b\b|ሞዴል\s*[-/]?\s*22\s*[-/]?\s*b/i.test(text);
 
 const MONEY = /^-?[\d,]+\.\d{2}$/;
 // An IFMIS tag (MOA-004344) or a record code with its category (MOA-IT-2026-0075)
@@ -586,8 +641,8 @@ export function parseDisposalForm(rows: PdfRow[]): DisposalSlipFields {
       if (i >= 0) {
         // Only what follows the label: "Sold /Transferred / Donated to :" is one piece with its own slashes
         const match = label.exec(row.cells[i].text)!;
-        const inline = row.cells[i].text.slice(match.index + match[0].length).trim();
-        return inline || row.cells[i + 1]?.text.trim() || undefined;
+        const inline = row.cells[i].text.slice(match.index + match[0].length).replace(/^[:.\-\s]+/, '').trim();
+        return inline || row.cells[i + 1]?.text.replace(/^[:.\-\s]+/, '').trim() || undefined;
       }
     }
     return undefined;
@@ -596,7 +651,7 @@ export function parseDisposalForm(rows: PdfRow[]): DisposalSlipFields {
   found.disposalNo = after(/^no\s*:?(?=\s|$)/i);
   const date = after(/^date\s*:?(?=\s|$)/i);
   found.date = date ? toIsoDate(date) : undefined;
-  found.recipient = after(/donated\s+to\s*:?$/i);
+  found.recipient = after(/donated\s+to\s*:?/i);
 
   // Assets. IFMIS doesn't print a line's cells on one baseline: the disposal type sits just above its number, a long
   // description wraps onto the next line, and the tag, serial and figures sit a little lower. So each line is the band

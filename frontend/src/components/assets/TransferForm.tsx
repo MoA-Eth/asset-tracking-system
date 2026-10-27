@@ -5,9 +5,10 @@ import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
 import { formatVoucherRemark } from '../../utils/voucher-remark';
 import { FormSection, FieldGrid, Field, ReadOnlyValue, SummaryGrid, FormFooter, FileDropField, FormNotice, QuantityInput, MoneyInput, inputClass, textareaClass, submitOnCtrlEnter } from '../ui/FormKit';
-import { readPdfRows, rowsToText, isModel19, isModel21, parseModel21, parseModel21Particulars, sameEmployeeId, Model21SlipFields, Model21SlipLine, Model21Particulars, withoutAmounts } from '../../utils/slip-reader';
+import { readPdfRows, rowsToText, isModel19, isModel21, parseModel21, parseModel21Particulars, sameEmployeeId, Model21SlipFields, Model21SlipLine, Model21Particulars, withoutAmounts, PdfRow } from '../../utils/slip-reader';
 import { Part, SlipPreview } from './FormParts';
 import { validateSlipFile, SLIP_ACCEPT_ATTR, getSlipDisplayName, SCAN_HINT } from '../../utils/slip-upload';
+import { ocrRows, isImageFile } from '../../utils/slip-ocr';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSystemSettings } from '../../utils/system-settings';
@@ -303,6 +304,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [matchedIds, setMatchedIds] = useState<Set<string>>(new Set());
   const learnedTags = useRef(new Map<string, string>());
   const lastRead = useRef<{ slip: Model21SlipFields; vehicle?: Model21Particulars } | null>(null);
+  const latestSlip = useRef<File | null>(null);
   const extraReady = extraAssets.filter((o) => o.asset && !o.problem) as { key: number; line: Model21SlipLine; asset: ItemWithRelations }[];
 
   /** Whether an asset has a blocking pending request (Model 21 allows parallel requests up to total quantity) */
@@ -404,14 +406,6 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
         if (rows[0]) setRow(rows[0].key, { quantity: line.unit });
         filled.push('quantity');
       }
-      if (line?.depreciation !== undefined) {
-        if (rows[0]) setRow(rows[0].key, { depreciation: line.depreciation });
-        filled.push('depreciation');
-      }
-      if (line?.bookValue !== undefined) {
-        if (rows[0]) setRow(rows[0].key, { bookValue: line.bookValue });
-        filled.push('book value');
-      }
     }
 
     // The vehicle details printed under the table, for the asset the form fills in
@@ -473,39 +467,77 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     }
   };
 
-  // The IFMIS PDF the form was read from, shown in the box at the top
+  // The IFMIS PDF or scan the form was read from, shown in the box at the top
   const [readFile, setReadFile] = useState<File | null>(null);
-  /** Only a Model 21 is read here; another IFMIS form is named, so it can be taken to its own form */
-  const readSlip = (file: File) => {
-    // A photo can't be read: it is kept as the request's copy, and what was filled in stays
-    if (file.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(file.name)) {
-      const error = validateSlipFile(file);
-      if (error) return void setSlipNote({ tone: 'warn', text: error });
-      setAttachmentFile(file);
-      setAttachmentFileName(file.name);
-      return void setSlipNote({
-        tone: 'info',
-        text: `This is a photo. It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. ${SCAN_HINT}`,
-      });
+
+  /** A scan or photo that couldn't be read: it becomes the signed copy, and what was filled in stays */
+  const scanGiven = (file: File, what: string) => {
+    setAttachmentFile(file);
+    setAttachmentFileName(file.name);
+    setSlipNote({
+      tone: 'info',
+      text: `${what} It is attached ${showScannedSlipField ? 'below as the signed copy' : 'to the request as its copy'}. Nothing was read from it; what was filled in stays. ${SCAN_HINT}`,
+    });
+  };
+
+  /** Read a scanned PDF or a photo of a Model 21 with OCR */
+  const readScan = async (file: File) => {
+    if (!isImageFile(file) && !(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
+      return scanGiven(file, 'This file is not a PDF or photo.');
     }
+    setSlipNote({ tone: 'info', text: 'Reading the scan with OCR… this can take up to a minute on an older computer.' });
+    let rows: PdfRow[] = [];
+    try {
+      rows = await ocrRows(file, 2);
+    } catch {
+      rows = [];
+    }
+    if (latestSlip.current !== file) return;
+    const text = rowsToText(rows);
+    if (!text.trim() || !isModel21(text)) {
+      return scanGiven(file, "This scan or photo couldn't be read as a Model 21.");
+    }
+    setAttachmentFile(file);
+    setAttachmentFileName(file.name);
+    setReadFile(file);
+    fillFromModel21(withoutAmounts.model21(parseModel21(text)), parseModel21Particulars(rows));
+  };
+
+  /** Reads a Model 21 IFMIS PDF or image/scanned slip */
+  const readSlip = (file: File) => {
+    const error = validateSlipFile(file);
+    if (error) {
+      toast.warning('Invalid Slip File', error);
+      return void setSlipNote({ tone: 'warn', text: error });
+    }
+    latestSlip.current = file;
+    // An image file is read with OCR
+    if (isImageFile(file)) return void readScan(file);
     if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) {
-      return void setSlipNote({ tone: 'warn', text: 'Choose the Model 21 as a PDF saved from IFMIS.' });
+      return void setSlipNote({ tone: 'warn', text: 'Choose the Model 21 as a PDF saved from IFMIS, or a photo/scan.' });
     }
     setReadFile(file);
     setSlipNote({ tone: 'info', text: 'Reading the Model 21…' });
     readPdfRows(file)
       .then((rows) => {
+        if (latestSlip.current !== file) return;
         const text = rowsToText(rows);
-        if (!text.trim()) return setSlipNote({ tone: 'warn', text: `This PDF is a scan, so nothing could be read from it. Fill in the fields as usual. ${SCAN_HINT}` });
+        // If it's clearly another recognised form, say so before falling back to OCR
+        if (isModel19(text)) {
+          return void setSlipNote({ tone: 'warn', text: 'This is a Model 19 receipt, not a Model 21. Read it on Receive items (Model 19).' });
+        }
+        // A scanned PDF has no text: read with OCR
+        if (!text.trim() || (!isModel21(text) && text.trim().length < 200)) return void readScan(file);
         if (isModel21(text)) return fillFromModel21(withoutAmounts.model21(parseModel21(text)), parseModel21Particulars(rows));
         setSlipNote({
           tone: 'warn',
-          text: isModel19(text)
-            ? 'This is a Model 19 receipt, not a Model 21. Read it on Receive items (Model 19).'
-            : 'Only an IFMIS Model 21 (Fixed Asset Internal Transfer Form) PDF can be read here.',
+          text: 'Only an IFMIS Model 21 (Fixed Asset Internal Transfer Form) PDF can be read here.',
         });
       })
-      .catch(() => setSlipNote({ tone: 'warn', text: "The PDF couldn't be read. Fill in the fields as usual." }));
+      .catch(() => {
+        if (latestSlip.current !== file) return;
+        readScan(file);
+      });
   };
 
   /** A tag was recorded on an asset: the form is read again, so that asset is found */

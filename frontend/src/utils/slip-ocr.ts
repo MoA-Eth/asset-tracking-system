@@ -128,8 +128,8 @@ export function rotate(source: HTMLCanvasElement, degrees: number): HTMLCanvasEl
   return canvas;
 }
 
-/** Words every Model 19 prints, to tell a page read the right way up from one read sideways or upside down */
-const SLIP_WORDS = /\b(model|receipt|receiving|quantity|total|amount|item|description|price|date|number|supplier|received|delivered|inventory|transaction|category)\b/gi;
+/** Words printed across Ethiopian government asset vouchers (Model 19, 21, 22, 22/B) to detect orientation */
+const SLIP_WORDS = /\b(model|receipt|receiving|quantity|total|amount|item|description|price|date|number|supplier|received|delivered|inventory|transaction|category|transfer|internal|issue|issued|store|disposal|chassis|plate|engine|accessory|articles|property)\b/gi;
 
 /** How readable recognised text is: words of the form found, then the engine's own confidence */
 export const readability = (text: string, confidence: number): number => (text.match(SLIP_WORDS)?.length ?? 0) * 10 + confidence;

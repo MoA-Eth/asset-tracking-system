@@ -50,6 +50,11 @@ export const COMMON_UOMS = [
   'DRUM',
   'DOZEN',
   'PACK',
+  'RM',
+  'UNIT',
+  'CTN',
+  'TUBE',
+  'SHEET',
 ];
 
 /** The ministry's programs and projects goods are received for (Program / project on Model 19) */

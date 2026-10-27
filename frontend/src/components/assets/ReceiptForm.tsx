@@ -663,6 +663,12 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         // A scanned PDF has no text, or only minimal scanner/page metadata (< 200 chars): read with OCR
         if (!text.trim() || (!isModel19(text) && text.trim().length < 200)) return void readScan(file);
         if (!isModel19(text)) {
+          const parsed = parseModel19(rows);
+          if (parsed.model19No || parsed.lines.length > 0) {
+            setIfmisFile(file);
+            fillFromModel19(parsed);
+            return;
+          }
           setIfmisFile(file);
           setSlipNote({
             tone: 'warn',
