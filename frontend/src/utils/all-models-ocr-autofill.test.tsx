@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -45,14 +45,32 @@ const row = (top: number, ...cells: [number, string][]): PdfRow => ({
   cells: cells.map(([x, text]) => ({ x, text })),
 });
 
-const sampleEmployee: Employee = { id: 'EMP-1', payrollId: '110347', fullNameEn: 'Daniel Lenjisso', departmentId: 'DEP-1', isActive: true };
-const sampleDepartment: Department = { id: 'DEP-1', code: 'AGR', nameEn: 'Agriculture Directorate', isActive: true };
-const sampleLocation: Location = { id: 'LOC-1', name: 'Central Store', storeId: 'S1', roomNumber: 'A1' };
+const sampleEmployee: Employee = {
+  id: 'EMP-1', payrollId: '110347',
+  fullNameEn: 'Daniel Lenjisso', fullNameAm: 'ዳንኤል ሌንጂሶ',
+  departmentId: 'DEP-1', role: null, isActive: true,
+};
+const sampleDepartment: Department = { id: 'DEP-1', code: 'AGR', nameEn: 'Agriculture Directorate', nameAm: 'የግብርና መ/ቤት' };
+const sampleLocation: Location = {
+  id: 'LOC-1', storeId: 'S1', name: 'Central Store',
+  storeName: 'Central Store', isActive: true,
+  siteName: 'Central Store – Central Store', building: 'Main Building',
+  roomNumber: 'A1',
+};
 const sampleItem: ItemWithRelations = {
   id: 'ITEM-1', itemCode: 'MOA-VEH-2024-0001', name: 'Toyota Land Cruiser Pick Up',
-  itemType: ItemType.FIXED, status: ItemStatus.AVAILABLE, quantity: 1, unitPrice: 2500000, uom: 'EA',
+  category: 'VEHICLE' as any,
+  itemType: ItemType.FIXED, status: ItemStatus.AVAILABLE,
+  condition: 'GOOD' as any,
+  quantity: 1, uom: 'EA',
+  unitCostETB: 2500000,
   ifmisTagNumber: 'MOA-016341', serialNumber: 'JTEBB71JX07008920',
   storeLocationId: 'LOC-1', storeLocation: sampleLocation,
+  ifmisSlipNumber: 'INV-2024-0001',
+  ifmisSlipDateGc: '2024-01-01', ifmisSlipDateEc: '2016-04-23',
+  registeredById: 'EMP-1',
+  createdAtGc: '2024-01-01', createdAtEc: '2016-04-23',
+  history: [],
 };
 
 describe('All Models OCR Autofill from Images and Scanned PDFs', () => {
@@ -79,7 +97,7 @@ describe('All Models OCR Autofill from Images and Scanned PDFs', () => {
     render(
       <TransferForm items={[sampleItem]} employees={[sampleEmployee]} departments={[sampleDepartment]}
         locations={[sampleLocation]} pendingByItem={new Map()} openByItem={new Map()}
-        initialItemId="ITEM-1" onCancel={vi.fn()} />
+        initialItemId="ITEM-1" onCancel={vi.fn()} onSaved={vi.fn()} />
     );
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     expect(fileInput).toBeTruthy();
@@ -103,8 +121,18 @@ describe('All Models OCR Autofill from Images and Scanned PDFs', () => {
     const user = userEvent.setup();
     const consumableItem: ItemWithRelations = {
       id: 'ITEM-2', itemCode: 'MOA-TONER-01', ifmisItemCode: '107101102.4336',
-      name: 'HP LaserJet Toner 85A', itemType: ItemType.CONSUMABLE, status: ItemStatus.AVAILABLE,
-      quantity: 50, unitPrice: 4500, uom: 'EA', storeLocationId: 'LOC-1', storeLocation: sampleLocation,
+      name: 'HP LaserJet Toner 85A',
+      category: 'SUPPLIES' as any,
+      itemType: ItemType.CONSUMABLE, status: ItemStatus.AVAILABLE,
+      condition: 'GOOD' as any,
+      quantity: 50, unitCostETB: 4500, uom: 'EA',
+      serialNumber: '',
+      storeLocationId: 'LOC-1', storeLocation: sampleLocation,
+      ifmisSlipNumber: 'INV-2024-0002',
+      ifmisSlipDateGc: '2024-01-01', ifmisSlipDateEc: '2016-04-23',
+      registeredById: 'EMP-1',
+      createdAtGc: '2024-01-01', createdAtEc: '2016-04-23',
+      history: [],
     };
     const m22ScanRows: PdfRow[] = [
       row(50, [100, 'Receipt For Articles Or Property Issued Model 22 No. 88201']),
@@ -116,7 +144,7 @@ describe('All Models OCR Autofill from Images and Scanned PDFs', () => {
     vi.mocked(ocrRows).mockResolvedValueOnce(m22ScanRows);
     render(
       <StockOutForm availableItems={[consumableItem]} departments={[sampleDepartment]}
-        employees={[sampleEmployee]} onCancel={vi.fn()} />
+        employees={[sampleEmployee]} onCancel={vi.fn()} onSuccess={vi.fn()} />
     );
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     expect(fileInput).toBeTruthy();
@@ -152,7 +180,7 @@ describe('All Models OCR Autofill from Images and Scanned PDFs', () => {
     vi.mocked(readPdfRows).mockResolvedValueOnce([]);
     vi.mocked(ocrRows).mockResolvedValueOnce(disposalScanRows);
     render(
-      <DisposalForm item={sampleItem} allItems={[sampleItem]} onCancel={vi.fn()} />
+      <DisposalForm item={sampleItem} allItems={[sampleItem]} onCancel={vi.fn()} onSuccess={vi.fn()} />
     );
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     expect(fileInput).toBeTruthy();
