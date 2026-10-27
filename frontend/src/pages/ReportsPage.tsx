@@ -172,7 +172,7 @@ export const ReportsPage: React.FC = () => {
   /** The status in plain words, for the table on screen (the exports keep the status as recorded) */
   const STATUS_WORDS: Record<string, string> = {
     AVAILABLE: 'In store', ISSUED: 'Issued', PENDING_STOCK_IN: 'Receipt pending', PENDING_STOCK_OUT: 'Issue pending',
-    UNDER_TRANSFER: 'Transfer pending', PENDING_DISPOSAL: 'Disposal pending', DISPOSED: 'Disposed', REJECTED: 'Rejected',
+    UNDER_TRANSFER: 'Transfer or return pending', PENDING_DISPOSAL: 'Disposal pending', DISPOSED: 'Disposed', REJECTED: 'Rejected',
   };
   const statusWords = (item: ItemWithRelations) => {
     const label = statusLabel(item);

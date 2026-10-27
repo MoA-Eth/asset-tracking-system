@@ -213,11 +213,11 @@ describe('Assets page', () => {
     // Viewing and printing are on the record, not in this menu
     expect(await menuFor(user, 'MOA-S1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Duplicate as new receipt', 'Dispose']);
     await user.keyboard('{Escape}');
-    expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'Duplicate as new receipt']);
+    expect(await menuFor(user, 'MOA-I1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)', 'Duplicate as new receipt']);
     await user.keyboard('{Escape}');
     await user.click(within(rowOf('MOA-S1')).getByRole('button', { name: 'Show 1 issued record' }));
     // A piece split off a batch has no Duplicate: the registration it came from has
-    expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)']);
+    expect(await menuFor(user, 'MOA-S1-1')).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)']);
     await user.keyboard('{Escape}');
     expect(await menuFor(user, 'MOA-B1')).toEqual(['Issue (Model 22)', 'Transfer (Model 21)', 'Duplicate as new receipt', 'Dispose']);
     await user.keyboard('{Escape}');
@@ -569,8 +569,8 @@ describe('Assets page', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     await menuFor(user, 'MOA-I1');
-    // There is one action for both: no separate "Return to store" action
-    expect(screen.queryByRole('menuitem', { name: 'Return to store (Model 21)' })).toBeNull();
+    // Return has its own action too; choosing a store in the transfer form still makes it a return
+    expect(screen.getByRole('menuitem', { name: 'Return to store (Model 21)' })).toBeInTheDocument();
     await user.click(screen.getByRole('menuitem', { name: 'Transfer (Model 21)' }));
     const record = screen.getByRole('region', { name: 'Asset record MOA-I1' });
     expect(record.querySelector('form#transfer-form')).not.toBeNull();
@@ -596,6 +596,31 @@ describe('Assets page', () => {
       itemId: 'I1', ifmisSlipNumber: 'RET-77', returnReason: 'Work finished',
     }));
     expect(vi.mocked(api.registerReturn).mock.calls[0][0].condition).toBeUndefined();
+    expect(api.transferItem).not.toHaveBeenCalled();
+  });
+
+  it('opens Return to store with the form already set to take the asset back to its store', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.registerReturn).mockResolvedValue({ id: 'ret-2' } as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    await menuFor(user, 'MOA-I1');
+    await user.click(screen.getByRole('menuitem', { name: 'Return to store (Model 21)' }));
+    const record = screen.getByRole('region', { name: 'Asset record MOA-I1' });
+
+    // A return from the start: no recipient to choose, the reason is asked and required
+    expect(within(record).queryByText('To employee')).toBeNull();
+    expect(within(record).getByLabelText(/Reason for return/)).toBeInTheDocument();
+    expect(within(record).getByText('Reason for return').closest('label')?.textContent).not.toMatch(/optional/i);
+    expect(submitOf(record, 'transfer-form')).toHaveTextContent('Submit return to store for approval');
+
+    await user.type(within(record).getByPlaceholderText('Number on the Model 21 form'), 'RET-78');
+    await user.type(within(record).getByPlaceholderText('Book the form comes from'), 'Book 3');
+    await user.type(within(record).getByLabelText(/Reason for return/), 'Leaving the project');
+    await user.click(submitOf(record, 'transfer-form'));
+
+    await vi.waitFor(() => expect(api.registerReturn).toHaveBeenCalledTimes(1));
+    expect(api.registerReturn).toHaveBeenCalledWith(expect.objectContaining({ itemId: 'I1', ifmisSlipNumber: 'RET-78', returnReason: 'Leaving the project' }));
     expect(api.transferItem).not.toHaveBeenCalled();
   });
 
@@ -981,7 +1006,7 @@ describe('Asset record', () => {
     await user.click(within(batch).getByRole('button', { name: /MOA-S1-1/ }));
 
     const unit = screen.getByRole('region', { name: 'Asset record MOA-S1-1' });
-    expect(toolbarOf(unit)).toEqual(['Transfer (Model 21)']);
+    expect(toolbarOf(unit)).toEqual(['Transfer (Model 21)', 'Return to store (Model 21)']);
     expect(within(unit).getByRole('button', { name: 'MOA-S1' })).toBeInTheDocument();
     expect(within(unit).getByText('Approved')).toBeInTheDocument();
   });

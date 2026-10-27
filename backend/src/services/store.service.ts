@@ -2087,7 +2087,7 @@ export class StoreService {
     return mapApproval(updated);
   }
 
-  // ── Model 22 Return to Store ─────────────────────────────────────────────
+  // ── Model 21 Return to Store ─────────────────────────────────────────────
 
   public async registerReturn(payload: CreateReturnRequest): Promise<TransactionApproval> {
     const item = await prisma.item.findUnique({ where: { id: payload.itemId } });
@@ -2115,7 +2115,7 @@ export class StoreService {
     }
     await assertNoPendingApproval(item, remainingBalance > 0 ? ['TRANSFER', 'RETURN'] : undefined);
     const effectiveSlipNo = String(payload.model21No || payload.ifmisSlipNumber || '').trim();
-    if (!effectiveSlipNo) throw new BadRequestError('Return Voucher (Model 21 / 22) Slip Number is mandatory.');
+    if (!effectiveSlipNo) throw new BadRequestError('Return voucher (Model 21) number is mandatory.');
     if (isBlank(payload.returnReason)) throw new BadRequestError('Reason for return is required.');
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     assertMaxLength(payload.returnReason, 500, 'Reason for return');
@@ -2183,10 +2183,12 @@ export class StoreService {
     };
     const model21Details = formatReturnNotes(payload.model21No ? effectiveSlipNo : '', returnDetails);
 
-    // The item keeps its current condition until the return is approved
+    // Nothing moves yet: as with a transfer, the item is held UNDER_TRANSFER until Stage 2 approval;
+    // it keeps its current condition until then
     await prisma.item.update({
       where: { id: item.id },
       data: {
+        status: 'UNDER_TRANSFER' as any,
         history: {
           create: {
             dateGc: today.gc,
@@ -2675,6 +2677,8 @@ export class StoreService {
         await db.item.update({
           where: { id: a.itemId },
           data: {
+            // A transfer or return waiting again holds the item again, as when it was first asked for
+            ...(type === 'TRANSFER' || type === 'RETURN' ? { status: 'UNDER_TRANSFER' as any } : {}),
             history: {
               create: {
                 dateGc: today.gc,
@@ -3778,7 +3782,7 @@ export class StoreService {
 
     if ((approval.transactionType === 'TRANSFER' || approval.transactionType === 'RETURN') && newItemStatus !== 'UNDER_TRANSFER') {
       const otherTransfer = await db.transactionApproval.findFirst({
-        where: { itemId: item.id, status: { in: OPEN_STATUSES }, transactionType: 'TRANSFER', id: { not: approval.id } },
+        where: { itemId: item.id, status: { in: OPEN_STATUSES }, transactionType: { in: ['TRANSFER', 'RETURN'] as any }, id: { not: approval.id } },
         select: { id: true },
       });
       if (otherTransfer) {

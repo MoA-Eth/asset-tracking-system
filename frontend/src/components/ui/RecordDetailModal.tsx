@@ -41,7 +41,7 @@ const ITEM_STATUS: Record<string, { label: string; tone: keyof typeof statusTone
   [ItemStatus.AVAILABLE]: { label: 'In store', tone: 'inStore' },
   [ItemStatus.PENDING_STOCK_OUT]: { label: 'Issue pending', tone: 'pending' },
   [ItemStatus.ISSUED]: { label: 'Issued', tone: 'issued' },
-  [ItemStatus.UNDER_TRANSFER]: { label: 'Under transfer', tone: 'pending' },
+  [ItemStatus.UNDER_TRANSFER]: { label: 'Transfer or return pending', tone: 'pending' },
   [ItemStatus.PENDING_DISPOSAL]: { label: 'Disposal pending', tone: 'pending' },
   [ItemStatus.DISPOSED]: { label: 'Disposed', tone: 'neutral' },
   [ItemStatus.REJECTED]: { label: 'Rejected', tone: 'rejected' },

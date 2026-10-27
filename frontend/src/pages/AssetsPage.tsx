@@ -7,6 +7,7 @@ import {
   AlertCircle,
   PackageMinus,
   ArrowRightLeft,
+  Undo2,
   Pencil,
   ChevronRight,
   X,
@@ -238,7 +239,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   } | null>(null);
   // A new issue of one item, or of the items of a Model 19 (`slip` is its key, `itemIds` its items in store)
   const [issue, setIssue] = useState<{ itemId?: string; edit?: TransactionApproval; slip?: string; itemIds?: string[] } | null>(null);
-  const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval } | null>(null);
+  const [transfer, setTransfer] = useState<{ itemId?: string; edit?: TransactionApproval; asReturn?: boolean } | null>(null);
   const [disposing, setDisposing] = useState<{ itemId: string } | null>(null);
   // The asset record open beside the list, and whether what it has pending is being corrected in place
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -864,7 +865,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         id: 'transfer-form',
         form: (
           <TransferForm
-            key={transfer.edit?.id ?? `transfer-${item.id}`}
+            key={transfer.edit?.id ?? `${transfer.asReturn ? 'return' : 'transfer'}-${item.id}`}
             items={items}
             employees={employees}
             departments={departments}
@@ -873,6 +874,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             openByItem={openByItem}
             editTransfer={transfer.edit}
             initialItemId={item.id}
+            asReturn={transfer.asReturn}
             onItemUpdated={itemUpdated}
             onCancel={() => setTransfer(null)}
             onSaved={(voucher) => done(voucher, setVoucher21)}
@@ -1115,6 +1117,16 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             // Consumables are issued (Model 22) and used up; only a fixed asset moves on
             hidden: !canTransfer || !!item.heldByOrganization || item.itemType === 'CONSUMABLE',
           },
+          {
+            label: 'Return to store (Model 21)',
+            icon: Undo2,
+            onClick: () => {
+              setSelectedId(item.id);
+              setTransfer({ itemId: item.id, asReturn: true });
+              setIssue(null);
+            },
+            hidden: !canTransfer || !!item.heldByOrganization,
+          },
         ];
       case 'REQUEST_PENDING': {
         const editPermission: Record<string, boolean> = { STOCK_OUT: canIssue, DISPOSAL: canDispose, TRANSFER: canTransfer, RETURN: canTransfer };
@@ -1155,6 +1167,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               setDisposing(null);
             },
             hidden: !canTransfer || !transferableItems.some((i) => i.id === item.id),
+          },
+          {
+            label: 'Return to store (Model 21)',
+            icon: Undo2,
+            onClick: () => {
+              setSelectedId(item.id);
+              setTransfer({ itemId: item.id, asReturn: true });
+              setIssue(null);
+              setDisposing(null);
+            },
+            hidden:
+              !canTransfer ||
+              (item.status !== ItemStatus.ISSUED && item.status !== ItemStatus.UNDER_TRANSFER) ||
+              !transferableItems.some((i) => i.id === item.id),
           },
         ];
       }

@@ -79,6 +79,8 @@ export interface TransferFormProps {
   editTransfer?: TransactionApproval;
   /** Asset chosen before the form opened, e.g. from its row in the register */
   initialItemId?: string;
+  /** Opened as "Return to store": the store the asset came from is chosen to take it back */
+  asReturn?: boolean;
   /** Assets chosen before the form opened, e.g. from multiple selections */
   initialItemIds?: string[];
   /** A Model 21 PDF chosen with the form's header button: it is read into the form */
@@ -89,7 +91,7 @@ export interface TransferFormProps {
   onItemUpdated?: (item: ItemWithRelations) => void;
 }
 
-export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, openByItem, editTransfer, initialItemId, initialItemIds, slip, onCancel, onSaved, onItemUpdated }) => {
+export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, departments, locations, pendingByItem, openByItem, editTransfer, initialItemId, asReturn, initialItemIds, slip, onCancel, onSaved, onItemUpdated }) => {
   const { user } = useAuth();
   const toast = useToast();
   const details = editTransfer?.requestDetails ?? {};
@@ -230,7 +232,13 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
   // "Return to store": the store the asset goes back to. Empty means an ordinary transfer to an employee.
   const isReturnEdit = editTransfer?.transactionType === 'RETURN';
-  const [returnToId, setReturnToId] = useState(isReturnEdit ? editTransfer?.targetLocationId ?? editItem?.storeLocationId ?? '' : '');
+  const [returnToId, setReturnToId] = useState(
+    isReturnEdit
+      ? editTransfer?.targetLocationId ?? editItem?.storeLocationId ?? ''
+      : asReturn
+        ? items.find((i) => i.id === initialItemId)?.storeLocationId ?? ''
+        : '',
+  );
   const isReturn = isReturnEdit || (!editTransfer && !!returnToId);
   // Condition is no longer asked on return; a correction keeps what an older return recorded
   const condition = isReturnEdit ? (details.condition as ItemCondition | undefined) || undefined : undefined;
@@ -1465,7 +1473,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
                 />
               </FieldGrid>
 
-              <Field label="Reason for return" optional htmlFor="transfer-return-reason" error={errorOf('reason')}>
+              <Field label="Reason for return" htmlFor="transfer-return-reason" error={errorOf('reason')}>
                 <input
                   id="transfer-return-reason"
                   type="text"

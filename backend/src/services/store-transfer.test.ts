@@ -328,6 +328,19 @@ describe('Asset Transfer approval workflow', () => {
       expect(db.transactionApproval.create).not.toHaveBeenCalled();
     });
 
+    it('holds an item being returned as under transfer, as a transfer does, until the return is decided', async () => {
+      db.item.findUnique.mockResolvedValue({ ...issuedItem });
+      db.transactionApproval.findFirst.mockResolvedValue(null);
+      db.transactionApproval.findMany.mockResolvedValue([]);
+      db.transactionApproval.create.mockImplementation(async ({ data }: any) => ({ id: 'appr-r', ...data }));
+      const approval = await store().registerReturn({
+        itemId: 'item-1', ifmisSlipNumber: 'M21-3', ifmisSlipDateGc: '2026-10-01', returnReason: 'Done', condition: 'GOOD', registeredById: 'EMP-ENC',
+      } as any);
+      expect(approval.transactionType).toBe('RETURN');
+      expect(itemUpdateData().status).toBe('UNDER_TRANSFER');
+      expect(itemUpdateData().history.create.action).toBe('RETURN_REQUESTED');
+    });
+
     it('still transfers and returns an issued item', async () => {
       db.item.findUnique.mockResolvedValue({ ...issuedItem });
       await expect(store().transferItem(transferPayload as any)).resolves.toBeTruthy();
