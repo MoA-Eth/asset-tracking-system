@@ -1054,7 +1054,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
            ══════════════════════════════════════════════════════════════════════ */
         <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-[13px] min-w-[800px]">
+            <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className={table.headRow}>
                   {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
@@ -1082,7 +1082,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2 px-3.5 min-w-[220px]"
+                    thClassName="py-2 px-3.5 min-w-[180px]"
                   />
                   <SortableHeader
                     label="Stage"
@@ -1098,7 +1098,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2 px-3.5 min-w-[200px]"
+                    thClassName="hidden lg:table-cell py-2 px-3.5 max-w-[220px]"
                   />
                   <th className="sticky right-0 z-[1] bg-slate-100 py-2 px-3 text-right w-44 whitespace-nowrap shrink-0 font-normal">Review</th>
                 </tr>
@@ -1148,7 +1148,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       <td className="py-2.5 px-3.5">
                         <div className="flex flex-col">
                           <span className="text-slate-900 font-medium line-clamp-1">{appr.itemName}</span>
-                          <span className="flex flex-wrap items-center gap-x-1.5 whitespace-nowrap">
+                          <span className="flex flex-wrap items-center gap-x-1.5 [&>*]:whitespace-nowrap">
                             <span className={table.code}>{appr.itemCode}</span>
                             {appr.ifmisItemCode && appr.ifmisItemCode !== appr.itemCode && (
                               <span className="text-xs text-slate-500 font-mono">IFMIS {appr.ifmisItemCode}</span>
@@ -1179,6 +1179,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                               </button>
                             )}
                           </span>
+                          <span className="lg:hidden text-xs text-slate-500 truncate">by {appr.requestedBy?.fullNameEn || '—'}</span>
                         </div>
                       </td>
 
@@ -1188,7 +1189,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       </td>
 
                       {/* Requester & Justification */}
-                      <td className="py-2.5 px-3.5 max-w-sm">
+                      <td className="hidden lg:table-cell py-2.5 px-3.5 max-w-[220px]">
                         <div className="flex flex-col text-slate-600">
                           <span className="text-slate-800 truncate">
                             {appr.requestedBy?.fullNameEn || '—'}
@@ -1207,9 +1208,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                             onClick={() => setViewingApproval(slipLines.get(appr.id)?.[0] ?? appr)}
                             className={btn.row}
                             title="View the voucher"
+                            aria-label="View"
                           >
                             <FileSearch className={btn.rowIcon} />
-                            View
+                            <span className="hidden 2xl:inline">View</span>
                           </button>
                           {isActionableForMe && (
                           <button
@@ -1235,10 +1237,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                               setReviewRemarks('');
                               setActionError(null);
                             }}
-                            className="px-3 py-1.5 rounded-[4px] border border-rose-200 bg-white font-bold text-xs text-rose-700 transition cursor-pointer flex items-center gap-1.5 shadow-2xs hover:bg-rose-50"
+                            title="Reject"
+                            aria-label="Reject"
+                            className="px-2 2xl:px-3 py-1.5 rounded-[4px] border border-rose-200 bg-white font-bold text-xs text-rose-700 transition cursor-pointer flex items-center gap-1.5 shadow-2xs hover:bg-rose-50"
                           >
                             <XCircle className="w-3.5 h-3.5" />
-                            <span>Reject</span>
+                            <span className="hidden 2xl:inline">Reject</span>
                           </button>
                           )}
                           {canVoid && appr.status === ApprovalStatus.APPROVED && !appr.voidDetails?.voided && (
