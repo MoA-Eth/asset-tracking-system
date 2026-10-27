@@ -139,8 +139,8 @@ export const AuditLogsPage: React.FC = () => {
         log.userName.toLowerCase().includes(q) ||
         log.details.toLowerCase().includes(q) ||
         (log.entityId ?? '').toLowerCase().includes(q) ||
-        (log.previousState ?? '').toLowerCase().includes(q) ||
-        (log.newState ?? '').toLowerCase().includes(q) ||
+        JSON.stringify(log.previousState ?? '').toLowerCase().includes(q) ||
+        JSON.stringify(log.newState ?? '').toLowerCase().includes(q) ||
         (log.ifmisSlipNumber ?? '').toLowerCase().includes(q);
 
       const matchKind = selectedKind === 'ALL' || activityKind(log.action) === selectedKind;
@@ -310,11 +310,10 @@ export const AuditLogsPage: React.FC = () => {
                 aria-expanded={isActionsMenuOpen}
                 aria-label="Audit log export and print actions"
                 title="Export and print options"
-                className={`inline-flex items-center justify-center h-8 w-8 rounded-[4px] border transition cursor-pointer select-none shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-                  isActionsMenuOpen
-                    ? 'border-emerald-700/60 bg-emerald-50/80 text-emerald-950 shadow-xs'
-                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900'
-                }`}
+                className={`inline-flex items-center justify-center h-8 w-8 rounded-[4px] border transition cursor-pointer select-none shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${isActionsMenuOpen
+                  ? 'border-emerald-700/60 bg-emerald-50/80 text-emerald-950 shadow-xs'
+                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900'
+                  }`}
               >
                 <MoreVertical className="w-4 h-4" />
               </button>
