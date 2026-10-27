@@ -293,4 +293,34 @@ describe('the same record on the same Model 22 is not entered twice', () => {
     });
     expect(db.transactionApproval.update).not.toHaveBeenCalled();
   });
+
+  it('resubmits the rejected issue itself: it is not a duplicate of itself', async () => {
+    const rejected = {
+      id: 'first-issue', status: 'REJECTED', transactionType: 'STOCK_OUT', itemId: item.id, itemCode: item.itemCode, ifmisSlipNumber: '0000202/A',
+      recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 10 }, returnRemarks: 'Wrong recipient',
+      item: { notes: item.notes, status: item.status, itemCode: item.itemCode, name: item.name, unitCostETB: 1000 },
+    };
+    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) => {
+      if (where.id?.in) return [rejected];
+      // The duplicate check leaves the request being resubmitted out
+      if (where.transactionType?.in) return where.id?.not === 'first-issue' ? [] : [rejected];
+      return [];
+    });
+    db.transactionApproval.update.mockImplementation(async ({ data }: any) => ({ ...rejected, ...data }));
+    const [resubmitted] = await store().resubmitReturned({ approvalIds: ['first-issue'] }, 'EMP-ENC');
+    expect(resubmitted.status).toBe('PENDING');
+    expect(resubmitted.currentStage).toBe(1);
+  });
+
+  it('frees the number once the rejected issue is cancelled: the item can be entered on it again', async () => {
+    // A cancelled request is closed: the check asks only for waiting and rejected ones
+    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) => {
+      if (where.transactionType?.in) {
+        expect(where.status.in).not.toContain('CANCELLED');
+        return [];
+      }
+      return where.itemId === item.id && where.transactionType === 'STOCK_OUT' ? [{ requestDetails: { quantity: 30 } }] : [];
+    });
+    await expect(store().registerStockOut({ ...issue, itemId: item.id, quantity: 10 } as any)).resolves.toBeTruthy();
+  });
 });
