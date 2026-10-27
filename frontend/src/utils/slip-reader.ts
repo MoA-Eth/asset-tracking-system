@@ -446,7 +446,8 @@ function parseItemLines(rows: PdfRow[]): Model19SlipLine[] {
     if (row.cells.length < 2) return;
     const c0 = row.cells[0]?.text?.trim() ?? '';
     const c1 = row.cells[1]?.text?.trim() ?? '';
-    if (/^\d{1,3}\.?$/.test(c0) && /\d/.test(c1) && /^[A-Za-z0-9][A-Za-z0-9.\-/]{3,}$/.test(c1)) {
+    // A scan whose item code couldn't be read gives "-" in its place: still an item line, with no code
+    if (/^\d{1,3}\.?$/.test(c0) && (c1 === '-' || (/\d/.test(c1) && /^[A-Za-z0-9][A-Za-z0-9.\-/]{3,}$/.test(c1)))) {
       starts.push({ row, index, codeText: c1, restCells: row.cells.slice(2) });
       return;
     }
@@ -504,7 +505,7 @@ function parseItemLines(rows: PdfRow[]): Model19SlipLine[] {
       if (numbers.length >= 3) figures = { quantity, unitPrice, totalAmount };
     }
     lines.push({
-      itemCode: codeText,
+      itemCode: codeText === '-' ? undefined : codeText,
       description: description.join(' ').replace(/\s+/g, ' ').trim() || undefined,
       uom: uom?.text,
       subInventory: subInventory.join(' ').trim() || undefined,

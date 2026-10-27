@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { flatShare, isImageFile, ocrLinesToRows, OcrLine, readability } from './slip-ocr';
+import { cellCode, cellNumber, cleanText, flatShare, isImageFile, ocrLinesToRows, OcrLine, readability, restoreDecimals, ruleLines, scanUnit, skewAngle } from './slip-ocr';
 
 /** A line of OCR words: [text, left, right] in pixels, all 30 px tall at the given top */
 const line = (top: number, ...words: [string, number, number][]): OcrLine => ({
@@ -45,5 +45,54 @@ describe('which way up a scan is', () => {
 
   it('rates text with the words of a Model 19 above garbled text of the same confidence', () => {
     expect(readability('INV Model 19 No. Transaction Type PO Receipt Total Amount', 55)).toBeGreaterThan(readability('1d1a29y Od adA] uonoesues]', 55));
+  });
+});
+
+describe('reading the item table of a scanned Model 19 cell by cell', () => {
+  it('finds rule lines as long dark stretches, and not text, which is short stretches', () => {
+    // A 100 x 40 picture: a faint, broken line at y 10 (long stretches), text-like specks at y 25 (short ones)
+    const dark = (y: number, x: number) => (y === 10 && x % 40 < 35) || (y === 25 && x % 6 < 2);
+    expect(ruleLines(dark, 40, 0, 100, 0.25, 30)).toEqual([10]);
+  });
+
+  it('tells how far a table is turned from where its dark pixels line up', () => {
+    const t = Math.tan((1.2 * Math.PI) / 180);
+    const points = [0, 40, 80].flatMap((y) => Array.from({ length: 300 }, (_, x) => ({ x, y: Math.round(y + x * t) })));
+    expect(skewAngle(points)).toBeCloseTo(1.2, 1);
+    expect(skewAngle([{ x: 1, y: 1 }])).toBe(0);
+  });
+
+  it('reads figures: a dropped decimal point, thousands commas, and specks beside the figure', () => {
+    expect(cellNumber('285 01')).toBe('285.01');
+    expect(cellNumber('1,159.99')).toBe('1159.99');
+    expect(cellNumber('1 2999.89')).toBe('2999.89');
+    expect(cellNumber('—')).toBe('');
+  });
+
+  it('reads IFMIS item codes whole, wherever the dot went', () => {
+    expect(cellCode('101101101 0339')).toBe('101101101.0339');
+    expect(cellCode('1011011010339')).toBe('101101101.0339');
+    expect(cellCode('101101101.0057')).toBe('101101101.0057');
+  });
+
+  it('reads units with stray letters around them, RM for a ream included', () => {
+    expect(scanUnit('CPKT')).toBe('PKT');
+    expect(scanUnit('RM')).toBe('RM');
+    expect(scanUnit('EA |')).toBe('EA');
+    expect(scanUnit('HL')).toBe('');
+  });
+
+  it('puts back a decimal point only where quantity x price = total proves it', () => {
+    expect(restoreDecimals('15', '1159.99', '1739991')).toEqual({ price: '1159.99', total: '17399.91' });
+    expect(restoreDecimals('10', '38004', '3800.41')).toEqual({ price: '380.04', total: '3800.41' });
+    // Already adding up, or not provable: left as read
+    expect(restoreDecimals('2', '18', '36')).toEqual({ price: '18', total: '36' });
+    expect(restoreDecimals('1', '38004', '3800.41')).toEqual({ price: '38004', total: '3800.41' });
+  });
+
+  it('cleans the marks a cell edge leaves on a description', () => {
+    expect(cleanText('Stapler Wire Small [')).toBe('Stapler Wire Small');
+    expect(cleanText('Puncher Small | | EA')).toBe('Puncher Small');
+    expect(cleanText('Note Pad\nMedium')).toBe('Note Pad Medium');
   });
 });
