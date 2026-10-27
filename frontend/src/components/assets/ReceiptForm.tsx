@@ -14,7 +14,7 @@ import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDispla
 import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { isImageFile, ocrRows } from '../../utils/slip-ocr';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
-import { ReceiptItems, SlipLine, ItemTypeTag, lineMissing, blankLine, cellClass, money } from './SlipLines';
+import { ReceiptItems, SlipLine, lineMissing, blankLine, cellClass, money } from './SlipLines';
 import { slipKey } from './slip-groups';
 import { categoryLabel } from './asset-state';
 import { UomSelect } from './UomSelect';
@@ -1114,16 +1114,6 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             onBlur={fieldErrors.touch('itemType')}
             className={cellClass({ mono: true, invalid: !donation && !!fieldErrors.error('itemType') })}
           />
-          {!donation && (
-            <ItemTypeTag
-              type={itemType}
-              code={ifmisItemCode}
-              label="Item type"
-              onToggle={() =>
-                setItemType(itemType === ItemType.CONSUMABLE ? ItemType.FIXED : ItemType.CONSUMABLE)
-              }
-            />
-          )}
         </div>
       </td>
       <td className="px-3 py-2.5">
