@@ -1114,6 +1114,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             onBlur={fieldErrors.touch('itemType')}
             className={cellClass({ mono: true, invalid: !donation && !!fieldErrors.error('itemType') })}
           />
+          <span
+            aria-label="Item type"
+            className="sr-only"
+          >
+            {((itemType || (ifmisItemCode ? itemTypeFromIfmisCode(ifmisItemCode) : undefined) || ItemType.FIXED) === ItemType.CONSUMABLE)
+              ? 'Consumable'
+              : 'Fixed asset'}
+          </span>
         </div>
       </td>
       <td className="px-3 py-2.5">
