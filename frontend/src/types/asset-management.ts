@@ -553,6 +553,9 @@ export interface TransactionApproval {
   itemId: string;
   itemCode: string;
   itemName: string;
+  ifmisItemCode?: string;
+  ifmisTagNumber?: string;
+  serialNumber?: string;
   
   // IFMIS attachment
   ifmisSlipNumber: string;

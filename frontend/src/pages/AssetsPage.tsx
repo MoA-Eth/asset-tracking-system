@@ -591,11 +591,23 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       ...(item.history || []).map((h) => h.notes),
     ];
 
+    const poVariations = [
+      ...(item.poNumber ? [item.poNumber.replace(/[-_#]/g, ' '), item.poNumber.replace(/[-_#]/g, '')] : []),
+      ...(row.request?.poNumber ? [row.request.poNumber.replace(/[-_#]/g, ' '), row.request.poNumber.replace(/[-_#]/g, '')] : []),
+    ];
+    const codeVariations = [
+      ...(item.itemCode ? [item.itemCode.replace(/[-_.]/g, ' '), item.itemCode.replace(/[-_.]/g, '')] : []),
+      ...(item.ifmisItemCode ? [item.ifmisItemCode.replace(/[.]/g, ' ')] : []),
+      ...(item.ifmisTagNumber ? [item.ifmisTagNumber.replace(/[-_.]/g, ' '), item.ifmisTagNumber.replace(/[-_.]/g, '')] : []),
+    ];
+
     const targets = [
       item.name,
       item.itemCode,
       item.ifmisTagNumber,
       item.ifmisItemCode,
+      ...codeVariations,
+      ...poVariations,
       item.serialNumber,
       item.itemCategoryDisplay,
       item.category,

@@ -202,7 +202,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onNavigate }) => {
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
-        placeholder="Search items by name, code, serial or slip number…"
+        placeholder="Search items by name, code, PO #, serial or slip number…"
         className="h-9 w-full rounded-[4px] border border-slate-200 bg-slate-50 pl-9 pr-16 text-[13px] text-slate-900 placeholder:text-slate-400 transition-colors hover:border-slate-400 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 [&::-webkit-search-cancel-button]:hidden"
       />
       <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-sans text-[10px] font-semibold text-slate-400">
@@ -250,6 +250,9 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onNavigate }) => {
                         <span className="block truncate font-medium text-slate-900">{hit.item.name}</span>
                         <span className="block truncate text-[11px] text-slate-500">
                           <span className="font-mono">{hit.item.itemCode}</span>
+                          {hit.item.ifmisItemCode && hit.item.ifmisItemCode !== hit.item.itemCode ? ` · IFMIS ${hit.item.ifmisItemCode}` : ''}
+                          {hit.item.ifmisTagNumber ? ` · Tag ${hit.item.ifmisTagNumber}` : ''}
+                          {hit.item.poNumber ? ` · PO ${hit.item.poNumber}` : ''}
                           {' · '}
                           {STATUS_LABELS[hit.item.status] ?? hit.item.status}
                           {hit.item.currentCustodian ? ` · ${hit.item.currentCustodian.fullNameEn}` : hit.item.heldByOrganization ? ` · ${hit.item.heldByOrganization}` : ''}

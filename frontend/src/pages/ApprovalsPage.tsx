@@ -255,14 +255,82 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   /** Above 10 million birr: a request by its amount, a voucher of several lines by its grand total (its row's amount) */
   const isHigh = (a: TransactionApproval) => needsChiefDirector(a.totalAmount || 0);
 
+  const poVariations = (p?: string) => (p ? [p, p.replace(/[-_#]/g, ' '), p.replace(/[-_#]/g, '')] : []);
+  const codeVariations = (c?: string) => (c ? [c, c.replace(/[-_.]/g, ' '), c.replace(/[-_.]/g, '')] : []);
+
+  const matchesSearch = useCallback(
+    (item: TransactionApproval) => {
+      if (!searchTerm.trim()) return true;
+      const q = searchTerm.trim().toLowerCase();
+      const vName = voucherName(item.transactionType).toLowerCase();
+      const altModel =
+        item.transactionType === 'STOCK_IN'
+          ? 'model 19 model-19 model19 m19 receipt receiving'
+          : item.transactionType === 'STOCK_OUT'
+            ? 'model 22 model-22 model22 m22 issue siv'
+            : item.transactionType === 'TRANSFER' || item.transactionType === 'RETURN'
+              ? 'model 21 model-21 model21 m21 transfer return'
+              : 'model 20 model-20 model20 m20 disposal model 22/b';
+
+      const lines = slipLines.get(item.id) ?? [];
+      const targets = [
+        item.itemCode,
+        ...codeVariations(item.itemCode),
+        item.ifmisItemCode,
+        ...codeVariations(item.ifmisItemCode),
+        item.ifmisTagNumber,
+        ...codeVariations(item.ifmisTagNumber),
+        item.serialNumber,
+        item.itemName,
+        item.ifmisSlipNumber,
+        item.poNumber,
+        ...poVariations(item.poNumber),
+        item.purposeOrRemarks,
+        item.requestedBy?.fullNameEn,
+        item.requestedBy?.fullNameAm,
+        item.endorsedBy?.fullNameEn,
+        item.endorsedBy?.fullNameAm,
+        item.recipientEmployee?.fullNameEn,
+        item.recipientEmployee?.fullNameAm,
+        item.requestDetails?.organizationName,
+        item.requestDetails?.recipientName,
+        item.targetDepartmentId ? departments.find((d) => d.id === item.targetDepartmentId)?.nameEn : undefined,
+        item.targetLocationId ? locations.find((l) => l.id === item.targetLocationId)?.siteName : undefined,
+        vName,
+        altModel,
+        ...lines.flatMap((l) => [
+          l.itemName,
+          l.itemCode,
+          ...codeVariations(l.itemCode),
+          l.ifmisItemCode,
+          ...codeVariations(l.ifmisItemCode),
+          l.ifmisTagNumber,
+          ...codeVariations(l.ifmisTagNumber),
+          l.serialNumber,
+          l.ifmisSlipNumber,
+          l.poNumber,
+          ...poVariations(l.poNumber),
+        ]),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      const words = q.split(/\s+/).filter(Boolean);
+      return targets.includes(q) || (words.length > 1 && words.every((w) => targets.includes(w)));
+    },
+    [departments, locations, searchTerm, slipLines],
+  );
+
   // Compute live counter metrics
   const metrics = useMemo(() => {
-    const pending = rows.filter((a) => a.status === ApprovalStatus.PENDING);
+    const base = searchTerm.trim() ? rows.filter(matchesSearch) : rows;
+    const pending = base.filter((a) => a.status === ApprovalStatus.PENDING);
     const stage1 = pending.filter((a) => (a.currentStage ?? 1) === 1);
     const stage2 = pending.filter((a) => a.currentStage === 2);
-    const approved = rows.filter((a) => a.status === ApprovalStatus.APPROVED && !a.voidDetails?.voided);
-    const rejected = rows.filter((a) => a.status === ApprovalStatus.REJECTED);
-    const voided = rows.filter((a) => a.status === ApprovalStatus.VOIDED || Boolean(a.voidDetails?.voided));
+    const approved = base.filter((a) => a.status === ApprovalStatus.APPROVED && !a.voidDetails?.voided);
+    const rejected = base.filter((a) => a.status === ApprovalStatus.REJECTED);
+    const voided = base.filter((a) => a.status === ApprovalStatus.VOIDED || Boolean(a.voidDetails?.voided));
 
     let myQueueCount = 0;
     if (canEndorse && canApprove) {
@@ -286,10 +354,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       approvedCount: approved.length,
       rejectedCount: rejected.length,
       voidedCount: voided.length,
-      totalCount: rows.length,
+      totalCount: base.length,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, slipLines, canEndorse, canApprove]);
+  }, [rows, searchTerm, matchesSearch, canEndorse, canApprove, isChiefDirector, isDeptHead]);
 
   // Filtered approvals list
   const filteredApprovals = useMemo(() => {
@@ -299,10 +366,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         if (item.status !== ApprovalStatus.PENDING) return false;
         if (canEndorse && canApprove) {
           if ((item.currentStage ?? 1) !== 1 && item.currentStage !== 2) return false;
-        } else if (canEndorse && (item.currentStage ?? 1) !== 1) {
-          return false;
-        }
-        if (canApprove) {
+          if (item.currentStage === 2) {
+            const high = isHigh(item);
+            if (isChiefDirector && !high) return false;
+            if (isDeptHead && high) return false;
+          }
+        } else if (canEndorse) {
+          if ((item.currentStage ?? 1) !== 1) return false;
+        } else if (canApprove) {
           if (item.currentStage !== 2) return false;
           const high = isHigh(item);
           if (isChiefDirector && !high) return false;
@@ -334,52 +405,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       }
 
       // 4. Search Filter
-      if (searchTerm.trim()) {
-        const q = searchTerm.trim().toLowerCase();
-        const vName = voucherName(item.transactionType).toLowerCase();
-        const altModel =
-          item.transactionType === 'STOCK_IN'
-            ? 'model 19 model-19 model19 m19 receipt receiving'
-            : item.transactionType === 'STOCK_OUT'
-              ? 'model 22 model-22 model22 m22 issue siv'
-              : item.transactionType === 'TRANSFER' || item.transactionType === 'RETURN'
-                ? 'model 21 model-21 model21 m21 transfer return'
-                : 'model 20 model-20 model20 m20 disposal model 22/b';
-
-        const lines = slipLines.get(item.id) ?? [];
-        const targets = [
-          item.itemCode,
-          item.itemName,
-          item.ifmisSlipNumber,
-          item.poNumber,
-          item.purposeOrRemarks,
-          item.requestedBy?.fullNameEn,
-          item.requestedBy?.fullNameAm,
-          item.endorsedBy?.fullNameEn,
-          item.endorsedBy?.fullNameAm,
-          item.recipientEmployee?.fullNameEn,
-          item.recipientEmployee?.fullNameAm,
-          item.requestDetails?.organizationName,
-          item.requestDetails?.recipientName,
-          item.targetDepartmentId ? departments.find((d) => d.id === item.targetDepartmentId)?.nameEn : undefined,
-          item.targetLocationId ? locations.find((l) => l.id === item.targetLocationId)?.siteName : undefined,
-          vName,
-          altModel,
-          ...lines.flatMap((l) => [l.itemName, l.itemCode, l.ifmisSlipNumber]),
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-
-        const words = q.split(/\s+/).filter(Boolean);
-        const matches = targets.includes(q) || (words.length > 1 && words.every((w) => targets.includes(w)));
-        if (!matches) return false;
-      }
-
-      return true;
+      return matchesSearch(item);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, slipLines, activeTab, typeFilter, valueFilter, searchTerm, canEndorse, canApprove]);
+  }, [rows, activeTab, canEndorse, canApprove, isChiefDirector, isDeptHead, typeFilter, valueFilter, matchesSearch]);
 
   type ApprovalSortColumn = 'type' | 'item' | 'stage' | 'requester';
   const [sortColumn, setSortColumn] = useState<ApprovalSortColumn>('type');
@@ -844,7 +872,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             <input
               type="text"
               aria-label="Search requests"
-              placeholder="Search by tracking code, item name, slip #, or staff..."
+              placeholder="Search by item code, IFMIS code, PO #, item name, slip #, or staff..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
@@ -1001,9 +1029,24 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         <div className="py-16 text-center rounded-2xl bg-white border border-dashed border-slate-300 space-y-2 shadow-xs">
           <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
           <h3 className="text-sm font-bold text-slate-900">No Approvals Matching Criteria</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            All registered stock transactions are fully cleared for the selected filters.
-          </p>
+          <div className="text-xs text-slate-500 max-w-md mx-auto space-y-3">
+            {searchTerm.trim() && metrics.totalCount > 0 ? (
+              <>
+                <p>
+                  No requests in <strong>{visibleQueueTabsList.find((t) => t.id === activeTab)?.label}</strong> match "{searchTerm}", but found <strong>{metrics.totalCount}</strong> matching request{metrics.totalCount === 1 ? '' : 's'} in other tabs.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('ALL')}
+                  className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-medium text-xs transition cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
+                >
+                  View in All Records ({metrics.totalCount})
+                </button>
+              </>
+            ) : (
+              <p>All registered stock transactions are fully cleared for the selected filters.</p>
+            )}
+          </div>
         </div>
       ) : (
         /* ══════════════════════════════════════════════════════════════════════
@@ -1107,6 +1150,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                           <span className="text-slate-900 font-medium line-clamp-1">{appr.itemName}</span>
                           <span className="flex flex-wrap items-center gap-x-1.5 whitespace-nowrap">
                             <span className={table.code}>{appr.itemCode}</span>
+                            {appr.ifmisItemCode && appr.ifmisItemCode !== appr.itemCode && (
+                              <span className="text-xs text-slate-500 font-mono">IFMIS {appr.ifmisItemCode}</span>
+                            )}
+                            {appr.ifmisTagNumber && (
+                              <span className="text-xs text-slate-500 font-mono">Tag {appr.ifmisTagNumber}</span>
+                            )}
                             {slipLines.has(appr.id) ? (
                               <span className="px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
                                 Batch · {slipLines.get(appr.id)!.length} items

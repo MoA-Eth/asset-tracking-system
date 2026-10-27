@@ -259,16 +259,20 @@ const APPROVAL_INCLUDES = {
   returnedBy: true,
   recipientEmployee: true,
   targetDepartment: true,
-  // Quantity lives in notes; unitCostETB enables threshold calculation
-  item: { select: { notes: true, unitCostETB: true } },
+  // Quantity lives in notes; unitCostETB enables threshold calculation; itemCode, ifmisTagNumber, serialNumber for search
+  item: { select: { notes: true, unitCostETB: true, itemCode: true, ifmisTagNumber: true, serialNumber: true } },
 };
 
 function mapApproval(raw: any): TransactionApproval {
+  const itemMeta = readItemMeta(raw.item?.notes);
   return {
     id: raw.id,
     transactionType: raw.transactionType as TransactionType,
     itemId: raw.itemId,
-    itemCode: raw.itemCode,
+    itemCode: raw.item?.itemCode || raw.itemCode,
+    ifmisItemCode: itemMeta.ifmisItemCode || undefined,
+    ifmisTagNumber: raw.item?.ifmisTagNumber || undefined,
+    serialNumber: raw.item?.serialNumber || undefined,
     itemName: raw.itemName,
     ifmisSlipNumber: raw.ifmisSlipNumber,
     ifmisSlipDateGc: raw.ifmisSlipDateGc,
@@ -282,7 +286,7 @@ function mapApproval(raw: any): TransactionApproval {
     requestDetails: requestDetailsOf(raw),
     itemUnits: raw.item ? quantityOf(raw.item) : undefined,
     itemUom: raw.item ? uomOf(raw.item) : undefined,
-    poNumber: raw.transactionType === 'STOCK_IN' ? readItemMeta(raw.item?.notes).poNumber || undefined : undefined,
+    poNumber: itemMeta.poNumber || undefined,
     totalAmount: calculateApprovalTotalAmount(raw),
     requiredRole: needsChiefDirector(calculateApprovalTotalAmount(raw)) ? 'CHIEF_DIRECTOR' : 'DEPARTMENT_HEAD',
     status: ((raw.requestDetails as Record<string, any> | null)?.voided ? 'VOIDED' : raw.status) as ApprovalStatus,
@@ -1013,13 +1017,22 @@ export class StoreService {
     }
     if (filter?.search) {
       const q = filter.search.trim();
+      const qVariants = [q];
+      if (/^po[\s-_#]*/i.test(q)) {
+        const stripped = q.replace(/^po[\s-_#]*/i, '').trim();
+        if (stripped) {
+          qVariants.push(stripped, `PO-${stripped}`, `PO ${stripped}`);
+        }
+      }
       where.OR = [
-        { itemCode: { contains: q, mode: 'insensitive' } },
-        { ifmisTagNumber: { contains: q, mode: 'insensitive' } },
-        { name: { contains: q, mode: 'insensitive' } },
-        { serialNumber: { contains: q, mode: 'insensitive' } },
-        { ifmisSlipNumber: { contains: q, mode: 'insensitive' } },
-        { notes: { contains: q, mode: 'insensitive' } },
+        ...qVariants.flatMap((variant) => [
+          { itemCode: { contains: variant, mode: 'insensitive' } },
+          { ifmisTagNumber: { contains: variant, mode: 'insensitive' } },
+          { name: { contains: variant, mode: 'insensitive' } },
+          { serialNumber: { contains: variant, mode: 'insensitive' } },
+          { ifmisSlipNumber: { contains: variant, mode: 'insensitive' } },
+          { notes: { contains: variant, mode: 'insensitive' } },
+        ]),
         { history: { some: { ifmisSlipNumber: { contains: q, mode: 'insensitive' } } } },
         { approvals: { some: { ifmisSlipNumber: { contains: q, mode: 'insensitive' } } } },
       ];

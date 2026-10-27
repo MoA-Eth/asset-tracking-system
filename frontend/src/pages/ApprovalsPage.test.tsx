@@ -63,6 +63,42 @@ describe('Approvals: one row per Model 19', () => {
     expect(screen.getByText('3 items')).toBeInTheDocument();
     expect(screen.queryByText('MOA-D')).toBeNull();
   });
+
+  it('finds a receipt by its item code or batch item codes', async () => {
+    const user = userEvent.setup();
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+    await screen.findByText('3 items');
+    await user.type(screen.getByPlaceholderText(/search/i), 'MOA-B');
+    expect(screen.getByText('3 items')).toBeInTheDocument();
+    expect(screen.queryByText('MOA-D')).toBeNull();
+
+    await user.clear(screen.getByPlaceholderText(/search/i));
+    await user.type(screen.getByPlaceholderText(/search/i), 'MOA-D');
+    expect(screen.getByText('MOA-D')).toBeInTheDocument();
+    expect(screen.queryByText('3 items')).toBeNull();
+  });
+
+  it('finds a receipt by PO number', async () => {
+    const user = userEvent.setup();
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+    await screen.findByText('3 items');
+    await user.type(screen.getByPlaceholderText(/search/i), 'PO-15');
+    expect(screen.getByText('MOA-D')).toBeInTheDocument();
+    expect(screen.queryByText('3 items')).toBeNull();
+  });
+
+  it('finds a receipt by IFMIS item code', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      receiptLine('A', 'Dell Latitude', { ifmisItemCode: '107101102.4336' }),
+      receiptLine('D', 'Scanner', { ifmisItemCode: '305101101.0912', poNumber: 'PO-15' }),
+    ] as any);
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+    await screen.findByText('Dell Latitude');
+    await user.type(screen.getByPlaceholderText(/search/i), '107101102.4336');
+    expect(screen.getByText('Dell Latitude')).toBeInTheDocument();
+    expect(screen.queryByText('Scanner')).toBeNull();
+  });
 });
 
 describe('Approvals: a rejection shows why', () => {

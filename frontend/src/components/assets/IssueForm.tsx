@@ -701,7 +701,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         .map((item) => ({
           value: item.id,
           label: `${item.itemCode} — ${item.name}`,
-          note: `${stockText(item)} · ${formatETB(costOf(item))} each${item.ifmisItemCode ? ` · ${item.ifmisItemCode}` : ''}${item.ifmisSlipNumber ? ` · Model 19 ${item.ifmisSlipNumber}` : ''}`,
+          note: `${stockText(item)} · ${formatETB(costOf(item))} each${item.ifmisTagNumber ? ` · Tag ${item.ifmisTagNumber}` : ''}${item.ifmisItemCode ? ` · ${item.ifmisItemCode}` : ''}${item.poNumber ? ` · PO ${item.poNumber}` : ''}${item.ifmisSlipNumber ? ` · Model 19 ${item.ifmisSlipNumber}` : ''}`,
         })),
     },
   ];

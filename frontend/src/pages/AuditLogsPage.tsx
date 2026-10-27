@@ -138,6 +138,9 @@ export const AuditLogsPage: React.FC = () => {
         actionLabel(log.action).toLowerCase().includes(q) ||
         log.userName.toLowerCase().includes(q) ||
         log.details.toLowerCase().includes(q) ||
+        (log.entityId ?? '').toLowerCase().includes(q) ||
+        (log.previousState ?? '').toLowerCase().includes(q) ||
+        (log.newState ?? '').toLowerCase().includes(q) ||
         (log.ifmisSlipNumber ?? '').toLowerCase().includes(q);
 
       const matchKind = selectedKind === 'ALL' || activityKind(log.action) === selectedKind;

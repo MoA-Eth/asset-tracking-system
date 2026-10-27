@@ -260,11 +260,22 @@ export const ReportsPage: React.FC = () => {
           hasModel20 ? 'model 20 model-20 model20 m20 disposal model 22/b' : '',
         ].filter(Boolean).join(' ');
 
+        const poVariations = item.poNumber ? [item.poNumber, item.poNumber.replace(/[-_#]/g, ' '), item.poNumber.replace(/[-_#]/g, '')] : [];
+        const codeVariations = [
+          ...(item.itemCode ? [item.itemCode.replace(/[-_.]/g, ' '), item.itemCode.replace(/[-_.]/g, '')] : []),
+          ...(item.ifmisItemCode ? [item.ifmisItemCode, item.ifmisItemCode.replace(/[.]/g, ' ')] : []),
+          ...(item.ifmisTagNumber ? [item.ifmisTagNumber.replace(/[-_.]/g, ' '), item.ifmisTagNumber.replace(/[-_.]/g, '')] : []),
+        ];
+
         const targets = [
           item.name,
           item.itemCode,
+          item.ifmisItemCode,
           item.ifmisSlipNumber,
           item.ifmisTagNumber,
+          item.poNumber,
+          ...poVariations,
+          ...codeVariations,
           item.serialNumber,
           item.currentCustodian?.fullNameEn,
           item.currentCustodian?.fullNameAm,

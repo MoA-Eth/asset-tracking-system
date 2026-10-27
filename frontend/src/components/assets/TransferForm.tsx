@@ -1017,10 +1017,11 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           const pendingText = pendingUnits > 0
             ? `${rem} of ${total} ${item.uom || 'EA'} available (${pendingUnits} pending on Model 21)`
             : `${total} ${item.uom || 'EA'}`;
+          const ifmisExtra = `${item.ifmisTagNumber ? ` · Tag ${item.ifmisTagNumber}` : ''}${item.ifmisItemCode ? ` · IFMIS ${item.ifmisItemCode}` : ''}${item.poNumber ? ` · PO ${item.poNumber}` : ''}`;
           return {
             value: item.id,
             label: `${item.itemCode} — ${item.name}`,
-            note: `${pendingText} · ${item.currentCustodian?.fullNameEn || 'assigned'}${pending && pendingUnits === 0 ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
+            note: `${pendingText} · ${item.currentCustodian?.fullNameEn || 'assigned'}${ifmisExtra}${pending && pendingUnits === 0 ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
             disabled: blocking,
           };
         }),
@@ -1042,10 +1043,11 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           const pendingText = pendingUnits > 0
             ? `${rem} of ${total} ${item.uom || 'EA'} available (${pendingUnits} pending on Model 21)`
             : `${total} ${item.uom || 'EA'}`;
+          const ifmisExtra = `${item.ifmisTagNumber ? ` · Tag ${item.ifmisTagNumber}` : ''}${item.ifmisItemCode ? ` · IFMIS ${item.ifmisItemCode}` : ''}${item.poNumber ? ` · PO ${item.poNumber}` : ''}`;
           return {
             value: item.id,
             label: `${item.itemCode} — ${item.name}`,
-            note: `${pendingText} · in ${storeLocationLabel(item.storeLocation)}${pending && pendingUnits === 0 ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
+            note: `${pendingText} · in ${storeLocationLabel(item.storeLocation)}${ifmisExtra}${pending && pendingUnits === 0 ? ` · ${REQUEST_TYPE_LABELS[pending.transactionType] ?? 'request'} pending` : ''}`,
             disabled: blocking,
           };
         }),
