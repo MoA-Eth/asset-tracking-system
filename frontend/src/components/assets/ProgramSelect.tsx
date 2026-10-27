@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
 import { api } from '../../api/client';
 import { PROGRAMS as FALLBACK_PROGRAMS } from './receipt-options';
 import { Modal } from '../ui/Modal';
@@ -89,42 +88,31 @@ export const ProgramSelect: React.FC<{
 
   return (
     <>
-      <div className="flex items-center gap-1.5 w-full">
-        <select
-          id={id}
-          value={known ? programs.find((p) => same(p, value)) : value}
-          onChange={(e) => {
-            if (e.target.value === ADD_NEW) {
-              openAddModal();
-            } else {
-              onChange(e.target.value);
-            }
-          }}
-          className={`${className} cursor-pointer flex-1 min-w-0`}
-        >
-          <option value="">None</option>
-          {value.trim() && !known && (
-            <option value={value}>
-              {value} (unregistered)
-            </option>
-          )}
-          {programs.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-          <option value={ADD_NEW}>+ Add new program / project…</option>
-        </select>
-        <button
-          type="button"
-          onClick={() => openAddModal()}
-          title="Add new program or project to the directory"
-          aria-label="Quick add"
-          className="shrink-0 p-2 rounded-[4px] border border-slate-300 hover:border-emerald-700 hover:bg-emerald-50 text-slate-600 hover:text-emerald-800 transition-colors cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-      </div>
+      <select
+        id={id}
+        value={known ? programs.find((p) => same(p, value)) : value}
+        onChange={(e) => {
+          if (e.target.value === ADD_NEW) {
+            openAddModal();
+          } else {
+            onChange(e.target.value);
+          }
+        }}
+        className={`${className} cursor-pointer w-full`}
+      >
+        <option value="">None</option>
+        {value.trim() && !known && (
+          <option value={value}>
+            {value} (unregistered)
+          </option>
+        )}
+        {programs.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+        <option value={ADD_NEW}>+ Add new program / project…</option>
+      </select>
 
       <Modal
         isOpen={modalOpen}
