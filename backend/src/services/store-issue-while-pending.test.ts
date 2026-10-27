@@ -227,3 +227,70 @@ describe('deciding one issue while another waits on the same record', () => {
     expect(db.item.create).not.toHaveBeenCalled();
   });
 });
+
+describe('the same record on the same Model 22 is not entered twice', () => {
+  /** Other issue requests for the record, as the duplicate check asks for them */
+  const onVoucher = (rows: any[]) =>
+    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) => {
+      if (where.transactionType?.in) return rows.filter((r) => where.status.in.includes(r.status) && r.id !== where.id?.not);
+      return where.itemId === item.id && where.transactionType === 'STOCK_OUT' ? [{ requestDetails: { quantity: 30 } }] : [];
+    });
+
+  it('refuses it while the first request with that number waits for approval', async () => {
+    onVoucher([{ id: 'first-issue', status: 'PENDING', ifmisSlipNumber: '0000202/a', recipientEmployeeId: 'EMP-B', requestDetails: { quantity: 30 } }]);
+    await expect(store().registerStockOut({ ...issue, itemId: item.id, quantity: 10 } as any)).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'MOA-FUR-2026-0001 is already on Model 22 No. 0000202/a, waiting for approval. Correct that request instead of entering it again.',
+    });
+    expect(db.transactionApproval.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses it while the first was rejected and is with its requester: that one is corrected and resubmitted, or cancelled', async () => {
+    onVoucher([{ id: 'first-issue', status: 'REJECTED', ifmisSlipNumber: '0000202/A', recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 30 } }]);
+    await expect(store().registerStockOut({ ...issue, itemId: item.id, quantity: 10 } as any)).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('which was rejected and is with its requester. Correct and resubmit that request, or cancel it'),
+    });
+  });
+
+  it('catches the same issue submitted twice without a Model 22 No.: same recipient and quantity', async () => {
+    onVoucher([{ id: 'first-issue', status: 'PENDING', ifmisSlipNumber: 'PENDING-ISSUE-1792675711092', recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 10 } }]);
+    await expect(store().registerStockOut({ ...issue, ifmisSlipNumber: '', itemId: item.id, quantity: 10 } as any)).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('already on an issue to the same recipient for the same quantity (no Model 22 No. yet)'),
+    });
+  });
+
+  it('still accepts another Model 22, or the same recipient for a different quantity', async () => {
+    onVoucher([{ id: 'first-issue', status: 'PENDING', ifmisSlipNumber: '0000202/A', recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 10 } }]);
+    await expect(store().registerStockOut({ ...issue, ifmisSlipNumber: '0000203/A', itemId: item.id, quantity: 10 } as any)).resolves.toBeTruthy();
+    onVoucher([{ id: 'first-issue', status: 'PENDING', ifmisSlipNumber: 'PENDING-ISSUE-1792675711092', recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 10 } }]);
+    await expect(store().registerStockOut({ ...issue, ifmisSlipNumber: '', itemId: item.id, quantity: 5 } as any)).resolves.toBeTruthy();
+  });
+
+  it('takes a numbered issue for the same recipient and quantity as an unnumbered one waiting to be the same issue', async () => {
+    onVoucher([{ id: 'first-issue', status: 'PENDING', ifmisSlipNumber: 'PENDING-ISSUE-1792675711092', recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 10 } }]);
+    await expect(store().registerStockOut({ ...issue, ifmisSlipNumber: '0000203/A', itemId: item.id, quantity: 10 } as any)).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('refuses resubmitting a rejected issue when the same one was entered again while it was with its requester', async () => {
+    const rejected = {
+      id: 'first-issue', status: 'REJECTED', transactionType: 'STOCK_OUT', itemId: item.id, itemCode: item.itemCode, ifmisSlipNumber: '0000202/A',
+      recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 10 }, item: { notes: item.notes, status: item.status, itemCode: item.itemCode, name: item.name, unitCostETB: 1000 },
+    };
+    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) => {
+      if (where.id?.in) return [rejected];
+      if (where.transactionType?.in) {
+        // Only waiting requests count on a resubmit
+        expect(where.status.in).toEqual(['PENDING']);
+        return [{ id: 'second-issue', status: 'PENDING', ifmisSlipNumber: '0000202/A', recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 10 } }];
+      }
+      return [];
+    });
+    await expect(store().resubmitReturned({ approvalIds: ['first-issue'] }, 'EMP-ENC')).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'MOA-FUR-2026-0001 is already on Model 22 No. 0000202/A, waiting for approval. Correct that request instead of entering it again.',
+    });
+    expect(db.transactionApproval.update).not.toHaveBeenCalled();
+  });
+});

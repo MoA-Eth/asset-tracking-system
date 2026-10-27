@@ -838,6 +838,105 @@ async function assertNoPendingApproval(
   }
 }
 
+/** A voucher number the user typed (a generated PENDING- placeholder is no number) */
+const typedVoucherNo = (no: unknown): string => {
+  const text = String(no ?? '').trim();
+  return text.toUpperCase().startsWith('PENDING-') ? '' : text;
+};
+
+const VOUCHER_TYPES: Record<'STOCK_OUT' | 'MODEL21' | 'DISPOSAL', string[]> = {
+  STOCK_OUT: ['STOCK_OUT'],
+  MODEL21: ['TRANSFER', 'RETURN'],
+  DISPOSAL: ['DISPOSAL'],
+};
+
+/**
+ * One record can't be on the same voucher twice. Another request for it with the same number that is waiting, or that
+ * was rejected and is with its requester, is corrected (or cancelled) instead of entered again. An issue entered
+ * without a Model 22 No. is compared by recipient and quantity, so submitting the same issue twice is caught too.
+ * `statuses` narrows what counts: a resubmit only looks at waiting requests, so two rejected copies don't block each other.
+ */
+async function assertNotAlreadyOnVoucher(
+  db: any,
+  item: { id: string; itemCode: string },
+  request: {
+    kind: 'STOCK_OUT' | 'MODEL21' | 'DISPOSAL';
+    number?: unknown;
+    recipientEmployeeId?: string | null;
+    organizationName?: string | null;
+    quantity?: unknown;
+  },
+  exceptApprovalId?: string,
+  statuses: string[] = ['PENDING', 'REJECTED'],
+): Promise<void> {
+  const others: any[] = await db.transactionApproval.findMany({
+    where: {
+      itemId: item.id,
+      transactionType: { in: VOUCHER_TYPES[request.kind] as any },
+      status: { in: statuses as any },
+      ...(exceptApprovalId ? { id: { not: exceptApprovalId } } : {}),
+    },
+    select: { id: true, status: true, transactionType: true, ifmisSlipNumber: true, recipientEmployeeId: true, requestDetails: true },
+  });
+  if (!Array.isArray(others) || others.length === 0) return;
+  const number = typedVoucherNo(request.number).toLowerCase();
+  const sameNumber = number ? others.find((o) => typedVoucherNo(o.ifmisSlipNumber).toLowerCase() === number) : undefined;
+  // Unnumbered issues: the same recipient and the same quantity is the same issue entered twice
+  const sameIssue =
+    !sameNumber && request.kind === 'STOCK_OUT'
+      ? others.find((o) => {
+          if (number && typedVoucherNo(o.ifmisSlipNumber)) return false;
+          const details = (o.requestDetails ?? {}) as Record<string, any>;
+          const sameRecipient = request.recipientEmployeeId
+            ? o.recipientEmployeeId === request.recipientEmployeeId
+            : !!request.organizationName && String(details.organizationName ?? '').trim().toLowerCase() === String(request.organizationName).trim().toLowerCase();
+          return sameRecipient && Number(details.quantity) === Number(request.quantity);
+        })
+      : undefined;
+  const found = sameNumber ?? sameIssue;
+  if (!found) return;
+  const voucher = request.kind === 'STOCK_OUT' ? 'Model 22' : request.kind === 'MODEL21' ? 'Model 21' : 'disposal form';
+  const where = typedVoucherNo(found.ifmisSlipNumber) ? `${voucher} No. ${typedVoucherNo(found.ifmisSlipNumber)}` : `an issue to the same recipient for the same quantity (no ${voucher} No. yet)`;
+  throw new ConflictError(
+    found.status === 'REJECTED'
+      ? `${item.itemCode} is already on ${where}, which was rejected and is with its requester. Correct and resubmit that request, or cancel it, instead of entering it again.`
+      : `${item.itemCode} is already on ${where}, waiting for approval. Correct that request instead of entering it again.`,
+  );
+}
+
+/**
+ * A line of a Model 19 already received (or waiting): the same description, or the same IFMIS item code at the same
+ * unit price, on the same Model 19 No. Lines that share a code but differ in price are different lines.
+ * Rejected receipts and pieces split off a record don't count; `exceptItemIds` leaves out the records being corrected.
+ */
+async function findReceivedLine(
+  db: any,
+  slipNumber: string,
+  line: { name?: string | null; ifmisItemCode?: string | null; unitCostETB?: unknown },
+  exceptItemIds: string[] = [],
+): Promise<{ id: string; itemCode: string; name: string; ifmisSlipNumber: string; status: string } | undefined> {
+  const slip = String(slipNumber ?? '').trim();
+  if (!slip || slip.toUpperCase().startsWith('PENDING-')) return undefined;
+  const onSlip: any[] = await db.item.findMany({
+    where: {
+      ifmisSlipNumber: { equals: slip, mode: 'insensitive' },
+      status: { not: ItemStatus.REJECTED },
+      parentItemId: null,
+      ...(exceptItemIds.length ? { id: { notIn: exceptItemIds } } : {}),
+    },
+    select: { id: true, itemCode: true, name: true, ifmisSlipNumber: true, status: true, notes: true, unitCostETB: true },
+  });
+  if (!Array.isArray(onSlip)) return undefined;
+  const name = String(line.name ?? '').trim().toLowerCase();
+  const code = String(line.ifmisItemCode ?? '').trim().toLowerCase();
+  const price = Number(line.unitCostETB);
+  return onSlip.find((other) => {
+    if (name && String(other.name ?? '').trim().toLowerCase() === name) return true;
+    const otherCode = String(readItemMeta(other.notes).ifmisItemCode ?? '').trim().toLowerCase();
+    return !!code && otherCode === code && Number.isFinite(price) && Math.abs(Number(other.unitCostETB) - price) < 0.005;
+  });
+}
+
 /**
  * Units of a record on open Model 21 requests (transfer or return) still waiting for approval.
  * Multiple requests can queue up or run in parallel as long as the cumulative requested amount
@@ -1167,18 +1266,15 @@ export class StoreService {
     }
 
     // Check if any line has already been received on this Model 19 slip
+    // (by description, or by IFMIS item code at the same price, so a differently typed description is caught too)
     if (payload.ifmisSlipNumber && !payload.ifmisSlipNumber.startsWith('PENDING-')) {
       for (const line of rawItems) {
         const lineName = String(line.name || payload.name || '').trim();
         if (lineName) {
-          const duplicate = await prisma.item.findFirst({
-            where: {
-              ifmisSlipNumber: { equals: payload.ifmisSlipNumber.trim(), mode: 'insensitive' },
-              name: { equals: lineName, mode: 'insensitive' },
-              status: { not: ItemStatus.REJECTED },
-              parentItemId: null,
-            },
-            select: { id: true, itemCode: true, name: true, ifmisSlipNumber: true, status: true },
+          const duplicate = await findReceivedLine(prisma, payload.ifmisSlipNumber, {
+            name: lineName,
+            ifmisItemCode: line.ifmisItemCode ?? payload.ifmisItemCode,
+            unitCostETB: line.unitCostETB ?? payload.unitCostETB,
           });
           if (duplicate) {
             const rejected = duplicate.status === 'PENDING_STOCK_IN'
@@ -1338,6 +1434,20 @@ export class StoreService {
     if (!Number.isFinite(quantity) || quantity <= 0) throw new BadRequestError('Quantity must be greater than 0.');
     assertUnitOfMeasure(payload.uom);
     if (payload.serialNumber?.trim() && payload.serialNumber.trim() !== item.serialNumber) await assertSerialNumberFree(payload.serialNumber, itemId);
+    // A correction can't turn the line into one already received on that Model 19
+    const sameLine = await findReceivedLine(
+      prisma,
+      slipNo,
+      {
+        name,
+        ifmisItemCode: payload.ifmisItemCode !== undefined ? payload.ifmisItemCode : readItemMeta(item.notes).ifmisItemCode,
+        unitCostETB: unitCost,
+      },
+      [itemId],
+    );
+    if (sameLine) {
+      throw new ConflictError(`"${sameLine.name}" is already on Model 19 No. ${sameLine.ifmisSlipNumber} as ${sameLine.itemCode}. Check the line before saving.`);
+    }
     if (payload.storeLocationId !== item.storeLocationId) {
       const receivingStore = await prisma.location.findUnique({ where: { id: payload.storeLocationId }, include: { store: true } });
       if (!receivingStore) throw new BadRequestError('The selected receiving store no longer exists.');
@@ -1556,6 +1666,19 @@ export class StoreService {
     if (!Number.isFinite(quantity) || quantity <= 0 || quantity > inStore + 1e-9) {
       throw new BadRequestError(issueQuantityError(item.itemCode, inStore, uom));
     }
+    // A correction can't make it the same as another request for this record on that Model 22
+    await assertNotAlreadyOnVoucher(
+      prisma,
+      item,
+      {
+        kind: 'STOCK_OUT',
+        number: slipNo,
+        recipientEmployeeId: disposal || external ? null : payload.recipientEmployeeId,
+        organizationName: disposal ? null : payload.organizationName,
+        quantity,
+      },
+      approval.id,
+    );
 
     const before = {
       quantity: previousQuantity,
@@ -1707,6 +1830,8 @@ export class StoreService {
       throw new ConflictError(`Item ${item.itemCode} must be in store to be issued. Current: ${item.status}`);
     }
     await assertNoPendingApproval(item, 'STOCK_OUT');
+    // The number as typed: a request without one is compared by recipient and quantity below
+    const typedNo = payload.ifmisSlipNumber;
     if (isBlank(payload.ifmisSlipNumber)) {
       payload.ifmisSlipNumber = `PENDING-ISSUE-${Date.now()}`;
     }
@@ -1727,6 +1852,13 @@ export class StoreService {
     if (!Number.isFinite(quantity) || quantity <= 0 || quantity > inStore + 1e-9) {
       throw new BadRequestError(issueQuantityError(item.itemCode, inStore, uom));
     }
+    await assertNotAlreadyOnVoucher(prisma, item, {
+      kind: 'STOCK_OUT',
+      number: typedNo,
+      recipientEmployeeId: disposal ? null : payload.recipientEmployeeId,
+      organizationName: disposal ? null : payload.organizationName,
+      quantity,
+    });
     // A store with no store man can't issue: his name goes on the voucher
     let issuer = null;
     try {
@@ -1843,6 +1975,14 @@ export class StoreService {
       if (!Number.isFinite(quantity) || quantity <= 0 || quantity > inStore + 1e-9) {
         throw new BadRequestError(issueQuantityError(item.itemCode, inStore, uomOf(item)));
       }
+      // Checked for every line before any is saved, so a duplicate line can't leave half a voucher entered
+      await assertNotAlreadyOnVoucher(prisma, item, {
+        kind: 'STOCK_OUT',
+        number: payload.ifmisSlipNumber,
+        recipientEmployeeId: payload.disposal === true ? null : payload.recipientEmployeeId,
+        organizationName: payload.disposal === true ? null : payload.organizationName,
+        quantity,
+      });
       stores.add(item.storeLocation?.storeId ?? item.storeLocationId);
     }
     if (stores.size > 1) throw new BadRequestError('One Model 22 issues from one store, and these items are in different stores. Issue each store\'s items on its own Model 22.');
@@ -1908,6 +2048,7 @@ export class StoreService {
     }
     await assertNoPendingApproval(item);
     const { disposalNo, details } = disposalDetailsOf(payload, item);
+    await assertNotAlreadyOnVoucher(prisma, item, { kind: 'DISPOSAL', number: disposalNo });
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     // A store with no store man can't dispose: his name goes on the disposal form
     const keeper = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.storekeeperEmployeeId, 'the disposal');
@@ -1988,6 +2129,7 @@ export class StoreService {
     if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
 
     const { disposalNo, details } = disposalDetailsOf(payload, item);
+    await assertNotAlreadyOnVoucher(prisma, item, { kind: 'DISPOSAL', number: disposalNo }, approval.id);
     const attachment = payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl || undefined;
     if (isSlipRequired() && !attachment) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     const dateGc = payload.disposalDateGc || approval.ifmisSlipDateGc;
@@ -2116,6 +2258,7 @@ export class StoreService {
     await assertNoPendingApproval(item, remainingBalance > 0 ? ['TRANSFER', 'RETURN'] : undefined);
     const effectiveSlipNo = String(payload.model21No || payload.ifmisSlipNumber || '').trim();
     if (!effectiveSlipNo) throw new BadRequestError('Return voucher (Model 21) number is mandatory.');
+    await assertNotAlreadyOnVoucher(prisma, item, { kind: 'MODEL21', number: effectiveSlipNo });
     if (isBlank(payload.returnReason)) throw new BadRequestError('Reason for return is required.');
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     assertMaxLength(payload.returnReason, 500, 'Reason for return');
@@ -2333,6 +2476,7 @@ export class StoreService {
     const slipNo = (payload.model21No || '').trim();
     const reason = (payload.reason || '').trim();
     if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
+    await assertNotAlreadyOnVoucher(prisma, { id: approval.itemId, itemCode: approval.itemCode }, { kind: 'MODEL21', number: slipNo }, approval.id);
     assertMaxLength(reason, 500, 'Reason for transfer');
     if (!payload.toEmployeeId) throw new BadRequestError('The new custodian is required.');
     assertSlipDate(payload.ifmisSlipDateGc, 'The transfer date');
@@ -2458,7 +2602,8 @@ export class StoreService {
 
     const slipNo = (payload.model21No || '').trim();
     const reason = (payload.returnReason || '').trim();
-    if (!slipNo) throw new BadRequestError('Return Voucher (Model 21) number is mandatory.');
+    if (!slipNo) throw new BadRequestError('Return voucher (Model 21) number is mandatory.');
+    await assertNotAlreadyOnVoucher(prisma, { id: approval.itemId, itemCode: approval.itemCode }, { kind: 'MODEL21', number: slipNo }, approval.id);
     if (!reason) throw new BadRequestError('Reason for return is required.');
     if (payload.condition && !RETURN_CONDITIONS.includes(payload.condition)) throw new BadRequestError('Choose a valid item condition.');
 
@@ -2655,7 +2800,7 @@ export class StoreService {
     const actor = await prisma.employee.findUnique({ where: { id: actorId } });
     const today = getTodayGcAndEc();
     return prisma.$transaction(async (db: any) => {
-      const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true, status: true, itemCode: true } } } });
+      const approvals = await db.transactionApproval.findMany({ where: { id: { in: ids } }, include: { item: { select: { notes: true, status: true, itemCode: true, name: true, unitCostETB: true } } } });
       if (approvals.length !== ids.length) throw new NotFoundError('Part of this request no longer exists. Refresh the list.');
       if (approvals.some((a: any) => a.status !== 'REJECTED')) throw new ConflictError('Only a rejected request can be resubmitted. Refresh the list.');
       const types = new Set(approvals.map((a: any) => a.transactionType));
@@ -2665,6 +2810,35 @@ export class StoreService {
       if (new Set(approvals.map(keyOf)).size > 1) throw new BadRequestError(`These requests are not on the same ${VOUCHER_NAMES[type] ?? 'voucher'}.`);
       if (!hasPermission(actor?.role, WRITE_PERMISSION[type] as any)) throw new ForbiddenError('Your role cannot resubmit this request.');
       for (const a of approvals) if (a.item) assertIssueStillFits(a, a.item, 'requester');
+      // While it was with its requester, the same line may have been entered again: resubmitting it would make two
+      const resubmittedItems = approvals.map((a: any) => a.itemId);
+      for (const a of approvals) {
+        const details = (a.requestDetails ?? {}) as Record<string, any>;
+        if (type === 'STOCK_IN') {
+          const sameLine = a.item
+            ? await findReceivedLine(db, a.ifmisSlipNumber, { name: a.item.name, ifmisItemCode: readItemMeta(a.item.notes).ifmisItemCode, unitCostETB: a.item.unitCostETB }, resubmittedItems)
+            : undefined;
+          if (sameLine) {
+            throw new ConflictError(
+              `"${sameLine.name}" was entered again on Model 19 No. ${sameLine.ifmisSlipNumber} as ${sameLine.itemCode} while this receipt was with its requester. Cancel one of them instead of resubmitting both.`,
+            );
+          }
+        } else {
+          await assertNotAlreadyOnVoucher(
+            db,
+            { id: a.itemId, itemCode: a.itemCode },
+            {
+              kind: type === 'STOCK_OUT' ? 'STOCK_OUT' : type === 'DISPOSAL' ? 'DISPOSAL' : 'MODEL21',
+              number: a.ifmisSlipNumber,
+              recipientEmployeeId: details.disposal ? null : a.recipientEmployeeId,
+              organizationName: details.disposal ? null : details.organizationName,
+              quantity: details.quantity,
+            },
+            a.id,
+            ['PENDING'],
+          );
+        }
+      }
 
       const resubmitted: TransactionApproval[] = [];
       for (const id of ids) {
@@ -3921,6 +4095,7 @@ export class StoreService {
     await assertNoPendingApproval(item, remainingBalance > 0 ? ['TRANSFER', 'RETURN'] : undefined);
     const slipNo = String(payload.model21No || '').trim();
     if (!slipNo) throw new BadRequestError('Transfer Voucher (Model 21) number is mandatory.');
+    await assertNotAlreadyOnVoucher(prisma, item, { kind: 'MODEL21', number: slipNo });
     // The reason is optional on a transfer
     const reason = String(payload.reason ?? '').trim() || undefined;
     assertMaxLength(reason, 500, 'Reason for transfer');

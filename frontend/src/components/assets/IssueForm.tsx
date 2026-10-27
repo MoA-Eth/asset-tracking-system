@@ -242,7 +242,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const totalAmount = Math.round(rows.reduce((sum, r) => sum + (Number(r.quantity) || 0) * costOf(itemOf(r)), 0) * 100) / 100;
   const grandTotal = totalAmount + transportationCost;
   const ethDate = formatGcToEc(issuedDateGc);
-  const usedNo = slips.findUsed(model22No, ['STOCK_OUT'], editApproval?.id);
+  const formItemIds = rows.map((r) => r.itemId).filter(Boolean);
+  const usedNo = slips.findUsed(model22No, ['STOCK_OUT'], editApproval?.id, formItemIds);
 
   // What each row still needs; the same store item may be on one row only
   const rowMissing = (row: IssueRow, n: number): string | false => {
@@ -767,7 +768,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         }
       >
         <FieldGrid>
-          <Field label="Model 22 No." optional htmlFor="stock-out-model22" error={fieldErrors.error('model22No')} warning={usedNo ? usedMessage(model22No, usedNo) : undefined}>
+          <Field label="Model 22 No." optional htmlFor="stock-out-model22" error={fieldErrors.error('model22No')} warning={usedNo ? usedMessage(model22No, usedNo, formItemIds) : undefined}>
             <input
               id="stock-out-model22"
               type="text"

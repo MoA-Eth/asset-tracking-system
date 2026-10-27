@@ -501,3 +501,40 @@ describe('Asset Transfer approval workflow', () => {
     });
   });
 });
+
+describe('the same record on the same Model 21 is not entered twice', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.$transaction.mockImplementation(async (fn: any) => fn(db));
+    db.employee.findUnique.mockImplementation(async ({ where }: any) => ({ id: where.id, fullNameEn: `Employee ${where.id}`, role: 'DATA_ENCODER' }));
+    db.item.findUnique.mockResolvedValue({ ...issuedItem });
+    db.item.update.mockResolvedValue({});
+    db.transactionApproval.findFirst.mockResolvedValue(null);
+    db.transactionApproval.create.mockImplementation(async ({ data }: any) => ({ id: 'appr-new', ...data }));
+    db.auditLog.create.mockResolvedValue({});
+  });
+  /** Model 21 requests for item-1 already entered */
+  const onModel21 = (rows: any[]) =>
+    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
+      where.transactionType?.in && where.itemId === 'item-1' ? rows.filter((r) => where.status.in.includes(r.status)) : []);
+
+  it('refuses a transfer while a rejected transfer of it on that Model 21 is with its requester', async () => {
+    onModel21([{ id: 'old', status: 'REJECTED', ifmisSlipNumber: 'M21-0001', requestDetails: { quantity: 1 } }]);
+    await expect(store().transferItem(transferPayload as any)).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('MOA-IT-2026-0001 is already on Model 21 No. M21-0001, which was rejected'),
+    });
+  });
+
+  it('refuses a return on the number of a transfer of it still waiting', async () => {
+    onModel21([{ id: 'old', status: 'PENDING', ifmisSlipNumber: 'M21-3', requestDetails: { quantity: 1 } }]);
+    await expect(
+      store().registerReturn({ itemId: 'item-1', ifmisSlipNumber: 'M21-3', ifmisSlipDateGc: '2026-10-01', returnReason: 'Done', registeredById: 'EMP-ENC' } as any),
+    ).rejects.toMatchObject({ statusCode: 409, message: expect.stringContaining('already on Model 21 No. M21-3, waiting for approval') });
+  });
+
+  it('accepts the record on a different Model 21', async () => {
+    onModel21([{ id: 'old', status: 'REJECTED', ifmisSlipNumber: 'M21-0099', requestDetails: { quantity: 1 } }]);
+    await expect(store().transferItem(transferPayload as any)).resolves.toBeTruthy();
+  });
+});

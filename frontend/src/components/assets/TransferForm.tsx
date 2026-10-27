@@ -23,7 +23,7 @@ import { departmentLabel, isUnassignedDepartment } from '../../utils/department'
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { storeLocationLabel } from '../../utils/location';
 import { recallForm, rememberForm } from '../../utils/form-memory';
-import { useSlipRegister, usedMessage } from '../../hooks/useSlipRegister';
+import { useSlipRegister, usedMessage, isSameAsset } from '../../hooks/useSlipRegister';
 import { approvalNoteOf } from '../../utils/approval-note';
 import { cellClass, money } from './SlipLines';
 
@@ -561,8 +561,10 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slip]);
 
-  const usedNo = slips.findUsed(model21No, ['TRANSFER', 'RETURN'], editTransfer?.id);
-  const isPendingModel21 = usedNo?.status === 'PENDING';
+  const formItemIds = rows.map((r) => r.itemId).filter(Boolean);
+  const usedNo = slips.findUsed(model21No, ['TRANSFER', 'RETURN'], editTransfer?.id, formItemIds);
+  // Another asset on a Model 21 still waiting: this one is added to it. The same asset again is a duplicate.
+  const isPendingModel21 = usedNo?.status === 'PENDING' && !isSameAsset(usedNo, formItemIds);
 
   // A field shows what is wrong with it once the user has been in it
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -1138,7 +1140,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
           <Field
             label="Model 21 No." optional
             error={errorOf('model21No')}
-            warning={usedNo && !isPendingModel21 ? usedMessage(model21No, usedNo) : undefined}
+            warning={usedNo && !isPendingModel21 ? usedMessage(model21No, usedNo, formItemIds) : undefined}
             hint={isPendingModel21 ? `Appending to pending Model 21 voucher #${model21No.trim()} (${usedNo.itemCode})` : undefined}
           >
             <input

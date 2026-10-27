@@ -300,16 +300,8 @@ describe('StoreService.registerStockIn approval gate', () => {
   });
 
   it('refuses duplicate entrance when an item is already received on the same Model 19 slip', async () => {
-    db.item.findFirst.mockImplementation(async ({ where }: any) => {
-      if (where?.ifmisSlipNumber) {
-        return {
-          itemCode: 'MOA-0001',
-          name: 'Dell Latitude 5420',
-          ifmisSlipNumber: '0000044',
-        };
-      }
-      return null;
-    });
+    db.item.findMany.mockImplementation(async ({ where }: any) =>
+      where?.ifmisSlipNumber ? [{ id: 'item-1', itemCode: 'MOA-0001', name: 'Legacy Laptop', ifmisSlipNumber: 'M19-001', status: 'AVAILABLE', notes: null, unitCostETB: 1 }] : []);
     await expect(
       StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any)
     ).rejects.toMatchObject({
@@ -318,9 +310,29 @@ describe('StoreService.registerStockIn approval gate', () => {
     });
     expect(db.item.create).not.toHaveBeenCalled();
   });
+  it('refuses a line already received under another description: same IFMIS item code at the same price', async () => {
+    db.item.findMany.mockImplementation(async ({ where }: any) =>
+      where?.ifmisSlipNumber
+        ? [{ id: 'item-2', itemCode: 'MOA-0002', name: 'Laptop (legacy)', ifmisSlipNumber: 'M19-001', status: 'AVAILABLE', notes: JSON.stringify({ ifmisItemCode: '308101101.0001' }), unitCostETB: 55000 }]
+        : []);
+    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any)).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'Item "Laptop (legacy)" was already received as MOA-0002 on Model 19 No. M19-001. Duplicate entrance is not permitted.',
+    });
+    expect(db.item.create).not.toHaveBeenCalled();
+  });
+
+  it('accepts a line that shares an IFMIS item code at a different price: another line of the slip', async () => {
+    db.item.findMany.mockImplementation(async ({ where }: any) =>
+      where?.ifmisSlipNumber
+        ? [{ id: 'item-2', itemCode: 'MOA-0002', name: 'Laptop 14 inch', ifmisSlipNumber: 'M19-001', status: 'AVAILABLE', notes: JSON.stringify({ ifmisItemCode: '308101101.0001' }), unitCostETB: 48000 }]
+        : []);
+    await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any)).resolves.toBeTruthy();
+  });
+
   it('sends a line already on a rejected receipt to that receipt, to correct it there or cancel it', async () => {
-    db.item.findFirst.mockImplementation(async ({ where }: any) =>
-      where?.ifmisSlipNumber ? { id: 'item-9', itemCode: 'MOA-0009', name: 'Legacy Laptop', ifmisSlipNumber: 'M19-001', status: 'PENDING_STOCK_IN' } : null);
+    db.item.findMany.mockImplementation(async ({ where }: any) =>
+      where?.ifmisSlipNumber ? [{ id: 'item-9', itemCode: 'MOA-0009', name: 'Legacy Laptop', ifmisSlipNumber: 'M19-001', status: 'PENDING_STOCK_IN', notes: null, unitCostETB: 1 }] : []);
     (db.transactionApproval as any).findFirst = vi.fn(async () => ({ id: 'appr-9' }));
     await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any)).rejects.toMatchObject({
       statusCode: 409,

@@ -260,3 +260,17 @@ describe('deciding on a disposal', () => {
     expect(db.item.update).not.toHaveBeenCalled();
   });
 });
+
+describe('the same record on the same disposal form is not entered twice', () => {
+  it('refuses it while an earlier disposal with that number was rejected and is with its requester', async () => {
+    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
+      where.transactionType?.in?.includes('DISPOSAL') && where.itemId === 'item-1'
+        ? [{ id: 'old-disposal', status: 'REJECTED', ifmisSlipNumber: 'DSP-0001', requestDetails: { quantity: 1 } }]
+        : []);
+    await expect(store().registerDisposal(request as any)).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('is already on disposal form No. DSP-0001, which was rejected and is with its requester'),
+    });
+    expect(db.transactionApproval.create).not.toHaveBeenCalled();
+  });
+});
