@@ -853,7 +853,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             editItem={item}
             editBatch={batchItems}
             returned={(pendingByItem.get(item.id) ?? decided.raised.get(item.id)?.[0])?.status === ApprovalStatus.REJECTED}
-            registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (batchItems ? !batchItems.some((b) => b.id === i.id) : i.id !== item.id)).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
+            registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (batchItems ? !batchItems.some((b) => b.id === i.id) : i.id !== item.id)).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode, ifmisItemCode: i.ifmisItemCode, unitCostETB: i.unitCostETB }))}
             onCancel={() => setEditing(false)}
             onSuccess={(_result, voucher) => done(voucher, setVoucher19)}
           />
@@ -1737,7 +1737,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     editBatch={receipt.editBatch}
                     returned={receipt.returned ?? (receipt.edit ? (pendingByItem.get(receipt.edit.id) ?? decided.raised.get(receipt.edit.id)?.[0])?.status === ApprovalStatus.REJECTED : false)}
                     template={receipt.template}
-                    registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (receipt.editBatch ? !receipt.editBatch.some((b) => b.id === i.id) : (!receipt.edit || i.id !== receipt.edit.id))).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode }))}
+                    registered={items.filter((i) => !i.parentItemId && i.status !== ItemStatus.REJECTED && (receipt.editBatch ? !receipt.editBatch.some((b) => b.id === i.id) : (!receipt.edit || i.id !== receipt.edit.id))).map((i) => ({ slipNumber: i.ifmisSlipNumber, name: i.name, itemCode: i.itemCode, ifmisItemCode: i.ifmisItemCode, unitCostETB: i.unitCostETB }))}
                     onCancel={() => setReceipt(null)}
                     onSuccess={(result, voucher) => {
                       setReceipt(null);

@@ -14,7 +14,7 @@ import { validateSlipFile, SLIP_PDF_ACCEPT_ATTR, SLIP_ACCEPT_ATTR, getSlipDispla
 import { readPdfPages, rowsToText, isModel21, isModel22, isModel19, isDisposalForm, parseModel19, PdfRow, Model19SlipFields } from '../../utils/slip-reader';
 import { isImageFile, ocrRows } from '../../utils/slip-ocr';
 import { TRANSACTION_TYPES, CATEGORY_FROM_IFMIS, COMMON_UOMS, COMMON_CATEGORIES, ITEM_CODE_RULE, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
-import { ReceiptItems, SlipLine, lineMissing, blankLine, cellClass, money } from './SlipLines';
+import { ReceiptItems, SlipLine, lineMissing, blankLine, cellClass, money, ItemTypeTag, rowText } from './SlipLines';
 import { slipKey } from './slip-groups';
 import { categoryLabel } from './asset-state';
 import { UomSelect } from './UomSelect';
@@ -45,7 +45,7 @@ export interface StockInFormProps {
   /** A slip chosen with the form's header button: it is attached and read as if picked in the form */
   initialSlip?: File;
   /** Receipt lines already registered, to warn when a Model 19 line is received a second time */
-  registered?: { slipNumber?: string; name: string; itemCode: string }[];
+  registered?: { slipNumber?: string; name: string; itemCode: string; ifmisItemCode?: string; unitCostETB?: number }[];
   /** Correcting a rejected receipt: saving it resubmits it to the Team Leader */
   returned?: boolean;
 }
@@ -295,6 +295,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const vat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
     return sum + base + (vatApplicable ? vat : (Number(l.additionalCharges) || 0));
   }, 0);
+  const vatTotal = vatApplicable
+    ? vat1 + extraLines.reduce((sum, l) => sum + Math.round((l.quantity || 0) * (l.unitPrice || 0) * 0.15 * 100) / 100, 0)
+    : 0;
 
   // Required fields still empty; the receipt can only be submitted once this is empty
   const missingFields = [
@@ -320,21 +323,24 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   ].filter(Boolean) as string[];
 
   // A receipt comes first in an item's life: the same slip line received twice would count the goods twice
-  const findDuplicateRegistered = (slipNo?: string, itemName?: string) => {
+  // (as the server checks it: the same description, or the same IFMIS item code at the same unit price)
+  const findDuplicateRegistered = (slipNo?: string, itemName?: string, code?: string, price?: number) => {
     const s = slipNo?.trim().toLowerCase();
     const n = itemName?.trim().toLowerCase();
-    if (!s || !n) return undefined;
+    const c = code?.trim().toLowerCase();
+    if (!s || (!n && !c)) return undefined;
     return registered?.find(
       (r) =>
         r.slipNumber?.trim().toLowerCase() === s &&
-        r.name.trim().toLowerCase() === n,
+        ((!!n && r.name.trim().toLowerCase() === n) ||
+          (!!c && r.ifmisItemCode?.trim().toLowerCase() === c && Number(price) > 0 && Math.abs(Number(r.unitCostETB) - Number(price)) < 0.005)),
     )?.itemCode;
   };
 
-  const primaryDuplicateAs = isEdit ? undefined : findDuplicateRegistered(ifmisSlipNumber, name);
+  const primaryDuplicateAs = isEdit ? undefined : findDuplicateRegistered(ifmisSlipNumber, name, ifmisItemCode, unitCostETB);
   const linesWithDuplicates = useMemo(() => extraLines.map((l) => ({
     ...l,
-    alreadyAs: l.id ? undefined : (l.alreadyAs || findDuplicateRegistered(ifmisSlipNumber, l.name)),
+    alreadyAs: l.id ? undefined : (l.alreadyAs || findDuplicateRegistered(ifmisSlipNumber, l.name, l.ifmisCode, l.unitPrice)),
   })), [extraLines, ifmisSlipNumber, registered]);
 
   const duplicateLines = linesWithDuplicates.filter((l) => Boolean(l.alreadyAs));
@@ -356,16 +362,53 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   // A field shows what is wrong with it once the user has been in it
   const fieldErrors = useFieldErrors({});
 
+  // What each item still needs before the receipt can be submitted, kept up to date as the form is filled
+  const itemsMissing = [
+    [
+      !name.trim() && 'description',
+      !donation && !ifmisItemCode.trim() && !(isEdit && itemType) && 'item code',
+      !category && 'category',
+      // The type follows from the code; it is only asked when a typed code doesn't tell it
+      !donation && ifmisItemCode.trim() && !itemType && 'item type',
+      !(Number(quantity) > 0) && 'quantity',
+    ].filter(Boolean) as string[],
+    ...extraLines.map((l) => lineMissing(l, donation)),
+  ];
+  const stillNeeded = itemsMissing.map((m, i) => (m.length ? `item ${i + 1} (${m.join(', ')})` : '')).filter(Boolean);
+  // Shown after a Submit that couldn't go through, until everything is there
+  const [showMissing, setShowMissing] = useState(false);
+  const focusMissing = () => {
+    const i = itemsMissing.findIndex((m) => m.length > 0);
+    if (i < 0) return;
+    const what = itemsMissing[i][0];
+    const firstRowIds: Record<string, string> = {
+      description: 'stock-in-item-name',
+      'item code': 'stock-in-ifmis-code',
+      'item type': 'stock-in-ifmis-code',
+      category: 'stock-in-category',
+      quantity: 'receipt-quantity',
+      unit: 'stock-in-uom',
+    };
+    const lineLabel = what === 'item type' ? 'item code' : what;
+    const el =
+      i === 0
+        ? document.getElementById(firstRowIds[what] ?? 'stock-in-item-name')
+        : document.querySelector<HTMLElement>(`#stock-in-form [aria-label="Item ${i + 1} ${lineLabel}"]`);
+    el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    el?.focus({ preventScroll: true });
+  };
+
   const handleReset = () => {
     setIfmisSlipNumber('');
     setRemark('');
     setPoNumber('');
     setIfmisSlipDateGc(new Date().toISOString().split('T')[0]);
-    setTransactionType('');
+    // The transaction type and store this person used last stay, as when the form opens
+    setTransactionType(memory.transactionType || '');
     setSource('');
     setBuyer('');
-    setStoreLocationId('');
-    setStoreId('');
+    setStoreLocationId(rememberedLocation?.id ?? '');
+    setStoreId(rememberedLocation?.storeId ?? '');
     setName('');
     setCategory('');
     setItemType('');
@@ -389,7 +432,20 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     setSignedFileName('');
     setSignedFile(null);
     setFormError(null);
+    setShowMissing(false);
+    setConfirming(null);
   };
+
+  // Reset and Cancel ask first when something has been entered, so one mis-click can't lose a receipt
+  const [confirming, setConfirming] = useState<'reset' | 'cancel' | null>(null);
+  const hasInput =
+    !isEdit &&
+    Boolean(
+      ifmisFile || signedFile || ifmisSlipNumber.trim() || poNumber.trim() || source.trim() || buyer.trim() || name.trim() ||
+        ifmisItemCode.trim() || unitCostETB > 0 || remark.trim() || extraLines.length > 0,
+    );
+  const askReset = () => (hasInput ? setConfirming('reset') : handleReset());
+  const askCancel = () => (hasInput ? setConfirming('cancel') : onCancel());
 
   // What reading the attached slip found, shown under it
   const [slipNote, setSlipNote] = useState<{ tone: 'info' | 'warn'; text: string } | null>(null);
@@ -753,21 +809,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
     // Each item needs what makes it a true record; nothing is made up for it. The unit price and the voucher's own
     // details (Model 19 No., source, store…) may still be completed later, as before.
-    const itemsMissing = [
-      [
-        !name.trim() && 'description',
-        !donation && !ifmisItemCode.trim() && !(isEdit && itemType) && 'item code',
-        !category && 'category',
-        !donation && !itemType && 'item type',
-        !(Number(quantity) > 0) && 'quantity',
-      ].filter(Boolean) as string[],
-      ...extraLines.map((l) => lineMissing(l, donation)),
-    ];
-    const stillNeeded = itemsMissing.map((m, i) => (m.length ? `item ${i + 1} (${m.join(', ')})` : '')).filter(Boolean);
     if (stillNeeded.length > 0) {
-      const msg = `Still needed before submitting: ${stillNeeded.join('; ')}.`;
-      setFormError(msg);
-      toast.warning('Some item details are missing', msg);
+      // Said once, next to the button, and the first empty field is opened
+      setShowMissing(true);
+      focusMissing();
       return;
     }
 
@@ -1081,16 +1126,19 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   // Item 1 is a row of the items table like every other line
   const firstRow = (
-    <tr className="align-middle hover:bg-slate-50/50 transition-colors">
-      <td className="px-2 py-2.5 font-mono text-slate-400 text-center text-xs">1</td>
+    <tr className="align-top hover:bg-slate-50/50 transition-colors">
+      <td className={`px-2 py-2.5 font-mono text-slate-400 text-center text-xs ${rowText}`}>1</td>
       <td className="px-3 py-2.5">
+        {/* The hidden labels sit outside the spaced stack, so item 1 is as tall as every other row */}
+        <label htmlFor="stock-in-item-name" className="sr-only">Item description</label>
         <div className="space-y-1.5">
-          <label htmlFor="stock-in-item-name" className="sr-only">Item description</label>
           <input
             id="stock-in-item-name"
             type="text"
             placeholder="Item description (e.g. Dell Latitude 5440 Laptop)"
             value={name}
+            // A long description is cut off in the cell; pointing at it shows all of it
+            title={name || undefined}
             onChange={(e) => setName(e.target.value)}
             onBlur={fieldErrors.touch('itemName')}
             className={cellClass({ invalid: !!fieldErrors.error('itemName') || !!primaryDuplicateAs })}
@@ -1103,8 +1151,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         </div>
       </td>
       <td className="px-3 py-2.5">
+        <label htmlFor="stock-in-ifmis-code" className="sr-only">IFMIS item code</label>
         <div className="space-y-1">
-          <label htmlFor="stock-in-ifmis-code" className="sr-only">IFMIS item code</label>
           <input
             id="stock-in-ifmis-code"
             type="text"
@@ -1115,14 +1163,22 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             onBlur={fieldErrors.touch('itemType')}
             className={cellClass({ mono: true, invalid: !donation && !!fieldErrors.error('itemType') })}
           />
-          <span
-            aria-label="Item type"
-            className="sr-only"
-          >
-            {((itemType || (ifmisItemCode ? itemTypeFromIfmisCode(ifmisItemCode) : undefined) || ItemType.FIXED) === ItemType.CONSUMABLE)
-              ? 'Consumable'
-              : 'Fixed asset'}
-          </span>
+          {!donation && (itemType || ifmisItemCode.trim()) ? (
+            <ItemTypeTag
+              type={itemType}
+              code={ifmisItemCode}
+              label="Item type"
+              onToggle={() =>
+                setItemType(
+                  (itemType || itemTypeFromIfmisCode(ifmisItemCode) || ItemType.FIXED) === ItemType.CONSUMABLE ? ItemType.FIXED : ItemType.CONSUMABLE,
+                )
+              }
+            />
+          ) : (
+            <span aria-label="Item type" className="sr-only">
+              {itemType === ItemType.CONSUMABLE ? 'Consumable' : 'Fixed asset'}
+            </span>
+          )}
         </div>
       </td>
       <td className="px-3 py-2.5">
@@ -1190,7 +1246,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           inputClassName={`!h-9 !px-2.5 !text-xs !rounded-md ${vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
         />
       </td>
-      <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap">
+      <td className={`px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap ${rowText}`}>
         {money(totalAmount)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
         {vatApplicable && vat1 > 0 && <span className="block text-[10px] font-normal text-emerald-700">incl. VAT {money(vat1)}</span>}
       </td>
@@ -1236,7 +1292,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             />
           </Field>
 
-          <Field label="PO number" optional htmlFor="stock-in-po" hint="Optional IFMIS purchase order number.">
+          <Field label="PO number" optional htmlFor="stock-in-po" hint="As printed on the Model 19">
             <input id="stock-in-po" type="text" placeholder="e.g. PO-2024-001" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className={input({ mono: true })} />
           </Field>
 
@@ -1290,28 +1346,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         </FieldGrid>
       </Part>
 
-      <Part
-        title={`Items (${extraLines.length + 1})`}
-        aside={
-          <div className="flex flex-wrap items-center gap-3">
-            <label
-              htmlFor="stock-in-vat-master"
-              className="inline-flex items-center gap-1.5 cursor-pointer select-none bg-emerald-50/80 hover:bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200 transition-colors"
-              title="15% VAT auto-calculated for all items (no additional charges allowed)"
-            >
-              <input
-                id="stock-in-vat-master"
-                aria-label="VAT applicable (15% for all items)"
-                type="checkbox"
-                checked={vatApplicable}
-                onChange={(e) => handleToggleVat(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
-              />
-              <span className="text-xs font-semibold text-emerald-800">15% VAT (all items)</span>
-            </label>
-          </div>
-        }
-      >
+      <Part title={`Items (${extraLines.length + 1})`}>
         <p className="-mt-1 mb-2 text-[11px] text-slate-500">
           {!donation
             ? `${ITEM_CODE_RULE} Click the badge under a code to change the type.`
@@ -1325,6 +1360,26 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           onChange={setExtraLines}
           onAdd={() => setExtraLines((lines) => [...lines, blankLine()])}
           total={totalAmount + extraTotal}
+          vatTotal={vatApplicable ? vatTotal : 0}
+          vatControl={
+            donation ? undefined : (
+              <label
+                htmlFor="stock-in-vat-master"
+                className="inline-flex items-center gap-1.5 cursor-pointer select-none rounded border border-emerald-200 bg-emerald-50/80 px-2 py-1 transition-colors hover:bg-emerald-100/80"
+                title="15% VAT is added to every item; other charges can't be added with it"
+              >
+                <input
+                  id="stock-in-vat-master"
+                  aria-label="VAT applicable (15% for all items)"
+                  type="checkbox"
+                  checked={vatApplicable}
+                  onChange={(e) => handleToggleVat(e.target.checked)}
+                  className="h-3.5 w-3.5 cursor-pointer rounded border-slate-300 accent-emerald-600"
+                />
+                <span className="text-xs font-semibold text-emerald-800">15% VAT (all items)</span>
+              </label>
+            )
+          }
         />
       </Part>
 
@@ -1379,7 +1434,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           />
 
         )}
-        <Field label={donation ? "Overall slip remarks / notes" : "Remarks"} optional htmlFor="stock-in-remarks" hint="Anything the approvers should know, e.g. why there is no proper Model 19. Kept on every item and printed on the voucher.">
+        <Field label="Remarks" optional htmlFor="stock-in-remarks" hint="Anything the approvers should know, e.g. why there is no proper Model 19. Kept on every item and printed on the voucher.">
           <textarea
             id="stock-in-remarks"
             rows={2}
@@ -1415,16 +1470,44 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               : 'Submit for approval'
         }
         allowIncomplete={true}
-        submitDisabled={hasDuplicates}
+        submitDisabled={hasDuplicates || confirming !== null}
         note={
-          hasDuplicates ? (
+          confirming ? (
+            <span role="alertdialog" aria-label="Discard what you've entered?" className="inline-flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-800">
+              {confirming === 'reset' ? 'Clear the form? What you entered will be lost.' : "Close the form? What you entered won't be saved."}
+              <button
+                type="button"
+                onClick={() => {
+                  const what = confirming;
+                  setConfirming(null);
+                  if (what === 'reset') handleReset();
+                  else onCancel();
+                }}
+                className="rounded-[4px] border border-rose-300 bg-white px-2 py-1 text-rose-700 hover:bg-rose-50 cursor-pointer"
+              >
+                {confirming === 'reset' ? 'Clear' : 'Discard'}
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setConfirming(null)}
+                className="rounded-[4px] border border-slate-300 bg-white px-2 py-1 text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Keep editing
+              </button>
+            </span>
+          ) : hasDuplicates ? (
             <span className="font-semibold text-rose-600">
               {duplicateMessage}
             </span>
+          ) : showMissing && stillNeeded.length > 0 ? (
+            <span role="alert" className="font-semibold text-amber-800">
+              {`Still needed before submitting: ${stillNeeded.join('; ')}.`}
+            </span>
           ) : undefined
         }
-        onCancel={onCancel}
-        onReset={isEdit ? undefined : handleReset}
+        onCancel={askCancel}
+        onReset={isEdit ? undefined : askReset}
       />
     </form>
   );

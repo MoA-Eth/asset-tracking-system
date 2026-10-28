@@ -151,8 +151,10 @@ describe('Model 19 ReceiptItems: VAT and Additional Charges Scenarios', () => {
       ifmisCode: '',
     };
 
-    // When purchase (donation = false), missing item code and item type
-    expect(lineMissing(line, false)).toEqual(['item code', 'item type']);
+    // When purchase (donation = false), the item code is missing; the type follows from it, so it isn't asked separately
+    expect(lineMissing(line, false)).toEqual(['item code']);
+    // A code that doesn't tell the type (it starts with neither 0, 1 nor 3) asks for the type
+    expect(lineMissing({ ...line, ifmisCode: '908101101.0001' }, false)).toEqual(['item type']);
 
     // When donation (donation = true), item code and item type are optional
     expect(lineMissing(line, true)).toEqual([]);

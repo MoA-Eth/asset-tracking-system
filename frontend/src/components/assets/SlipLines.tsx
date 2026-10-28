@@ -65,7 +65,7 @@ export const lineMissing = (l: SlipLine, donation = false): string[] =>
     !l.name.trim() && 'description',
     !l.category && 'category',
     !donation && !l.ifmisCode?.trim() && !(l.id && l.itemType) && 'item code',
-    !donation && !l.itemType && 'item type',
+    !donation && !!l.ifmisCode?.trim() && !l.itemType && 'item type',
     !l.uom.trim() && 'unit',
     !(Number.isFinite(l.quantity) && l.quantity > 0) && 'quantity',
   ].filter(Boolean) as string[];
@@ -113,6 +113,12 @@ export const ItemTypeTag: React.FC<{
   );
 };
 
+/**
+ * Rows of the items table align their cells to the top, so every field starts on the same line (the type badge hangs
+ * under the item code). Text in a cell (row number, total) is moved down to sit level with the middle of the fields.
+ */
+export const rowText = '!pt-[1.3rem]';
+
 /** A compact input for a table cell */
 export const cellClass = (opts?: { align?: 'left' | 'right' | 'center'; invalid?: boolean; mono?: boolean }) => `${inputClass('emerald', opts)} !h-9 !px-2.5 !text-xs !rounded-md`;
 
@@ -140,7 +146,11 @@ export const ReceiptItems: React.FC<{
   onAdd?: () => void;
   /** Grand total of all rows */
   total?: number;
-}> = ({ first, lines, donation, vatApplicable, onChange, onAdd, total }) => {
+  /** How much of the grand total is VAT */
+  vatTotal?: number;
+  /** The VAT switch, shown by the grand total */
+  vatControl?: React.ReactNode;
+}> = ({ first, lines, donation, vatApplicable, onChange, onAdd, total, vatTotal = 0, vatControl }) => {
   const set = (key: number, patch: Partial<SlipLine>) =>
     onChange(
       lines.map((l) => {
@@ -180,13 +190,13 @@ export const ReceiptItems: React.FC<{
               <th className="px-2 py-2.5 text-center">#</th>
               <th className="px-3 py-2.5 text-left">Item description</th>
               <th className="px-3 py-2.5 text-left" title={donation ? 'Optional for donations' : undefined}>
-                IFMIS code{donation ? ' (opt.)' : ''}
+                IFMIS item code{donation ? ' (opt.)' : ''}
               </th>
               <th className="px-3 py-2.5 text-left">Category</th>
               <th className="px-2 py-2.5 text-center">Unit</th>
               <th className="px-2 py-2.5 text-center">Qty</th>
               <th className="px-3 py-2.5 text-right">Unit price</th>
-              <th className="px-3 py-2.5 text-right" title="Additional charges (transport, installation…); not with VAT">Charges</th>
+              <th className="px-3 py-2.5 text-right" title="Transport, installation and other charges; not with VAT">Other charges</th>
               <th className="px-3 py-2.5 text-right">Total</th>
               <th className="px-2 py-2.5 text-center" />
             </tr>
@@ -200,14 +210,16 @@ export const ReceiptItems: React.FC<{
               const lineVat = isVat ? Math.round(lineBase * 0.15 * 100) / 100 : 0;
               const lineTotal = lineBase + (isVat ? lineVat : (l.additionalCharges || 0));
               return (
-                <tr key={l.key} className="align-middle hover:bg-slate-50/50 transition-colors">
-                  <td className="px-2 py-2.5 font-mono text-slate-400 text-center text-xs">{n}</td>
+                <tr key={l.key} className="align-top hover:bg-slate-50/50 transition-colors">
+                  <td className={`px-2 py-2.5 font-mono text-slate-400 text-center text-xs ${rowText}`}>{n}</td>
                   <td className="px-3 py-2.5">
                     <div className="space-y-1.5">
                       <input
                         aria-label={`Item ${n} description`}
                         placeholder="Item description"
                         value={l.name}
+                        // A long description is cut off in the cell; pointing at it shows all of it
+                        title={l.name || undefined}
                         onChange={(e) => set(l.key, { name: e.target.value })}
                         className={cellClass({ invalid: !l.name.trim() })}
                       />
@@ -295,11 +307,11 @@ export const ReceiptItems: React.FC<{
                       inputClassName={`!h-9 !px-2.5 !text-xs !rounded-md ${isVat ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
                     />
                   </td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap">
+                  <td className={`px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap ${rowText}`}>
                     {money(lineTotal)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
                     {isVat && lineVat > 0 && <span className="block text-[10px] font-normal text-emerald-700">incl. VAT {money(lineVat)}</span>}
                   </td>
-                  <td className="px-1.5 py-2.5 text-center">
+                  <td className="px-1.5 pb-2.5 pt-4 text-center">
                     <button
                       type="button"
                       onClick={() => onChange(lines.filter((x) => x.key !== l.key))}
@@ -329,9 +341,13 @@ export const ReceiptItems: React.FC<{
         ) : (
           <span />
         )}
-        <p className="text-xs text-slate-600">
-          Grand total <span className="ml-1 font-mono text-sm font-semibold tabular-nums text-slate-900">{formatETB(total)}</span>
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          {vatControl}
+          <p className="text-xs text-slate-600">
+            Grand total <span className="ml-1 font-mono text-sm font-semibold tabular-nums text-slate-900">{formatETB(total)}</span>
+            {vatTotal > 0 && <span className="ml-1.5 text-[11px] text-emerald-700">incl. VAT {formatETB(vatTotal)}</span>}
+          </p>
+        </div>
       </div>
     </div>
   );

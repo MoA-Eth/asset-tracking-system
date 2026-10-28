@@ -2139,13 +2139,59 @@ describe('Receiving form: footer notes', () => {
     const panel = screen.getByRole('region', { name: 'Receive items' });
 
     await user.click(within(panel).getByRole('button', { name: /Submit for approval/i }));
-    expect(within(panel).getByText('Still needed before submitting: item 1 (description, item code, category, item type).')).toBeInTheDocument();
+    // Said once, by the button, and the first empty field is opened; the type follows from the code, so it isn't asked
+    expect(within(panel).getByText('Still needed before submitting: item 1 (description, item code, category).')).toBeInTheDocument();
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveFocus();
 
     // Only the code typed: nothing like "Unspecified Item" or a default category is saved
     await user.type(within(panel).getByLabelText(/IFMIS item code/i), '108101101.0021');
     await user.click(within(panel).getByRole('button', { name: /Submit for approval/i }));
     expect(within(panel).getByText('Still needed before submitting: item 1 (description, category).')).toBeInTheDocument();
     expect(api.registerStockIn).not.toHaveBeenCalled();
+  });
+
+  it('shows item 1 its type like the other lines, and lets it be switched', async () => {
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+
+    await user.type(within(panel).getByLabelText(/IFMIS item code/i), '108101101.0021');
+    const badge = within(panel).getByRole('button', { name: 'Item type' });
+    expect(badge).toHaveTextContent('Consumable');
+    await user.click(badge);
+    expect(within(panel).getByRole('button', { name: 'Item type' })).toHaveTextContent('Fixed asset');
+  });
+
+  it('asks before Cancel or Reset throw away what was entered; Keep editing keeps it', async () => {
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+
+    await user.type(within(panel).getByLabelText(/Item description/i), 'Office chair');
+    await user.click(within(panel).getByRole('button', { name: 'Cancel' }));
+    expect(within(panel).getByText("Close the form? What you entered won't be saved.")).toBeInTheDocument();
+    await user.click(within(panel).getByRole('button', { name: 'Keep editing' }));
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('Office chair');
+
+    await user.click(within(panel).getByRole('button', { name: /Reset/i }));
+    await user.click(within(panel).getByRole('button', { name: 'Clear' }));
+    expect(within(panel).getByLabelText(/Item description/i)).toHaveValue('');
+  });
+
+  it('shows the VAT switch by the grand total, with how much of it is VAT', async () => {
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    const panel = screen.getByRole('region', { name: 'Receive items' });
+
+    await user.type(within(panel).getByLabelText(/Unit price/i), '1000');
+    await user.click(within(panel).getByLabelText('VAT applicable (15% for all items)'));
+    expect(within(panel).getByText(/Grand total/).textContent).toMatch(/1,150\.00.*incl\. VAT.*150\.00/);
   });
 });
 
