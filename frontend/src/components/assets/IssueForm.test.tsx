@@ -554,3 +554,62 @@ describe('Issue items (Model 22): the unit price, as IFMIS issues it', () => {
     expect(screen.getByText(/Grand total/).parentElement).toHaveTextContent('ETB 37,927.00');
   });
 });
+
+describe('Issue items (Model 22): what stops Submit, said once by the button', () => {
+  const employee = { id: 'EMP-A', fullNameEn: 'Abebe Kebede', payrollId: '00000001', departmentId: 'DEP-1' } as any;
+  const department = { id: 'DEP-1', nameEn: 'Plant Protection', nameAm: '' } as any;
+  const renderIssue = (onCancel = vi.fn()) =>
+    render(<StockOutForm availableItems={[item()]} departments={[department]} employees={[employee]} initialItemId="item-1" onCancel={onCancel} onSuccess={vi.fn()} />);
+  const submit = () => screen.getByRole('button', { name: /Submit for approval/ });
+
+  it('stops without a recipient and opens the Received by field, instead of failing on the server', async () => {
+    const user = userEvent.setup();
+    renderIssue();
+    await user.click(submit());
+    expect(screen.getByRole('alert')).toHaveTextContent('Still needed before submitting: who receives it (Received by).');
+    expect(screen.getByRole('combobox', { name: /Received by/ })).toHaveFocus();
+    expect(api.registerStockOut).not.toHaveBeenCalled();
+    // No red asterisk on the field
+    expect(screen.getByText('Received by').textContent).toBe('Received by');
+  });
+
+  it('says once when more is asked than is in store, and opens that quantity', async () => {
+    const user = userEvent.setup();
+    renderIssue();
+    await user.click(screen.getByRole('combobox', { name: /Received by/ }));
+    await user.click(await screen.findByRole('option', { name: /Abebe Kebede/ }));
+    const qty = screen.getByLabelText('Quantity to issue');
+    await user.clear(qty);
+    await user.type(qty, '50');
+    await user.click(submit());
+    const alerts = screen.getAllByText(/More than is in store \(item 1: only 40 BAG in store\)/);
+    expect(alerts).toHaveLength(1);
+    expect(qty).toHaveFocus();
+    expect(api.registerStockOut).not.toHaveBeenCalled();
+  });
+
+  it('shows the In store column as a number; the unit is in its own column', () => {
+    renderIssue();
+    const cells = screen.getByLabelText('Quantity to issue').closest('tr')!.querySelectorAll('td');
+    const inStore = cells[[...screen.getAllByRole('columnheader')].findIndex((h) => h.textContent === 'In store')];
+    expect(inStore.textContent).toBe('40');
+  });
+
+  it('asks before Cancel throws away what was entered', async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    renderIssue(onCancel);
+    // Nothing typed yet: Cancel just closes
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+
+    await user.type(screen.getByLabelText(/Model 22 No/), '0004653/A');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByText("Close the form? What you entered won't be saved.")).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Keep editing' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(onCancel).toHaveBeenCalledTimes(2);
+  });
+});

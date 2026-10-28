@@ -134,6 +134,9 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         // Opened from an item's row: that item, all of it, unless fewer are typed
         : [newRow(startItem?.id ?? '', startItem ? unitsOf(startItem) : 0)],
   );
+  // The items and quantities the form opened with: changing them counts as something entered
+  const rowsKey = (rs: IssueRow[]) => rs.map((r) => `${r.itemId}:${r.quantity}`).join('|');
+  const openedWith = useRef(rowsKey(rows));
   const itemOf = (row: IssueRow) => (isEdit ? editItem : availableItems.find((i) => i.id === row.itemId));
   const setRow = (key: number, patch: Partial<IssueRow>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const chooseItem = (key: number, itemId: string) => {
@@ -272,6 +275,56 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   // A field shows what is wrong with it once the user has been in it
   const fieldErrors = useFieldErrors({});
 
+  // What stops this Model 22 going through, each with the field it is about. Other blanks (Model 22 No., date,
+  // directorate…) may still be completed later, as before.
+  const overStock = rows
+    .map((r, i) => ({ r, n: i + 1, it: itemOf(r) }))
+    .filter(({ r, it }) => !!it && Number(r.quantity) > unitsOf(it));
+  const blockers: { text: string; field: string }[] = [
+    ...rows.flatMap((r, i) => {
+      const n = i + 1;
+      const pickerId = n === 1 ? 'stock-out-item' : `stock-out-item-${n}`;
+      if (!isEdit && !itemOf(r)) return [{ text: rows.length === 1 ? 'the store item' : `item ${n} (store item)`, field: pickerId }];
+      return [];
+    }),
+    ...(overStock.length > 0
+      ? [{
+          text: `a quantity within stock (${overStock.map(({ n, it }) => `item ${n}: only ${stockText(it!)}`).join('; ')})`,
+          field: overStock[0].n === 1 ? 'issue-quantity' : `issue-quantity-${overStock[0].n}`,
+        }]
+      : []),
+    ...(!isEdit && mixedStores ? [{ text: 'items from one store', field: 'stock-out-item' }] : []),
+    ...(!isDisposal && !(isExternal ? organizationName.trim() : recipientEmployeeId) ? [{ text: 'who receives it (Received by)', field: 'stock-out-recipient' }] : []),
+    ...(isDisposal && !purpose.trim() ? [{ text: 'the reason for disposal', field: 'stock-out-purpose' }] : []),
+    ...(isAttachmentReq && (showScannedSlipField ? !signedFileName : !(ifmisFile || signedFileName || editApproval?.ifmisSlipAttachmentUrl))
+      ? [{ text: showScannedSlipField ? 'the signed copy' : 'the IFMIS Model 22 PDF', field: '' }]
+      : []),
+  ];
+  // Shown after a Submit that couldn't go through, until everything is there
+  const [showBlockers, setShowBlockers] = useState(false);
+  const blockerText =
+    overStock.length > 0 && blockers.length === 1
+      ? `More than is in store (${overStock.map(({ n, it }) => `item ${n}: only ${stockText(it!)}`).join('; ')}). Lower the quantity, or add the rest from another receipt of the same item.`
+      : `Still needed before submitting: ${blockers.map((b) => b.text).join('; ')}.`;
+  const focusBlocker = () => {
+    const first = blockers.find((b) => b.field);
+    const el = first ? document.getElementById(first.field) : null;
+    el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    el?.focus({ preventScroll: true });
+  };
+
+  // Reset and Cancel ask first when something has been entered, so one mis-click can't lose a Model 22
+  const [confirming, setConfirming] = useState<'reset' | 'cancel' | null>(null);
+  const hasInput =
+    !isEdit &&
+    Boolean(
+      ifmisFile || signedFile || model22No.trim() || recipientEmployeeId || organizationName.trim() ||
+        purpose.trim() || disposalRecipient.trim() || transportationCost > 0 ||
+        rowsKey(rows) !== openedWith.current,
+    );
+  const askReset = () => (hasInput ? setConfirming('reset') : handleReset());
+  const askCancel = () => (hasInput ? setConfirming('cancel') : onCancel());
+
   const recipientFields = isDisposal
     ? { disposal: true as const, ...(disposalRecipient.trim() ? { recipientName: disposalRecipient.trim() } : {}) }
     : isExternal
@@ -300,6 +353,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     setSignedFileName('');
     setSlipNote(null);
     setFormError(null);
+    setShowBlockers(false);
+    setConfirming(null);
   };
 
   // ── Reading a Model 22 PDF
@@ -532,14 +587,10 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    const over = rows
-      .map((r, i) => ({ r, n: i + 1, it: itemOf(r) }))
-      .filter(({ r, it }) => !!it && Number(r.quantity) > unitsOf(it));
-    if (over.length > 0) {
-      const which = over.map(({ n, it }) => `item ${n}: only ${stockText(it!)}`).join('; ');
-      const message = `More than is in store (${which}). Lower the quantity, or add the rest from another receipt of the same item.`;
-      setFormError(message);
-      toast.warning('Not enough in store', message);
+    // Stopped here rather than by the server: said once by the button, and the first field to fix is opened
+    if (blockers.length > 0) {
+      setShowBlockers(true);
+      focusBlocker();
       return;
     }
     const effectiveModel22No = model22No.trim() || `PENDING-ISSUE-${Date.now()}`;
@@ -799,7 +850,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
       </Part>
 
-      <Part title={rows.length > 1 ? `Items (${rows.length})` : 'Items'} aside={<span className="text-[11px] text-slate-500">From one store. Unit price is what a unit cost on its Model 19, VAT and charges included, as IFMIS issues it.</span>}>
+      <Part title={rows.length > 1 ? `Items (${rows.length})` : 'Items'} aside={<span className="text-[11px] text-slate-500">One store per Model 22 · Unit price is from the item's Model 19, VAT and charges included.</span>}>
         <div className="overflow-hidden rounded-md border border-slate-200">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-xs">
@@ -825,7 +876,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                   const overStock = !!item && row.quantity > inStore;
                   return (
                     <tr key={row.key} className="align-top">
-                      <td className="px-2 py-1.5 pt-3.5 font-mono text-slate-500">{n}</td>
+                      <td className="px-2 py-1.5 pt-4 font-mono text-slate-500">{n}</td>
                       <td className="px-2 py-1.5">
                         {isEdit ? (
                           <p className="pt-2 text-slate-800">
@@ -836,6 +887,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                           <>
                             <label htmlFor={itemId} className="sr-only">{n === 1 ? 'Store item' : `Item ${n} store item`}</label>
                             <SearchableSelect
+                              compact
                               id={itemId}
                               value={row.itemId}
                               onChange={(id) => chooseItem(row.key, id)}
@@ -855,8 +907,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                           </>
                         )}
                       </td>
-                      <td className="px-2 py-1.5 pt-3.5 font-mono text-slate-700">{item ? uomOf(item) : '—'}</td>
-                      <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? `${inStore} ${uomOf(item)} in store` : '—'}</td>
+                      <td className="px-2 py-1.5 pt-4 font-mono text-slate-700">{item ? uomOf(item) : '—'}</td>
+                      <td className="px-2 py-1.5 pt-4 text-right font-mono tabular-nums text-slate-700">{item ? inStore : '—'}</td>
                       <td className="px-2 py-1.5">
                         <label htmlFor={qtyId} className="sr-only">{n === 1 ? 'Quantity to issue' : `Item ${n} quantity`}</label>
                         <QuantityInput
@@ -870,8 +922,8 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
                           className={cellClass({ align: 'right', mono: true, invalid: overStock })}
                         />
                       </td>
-                      <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? money(costOf(item)) : '—'}</td>
-                      <td className="px-2 py-1.5 pt-3.5 text-right font-mono tabular-nums text-slate-700">{item ? money(Math.round(costOf(item) * (row.quantity || 0) * 100) / 100) : '—'}</td>
+                      <td className="px-2 py-1.5 pt-4 text-right font-mono tabular-nums text-slate-700">{item ? money(costOf(item)) : '—'}</td>
+                      <td className="px-2 py-1.5 pt-4 text-right font-mono tabular-nums text-slate-700">{item ? money(Math.round(costOf(item) * (row.quantity || 0) * 100) / 100) : '—'}</td>
                       <td className="px-1 py-1.5 pt-3">
                         {!isEdit && rows.length > 1 && (
                           <button
@@ -938,7 +990,6 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             <>
               <Field
                 label="Received by"
-                required
                 htmlFor="stock-out-recipient"
                 hint="An employee, or an outside organization. Type to search; a new organization can be added from here."
               >
@@ -1090,8 +1141,38 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         }
         missingFields={missingFields}
         fieldTargets={{ 'signed copy': 'section[aria-label$="and signatures"] input[type="file"]', 'items from one store': '#stock-out-item' }}
-        onCancel={onCancel}
-        onReset={isEdit ? undefined : handleReset}
+        submitDisabled={confirming !== null}
+        note={
+          confirming ? (
+            <span role="alertdialog" aria-label="Discard what you've entered?" className="inline-flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-800">
+              {confirming === 'reset' ? 'Clear the form? What you entered will be lost.' : "Close the form? What you entered won't be saved."}
+              <button
+                type="button"
+                onClick={() => {
+                  const what = confirming;
+                  setConfirming(null);
+                  if (what === 'reset') handleReset();
+                  else onCancel();
+                }}
+                className="rounded-[4px] border border-rose-300 bg-white px-2 py-1 text-rose-700 hover:bg-rose-50 cursor-pointer"
+              >
+                {confirming === 'reset' ? 'Clear' : 'Discard'}
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setConfirming(null)}
+                className="rounded-[4px] border border-slate-300 bg-white px-2 py-1 text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Keep editing
+              </button>
+            </span>
+          ) : showBlockers && blockers.length > 0 ? (
+            <span role="alert" className="font-semibold text-amber-800">{blockerText}</span>
+          ) : undefined
+        }
+        onCancel={askCancel}
+        onReset={isEdit ? undefined : askReset}
       />
     </form>
   );

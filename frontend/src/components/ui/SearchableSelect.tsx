@@ -27,6 +27,8 @@ interface SearchableSelectProps {
   onCreate?: (text: string) => void;
   /** The add row's wording, e.g. text => `Add "${text}" as an organization` */
   createLabel?: (text: string) => string;
+  /** As tall as the other fields of a table row (36 px instead of 40) */
+  compact?: boolean;
 }
 
 /**
@@ -43,6 +45,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   autoFocus,
   onCreate,
   createLabel = (text) => `Add "${text}"`,
+  compact = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -129,7 +132,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         aria-controls={`${id}-list`}
         autoFocus={autoFocus}
         onClick={() => (open ? close() : setOpen(true))}
-        className="flex h-10 w-full items-center justify-between gap-2 rounded-[4px] border border-slate-300 hover:border-slate-500 focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 bg-white px-3 text-left text-[13px] transition-colors focus:outline-none cursor-pointer"
+        className={`flex ${compact ? 'h-9' : 'h-10'} w-full items-center justify-between gap-2 rounded-[4px] border border-slate-300 hover:border-slate-500 focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 bg-white px-3 text-left text-[13px] transition-colors focus:outline-none cursor-pointer`}
       >
         <span className={`truncate ${selected ? 'text-slate-900' : 'text-slate-400'}`}>{selected ? selected.label : placeholder}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
