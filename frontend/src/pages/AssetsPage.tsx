@@ -458,7 +458,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           state,
           request,
           requests,
-          units: Number(item.quantity) || 1,
+          // A record with no quantity kept (older ones) is one unit; a piece emptied by a reversal holds none
+          units: item.quantity === undefined || item.quantity === null || !Number.isFinite(Number(item.quantity)) ? 1 : Number(item.quantity),
           where: disposedTo ?? (withSomeone ? holder || '—' : store),
           goingTo,
           activity: String(request?.createdAt || item.createdAt || request?.createdAtGc || item.createdAtGc || ''),
@@ -546,6 +547,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const tops: AssetRow[] = [];
     for (const r of rows) {
       const parentId = r.item.parentItemId;
+      // A piece whose issue or disposal was reversed holds nothing (its units went back): not listed under its batch
+      if (parentId && ids.has(parentId) && r.state === 'REJECTED' && r.units === 0) continue;
       if (parentId && ids.has(parentId)) units.set(parentId, [...(units.get(parentId) ?? []), r]);
       else tops.push(r);
     }

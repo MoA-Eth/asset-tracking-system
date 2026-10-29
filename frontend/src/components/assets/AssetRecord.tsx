@@ -703,7 +703,8 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 </div>
               )}
               <div>
-                <Row label={row.state === 'ISSUED' || item.currentCustodian ? 'Held by' : 'Kept in'}>{row.where}</Row>
+                {/* A disposed record has left the store: where it went, not where it is kept */}
+                <Row label={row.state === 'DISPOSED' ? 'Disposed to' : row.state === 'ISSUED' || item.currentCustodian ? 'Held by' : 'Kept in'}>{row.where}</Row>
                 {row.state === 'IN_STORE' && row.daysInStore !== undefined && (
                   <Row label="Time in store">{row.daysInStore === 1 ? '1 day' : `${row.daysInStore} days`}</Row>
                 )}

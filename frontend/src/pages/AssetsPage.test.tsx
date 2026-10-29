@@ -252,6 +252,41 @@ describe('Assets page', () => {
     expect(box('In store')).toBe('17');
   });
 
+  it('says where the units are when a request covers only some of them, hides reversed pieces, and says where disposed ones went', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getItems).mockResolvedValue([
+      ...items,
+      item('L1', 'Lap Top Computer', 'PENDING_DISPOSAL', { quantity: 17 }),
+      item('L1-1', 'Lap Top Computer', 'DISPOSED', { quantity: 15, parentItemId: 'L1' }),
+      // A disposal reversed: its piece holds nothing
+      item('L1-2', 'Lap Top Computer', 'REJECTED', { quantity: 0, parentItemId: 'L1' }),
+    ] as any);
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      ...approvals,
+      request('L1-DSP', 'DISPOSAL', 'L1', { requestDetails: { quantity: 6, recipientName: 'South Ethiopia Bureau' } }),
+      request('L1-DONE', 'DISPOSAL', 'L1', { status: 'APPROVED', reviewedAtGc: '2026-10-26', requestDetails: { quantity: 15, recipientName: 'Oromia Bureau', disposedItemCode: 'MOA-L1-1' } }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-L1');
+
+    // 6 of the 17 are asked for: the record is in store, with the request under it
+    const batch = rowOf('MOA-L1');
+    expect(within(batch).getByText('In store')).toBeInTheDocument();
+    expect(batch).toHaveTextContent('Disposal pending: 6 of 17');
+    // A request for every unit still reads as a whole: the filing cabinet's disposal is for its 1 unit
+    expect(rowOf('MOA-Q1')).toHaveTextContent('Disposal pending');
+    expect(rowOf('MOA-Q1')).not.toHaveTextContent('In store');
+
+    // The reversed, empty piece is not listed under the batch
+    await user.click(within(batch).getByRole('button', { name: 'Show 1 disposed record' }));
+    expect(screen.queryByText('MOA-L1-2')).not.toBeInTheDocument();
+
+    // A disposed record says where it went
+    await user.click(rowOf('MOA-L1-1').querySelector('td')!);
+    expect(await screen.findByText('Disposed to')).toBeInTheDocument();
+    expect(screen.queryByText('Kept in')).not.toBeInTheDocument();
+  });
+
   it('says which Model 21 moved a record', async () => {
     const user = userEvent.setup();
     vi.mocked(api.getItems).mockResolvedValue([

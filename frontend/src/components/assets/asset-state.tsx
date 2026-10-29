@@ -192,7 +192,13 @@ export const ReturnedNote: React.FC<{ request: TransactionApproval }> = ({ reque
 /** `partly`: a batch with some units out and the rest still in store */
 export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row, partly }) => {
   const settled =
-    row.state === 'REJECTED' ? (
+    // A piece split off a batch is only ever closed by reversing the issue or disposal that made it: its units went back
+    row.state === 'REJECTED' && row.item.parentItemId ? (
+      <span className={`${pill} ${statusTone.neutral}`} title="Reversed: the issue or disposal that made this piece was undone, and its units went back">
+        Reversed
+      </span>
+    )
+    : row.state === 'REJECTED' ? (
       <span
         className={`${pill} ${statusTone.rejected}`}
         title={
@@ -254,6 +260,28 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
 
   // Several issues waiting on one record: how many, and where each one is
   const open = row.requests ?? [];
+
+  // A waiting issue or disposal for only part of the units: they are still where they were, so the status says that,
+  // and the request goes underneath ("Disposal pending: 6 of 17")
+  const asked = Number(row.request?.requestDetails?.quantity);
+  if (
+    row.request?.status === 'PENDING' &&
+    (row.request.transactionType === 'STOCK_OUT' || row.request.transactionType === 'DISPOSAL') &&
+    open.length <= 1 &&
+    asked > 0 &&
+    asked < row.units
+  ) {
+    const pending = requestLabel(row.request.transactionType, row.request.requestDetails).pending;
+    return (
+      <span className="inline-flex flex-col items-start gap-0.5">
+        <span className={`${pill} ${partly ? statusTone.partly : statusTone.inStore}`}>{partly ? 'Partly issued' : 'In store'}</span>
+        <span className="inline-flex items-center gap-1 whitespace-nowrap text-[10px] font-medium text-amber-800" title={`${pending} · ${stageLabel(row.request)}`}>
+          <Clock className="h-3 w-3" />
+          {pending}: {asked.toLocaleString()} of {row.units.toLocaleString()}
+        </span>
+      </span>
+    );
+  }
   if (open.length > 1) {
     const noun = requestLabel(open[0].transactionType, open[0].requestDetails).noun;
     const where = new Map<string, number>();
