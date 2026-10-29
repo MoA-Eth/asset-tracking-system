@@ -128,7 +128,8 @@ function mapItem(raw: any): ItemWithRelations {
     lotBatchNo: model19Meta.lotBatchNo || raw.lotBatchNo || undefined,
     printedPadFrom: model19Meta.printedPadFrom || raw.printedPadFrom || undefined,
     printedPadTo: model19Meta.printedPadTo || raw.printedPadTo || undefined,
-    quantity: model19Meta.quantity || raw.quantity || 1,
+    // A piece emptied by a reversal is closed with none left: it says so, instead of the one unit an unknown quantity means
+    quantity: raw.status === 'REJECTED' && model19Meta.quantity !== undefined && Number(model19Meta.quantity) === 0 ? 0 : model19Meta.quantity || raw.quantity || 1,
     totalAmount: model19Meta.totalAmount || raw.totalAmount || (raw.unitCostETB * (model19Meta.quantity || 1)),
     vatApplicable: Boolean(model19Meta.vatApplicable),
     additionalCharges: Number(model19Meta.additionalCharges) || 0,

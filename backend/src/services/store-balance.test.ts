@@ -98,6 +98,18 @@ describe('item balance', () => {
     expect(awaitingDisposal.balance).toEqual({ total: 10, issued: 0, available: 10, pending: 0, requested: 0 });
   });
 
+  it('reports a piece emptied by a reversal as holding none, and an unknown quantity still as one unit', async () => {
+    db.item.findMany
+      .mockResolvedValueOnce([
+        { ...batch, id: 'reversed', status: 'REJECTED', parentItemId: 'item-1', notes: meta(0) },
+        { ...batch, id: 'unknown', status: 'AVAILABLE', notes: null },
+      ])
+      .mockResolvedValueOnce([]);
+    const [reversed, unknown] = await store().getItems();
+    expect(reversed.quantity).toBe(0);
+    expect(unknown.quantity).toBe(1);
+  });
+
   it('counts the units a pending issue or disposal is taking out as requested, the moment it is submitted', async () => {
     db.item.findMany
       .mockResolvedValueOnce([{ ...batch, status: 'PENDING_STOCK_OUT' }, { ...batch, id: 'item-2', status: 'PENDING_DISPOSAL' }])
