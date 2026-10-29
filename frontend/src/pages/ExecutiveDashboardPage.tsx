@@ -211,6 +211,34 @@ const StatTile: React.FC<{
   </div>
 );
 
+/** The two item types, in the colours of a StatTile's split bar */
+const TYPE_COLORS = { fixed: 'bg-sky-600', consumables: 'bg-violet-400' };
+
+/**
+ * A StatTile footer: fixed assets and consumables side by side, each with its figure and an optional line under it.
+ * Shared by the cards that split a total between the two types, so they read the same way.
+ */
+const TypeColumns: React.FC<{
+  fixed: { value: React.ReactNode; detail?: React.ReactNode; title?: string };
+  consumables: { value: React.ReactNode; detail?: React.ReactNode; title?: string };
+}> = ({ fixed, consumables }) => (
+  <div className="grid grid-cols-2 divide-x divide-slate-100 pt-0.5">
+    {([
+      ['Fixed assets', TYPE_COLORS.fixed, fixed],
+      ['Consumables', TYPE_COLORS.consumables, consumables],
+    ] as const).map(([name, color, col], i) => (
+      <div key={name} className={`min-w-0 ${i === 0 ? 'pr-3' : 'pl-3'}`} title={col.title}>
+        <p className="flex items-center gap-1.5 text-[11px] text-slate-600">
+          <span className={`h-2 w-2 shrink-0 rounded-sm ${color}`} aria-hidden />
+          {name}
+        </p>
+        <p className="mt-1 truncate text-base font-bold leading-tight tabular-nums text-slate-900">{col.value}</p>
+        {col.detail && <p className="truncate text-[11px] tabular-nums text-slate-600">{col.detail}</p>}
+      </div>
+    ))}
+  </div>
+);
+
 /** Compact count tile for the workflow row. `tone` is reserved for real states. */
 const WorkTile: React.FC<{
   label: string;
@@ -692,38 +720,26 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             totalValuation > 0 && (fixedAssetsValuationETB > 0 || consumableValuationETB > 0)
               ? {
                   primaryPct: Math.round((fixedAssetsValuationETB / totalValuation) * 100),
-                  primaryColor: 'bg-emerald-600',
-                  secondaryColor: 'bg-violet-500',
-                  primaryLabel: 'Fixed Assets',
+                  primaryColor: TYPE_COLORS.fixed,
+                  secondaryColor: TYPE_COLORS.consumables,
+                  primaryLabel: 'Fixed assets',
                   secondaryLabel: 'Consumables',
                 }
               : undefined
           }
           footer={
-            <div className="space-y-1 pt-0.5 text-xs">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-600">Fixed Assets:</span>
-                <span className="tabular-nums font-semibold text-emerald-800 text-[11px] whitespace-nowrap" title={formatETBTotal(fixedAssetsValuationETB)}>
-                  {formatETBShort(fixedAssetsValuationETB)}{' '}
-                  {totalValuation > 0 && (
-                    <span className="text-[10px] text-slate-400 font-normal">
-                      ({formatAssetPct(fixedAssetsValuationETB, totalValuation)})
-                    </span>
-                  )}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-600">Consumables:</span>
-                <span className="tabular-nums font-semibold text-violet-800 text-[11px] whitespace-nowrap" title={formatETBTotal(consumableValuationETB)}>
-                  {formatETBShort(consumableValuationETB)}{' '}
-                  {totalValuation > 0 && (
-                    <span className="text-[10px] text-slate-400 font-normal">
-                      ({formatAssetPct(consumableValuationETB, totalValuation)})
-                    </span>
-                  )}
-                </span>
-              </div>
-            </div>
+            <TypeColumns
+              fixed={{
+                value: formatETBShort(fixedAssetsValuationETB),
+                detail: totalValuation > 0 ? `${formatAssetPct(fixedAssetsValuationETB, totalValuation)} of value` : undefined,
+                title: formatETBTotal(fixedAssetsValuationETB),
+              }}
+              consumables={{
+                value: formatETBShort(consumableValuationETB),
+                detail: totalValuation > 0 ? `${formatAssetPct(consumableValuationETB, totalValuation)} of value` : undefined,
+                title: formatETBTotal(consumableValuationETB),
+              }}
+            />
           }
         />
         <StatTile
@@ -742,38 +758,34 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           // How the items split between the two types, in the colours of the two columns below
           splitBar={{
             primaryPct: totalAssetItems > 0 ? Math.round((fixedAssets.registrations / totalAssetItems) * 100) : 0,
-            primaryColor: 'bg-sky-600',
-            secondaryColor: 'bg-violet-400',
+            primaryColor: TYPE_COLORS.fixed,
+            secondaryColor: TYPE_COLORS.consumables,
             primaryLabel: 'Fixed assets',
             secondaryLabel: 'Consumables',
           }}
           footer={
-            <div className="grid grid-cols-2 divide-x divide-slate-100 pt-0.5">
-              <div className="min-w-0 pr-3" title="Fixed assets (ቋሚ ዕቃ): counted in items, and in units (pieces)">
-                <p className="flex items-center gap-1.5 text-[11px] text-slate-600">
-                  <span className="h-2 w-2 shrink-0 rounded-sm bg-sky-600" aria-hidden />
-                  Fixed assets
-                </p>
-                <p className="mt-1 text-base font-bold leading-tight tabular-nums text-slate-900">
-                  {fixedAssets.registrations.toLocaleString()}
-                  <span className="ml-1 text-[11px] font-normal text-slate-500">{fixedAssets.registrations === 1 ? 'item' : 'items'}</span>
-                </p>
-                <p className="text-[11px] tabular-nums text-slate-600">
-                  {fixedAssets.units.toLocaleString()} {fixedAssets.units === 1 ? 'unit' : 'units'}
-                </p>
-              </div>
-              {/* Consumables are counted in items only: their quantities mix pieces, litres and kilograms */}
-              <div className="min-w-0 pl-3" title="Consumables (አላቂ ዕቃ): spare parts, accessories and supplies, counted in items">
-                <p className="flex items-center gap-1.5 text-[11px] text-slate-600">
-                  <span className="h-2 w-2 shrink-0 rounded-sm bg-violet-400" aria-hidden />
-                  Consumables
-                </p>
-                <p className="mt-1 text-base font-bold leading-tight tabular-nums text-slate-900">
-                  {consumables.lines.toLocaleString()}
-                  <span className="ml-1 text-[11px] font-normal text-slate-500">{consumables.lines === 1 ? 'item' : 'items'}</span>
-                </p>
-              </div>
-            </div>
+            <TypeColumns
+              fixed={{
+                value: (
+                  <>
+                    {fixedAssets.registrations.toLocaleString()}
+                    <span className="ml-1 text-[11px] font-normal text-slate-500">{fixedAssets.registrations === 1 ? 'item' : 'items'}</span>
+                  </>
+                ),
+                detail: `${fixedAssets.units.toLocaleString()} ${fixedAssets.units === 1 ? 'unit' : 'units'}`,
+                title: 'Fixed assets (ቋሚ ዕቃ): counted in items, and in units (pieces)',
+              }}
+              // Consumables in items only: their quantities mix pieces, litres and kilograms
+              consumables={{
+                value: (
+                  <>
+                    {consumables.lines.toLocaleString()}
+                    <span className="ml-1 text-[11px] font-normal text-slate-500">{consumables.lines === 1 ? 'item' : 'items'}</span>
+                  </>
+                ),
+                title: 'Consumables (አላቂ ዕቃ): spare parts, accessories and supplies, counted in items',
+              }}
+            />
           }
         />
         <StatTile
@@ -842,22 +854,37 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           }
           value={SHOW_VALUES ? formatETBShort(stale.valueETB) : `${stale.itemCount.toLocaleString()} ${stale.itemCount === 1 ? 'item' : 'items'}`}
           exact={SHOW_VALUES && stale.valueETB >= 1_000_000 ? formatETBTotal(stale.valueETB) : undefined}
+          splitBar={
+            staleItems.length > 0
+              ? {
+                  primaryPct: Math.round((staleFixed / staleItems.length) * 100),
+                  primaryColor: TYPE_COLORS.fixed,
+                  secondaryColor: TYPE_COLORS.consumables,
+                  primaryLabel: 'Fixed assets',
+                  secondaryLabel: 'Consumables',
+                }
+              : undefined
+          }
           footer={
             stale.itemCount > 0 ? (
-              <div className="space-y-1 pt-0.5 text-xs">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-600">Fixed assets:</span>
-                  <span className="tabular-nums font-semibold text-amber-800 text-[11px]">
-                    {staleFixed.toLocaleString()} {staleFixed === 1 ? 'item' : 'items'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-600">Consumables:</span>
-                  <span className="tabular-nums font-semibold text-slate-700 text-[11px]">
-                    {staleSupplies.toLocaleString()} {staleSupplies === 1 ? 'item' : 'items'}
-                  </span>
-                </div>
-              </div>
+              <TypeColumns
+                fixed={{
+                  value: (
+                    <>
+                      {staleFixed.toLocaleString()}
+                      <span className="ml-1 text-[11px] font-normal text-slate-500">{staleFixed === 1 ? 'item' : 'items'}</span>
+                    </>
+                  ),
+                }}
+                consumables={{
+                  value: (
+                    <>
+                      {staleSupplies.toLocaleString()}
+                      <span className="ml-1 text-[11px] font-normal text-slate-500">{staleSupplies === 1 ? 'item' : 'items'}</span>
+                    </>
+                  ),
+                }}
+              />
             ) : (
               <span className="text-emerald-700 font-medium text-[11px]">Zero stagnant inventory in stores</span>
             )
