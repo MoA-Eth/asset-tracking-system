@@ -193,7 +193,7 @@ describe('Assets page', () => {
     await screen.findByText('MOA-S1');
     // The status tabs are in sight without opening the filters
     expect(within(screen.getByRole('group', { name: 'Status' })).getByRole('button', { name: /^Pending 4$/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^All \d+$/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true');
     await user.click(screen.getByRole('button', { name: /^Issued/ }));
     // The batch shows with only its issued unit unfolded
     expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent)).toEqual(['MOA-I1', 'MOA-S1', 'MOA-S1-1']);
@@ -222,8 +222,8 @@ describe('Assets page', () => {
     expect(codes()).toEqual(['MOA-O1', 'MOA-P1', 'MOA-Q1']);
     await user.click(pills.getByRole('button', { name: /^Rejected 3$/ }));
     expect(codes()).toEqual(['MOA-R1', 'MOA-S2', 'MOA-X1']);
-    // Each count says it is items, not units
-    expect(pills.getByRole('button', { name: /^All/ })).toHaveAttribute('title', expect.stringContaining('not units'));
+    // All has no number: it mixes items on the register with receipts waiting or rejected and items gone
+    expect(pills.getByRole('button', { name: 'All' })).toHaveAttribute('title', 'Every item, whatever its status');
   });
 
   it('shows what was received when part of a batch was disposed of, so the lines add up', async () => {
@@ -243,7 +243,7 @@ describe('Assets page', () => {
     expect(within(rowOf('MOA-S1')).queryByText(/received$/)).not.toBeInTheDocument();
   });
 
-  it('says which Model 21 moved a record listed under Transferred / returned', async () => {
+  it('says which Model 21 moved a record', async () => {
     const user = userEvent.setup();
     vi.mocked(api.getItems).mockResolvedValue([
       ...items,
@@ -258,12 +258,15 @@ describe('Assets page', () => {
     ] as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-C1');
-    await user.click(screen.getByRole('button', { name: /^Transferred \/ returned/ }));
+    // The returned camera is in store, and says which Model 21 brought it back
+    expect(rowOf('MOA-B1')).toHaveTextContent('Returned on Model 21 No. REQ-BACK');
+    // Issued shows both chairs (the one split off unfolds under its record), each with its own Model 21
+    await user.click(screen.getByRole('button', { name: /^Issued/ }));
     expect(rowOf('MOA-C1')).toHaveTextContent('Issued');
     expect(rowOf('MOA-C1')).toHaveTextContent('Transferred on Model 21 No. 0004208');
     expect(rowOf('MOA-C1-1')).toHaveTextContent('Transferred on Model 21 No. 0004207');
-    // The returned camera is in store, and says which Model 21 brought it back
-    expect(rowOf('MOA-B1')).toHaveTextContent('Returned on Model 21 No. REQ-BACK');
+    // There is no filter for moves any more: they are history, not a state
+    expect(screen.queryByRole('button', { name: /Transferred \/ returned/ })).not.toBeInTheDocument();
   });
 
   it('flags a waiting disposal on a form already approved for the record', async () => {

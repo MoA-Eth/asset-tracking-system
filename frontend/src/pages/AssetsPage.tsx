@@ -82,22 +82,22 @@ import {
   recipientOf,
 } from '../components/assets/asset-state';
 
-type AssetFilter = 'ALL' | 'IN_STORE' | 'ISSUED' | 'TRANSFERRED' | 'PENDING' | 'REJECTED' | 'DISPOSED';
+// Where an item is now, or what it waits for. (A "Transferred / returned" filter was history, not a state: a moved
+// record says which Model 21 moved it, and "model 21" in the search finds them.) A view saved with it opens on All.
+type AssetFilter = 'ALL' | 'IN_STORE' | 'ISSUED' | 'PENDING' | 'REJECTED' | 'DISPOSED';
 const FILTERS: { value: AssetFilter; label: string }[] = [
   { value: 'ALL', label: 'All' },
   { value: 'IN_STORE', label: 'In store' },
   { value: 'ISSUED', label: 'Issued' },
-  { value: 'TRANSFERRED', label: 'Transferred / returned' },
   { value: 'PENDING', label: 'Pending' },
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'DISPOSED', label: 'Disposed' },
 ];
 /** What each status count is: items (one per line received), not units; an item can count under more than one */
 const FILTER_HINTS: Record<AssetFilter, string> = {
-  ALL: 'Number of items (one per line received), not units',
+  ALL: 'Every item, whatever its status',
   IN_STORE: 'Items with units in store, including those on a waiting issue or disposal',
   ISSUED: 'Items with all or some units issued; a partly issued item also counts under In store',
-  TRANSFERRED: 'Items ever transferred or returned on a Model 21',
   PENDING: 'Items waiting for an approver',
   REJECTED: 'Rejected receipts, receipts sent back to their requester, and items whose last request was rejected',
   DISPOSED: 'Items with all or some units disposed of',
@@ -500,17 +500,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
   const voucherName = (type?: string) => (type === 'DISPOSAL' ? 'disposal form' : 'Model 22');
 
-  const isTransferred = (row: AssetRow) =>
-    row.item.status === ItemStatus.UNDER_TRANSFER ||
-    row.request?.transactionType === 'TRANSFER' ||
-    row.request?.transactionType === 'RETURN' ||
-    row.lastMove?.transactionType === 'TRANSFER' ||
-    row.lastMove?.transactionType === 'RETURN' ||
-    (row.item.history || []).some((h) => h.action === 'TRANSFER_APPROVED' || h.action === 'RETURN_APPROVED') ||
-    (decided.vouchers.get(row.item.id) ?? []).some(
-      (a) => a.status === ApprovalStatus.APPROVED && (a.transactionType === 'TRANSFER' || a.transactionType === 'RETURN'),
-    );
-
   const inFilter = (row: AssetRow, f: AssetFilter, locId = locationFilter, cat = categoryFilter) => {
     // A receipt rejected back to its requester waits on them, not on an approver
     const sentBack = row.state === 'RECEIPT_PENDING' && row.request?.status === ApprovalStatus.REJECTED;
@@ -522,11 +511,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         ? (row.state === 'RECEIPT_PENDING' && !sentBack) || row.state === 'REQUEST_PENDING'
         : f === 'REJECTED'
           ? row.state === 'REJECTED' || !!row.rejected || sentBack
-          : f === 'TRANSFERRED'
-            ? isTransferred(row)
-            : f === 'IN_STORE'
-              ? row.state === 'IN_STORE' || stillInStore
-              : row.state === f);
+          : f === 'IN_STORE'
+            ? row.state === 'IN_STORE' || stillInStore
+            : row.state === f);
     if (!matchesState) return false;
 
     if (locId !== 'ALL' && row.item.storeLocationId !== locId) {
@@ -1922,7 +1909,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               <FilterPill
                 key={f.value}
                 label={f.label}
-                count={groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length}
+                // No number on All: it mixes items on the register with receipts waiting or rejected and items gone
+                count={f.value === 'ALL' ? undefined : groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length}
                 title={FILTER_HINTS[f.value]}
                 active={filter === f.value}
                 onClick={() => setFilter(f.value)}
