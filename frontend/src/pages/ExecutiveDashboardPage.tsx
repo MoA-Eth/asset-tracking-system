@@ -739,27 +739,39 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               </span>
             </span>
           }
+          // How the items split between the two types, in the colours of the two columns below
+          splitBar={{
+            primaryPct: totalAssetItems > 0 ? Math.round((fixedAssets.registrations / totalAssetItems) * 100) : 0,
+            primaryColor: 'bg-sky-600',
+            secondaryColor: 'bg-violet-400',
+            primaryLabel: 'Fixed assets',
+            secondaryLabel: 'Consumables',
+          }}
           footer={
-            <div className="space-y-1 pt-0.5 text-xs">
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-slate-600 text-[11px]" title="Fixed assets (ቋሚ ዕቃ): counted in items and in units (pieces)">
-                  Fixed assets:
-                </span>
-                <span className="text-right tabular-nums font-semibold text-slate-900 text-[11px]">
-                  {fixedAssets.registrations.toLocaleString()} {fixedAssets.registrations === 1 ? 'item' : 'items'}
-                  <span className="block">
-                    {fixedAssets.units.toLocaleString()} {fixedAssets.units === 1 ? 'unit' : 'units'}
-                  </span>
-                </span>
+            <div className="grid grid-cols-2 divide-x divide-slate-100 pt-0.5">
+              <div className="min-w-0 pr-3" title="Fixed assets (ቋሚ ዕቃ): counted in items, and in units (pieces)">
+                <p className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                  <span className="h-2 w-2 shrink-0 rounded-sm bg-sky-600" aria-hidden />
+                  Fixed assets
+                </p>
+                <p className="mt-1 text-base font-bold leading-tight tabular-nums text-slate-900">
+                  {fixedAssets.registrations.toLocaleString()}
+                  <span className="ml-1 text-[11px] font-normal text-slate-500">{fixedAssets.registrations === 1 ? 'item' : 'items'}</span>
+                </p>
+                <p className="text-[11px] tabular-nums text-slate-600">
+                  {fixedAssets.units.toLocaleString()} {fixedAssets.units === 1 ? 'unit' : 'units'}
+                </p>
               </div>
-              {/* Consumables are counted in items, not by adding up pieces, litres and kilograms */}
-              <div className="flex items-start justify-between gap-2 border-t border-slate-100 pt-1">
-                <span className="text-violet-800 text-[11px]" title="Consumables (አላቂ ዕቃ): spare parts, accessories and supplies">
-                  Consumables:
-                </span>
-                <span className="text-right tabular-nums font-semibold text-slate-900 text-[11px]">
-                  {consumables.lines.toLocaleString()} {consumables.lines === 1 ? 'item' : 'items'}
-                </span>
+              {/* Consumables are counted in items only: their quantities mix pieces, litres and kilograms */}
+              <div className="min-w-0 pl-3" title="Consumables (አላቂ ዕቃ): spare parts, accessories and supplies, counted in items">
+                <p className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                  <span className="h-2 w-2 shrink-0 rounded-sm bg-violet-400" aria-hidden />
+                  Consumables
+                </p>
+                <p className="mt-1 text-base font-bold leading-tight tabular-nums text-slate-900">
+                  {consumables.lines.toLocaleString()}
+                  <span className="ml-1 text-[11px] font-normal text-slate-500">{consumables.lines === 1 ? 'item' : 'items'}</span>
+                </p>
               </div>
             </div>
           }
