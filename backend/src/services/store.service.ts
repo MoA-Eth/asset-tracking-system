@@ -4721,8 +4721,12 @@ export class StoreService {
         // Different supplies held, and those with stock in a store (the same item bought twice counts once)
         stockItems: stockItems(consumableItems),
         inStoreStockItems: stockItems(consumablesInStore),
-        // Different supplies with some issued (one partly issued is counted here and in store too)
-        issuedStockItems: stockItems(consumableItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
+        // Different supplies all issued, none left in store. One with some still in store is available (some can still
+        // be issued), so each supply is counted once and Assigned + Available = the total, as for fixed assets
+        issuedStockItems: (() => {
+          const inStore = new Set(consumablesInStore.map(stockKey));
+          return new Set(consumableItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status)).map(stockKey).filter((k) => !inStore.has(k))).size;
+        })(),
         lines: registrations(consumableItems),
         inStoreLines: registrations(consumablesInStore),
         issuedLines: registrations(consumableItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
