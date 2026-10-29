@@ -4717,6 +4717,8 @@ export class StoreService {
         // Different supplies held, and those with stock in a store (the same item bought twice counts once)
         stockItems: stockItems(consumableItems),
         inStoreStockItems: stockItems(consumablesInStore),
+        // Different supplies with some issued (one partly issued is counted here and in store too)
+        issuedStockItems: stockItems(consumableItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
         lines: registrations(consumableItems),
         inStoreLines: registrations(consumablesInStore),
         issuedLines: registrations(consumableItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),

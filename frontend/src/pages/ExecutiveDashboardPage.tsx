@@ -40,6 +40,18 @@ const SHOW_LOW_STOCK = false;
  */
 const SHOW_NEEDS_ATTENTION = false;
 
+/** The "Approvals in pipeline" card is off for now: managers see the assets and stock; the queues are on Approvals. */
+const SHOW_APPROVALS_CARD = false;
+
+/** The "Assets by store location" section is off for now. Set to true to show it again. */
+const SHOW_STORE_LOCATIONS = false;
+
+/** The "Idle in store (>30 days)" card is off for now; the list of items in store too long is further down. */
+const SHOW_IDLE_CARD = false;
+
+/** The "Asset categories" card is off for now: the categories chart further down shows them. */
+const SHOW_CATEGORIES_CARD = false;
+
 /** The "Executive governance & activity" feed (recent audit log) is off for now; the Audit log page has it all. */
 const SHOW_ACTIVITY = false;
 
@@ -158,16 +170,6 @@ const Meter: React.FC<{ pct: number }> = ({ pct }) => (
   </div>
 );
 
-const formatAssetPct = (count: number, total: number): string => {
-  if (total <= 0) return '0%';
-  const pct = (count / total) * 100;
-  if (count > 0 && pct < 0.05) return '<0.1%';
-  if (count > 0 && pct < 1) return `${pct.toFixed(1)}%`;
-  if (count < total && pct > 99.95) return '>99.9%';
-  if (count < total && pct > 99) return `${pct.toFixed(1)}%`;
-  return `${Math.round(pct)}%`;
-};
-
 const StatTile: React.FC<{
   label: string;
   labelAm: string;
@@ -177,6 +179,8 @@ const StatTile: React.FC<{
   exact?: string;
   footer: React.ReactNode;
   meterPct?: number;
+  /** Extra layout classes, e.g. to span two columns of the grid */
+  className?: string;
   splitBar?: {
     primaryPct: number;
     primaryColor?: string;
@@ -184,8 +188,8 @@ const StatTile: React.FC<{
     primaryLabel?: string;
     secondaryLabel?: string;
   };
-}> = ({ label, labelAm, action, value, exact, footer, meterPct, splitBar }) => (
-  <div className="rounded-md flex flex-col border border-slate-200/90 border-b-2 border-b-slate-300 bg-white p-5 transition duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_4px_6px_rgba(15,23,42,0.06),0_16px_32px_-8px_rgba(15,23,42,0.18)] shadow-[0_3px_12px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.05)]">
+}> = ({ label, labelAm, action, value, exact, footer, meterPct, className = '', splitBar }) => (
+  <div className={`${className} rounded-md flex flex-col border border-slate-200/90 border-b-2 border-b-slate-300 bg-white p-5 transition duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_4px_6px_rgba(15,23,42,0.06),0_16px_32px_-8px_rgba(15,23,42,0.18)] shadow-[0_3px_12px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.05)]`}>
     <div className="flex items-start justify-between gap-2 min-w-0">
       <div className="min-w-0">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
@@ -193,8 +197,8 @@ const StatTile: React.FC<{
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
-    {/* A single figure, kept to one line; a small table (Total assets) takes the card's width as it is */}
-    {typeof value === 'string' || typeof value === 'number' || !React.isValidElement(value) || value.type !== 'table' ? (
+    {/* A single figure, kept to one line; a small table (the fixed assets and consumables rows) takes the card's width */}
+    {!React.isValidElement(value) || (value.type !== 'table' && value.type !== TypeRows) ? (
       <div className="mt-3 min-w-0 truncate text-xl sm:text-2xl xl:text-3xl font-bold tracking-tight text-slate-900 tabular-nums" title={exact}>{value}</div>
     ) : (
       <div className="mt-3 min-w-0">{value}</div>
@@ -251,6 +255,46 @@ const TypeColumns: React.FC<{
       </div>
     ))}
   </div>
+);
+
+/**
+ * A StatTile value: fixed assets and consumables on a row each, in what each is counted in (fixed assets one by one,
+ * in units; consumables by the different supplies, in items), never added together.
+ */
+const TypeRows: React.FC<{
+  fixed: number;
+  consumables: number;
+  /** All fixed assets: when given, the fixed-asset row says what share of them this is ("46% of all") */
+  fixedOf?: number;
+}> = ({ fixed, consumables, fixedOf }) => (
+  <table className="w-full text-left tabular-nums">
+    <tbody>
+      {[
+        {
+          name: 'Fixed assets',
+          n: fixed,
+          measure: fixed === 1 ? 'unit' : 'units',
+          // Units add up, so a share of all fixed assets means something; items of supplies don't
+          share: fixedOf ? `${Math.round((fixed / fixedOf) * 100)}% of all` : undefined,
+          color: TYPE_COLORS.fixed,
+          title: 'Fixed assets (ቋሚ ዕቃ): each physical asset counted once',
+        },
+        { name: 'Consumables', n: consumables, measure: consumables === 1 ? 'item' : 'items', share: undefined, color: TYPE_COLORS.consumables, title: 'Consumables (አላቂ ዕቃ): each different supply counted once, by IFMIS item code' },
+      ].map((r, i) => (
+        <tr key={r.name} title={r.title} className={i ? 'border-t border-slate-100' : ''}>
+          <th scope="row" className="py-1.5 pr-2 text-xs font-semibold text-slate-700">
+            <span className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className={`h-2 w-2 shrink-0 rounded-sm ${r.color}`} aria-hidden />
+              {r.name}
+            </span>
+            {r.share && <span className="block pl-3.5 text-[10px] font-normal text-slate-400">{r.share}</span>}
+          </th>
+          <td className="py-1.5 text-right text-2xl font-bold text-slate-900">{r.n.toLocaleString()}</td>
+          <td className="w-12 py-1.5 pl-1.5 text-left text-xs text-slate-500">{r.measure}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
 );
 
 /** Compact count tile for the workflow row. `tone` is reserved for real states. */
@@ -489,6 +533,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   // Consumables by the different supplies held (an older server sends only its receipt lines)
   const consumableStockItems: number = consumables.stockItems ?? consumables.lines;
   const consumableStockItemsInStore: number = consumables.inStoreStockItems ?? consumables.inStoreLines;
+  const consumableStockItemsIssued: number = consumables.issuedStockItems ?? consumables.issuedLines;
   const availableCount    = data?.availableCount       || 0;
   const issuedCount       = data?.issuedCount          || 0;
   const pendingApprovals  = data?.pendingApprovalsCount || 0;
@@ -512,9 +557,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
     .map(([n, kind]) => `${n} ${kind}${n === 1 ? '' : 's'}`);
   const totalValuation    = data?.totalValuationETB     || 0;
   const fixedAssetsCount  = data?.fixedAssetsCount      || 0;
-  const fixedAssetsValuationETB = data?.fixedAssetsValuationETB || 0;
   const consumableCount   = data?.consumableCount       || 0;
-  const consumableValuationETB = data?.consumableValuationETB || 0;
   const issuedValuation   = data?.issuedValuationETB    || 0;
   const availableValuation= data?.availableValuationETB || 0;
   const unassignedCount   = data?.unassignedItemsCount  || 0;
@@ -548,6 +591,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   // Categories in their fixed order so colours never shift
   const categoryRows: any[] = withVehiclesTogether((data?.categoryBreakdown || []).filter((c: any) => c.count > 0))
     .sort((a: any, b: any) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category));
+  // Categories that hold fixed assets, as the categories chart shows them (motorcycles within Vehicles)
+  const assetCategoryCount = categoryRows.length;
 
   // Items that should have been distributed: in store longer than the limit (30 days)
   const stale = data?.staleInStore || { thresholdDays: 30, itemCount: 0, units: 0, valueETB: 0, items: [] };
@@ -724,91 +769,44 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         </div>
       )}
 
-      {/* ── Row 1: KPI tiles ────────────────────────────────────────────────── */}
+      {/* ── Four cards in a row: the assets (fixed assets one by one, consumables by item), assigned, available, and their value ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          label="Total assets"
+          labelAm="ጠቅላላ ንብረቶች"
+          // Both types, each on its row in what it is counted in, never added together
+          value={<TypeRows fixed={fixedAssets.units} consumables={consumableStockItems} />}
+          footer="In store and assigned"
+        />
+        <StatTile
+          label="Assigned assets"
+          labelAm="የተመደቡ ንብረቶች"
+          value={<TypeRows fixed={fixedAssets.issuedUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsIssued} />}
+          footer="With staff"
+        />
+        <StatTile
+          label="Available assets"
+          labelAm="በመጋዘን ያሉ ንብረቶች"
+          value={<TypeRows fixed={fixedAssets.inStoreUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsInStore} />}
+          footer="In store, ready to assign"
+        />
         <StatTile
           label="Total valuation"
           labelAm="ጠቅላላ የካፒታል ንብረት ዋጋ"
           value={formatETBShort(totalValuation)}
           exact={totalValuation >= 1_000_000 ? formatETBTotal(totalValuation) : undefined}
-          splitBar={
-            totalValuation > 0 && (fixedAssetsValuationETB > 0 || consumableValuationETB > 0)
-              ? {
-                  primaryPct: Math.round((fixedAssetsValuationETB / totalValuation) * 100),
-                  primaryColor: TYPE_COLORS.fixed,
-                  secondaryColor: TYPE_COLORS.consumables,
-                  primaryLabel: 'Fixed assets',
-                  secondaryLabel: 'Consumables',
-                }
-              : undefined
-          }
-          footer={
-            <TypeColumns
-              fixed={{
-                value: formatETBShort(fixedAssetsValuationETB),
-                detail: totalValuation > 0 ? `${formatAssetPct(fixedAssetsValuationETB, totalValuation)} of value` : undefined,
-                title: formatETBTotal(fixedAssetsValuationETB),
-              }}
-              consumables={{
-                value: formatETBShort(consumableValuationETB),
-                detail: totalValuation > 0 ? `${formatAssetPct(consumableValuationETB, totalValuation)} of value` : undefined,
-                title: formatETBTotal(consumableValuationETB),
-              }}
-            />
-          }
+          // One total: what everything held cost, VAT and charges included (not split by type)
+          footer="All held, VAT included"
         />
+        {SHOW_CATEGORIES_CARD && (
         <StatTile
-          label="Total assets"
-          labelAm="በመዝገብ ላይ ያለ ጠቅላላ ንብረት"
-          // Two figures, each counted the way it means something, and never added together: fixed assets one by one
-          // (each physical asset), consumables by the different supplies held (the same item code bought twice is one)
-          // A small table: each type on its row, Total and In store in labelled columns, never added together
-          value={
-            <table className="w-full text-left tabular-nums">
-              <thead>
-                <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  <th className="pb-1 font-semibold" scope="col"><span className="sr-only">Type</span></th>
-                  <th className="pb-1 pl-1.5 text-right font-semibold" scope="col">Total</th>
-                  <th className="whitespace-nowrap pb-1 pl-1.5 text-right font-semibold" scope="col">In store</th>
-                </tr>
-              </thead>
-              <tbody>
-              {[
-                {
-                  n: fixedAssets.units,
-                  name: 'Fixed assets',
-                  measure: 'units',
-                  inStore: fixedAssets.inStoreUnits,
-                  color: TYPE_COLORS.fixed,
-                  title: 'Fixed assets (ቋሚ ዕቃ): each physical asset, counted one by one',
-                },
-                {
-                  n: consumableStockItems,
-                  name: 'Consumables',
-                  measure: 'different items',
-                  inStore: consumableStockItemsInStore,
-                  color: TYPE_COLORS.consumables,
-                  title: 'Consumables (አላቂ ዕቃ): the different supplies held, by IFMIS item code; the same item bought twice counts once',
-                },
-              ].map((r) => (
-                <tr key={r.name} title={r.title} className="border-t border-slate-100">
-                  <th scope="row" className="py-1.5 pr-1 text-xs font-semibold tracking-normal text-slate-700">
-                    <span className="flex items-center gap-1.5 whitespace-nowrap">
-                      <span className={`h-2 w-2 shrink-0 rounded-sm ${r.color}`} aria-hidden />
-                      {r.name}
-                    </span>
-                    {/* What the figures count: units can't be added across pieces, litres and kilograms */}
-                    <span className="block pl-3.5 text-[10px] font-normal text-slate-400">{r.measure}</span>
-                  </th>
-                  <td className="py-1.5 pl-1.5 text-right text-lg font-bold text-slate-900">{r.n.toLocaleString()}</td>
-                  <td className="py-1.5 pl-1.5 text-right text-sm font-semibold text-slate-600">{r.inStore.toLocaleString()}</td>
-                </tr>
-              ))}
-              </tbody>
-            </table>
-          }
-          footer={null}
+          label="Asset categories"
+          labelAm="የንብረት ዓይነቶች"
+          value={assetCategoryCount.toLocaleString()}
+          footer="Categories with assets"
         />
+        )}
+        {SHOW_APPROVALS_CARD && (
         <StatTile
           label="Approvals in pipeline"
           labelAm="ውሳኔ የሚጠብቁ ጥያቄዎች"
@@ -859,6 +857,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             )
           }
         />
+        )}
+        {SHOW_IDLE_CARD && (
         <StatTile
           label={SHOW_VALUES ? 'Idle capital (>30 days)' : 'Idle in store (>30 days)'}
           labelAm="ከ30 ቀን በላይ በመጋዘን የቆየ"
@@ -911,6 +911,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             )
           }
         />
+        )}
       </div>
 
       {/* ── Row 2: Workflow counts ──────────────────────────────────────────── */}
@@ -1276,6 +1277,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       </div>
 
       {/* ── Row 4: Locations (Warehouse & Store Distribution) ────────────────── */}
+      {SHOW_STORE_LOCATIONS && (
       <Panel
         title="Assets by store location"
         subtitle="በማከማቻ ቦታ የተከፋፈለ የንብረት ክምችት · Regional and central warehouses"
@@ -1465,6 +1467,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           </div>
         )}
       </Panel>
+      )}
 
       {/* ── Row 5: Highest-Value Assets & Executive Governance (Side-by-Side) ── */}
       {(SHOW_VALUES || SHOW_ACTIVITY) && (

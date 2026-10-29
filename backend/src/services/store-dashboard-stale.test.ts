@@ -278,7 +278,7 @@ describe('dashboard: figures checked against production data (29 Oct 2026)', () 
       record('LAPTOP', 'AVAILABLE', 3, { itemType: 'FIXED', notes: JSON.stringify({ quantity: 2, uom: 'EA' }) }),
     ].map((r: any) => (r.id.startsWith('SOAP') ? { ...r, name: 'Hand soap' } : r)));
     const d = await StoreService.getInstance().getExecutiveDashboard();
-    expect(d.consumables).toMatchObject({ lines: 5, stockItems: 3, inStoreStockItems: 2 });
+    expect(d.consumables).toMatchObject({ lines: 5, stockItems: 3, inStoreStockItems: 2, issuedStockItems: 2 });
     expect(d.fixedAssets).toMatchObject({ units: 2, registrations: 1 });
   });
 

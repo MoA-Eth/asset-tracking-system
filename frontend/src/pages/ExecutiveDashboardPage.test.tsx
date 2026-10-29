@@ -180,27 +180,48 @@ describe('Dashboard low-stock consumables banner', () => {
 
 
 describe('Total assets', () => {
-  it('shows fixed assets one by one and consumables as different items, never added together', async () => {
+  it('counts the assets one by one: total, assigned and available add up; consumables are store stock', async () => {
     vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
       ...figures(599450),
       fixedAssets: { units: 893, registrations: 29, inStoreUnits: 800, issuedUnits: 93, valueETB: 1 },
-      consumables: { lines: 408, inStoreLines: 150, issuedLines: 258, stockItems: 312, inStoreStockItems: 140, valueETB: 1 },
+      consumables: { lines: 408, inStoreLines: 150, issuedLines: 258, stockItems: 312, inStoreStockItems: 140, issuedStockItems: 200, valueETB: 1 },
+      categoryBreakdown: [
+        { category: 'VEHICLE', count: 14 },
+        { category: 'MOTORCYCLE', count: 52 },
+        { category: 'IT_EQUIPMENT', count: 30 },
+      ],
     } as any);
     renderPage();
 
-    const tile = (await screen.findByText('Total assets')).closest('div')!.parentElement!.parentElement!;
-    // Each physical fixed asset; each different consumable (the same item code bought twice is one)
-    // Labelled columns: Total and In store, one row per type
-    const table = within(tile).getByRole('table');
-    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Type', 'Total', 'In store']);
-    expect(within(table).getByRole('row', { name: /Fixed assets/ })).toHaveTextContent('Fixed assetsunits893800');
-    expect(within(table).getByRole('row', { name: /Consumables/ })).toHaveTextContent('Consumablesdifferent items312140');
-    // No sum of the two, and no receipt-line counts that change with how often a thing was bought
-    expect(tile).not.toHaveTextContent('1,205');
-    expect(tile).not.toHaveTextContent('437');
-    expect(tile).not.toHaveTextContent('408');
-    // Units are not added up across pieces, litres and kilograms
-    expect(tile).not.toHaveTextContent('599,450');
+    const card = async (label: string) => (await screen.findByText(label, { selector: 'p' })).closest('div')!.parentElement!.parentElement!;
+    // Fixed assets, each unit an asset: 93 assigned + 800 available = 893
+    // Both types on Total assets, each in what it is counted in, never added together
+    const total = await card('Total assets');
+    expect(within(total).getByRole('row', { name: /Fixed assets/ })).toHaveTextContent('Fixed assets893units');
+    expect(within(total).getByRole('row', { name: /Consumables/ })).toHaveTextContent('Consumables312items');
+    // Assigned and available, each by type: fixed assets add up (93 + 800 = 893); a partly issued supply is in both
+    const row = async (label: string, type: RegExp) => within(await card(label)).getByRole('row', { name: type });
+    expect(await row('Assigned assets', /Fixed assets/)).toHaveTextContent('Fixed assets10% of all93units');
+    expect(await row('Assigned assets', /Consumables/)).toHaveTextContent('Consumables200items');
+    expect(await row('Available assets', /Fixed assets/)).toHaveTextContent('Fixed assets90% of all800units');
+    expect(await row('Available assets', /Consumables/)).toHaveTextContent('Consumables140items');
+    // Total valuation is one figure, not split by type
+    expect(await card('Total valuation')).toHaveTextContent('All held, VAT included');
+    // One short line under each card
+    expect(await card('Total assets')).toHaveTextContent('In store and assigned');
+    expect(await card('Assigned assets')).toHaveTextContent('With staff');
+    expect(await card('Available assets')).toHaveTextContent('In store, ready to assign');
+    expect(within(await card('Total valuation')).queryByText(/of value/)).not.toBeInTheDocument();
+    // Categories are in the chart further down, not a card
+    expect(screen.queryByText('Asset categories', { selector: 'p' })).not.toBeInTheDocument();
+    // Consumables are on Total assets, not a card of their own
+    expect(screen.queryByText('Store stock')).not.toBeInTheDocument();
+    // No receipt-line counts, no sum of assets and supplies, no units added across pieces, litres and kilograms
+    for (const n of ['437', '1,205', '599,450']) expect(screen.queryByText(new RegExp(n))).not.toBeInTheDocument();
+    // The approvals queue is not on the dashboard
+    expect(screen.queryByText('Approvals in pipeline')).not.toBeInTheDocument();
+    // Nor the idle-in-store card (the list of items in store too long is further down)
+    expect(screen.queryByText('Idle in store (>30 days)')).not.toBeInTheDocument();
   });
 });
 
@@ -215,6 +236,18 @@ describe('Needs attention', () => {
     renderPage();
     await screen.findByText('Total assets');
     expect(screen.queryByText('Needs attention')).not.toBeInTheDocument();
+  });
+});
+
+describe('Assets by store location', () => {
+  it('is off for now', async () => {
+    vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
+      ...figures(10),
+      locationUtilization: [{ id: 'L1', siteName: 'Saris', itemLines: 3, availableLines: 2, issuedLines: 1, categoryBreakdown: [] }],
+    } as any);
+    renderPage();
+    await screen.findByText('Total assets');
+    expect(screen.queryByText('Assets by store location')).not.toBeInTheDocument();
   });
 });
 
