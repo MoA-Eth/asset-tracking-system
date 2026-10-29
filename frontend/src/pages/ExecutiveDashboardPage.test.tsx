@@ -217,6 +217,18 @@ describe('Needs attention', () => {
   });
 });
 
+describe('Executive governance & activity', () => {
+  it('is off for now: the audit log page has the full activity', async () => {
+    vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
+      ...figures(10),
+      recentAuditLogs: [{ id: 'l1', action: 'APPROVE_STOCK_IN', userName: 'Getaneh', timestampGc: '2026-10-29' }],
+    } as any);
+    renderPage();
+    await screen.findByText('Total assets');
+    expect(screen.queryByText('Executive governance & activity')).not.toBeInTheDocument();
+  });
+});
+
 describe('Asset categories', () => {
   it('counts motorcycles in Vehicles, listed under it, not as a category of their own', async () => {
     vi.mocked(api.getExecutiveDashboard).mockResolvedValue({

@@ -40,6 +40,9 @@ const SHOW_LOW_STOCK = false;
  */
 const SHOW_NEEDS_ATTENTION = false;
 
+/** The "Executive governance & activity" feed (recent audit log) is off for now; the Audit log page has it all. */
+const SHOW_ACTIVITY = false;
+
 interface ExecutiveDashboardPageProps {
   onNavigate: (tab: string) => void;
   currentRole: UserRole;
@@ -1452,7 +1455,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       </Panel>
 
       {/* ── Row 5: Highest-Value Assets & Executive Governance (Side-by-Side) ── */}
-      <div className={`grid grid-cols-1 gap-5 ${SHOW_VALUES ? 'lg:grid-cols-2' : ''}`}>
+      {(SHOW_VALUES || SHOW_ACTIVITY) && (
+      <div className={`grid grid-cols-1 gap-5 ${SHOW_VALUES && SHOW_ACTIVITY ? 'lg:grid-cols-2' : ''}`}>
         {SHOW_VALUES && (
         <Panel
           title="Highest-value capital assets"
@@ -1487,6 +1491,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         </Panel>
         )}
 
+        {SHOW_ACTIVITY && (
         <Panel
           title="Executive governance & activity"
           subtitle="ቅርብ ጊዜ የስርዓት ድርጊቶችና የኦዲት መዝገብ"
@@ -1520,7 +1525,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             </ul>
           )}
         </Panel>
+        )}
       </div>
+      )}
     </div>
   );
 };
