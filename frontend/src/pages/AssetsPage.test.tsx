@@ -205,6 +205,27 @@ describe('Assets page', () => {
     expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent)).toEqual(['MOA-D1']);
   });
 
+  it('counts items with a waiting issue or disposal as in store, and a receipt sent back as rejected, not pending', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getApprovals).mockResolvedValue(
+      approvals.map((a) => (a.id === 'A-R1' ? { ...a, status: 'REJECTED', reviewedAtGc: '2026-10-02', reviewRemarks: 'Wrong supplier' } : a)) as any,
+    );
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    const pills = within(screen.getByRole('group', { name: 'Status' }));
+    const codes = () => screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent).sort();
+    // The chair on a waiting issue and the cabinet on a waiting disposal are still on the shelf
+    await user.click(pills.getByRole('button', { name: /^In store 5$/ }));
+    expect(codes()).toEqual(['MOA-B1', 'MOA-O1', 'MOA-Q1', 'MOA-S1', 'MOA-S2']);
+    // Only what an approver can act on is pending; the scanner's receipt is with its requester
+    await user.click(pills.getByRole('button', { name: /^Pending 3$/ }));
+    expect(codes()).toEqual(['MOA-O1', 'MOA-P1', 'MOA-Q1']);
+    await user.click(pills.getByRole('button', { name: /^Rejected 3$/ }));
+    expect(codes()).toEqual(['MOA-R1', 'MOA-S2', 'MOA-X1']);
+    // Each count says it is items, not units
+    expect(pills.getByRole('button', { name: /^All/ })).toHaveAttribute('title', expect.stringContaining('not units'));
+  });
+
   it('offers the next step for each state', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);

@@ -92,6 +92,16 @@ const FILTERS: { value: AssetFilter; label: string }[] = [
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'DISPOSED', label: 'Disposed' },
 ];
+/** What each status count is: items (one per line received), not units; an item can count under more than one */
+const FILTER_HINTS: Record<AssetFilter, string> = {
+  ALL: 'Number of items (one per line received), not units',
+  IN_STORE: 'Items with units in store, including those on a waiting issue or disposal',
+  ISSUED: 'Items with all or some units issued; a partly issued item also counts under In store',
+  TRANSFERRED: 'Items ever transferred or returned on a Model 21',
+  PENDING: 'Items waiting for an approver',
+  REJECTED: 'Rejected receipts, receipts sent back to their requester, and items whose last request was rejected',
+  DISPOSED: 'Items with all or some units disposed of',
+};
 
 /** Format ISO or YYYY-MM-DD date to MM/DD/YYYY (e.g. 03/16/2026) */
 function formatCreatedDate(raw?: string): string {
@@ -483,15 +493,21 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     );
 
   const inFilter = (row: AssetRow, f: AssetFilter, locId = locationFilter, cat = categoryFilter) => {
+    // A receipt rejected back to its requester waits on them, not on an approver
+    const sentBack = row.state === 'RECEIPT_PENDING' && row.request?.status === ApprovalStatus.REJECTED;
+    // Units on a waiting issue or disposal are still on the shelf until the last approver approves
+    const stillInStore = row.item.status === ItemStatus.PENDING_STOCK_OUT || row.item.status === ItemStatus.PENDING_DISPOSAL;
     const matchesState =
       f === 'ALL' ||
       (f === 'PENDING'
-        ? row.state === 'RECEIPT_PENDING' || row.state === 'REQUEST_PENDING'
+        ? (row.state === 'RECEIPT_PENDING' && !sentBack) || row.state === 'REQUEST_PENDING'
         : f === 'REJECTED'
-          ? row.state === 'REJECTED' || !!row.rejected
+          ? row.state === 'REJECTED' || !!row.rejected || sentBack
           : f === 'TRANSFERRED'
             ? isTransferred(row)
-            : row.state === f);
+            : f === 'IN_STORE'
+              ? row.state === 'IN_STORE' || stillInStore
+              : row.state === f);
     if (!matchesState) return false;
 
     if (locId !== 'ALL' && row.item.storeLocationId !== locId) {
@@ -1875,6 +1891,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 key={f.value}
                 label={f.label}
                 count={groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length}
+                title={FILTER_HINTS[f.value]}
                 active={filter === f.value}
                 onClick={() => setFilter(f.value)}
               />

@@ -352,9 +352,12 @@ export const FilterPill: React.FC<{
   count?: number;
   active: boolean;
   onClick: () => void;
-}> = ({ label, count, active, onClick }) => (
+  /** What the count means, on hover */
+  title?: string;
+}> = ({ label, count, active, onClick, title }) => (
   <button
     type="button"
+    title={title}
     onClick={onClick}
     aria-pressed={active}
     className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] text-xs font-semibold transition cursor-pointer select-none ${
