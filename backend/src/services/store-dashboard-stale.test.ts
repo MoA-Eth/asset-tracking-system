@@ -177,3 +177,23 @@ describe('dashboard: asset categories count fixed assets only', () => {
     expect(d.consumableCount).toBe(160);
   });
 });
+
+describe('dashboard: motorcycles', () => {
+  it('count as vehicles in the categories, and on their own in the fleet figures', async () => {
+    db.item.findMany.mockResolvedValue([
+      record('BUS', 'AVAILABLE', 3, { name: 'Electric Bus', category: 'VEHICLE', itemType: 'FIXED', unitCostETB: 5_000_000, notes: JSON.stringify({ quantity: 4, uom: 'EA' }) }),
+      record('MOTO', 'AVAILABLE', 3, { name: 'motor cycle', category: 'VEHICLE', itemType: 'FIXED', unitCostETB: 761_739.13, notes: JSON.stringify({ quantity: 50, uom: 'EA' }) }),
+      record('MOTO-OUT', 'ISSUED', 3, { name: 'Motorbike Yamaha', category: 'VEHICLE', itemType: 'FIXED', unitCostETB: 700_000, notes: JSON.stringify({ quantity: 2, uom: 'EA' }) }),
+      // A motorcycle part is a consumable: not a motorcycle
+      record('MOTO-PART', 'AVAILABLE', 3, { name: 'motor cycle chain', category: 'VEHICLE', itemType: 'CONSUMABLE', notes: JSON.stringify({ quantity: 30, uom: 'EA' }) }),
+    ]);
+
+    const d = await StoreService.getInstance().getExecutiveDashboard();
+
+    expect(d.categoryBreakdown.find((c: any) => c.category === 'VEHICLE')).toMatchObject({ count: 56 });
+    expect(d.fleetStats).toMatchObject({
+      totalVehicles: 4, inStoreVehicles: 4,
+      totalMotorcycles: 52, activeMotorcycles: 2, inStoreMotorcycles: 50,
+    });
+  });
+});

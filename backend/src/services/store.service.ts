@@ -4479,11 +4479,20 @@ export class StoreService {
     // categories are consumables, counted with the consumables, not as vehicles or machines
     const vehicles = fixedItems.filter((i) => i.category === 'VEHICLE');
     const machinery = fixedItems.filter((i) => i.category === 'AGRI_MACHINERY');
+    // Motorcycles are vehicles (they count in the Vehicles category), shown on their own in the fleet figures. There is
+    // no field for it, so they are told apart by name
+    const isMotorcycle = (i: { name?: string | null }) => /motor\s*-?\s*(cycle|bike)/i.test(i.name ?? '');
+    const motorcycles = vehicles.filter(isMotorcycle);
+    const cars = vehicles.filter((i) => !isMotorcycle(i));
     const fleetStats = {
-      totalVehicles: units(vehicles),
-      vehicleValuationETB: sum(vehicles),
-      activeVehicles: units(vehicles.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
-      inStoreVehicles: units(vehicles.filter((i) => IN_STORE_STATUSES.includes(i.status))),
+      totalVehicles: units(cars),
+      vehicleValuationETB: sum(cars),
+      activeVehicles: units(cars.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
+      inStoreVehicles: units(cars.filter((i) => IN_STORE_STATUSES.includes(i.status))),
+      totalMotorcycles: units(motorcycles),
+      motorcycleValuationETB: sum(motorcycles),
+      activeMotorcycles: units(motorcycles.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
+      inStoreMotorcycles: units(motorcycles.filter((i) => IN_STORE_STATUSES.includes(i.status))),
       totalMachinery: units(machinery),
       machineryValuationETB: sum(machinery),
       activeMachinery: units(machinery.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),

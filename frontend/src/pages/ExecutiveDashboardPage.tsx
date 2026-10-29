@@ -447,6 +447,10 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
     vehicleValuationETB: 0,
     activeVehicles: 0,
     inStoreVehicles: 0,
+    totalMotorcycles: 0,
+    motorcycleValuationETB: 0,
+    activeMotorcycles: 0,
+    inStoreMotorcycles: 0,
     totalMachinery: 0,
     machineryValuationETB: 0,
     activeMachinery: 0,
@@ -1152,7 +1156,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   </span>
                   <span className="text-[10px] text-slate-400">ከፍተኛ ካፒታል</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div className="rounded-md border border-slate-200 bg-slate-50/70 p-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-slate-900">Vehicles</span>
@@ -1163,6 +1167,19 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                     {SHOW_VALUES && <p className="mt-1.5 text-xs font-bold text-slate-900">{formatETBTotal(fleetStats.vehicleValuationETB)}</p>}
                     <p className="text-[10px] text-slate-500">
                       {fleetStats.activeVehicles.toLocaleString()} active · {fleetStats.inStoreVehicles.toLocaleString()} in store
+                    </p>
+                  </div>
+
+                  <div className="rounded-md border border-slate-200 bg-slate-50/70 p-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-900">Motorcycles</span>
+                      <span className="font-mono text-xs font-bold text-slate-900">
+                        {(fleetStats.totalMotorcycles ?? 0).toLocaleString()} {fleetStats.totalMotorcycles === 1 ? 'unit' : 'units'}
+                      </span>
+                    </div>
+                    {SHOW_VALUES && <p className="mt-1.5 text-xs font-bold text-slate-900">{formatETBTotal(fleetStats.motorcycleValuationETB ?? 0)}</p>}
+                    <p className="text-[10px] text-slate-500">
+                      {(fleetStats.activeMotorcycles ?? 0).toLocaleString()} active · {(fleetStats.inStoreMotorcycles ?? 0).toLocaleString()} in store
                     </p>
                   </div>
 
