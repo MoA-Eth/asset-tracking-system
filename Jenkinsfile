@@ -1,6 +1,6 @@
-// Deploys to the staging or production server: staging gets the latest main, production a release tag.
-// The servers have no internet access, so Jenkins builds the images and sends them over SSH;
-// the servers only load them and restart. See docs/CI-CD.md.
+// Deploys to the production or staging server: new commits on main go to production by themselves; a release tag
+// (VERSION) or staging is chosen by hand. The servers have no internet access, so Jenkins builds the images and sends
+// them over SSH; the servers only load them and restart. See docs/CI-CD.md.
 pipeline {
     // The Jenkins controller node that has Docker
     agent { label 'docker' }
@@ -11,19 +11,20 @@ pipeline {
         timeout(time: 45, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '30'))
     }
-    // Staging is the default, so a run started without choosing never reaches production
+    // Production is the default, so the latest main reaches production by itself; staging is chosen by hand
     parameters {
-        choice(name: 'TARGET', choices: ['staging', 'production'], description: 'Server to deploy to: staging (10.10.20.156) or production (10.10.20.155)')
-        string(name: 'VERSION', defaultValue: '', trim: true, description: 'Release tag to deploy, e.g. v2.1.0. Required for production. Empty on staging: the latest main.')
+        choice(name: 'TARGET', choices: ['production', 'staging'], description: 'Server to deploy to: production (10.10.20.155) or staging (10.10.20.156)')
+        string(name: 'VERSION', defaultValue: '', trim: true, description: 'Release tag to deploy, e.g. v2.1.0. Empty: the latest main.')
     }
-    // Check GitHub every 5 minutes; new commits on main deploy to staging on their own.
-    // Triggered runs use the default TARGET, so production is only ever deployed by hand.
+    // Check GitHub every 5 minutes; new commits on main deploy to production on their own
+    // (triggered runs use the default TARGET). Every deploy backs up the database first.
     triggers {
         pollSCM('H/5 * * * *')
     }
     environment {
-        DEPLOY_HOST = "${params.TARGET == 'production' ? '10.10.20.155' : '10.10.20.156'}"
-        DEPLOY_USER = "${params.TARGET == 'production' ? 'assetmgtp' : 'assetmgts'}"
+        // Production unless staging is chosen
+        DEPLOY_HOST = "${params.TARGET == 'staging' ? '10.10.20.156' : '10.10.20.155'}"
+        DEPLOY_USER = "${params.TARGET == 'staging' ? 'assetmgts' : 'assetmgtp'}"
         APP_DIR     = '/opt/moa-ams'
         APP_IMAGES  = 'moa-ams-backend:latest moa-ams-nginx:latest'
         SSH_OPTS    = '-o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30'
@@ -34,14 +35,11 @@ pipeline {
 
     stages {
 
-        // Production only takes a release, so it never gets code staging hasn't run
+        // A release tag when VERSION is given (e.g. to go back to an earlier release); otherwise the latest main
         stage('Select Version') {
             steps {
                 script {
                     def version = (params.VERSION ?: '').trim()
-                    if (params.TARGET == 'production' && !version) {
-                        error('Production deploys a release: set VERSION to a release tag such as v2.1.0 (docs/CI-CD.md, "Releasing").')
-                    }
                     if (version && !version.matches(/v\d+\.\d+\.\d+/)) {
                         error("VERSION must look like v2.1.0, not '${version}'.")
                     }
@@ -53,7 +51,7 @@ pipeline {
                         sh "git checkout -q --detach 'refs/tags/${version}^{commit}'"
                     }
                     env.APP_VERSION = version ?: 'main'
-                    currentBuild.displayName = "#${env.BUILD_NUMBER} ${params.TARGET} ${env.APP_VERSION}"
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} ${params.TARGET ?: 'production'} ${env.APP_VERSION}"
                 }
             }
         }
@@ -156,7 +154,7 @@ pipeline {
 
     post {
         success {
-            echo "Deployment of ${env.APP_VERSION} to ${params.TARGET ?: 'staging'} (${DEPLOY_HOST}) succeeded."
+            echo "Deployment of ${env.APP_VERSION} to ${params.TARGET ?: 'production'} (${DEPLOY_HOST}) succeeded."
         }
         failure {
             sshagent(['moa-ams-deploy-ssh']) {

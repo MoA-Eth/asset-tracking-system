@@ -14,8 +14,8 @@ How code gets from GitHub to the staging and production servers, and how to set 
 ```
 
 1. A pull request is merged into `main`. GitHub Actions has already run the tests on it.
-2. Jenkins checks GitHub every 5 minutes. When `main` has a new commit, it **deploys to staging by itself**.
-3. Someone checks staging, creates a **release** (a version tag such as `v2.1.0`) on GitHub, and deploys that release to **production by hand** in Jenkins.
+2. Jenkins checks GitHub every 5 minutes. When `main` has a new commit, it **deploys to production by itself**.
+3. **Staging** is deployed by hand in Jenkins (TARGET `staging`). A **release** (a version tag such as `v2.1.0`) can still be deployed by hand, e.g. to go back to an earlier version.
 
 Each deploy: build images → back up the database → send images over SSH → restart the app → health check.
 
@@ -88,9 +88,9 @@ It is already in the repository. The parts you might change:
 | Part | Purpose |
 |---|---|
 | `agent { label 'docker' }` | Runs on the Jenkins node that has Docker |
-| `parameters` | `TARGET`: staging (default) or production. `VERSION`: release tag; required for production |
-| Stage *Select Version* | Checks out the release tag, refuses production without one, names the run (e.g. `#9 production v2.1.0`) |
-| `triggers { pollSCM('H/5 * * * *') }` | Checks GitHub every 5 minutes; new commits deploy to staging |
+| `parameters` | `TARGET`: production (default) or staging. `VERSION`: a release tag, or empty for the latest `main` |
+| Stage *Select Version* | Checks out the release tag when VERSION is given, names the run (e.g. `#9 production main`) |
+| `triggers { pollSCM('H/5 * * * *') }` | Checks GitHub every 5 minutes; new commits deploy to production |
 | `DEPLOY_HOST`, `DEPLOY_USER` | Server address and SSH account per target |
 | `sshagent(['moa-ams-deploy-ssh'])` | The credential from step 3 |
 | Stages | Select Version → Build Images → Backup Database → Send Images → Deploy → Health Check |
@@ -125,9 +125,9 @@ curl -X POST -u '<user>:<api-token>' -F "jenkinsfile=<Jenkinsfile" \
 
 | Task | How |
 |---|---|
-| Get a change onto staging | Merge the PR into `main`. Within 5 minutes staging deploys itself. |
-| Deploy to production | Create a release (below), then **Build with Parameters → TARGET `production`, VERSION `v2.1.0` → Build** |
-| Redeploy staging by hand | **Build with Parameters → `staging` → Build** (VERSION empty) |
+| Get a change onto production | Merge the PR into `main`. Within 5 minutes production deploys itself (database backed up first). |
+| Deploy a specific release to production | **Build with Parameters → TARGET `production`, VERSION `v2.1.0` → Build** |
+| Deploy to staging | **Build with Parameters → `staging` → Build** (VERSION empty for the latest `main`) |
 | See what each server runs | Bottom of the app's sidebar (or the Profile page), or `https://<server>/api/health` |
 | Follow a run | Click the run (named e.g. `#9 production v2.1.0`) → **Stages** or **Console Output** |
 | Roll back a bad release | Quick: [DEPLOYMENT.md → Rolling back](DEPLOYMENT.md#rolling-back) (`:previous` images). Or deploy the previous release tag to production. |
@@ -152,17 +152,16 @@ What each environment takes, and the steps in order:
 
 | | Takes | Starts |
 |---|---|---|
-| **Staging** | the latest `main` | by itself, within 5 minutes of a merge |
-| **Production** | a release tag (`v2.1.0`): a fixed snapshot of `main`, built fresh. Never staging's images | by hand in Jenkins, with VERSION |
+| **Production** | the latest `main` (or a release tag chosen by hand, e.g. to go back) | by itself, within 5 minutes of a merge |
+| **Staging** | the latest `main`, or a release tag | by hand in Jenkins, TARGET `staging` |
 
-Merging more to `main` after a release changes staging only: production stays on its tag until the next release.
+Every merge to `main` reaches production: merge only what is ready for users.
 
 1. **Branch and pull request.** Work on a branch (`feat/…`, `fix/…`, `docs/…`), open a pull request into `main`. `main` is protected: the 3 CI checks must pass and one other person must approve (repository admins can bypass). Use a clear commit message and PR description: what changed, how it was tested, and anything to do on deploy.
-2. **Merge.** Staging deploys itself. Check the run is green in Jenkins.
-3. **Check staging** ([After a deploy](#after-a-deploy)), and try the change on screen. Do not release a commit that staging hasn't run.
-4. **Release.** On GitHub, create the tag `vMAJOR.MINOR.PATCH` on `main` and publish it with release notes ([Releasing](#releasing), template below).
-5. **Deploy to production.** Jenkins → **Build with Parameters** → TARGET `production`, VERSION the new tag → **Build**. It backs up the database first.
-6. **Check production** ([After a deploy](#after-a-deploy)). If something is wrong, roll back ([DEPLOYMENT.md → Rolling back](DEPLOYMENT.md#rolling-back)): fast with `:previous`, or deploy the previous tag.
+2. **Try risky changes before merging.** Jenkins deploys only `main` or a release tag, so a change can't go to staging before it goes to production: run it locally (or have a reviewer do so) first.
+3. **Merge.** Within 5 minutes production deploys itself; it backs up the database first. Check the run is green in Jenkins.
+4. **Check production** ([After a deploy](#after-a-deploy)). If something is wrong, roll back ([DEPLOYMENT.md → Rolling back](DEPLOYMENT.md#rolling-back)): fast with `:previous`, or deploy an earlier release tag.
+5. **Release notes (optional).** To mark a version, create the tag `vMAJOR.MINOR.PATCH` on `main` and publish it with release notes ([Releasing](#releasing), template below).
 
 ### After a deploy
 
@@ -197,8 +196,7 @@ Merging more to `main` after a release changes staging only: production stays on
 | Run stuck on *"Still waiting to schedule task … reserved for jobs with matching label"* | The pipeline needs `agent { label 'docker' }`. |
 | *"Could not find specified credentials: moa-ams-deploy-ssh"* | The credential is missing or its ID differs from the `Jenkinsfile`. |
 | *"Permission denied (publickey,password)"* at Backup Database | The credential's private key doesn't match the public key in the server's `~/.ssh/authorized_keys`. |
-| *"Production deploys a release: set VERSION…"* | Production needs a release tag in VERSION ([Releasing](#releasing)). |
 | `git checkout` fails in *Select Version* | The tag doesn't exist on GitHub: check the spelling, or publish the release first. |
-| Merges don't reach staging by themselves | Run the job once by hand; check **Git Polling Log** on the job page. |
+| Merges don't reach production by themselves | Run the job once by hand; check **Git Polling Log** on the job page. |
 | Health Check fails | The run prints the server logs. On the server: `cd /opt/moa-ams && docker compose logs backend`. |
 | Backend log: *"The database needs an upgrade step"* | Run the upgrade scripts: [DEPLOYMENT.md → Database upgrades](DEPLOYMENT.md#database-upgrades). |
