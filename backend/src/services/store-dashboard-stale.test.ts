@@ -139,6 +139,11 @@ describe('dashboard: low-stock consumables', () => {
         category: 'OFFICE_SUPPLIES',
         notes: JSON.stringify({ quantity: 50, uom: 'REAM' }),
       }),
+      // Issued down to what is left: 10 toners and 20 pens went out
+      record('TONER-LOW-1', 'ISSUED', 5, { itemType: 'CONSUMABLE', parentItemId: 'TONER-LOW', notes: JSON.stringify({ quantity: 10, uom: 'EA' }) }),
+      record('PEN-CRITICAL-1', 'ISSUED', 2, { itemType: 'CONSUMABLE', parentItemId: 'PEN-CRITICAL', notes: JSON.stringify({ quantity: 20, uom: 'PCS' }) }),
+      // Bought once, one of it: not running low
+      record('FUEL-CARD', 'AVAILABLE', 3, { itemType: 'CONSUMABLE', category: 'OFFICE_SUPPLIES', notes: JSON.stringify({ quantity: 1, uom: 'EA' }) }),
       record('LAPTOP-FIXED', 'AVAILABLE', 10, {
         itemType: 'FIXED',
         category: 'IT_EQUIPMENT',
@@ -217,5 +222,45 @@ describe('dashboard: total assets', () => {
     expect(d.consumables).toMatchObject({ lines: 2, inStoreLines: 1, issuedLines: 1 });
     // The old sum of everything stays available, for the API
     expect(d.totalItems).toBe(200059);
+  });
+});
+
+describe('dashboard: figures checked against production data (29 Oct 2026)', () => {
+  it('ages an item by its record date when its slip date has an impossible year (0006), not thousands of years', async () => {
+    db.item.findMany.mockResolvedValue([
+      record('NECK-MIC', 'AVAILABLE', 40, { ifmisSlipDateGc: '0006-06-19' }),
+    ]);
+    const { staleInStore } = await StoreService.getInstance().getExecutiveDashboard();
+    expect(staleInStore.items[0]).toMatchObject({ itemCode: 'NECK-MIC', daysInStore: 40 });
+  });
+
+  it('counts as rejected only requests still with their requesters, not receipts already closed', async () => {
+    db.item.findMany.mockResolvedValue([
+      record('WAITING', 'PENDING_STOCK_IN', 3),
+      record('CLOSED', 'REJECTED', 3),
+    ]);
+    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
+      where.status === 'REJECTED'
+        ? [
+            { id: 'a1', itemId: 'WAITING', transactionType: 'STOCK_IN', ifmisSlipNumber: 'M19-1', createdAtGc: daysAgo(3) },
+            { id: 'a2', itemId: 'CLOSED', transactionType: 'STOCK_IN', ifmisSlipNumber: 'M19-2', createdAtGc: daysAgo(3) },
+          ]
+        : [],
+    );
+    const d = await StoreService.getInstance().getExecutiveDashboard();
+    expect(d.rejectedWaitingCount).toBe(1);
+  });
+
+  it('counts directorates and stores in item lines, beside the units', async () => {
+    db.department.findMany.mockResolvedValue([{ id: 'DEP-1', code: 'D1', nameEn: 'Plant Protection', nameAm: '' }]);
+    db.location.findMany.mockResolvedValue([{ id: 'LOC-01', name: 'Shelf', storeId: 'S1', isActive: true, store: { id: 'S1', name: 'Kality' } }]);
+    db.item.findMany.mockResolvedValue([
+      record('SOAP', 'ISSUED', 3, { itemType: 'CONSUMABLE', assignedDepartmentId: 'DEP-1', currentCustodianId: 'E1', notes: JSON.stringify({ quantity: 7700, uom: 'EA' }) }),
+      record('LAPTOP', 'ISSUED', 3, { itemType: 'FIXED', assignedDepartmentId: 'DEP-1', currentCustodianId: 'E1', notes: JSON.stringify({ quantity: 2, uom: 'EA' }) }),
+      record('THINNER', 'AVAILABLE', 3, { itemType: 'CONSUMABLE', notes: JSON.stringify({ quantity: 50, uom: 'LTR' }) }),
+    ]);
+    const d = await StoreService.getInstance().getExecutiveDashboard();
+    expect(d.departmentDistribution[0]).toMatchObject({ itemCount: 7702, itemLines: 2, fixedUnits: 2 });
+    expect(d.locationUtilization[0]).toMatchObject({ itemLines: 3, availableLines: 1, issuedLines: 2, pendingLines: 0 });
   });
 });

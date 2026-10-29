@@ -219,6 +219,8 @@ describe('StoreService.registerStockIn approval gate', () => {
     ['a quantity of zero', { quantity: 0 }],
     ['a slip date in the future', { ifmisSlipDateGc: '2999-01-01' }],
     ['a slip date that is not a real day', { ifmisSlipDateGc: '2026-13-45' }],
+    // A typo or a misread slip: 0026 for 2026
+    ['a slip date with an impossible year', { ifmisSlipDateGc: '0026-05-12' }],
     ['an unknown category', { category: 'SPACESHIPS' }],
     ['an unknown condition', { condition: 'SPARKLING' }],
     ['a blank description', { name: '   ' }],

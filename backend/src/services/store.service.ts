@@ -461,7 +461,14 @@ function assertSlipDate(value: unknown, what = 'The slip date'): void {
     throw new BadRequestError(what + ' is not a valid date.');
   }
   if (date.getTime() > Date.now() + 24 * 60 * 60 * 1000) throw new BadRequestError(what + " can't be in the future.");
+  // A year like 0006 or 0026 is a typo or a misread slip: no voucher in the system is that old
+  if (Number(parts[1]) < EARLIEST_SLIP_YEAR) throw new BadRequestError(`${what} is in ${Number(parts[1])}: check the year.`);
 }
+
+/** No voucher in the system is older than this; an earlier year is a typo or a misread slip */
+const EARLIEST_SLIP_YEAR = 2000;
+/** A slip date to count from, or undefined when its year can't be right (it was saved before the year was checked) */
+const plausibleDate = (d?: string | null): string | undefined => (d && Number(d.slice(0, 4)) >= EARLIEST_SLIP_YEAR ? d : undefined);
 
 /**
  * A serial number identifies one physical item, so a typed one can't be registered twice.
@@ -751,7 +758,8 @@ function inStoreSince(item: { history?: { action: string; dateGc: string }[]; if
     .filter((h) => h.action === 'RETURN_APPROVED')
     .map((h) => h.dateGc)
     .sort();
-  return returned[returned.length - 1] ?? item.ifmisSlipDateGc ?? item.createdAtGc;
+  // A slip date with an impossible year (e.g. 0006) would make it thousands of years in store: the record's date counts instead
+  return returned[returned.length - 1] ?? plausibleDate(item.ifmisSlipDateGc) ?? item.createdAtGc;
 }
 
 /** Adds up units by where they are: in store, with a custodian, or awaiting registration approval */
@@ -4378,7 +4386,7 @@ export class StoreService {
     const scopedById = new Map(scopedItems.map((i) => [i.id, i]));
     const receivedOn = (i: (typeof scopedItems)[number]) => {
       const reg = (i.parentItemId && scopedById.get(i.parentItemId)) || i;
-      return reg.ifmisSlipDateGc || reg.createdAtGc;
+      return plausibleDate(reg.ifmisSlipDateGc) || reg.createdAtGc;
     };
     const allItems = periodSet ? scopedItems.filter((i) => inPeriod(receivedOn(i))) : scopedItems;
     const locations = storeId ? allLocations.filter((l) => l.storeId === storeId) : allLocations;
@@ -4392,6 +4400,8 @@ export class StoreService {
     const rejectedWaiting = new Set(
       (Array.isArray(rejectedRows) ? rejectedRows : [])
         .filter((r: any) => (!filtered || keptIds.has(r.itemId)) && (!periodSet || inPeriod(r.createdAtGc)))
+        // A receipt whose record is already rejected for good (closed under the earlier rules) waits for no one
+        .filter((r: any) => r.transactionType !== 'STOCK_IN' || (itemById.get(r.itemId) as any)?.status !== 'REJECTED')
         .map((r: any) => {
           const slip = String(r.ifmisSlipNumber ?? '').trim().toLowerCase();
           if (!slip || slip.startsWith('pending-')) return r.id;
@@ -4454,6 +4464,9 @@ export class StoreService {
         nameEn: dept.nameEn,
         nameAm: dept.nameAm,
         itemCount: units(deptItems),
+        // Item lines held and the fixed-asset units among them: the units above add up pieces, litres and kilograms
+        itemLines: deptItems.length,
+        fixedUnits: units(deptItems.filter((i) => (i.itemType ?? 'FIXED') !== 'CONSUMABLE')),
         totalValueETB: sum(deptItems),
         availableCount: units(deptItems.filter((i) => IN_STORE_STATUSES.includes(i.status))),
         issuedCount: units(deptItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
@@ -4515,6 +4528,7 @@ export class StoreService {
           id: i.id,
           itemCode: i.itemCode,
           name: i.name,
+          itemType: i.itemType ?? 'FIXED',
           unitsInStore: unitsOf(i),
           uom: i.uom || 'EA',
           inStoreSinceGc: since?.slice(0, 10),
@@ -4529,12 +4543,19 @@ export class StoreService {
 
     // Consumable supplies with low available stock in store (at or below reorder threshold)
     const LOW_STOCK_DEFAULT_THRESHOLD = 5;
+    // Units received on a registration: what is still in store plus the pieces issued from it
+    const receivedUnits = (i: (typeof scopedItems)[number]) =>
+      unitsOf(i) + units(scopedItems.filter((c) => c.parentItemId === i.id && c.status !== ItemStatus.REJECTED));
     const lowStockConsumables = scopedItems
       .filter((i) => i.itemType === 'CONSUMABLE' && IN_STORE_STATUSES.includes(i.status))
       .map((i) => {
         const meta = readItemMeta(i.notes);
-        const threshold = Number(meta.minStockLevel) > 0 ? Number(meta.minStockLevel) : LOW_STOCK_DEFAULT_THRESHOLD;
+        const minimumSet = Number(meta.minStockLevel) > 0;
+        const threshold = minimumSet ? Number(meta.minStockLevel) : LOW_STOCK_DEFAULT_THRESHOLD;
         const currentUnits = unitsOf(i);
+        // Running low means issuing brought it down: a one-off purchase (a single fuel card, one CD player) never had
+        // more, so it is not low unless a minimum stock level was set for it
+        const ranDown = minimumSet || receivedUnits(i) > threshold;
         return {
           id: i.id,
           itemCode: i.itemCode,
@@ -4548,8 +4569,8 @@ export class StoreService {
           storeName: i.storeLocation?.storeName ?? 'Store',
           locationName: i.storeLocation?.name ?? 'Central Store',
           storeLocationId: i.storeLocationId,
-          isCritical: currentUnits <= 1,
-          isLow: currentUnits <= threshold,
+          isCritical: ranDown && currentUnits <= 1,
+          isLow: ranDown && currentUnits <= threshold,
         };
       })
       .filter((i) => i.isLow)
@@ -4573,8 +4594,8 @@ export class StoreService {
     // Received: each approved registration with the units split off it, by its receiving (Model 19) month.
     // Units disposed of later were still received; rejected receipts never were.
     for (const reg of scopedItems.filter((i) => !i.parentItemId && i.status !== 'PENDING_STOCK_IN' && i.status !== ItemStatus.REJECTED)) {
-      if (periodSet && !inPeriod(reg.ifmisSlipDateGc || reg.createdAtGc)) continue;
-      const month = (reg.ifmisSlipDateGc || reg.createdAtGc || '').slice(0, 7);
+      if (periodSet && !inPeriod(plausibleDate(reg.ifmisSlipDateGc) || reg.createdAtGc)) continue;
+      const month = (plausibleDate(reg.ifmisSlipDateGc) || reg.createdAtGc || '').slice(0, 7);
       const unitsReceived = unitsOf(reg) + units(scopedItems.filter((c) => c.parentItemId === reg.id && c.status !== ItemStatus.REJECTED));
       receivedByMonth.set(month, (receivedByMonth.get(month) ?? 0) + unitsReceived);
     }
@@ -4622,6 +4643,11 @@ export class StoreService {
         roomNumber: locationView(loc).roomNumber,
         isCentralStore: true,
         itemCount: units(locItems),
+        // Item lines: what the store bars count (units add up pieces, litres and kilograms)
+        itemLines: locAvailable.length + locIssued.length,
+        availableLines: locAvailable.length,
+        issuedLines: locIssued.length,
+        pendingLines: locPending.length,
         totalValueETB: sum(locItems),
         availableCount: units(locAvailable),
         availableValueETB: sum(locAvailable),
