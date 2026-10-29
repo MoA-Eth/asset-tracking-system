@@ -247,7 +247,9 @@ describe('RBAC Permission Matrix Enforcement', () => {
       expect(recomputed.allowedTabs).not.toContain('dashboard');
       expect(recomputed.allowedTabs).toContain('approvals');
       expect(recomputed.allowedTabs).toContain('reports');
-      expect(recomputed.landingTab).toBe('approvals');
+      // Without the executive dashboard, whoever endorses gets the work dashboard, and starts there
+      expect(recomputed.allowedTabs).toContain('home');
+      expect(recomputed.landingTab).toBe('home');
     });
 
     it('protects core governance permissions from lockout', () => {
@@ -279,7 +281,19 @@ describe('RBAC Permission Matrix Enforcement', () => {
           expect(tabsOf(role)).not.toContain(retired);
         }
       }
-      expect(computeAllowedTabs(UserRole.DATA_ENCODER, ROLE_POLICY[UserRole.DATA_ENCODER].permissions).landingTab).toBe('assets');
+      expect(computeAllowedTabs(UserRole.DATA_ENCODER, ROLE_POLICY[UserRole.DATA_ENCODER].permissions).landingTab).toBe('home');
+    });
+
+    it('gives those who do the work their own dashboard, and the executive one only to those who oversee', () => {
+      const landingOf = (role: UserRole) => computeAllowedTabs(role, ROLE_POLICY[role].permissions).landingTab;
+      for (const role of [UserRole.DATA_ENCODER, UserRole.TEAM_LEADER, UserRole.DEPARTMENT_HEAD]) {
+        expect(tabsOf(role)).toContain('home');
+        expect(tabsOf(role)).not.toContain('dashboard');
+        expect(landingOf(role)).toBe('home');
+      }
+      for (const role of [UserRole.MANAGER, UserRole.CHIEF_DIRECTOR, UserRole.SYSTEM_ADMIN, UserRole.EMPLOYEE]) {
+        expect(tabsOf(role)).not.toContain('home');
+      }
     });
 
     it('lets approvers follow the Assets register, but not the Manager or System Administrator', () => {

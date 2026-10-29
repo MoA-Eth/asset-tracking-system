@@ -59,19 +59,19 @@ export const ROLE_POLICY: Record<UserRole, {
     name: 'Data Encoder', description: 'Records stock-in, requests stock-out, initiates transfers and returns, and requests disposals.',
     approvalResponsibility: 'Submits requests; cannot approve',
     permissions: [...readPermissions, 'stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write', 'slips.upload', 'approvals.read', 'reports.read'],
-    allowedTabs: ['assets', 'reports', 'settings-employees', 'settings-stores', 'settings-organizations', 'settings-programs'], landingTab: 'assets',
+    allowedTabs: ['home', 'assets', 'reports', 'settings-employees', 'settings-stores', 'settings-organizations', 'settings-programs'], landingTab: 'home',
   },
   TEAM_LEADER: {
     name: 'Team Leader', description: 'Reviews technical details before final authorization.',
     approvalResponsibility: 'Stage 1 — endorse or reject',
     permissions: [...readPermissions, 'approvals.read', 'approvals.endorse', 'reports.read', 'audit.read'],
-    allowedTabs: ['approvals', 'assets', 'reports', 'audit', ...referenceTabs], landingTab: 'approvals',
+    allowedTabs: ['home', 'approvals', 'assets', 'reports', 'audit', ...referenceTabs], landingTab: 'home',
   },
   DEPARTMENT_HEAD: {
     name: 'Department Head', description: 'Authorizes endorsed requests and oversees directorate assets.',
     approvalResponsibility: 'Stage 2 — authorize or reject',
     permissions: [...readPermissions, 'approvals.read', 'approvals.authorize', 'approvals.void', 'reports.read', 'audit.read'],
-    allowedTabs: ['approvals', 'assets', 'reports', 'audit', ...referenceTabs], landingTab: 'approvals',
+    allowedTabs: ['home', 'approvals', 'assets', 'reports', 'audit', ...referenceTabs], landingTab: 'home',
   },
   CHIEF_DIRECTOR: {
     name: 'Chief Director', description: 'Authorizes high-value asset transactions exceeding 10,000,000 ETB and oversees ministry asset portfolio.',
@@ -197,6 +197,8 @@ export function computeAllowedTabs(role: UserRole, permissions: Permission[]): {
 
   if (permissions.includes('assets.own')) tabs.add('my-assets');
   if (permissions.includes('dashboard.read')) tabs.add('dashboard');
+  // Those who do the work (and don't see the executive dashboard) get their own: their queue, their requests
+  else if (DECISION_PERMISSIONS.some((p) => permissions.includes(p)) || REQUEST_PERMISSIONS.some((p) => permissions.includes(p))) tabs.add('home');
   // One register for every asset: those who record store work act on it, approvers follow it read-only
   if (REQUEST_PERMISSIONS.some((p) => permissions.includes(p)) || permissions.includes('approvals.read')) tabs.add('assets');
   if (permissions.includes('approvals.endorse') || permissions.includes('approvals.authorize')) {

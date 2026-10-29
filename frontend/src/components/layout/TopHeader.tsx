@@ -165,6 +165,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     switch (activeTab) {
       case 'dashboard':
         return { title: 'Dashboard', am: 'የንብረትና የመጋዘን ክምችት መከታተያ', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
+      case 'home':
+        return { title: 'Dashboard', am: 'የሥራ ማጠቃለያ', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
       case 'assets':
         return { title: 'Assets', am: 'ንብረቶች', icon: Boxes, iconColor: 'text-emerald-700' };
       case 'docs':

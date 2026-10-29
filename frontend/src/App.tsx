@@ -8,6 +8,7 @@ import { loadSystemSettings } from './utils/system-settings';
 
 // Route-level code-splitting with dynamic imports
 const ExecutiveDashboardPage = lazy(() => import('./pages/ExecutiveDashboardPage').then(m => ({ default: m.ExecutiveDashboardPage })));
+const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })));
 const AssetsPage = lazy(() => import('./pages/AssetsPage').then(m => ({ default: m.AssetsPage })));
 const MyAssetsPage = lazy(() => import('./pages/MyAssetsPage').then(m => ({ default: m.MyAssetsPage })));
 const DocsPage = lazy(() => import('./pages/DocsPage').then(m => ({ default: m.DocsPage })));
@@ -271,6 +272,7 @@ const AuthenticatedPortal: React.FC = () => {
                 setSelectedCenter={setSelectedCenter}
               />
             )}
+            {activeTab === 'home' && <HomePage currentRole={role} onNavigate={handleTabChange} />}
             {activeTab === 'assets' && <AssetsPage currentRole={role} onNavigate={handleTabChange} />}
             {activeTab === 'my-assets' && <MyAssetsPage />}
             {activeTab === 'docs' && <DocsPage />}

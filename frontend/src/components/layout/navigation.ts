@@ -43,6 +43,8 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Overview',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      // The work dashboard of a Team Leader, Department Head or Data Encoder (they don't see the executive one)
+      { id: 'home', label: 'Dashboard', icon: LayoutDashboard },
     ],
   },
   {
