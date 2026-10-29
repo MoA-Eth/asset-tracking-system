@@ -768,8 +768,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               <thead>
                 <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                   <th className="pb-1 font-semibold" scope="col"><span className="sr-only">Type</span></th>
-                  <th className="pb-1 pl-2 text-right font-semibold" scope="col">Total</th>
-                  <th className="whitespace-nowrap pb-1 pl-2 text-right font-semibold" scope="col">In store</th>
+                  <th className="pb-1 pl-1.5 text-right font-semibold" scope="col">Total</th>
+                  <th className="whitespace-nowrap pb-1 pl-1.5 text-right font-semibold" scope="col">In store</th>
                 </tr>
               </thead>
               <tbody>
@@ -777,13 +777,15 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                 {
                   n: fixedAssets.units,
                   name: 'Fixed assets',
+                  measure: 'units',
                   inStore: fixedAssets.inStoreUnits,
                   color: TYPE_COLORS.fixed,
                   title: 'Fixed assets (ቋሚ ዕቃ): each physical asset, counted one by one',
                 },
                 {
                   n: consumableStockItems,
-                  name: 'Consumable items',
+                  name: 'Consumables',
+                  measure: 'different items',
                   inStore: consumableStockItemsInStore,
                   color: TYPE_COLORS.consumables,
                   title: 'Consumables (አላቂ ዕቃ): the different supplies held, by IFMIS item code; the same item bought twice counts once',
@@ -795,9 +797,11 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                       <span className={`h-2 w-2 shrink-0 rounded-sm ${r.color}`} aria-hidden />
                       {r.name}
                     </span>
+                    {/* What the figures count: units can't be added across pieces, litres and kilograms */}
+                    <span className="block pl-3.5 text-[10px] font-normal text-slate-400">{r.measure}</span>
                   </th>
-                  <td className="py-1.5 pl-2 text-right text-lg font-bold text-slate-900">{r.n.toLocaleString()}</td>
-                  <td className="py-1.5 pl-2 text-right text-sm font-semibold text-slate-600">{r.inStore.toLocaleString()}</td>
+                  <td className="py-1.5 pl-1.5 text-right text-lg font-bold text-slate-900">{r.n.toLocaleString()}</td>
+                  <td className="py-1.5 pl-1.5 text-right text-sm font-semibold text-slate-600">{r.inStore.toLocaleString()}</td>
                 </tr>
               ))}
               </tbody>

@@ -193,8 +193,8 @@ describe('Total assets', () => {
     // Labelled columns: Total and In store, one row per type
     const table = within(tile).getByRole('table');
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Type', 'Total', 'In store']);
-    expect(within(table).getByRole('row', { name: /Fixed assets/ })).toHaveTextContent('Fixed assets893800');
-    expect(within(table).getByRole('row', { name: /Consumable items/ })).toHaveTextContent('Consumable items312140');
+    expect(within(table).getByRole('row', { name: /Fixed assets/ })).toHaveTextContent('Fixed assetsunits893800');
+    expect(within(table).getByRole('row', { name: /Consumables/ })).toHaveTextContent('Consumablesdifferent items312140');
     // No sum of the two, and no receipt-line counts that change with how often a thing was bought
     expect(tile).not.toHaveTextContent('1,205');
     expect(tile).not.toHaveTextContent('437');
