@@ -205,7 +205,14 @@ describe('Asset Transfer approval workflow', () => {
 
       expect(db.transactionApproval.update.mock.calls[0][0].data).toMatchObject({ status: 'REJECTED', returnRemarks: 'Wrong recipient', returnedById: 'EMP-HEAD', returnedFromStage: 2 });
       expect(JSON.stringify(db.item.update.mock.calls[0][0])).toContain('Rejected at Stage 2 (Department Head) by Employee EMP-HEAD, back to the requester to correct or cancel: Wrong recipient');
-      // Nothing moves while it is with the requester
+      // Nothing moves while it is with the requester, and it no longer holds the asset: back with its custodian
+      expect(db.item.update.mock.calls[0][0].data.status).toBe('ISSUED');
+      expect(db.item.update.mock.calls[0][0].data.currentCustodianId).toBeUndefined();
+    });
+
+    it('keeps the asset under transfer while another transfer of it still waits', async () => {
+      db.transactionApproval.findFirst.mockResolvedValue({ id: 'appr-other' });
+      await store().handleApproval({ approvalId: 'appr-1', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Wrong recipient' } as any);
       expect(db.item.update.mock.calls[0][0].data.status).toBeUndefined();
     });
 

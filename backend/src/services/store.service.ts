@@ -1021,6 +1021,31 @@ function statusForCustodian(custodianId: string | null): 'ISSUED' | 'AVAILABLE' 
   return custodianId ? 'ISSUED' : 'AVAILABLE';
 }
 
+/** The status an issue, disposal, transfer or return holds its item in while it waits for approval */
+const WAITING_STATUS: Record<string, string> = { STOCK_OUT: 'PENDING_STOCK_OUT', DISPOSAL: 'PENDING_DISPOSAL', TRANSFER: 'UNDER_TRANSFER', RETURN: 'UNDER_TRANSFER' };
+/** Requests that hold an item in the same status, so one of them still waiting keeps the hold */
+const SAME_HOLD: Record<string, string[]> = { STOCK_OUT: ['STOCK_OUT'], DISPOSAL: ['DISPOSAL'], TRANSFER: ['TRANSFER', 'RETURN'], RETURN: ['TRANSFER', 'RETURN'] };
+
+/**
+ * A request sent back to its requester holds nothing (its units are checked again when it is resubmitted), so its
+ * item is released: back in store, or with its custodian. Not while another request of the same kind still waits on
+ * it. Returns the status to set, or undefined to leave the item as it is (a receipt stays awaiting approval).
+ */
+async function statusReleasedBySendBack(
+  db: any,
+  approval: { id: string; transactionType: string },
+  item: { id: string; status: string; currentCustodianId: string | null },
+): Promise<string | undefined> {
+  const held = WAITING_STATUS[approval.transactionType];
+  if (!held || item.status !== held) return undefined;
+  const another = await db.transactionApproval.findFirst({
+    where: { itemId: item.id, status: 'PENDING', transactionType: { in: SAME_HOLD[approval.transactionType] as any }, id: { not: approval.id } },
+    select: { id: true },
+  });
+  if (another) return undefined;
+  return approval.transactionType === 'STOCK_OUT' || approval.transactionType === 'DISPOSAL' ? 'AVAILABLE' : statusForCustodian(item.currentCustodianId);
+}
+
 // ─── StoreService ─────────────────────────────────────────────────────────────
 
 export class StoreService {
@@ -2851,8 +2876,11 @@ export class StoreService {
         await db.item.update({
           where: { id: a.itemId },
           data: {
-            // A transfer or return waiting again holds the item again, as when it was first asked for
-            ...(type === 'TRANSFER' || type === 'RETURN' ? { status: 'UNDER_TRANSFER' as any } : {}),
+            // Waiting again, the request holds the item again, as when it was first asked for (an issue or disposal only
+            // while the item is in store; one taken meanwhile was already refused above)
+            ...(WAITING_STATUS[type] && (type === 'TRANSFER' || type === 'RETURN' || ['AVAILABLE', WAITING_STATUS[type]].includes(a.item?.status))
+              ? { status: WAITING_STATUS[type] as any }
+              : {}),
             history: {
               create: {
                 dateGc: today.gc,
@@ -3527,8 +3555,9 @@ export class StoreService {
     }
 
     // ── EITHER STAGE: REJECT ─────────────────────────────────────────────
-    // The request goes back to its requester with the reason: still open (an issue keeps its units), corrected in place
-    // and resubmitted to the Team Leader, or cancelled by the requester. Nothing on the record moves.
+    // The request goes back to its requester with the reason, to be corrected in place and resubmitted to the Team
+    // Leader, or cancelled. Nothing on the record moves, and the request no longer holds it: the item is released
+    // (back in store, or with its custodian) unless another request still waits on it; a resubmit holds it again.
     if (sendBack) {
       const stage = approval.currentStage ?? 1;
       const stageName = stage === 1 ? 'Team Leader' : 'Department Head';
@@ -3552,9 +3581,12 @@ export class StoreService {
         include: APPROVAL_INCLUDES,
       }).catch((err) => { throw decidedMeanwhile(err); });
 
+      const heldItem = await db.item.findUnique({ where: { id: approval.itemId }, select: { id: true, status: true, currentCustodianId: true } });
+      const released = heldItem ? await statusReleasedBySendBack(db, approval, heldItem) : undefined;
       await db.item.update({
         where: { id: approval.itemId },
         data: {
+          ...(released ? { status: released as any } : {}),
           history: {
             create: {
               dateGc: today.gc,

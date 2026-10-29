@@ -324,3 +324,40 @@ describe('the same record on the same Model 22 is not entered twice', () => {
     await expect(store().registerStockOut({ ...issue, itemId: item.id, quantity: 10 } as any)).resolves.toBeTruthy();
   });
 });
+
+describe('an issue sent back to its requester no longer holds the record', () => {
+  const waiting = {
+    id: 'second-issue', transactionType: 'STOCK_OUT', itemId: 'item-1', itemCode: 'MOA-FUR-2026-0001', status: 'PENDING', currentStage: 2,
+    ifmisSlipNumber: '0000202/A', requestedById: 'EMP-ENC', recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 10 },
+  };
+  const reject = () => store().handleApproval({ approvalId: 'second-issue', action: 'REJECT', reviewedById: 'EMP-HEAD', reviewRemarks: 'Wrong recipient' } as any);
+  const lastItemUpdate = () => db.item.update.mock.calls[db.item.update.mock.calls.length - 1][0].data;
+
+  beforeEach(() => {
+    db.transactionApproval.findUnique.mockResolvedValue({ ...waiting });
+    db.transactionApproval.update.mockImplementation(async ({ data }: any) => ({ ...waiting, ...data }));
+  });
+
+  it('is back in store when no other issue waits on it (it no longer shows "Issue pending")', async () => {
+    pendingIssues = [];
+    await reject();
+    expect(lastItemUpdate().status).toBe('AVAILABLE');
+  });
+
+  it('stays "Issue pending" while another issue still waits on it', async () => {
+    pendingIssues = [{ id: 'first-issue', quantity: 30 }];
+    await reject();
+    expect(lastItemUpdate().status).toBeUndefined();
+  });
+
+  it('holds the record again when the corrected issue is resubmitted', async () => {
+    item = { ...chairs, status: 'AVAILABLE' };
+    const rejected = {
+      ...waiting, status: 'REJECTED', returnRemarks: 'Wrong recipient',
+      item: { notes: chairs.notes, status: 'AVAILABLE', itemCode: chairs.itemCode, name: chairs.name, unitCostETB: 1000 },
+    };
+    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) => (where.id?.in ? [rejected] : []));
+    await store().resubmitReturned({ approvalIds: ['second-issue'] }, 'EMP-ENC');
+    expect(lastItemUpdate().status).toBe('PENDING_STOCK_OUT');
+  });
+});
