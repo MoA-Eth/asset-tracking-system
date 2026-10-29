@@ -1132,9 +1132,10 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             <EmptyState>No items registered yet.</EmptyState>
           ) : (
             <div className="space-y-4">
+              <p className="-mb-1 text-[11px] text-slate-500">Fixed assets only: spare parts, accessories and supplies are not counted.</p>
               <Donut
                 label="Units by category"
-                empty="No items registered yet."
+                empty="No fixed assets registered yet."
                 segments={categoryRows.map((c: any) => ({
                   key: c.category,
                   label: CATEGORY_STYLE[c.category]?.en || c.category,

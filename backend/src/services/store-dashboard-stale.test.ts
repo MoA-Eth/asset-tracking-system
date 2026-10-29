@@ -157,3 +157,23 @@ describe('dashboard: low-stock consumables', () => {
   });
 });
 
+
+describe('dashboard: asset categories count fixed assets only', () => {
+  it('counts a bus as a vehicle, but not batteries, filters or thinner filed under Vehicles', async () => {
+    db.item.findMany.mockResolvedValue([
+      record('BUS', 'ISSUED', 3, { category: 'VEHICLE', itemType: 'FIXED', unitCostETB: 5_000_000, notes: JSON.stringify({ quantity: 4, uom: 'EA' }) }),
+      record('MINIBUS', 'AVAILABLE', 3, { category: 'VEHICLE', itemType: 'FIXED', unitCostETB: 3_000_000, notes: JSON.stringify({ quantity: 5, uom: 'EA' }) }),
+      record('BATTERY', 'AVAILABLE', 3, { category: 'VEHICLE', itemType: 'CONSUMABLE', unitCostETB: 9000, notes: JSON.stringify({ quantity: 90, uom: 'EA' }) }),
+      record('THINNER', 'ISSUED', 3, { category: 'VEHICLE', itemType: 'CONSUMABLE', unitCostETB: 400, notes: JSON.stringify({ quantity: 50, uom: 'LTR' }) }),
+      record('TRACTOR-PART', 'AVAILABLE', 3, { category: 'AGRI_MACHINERY', itemType: 'CONSUMABLE', notes: JSON.stringify({ quantity: 20, uom: 'EA' }) }),
+    ]);
+
+    const d = await StoreService.getInstance().getExecutiveDashboard();
+
+    expect(d.categoryBreakdown.find((c: any) => c.category === 'VEHICLE')).toMatchObject({ count: 9, totalValueETB: 35_000_000 });
+    expect(d.categoryBreakdown.find((c: any) => c.category === 'AGRI_MACHINERY')).toMatchObject({ count: 0 });
+    expect(d.fleetStats).toMatchObject({ totalVehicles: 9, activeVehicles: 4, inStoreVehicles: 5, totalMachinery: 0 });
+    // The spare parts and supplies are still counted, as consumables
+    expect(d.consumableCount).toBe(160);
+  });
+});

@@ -4475,9 +4475,10 @@ export class StoreService {
     // Capital pending disposal
     const pendingDisposalValuationETB = sum(pendingDisposal);
 
-    // High-risk fleet & agricultural machinery stats
-    const vehicles = onRecord.filter((i) => i.category === 'VEHICLE');
-    const machinery = onRecord.filter((i) => i.category === 'AGRI_MACHINERY');
+    // Vehicles and machinery themselves: fixed assets only. Spare parts, accessories and supplies filed under these
+    // categories are consumables, counted with the consumables, not as vehicles or machines
+    const vehicles = fixedItems.filter((i) => i.category === 'VEHICLE');
+    const machinery = fixedItems.filter((i) => i.category === 'AGRI_MACHINERY');
     const fleetStats = {
       totalVehicles: units(vehicles),
       vehicleValuationETB: sum(vehicles),
@@ -4595,9 +4596,9 @@ export class StoreService {
       const locAvailable = locItems.filter((i) => IN_STORE_STATUSES.includes(i.status));
       const locIssued    = locItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status));
       const locPending   = pendingIn.filter((i) => i.storeLocationId === loc.id);
-      // category breakdown per location
+      // category breakdown per location: fixed assets only, as the category chart
       const locCategoryBreakdown = Object.values(AssetCategory).map((cat) => {
-        const matching = locItems.filter((i) => i.category === cat);
+        const matching = locItems.filter((i) => i.category === cat && (i.itemType ?? 'FIXED') !== 'CONSUMABLE');
         return { category: cat, count: units(matching), totalValueETB: sum(matching) };
       }).filter((c) => c.count > 0);
 
@@ -4619,8 +4620,10 @@ export class StoreService {
     });
 
 
+    // Assets by category: fixed assets only. Spare parts, accessories and supplies (consumables) are left out: they would
+    // count e.g. batteries, litres of thinner and kilograms of paint as vehicles
     const categoryBreakdown = Object.values(AssetCategory).map((cat) => {
-      const matching = onRecord.filter((i) => i.category === cat);
+      const matching = fixedItems.filter((i) => i.category === cat);
       return { category: cat, count: units(matching), totalValueETB: sum(matching) };
     });
 
