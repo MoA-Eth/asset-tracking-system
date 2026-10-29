@@ -24,7 +24,7 @@ export interface AssetRecordProps {
   batch?: AssetRow;
   /** Batch totals: some units out, the rest in store */
   partly: boolean;
-  totals?: { total: number; issued: number; inStore: number; requested?: number };
+  totals?: { total: number; issued: number; inStore: number; requested?: number; disposed?: number };
   /** Every request on this record, newest first */
   requests: TransactionApproval[];
   /** What can be done now (Issue, Transfer, Return, Edit…); the print actions go in their own group */
@@ -546,7 +546,10 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
 
               <FormKitField label="Quantity" optional>
                 <ReadOnlyValue mono>
-                  {totals ? `${totals.total} ${uom} received` : `${row.units} ${uom}`}
+                  {/* What the Model 19 brought in: with some disposed of since, also what is still on the register */}
+                  {totals
+                    ? `${totals.total + (totals.disposed ?? 0)} ${uom} received${totals.disposed ? ` · ${totals.total} ${uom} on the register` : ''}`
+                    : `${row.units} ${uom}`}
                 </ReadOnlyValue>
               </FormKitField>
 
@@ -682,9 +685,11 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
           >
             <div className="space-y-3">
               {totals && (
-                <div className={`grid gap-2 text-center ${totals.requested ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                <div className={`grid gap-2 text-center ${[totals.requested, totals.disposed].filter(Boolean).length === 2 ? 'grid-cols-5' : totals.requested || totals.disposed ? 'grid-cols-4' : 'grid-cols-3'}`}>
                   {[
-                    ['Received', totals.total],
+                    // Everything the Model 19 brought in: what is on the register now, and what was disposed of since
+                    ['Received', totals.total + (totals.disposed ?? 0)],
+                    ...(totals.disposed ? [['Disposed', totals.disposed]] : []),
                     ['Issued', totals.issued],
                     ['In store', totals.inStore],
                     // On a pending issue or disposal: part of "in store" until the last approver approves

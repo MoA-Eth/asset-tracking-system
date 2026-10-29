@@ -1869,7 +1869,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               partly={!!selectedSummary?.partly}
               totals={
                 selectedSummary?.isBatch || (selectedSummary?.requestedUnits ?? 0) > 0
-                  ? { total: selectedSummary.totalUnits, issued: selectedSummary.issuedUnits, inStore: selectedSummary.inStoreUnits, requested: selectedSummary.requestedUnits }
+                  ? {
+                      total: selectedSummary.totalUnits,
+                      issued: selectedSummary.issuedUnits,
+                      inStore: selectedSummary.inStoreUnits,
+                      requested: selectedSummary.requestedUnits,
+                      disposed: selectedSummary.disposedUnits,
+                    }
                   : undefined
               }
               requests={selectedRequests}

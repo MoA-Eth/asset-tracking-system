@@ -241,6 +241,15 @@ describe('Assets page', () => {
     expect(within(batch).getByText('15 disposed')).toBeInTheDocument();
     // Nothing disposed: no received line
     expect(within(rowOf('MOA-S1')).queryByText(/received$/)).not.toBeInTheDocument();
+
+    // Its record says what was received, not what is left, and what was disposed of
+    const user = userEvent.setup();
+    await user.click(batch.querySelector('td')!);
+    expect(await screen.findByText('32 ea received · 17 ea on the register')).toBeInTheDocument();
+    const box = (label: string) => screen.getByText(label, { selector: 'p.uppercase' }).previousElementSibling?.textContent;
+    expect(box('Received')).toBe('32');
+    expect(box('Disposed')).toBe('15');
+    expect(box('In store')).toBe('17');
   });
 
   it('says which Model 21 moved a record', async () => {
