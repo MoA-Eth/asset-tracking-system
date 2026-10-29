@@ -199,3 +199,23 @@ describe('dashboard: motorcycles', () => {
     });
   });
 });
+
+describe('dashboard: total assets', () => {
+  it('counts fixed assets by units and registrations (a batch issued in parts is one), and consumables by lines', async () => {
+    db.item.findMany.mockResolvedValue([
+      record('LAPTOPS', 'AVAILABLE', 3, { itemType: 'FIXED', notes: JSON.stringify({ quantity: 6, uom: 'EA' }) }),
+      // Two laptops of that batch issued: a piece of the same registration
+      record('LAPTOPS-1', 'ISSUED', 3, { itemType: 'FIXED', parentItemId: 'LAPTOPS', notes: JSON.stringify({ quantity: 2, uom: 'EA' }) }),
+      record('BUS', 'ISSUED', 3, { category: 'VEHICLE', itemType: 'FIXED', notes: JSON.stringify({ quantity: 1, uom: 'EA' }) }),
+      record('EAR-TAGS', 'AVAILABLE', 3, { itemType: 'CONSUMABLE', notes: JSON.stringify({ quantity: 200000, uom: 'EA' }) }),
+      record('THINNER', 'ISSUED', 3, { itemType: 'CONSUMABLE', notes: JSON.stringify({ quantity: 50, uom: 'LTR' }) }),
+    ]);
+
+    const d = await StoreService.getInstance().getExecutiveDashboard();
+
+    expect(d.fixedAssets).toMatchObject({ units: 9, registrations: 2, inStoreUnits: 6, issuedUnits: 3 });
+    expect(d.consumables).toMatchObject({ lines: 2, inStoreLines: 1, issuedLines: 1 });
+    // The old sum of everything stays available, for the API
+    expect(d.totalItems).toBe(200059);
+  });
+});

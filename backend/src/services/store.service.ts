@@ -4646,7 +4646,26 @@ export class StoreService {
       .sort((a, b) => (b.costPerUnit ?? b.unitCostETB ?? 0) * unitsOf(b) - (a.costPerUnit ?? a.unitCostETB ?? 0) * unitsOf(a))
       .slice(0, 8);
 
+    // A registration is a receipt line: the pieces a batch was issued in are parts of it, not registrations of their own
+    const registrations = (arr: typeof allItems) => new Set(arr.map((i) => i.parentItemId ?? i.id)).size;
+    const consumablesInStore = consumableItems.filter((i) => IN_STORE_STATUSES.includes(i.status));
+
     return {
+      // Total assets: fixed assets only, in units and registrations. Consumables are counted by lines and value:
+      // adding up pieces, litres and kilograms of supplies says nothing about the assets on record
+      fixedAssets: {
+        units: units(fixedItems),
+        registrations: registrations(fixedItems),
+        inStoreUnits: units(fixedItems.filter((i) => IN_STORE_STATUSES.includes(i.status))),
+        issuedUnits: units(fixedItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
+        valueETB: sum(fixedItems),
+      },
+      consumables: {
+        lines: registrations(consumableItems),
+        inStoreLines: registrations(consumablesInStore),
+        issuedLines: registrations(consumableItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
+        valueETB: sum(consumableItems),
+      },
       // Approved units only; pending receipts are in pendingStockInCount
       totalItems: units(onRecord),
       totalRecords: onRecord.length,

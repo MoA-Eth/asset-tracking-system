@@ -414,7 +414,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
 
   // ── Derived KPIs ──────────────────────────────────────────────────────────
   const totalItems        = data?.totalItems          || 0;
-  const totalRecords      = data?.totalRecords        || 0;
+  // Total assets: fixed assets only; consumables by their lines (older servers send neither: counted as before)
+  const fixedAssets = data?.fixedAssets || { units: data?.totalItems || 0, registrations: data?.totalRecords || 0, inStoreUnits: data?.availableCount || 0, issuedUnits: data?.issuedCount || 0, valueETB: 0 };
+  const consumables = data?.consumables || { lines: 0, inStoreLines: 0, issuedLines: 0, valueETB: 0 };
   const availableCount    = data?.availableCount       || 0;
   const issuedCount       = data?.issuedCount          || 0;
   const pendingApprovals  = data?.pendingApprovalsCount || 0;
@@ -693,26 +695,29 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           label="Total assets"
           labelAm="በመዝገብ ላይ ያለ ጠቅላላ ንብረት"
           action={
-            totalRecords > 0 ? (
-              <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                {totalRecords.toLocaleString()} {totalRecords === 1 ? 'item' : 'items'}
+            fixedAssets.registrations > 0 ? (
+              <span
+                className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200"
+                title="Receipt lines (registrations) of fixed assets; a batch issued in parts is still one"
+              >
+                {fixedAssets.registrations.toLocaleString()} {fixedAssets.registrations === 1 ? 'item' : 'items'}
               </span>
             ) : undefined
           }
           value={
-            <span>
-              {totalItems.toLocaleString()}
+            <span title="Fixed assets only: spare parts, accessories and supplies are counted below, not as assets">
+              {fixedAssets.units.toLocaleString()}
               <span className="ml-1 text-sm font-normal text-slate-400">
-                {totalItems === 1 ? 'unit' : 'units'}
+                {fixedAssets.units === 1 ? 'unit' : 'units'}
               </span>
             </span>
           }
           splitBar={{
-            primaryPct: totalItems > 0 && issuedCount > 0 ? Math.max(2, Math.round((issuedCount / totalItems) * 100)) : 0,
+            primaryPct: fixedAssets.units > 0 && fixedAssets.issuedUnits > 0 ? Math.max(2, Math.round((fixedAssets.issuedUnits / fixedAssets.units) * 100)) : 0,
             primaryColor: 'bg-emerald-600',
             secondaryColor: 'bg-slate-300',
-            primaryLabel: `With Staff (${formatAssetPct(issuedCount, totalItems)})`,
-            secondaryLabel: `In Store (${formatAssetPct(availableCount, totalItems)})`,
+            primaryLabel: `With Staff (${formatAssetPct(fixedAssets.issuedUnits, fixedAssets.units)})`,
+            secondaryLabel: `In Store (${formatAssetPct(fixedAssets.inStoreUnits, fixedAssets.units)})`,
           }}
           footer={
             <div className="space-y-1 pt-0.5 text-xs">
@@ -721,9 +726,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   In Store:
                 </span>
                 <span className="tabular-nums font-semibold text-slate-900 text-[11px]">
-                  {availableCount.toLocaleString()} {availableCount === 1 ? 'unit' : 'units'}{' '}
+                  {fixedAssets.inStoreUnits.toLocaleString()} {fixedAssets.inStoreUnits === 1 ? 'unit' : 'units'}{' '}
                   <span className="text-[10px] text-slate-400 font-normal">
-                    ({formatAssetPct(availableCount, totalItems)})
+                    ({formatAssetPct(fixedAssets.inStoreUnits, fixedAssets.units)})
                   </span>
                 </span>
               </div>
@@ -732,10 +737,20 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   With Staff:
                 </span>
                 <span className="tabular-nums font-semibold text-slate-900 text-[11px]">
-                  {issuedCount.toLocaleString()} {issuedCount === 1 ? 'unit' : 'units'}{' '}
+                  {fixedAssets.issuedUnits.toLocaleString()} {fixedAssets.issuedUnits === 1 ? 'unit' : 'units'}{' '}
                   <span className="text-[10px] text-slate-400 font-normal">
-                    ({formatAssetPct(issuedCount, totalItems)})
+                    ({formatAssetPct(fixedAssets.issuedUnits, fixedAssets.units)})
                   </span>
+                </span>
+              </div>
+              {/* Supplies are not assets: counted by their lines, not by adding up pieces, litres and kilograms */}
+              <div className="flex items-center justify-between border-t border-slate-100 pt-1">
+                <span className="text-violet-800 text-[11px]" title="Consumables: spare parts, accessories and supplies">
+                  Supplies & consumables:
+                </span>
+                <span className="tabular-nums font-semibold text-slate-900 text-[11px]">
+                  {consumables.lines.toLocaleString()} {consumables.lines === 1 ? 'line' : 'lines'}
+                  <span className="text-[10px] text-slate-400 font-normal"> · {consumables.inStoreLines.toLocaleString()} in store</span>
                 </span>
               </div>
             </div>

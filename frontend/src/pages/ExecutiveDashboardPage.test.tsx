@@ -183,3 +183,23 @@ describe('Dashboard low-stock consumables banner', () => {
 });
 
 
+
+describe('Total assets', () => {
+  it('counts fixed assets by units and registrations, and supplies by their lines, not by adding up pieces', async () => {
+    vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
+      ...figures(599450),
+      fixedAssets: { units: 893, registrations: 29, inStoreUnits: 800, issuedUnits: 93, valueETB: 1 },
+      consumables: { lines: 408, inStoreLines: 150, issuedLines: 258, valueETB: 1 },
+    } as any);
+    renderPage();
+
+    const tile = (await screen.findByText('Total assets')).closest('div')!.parentElement!.parentElement!;
+    expect(tile).toHaveTextContent('893units');
+    expect(tile).toHaveTextContent('29 items');
+    expect(tile).toHaveTextContent('In Store:800 units');
+    expect(tile).toHaveTextContent('With Staff:93 units');
+    expect(tile).toHaveTextContent('Supplies & consumables:408 lines · 150 in store');
+    // The sum of everything, supplies included, is not the asset total
+    expect(tile).not.toHaveTextContent('599,450');
+  });
+});
