@@ -4483,6 +4483,10 @@ export class StoreService {
     // no field for it, so they are told apart by name
     const isMotorcycle = (i: { name?: string | null }) => /motor\s*-?\s*(cycle|bike)/i.test(i.name ?? '');
     const motorcycles = vehicles.filter(isMotorcycle);
+    // The categories the dashboard reports: the item categories, with motorcycles apart from the other vehicles
+    const REPORT_CATEGORIES = Object.values(AssetCategory).flatMap((c) => (c === 'VEHICLE' ? ['VEHICLE', 'MOTORCYCLE'] : [c])) as string[];
+    const reportCategory = (i: { category?: string | null; name?: string | null }) =>
+      i.category === 'VEHICLE' && isMotorcycle(i) ? 'MOTORCYCLE' : (i.category as string);
     const cars = vehicles.filter((i) => !isMotorcycle(i));
     const fleetStats = {
       totalVehicles: units(cars),
@@ -4606,8 +4610,8 @@ export class StoreService {
       const locIssued    = locItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status));
       const locPending   = pendingIn.filter((i) => i.storeLocationId === loc.id);
       // category breakdown per location: fixed assets only, as the category chart
-      const locCategoryBreakdown = Object.values(AssetCategory).map((cat) => {
-        const matching = locItems.filter((i) => i.category === cat && (i.itemType ?? 'FIXED') !== 'CONSUMABLE');
+      const locCategoryBreakdown = REPORT_CATEGORIES.map((cat) => {
+        const matching = locItems.filter((i) => reportCategory(i) === cat && (i.itemType ?? 'FIXED') !== 'CONSUMABLE');
         return { category: cat, count: units(matching), totalValueETB: sum(matching) };
       }).filter((c) => c.count > 0);
 
@@ -4631,8 +4635,9 @@ export class StoreService {
 
     // Assets by category: fixed assets only. Spare parts, accessories and supplies (consumables) are left out: they would
     // count e.g. batteries, litres of thinner and kilograms of paint as vehicles
-    const categoryBreakdown = Object.values(AssetCategory).map((cat) => {
-      const matching = fixedItems.filter((i) => i.category === cat);
+    // Motorcycles are a slice of their own
+    const categoryBreakdown = REPORT_CATEGORIES.map((cat) => {
+      const matching = fixedItems.filter((i) => reportCategory(i) === cat);
       return { category: cat, count: units(matching), totalValueETB: sum(matching) };
     });
 

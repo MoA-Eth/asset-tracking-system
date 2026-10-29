@@ -45,6 +45,8 @@ interface ExecutiveDashboardPageProps {
 /** Asset categories: fixed slot per category, never by position or rank. */
 const CATEGORY_STYLE: Record<string, { en: string; am: string; color: string }> = {
   VEHICLE:          { en: 'Vehicles',         am: 'ተሽከርካሪዎች',      color: '#2a78d6' },
+  // Not an item category: the dashboard shows motorcycles apart from the other vehicles
+  MOTORCYCLE:       { en: 'Motorcycles',      am: 'ሞተር ሳይክሎች',     color: '#0e9fb5' },
   AGRI_MACHINERY:   { en: 'Agri. machinery',  am: 'የግብርና ማሽነሪዎች', color: '#eb6834' },
   IT_EQUIPMENT:     { en: 'IT equipment',     am: 'የአይቲ መሣሪያዎች',  color: '#1baf7a' },
   OFFICE_FURNITURE: { en: 'Office furniture', am: 'የቢሮ ዕቃዎች',      color: '#eda100' },

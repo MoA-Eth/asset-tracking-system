@@ -179,7 +179,7 @@ describe('dashboard: asset categories count fixed assets only', () => {
 });
 
 describe('dashboard: motorcycles', () => {
-  it('count as vehicles in the categories, and on their own in the fleet figures', async () => {
+  it('are a category of their own, and a tile of their own in the fleet figures', async () => {
     db.item.findMany.mockResolvedValue([
       record('BUS', 'AVAILABLE', 3, { name: 'Electric Bus', category: 'VEHICLE', itemType: 'FIXED', unitCostETB: 5_000_000, notes: JSON.stringify({ quantity: 4, uom: 'EA' }) }),
       record('MOTO', 'AVAILABLE', 3, { name: 'motor cycle', category: 'VEHICLE', itemType: 'FIXED', unitCostETB: 761_739.13, notes: JSON.stringify({ quantity: 50, uom: 'EA' }) }),
@@ -190,7 +190,9 @@ describe('dashboard: motorcycles', () => {
 
     const d = await StoreService.getInstance().getExecutiveDashboard();
 
-    expect(d.categoryBreakdown.find((c: any) => c.category === 'VEHICLE')).toMatchObject({ count: 56 });
+    // A slice of their own: Vehicles are the bus, Motorcycles the 52
+    expect(d.categoryBreakdown.find((c: any) => c.category === 'VEHICLE')).toMatchObject({ count: 4 });
+    expect(d.categoryBreakdown.find((c: any) => c.category === 'MOTORCYCLE')).toMatchObject({ count: 52 });
     expect(d.fleetStats).toMatchObject({
       totalVehicles: 4, inStoreVehicles: 4,
       totalMotorcycles: 52, activeMotorcycles: 2, inStoreMotorcycles: 50,
