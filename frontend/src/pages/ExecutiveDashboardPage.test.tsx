@@ -203,3 +203,28 @@ describe('Total assets', () => {
     expect(tile).not.toHaveTextContent('599,450');
   });
 });
+
+describe('Items in store too long', () => {
+  it('adds up litres apart from pieces, and kilograms on their own', async () => {
+    const stale = (itemCode: string, unitsInStore: number, uom: string) => ({
+      id: itemCode, itemCode, name: itemCode, itemType: 'CONSUMABLE', unitsInStore, uom, inStoreSinceGc: '2026-08-01', daysInStore: 90, valueETB: 1,
+    });
+    vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
+      ...figures(10),
+      staleInStore: {
+        thresholdDays: 30, itemCount: 4, units: 1095.5, valueETB: 4,
+        items: [stale('EAR-TAGS', 1000, 'EA'), stale('BOOTS', 64, 'PAIR'), stale('DELTAMETHRIN', 20, 'LTR'), stale('FEED', 11.5, 'KG')],
+      },
+    } as any);
+    renderPage();
+
+    const summary = (await screen.findByText('These items should have been distributed by now')).closest('div')!.parentElement!.parentElement!;
+    const figure = (label: string) => [...summary.querySelectorAll('dt')].find((dt) => dt.textContent === label)?.nextElementSibling?.textContent;
+    expect(figure('Items')).toBe('4');
+    expect(figure('Units')).toBe('1,064');
+    expect(figure('Litres')).toBe('20');
+    expect(figure('KG')).toBe('11.5');
+    // Not one figure adding litres and kilograms to pieces
+    expect(summary).not.toHaveTextContent('1,095.5');
+  });
+});

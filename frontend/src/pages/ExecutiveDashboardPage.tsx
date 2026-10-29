@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { costOf } from '../utils/item-cost';
+import { totalsByMeasure } from '../utils/uom';
 import { approvalPolicy } from '../components/assets/slip-groups';
 import { useRealtimeSync } from '../utils/realtime-sync';
 import {
@@ -484,6 +485,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   // Counted as items, fixed assets apart from supplies: units would add up pieces, litres and kilograms
   const staleFixed = staleItems.filter((i: any) => i.itemType !== 'CONSUMABLE').length;
   const staleSupplies = staleItems.length - staleFixed;
+  // Pieces, litres and kilograms each added up on their own, never into one figure
+  const staleMeasures = totalsByMeasure(staleItems.map((i: any) => ({ quantity: Number(i.unitsInStore ?? i.quantity) || 0, uom: i.uom })));
   const showStale = () => {
     setIsStaleExpanded(true);
     setTimeout(() => {
@@ -1013,10 +1016,16 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                     </p>
                   </div>
                 </div>
-                <dl className={`grid ${SHOW_VALUES ? 'grid-cols-3' : 'grid-cols-2'} gap-4 sm:gap-6 text-right`}>
+                <dl className="flex flex-wrap gap-4 sm:gap-6 text-right">
                   {[
                     { label: stale.itemCount === 1 ? 'Item' : 'Items', value: stale.itemCount.toLocaleString() },
-                    { label: stale.units === 1 ? 'Unit' : 'Units', value: stale.units.toLocaleString() },
+                    // A server that sends no items: its own total, as before
+                    {
+                      label: (staleItems.length ? staleMeasures.units : stale.units) === 1 ? 'Unit' : 'Units',
+                      value: (staleItems.length ? staleMeasures.units : stale.units).toLocaleString(),
+                    },
+                    ...(staleMeasures.litres > 0 ? [{ label: 'Litres', value: staleMeasures.litres.toLocaleString() }] : []),
+                    ...Object.entries(staleMeasures.other).map(([uom, q]) => ({ label: uom, value: q.toLocaleString() })),
                     ...(SHOW_VALUES ? [{ label: 'Value', value: formatETBTotal(stale.valueETB) }] : []),
                   ].map((s) => (
                     <div key={s.label}>
