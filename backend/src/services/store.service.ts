@@ -3523,6 +3523,10 @@ export class StoreService {
         const onRecord = await db.item.findUnique({ where: { id: approval.itemId } });
         if (onRecord) assertIssueStillFits(approval, onRecord, 'reviewer');
       }
+      // Caught at the first stage too: the Team Leader rejects the copy instead of passing it on
+      if (approval.transactionType === 'DISPOSAL' || approval.transactionType === 'STOCK_OUT') {
+        await assertNotAlreadyOnVoucher(db, { id: approval.itemId, itemCode: approval.itemCode }, { kind: approval.transactionType, number: approval.ifmisSlipNumber }, approval.id, ['APPROVED']);
+      }
 
       const updatedApproval = await db.transactionApproval.update({
         where: stillWaiting,

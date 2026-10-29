@@ -481,6 +481,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       });
   }, [items, pendingByItem, openByItem, decided, employees, locations]);
 
+  /** A waiting issue or disposal on a voucher already approved for this record: a copy that would take its units twice */
+  const copyOfApproved = (row: AssetRow) => {
+    const request = row.request;
+    if (!request || request.status !== ApprovalStatus.PENDING || (request.transactionType !== 'DISPOSAL' && request.transactionType !== 'STOCK_OUT')) return undefined;
+    const number = String(request.ifmisSlipNumber ?? '').trim().toLowerCase();
+    if (!number || number.startsWith('pending-')) return undefined;
+    return (decided.raised.get(row.item.id) ?? []).find(
+      (a) => a.status === ApprovalStatus.APPROVED && a.transactionType === request.transactionType && String(a.ifmisSlipNumber ?? '').trim().toLowerCase() === number,
+    );
+  };
+  const voucherName = (type?: string) => (type === 'DISPOSAL' ? 'disposal form' : 'Model 22');
+
   const isTransferred = (row: AssetRow) =>
     row.item.status === ItemStatus.UNDER_TRANSFER ||
     row.request?.transactionType === 'TRANSFER' ||
@@ -1423,6 +1435,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           {row.goingTo && (
             <span className="block text-xs text-amber-800">
               → {row.goingTo}
+            </span>
+          )}
+          {copyOfApproved(row) && (
+            <span className="mt-0.5 block text-[11px] font-medium text-red-700">
+              Already {row.request?.transactionType === 'DISPOSAL' ? 'disposed of' : 'issued'} on this {voucherName(row.request?.transactionType)} No. {row.request?.ifmisSlipNumber}
+              {copyOfApproved(row)?.reviewedAtGc ? ` (approved ${formatCreatedDate(copyOfApproved(row)?.reviewedAtGc)})` : ''}: reject this copy
             </span>
           )}
           {isBatch && out.length > 0 && (

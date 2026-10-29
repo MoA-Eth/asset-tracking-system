@@ -30,8 +30,11 @@ beforeEach(() => {
   lines = [line('A'), line('B'), line('C')];
   db.$transaction.mockImplementation(async (fn: any) => fn(db));
   db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
-    where.id
+    where.id?.in
       ? lines.filter((l) => where.id.in.includes(l.id))
+      // Other requests for a record on the same voucher (the duplicate check)
+      : where.transactionType?.in
+      ? lines.filter((l) => l.itemId === where.itemId && where.transactionType.in.includes(l.transactionType) && where.status.in.includes(l.status) && l.id !== where.id?.not)
       // The other lines of a voucher, waiting together
       : lines.filter((l) => l.transactionType === where.transactionType && l.status === where.status && l.currentStage === where.currentStage
           && l.ifmisSlipNumber.toLowerCase() === where.ifmisSlipNumber.equals.toLowerCase()));

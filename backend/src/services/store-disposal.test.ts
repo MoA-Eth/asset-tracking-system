@@ -299,6 +299,16 @@ describe('the same record on the same disposal form is not entered twice', () =>
     expect(db.item.create).not.toHaveBeenCalled();
   });
 
+  it('will not let a Team Leader endorse it either', async () => {
+    approvedOnSameForm();
+    db.transactionApproval.findUnique.mockResolvedValue(pendingDisposal({ quantity: 6 }, 1));
+    await expect(store().handleApproval({ approvalId: 'appr-1', action: 'ENDORSE', reviewedById: 'EMP-TL' } as any)).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('reject or cancel this request'),
+    });
+    expect(db.transactionApproval.update).not.toHaveBeenCalled();
+  });
+
   it('still approves a disposal whose form number is new for the record', async () => {
     db.transactionApproval.findMany.mockResolvedValue([{ id: 'old-disposal', status: 'APPROVED', ifmisSlipNumber: 'DSP-0002', requestDetails: {} }]);
     db.transactionApproval.findUnique.mockResolvedValue(pendingDisposal({ quantity: 3 }));

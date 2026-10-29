@@ -226,6 +226,18 @@ describe('Assets page', () => {
     expect(pills.getByRole('button', { name: /^All/ })).toHaveAttribute('title', expect.stringContaining('not units'));
   });
 
+  it('flags a waiting disposal on a form already approved for the record', async () => {
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      ...approvals,
+      request('Q1-DONE', 'DISPOSAL', 'Q1', { status: 'APPROVED', ifmisSlipNumber: 'REQ-A-Q1', reviewedAtGc: '2026-09-26', requestDetails: { quantity: 1 } }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+    expect(rowOf('MOA-Q1')).toHaveTextContent('Already disposed of on this disposal form No. REQ-A-Q1 (approved 09/26/2026): reject this copy');
+    // A waiting request on a new number is not flagged
+    expect(rowOf('MOA-O1')).not.toHaveTextContent('reject this copy');
+  });
+
   it('offers the next step for each state', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
