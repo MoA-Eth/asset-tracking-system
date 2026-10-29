@@ -26,6 +26,8 @@ export interface DonutSegment {
   label: string;
   color: string;
   value: number;
+  /** What the segment is made of, listed under it in the legend (e.g. Vehicles: of which motorcycles) */
+  parts?: { key: string; label: string; value: number }[];
 }
 
 /** Parts of a whole, for up to about six parts; the total sits in the middle and each part carries its number */
@@ -83,12 +85,22 @@ export const Donut: React.FC<{ segments: DonutSegment[]; unit?: string; label: s
             key={s.key}
             onMouseEnter={() => setHover(s.key)}
             onMouseLeave={() => setHover(null)}
-            className={`flex items-center gap-2 text-[11px] transition-opacity ${hover && hover !== s.key ? 'opacity-50' : ''}`}
+            className={`text-[11px] transition-opacity ${hover && hover !== s.key ? 'opacity-50' : ''}`}
           >
-            <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: s.color }} aria-hidden />
-            <span className="text-slate-600">{s.label}</span>
-            <span className="ml-auto font-semibold tabular-nums text-slate-900">{s.value.toLocaleString()}</span>
-            <span className="w-8 text-right tabular-nums text-slate-400">{percent(s.value)}</span>
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: s.color }} aria-hidden />
+              <span className="text-slate-600">{s.label}</span>
+              <span className="ml-auto font-semibold tabular-nums text-slate-900">{s.value.toLocaleString()}</span>
+              <span className="w-8 text-right tabular-nums text-slate-400">{percent(s.value)}</span>
+            </div>
+            {/* Its parts, indented under it: counted in it, not beside it */}
+            {s.parts?.filter((p) => p.value > 0).map((p) => (
+              <div key={p.key} className="mt-0.5 flex items-center gap-2 pl-[18px] text-[10px] text-slate-500">
+                <span>↳ {p.label}</span>
+                <span className="ml-auto tabular-nums">{p.value.toLocaleString()}</span>
+                <span className="w-8" aria-hidden />
+              </div>
+            ))}
           </li>
         ))}
       </ul>

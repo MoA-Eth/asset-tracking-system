@@ -200,6 +200,27 @@ describe('Total assets', () => {
   });
 });
 
+describe('Asset categories', () => {
+  it('counts motorcycles in Vehicles, listed under it, not as a category of their own', async () => {
+    vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
+      ...figures(10),
+      categoryBreakdown: [
+        { category: 'VEHICLE', count: 14 },
+        { category: 'MOTORCYCLE', count: 52 },
+        { category: 'AGRI_MACHINERY', count: 37 },
+      ],
+    } as any);
+    renderPage();
+
+    const chart = await screen.findByRole('img', { name: /^Units by category/ });
+    expect(chart).toHaveAttribute('aria-label', 'Units by category: Vehicles 66, Agri. machinery 37');
+    const legend = chart.parentElement!.querySelector('ul')!;
+    expect(legend).toHaveTextContent('Vehicles66');
+    expect(legend).toHaveTextContent('↳ Cars & other vehicles14');
+    expect(legend).toHaveTextContent('↳ Motorcycles52');
+  });
+});
+
 describe('Items in store too long', () => {
   it('adds up litres apart from pieces, and kilograms on their own', async () => {
     const stale = (itemCode: string, unitsInStore: number, uom: string) => ({

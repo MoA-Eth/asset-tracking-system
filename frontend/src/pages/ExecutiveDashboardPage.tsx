@@ -62,6 +62,28 @@ const CATEGORY_STYLE: Record<string, { en: string; am: string; color: string }> 
 };
 const CATEGORY_ORDER = Object.keys(CATEGORY_STYLE);
 
+/**
+ * Motorcycles are vehicles: counted in the Vehicles category, and listed as its part. The server reports them as
+ * their own category (MOTORCYCLE); here they go back into VEHICLE, with the motorcycles kept as `parts`.
+ */
+function withVehiclesTogether<T extends { category: string; count: number }>(rows: T[]): (T & { parts?: { key: string; label: string; value: number }[] })[] {
+  const motorcycles = rows.find((r) => r.category === 'MOTORCYCLE');
+  if (!motorcycles) return rows;
+  const vehicles = rows.find((r) => r.category === 'VEHICLE');
+  const others = rows.filter((r) => r.category !== 'MOTORCYCLE' && r.category !== 'VEHICLE');
+  const cars = vehicles?.count ?? 0;
+  const merged = {
+    ...(vehicles ?? motorcycles),
+    category: 'VEHICLE',
+    count: cars + motorcycles.count,
+    parts: [
+      { key: 'VEHICLE-CARS', label: 'Cars & other vehicles', value: cars },
+      { key: 'MOTORCYCLE', label: 'Motorcycles', value: motorcycles.count },
+    ],
+  };
+  return [merged, ...others];
+}
+
 /** Item lifecycle states, shared by every status bar and badge on the page. */
 const ITEM_STATUS_STYLE: Record<string, { label: string; color: string }> = {
   AVAILABLE:         { label: 'Available',         color: '#0ca30c' },
@@ -478,8 +500,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const deptMaxVal = deptRows.length > 0 ? deptSize(deptRows[0]) || 1 : 1;
 
   // Categories in their fixed order so colours never shift
-  const categoryRows: any[] = (data?.categoryBreakdown || [])
-    .filter((c: any) => c.count > 0)
+  const categoryRows: any[] = withVehiclesTogether((data?.categoryBreakdown || []).filter((c: any) => c.count > 0))
     .sort((a: any, b: any) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category));
 
   // Items that should have been distributed: in store longer than the limit (30 days)
@@ -1160,6 +1181,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   label: CATEGORY_STYLE[c.category]?.en || c.category,
                   color: CATEGORY_STYLE[c.category]?.color || '#cbd5e1',
                   value: c.count,
+                  parts: c.parts,
                 }))}
               />
 
@@ -1255,7 +1277,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                     { key: 'PENDING', ...ITEM_STATUS_STYLE.PENDING, count: pending },
                     { key: 'OTHER', ...ITEM_STATUS_STYLE.OTHER, count: other },
                   ];
-                  const topCats = (loc.categoryBreakdown || []).slice(0, 2);
+                  const topCats = withVehiclesTogether(loc.categoryBreakdown || []).sort((a: any, b: any) => b.count - a.count).slice(0, 2);
 
                   return (
                     <tr key={loc.id} className="hover:bg-slate-50/70 transition-colors">
@@ -1324,7 +1346,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                 { key: 'PENDING', ...ITEM_STATUS_STYLE.PENDING, count: pending },
                 { key: 'OTHER', ...ITEM_STATUS_STYLE.OTHER, count: other },
               ];
-              const topCats = (loc.categoryBreakdown || []).slice(0, 3);
+              const topCats = withVehiclesTogether(loc.categoryBreakdown || []).sort((a: any, b: any) => b.count - a.count).slice(0, 3);
 
               return (
                 <div key={loc.id} className="rounded-md border border-slate-200 p-4">
