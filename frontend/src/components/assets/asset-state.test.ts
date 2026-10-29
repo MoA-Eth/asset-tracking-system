@@ -24,6 +24,10 @@ describe('daysInStore', () => {
     expect(daysInStore({ createdAtGc: '2026-10-01T08:00:00Z', history: [] } as any, today)).toBe(6);
     expect(daysInStore({ ifmisSlipDateGc: 'not a date', history: [] } as any, today)).toBeUndefined();
   });
+
+  it('counts from the registration date when the slip year is impossible, as the dashboard does', () => {
+    expect(daysInStore({ ifmisSlipDateGc: '0026-05-12', createdAtGc: '2026-10-01T08:00:00Z', history: [] } as any, today)).toBe(6);
+  });
 });
 
 describe('itemTypeLabel', () => {

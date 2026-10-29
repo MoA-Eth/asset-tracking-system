@@ -473,7 +473,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             !(state === 'ISSUED' && lastRaised.transactionType === 'STOCK_OUT')
               ? lastRaised
               : undefined,
-          daysInStore: state === 'IN_STORE' ? daysInStore(item, today) : undefined,
+          // Units on a waiting issue or disposal are still on the shelf, so they keep counting their days in store
+          daysInStore:
+            state === 'IN_STORE' || item.status === ItemStatus.PENDING_STOCK_OUT || item.status === ItemStatus.PENDING_DISPOSAL
+              ? daysInStore(item, today)
+              : undefined,
         };
       })
       .sort((a, b) => {
@@ -541,7 +545,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       return false;
     }
 
-    if (staleOnly && !(row.state === 'IN_STORE' && isStale(row))) {
+    if (staleOnly && !(row.daysInStore !== undefined && isStale(row))) {
       return false;
     }
 
@@ -1691,7 +1695,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
 
   // Records waiting in store longer than the limit, across the whole list
-  const staleCount = groups.filter((g) => [g.row, ...g.children].some((r) => r.state === 'IN_STORE' && isStale(r))).length;
+  const staleCount = groups.filter((g) => [g.row, ...g.children].some((r) => r.daysInStore !== undefined && isStale(r))).length;
 
   // Value of what is listed (same figures as the CSV export); receipts not yet approved and rejected ones don't count
   const totals = sortedShown.reduce(

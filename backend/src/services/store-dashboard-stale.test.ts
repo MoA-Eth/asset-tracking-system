@@ -263,4 +263,16 @@ describe('dashboard: figures checked against production data (29 Oct 2026)', () 
     expect(d.departmentDistribution[0]).toMatchObject({ itemCount: 7702, itemLines: 2, fixedUnits: 2 });
     expect(d.locationUtilization[0]).toMatchObject({ itemLines: 3, availableLines: 1, issuedLines: 2, pendingLines: 0 });
   });
+
+  it('counts an item issued to several people once in its store, as the Assets page does', async () => {
+    db.location.findMany.mockResolvedValue([{ id: 'LOC-01', name: 'Shelf', storeId: 'S1', isActive: true, store: { id: 'S1', name: 'Kality' } }]);
+    db.item.findMany.mockResolvedValue([
+      record('PPE', 'AVAILABLE', 3, { itemType: 'CONSUMABLE', notes: JSON.stringify({ quantity: 40, uom: 'EA' }) }),
+      record('PPE-1', 'ISSUED', 3, { itemType: 'CONSUMABLE', parentItemId: 'PPE', currentCustodianId: 'E1', notes: JSON.stringify({ quantity: 5, uom: 'EA' }) }),
+      record('PPE-2', 'ISSUED', 3, { itemType: 'CONSUMABLE', parentItemId: 'PPE', currentCustodianId: 'E2', notes: JSON.stringify({ quantity: 5, uom: 'EA' }) }),
+    ]);
+    const d = await StoreService.getInstance().getExecutiveDashboard();
+    // Partly issued: in store and issued both, and still one item
+    expect(d.locationUtilization[0]).toMatchObject({ itemLines: 1, availableLines: 1, issuedLines: 1 });
+  });
 });

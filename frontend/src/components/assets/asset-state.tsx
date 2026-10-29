@@ -121,12 +121,18 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * Days a record's units have been in store, counted the same way as the dashboard:
  * from the latest approved return if it came back, otherwise from the Model 19 receiving date.
  */
+/** No voucher in the system is older than this; an earlier year is a typo or a misread slip */
+const EARLIEST_SLIP_YEAR = 2000;
+
 export function daysInStore(item: ItemWithRelations, today: Date = new Date()): number | undefined {
   const returned = (item.history ?? [])
     .filter((h) => h.action === 'RETURN_APPROVED')
     .map((h) => h.dateGc)
     .sort();
-  const since = (returned[returned.length - 1] ?? item.ifmisSlipDateGc ?? String(item.createdAtGc || '')).slice(0, 10);
+  // A slip date with an impossible year (e.g. 0026, saved before the year was checked) counts from the record's date,
+  // as the dashboard does, instead of making it thousands of years in store
+  const slipDate = item.ifmisSlipDateGc && Number(item.ifmisSlipDateGc.slice(0, 4)) >= EARLIEST_SLIP_YEAR ? item.ifmisSlipDateGc : undefined;
+  const since = (returned[returned.length - 1] ?? slipDate ?? String(item.createdAtGc || '')).slice(0, 10);
   const sinceMs = Date.parse(since);
   if (!Number.isFinite(sinceMs)) return undefined;
   const todayMs = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());

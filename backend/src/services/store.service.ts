@@ -4641,6 +4641,7 @@ export class StoreService {
       };
     });
 
+    const lineCount = (records: { id: string; parentItemId?: string | null }[]) => new Set(records.map((i) => i.parentItemId ?? i.id)).size;
     const locationUtilization = locations.map((loc) => {
       const locItems = onRecord.filter((i) => i.storeLocationId === loc.id);
       const locAvailable = locItems.filter((i) => IN_STORE_STATUSES.includes(i.status));
@@ -4659,10 +4660,11 @@ export class StoreService {
         roomNumber: locationView(loc).roomNumber,
         isCentralStore: true,
         itemCount: units(locItems),
-        // Item lines: what the store bars count (units add up pieces, litres and kilograms)
-        itemLines: locAvailable.length + locIssued.length,
-        availableLines: locAvailable.length,
-        issuedLines: locIssued.length,
+        // Item lines: what the store bars count (units add up pieces, litres and kilograms). A line is a registration,
+        // with the pieces issued from it, as the Assets page counts it: one item issued to ten people is one line
+        itemLines: lineCount([...locAvailable, ...locIssued]),
+        availableLines: lineCount(locAvailable),
+        issuedLines: lineCount(locIssued),
         pendingLines: locPending.length,
         totalValueETB: sum(locItems),
         availableCount: units(locAvailable),
