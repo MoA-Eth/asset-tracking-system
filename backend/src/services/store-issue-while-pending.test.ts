@@ -312,6 +312,37 @@ describe('the same record on the same Model 22 is not entered twice', () => {
     expect(resubmitted.currentStage).toBe(1);
   });
 
+  it('refuses a Model 22 already approved for the record: its units were issued on it', async () => {
+    onVoucher([{ id: 'first-issue', status: 'APPROVED', ifmisSlipNumber: '0000202/A', recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 1 } }]);
+    await expect(store().registerStockOut({ ...issue, itemId: item.id, quantity: 1 } as any)).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'MOA-FUR-2026-0001 was already issued on Model 22 No. 0000202/A, which is approved. A Model 22 takes a record once: reject or cancel this request.',
+    });
+    await expect(store().registerStockOuts({ ...issue, lines: [{ itemId: item.id, quantity: 1 }] } as any)).rejects.toMatchObject({ statusCode: 409 });
+    expect(db.transactionApproval.create).not.toHaveBeenCalled();
+  });
+
+  it('still lets the same person be issued the same quantity again on another voucher, or without a number', async () => {
+    onVoucher([{ id: 'first-issue', status: 'APPROVED', ifmisSlipNumber: 'PENDING-ISSUE-1792675711092', recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 10 } }]);
+    await expect(store().registerStockOut({ ...issue, ifmisSlipNumber: '', itemId: item.id, quantity: 10 } as any)).resolves.toBeTruthy();
+    onVoucher([{ id: 'first-issue', status: 'APPROVED', ifmisSlipNumber: '0000202/A', recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 10 } }]);
+    await expect(store().registerStockOut({ ...issue, ifmisSlipNumber: '0000203/A', itemId: item.id, quantity: 10 } as any)).resolves.toBeTruthy();
+  });
+
+  it('will not approve a second issue on a Model 22 already approved for the record', async () => {
+    onVoucher([{ id: 'first-issue', status: 'APPROVED', ifmisSlipNumber: '0000202/A', recipientEmployeeId: 'EMP-A', requestDetails: { quantity: 1 } }]);
+    const approval = {
+      id: 'second-issue', transactionType: 'STOCK_OUT', status: 'PENDING', currentStage: 2, itemId: item.id, itemCode: item.itemCode, itemName: item.name,
+      ifmisSlipNumber: '0000202/A', purposeOrRemarks: 'New staff', requestedById: 'EMP-ENC', recipientEmployeeId: 'EMP-A', targetDepartmentId: 'DEP-1',
+      requestDetails: { quantity: 1, uom: 'EA' },
+    };
+    db.transactionApproval.findUnique.mockResolvedValue(approval);
+    db.transactionApproval.update.mockImplementation(async ({ data }: any) => ({ ...approval, ...data }));
+    await expect(store().handleApproval({ approvalId: 'second-issue', action: 'APPROVE', reviewedById: 'EMP-HEAD' } as any)).rejects.toMatchObject({ statusCode: 409 });
+    expect(db.item.update).not.toHaveBeenCalled();
+    expect(db.item.create).not.toHaveBeenCalled();
+  });
+
   it('frees the number once the rejected issue is cancelled: the item can be entered on it again', async () => {
     // A cancelled request is closed: the check asks only for waiting and rejected ones
     db.transactionApproval.findMany.mockImplementation(async ({ where }: any) => {

@@ -858,15 +858,15 @@ const VOUCHER_TYPES: Record<'STOCK_OUT' | 'MODEL21' | 'DISPOSAL', string[]> = {
   DISPOSAL: ['DISPOSAL'],
 };
 
+/** A Model 22 or disposal form takes a record once: an approved request with the same number blocks it too */
+const VOUCHER_TAKEN = ['PENDING', 'REJECTED', 'APPROVED'];
+
 /**
  * One record can't be on the same voucher twice. Another request for it with the same number that is waiting, or that
  * was rejected and is with its requester, is corrected (or cancelled) instead of entered again. An issue entered
  * without a Model 22 No. is compared by recipient and quantity, so submitting the same issue twice is caught too.
  * `statuses` narrows what counts: a resubmit only looks at waiting requests, so two rejected copies don't block each other.
  */
-/** A disposal form disposes of a record once: an approved disposal with the same number blocks it too */
-const DISPOSAL_FORM_TAKEN = ['PENDING', 'REJECTED', 'APPROVED'];
-
 async function assertNotAlreadyOnVoucher(
   db: any,
   item: { id: string; itemCode: string },
@@ -896,6 +896,8 @@ async function assertNotAlreadyOnVoucher(
   const sameIssue =
     !sameNumber && request.kind === 'STOCK_OUT'
       ? others.find((o) => {
+          // An approved issue only counts by its number: the same person can be issued the same quantity again later
+          if (o.status === 'APPROVED') return false;
           if (number && typedVoucherNo(o.ifmisSlipNumber)) return false;
           const details = (o.requestDetails ?? {}) as Record<string, any>;
           const sameRecipient = request.recipientEmployeeId
@@ -910,7 +912,7 @@ async function assertNotAlreadyOnVoucher(
   const where = typedVoucherNo(found.ifmisSlipNumber) ? `${voucher} No. ${typedVoucherNo(found.ifmisSlipNumber)}` : `an issue to the same recipient for the same quantity (no ${voucher} No. yet)`;
   throw new ConflictError(
     found.status === 'APPROVED'
-      ? `${item.itemCode} was already disposed of on ${where}, which is approved. A disposal form takes a record once: reject or cancel this request.`
+      ? `${item.itemCode} was already ${request.kind === 'DISPOSAL' ? 'disposed of' : 'issued'} on ${where}, which is approved. A ${voucher} takes a record once: reject or cancel this request.`
       : found.status === 'REJECTED'
       ? `${item.itemCode} is already on ${where}, which was rejected and is with its requester. Correct and resubmit that request, or cancel it, instead of entering it again.`
       : `${item.itemCode} is already on ${where}, waiting for approval. Correct that request instead of entering it again.`,
@@ -1716,6 +1718,7 @@ export class StoreService {
         quantity,
       },
       approval.id,
+      VOUCHER_TAKEN,
     );
 
     const before = {
@@ -1896,7 +1899,7 @@ export class StoreService {
       recipientEmployeeId: disposal ? null : payload.recipientEmployeeId,
       organizationName: disposal ? null : payload.organizationName,
       quantity,
-    });
+    }, undefined, VOUCHER_TAKEN);
     // A store with no store man can't issue: his name goes on the voucher
     let issuer = null;
     try {
@@ -2020,7 +2023,7 @@ export class StoreService {
         recipientEmployeeId: payload.disposal === true ? null : payload.recipientEmployeeId,
         organizationName: payload.disposal === true ? null : payload.organizationName,
         quantity,
-      });
+      }, undefined, VOUCHER_TAKEN);
       stores.add(item.storeLocation?.storeId ?? item.storeLocationId);
     }
     if (stores.size > 1) throw new BadRequestError('One Model 22 issues from one store, and these items are in different stores. Issue each store\'s items on its own Model 22.');
@@ -2086,7 +2089,7 @@ export class StoreService {
     }
     await assertNoPendingApproval(item);
     const { disposalNo, details } = disposalDetailsOf(payload, item);
-    await assertNotAlreadyOnVoucher(prisma, item, { kind: 'DISPOSAL', number: disposalNo }, undefined, DISPOSAL_FORM_TAKEN);
+    await assertNotAlreadyOnVoucher(prisma, item, { kind: 'DISPOSAL', number: disposalNo }, undefined, VOUCHER_TAKEN);
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     // A store with no store man can't dispose: his name goes on the disposal form
     const keeper = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.storekeeperEmployeeId, 'the disposal');
@@ -2167,7 +2170,7 @@ export class StoreService {
     if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
 
     const { disposalNo, details } = disposalDetailsOf(payload, item);
-    await assertNotAlreadyOnVoucher(prisma, item, { kind: 'DISPOSAL', number: disposalNo }, approval.id, DISPOSAL_FORM_TAKEN);
+    await assertNotAlreadyOnVoucher(prisma, item, { kind: 'DISPOSAL', number: disposalNo }, approval.id, VOUCHER_TAKEN);
     const attachment = payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl || undefined;
     if (isSlipRequired() && !attachment) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     const dateGc = payload.disposalDateGc || approval.ifmisSlipDateGc;
@@ -3640,9 +3643,9 @@ export class StoreService {
     const item = await db.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new NotFoundError(`Target item ${approval.itemId} not found.`);
     if (isApprove) assertIssueStillFits(approval, item, 'reviewer');
-    // The same disposal form approved twice would dispose of the record's units twice
-    if (isApprove && approval.transactionType === 'DISPOSAL') {
-      await assertNotAlreadyOnVoucher(db, item, { kind: 'DISPOSAL', number: approval.ifmisSlipNumber }, approval.id, ['APPROVED']);
+    // The same Model 22 or disposal form approved twice would issue or dispose of the record's units twice
+    if (isApprove && (approval.transactionType === 'DISPOSAL' || approval.transactionType === 'STOCK_OUT')) {
+      await assertNotAlreadyOnVoucher(db, item, { kind: approval.transactionType, number: approval.ifmisSlipNumber }, approval.id, ['APPROVED']);
     }
 
     // A line of a voucher of several lines goes by the voucher's grand total; anything else by its own amount
