@@ -298,6 +298,28 @@ describe('Assets page', () => {
     expect(requested.previousElementSibling?.textContent).toBe('6');
   });
 
+  it('shows a unit price before and with VAT, and a batch disposed of in full as all disposed', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getItems).mockResolvedValue([
+      ...items,
+      item('BKT', 'Bucket', 'AVAILABLE', { quantity: 100, unitCostETB: 540, vatApplicable: true, totalAmount: 62100 }),
+      item('G1', 'Guest chair', 'DISPOSED', { quantity: 0, unitCostETB: 6910.67 }),
+      item('G1-1', 'Guest chair', 'DISPOSED', { quantity: 260, unitCostETB: 6910.67, parentItemId: 'G1' }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-BKT');
+
+    // Every unit gone: what was received, and that it all went, not "0 of 260"
+    expect(rowOf('MOA-G1')).toHaveTextContent('260 eaall disposed');
+    expect(rowOf('MOA-G1')).not.toHaveTextContent('0 of 260');
+
+    // The table's unit cost is with VAT; the record names both figures
+    expect(rowOf('MOA-BKT')).toHaveTextContent('621.00');
+    await user.click(rowOf('MOA-BKT').querySelector('td')!);
+    const price = (await screen.findByText('before VAT ·')).parentElement!;
+    expect(price).toHaveTextContent(/540\.00\s*before VAT ·\s*ETB 621\.00\s*with VAT/);
+  });
+
   it('says which Model 21 moved a record', async () => {
     const user = userEvent.setup();
     vi.mocked(api.getItems).mockResolvedValue([

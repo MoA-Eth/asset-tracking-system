@@ -10,7 +10,7 @@ import { HeaderActionButton } from '../ui/HeaderActionButton';
 import { FormSection, FieldGrid, Field as FormKitField, ReadOnlyValue, TotalValue, FormNotice } from '../ui/FormKit';
 import { ApprovalStatus, ItemStatus, TransactionApproval } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
-import { valueOf } from '../../utils/item-cost';
+import { costOf, valueOf } from '../../utils/item-cost';
 import { isGeneratedSerialNumber, displaySerialNumber } from '../../utils/asset-tag';
 import { storeLocationLabel } from '../../utils/location';
 import { departmentLabel, isUnassignedDepartment } from '../../utils/department';
@@ -593,7 +593,20 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 return (
                   <>
                     <FormKitField label="Unit price" optional>
-                      <ReadOnlyValue mono>{formatETB(item.unitCostETB)}</ReadOnlyValue>
+                      {/* The register's Unit cost column is what a unit cost with VAT (or its share of the charges): both
+                          figures here, labelled, so the record and the table read the same */}
+                      <ReadOnlyValue mono>
+                        {isVat || addlCharges > 0 ? (
+                          <span className="inline-flex flex-wrap items-baseline gap-x-1.5">
+                            <span>{formatETB(item.unitCostETB)}</span>
+                            <span className="font-sans text-[11px] text-slate-500">before {isVat ? 'VAT' : 'charges'} ·</span>
+                            <span>{formatETB(Math.round(costOf(item) * 100) / 100)}</span>
+                            <span className="font-sans text-[11px] text-slate-500">with {isVat ? 'VAT' : 'charges'}</span>
+                          </span>
+                        ) : (
+                          formatETB(item.unitCostETB)
+                        )}
+                      </ReadOnlyValue>
                     </FormKitField>
 
                     {isVat && (
@@ -620,7 +633,8 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                       hint={totalValuationHint}
                     >
                       <TotalValue accent="emerald">
-                        {formatETB(displayTotal)}
+                        {/* Nothing left on the register (all of it disposed of): no value, as the table shows it */}
+                        {totals && totals.total === 0 ? '—' : formatETB(displayTotal)}
                       </TotalValue>
                     </FormKitField>
                   </>

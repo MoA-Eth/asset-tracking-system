@@ -1380,9 +1380,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       disposedUnits > 0 ? `${disposedUnits} disposed` : '',
     ].filter(Boolean).join(' · ');
     // Under the units, only what is unusual: part of it out, or part of it gone
-    const qtyNote = breakdown
-      ? [isBatch && issuedUnits > 0 && inStoreUnits > 0 ? `${issuedUnits} issued` : '', disposedUnits > 0 ? `${disposedUnits} disposed` : ''].filter(Boolean).join(' · ')
-      : '';
+    // Every unit disposed of: what was received, and that it is all gone (not "0 of 260")
+    const allDisposed = disposedUnits > 0 && totalUnits === 0;
+    const qtyNote = allDisposed
+      ? 'all disposed'
+      : breakdown
+        ? [isBatch && issuedUnits > 0 && inStoreUnits > 0 ? `${issuedUnits} issued` : '', disposedUnits > 0 ? `${disposedUnits} disposed` : ''].filter(Boolean).join(' · ')
+        : '';
     const whereDetail = [
       row.goingTo ? `→ ${row.goingTo}` : '',
       row.lastMove && (row.state === 'ISSUED' || row.state === 'IN_STORE')
@@ -1437,9 +1441,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           {/* One line: the units on the register, and under them only what is unusual. The full breakdown is in the
               hover text and in the record */}
           <span className="whitespace-nowrap" title={breakdown ? qtyBreakdown : undefined}>
-            {isBatch || requestedUnits > 0 ? totalUnits : row.units}
+            {allDisposed ? received : isBatch || requestedUnits > 0 ? totalUnits : row.units}
             {/* With some disposed of, also what the Model 19 brought in: "17 of 32 ea" */}
-            {disposedUnits > 0 && ` of ${received}`} {uom.toLowerCase()}
+            {disposedUnits > 0 && !allDisposed && ` of ${received}`} {uom.toLowerCase()}
           </span>
           {qtyNote && <span className="mt-0.5 block whitespace-nowrap font-sans text-[10px] font-normal leading-tight text-slate-500">{qtyNote}</span>}
         </td>
