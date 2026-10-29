@@ -189,13 +189,13 @@ describe('Total assets', () => {
     renderPage();
 
     const tile = (await screen.findByText('Total assets')).closest('div')!.parentElement!.parentElement!;
-    expect(tile).toHaveTextContent('893units');
-    expect(tile).toHaveTextContent('29 items');
-    expect(tile).toHaveTextContent('In Store:800 units');
+    // Both types, in items: 29 fixed + 408 consumable
+    expect(tile).toHaveTextContent('437items');
+    expect(tile).toHaveTextContent('Fixed assets:29 items · 893 units800 units in store');
+    expect(tile).toHaveTextContent('Consumables:408 items150 in store');
     // What is with staff is not shown on this card
     expect(tile).not.toHaveTextContent('With Staff');
-    expect(tile).toHaveTextContent('Consumables:408 lines · 150 in store');
-    // The sum of everything, supplies included, is not the asset total
+    // Units are not added up across pieces, litres and kilograms
     expect(tile).not.toHaveTextContent('599,450');
   });
 });

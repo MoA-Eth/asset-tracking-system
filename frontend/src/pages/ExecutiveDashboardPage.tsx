@@ -444,6 +444,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   // Total assets: fixed assets only; consumables by their lines (older servers send neither: counted as before)
   const fixedAssets = data?.fixedAssets || { units: data?.totalItems || 0, registrations: data?.totalRecords || 0, inStoreUnits: data?.availableCount || 0, issuedUnits: data?.issuedCount || 0, valueETB: 0 };
   const consumables = data?.consumables || { lines: 0, inStoreLines: 0, issuedLines: 0, valueETB: 0 };
+  // Total assets: items on the register of both types (fixed assets by their registrations, consumables by their lines)
+  const totalAssetItems = fixedAssets.registrations + consumables.lines;
   const availableCount    = data?.availableCount       || 0;
   const issuedCount       = data?.issuedCount          || 0;
   const pendingApprovals  = data?.pendingApprovalsCount || 0;
@@ -727,45 +729,37 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Total assets"
           labelAm="በመዝገብ ላይ ያለ ጠቅላላ ንብረት"
-          action={
-            fixedAssets.registrations > 0 ? (
-              <span
-                className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200"
-                title="Receipt lines (registrations) of fixed assets; a batch issued in parts is still one"
-              >
-                {fixedAssets.registrations.toLocaleString()} {fixedAssets.registrations === 1 ? 'item' : 'items'}
-              </span>
-            ) : undefined
-          }
           value={
-            <span title="Fixed assets only: spare parts, accessories and supplies are counted below, not as assets">
-              {fixedAssets.units.toLocaleString()}
+            // Everything on the register, both types, counted in items (one per line received): units can't be added
+            // across them, as consumables mix pieces, litres and kilograms
+            <span title="Items on the register (one per line received): fixed assets and consumables">
+              {totalAssetItems.toLocaleString()}
               <span className="ml-1 text-sm font-normal text-slate-400">
-                {fixedAssets.units === 1 ? 'unit' : 'units'}
+                {totalAssetItems === 1 ? 'item' : 'items'}
               </span>
             </span>
           }
           footer={
             <div className="space-y-1 pt-0.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600 text-[11px]" title="Available in storehouse / warehouse">
-                  In Store:
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-slate-600 text-[11px]" title="Fixed assets (ቋሚ ዕቃ): counted in items and in units (pieces)">
+                  Fixed assets:
                 </span>
-                <span className="tabular-nums font-semibold text-slate-900 text-[11px]">
-                  {fixedAssets.inStoreUnits.toLocaleString()} {fixedAssets.inStoreUnits === 1 ? 'unit' : 'units'}{' '}
-                  <span className="text-[10px] text-slate-400 font-normal">
-                    ({formatAssetPct(fixedAssets.inStoreUnits, fixedAssets.units)})
+                <span className="text-right tabular-nums font-semibold text-slate-900 text-[11px]">
+                  {fixedAssets.registrations.toLocaleString()} {fixedAssets.registrations === 1 ? 'item' : 'items'} · {fixedAssets.units.toLocaleString()} {fixedAssets.units === 1 ? 'unit' : 'units'}
+                  <span className="block text-[10px] text-slate-400 font-normal">
+                    {fixedAssets.inStoreUnits.toLocaleString()} {fixedAssets.inStoreUnits === 1 ? 'unit' : 'units'} in store ({formatAssetPct(fixedAssets.inStoreUnits, fixedAssets.units)})
                   </span>
                 </span>
               </div>
-              {/* Supplies are not assets: counted by their lines, not by adding up pieces, litres and kilograms */}
-              <div className="flex items-center justify-between border-t border-slate-100 pt-1">
-                <span className="text-violet-800 text-[11px]" title="Consumables: spare parts, accessories and supplies">
+              {/* Consumables are counted in items, not by adding up pieces, litres and kilograms */}
+              <div className="flex items-start justify-between gap-2 border-t border-slate-100 pt-1">
+                <span className="text-violet-800 text-[11px]" title="Consumables (አላቂ ዕቃ): spare parts, accessories and supplies">
                   Consumables:
                 </span>
-                <span className="tabular-nums font-semibold text-slate-900 text-[11px]">
-                  {consumables.lines.toLocaleString()} {consumables.lines === 1 ? 'line' : 'lines'}
-                  <span className="text-[10px] text-slate-400 font-normal"> · {consumables.inStoreLines.toLocaleString()} in store</span>
+                <span className="text-right tabular-nums font-semibold text-slate-900 text-[11px]">
+                  {consumables.lines.toLocaleString()} {consumables.lines === 1 ? 'item' : 'items'}
+                  <span className="block text-[10px] text-slate-400 font-normal">{consumables.inStoreLines.toLocaleString()} in store</span>
                 </span>
               </div>
             </div>
