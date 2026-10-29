@@ -138,13 +138,14 @@ describe('Assets page', () => {
     expect(rowOf('MOA-S2')).toHaveTextContent('In store');
     expect(rowOf('MOA-S2')).toHaveTextContent('Head office · Central Store');
     expect(rowOf('MOA-P1')).toHaveTextContent('Transfer pending');
-    expect(rowOf('MOA-P1')).toHaveTextContent('→ Kebede Alemu');
+    // Where a request would send it: on hover, not on a line of its own
+    expect(within(rowOf('MOA-P1')).getByTitle(/→ Kebede Alemu/)).toBeInTheDocument();
     expect(rowOf('MOA-O1')).toHaveTextContent('Issue pending');
     expect(rowOf('MOA-I1')).toHaveTextContent('Issued');
     expect(rowOf('MOA-X1')).toHaveTextContent('Rejected');
     expect(rowOf('MOA-D1')).toHaveTextContent('Disposed');
     expect(rowOf('MOA-Q1')).toHaveTextContent('Disposal pending');
-    expect(rowOf('MOA-Q1')).toHaveTextContent('→ Kality School');
+    expect(within(rowOf('MOA-Q1')).getByTitle(/→ Kality School/)).toBeInTheDocument();
   });
 
   it('shows a partly issued batch as one row, with its issued units underneath', async () => {
@@ -154,10 +155,11 @@ describe('Assets page', () => {
     const batch = rowOf('MOA-S1');
     expect(batch).toHaveTextContent('Partly issued');
     expect(batch).toHaveTextContent('10 ea');
-    // One short line each under the total, so the column stays narrow
+    // One short line under the units for what is unusual; the full breakdown and who holds them on hover
     expect(within(batch).getByText('3 issued')).toBeInTheDocument();
-    expect(within(batch).getByText('7 in store')).toBeInTheDocument();
-    expect(batch).toHaveTextContent('3 with Bikila Desta');
+    expect(within(batch).getByTitle('3 issued · 7 in store')).toBeInTheDocument();
+    expect(within(batch).getByTitle(/3 with Bikila Desta/)).toBeInTheDocument();
+    expect(batch).not.toHaveTextContent('7 in store');
     expect(screen.queryByText('MOA-S1-1')).not.toBeInTheDocument();
 
     await user.click(within(batch).getByRole('button', { name: 'Show 1 issued record' }));
@@ -236,9 +238,9 @@ describe('Assets page', () => {
     await screen.findByText('MOA-L1');
     const batch = rowOf('MOA-L1');
     expect(batch).toHaveTextContent('17 ea');
-    expect(within(batch).getByText('32 received')).toBeInTheDocument();
-    expect(within(batch).getByText('17 in store')).toBeInTheDocument();
     expect(within(batch).getByText('15 disposed')).toBeInTheDocument();
+    // What was received, and how it adds up, on hover
+    expect(within(batch).getByTitle('32 received · 0 issued · 17 in store · 15 disposed')).toBeInTheDocument();
     // Nothing disposed: no received line
     expect(within(rowOf('MOA-S1')).queryByText(/received$/)).not.toBeInTheDocument();
 
@@ -269,10 +271,11 @@ describe('Assets page', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-L1');
 
-    // 6 of the 17 are asked for: the record is in store, with the request under it
+    // 6 of the 17 are asked for: one pill saying the record is in store, with the request on hover
     const batch = rowOf('MOA-L1');
     expect(within(batch).getByText('In store')).toBeInTheDocument();
-    expect(batch).toHaveTextContent('Disposal pending: 6 of 17');
+    expect(within(batch).getByTitle(/^Disposal pending: 6 of 17/)).toBeInTheDocument();
+    expect(batch).not.toHaveTextContent('Disposal pending');
     // A request for every unit still reads as a whole: the filing cabinet's disposal is for its 1 unit
     expect(rowOf('MOA-Q1')).toHaveTextContent('Disposal pending');
     expect(rowOf('MOA-Q1')).not.toHaveTextContent('In store');
@@ -303,12 +306,12 @@ describe('Assets page', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-C1');
     // The returned camera is in store, and says which Model 21 brought it back
-    expect(rowOf('MOA-B1')).toHaveTextContent('Returned on Model 21 No. REQ-BACK');
-    // Issued shows both chairs (the one split off unfolds under its record), each with its own Model 21
+    expect(within(rowOf('MOA-B1')).getByTitle(/Returned on Model 21 No\. REQ-BACK/)).toBeInTheDocument();
+    // Issued shows both chairs (the one split off unfolds under its record), each with its own Model 21 on hover
     await user.click(screen.getByRole('button', { name: /^Issued/ }));
     expect(rowOf('MOA-C1')).toHaveTextContent('Issued');
-    expect(rowOf('MOA-C1')).toHaveTextContent('Transferred on Model 21 No. 0004208');
-    expect(rowOf('MOA-C1-1')).toHaveTextContent('Transferred on Model 21 No. 0004207');
+    expect(within(rowOf('MOA-C1')).getByTitle(/Transferred on Model 21 No\. 0004208/)).toBeInTheDocument();
+    expect(within(rowOf('MOA-C1-1')).getByTitle(/Transferred on Model 21 No\. 0004207/)).toBeInTheDocument();
     // There is no filter for moves any more: they are history, not a state
     expect(screen.queryByRole('button', { name: /Transferred \/ returned/ })).not.toBeInTheDocument();
   });
@@ -320,9 +323,11 @@ describe('Assets page', () => {
     ] as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    expect(rowOf('MOA-Q1')).toHaveTextContent('Already disposed of on this disposal form No. REQ-A-Q1 (approved 09/26/2026): reject this copy');
+    // A short warning stays in the row; the explanation on hover
+    expect(rowOf('MOA-Q1')).toHaveTextContent('Duplicate: reject');
+    expect(within(rowOf('MOA-Q1')).getByTitle('Already disposed of on this disposal form No. REQ-A-Q1 (approved 09/26/2026): reject this copy')).toBeInTheDocument();
     // A waiting request on a new number is not flagged
-    expect(rowOf('MOA-O1')).not.toHaveTextContent('reject this copy');
+    expect(rowOf('MOA-O1')).not.toHaveTextContent('Duplicate');
   });
 
   it('offers the next step for each state', async () => {
@@ -991,7 +996,7 @@ describe('Asset record', () => {
     const row = (await screen.findByText('MOA-T1')).closest('tr')!;
     expect(within(row).getByText('2 issues pending')).toBeInTheDocument();
     expect(within(row).getByTitle(/With Dept\. Head/)).toBeInTheDocument();
-    expect(within(row).getByText('→ Kebede Alemu · 5 ea, Endale Alebachew · 5 ea')).toBeInTheDocument();
+    expect(within(row).getByTitle('→ Kebede Alemu · 5 ea, Endale Alebachew · 5 ea')).toBeInTheDocument();
     const record = await open(user, 'MOA-T1');
     expect(within(record).getByText('2 issue requests are waiting on this record')).toBeInTheDocument();
     expect(within(record).getAllByRole('listitem').find((li) => li.textContent?.startsWith('Model 22 0000195'))).toHaveTextContent('Model 22 0000195 · 5 ea → Endale Alebachew · With Dept. Head');
@@ -2581,8 +2586,7 @@ describe('One row per Model 19', () => {
     ] as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('MOA-P1')).closest('tr')!;
-    expect(within(row).getByText('10 requested')).toBeInTheDocument();
-    expect(within(row).getByText('50 in store')).toBeInTheDocument();
+    expect(within(row).getByTitle('0 issued · 10 requested · 50 in store')).toBeInTheDocument();
   });
 
   it('offers no issue when nothing on the receipt is in store', async () => {

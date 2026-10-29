@@ -272,13 +272,15 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
     asked < row.units
   ) {
     const pending = requestLabel(row.request.transactionType, row.request.requestDetails).pending;
+    // One pill: where the units are, with a clock for the request; the request itself on hover and in the record
     return (
-      <span className="inline-flex flex-col items-start gap-0.5">
-        <span className={`${pill} ${partly ? statusTone.partly : statusTone.inStore}`}>{partly ? 'Partly issued' : 'In store'}</span>
-        <span className="inline-flex items-center gap-1 whitespace-nowrap text-[10px] font-medium text-amber-800" title={`${pending} · ${stageLabel(row.request)}`}>
-          <Clock className="h-3 w-3" />
-          {pending}: {asked.toLocaleString()} of {row.units.toLocaleString()}
-        </span>
+      <span
+        className={`${pill} ${partly ? statusTone.partly : statusTone.inStore}`}
+        title={`${pending}: ${asked.toLocaleString()} of ${row.units.toLocaleString()} · ${stageLabel(row.request)}`}
+        aria-label={`${partly ? 'Partly issued' : 'In store'}, ${pending.toLowerCase()} for ${asked} of ${row.units}`}
+      >
+        {partly ? 'Partly issued' : 'In store'}
+        <Clock className="h-3 w-3 text-amber-700" aria-hidden />
       </span>
     );
   }

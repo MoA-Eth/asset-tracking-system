@@ -19,6 +19,7 @@ import {
   Info,
   Send,
   XCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -1370,6 +1371,25 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const { isBatch, out, issuedUnits, inStoreUnits, requestedUnits, disposedUnits, recordsKind, totalUnits, holders } = batchSummary(row, children);
     // How the units stand: shown for a batch, and for any record with units on a pending request
     const breakdown = isBatch || requestedUnits > 0;
+    const received = Math.round((totalUnits + disposedUnits) * 10000) / 10000;
+    const qtyBreakdown = [
+      disposedUnits > 0 ? `${received} received` : '',
+      `${issuedUnits} issued`,
+      requestedUnits > 0 ? `${requestedUnits} requested` : '',
+      `${inStoreUnits} in store`,
+      disposedUnits > 0 ? `${disposedUnits} disposed` : '',
+    ].filter(Boolean).join(' · ');
+    // Under the units, only what is unusual: part of it out, or part of it gone
+    const qtyNote = breakdown
+      ? [isBatch && issuedUnits > 0 && inStoreUnits > 0 ? `${issuedUnits} issued` : '', disposedUnits > 0 ? `${disposedUnits} disposed` : ''].filter(Boolean).join(' · ')
+      : '';
+    const whereDetail = [
+      row.goingTo ? `→ ${row.goingTo}` : '',
+      row.lastMove && (row.state === 'ISSUED' || row.state === 'IN_STORE')
+        ? `${row.lastMove.transactionType === 'RETURN' ? 'Returned' : 'Transferred'} on Model 21 No. ${row.lastMove.ifmisSlipNumber}`
+        : '',
+      isBatch && out.length > 0 ? `${out.reduce((acc, c) => acc + c.units, 0)} with ${holders.length === 1 ? holders[0] : `${holders.length} people`}` : '',
+    ].filter(Boolean).join(' · ');
 
     return (
       <tr
@@ -1414,43 +1434,26 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <AssetStatus row={row} partly={isBatch && issuedUnits > 0 && inStoreUnits > 0} />
         </td>
         <td className="px-3 py-2.5 tabular-nums text-slate-600">
-          <span className="whitespace-nowrap" title={disposedUnits > 0 ? 'Still on the register: received less disposed' : undefined}>
+          {/* One line: the units on the register, and under them only what is unusual. The full breakdown is in the
+              hover text and in the record */}
+          <span className="whitespace-nowrap" title={breakdown ? qtyBreakdown : undefined}>
             {isBatch || requestedUnits > 0 ? totalUnits : row.units} {uom.toLowerCase()}
           </span>
-          {/* One short line each, so a batch does not stretch the column */}
-          {breakdown && (
-            <span className="mt-0.5 block font-sans text-[10px] font-normal leading-tight text-slate-500">
-              {/* With units disposed of, what was received, so the lines below add up to it */}
-              {disposedUnits > 0 && <span className="block whitespace-nowrap">{Math.round((totalUnits + disposedUnits) * 10000) / 10000} received</span>}
-              {issuedUnits > 0 || isBatch ? <span className="block whitespace-nowrap">{issuedUnits} issued</span> : null}
-              {requestedUnits > 0 && <span className="block whitespace-nowrap text-amber-700">{requestedUnits} requested</span>}
-              <span className="block whitespace-nowrap">{inStoreUnits} in store</span>
-              {disposedUnits > 0 && <span className="block whitespace-nowrap">{disposedUnits} disposed</span>}
-            </span>
-          )}
+          {qtyNote && <span className="mt-0.5 block whitespace-nowrap font-sans text-[10px] font-normal leading-tight text-slate-500">{qtyNote}</span>}
         </td>
         <td className="pl-4 pr-3 py-2.5 text-slate-700">
-          <span className="block">{row.state === 'DISPOSED' || (isBatch && row.state !== 'ISSUED' && inStoreUnits === 0) ? '—' : row.where}</span>
-          {row.goingTo && (
-            <span className="block text-xs text-amber-800">
-              → {row.goingTo}
-            </span>
-          )}
-          {/* Why an issued (or in-store) record is under "Transferred / returned": the Model 21 that moved it */}
-          {row.lastMove && (row.state === 'ISSUED' || row.state === 'IN_STORE') && (
-            <span className="block text-[10px] text-slate-500">
-              {row.lastMove.transactionType === 'RETURN' ? 'Returned' : 'Transferred'} on Model 21 No. {row.lastMove.ifmisSlipNumber}
-            </span>
-          )}
+          {/* The store or the person; where a request would send it, the Model 21 that moved it and who holds the
+              issued units are in the hover text and the record */}
+          <span className="block" title={whereDetail || undefined}>
+            {row.state === 'DISPOSED' || (isBatch && row.state !== 'ISSUED' && inStoreUnits === 0) ? '—' : row.where}
+          </span>
+          {/* The one thing an approver must not miss stays in the row */}
           {copyOfApproved(row) && (
-            <span className="mt-0.5 block text-[11px] font-medium text-red-700">
-              Already {row.request?.transactionType === 'DISPOSAL' ? 'disposed of' : 'issued'} on this {voucherName(row.request?.transactionType)} No. {row.request?.ifmisSlipNumber}
-              {copyOfApproved(row)?.reviewedAtGc ? ` (approved ${formatCreatedDate(copyOfApproved(row)?.reviewedAtGc)})` : ''}: reject this copy
-            </span>
-          )}
-          {isBatch && out.length > 0 && (
-            <span className="block text-[10px] text-slate-500">
-              {out.reduce((acc, c) => acc + c.units, 0)} with {holders.length === 1 ? holders[0] : `${holders.length} people`}
+            <span
+              className="mt-0.5 inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium text-red-700"
+              title={`Already ${row.request?.transactionType === 'DISPOSAL' ? 'disposed of' : 'issued'} on this ${voucherName(row.request?.transactionType)} No. ${row.request?.ifmisSlipNumber}${copyOfApproved(row)?.reviewedAtGc ? ` (approved ${formatCreatedDate(copyOfApproved(row)?.reviewedAtGc)})` : ''}: reject this copy`}
+            >
+              <AlertTriangle className="h-3 w-3" /> Duplicate: reject
             </span>
           )}
         </td>
