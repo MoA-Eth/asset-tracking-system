@@ -1770,6 +1770,33 @@ describe('Asset record', () => {
     );
   });
 
+  it('exports what the dashboard counts: units in store and issued, the item code, and whether it is on the register', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getItems).mockResolvedValue([
+      // 6 on the shelf, 4 of them on a waiting disposal: all 6 are in store until it is approved
+      item('L1', 'Lap Top Computer', 'PENDING_DISPOSAL', { quantity: 6, balance: { total: 6, issued: 0, available: 6, pending: 0, requested: 4 } }),
+      item('T1', 'Toner', 'AVAILABLE', { itemType: 'CONSUMABLE', quantity: 5, ifmisItemCode: '102101103.0021', balance: { total: 5, issued: 0, available: 5, pending: 0, requested: 0 } }),
+      item('R1', 'Scanner', 'PENDING_STOCK_IN', { quantity: 2, balance: { total: 2, issued: 0, available: 0, pending: 2, requested: 0 } }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-L1');
+    await user.click(screen.getByRole('button', { name: /asset export and print actions/i }));
+    await user.click(screen.getByRole('menuitem', { name: /Export CSV/i }));
+
+    const blob = vi.mocked(window.URL.createObjectURL).mock.calls.at(-1)![0] as Blob;
+    const lines = (await blob.text()).replace(/^﻿/, '').trim().split(/\r?\n/);
+    const header = lines[0].split(',');
+    const col = (name: string) => header.findIndex((h) => h.replace(/"/g, '') === name);
+    const rowOfCode = (code: string) => lines.find((l) => l.includes(code))!.split(',').map((c) => c.replace(/"/g, ''));
+    expect(header.map((h) => h.replace(/"/g, ''))).toEqual(expect.arrayContaining(['IFMIS Item Code', 'On Register']));
+    expect(rowOfCode('MOA-L1')[col('In Store Quantity')]).toBe('6');
+    expect(rowOfCode('MOA-L1')[col('On Register')]).toBe('Yes');
+    expect(rowOfCode('MOA-T1')[col('IFMIS Item Code')]).toBe('102101103.0021');
+    // A receipt still waiting for approval is listed, but not on the register
+    expect(rowOfCode('MOA-R1')[col('On Register')]).toBe('No');
+    expect(rowOfCode('MOA-R1')[col('In Store Quantity')]).toBe('0');
+  });
+
   it('displays Clear all filters in the empty state when no assets match and resets on click', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);

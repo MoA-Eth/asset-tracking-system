@@ -1315,6 +1315,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         'Slip Date (G.C.)',
         'Unit Cost (ETB)',
         'Total Value (ETB)',
+        // To check the dashboard: count different consumables by their code, and keep only what is on the register
+        'IFMIS Item Code',
+        'On Register',
       ];
 
       const csvRows = sortedShown.map((group, index) => {
@@ -1322,7 +1325,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         const children = group.children ?? [];
         const { isBatch, totalUnits, inStoreUnits, issuedUnits, holders } = batchSummary(group.row, children);
         const uom = item.uom || 'EA';
-        const units = isBatch ? totalUnits : group.row.units;
+        // On the register as the dashboard counts it: approved and still held (not waiting for its receipt, rejected or
+        // disposed of). Its units are those in store (a waiting issue or disposal still on the shelf) and those issued,
+        // so the columns add up to the dashboard's Total, Available and Assigned
+        const onRegister = !['RECEIPT_PENDING', 'REJECTED', 'DISPOSED'].includes(group.row.state) && inStoreUnits + issuedUnits > 0;
+        const units = onRegister ? inStoreUnits + issuedUnits : isBatch ? totalUnits : group.row.units;
         // Every unit at what it cost, VAT and charges in (a batch's charges counted once, shared over its units)
         const totalValue = valueOf(item, units);
         const whereText = isBatch && group.row.state !== 'ISSUED' && inStoreUnits === 0
@@ -1340,14 +1347,16 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           (item.itemType ?? 'FIXED') === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset',
           group.row.state,
           uom,
-          isBatch ? totalUnits : group.row.units,
-          isBatch ? inStoreUnits : (group.row.state === 'IN_STORE' ? group.row.units : 0),
-          isBatch ? issuedUnits : (group.row.state === 'ISSUED' ? group.row.units : 0),
+          units,
+          onRegister ? inStoreUnits : 0,
+          onRegister ? issuedUnits : 0,
           custodySummary,
           item.ifmisSlipNumber || '',
           item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10),
           Math.round(costOf(item) * 100) / 100,
           totalValue,
+          item.ifmisItemCode || '',
+          onRegister ? 'Yes' : 'No',
         ];
       });
 
