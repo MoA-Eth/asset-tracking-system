@@ -193,7 +193,12 @@ const StatTile: React.FC<{
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
-    <div className="mt-3 min-w-0 truncate text-xl sm:text-2xl xl:text-3xl font-bold tracking-tight text-slate-900 tabular-nums" title={exact}>{value}</div>
+    {/* A single figure, kept to one line; a small table (Total assets) takes the card's width as it is */}
+    {typeof value === 'string' || typeof value === 'number' || !React.isValidElement(value) || value.type !== 'table' ? (
+      <div className="mt-3 min-w-0 truncate text-xl sm:text-2xl xl:text-3xl font-bold tracking-tight text-slate-900 tabular-nums" title={exact}>{value}</div>
+    ) : (
+      <div className="mt-3 min-w-0">{value}</div>
+    )}
     {exact && <p className="mt-0.5 truncate text-[11px] tabular-nums text-slate-500">{exact}</p>}
     <div className="mt-auto space-y-1.5 pt-3">
       {meterPct !== undefined && <Meter pct={meterPct} />}
@@ -764,7 +769,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                 <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                   <th className="pb-1 font-semibold" scope="col"><span className="sr-only">Type</span></th>
                   <th className="pb-1 pl-2 text-right font-semibold" scope="col">Total</th>
-                  <th className="pb-1 pl-2 text-right font-semibold" scope="col">In store</th>
+                  <th className="whitespace-nowrap pb-1 pl-2 text-right font-semibold" scope="col">In store</th>
                 </tr>
               </thead>
               <tbody>
@@ -791,8 +796,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                       {r.name}
                     </span>
                   </th>
-                  <td className="py-1.5 pl-2 text-right text-xl font-bold text-slate-900">{r.n.toLocaleString()}</td>
-                  <td className="py-1.5 pl-2 text-right text-base font-semibold text-slate-600">{r.inStore.toLocaleString()}</td>
+                  <td className="py-1.5 pl-2 text-right text-lg font-bold text-slate-900">{r.n.toLocaleString()}</td>
+                  <td className="py-1.5 pl-2 text-right text-sm font-semibold text-slate-600">{r.inStore.toLocaleString()}</td>
                 </tr>
               ))}
               </tbody>
