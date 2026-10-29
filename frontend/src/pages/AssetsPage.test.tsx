@@ -243,6 +243,29 @@ describe('Assets page', () => {
     expect(within(rowOf('MOA-S1')).queryByText(/received$/)).not.toBeInTheDocument();
   });
 
+  it('says which Model 21 moved a record listed under Transferred / returned', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getItems).mockResolvedValue([
+      ...items,
+      item('C1', 'Swivel chair', 'ISSUED'),
+      item('C1-1', 'Swivel chair', 'ISSUED', { parentItemId: 'C1', currentCustodianId: 'E2', currentCustodian: receiver }),
+    ] as any);
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      ...approvals,
+      // One chair from store to each of two people: the first split off, the second the record itself
+      request('T1', 'TRANSFER', 'C1', { status: 'APPROVED', ifmisSlipNumber: '0004207', reviewedAtGc: '2026-10-26', requestDetails: { quantity: 1, transferredItemCode: 'MOA-C1-1' } }),
+      request('T2', 'TRANSFER', 'C1', { status: 'APPROVED', ifmisSlipNumber: '0004208', reviewedAtGc: '2026-10-26', requestDetails: { quantity: 1 } }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-C1');
+    await user.click(screen.getByRole('button', { name: /^Transferred \/ returned/ }));
+    expect(rowOf('MOA-C1')).toHaveTextContent('Issued');
+    expect(rowOf('MOA-C1')).toHaveTextContent('Transferred on Model 21 No. 0004208');
+    expect(rowOf('MOA-C1-1')).toHaveTextContent('Transferred on Model 21 No. 0004207');
+    // The returned camera is in store, and says which Model 21 brought it back
+    expect(rowOf('MOA-B1')).toHaveTextContent('Returned on Model 21 No. REQ-BACK');
+  });
+
   it('flags a waiting disposal on a form already approved for the record', async () => {
     vi.mocked(api.getApprovals).mockResolvedValue([
       ...approvals,

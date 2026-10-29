@@ -926,6 +926,8 @@ export interface Model21RequestDetails {
   disposedItemCode?: string;
   /** Transfer: code of the record split off for a partial transfer, set on approval */
   transferredItemCode?: string;
+  /** Return: code of the record split off for a partial return, set on approval */
+  returnedItemCode?: string;
   /** Transfer, return or disposal reason */
   reason?: string;
   /** Disposal: justification */

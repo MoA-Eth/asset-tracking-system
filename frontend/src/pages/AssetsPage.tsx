@@ -383,8 +383,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const add = (map: Map<string, TransactionApproval[]>, id: string, a: TransactionApproval) => map.set(id, [...(map.get(id) ?? []), a]);
     for (const a of approvals) {
       if (a.status === ApprovalStatus.PENDING) continue;
-      // A partial issue or disposal is filed under the record split off for those units
-      const splitCode = a.status === ApprovalStatus.APPROVED ? a.requestDetails?.issuedItemCode ?? a.requestDetails?.disposedItemCode : undefined;
+      // A partial issue, disposal, transfer or return is filed under the record split off for those units
+      const splitCode =
+        a.status === ApprovalStatus.APPROVED
+          ? a.requestDetails?.issuedItemCode ?? a.requestDetails?.disposedItemCode ?? a.requestDetails?.transferredItemCode ?? a.requestDetails?.returnedItemCode
+          : undefined;
       add(vouchers, (splitCode && idByCode.get(splitCode)) || a.itemId, a);
       add(raised, a.itemId, a);
     }
@@ -1437,6 +1440,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           {row.goingTo && (
             <span className="block text-xs text-amber-800">
               → {row.goingTo}
+            </span>
+          )}
+          {/* Why an issued (or in-store) record is under "Transferred / returned": the Model 21 that moved it */}
+          {row.lastMove && (row.state === 'ISSUED' || row.state === 'IN_STORE') && (
+            <span className="block text-[10px] text-slate-500">
+              {row.lastMove.transactionType === 'RETURN' ? 'Returned' : 'Transferred'} on Model 21 No. {row.lastMove.ifmisSlipNumber}
             </span>
           )}
           {copyOfApproved(row) && (
