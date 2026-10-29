@@ -100,7 +100,7 @@ describe('Dashboard filters', () => {
 });
 
 describe('Dashboard low-stock consumables banner', () => {
-  it('displays low-stock alert banner and items table when consumables are low', async () => {
+  it('is off for now: no tile or banner, even when consumables are low', async () => {
     vi.mocked(api.getExecutiveDashboard).mockResolvedValueOnce({
       ...figures(10),
       lowStockConsumables: {
@@ -144,16 +144,11 @@ describe('Dashboard low-stock consumables banner', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Low-stock consumables')).toBeInTheDocument();
-    expect(screen.getByText(/1 consumable item is critically low/)).toBeInTheDocument();
-
-    const toggleBtn = screen.getByRole('button', { name: /Show 2 items/ });
-    expect(toggleBtn).toBeInTheDocument();
-    fireEvent.click(toggleBtn);
-
-    expect(screen.getByText('Demo toner')).toBeInTheDocument();
-    expect(screen.getByText('Demo stapler')).toBeInTheDocument();
-    expect(screen.getByText('Critical')).toBeInTheDocument();
+    await screen.findByText('Total assets');
+    expect(screen.queryByText('Low-stock consumables')).not.toBeInTheDocument();
+    expect(screen.queryByText('CRITICAL')).not.toBeInTheDocument();
+    expect(screen.queryByText(/critically low/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Show 2 items/ })).not.toBeInTheDocument();
   });
 
   it('auto-refreshes when a realtime update event is dispatched anywhere in the app', async () => {

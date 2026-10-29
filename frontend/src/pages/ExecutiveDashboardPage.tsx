@@ -31,6 +31,9 @@ import { useToast } from '../context/ToastContext';
  */
 const SHOW_VALUES = false;
 
+/** The low-stock consumables alert (its tile and banner) is off for now. Set to true to show it again. */
+const SHOW_LOW_STOCK = false;
+
 interface ExecutiveDashboardPageProps {
   onNavigate: (tab: string) => void;
   currentRole: UserRole;
@@ -836,7 +839,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       </div>
 
       {/* ── Row 2: Workflow counts ──────────────────────────────────────────── */}
-      {(pendingApprovals > 0 || rejectedWaiting > 0 || stale.itemCount > 0 || lowStock.itemCount > 0) && (
+      {(pendingApprovals > 0 || rejectedWaiting > 0 || stale.itemCount > 0 || (SHOW_LOW_STOCK && lowStock.itemCount > 0)) && (
         <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
           <h2 className="mb-3 flex items-baseline gap-2 text-sm font-bold text-slate-800">
             Needs attention
@@ -873,7 +876,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               onClick={showStale}
             />
           )}
-          {lowStock.itemCount > 0 && (
+          {SHOW_LOW_STOCK && lowStock.itemCount > 0 && (
             <WorkTile
               label="Low-stock consumables"
               count={lowStock.itemCount}
@@ -887,7 +890,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       )}
 
       {/* ── Low-stock consumable supplies (Compact Alert Banner) ────────── */}
-      {lowStock.itemCount > 0 && (
+      {SHOW_LOW_STOCK && lowStock.itemCount > 0 && (
         <div id="low-stock-consumables" className="scroll-mt-20">
           <div
             className={`rounded-xl border p-3 transition-all shadow-xs ${
