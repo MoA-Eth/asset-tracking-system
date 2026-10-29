@@ -1533,7 +1533,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         </td>
         <td className="pl-2 pr-4 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
           {formatETB(total)}
-          <span className="block text-[10px] text-slate-500">total</span>
         </td>
         <td className={`py-2.5 pl-1 pr-3 ${table.actionsCell}`}>
           <RowActionsMenu
