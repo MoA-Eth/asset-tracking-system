@@ -273,4 +273,38 @@ describe('the same record on the same disposal form is not entered twice', () =>
     });
     expect(db.transactionApproval.create).not.toHaveBeenCalled();
   });
+
+  /** An earlier disposal of the record on DSP-0001 that is already approved */
+  const approvedOnSameForm = () =>
+    db.transactionApproval.findMany.mockImplementation(async ({ where }: any) =>
+      where.transactionType?.in?.includes('DISPOSAL') && where.itemId === 'item-1' && where.status?.in?.includes('APPROVED')
+        ? [{ id: 'old-disposal', status: 'APPROVED', ifmisSlipNumber: 'DSP-0001', requestDetails: { quantity: 6 } }].filter((o) => o.id !== where.id?.not)
+        : []);
+
+  it('refuses a disposal form already approved for the record', async () => {
+    approvedOnSameForm();
+    await expect(store().registerDisposal(request as any)).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('was already disposed of on disposal form No. DSP-0001, which is approved'),
+    });
+    expect(db.transactionApproval.create).not.toHaveBeenCalled();
+  });
+
+  it('will not approve a second disposal on a form already approved for the record', async () => {
+    approvedOnSameForm();
+    db.transactionApproval.findUnique.mockResolvedValue(pendingDisposal({ quantity: 6 }));
+    db.item.findUnique.mockResolvedValue({ ...chairs, status: 'PENDING_DISPOSAL' });
+    await expect(store().handleApproval({ approvalId: 'appr-1', action: 'APPROVE', reviewedById: 'EMP-HEAD' } as any)).rejects.toMatchObject({ statusCode: 409 });
+    expect(db.item.update).not.toHaveBeenCalled();
+    expect(db.item.create).not.toHaveBeenCalled();
+  });
+
+  it('still approves a disposal whose form number is new for the record', async () => {
+    db.transactionApproval.findMany.mockResolvedValue([{ id: 'old-disposal', status: 'APPROVED', ifmisSlipNumber: 'DSP-0002', requestDetails: {} }]);
+    db.transactionApproval.findUnique.mockResolvedValue(pendingDisposal({ quantity: 3 }));
+    db.transactionApproval.update.mockImplementation(async ({ data }: any) => ({ ...pendingDisposal({}), ...data }));
+    db.item.findUnique.mockImplementation(async ({ where }: any) => (where.id === 'item-1' ? { ...chairs, status: 'PENDING_DISPOSAL' } : null));
+    await store().handleApproval({ approvalId: 'appr-1', action: 'APPROVE', reviewedById: 'EMP-HEAD' } as any);
+    expect(db.item.create.mock.calls[0][0].data.status).toBe('DISPOSED');
+  });
 });

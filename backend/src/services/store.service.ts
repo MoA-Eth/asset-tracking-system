@@ -864,6 +864,9 @@ const VOUCHER_TYPES: Record<'STOCK_OUT' | 'MODEL21' | 'DISPOSAL', string[]> = {
  * without a Model 22 No. is compared by recipient and quantity, so submitting the same issue twice is caught too.
  * `statuses` narrows what counts: a resubmit only looks at waiting requests, so two rejected copies don't block each other.
  */
+/** A disposal form disposes of a record once: an approved disposal with the same number blocks it too */
+const DISPOSAL_FORM_TAKEN = ['PENDING', 'REJECTED', 'APPROVED'];
+
 async function assertNotAlreadyOnVoucher(
   db: any,
   item: { id: string; itemCode: string },
@@ -906,7 +909,9 @@ async function assertNotAlreadyOnVoucher(
   const voucher = request.kind === 'STOCK_OUT' ? 'Model 22' : request.kind === 'MODEL21' ? 'Model 21' : 'disposal form';
   const where = typedVoucherNo(found.ifmisSlipNumber) ? `${voucher} No. ${typedVoucherNo(found.ifmisSlipNumber)}` : `an issue to the same recipient for the same quantity (no ${voucher} No. yet)`;
   throw new ConflictError(
-    found.status === 'REJECTED'
+    found.status === 'APPROVED'
+      ? `${item.itemCode} was already disposed of on ${where}, which is approved. A disposal form takes a record once: reject or cancel this request.`
+      : found.status === 'REJECTED'
       ? `${item.itemCode} is already on ${where}, which was rejected and is with its requester. Correct and resubmit that request, or cancel it, instead of entering it again.`
       : `${item.itemCode} is already on ${where}, waiting for approval. Correct that request instead of entering it again.`,
   );
@@ -2081,7 +2086,7 @@ export class StoreService {
     }
     await assertNoPendingApproval(item);
     const { disposalNo, details } = disposalDetailsOf(payload, item);
-    await assertNotAlreadyOnVoucher(prisma, item, { kind: 'DISPOSAL', number: disposalNo });
+    await assertNotAlreadyOnVoucher(prisma, item, { kind: 'DISPOSAL', number: disposalNo }, undefined, DISPOSAL_FORM_TAKEN);
     if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     // A store with no store man can't dispose: his name goes on the disposal form
     const keeper = await requireStoreKeeper(prisma, { locationId: item.storeLocationId }, payload.storekeeperEmployeeId, 'the disposal');
@@ -2162,7 +2167,7 @@ export class StoreService {
     if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
 
     const { disposalNo, details } = disposalDetailsOf(payload, item);
-    await assertNotAlreadyOnVoucher(prisma, item, { kind: 'DISPOSAL', number: disposalNo }, approval.id);
+    await assertNotAlreadyOnVoucher(prisma, item, { kind: 'DISPOSAL', number: disposalNo }, approval.id, DISPOSAL_FORM_TAKEN);
     const attachment = payload.ifmisSlipAttachmentUrl || approval.ifmisSlipAttachmentUrl || undefined;
     if (isSlipRequired() && !attachment) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
     const dateGc = payload.disposalDateGc || approval.ifmisSlipDateGc;
@@ -3635,6 +3640,10 @@ export class StoreService {
     const item = await db.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new NotFoundError(`Target item ${approval.itemId} not found.`);
     if (isApprove) assertIssueStillFits(approval, item, 'reviewer');
+    // The same disposal form approved twice would dispose of the record's units twice
+    if (isApprove && approval.transactionType === 'DISPOSAL') {
+      await assertNotAlreadyOnVoucher(db, item, { kind: 'DISPOSAL', number: approval.ifmisSlipNumber }, approval.id, ['APPROVED']);
+    }
 
     // A line of a voucher of several lines goes by the voucher's grand total; anything else by its own amount
     const ownAmount = calculateApprovalTotalAmount(approval, item);
