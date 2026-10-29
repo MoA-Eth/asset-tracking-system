@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { periodRange } from '../utils/periods';
 import { getTodayGcAndEc } from '../utils/eth-date';
 import userEvent from '@testing-library/user-event';
@@ -190,10 +190,11 @@ describe('Total assets', () => {
 
     const tile = (await screen.findByText('Total assets')).closest('div')!.parentElement!.parentElement!;
     // Each physical fixed asset; each different consumable (the same item code bought twice is one)
-    expect(tile).toHaveTextContent('893Fixed assets');
-    expect(tile).toHaveTextContent('312Consumable items');
-    expect(tile).toHaveTextContent('units · 800 in store');
-    expect(tile).toHaveTextContent('different items · 140 in store');
+    // Labelled columns: Total and In store, one row per type
+    const table = within(tile).getByRole('table');
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Type', 'Total', 'In store']);
+    expect(within(table).getByRole('row', { name: /Fixed assets/ })).toHaveTextContent('Fixed assets893800');
+    expect(within(table).getByRole('row', { name: /Consumable items/ })).toHaveTextContent('Consumable items312140');
     // No sum of the two, and no receipt-line counts that change with how often a thing was bought
     expect(tile).not.toHaveTextContent('1,205');
     expect(tile).not.toHaveTextContent('437');

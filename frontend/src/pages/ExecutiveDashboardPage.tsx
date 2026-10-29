@@ -757,30 +757,48 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="በመዝገብ ላይ ያለ ጠቅላላ ንብረት"
           // Two figures, each counted the way it means something, and never added together: fixed assets one by one
           // (each physical asset), consumables by the different supplies held (the same item code bought twice is one)
+          // A small table: each type on its row, Total and In store in labelled columns, never added together
           value={
-            <div className="grid grid-cols-2 divide-x divide-slate-100">
-              <div className="min-w-0 pr-3" title="Fixed assets (ቋሚ ዕቃ): each physical asset, counted one by one">
-                {fixedAssets.units.toLocaleString()}
-                <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-normal tracking-normal text-slate-600">
-                  <span className={`h-2 w-2 shrink-0 rounded-sm ${TYPE_COLORS.fixed}`} aria-hidden />
-                  Fixed assets
-                </span>
-              </div>
-              <div className="min-w-0 pl-3" title="Consumables (አላቂ ዕቃ): the different supplies held, by IFMIS item code; the same item bought twice counts once">
-                {consumableStockItems.toLocaleString()}
-                <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-normal tracking-normal text-slate-600">
-                  <span className={`h-2 w-2 shrink-0 rounded-sm ${TYPE_COLORS.consumables}`} aria-hidden />
-                  Consumable items
-                </span>
-              </div>
-            </div>
+            <table className="w-full text-left tabular-nums">
+              <thead>
+                <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  <th className="pb-1 font-semibold" scope="col"><span className="sr-only">Type</span></th>
+                  <th className="pb-1 pl-2 text-right font-semibold" scope="col">Total</th>
+                  <th className="pb-1 pl-2 text-right font-semibold" scope="col">In store</th>
+                </tr>
+              </thead>
+              <tbody>
+              {[
+                {
+                  n: fixedAssets.units,
+                  name: 'Fixed assets',
+                  inStore: fixedAssets.inStoreUnits,
+                  color: TYPE_COLORS.fixed,
+                  title: 'Fixed assets (ቋሚ ዕቃ): each physical asset, counted one by one',
+                },
+                {
+                  n: consumableStockItems,
+                  name: 'Consumable items',
+                  inStore: consumableStockItemsInStore,
+                  color: TYPE_COLORS.consumables,
+                  title: 'Consumables (አላቂ ዕቃ): the different supplies held, by IFMIS item code; the same item bought twice counts once',
+                },
+              ].map((r) => (
+                <tr key={r.name} title={r.title} className="border-t border-slate-100">
+                  <th scope="row" className="py-1.5 pr-1 text-xs font-semibold tracking-normal text-slate-700">
+                    <span className="flex items-center gap-1.5 whitespace-nowrap">
+                      <span className={`h-2 w-2 shrink-0 rounded-sm ${r.color}`} aria-hidden />
+                      {r.name}
+                    </span>
+                  </th>
+                  <td className="py-1.5 pl-2 text-right text-xl font-bold text-slate-900">{r.n.toLocaleString()}</td>
+                  <td className="py-1.5 pl-2 text-right text-base font-semibold text-slate-600">{r.inStore.toLocaleString()}</td>
+                </tr>
+              ))}
+              </tbody>
+            </table>
           }
-          footer={
-            <div className="grid grid-cols-2 divide-x divide-slate-100 text-[11px] text-slate-500">
-              <p className="pr-3">{fixedAssets.units === 1 ? 'unit' : 'units'} · {fixedAssets.inStoreUnits.toLocaleString()} in store</p>
-              <p className="pl-3">different items · {consumableStockItemsInStore.toLocaleString()} in store</p>
-            </div>
-          }
+          footer={null}
         />
         <StatTile
           label="Approvals in pipeline"
