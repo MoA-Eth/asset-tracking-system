@@ -1417,12 +1417,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <AssetStatus row={row} partly={isBatch && issuedUnits > 0 && inStoreUnits > 0} />
         </td>
         <td className="px-3 py-2.5 tabular-nums text-slate-600">
-          <span className="whitespace-nowrap">
+          <span className="whitespace-nowrap" title={disposedUnits > 0 ? 'Still on the register: received less disposed' : undefined}>
             {isBatch || requestedUnits > 0 ? totalUnits : row.units} {uom.toLowerCase()}
           </span>
           {/* One short line each, so a batch does not stretch the column */}
           {breakdown && (
             <span className="mt-0.5 block font-sans text-[10px] font-normal leading-tight text-slate-500">
+              {/* With units disposed of, what was received, so the lines below add up to it */}
+              {disposedUnits > 0 && <span className="block whitespace-nowrap">{Math.round((totalUnits + disposedUnits) * 10000) / 10000} received</span>}
               {issuedUnits > 0 || isBatch ? <span className="block whitespace-nowrap">{issuedUnits} issued</span> : null}
               {requestedUnits > 0 && <span className="block whitespace-nowrap text-amber-700">{requestedUnits} requested</span>}
               <span className="block whitespace-nowrap">{inStoreUnits} in store</span>

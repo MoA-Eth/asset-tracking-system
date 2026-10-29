@@ -226,6 +226,23 @@ describe('Assets page', () => {
     expect(pills.getByRole('button', { name: /^All/ })).toHaveAttribute('title', expect.stringContaining('not units'));
   });
 
+  it('shows what was received when part of a batch was disposed of, so the lines add up', async () => {
+    vi.mocked(api.getItems).mockResolvedValue([
+      ...items,
+      item('L1', 'Lap Top Computer', 'AVAILABLE', { quantity: 17 }),
+      item('L1-1', 'Lap Top Computer', 'DISPOSED', { quantity: 15, parentItemId: 'L1' }),
+    ] as any);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-L1');
+    const batch = rowOf('MOA-L1');
+    expect(batch).toHaveTextContent('17 ea');
+    expect(within(batch).getByText('32 received')).toBeInTheDocument();
+    expect(within(batch).getByText('17 in store')).toBeInTheDocument();
+    expect(within(batch).getByText('15 disposed')).toBeInTheDocument();
+    // Nothing disposed: no received line
+    expect(within(rowOf('MOA-S1')).queryByText(/received$/)).not.toBeInTheDocument();
+  });
+
   it('flags a waiting disposal on a form already approved for the record', async () => {
     vi.mocked(api.getApprovals).mockResolvedValue([
       ...approvals,
