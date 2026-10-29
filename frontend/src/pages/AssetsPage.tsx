@@ -1437,7 +1437,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           {/* One line: the units on the register, and under them only what is unusual. The full breakdown is in the
               hover text and in the record */}
           <span className="whitespace-nowrap" title={breakdown ? qtyBreakdown : undefined}>
-            {isBatch || requestedUnits > 0 ? totalUnits : row.units} {uom.toLowerCase()}
+            {isBatch || requestedUnits > 0 ? totalUnits : row.units}
+            {/* With some disposed of, also what the Model 19 brought in: "17 of 32 ea" */}
+            {disposedUnits > 0 && ` of ${received}`} {uom.toLowerCase()}
           </span>
           {qtyNote && <span className="mt-0.5 block whitespace-nowrap font-sans text-[10px] font-normal leading-tight text-slate-500">{qtyNote}</span>}
         </td>
@@ -2243,6 +2245,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
+                      title="Units held now; with some disposed of, out of those received (17 of 32)"
                       thClassName="px-3 py-2 w-24 min-w-[80px]"
                     />
                     <SortableHeader

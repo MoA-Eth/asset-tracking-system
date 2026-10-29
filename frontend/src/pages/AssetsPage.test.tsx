@@ -237,7 +237,8 @@ describe('Assets page', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-L1');
     const batch = rowOf('MOA-L1');
-    expect(batch).toHaveTextContent('17 ea');
+    // What is held, out of what the Model 19 brought in
+    expect(batch).toHaveTextContent('17 of 32 ea');
     expect(within(batch).getByText('15 disposed')).toBeInTheDocument();
     // What was received, and how it adds up, on hover
     expect(within(batch).getByTitle('32 received · 0 issued · 17 in store · 15 disposed')).toBeInTheDocument();
