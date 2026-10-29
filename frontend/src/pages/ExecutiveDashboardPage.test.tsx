@@ -203,6 +203,20 @@ describe('Total assets', () => {
   });
 });
 
+describe('Needs attention', () => {
+  it('is off for now, even with requests waiting and items in store too long', async () => {
+    vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
+      ...figures(10),
+      pendingApprovalsCount: 3,
+      rejectedWaitingCount: 2,
+      staleInStore: { thresholdDays: 30, itemCount: 1, units: 1, valueETB: 1, items: [] },
+    } as any);
+    renderPage();
+    await screen.findByText('Total assets');
+    expect(screen.queryByText('Needs attention')).not.toBeInTheDocument();
+  });
+});
+
 describe('Asset categories', () => {
   it('counts motorcycles in Vehicles, listed under it, not as a category of their own', async () => {
     vi.mocked(api.getExecutiveDashboard).mockResolvedValue({

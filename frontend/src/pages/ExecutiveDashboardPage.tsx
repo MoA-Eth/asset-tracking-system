@@ -34,6 +34,12 @@ const SHOW_VALUES = false;
 /** The low-stock consumables alert (its tile and banner) is off for now. Set to true to show it again. */
 const SHOW_LOW_STOCK = false;
 
+/**
+ * The "Needs attention" row (work queues: awaiting approval, rejected, in store too long) is off for now: managers
+ * read the same figures on the cards above. Set to true to show it again.
+ */
+const SHOW_NEEDS_ATTENTION = false;
+
 interface ExecutiveDashboardPageProps {
   onNavigate: (tab: string) => void;
   currentRole: UserRole;
@@ -893,7 +899,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       </div>
 
       {/* ── Row 2: Workflow counts ──────────────────────────────────────────── */}
-      {(pendingApprovals > 0 || rejectedWaiting > 0 || stale.itemCount > 0 || (SHOW_LOW_STOCK && lowStock.itemCount > 0)) && (
+      {SHOW_NEEDS_ATTENTION && (pendingApprovals > 0 || rejectedWaiting > 0 || stale.itemCount > 0 || (SHOW_LOW_STOCK && lowStock.itemCount > 0)) && (
         <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
           <h2 className="mb-3 flex items-baseline gap-2 text-sm font-bold text-slate-800">
             Needs attention
