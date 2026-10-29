@@ -185,6 +185,19 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   const { item } = row;
   const uom = (item.uom || 'EA').toLowerCase();
   const editing = !!editForm;
+  // What the requested units are waiting for: an issue, a disposal, or both. Named only when the waiting requests on
+  // this record account for every requested unit; otherwise (a piece of the batch has its own) it stays "Requested"
+  const requestedBox = (() => {
+    const waiting = requests.filter((a) => a.status === 'PENDING' && (a.transactionType === 'STOCK_OUT' || a.transactionType === 'DISPOSAL'));
+    const unitsOf = (a: TransactionApproval) => Number(a.requestDetails?.quantity) || 0;
+    const isDisposal = (a: TransactionApproval) => a.transactionType === 'DISPOSAL' || !!a.requestDetails?.disposal;
+    const disposal = waiting.filter(isDisposal).reduce((sum, a) => sum + unitsOf(a), 0);
+    const issue = waiting.filter((a) => !isDisposal(a)).reduce((sum, a) => sum + unitsOf(a), 0);
+    if (!totals?.requested || Math.abs(disposal + issue - totals.requested) > 1e-9) return { label: 'Requested' };
+    if (!issue) return { label: 'Disposal requested' };
+    if (!disposal) return { label: 'Issue requested' };
+    return { label: 'Requested', detail: `${issue} issue · ${disposal} disposal` };
+  })();
 
   const steps = actions.filter((a) => !a.hidden && !a.label.startsWith('Print'));
   const pending = row.request;
@@ -693,11 +706,12 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                     ['Issued', totals.issued],
                     ['In store', totals.inStore],
                     // On a pending issue or disposal: part of "in store" until the last approver approves
-                    ...(totals.requested ? [['Requested', totals.requested]] : []),
-                  ].map(([label, value]) => (
-                    <div key={label} className="rounded-lg bg-slate-50 px-2 py-2">
+                    ...(totals.requested ? [[requestedBox.label, totals.requested, requestedBox.detail]] : []),
+                  ].map(([label, value, detail]) => (
+                    <div key={label} className="rounded-lg bg-slate-50 px-2 py-2" title={label === requestedBox.label ? 'Part of In store until the last approver approves' : undefined}>
                       <p className="font-mono text-lg font-extrabold text-slate-900">{value}</p>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+                      {detail && <p className="text-[10px] text-slate-500">{detail}</p>}
                     </div>
                   ))}
                 </div>

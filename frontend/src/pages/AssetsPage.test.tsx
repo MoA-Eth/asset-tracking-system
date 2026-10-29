@@ -259,7 +259,8 @@ describe('Assets page', () => {
     const user = userEvent.setup();
     vi.mocked(api.getItems).mockResolvedValue([
       ...items,
-      item('L1', 'Lap Top Computer', 'PENDING_DISPOSAL', { quantity: 17 }),
+      // As the server sends it: 17 on the register, all in store, 6 of them asked for
+      item('L1', 'Lap Top Computer', 'PENDING_DISPOSAL', { quantity: 17, balance: { total: 17, issued: 0, available: 17, pending: 0, requested: 6 } }),
       item('L1-1', 'Lap Top Computer', 'DISPOSED', { quantity: 15, parentItemId: 'L1' }),
       // A disposal reversed: its piece holds nothing
       item('L1-2', 'Lap Top Computer', 'REJECTED', { quantity: 0, parentItemId: 'L1' }),
@@ -289,6 +290,12 @@ describe('Assets page', () => {
     await user.click(rowOf('MOA-L1-1').querySelector('td')!);
     expect(await screen.findByText('Disposed to')).toBeInTheDocument();
     expect(screen.queryByText('Kept in')).not.toBeInTheDocument();
+
+    // The batch's record names what its requested units wait for
+    await user.click(screen.getByRole('button', { name: 'Close record' }));
+    await user.click(rowOf('MOA-L1').querySelector('td')!);
+    const requested = await screen.findByText('Disposal requested', { selector: 'p.uppercase' });
+    expect(requested.previousElementSibling?.textContent).toBe('6');
   });
 
   it('says which Model 21 moved a record', async () => {
