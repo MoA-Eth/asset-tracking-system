@@ -110,7 +110,7 @@ function formatCreatedDate(raw?: string): string {
   return `${mm}/${dd}/${yyyy}`;
 }
 
-export type SortColumn = 'activity' | 'name' | 'status' | 'units' | 'where' | 'created' | 'cost';
+export type SortColumn = 'activity' | 'name' | 'status' | 'units' | 'where' | 'created' | 'cost' | 'total';
 const SORT_LABELS: Record<SortColumn, string> = {
   activity: 'latest activity',
   name: 'asset',
@@ -119,9 +119,10 @@ const SORT_LABELS: Record<SortColumn, string> = {
   where: 'held by / where',
   created: 'date created',
   cost: 'unit cost',
+  total: 'total',
 };
 export type SortDirection = 'asc' | 'desc';
-const SORT_COLUMNS: SortColumn[] = ['activity', 'name', 'status', 'units', 'where', 'created', 'cost'];
+const SORT_COLUMNS: SortColumn[] = ['activity', 'name', 'status', 'units', 'where', 'cost', 'total'];
 
 /** Filters and sort, remembered per person in this browser so a refresh keeps the view */
 interface SavedView {
@@ -224,7 +225,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortColumn(col);
-      setSortDirection(col === 'cost' || col === 'units' || col === 'activity' ? 'desc' : 'asc');
+      setSortDirection(col === 'cost' || col === 'total' || col === 'units' || col === 'activity' ? 'desc' : 'asc');
     }
   };
 
@@ -700,6 +701,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           const aVal = costOf(a.row.item);
           const bVal = costOf(b.row.item);
           res = aVal - bVal;
+          break;
+        }
+        case 'total': {
+          // All the units a record was received with (the server's balance), as the Total column shows them
+          const total = (r: AssetRow) => valueOf(r.item, r.item.balance?.total ?? r.units);
+          res = total(a.row) - total(b.row);
           break;
         }
       }
@@ -1228,6 +1235,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 // Note: error UI is rendered before main return below to keep hook execution order unconditional
 
   /** Units of a whole batch, from the registration's balance (it covers the records issued from it) */
+  // What a row's units cost, VAT and charges in: a batch by all its units (the pieces issued from it included), as the
+  // Total value under the table counts it
+  const rowTotal = (row: AssetRow, children: AssetRow[]) => {
+    const { isBatch, totalUnits } = batchSummary(row, children);
+    return valueOf(row.item, isBatch ? totalUnits : row.units);
+  };
   const batchSummary = (row: AssetRow, children: AssetRow[]) => {
     const { item } = row;
     const out = children.filter((c) => c.item.status === ItemStatus.ISSUED || c.item.status === ItemStatus.UNDER_TRANSFER);
@@ -1402,10 +1415,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </span>
           )}
         </td>
-        <td className="px-3.5 py-2.5 tabular-nums text-slate-600 whitespace-nowrap">
-          {formatCreatedDate(item.createdAtGc || item.createdAt)}
+        <td className="pl-2 pr-2 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">{costOf(item) > 0 ? formatETB(Math.round(costOf(item) * 100) / 100) : '—'}</td>
+        <td className="pl-2 pr-4 py-2.5 text-right tabular-nums font-medium text-slate-900 whitespace-nowrap">
+          {rowTotal(row, children) > 0 ? formatETB(rowTotal(row, children)) : '—'}
         </td>
-        <td className="pl-2 pr-4 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">{costOf(item) > 0 ? formatETB(Math.round(costOf(item) * 100) / 100) : '—'}</td>
         <td className={`py-2.5 pl-1 pr-3 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
           <RowActionsMenu
             label={item.itemCode}
@@ -2192,21 +2205,24 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       thClassName="pl-4 pr-3 py-2 min-w-[180px]"
                     />
                     <SortableHeader
-                      label="Date created"
-                      columnKey="created"
-                      currentSortColumn={sortColumn}
-                      currentSortDirection={sortDirection}
-                      onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-3.5 py-2 w-32 min-w-[120px] whitespace-nowrap"
-                    />
-                    <SortableHeader
                       label="Unit cost"
                       columnKey="cost"
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
                       align="right"
-                      thClassName="pl-2 pr-4 py-2 w-28 min-w-[110px] text-right whitespace-nowrap"
+                      title="What one unit cost, VAT and additional charges included (the Model 19 line total ÷ its quantity)"
+                      thClassName="pl-2 pr-2 py-2 w-28 min-w-[110px] text-right whitespace-nowrap"
+                    />
+                    <SortableHeader
+                      label="Total"
+                      columnKey="total"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={(key) => handleSort(key as SortColumn)}
+                      align="right"
+                      title="Unit cost × quantity: what the units on this row cost, VAT and charges included"
+                      thClassName="pl-2 pr-4 py-2 w-32 min-w-[120px] text-right whitespace-nowrap"
                     />
                     <th className={`py-2 pl-1 pr-3 ${table.actionsHead}`}>
                       <span className="sr-only">Actions</span>

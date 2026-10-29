@@ -1575,6 +1575,32 @@ describe('Asset record', () => {
     expect(screen.queryByRole('button', { name: /Clear filters/ })).not.toBeInTheDocument();
   });
 
+  it('shows a Total column (unit cost × quantity), sortable largest first', async () => {
+    const user = userEvent.setup();
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    await screen.findByText('MOA-S1');
+
+    const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim());
+    const costCol = headers.indexOf('Unit cost');
+    const totalCol = headers.indexOf('Total');
+    expect(totalCol).toBe(costCol + 1);
+
+    const amount = (text?: string | null) => Number((text ?? '').replace(/[^0-9.]/g, '')) || 0;
+    const qtyCol = headers.findIndex((h) => /^Qty/.test(h ?? ''));
+    const bodyRows = () => screen.getAllByRole('row').slice(1).filter((r) => r.querySelectorAll('td').length > totalCol);
+    // Each single (non-batch) row: its total is its unit cost × its quantity
+    for (const r of bodyRows()) {
+      const cells = r.querySelectorAll('td');
+      const qty = amount(cells[qtyCol]?.textContent?.split(/\s/)[0]);
+      if (r.textContent?.includes('issued') || qty === 0) continue;
+      expect(amount(cells[totalCol].textContent)).toBeCloseTo(amount(cells[costCol].textContent) * qty, 0);
+    }
+
+    await user.click(screen.getByRole('button', { name: 'Total' }));
+    const totals = bodyRows().map((r) => amount(r.querySelectorAll('td')[totalCol].textContent));
+    expect(totals).toEqual([...totals].sort((a, b) => b - a));
+  });
+
   it('exports filtered assets to CSV when Export CSV is clicked', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
