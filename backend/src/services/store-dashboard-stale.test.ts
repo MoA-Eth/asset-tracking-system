@@ -264,6 +264,24 @@ describe('dashboard: figures checked against production data (29 Oct 2026)', () 
     expect(d.locationUtilization[0]).toMatchObject({ itemLines: 3, availableLines: 1, issuedLines: 2, pendingLines: 0 });
   });
 
+  it('counts consumables as different stock items: the same item code bought twice is one', async () => {
+    const supply = (code: string, status: string, meta: Record<string, unknown>) =>
+      record(code, status, 3, { itemType: 'CONSUMABLE', notes: JSON.stringify({ quantity: 5, uom: 'EA', ...meta }) });
+    db.item.findMany.mockResolvedValue([
+      supply('TONER-A', 'AVAILABLE', { ifmisItemCode: '102101103.0021' }),
+      // The same toner on another Model 19, its code misread with a space: still one stock item
+      supply('TONER-B', 'ISSUED', { ifmisItemCode: '102101103.00 21' }),
+      supply('PAPER', 'AVAILABLE', { ifmisItemCode: '102101101.0001' }),
+      // No code: told apart by name and unit
+      supply('SOAP-1', 'ISSUED', {}),
+      supply('SOAP-2', 'ISSUED', {}),
+      record('LAPTOP', 'AVAILABLE', 3, { itemType: 'FIXED', notes: JSON.stringify({ quantity: 2, uom: 'EA' }) }),
+    ].map((r: any) => (r.id.startsWith('SOAP') ? { ...r, name: 'Hand soap' } : r)));
+    const d = await StoreService.getInstance().getExecutiveDashboard();
+    expect(d.consumables).toMatchObject({ lines: 5, stockItems: 3, inStoreStockItems: 2 });
+    expect(d.fixedAssets).toMatchObject({ units: 2, registrations: 1 });
+  });
+
   it('counts an item issued to several people once in its store, as the Assets page does', async () => {
     db.location.findMany.mockResolvedValue([{ id: 'LOC-01', name: 'Shelf', storeId: 'S1', isActive: true, store: { id: 'S1', name: 'Kality' } }]);
     db.item.findMany.mockResolvedValue([

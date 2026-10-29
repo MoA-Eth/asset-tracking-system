@@ -180,24 +180,24 @@ describe('Dashboard low-stock consumables banner', () => {
 
 
 describe('Total assets', () => {
-  it('counts fixed assets by units and registrations, and supplies by their lines, not by adding up pieces', async () => {
+  it('shows fixed assets one by one and consumables as different items, never added together', async () => {
     vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
       ...figures(599450),
       fixedAssets: { units: 893, registrations: 29, inStoreUnits: 800, issuedUnits: 93, valueETB: 1 },
-      consumables: { lines: 408, inStoreLines: 150, issuedLines: 258, valueETB: 1 },
+      consumables: { lines: 408, inStoreLines: 150, issuedLines: 258, stockItems: 312, inStoreStockItems: 140, valueETB: 1 },
     } as any);
     renderPage();
 
     const tile = (await screen.findByText('Total assets')).closest('div')!.parentElement!.parentElement!;
-    // Both types, in items: 29 fixed + 408 consumable
-    expect(tile).toHaveTextContent('437items');
-    // Each type in its own column: items, then units (consumables in items only)
-    expect(tile).toHaveTextContent('Fixed assets29items893 units');
-    expect(tile).toHaveTextContent('Consumables408items');
-    // Items and units only: what is in store is shown elsewhere
-    expect(tile).not.toHaveTextContent('in store');
-    // What is with staff is not shown on this card
-    expect(tile).not.toHaveTextContent('With Staff');
+    // Each physical fixed asset; each different consumable (the same item code bought twice is one)
+    expect(tile).toHaveTextContent('893Fixed assets');
+    expect(tile).toHaveTextContent('312Consumable items');
+    expect(tile).toHaveTextContent('units · 800 in store');
+    expect(tile).toHaveTextContent('different items · 140 in store');
+    // No sum of the two, and no receipt-line counts that change with how often a thing was bought
+    expect(tile).not.toHaveTextContent('1,205');
+    expect(tile).not.toHaveTextContent('437');
+    expect(tile).not.toHaveTextContent('408');
     // Units are not added up across pieces, litres and kilograms
     expect(tile).not.toHaveTextContent('599,450');
   });

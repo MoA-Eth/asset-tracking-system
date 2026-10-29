@@ -4695,6 +4695,13 @@ export class StoreService {
     // A registration is a receipt line: the pieces a batch was issued in are parts of it, not registrations of their own
     const registrations = (arr: typeof allItems) => new Set(arr.map((i) => i.parentItemId ?? i.id)).size;
     const consumablesInStore = consumableItems.filter((i) => IN_STORE_STATUSES.includes(i.status));
+    // A stock item is one kind of supply, whatever how many times it was bought: its IFMIS item code (a stray space
+    // from a misread slip ignored), or, without one, its name and unit
+    const stockKey = (i: { ifmisItemCode?: string | null; name?: string | null; uom?: string | null }) => {
+      const code = String(i.ifmisItemCode ?? '').replace(/\s+/g, '').toLowerCase();
+      return code ? `code:${code}` : `name:${String(i.name ?? '').trim().toLowerCase().replace(/\s+/g, ' ')}|${String(i.uom || 'EA').toUpperCase()}`;
+    };
+    const stockItems = (arr: typeof allItems) => new Set(arr.map(stockKey)).size;
 
     return {
       // Total assets: fixed assets only, in units and registrations. Consumables are counted by lines and value:
@@ -4707,6 +4714,9 @@ export class StoreService {
         valueETB: sum(fixedItems),
       },
       consumables: {
+        // Different supplies held, and those with stock in a store (the same item bought twice counts once)
+        stockItems: stockItems(consumableItems),
+        inStoreStockItems: stockItems(consumablesInStore),
         lines: registrations(consumableItems),
         inStoreLines: registrations(consumablesInStore),
         issuedLines: registrations(consumableItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),

@@ -481,8 +481,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   // Total assets: fixed assets only; consumables by their lines (older servers send neither: counted as before)
   const fixedAssets = data?.fixedAssets || { units: data?.totalItems || 0, registrations: data?.totalRecords || 0, inStoreUnits: data?.availableCount || 0, issuedUnits: data?.issuedCount || 0, valueETB: 0 };
   const consumables = data?.consumables || { lines: 0, inStoreLines: 0, issuedLines: 0, valueETB: 0 };
-  // Total assets: items on the register of both types (fixed assets by their registrations, consumables by their lines)
-  const totalAssetItems = fixedAssets.registrations + consumables.lines;
+  // Consumables by the different supplies held (an older server sends only its receipt lines)
+  const consumableStockItems: number = consumables.stockItems ?? consumables.lines;
+  const consumableStockItemsInStore: number = consumables.inStoreStockItems ?? consumables.inStoreLines;
   const availableCount    = data?.availableCount       || 0;
   const issuedCount       = data?.issuedCount          || 0;
   const pendingApprovals  = data?.pendingApprovalsCount || 0;
@@ -754,47 +755,31 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Total assets"
           labelAm="በመዝገብ ላይ ያለ ጠቅላላ ንብረት"
+          // Two figures, each counted the way it means something, and never added together: fixed assets one by one
+          // (each physical asset), consumables by the different supplies held (the same item code bought twice is one)
           value={
-            // Everything on the register, both types, counted in items (one per line received): units can't be added
-            // across them, as consumables mix pieces, litres and kilograms
-            <span title="Items on the register (one per line received): fixed assets and consumables">
-              {totalAssetItems.toLocaleString()}
-              <span className="ml-1 text-sm font-normal text-slate-400">
-                {totalAssetItems === 1 ? 'item' : 'items'}
-              </span>
-            </span>
+            <div className="grid grid-cols-2 divide-x divide-slate-100">
+              <div className="min-w-0 pr-3" title="Fixed assets (ቋሚ ዕቃ): each physical asset, counted one by one">
+                {fixedAssets.units.toLocaleString()}
+                <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-normal tracking-normal text-slate-600">
+                  <span className={`h-2 w-2 shrink-0 rounded-sm ${TYPE_COLORS.fixed}`} aria-hidden />
+                  Fixed assets
+                </span>
+              </div>
+              <div className="min-w-0 pl-3" title="Consumables (አላቂ ዕቃ): the different supplies held, by IFMIS item code; the same item bought twice counts once">
+                {consumableStockItems.toLocaleString()}
+                <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-normal tracking-normal text-slate-600">
+                  <span className={`h-2 w-2 shrink-0 rounded-sm ${TYPE_COLORS.consumables}`} aria-hidden />
+                  Consumable items
+                </span>
+              </div>
+            </div>
           }
-          // How the items split between the two types, in the colours of the two columns below
-          splitBar={{
-            primaryPct: totalAssetItems > 0 ? Math.round((fixedAssets.registrations / totalAssetItems) * 100) : 0,
-            primaryColor: TYPE_COLORS.fixed,
-            secondaryColor: TYPE_COLORS.consumables,
-            primaryLabel: 'Fixed assets',
-            secondaryLabel: 'Consumables',
-          }}
           footer={
-            <TypeColumns
-              fixed={{
-                value: (
-                  <>
-                    {fixedAssets.registrations.toLocaleString()}
-                    <span className="ml-1 text-[11px] font-normal text-slate-500">{fixedAssets.registrations === 1 ? 'item' : 'items'}</span>
-                  </>
-                ),
-                detail: `${fixedAssets.units.toLocaleString()} ${fixedAssets.units === 1 ? 'unit' : 'units'}`,
-                title: 'Fixed assets (ቋሚ ዕቃ): counted in items, and in units (pieces)',
-              }}
-              // Consumables in items only: their quantities mix pieces, litres and kilograms
-              consumables={{
-                value: (
-                  <>
-                    {consumables.lines.toLocaleString()}
-                    <span className="ml-1 text-[11px] font-normal text-slate-500">{consumables.lines === 1 ? 'item' : 'items'}</span>
-                  </>
-                ),
-                title: 'Consumables (አላቂ ዕቃ): spare parts, accessories and supplies, counted in items',
-              }}
-            />
+            <div className="grid grid-cols-2 divide-x divide-slate-100 text-[11px] text-slate-500">
+              <p className="pr-3">{fixedAssets.units === 1 ? 'unit' : 'units'} · {fixedAssets.inStoreUnits.toLocaleString()} in store</p>
+              <p className="pl-3">different items · {consumableStockItemsInStore.toLocaleString()} in store</p>
+            </div>
           }
         />
         <StatTile
