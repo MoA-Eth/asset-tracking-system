@@ -746,9 +746,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   Fixed assets:
                 </span>
                 <span className="text-right tabular-nums font-semibold text-slate-900 text-[11px]">
-                  {fixedAssets.registrations.toLocaleString()} {fixedAssets.registrations === 1 ? 'item' : 'items'} · {fixedAssets.units.toLocaleString()} {fixedAssets.units === 1 ? 'unit' : 'units'}
-                  <span className="block text-[10px] text-slate-400 font-normal">
-                    {fixedAssets.inStoreUnits.toLocaleString()} {fixedAssets.inStoreUnits === 1 ? 'unit' : 'units'} in store ({formatAssetPct(fixedAssets.inStoreUnits, fixedAssets.units)})
+                  {fixedAssets.registrations.toLocaleString()} {fixedAssets.registrations === 1 ? 'item' : 'items'}
+                  <span className="block">
+                    {fixedAssets.units.toLocaleString()} {fixedAssets.units === 1 ? 'unit' : 'units'}
                   </span>
                 </span>
               </div>
@@ -759,7 +759,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                 </span>
                 <span className="text-right tabular-nums font-semibold text-slate-900 text-[11px]">
                   {consumables.lines.toLocaleString()} {consumables.lines === 1 ? 'item' : 'items'}
-                  <span className="block text-[10px] text-slate-400 font-normal">{consumables.inStoreLines.toLocaleString()} in store</span>
                 </span>
               </div>
             </div>

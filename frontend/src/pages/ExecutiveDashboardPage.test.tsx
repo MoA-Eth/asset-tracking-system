@@ -191,8 +191,11 @@ describe('Total assets', () => {
     const tile = (await screen.findByText('Total assets')).closest('div')!.parentElement!.parentElement!;
     // Both types, in items: 29 fixed + 408 consumable
     expect(tile).toHaveTextContent('437items');
-    expect(tile).toHaveTextContent('Fixed assets:29 items · 893 units800 units in store');
-    expect(tile).toHaveTextContent('Consumables:408 items150 in store');
+    // Units on their own line, under the items
+    expect(tile).toHaveTextContent('Fixed assets:29 items893 units');
+    expect(tile).toHaveTextContent('Consumables:408 items');
+    // Items and units only: what is in store is shown elsewhere
+    expect(tile).not.toHaveTextContent('in store');
     // What is with staff is not shown on this card
     expect(tile).not.toHaveTextContent('With Staff');
     // Units are not added up across pieces, litres and kilograms
