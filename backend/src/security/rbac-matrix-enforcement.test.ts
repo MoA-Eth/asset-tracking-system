@@ -286,12 +286,13 @@ describe('RBAC Permission Matrix Enforcement', () => {
 
     it('gives those who do the work their own dashboard, and the executive one only to those who oversee', () => {
       const landingOf = (role: UserRole) => computeAllowedTabs(role, ROLE_POLICY[role].permissions).landingTab;
-      for (const role of [UserRole.DATA_ENCODER, UserRole.TEAM_LEADER, UserRole.DEPARTMENT_HEAD]) {
+      // The System Administrator's is about accounts, not assets
+      for (const role of [UserRole.DATA_ENCODER, UserRole.TEAM_LEADER, UserRole.DEPARTMENT_HEAD, UserRole.SYSTEM_ADMIN]) {
         expect(tabsOf(role)).toContain('home');
         expect(tabsOf(role)).not.toContain('dashboard');
         expect(landingOf(role)).toBe('home');
       }
-      for (const role of [UserRole.MANAGER, UserRole.CHIEF_DIRECTOR, UserRole.SYSTEM_ADMIN, UserRole.EMPLOYEE]) {
+      for (const role of [UserRole.MANAGER, UserRole.CHIEF_DIRECTOR, UserRole.EMPLOYEE]) {
         expect(tabsOf(role)).not.toContain('home');
       }
     });

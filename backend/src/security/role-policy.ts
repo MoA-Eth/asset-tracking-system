@@ -52,8 +52,9 @@ export const ROLE_POLICY: Record<UserRole, {
   SYSTEM_ADMIN: {
     name: 'System Administrator', description: 'Administers user access and platform governance.',
     approvalResponsibility: 'No approval authority',
-    permissions: [...readPermissions, 'approvals.void', 'dashboard.read', 'reports.read', 'audit.read', 'roles.read', 'roles.assign', 'employees.manage', 'references.manage'],
-    allowedTabs: ['dashboard', 'reports', 'audit', 'settings-users', 'settings-roles', ...referenceTabs], landingTab: 'dashboard',
+    // Opens on the accounts dashboard (who can sign in, temporary passwords, access changes), not the executive one
+    permissions: [...readPermissions, 'approvals.void', 'reports.read', 'audit.read', 'roles.read', 'roles.assign', 'employees.manage', 'references.manage'],
+    allowedTabs: ['home', 'reports', 'audit', 'settings-users', 'settings-roles', ...referenceTabs], landingTab: 'home',
   },
   DATA_ENCODER: {
     name: 'Data Encoder', description: 'Records stock-in, requests stock-out, initiates transfers and returns, and requests disposals.',
@@ -197,8 +198,9 @@ export function computeAllowedTabs(role: UserRole, permissions: Permission[]): {
 
   if (permissions.includes('assets.own')) tabs.add('my-assets');
   if (permissions.includes('dashboard.read')) tabs.add('dashboard');
-  // Those who do the work (and don't see the executive dashboard) get their own: their queue, their requests
-  else if (DECISION_PERMISSIONS.some((p) => permissions.includes(p)) || REQUEST_PERMISSIONS.some((p) => permissions.includes(p))) tabs.add('home');
+  // Those who do the work (and don't see the executive dashboard) get their own: their queue, their requests,
+  // or for whoever assigns roles, the accounts
+  else if ([...DECISION_PERMISSIONS, ...REQUEST_PERMISSIONS, 'roles.assign' as Permission].some((p) => permissions.includes(p))) tabs.add('home');
   // One register for every asset: those who record store work act on it, approvers follow it read-only
   if (REQUEST_PERMISSIONS.some((p) => permissions.includes(p)) || permissions.includes('approvals.read')) tabs.add('assets');
   if (permissions.includes('approvals.endorse') || permissions.includes('approvals.authorize')) {

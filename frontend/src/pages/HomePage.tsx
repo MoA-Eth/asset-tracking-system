@@ -6,7 +6,8 @@ import { useRealtimeSync } from '../utils/realtime-sync';
 import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { approvalRows, needsChiefDirector, voucherName } from '../components/assets/slip-groups';
 import { daysInStore, requestLabel, shortDate, STALE_IN_STORE_DAYS } from '../components/assets/asset-state';
-import { ApprovalStatus, ItemStatus, ItemWithRelations, TransactionApproval, UserRole } from '../types/asset-management';
+import { roleName } from '../utils/roles';
+import { ApprovalStatus, AuditLogEntry, Employee, ItemStatus, ItemWithRelations, TransactionApproval, UserRole } from '../types/asset-management';
 
 /**
  * A short dashboard for the people who do the work, by what they act on: the Team Leader's endorsement queue,
@@ -18,7 +19,7 @@ import { ApprovalStatus, ItemStatus, ItemWithRelations, TransactionApproval, Use
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_DAYS = 7;
 
-type View = 'team-leader' | 'department-head' | 'encoder';
+type View = 'team-leader' | 'department-head' | 'encoder' | 'admin';
 
 /** Which view a person gets, by what they may do (a saved role setting can change a role's permissions) */
 export function homeView(role: UserRole | undefined, permissions: string[] | undefined): View | undefined {
@@ -26,6 +27,7 @@ export function homeView(role: UserRole | undefined, permissions: string[] | und
   if (can('approvals.authorize') || role === UserRole.DEPARTMENT_HEAD) return 'department-head';
   if (can('approvals.endorse') || role === UserRole.TEAM_LEADER) return 'team-leader';
   if (['stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write'].some(can) || role === UserRole.DATA_ENCODER) return 'encoder';
+  if (can('roles.assign') || role === UserRole.SYSTEM_ADMIN) return 'admin';
   return undefined;
 }
 
@@ -93,11 +95,21 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
   const view = homeView(currentRole, user?.permissions);
   const [approvals, setApprovals] = useState<TransactionApproval[]>([]);
   const [items, setItems] = useState<ItemWithRelations[]>([]);
+  const [people, setPeople] = useState<Employee[]>([]);
+  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      if (view === 'admin') {
+        // Accounts: every employee (the deactivated too), and the audit log for changes to access
+        const [e, l] = await Promise.all([api.getEmployees(undefined, { includeInactive: true }), api.getAuditLogs()]);
+        setPeople(Array.isArray(e) ? e : []);
+        setLogs(Array.isArray(l) ? l : []);
+        setError(false);
+        return;
+      }
       // The approval queues need only the requests; the directorate and the store need the register too
       const [a, i] = await Promise.all([api.getApprovals(), view === 'team-leader' ? Promise.resolve([]) : api.getItems()]);
       setApprovals(Array.isArray(a) ? a : []);
@@ -175,6 +187,55 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
     }
     return [...counts.entries()].map(([noun, n]) => `${n} ${noun}${n === 1 ? '' : 's'}`).join(' · ');
   };
+
+  if (view === 'admin') {
+    const accounts = people.filter((p) => p.role);
+    const canSignIn = accounts.filter((p) => p.isActive);
+    // No sign-in times are kept: a temporary password not yet replaced means they haven't signed in since it was set
+    const temporary = canSignIn.filter((p) => p.mustChangePassword);
+    const deactivated = people.filter((p) => !p.isActive);
+    const accessChanges = logs
+      .filter((l) => l.entityType === 'USER' || /ROLE|ACCESS|PASSWORD/.test(l.action))
+      .sort((x, y) => String(y.timestampGc).localeCompare(String(x.timestampGc)));
+    const changesThisWeek = accessChanges.filter((l) => thisWeek(l.timestampGc)).length;
+    const byRole = [...canSignIn.reduce((m, p) => m.set(p.role!, (m.get(p.role!) ?? 0) + 1), new Map<string, number>())].sort((a, b) => b[1] - a[1]);
+    const toUsers = () => onNavigate('settings-users');
+    return (
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card label="Can sign in" value={plural(canSignIn.length, 'person', 'people')} note={`Of ${plural(people.length, 'employee')} on record`} onClick={toUsers} action="Manage users" />
+          <Card
+            label="Temporary password"
+            value={temporary.length}
+            note="Haven't signed in and chosen their own password yet"
+            tone={temporary.length ? 'warning' : 'neutral'}
+            onClick={toUsers}
+            action="See who"
+          />
+          <Card label="Deactivated" value={plural(deactivated.length, 'employee')} note="Can't sign in or be picked on forms" />
+          <Card label="Access changes this week" value={changesThisWeek} note="Roles, permissions and passwords" onClick={() => onNavigate('audit')} action="Audit log" />
+        </div>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <ListPanel title="Who can sign in, by role" count={byRole.length} empty="Nobody has access yet." action={{ label: 'Manage users', onClick: toUsers }}>
+            {byRole.map(([role, n]) => (
+              <li key={role} className="flex items-center justify-between py-2 text-xs">
+                <span className="text-slate-700">{roleName(role)}</span>
+                <span className="font-semibold tabular-nums text-slate-900">{n}</span>
+              </li>
+            ))}
+          </ListPanel>
+          <ListPanel title="Recent access changes" count={accessChanges.length} empty="No changes to access yet." action={{ label: 'Audit log', onClick: () => onNavigate('audit') }}>
+            {accessChanges.slice(0, 6).map((l) => (
+              <li key={l.id} className="py-2 text-xs">
+                <p className="truncate text-slate-900">{l.details}</p>
+                <p className="text-[11px] text-slate-500">{l.userName} · {l.timestampEc ? `${l.timestampEc} E.C.` : shortDate(l.timestampGc)}</p>
+              </li>
+            ))}
+          </ListPanel>
+        </div>
+      </div>
+    );
+  }
 
   if (view === 'team-leader') {
     return (

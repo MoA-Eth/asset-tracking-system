@@ -8,7 +8,7 @@ import { UserRole } from '../types/asset-management';
 
 const auth = vi.hoisted(() => ({ user: { id: 'me', departmentId: 'DEP-1', permissions: [] as string[] } }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
-vi.mock('../api/client', () => ({ api: { getApprovals: vi.fn(), getItems: vi.fn() } }));
+vi.mock('../api/client', () => ({ api: { getApprovals: vi.fn(), getItems: vi.fn(), getEmployees: vi.fn(), getAuditLogs: vi.fn() } }));
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
 const request = (id: string, extra: object = {}) => ({
@@ -37,7 +37,44 @@ describe('which dashboard a person gets', () => {
     expect(homeView(UserRole.TEAM_LEADER, ['approvals.endorse'])).toBe('team-leader');
     expect(homeView(UserRole.DEPARTMENT_HEAD, ['approvals.authorize'])).toBe('department-head');
     expect(homeView(UserRole.DATA_ENCODER, ['stock-in.write'])).toBe('encoder');
+    expect(homeView(UserRole.SYSTEM_ADMIN, ['roles.assign'])).toBe('admin');
     expect(homeView(UserRole.MANAGER, ['dashboard.read', 'reports.read'])).toBeUndefined();
+  });
+});
+
+describe('System Administrator', () => {
+  it('shows who can sign in, temporary passwords, deactivated people and recent access changes', async () => {
+    const person = (id: string, extra: object = {}) => ({ id, fullNameEn: id, payrollId: id, departmentId: 'D', role: null, isActive: true, ...extra });
+    vi.mocked(api.getEmployees).mockResolvedValue([
+      person('enc', { role: 'DATA_ENCODER' }),
+      person('enc2', { role: 'DATA_ENCODER', mustChangePassword: true }),
+      person('tl', { role: 'TEAM_LEADER' }),
+      person('custodian'),
+      person('left', { role: 'TEAM_LEADER', isActive: false }),
+    ] as any);
+    vi.mocked(api.getAuditLogs).mockResolvedValue([
+      { id: 'l1', action: 'UPDATE_STAFF_ROLE', entityType: 'USER', details: 'enc2 given Data Encoder', userName: 'Admin', timestampGc: daysAgo(1) },
+      { id: 'l2', action: 'APPROVE_STOCK_IN', entityType: 'APPROVAL', details: 'Receipt approved', userName: 'Head', timestampGc: daysAgo(1) },
+      { id: 'l3', action: 'UPDATE_ROLE_PERMISSIONS', entityType: 'ROLE', details: 'Manager permissions changed', userName: 'Admin', timestampGc: daysAgo(20) },
+    ] as any);
+    const onNavigate = renderAs(UserRole.SYSTEM_ADMIN, ['roles.assign', 'roles.read', 'audit.read']);
+
+    expect(await screen.findByText('Can sign in')).toBeInTheDocument();
+    expect(cardOf('Can sign in')).toHaveTextContent('3 people');
+    expect(cardOf('Can sign in')).toHaveTextContent('Of 5 employees');
+    expect(cardOf('Temporary password')).toHaveTextContent('1');
+    expect(cardOf('Deactivated')).toHaveTextContent('1 employee');
+    // Access changes only, this week
+    expect(cardOf('Access changes this week')).toHaveTextContent('1');
+    const byRole = screen.getByText('Who can sign in, by role').closest('section')!;
+    expect(within(byRole).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Data Encoder2', 'Team Leader1']);
+    const changes = screen.getByText('Recent access changes').closest('section')!;
+    expect(changes).toHaveTextContent('enc2 given Data Encoder');
+    expect(changes).not.toHaveTextContent('Receipt approved');
+    expect(api.getApprovals).not.toHaveBeenCalled();
+
+    await userEvent.click(within(cardOf('Temporary password')).getByRole('button', { name: /See who/ }));
+    expect(onNavigate).toHaveBeenCalledWith('settings-users');
   });
 });
 

@@ -5,7 +5,7 @@ import { getRoleAccess } from '../../../backend/src/security/role-policy';
 // Exercise the actual session policy and navigation guard, not a copied matrix.
 describe('Session navigation access', () => {
   it.each([
-    ['SYSTEM_ADMIN', 'dashboard'], ['DATA_ENCODER', 'home'],
+    ['SYSTEM_ADMIN', 'home'], ['DATA_ENCODER', 'home'],
     ['TEAM_LEADER', 'home'], ['DEPARTMENT_HEAD', 'home'], ['MANAGER', 'dashboard'],
   ])('%s has the expected landing page', (role, page) => {
     expect(getValidTab(getRoleAccess(role), null)).toBe(page);
