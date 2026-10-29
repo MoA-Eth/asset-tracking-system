@@ -197,8 +197,9 @@ describe('Total assets', () => {
     expect(tile).toHaveTextContent('893units');
     expect(tile).toHaveTextContent('29 items');
     expect(tile).toHaveTextContent('In Store:800 units');
-    expect(tile).toHaveTextContent('With Staff:93 units');
-    expect(tile).toHaveTextContent('Supplies & consumables:408 lines · 150 in store');
+    // What is with staff is not shown on this card
+    expect(tile).not.toHaveTextContent('With Staff');
+    expect(tile).toHaveTextContent('Consumables:408 lines · 150 in store');
     // The sum of everything, supplies included, is not the asset total
     expect(tile).not.toHaveTextContent('599,450');
   });

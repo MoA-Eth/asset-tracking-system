@@ -720,13 +720,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               </span>
             </span>
           }
-          splitBar={{
-            primaryPct: fixedAssets.units > 0 && fixedAssets.issuedUnits > 0 ? Math.max(2, Math.round((fixedAssets.issuedUnits / fixedAssets.units) * 100)) : 0,
-            primaryColor: 'bg-emerald-600',
-            secondaryColor: 'bg-slate-300',
-            primaryLabel: `With Staff (${formatAssetPct(fixedAssets.issuedUnits, fixedAssets.units)})`,
-            secondaryLabel: `In Store (${formatAssetPct(fixedAssets.inStoreUnits, fixedAssets.units)})`,
-          }}
           footer={
             <div className="space-y-1 pt-0.5 text-xs">
               <div className="flex items-center justify-between">
@@ -740,21 +733,10 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   </span>
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-emerald-800 text-[11px]" title="Issued to employees on Model 22">
-                  With Staff:
-                </span>
-                <span className="tabular-nums font-semibold text-slate-900 text-[11px]">
-                  {fixedAssets.issuedUnits.toLocaleString()} {fixedAssets.issuedUnits === 1 ? 'unit' : 'units'}{' '}
-                  <span className="text-[10px] text-slate-400 font-normal">
-                    ({formatAssetPct(fixedAssets.issuedUnits, fixedAssets.units)})
-                  </span>
-                </span>
-              </div>
               {/* Supplies are not assets: counted by their lines, not by adding up pieces, litres and kilograms */}
               <div className="flex items-center justify-between border-t border-slate-100 pt-1">
                 <span className="text-violet-800 text-[11px]" title="Consumables: spare parts, accessories and supplies">
-                  Supplies & consumables:
+                  Consumables:
                 </span>
                 <span className="tabular-nums font-semibold text-slate-900 text-[11px]">
                   {consumables.lines.toLocaleString()} {consumables.lines === 1 ? 'line' : 'lines'}
@@ -840,7 +822,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-600">Supplies & consumables:</span>
+                  <span className="text-slate-600">Consumables:</span>
                   <span className="tabular-nums font-semibold text-slate-700 text-[11px]">
                     {staleSupplies.toLocaleString()} {staleSupplies === 1 ? 'item' : 'items'}
                   </span>
