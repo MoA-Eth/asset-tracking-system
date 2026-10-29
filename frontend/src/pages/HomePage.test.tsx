@@ -127,9 +127,9 @@ describe('Department Head', () => {
     expect(cardOf('Waiting for my approval')).toHaveTextContent('2');
     expect(cardOf('Waiting for my approval')).toHaveTextContent('Oldest waiting 4 days');
     expect(cardOf('With the Team Leader')).toHaveTextContent('1');
-    // The laptops are one item (with the piece issued from them); units are fixed assets only
-    expect(cardOf('My directorate holds')).toHaveTextContent('2 items');
-    expect(cardOf('My directorate holds')).toHaveTextContent('5 fixed-asset units');
+    // As the dashboards count: fixed assets one by one (3 + 2 laptops), consumables by the different supplies
+    expect(cardOf('My directorate holds')).toHaveTextContent('5 fixed assets');
+    expect(cardOf('My directorate holds')).toHaveTextContent('and 1 consumable item, issued to it');
   });
 });
 
@@ -141,15 +141,19 @@ describe('Data Encoder', () => {
       request('THEIRS', { requestedById: 'someone' }),
     ] as any);
     vi.mocked(api.getItems).mockResolvedValue([
-      item('OLD', { ifmisSlipDateGc: daysAgo(45) }),
+      item('OLD', { ifmisSlipDateGc: daysAgo(45), quantity: 4 }),
       item('NEW', { ifmisSlipDateGc: daysAgo(3) }),
       item('GONE', { status: 'ISSUED', ifmisSlipDateGc: daysAgo(90) }),
+      // The same toner bought twice, both still on the shelf after 30 days: one consumable item
+      item('INK-A', { ifmisSlipDateGc: daysAgo(50), itemType: 'CONSUMABLE', ifmisItemCode: '102101103.0021' }),
+      item('INK-B', { ifmisSlipDateGc: daysAgo(40), itemType: 'CONSUMABLE', ifmisItemCode: '102101103.00 21' }),
     ] as any);
     const onNavigate = renderAs(UserRole.DATA_ENCODER, ['stock-in.write', 'stock-out.write']);
 
     expect(await screen.findByText('Sent back to me', { selector: 'p' })).toBeInTheDocument();
     expect(cardOf('My requests waiting')).toHaveTextContent('1');
-    expect(cardOf('In store over 30 days')).toHaveTextContent('1 item');
+    expect(cardOf('In store over 30 days')).toHaveTextContent('4 fixed assets');
+    expect(cardOf('In store over 30 days')).toHaveTextContent('and 1 consumable item');
     expect(cardOf('Entered this week')).toHaveTextContent('1 request');
     const list = screen.getByText('Sent back to me', { selector: 'h2' }).closest('section')!;
     expect(list).toHaveTextContent('Wrong quantity');

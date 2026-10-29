@@ -38,6 +38,20 @@ const daysSince = (date: string | undefined, today: number) => {
 };
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
+/** Fixed assets one by one: the units they hold */
+const unitsOfFixed = (records: ItemWithRelations[]) =>
+  records.filter((i) => (i.itemType ?? 'FIXED') !== 'CONSUMABLE').reduce((sum, i) => sum + (Number(i.quantity) || 1), 0);
+/** Consumables by the different supplies: the same IFMIS item code (a stray space ignored) is one; no code, name and unit */
+const supplies = (records: ItemWithRelations[]) =>
+  new Set(
+    records
+      .filter((i) => i.itemType === 'CONSUMABLE')
+      .map((i) => {
+        const code = String(i.ifmisItemCode ?? '').replace(/\s+/g, '').toLowerCase();
+        return code ? `code:${code}` : `name:${String(i.name ?? '').trim().toLowerCase()}|${String(i.uom || 'EA').toUpperCase()}`;
+      }),
+  ).size;
+
 const Card: React.FC<{ label: string; value: React.ReactNode; note?: React.ReactNode; tone?: 'neutral' | 'warning'; onClick?: () => void; action?: string }> = ({
   label, value, note, tone = 'neutral', onClick, action,
 }) => (
@@ -150,14 +164,17 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
 
     // Items (one per line received, with the pieces issued from it) still on the shelf after the limit
     const shelf = items.filter((i) => [ItemStatus.AVAILABLE, ItemStatus.PENDING_STOCK_OUT, ItemStatus.PENDING_DISPOSAL].includes(i.status));
-    const staleItems = new Set(shelf.filter((i) => (daysInStore(i, now) ?? 0) > STALE_IN_STORE_DAYS).map((i) => i.parentItemId ?? i.id)).size;
+    // Counted as the dashboards count: fixed assets one by one (units), consumables by the different supplies (items)
+    const stale = shelf.filter((i) => (daysInStore(i, now) ?? 0) > STALE_IN_STORE_DAYS);
+    const staleFixedUnits = unitsOfFixed(stale);
+    const staleConsumables = supplies(stale);
 
     // The Department Head's directorate: what is issued to it, as items and fixed-asset units
     const held = items.filter((i) => i.assignedDepartmentId && i.assignedDepartmentId === user?.departmentId && (i.status === ItemStatus.ISSUED || i.status === ItemStatus.UNDER_TRANSFER));
-    const heldItems = new Set(held.map((i) => i.parentItemId ?? i.id)).size;
-    const heldUnits = held.filter((i) => (i.itemType ?? 'FIXED') === 'FIXED').reduce((sum, i) => sum + (Number(i.quantity) || 1), 0);
+    const heldUnits = unitsOfFixed(held);
+    const heldConsumables = supplies(held);
 
-    return { atStage1, forHead, forChief, oldestDays, sentBackByMe, endorsedByMe, approvedByMe, myWaiting, mySentBack, myThisWeek, staleItems, heldItems, heldUnits };
+    return { atStage1, forHead, forChief, oldestDays, sentBackByMe, endorsedByMe, approvedByMe, myWaiting, mySentBack, myThisWeek, staleFixedUnits, staleConsumables, heldUnits, heldConsumables };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approvals, items, me, user?.departmentId, today]);
 
@@ -259,7 +276,7 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
           <Card label="Waiting for my approval" value={f.forHead.length} note={waitingNote(f.forHead)} tone={f.forHead.length ? 'warning' : 'neutral'} onClick={toApprovals} action="Review" />
           <Card label="With the Team Leader" value={f.atStage1.length} note="Not yet endorsed" />
           <Card label="This week" value={plural(f.approvedByMe, 'approved', 'approved')} note={`${plural(f.sentBackByMe, 'sent back', 'sent back')} to the requester`} />
-          <Card label="My directorate holds" value={plural(f.heldItems, 'item')} note={`${plural(f.heldUnits, 'fixed-asset unit')} issued to it`} onClick={toAssets} action="See assets" />
+          <Card label="My directorate holds" value={plural(f.heldUnits, 'fixed asset')} note={`and ${plural(f.heldConsumables, 'consumable item')}, issued to it`} onClick={toAssets} action="See assets" />
         </div>
         {f.forChief > 0 && (
           <p className="text-[11px] text-slate-500">{plural(f.forChief, 'request')} above 10 million birr {f.forChief === 1 ? 'goes' : 'go'} to the Chief Director.</p>
@@ -276,7 +293,14 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card label="Sent back to me" value={f.mySentBack.length} note="To correct and resubmit, or cancel" tone={f.mySentBack.length ? 'warning' : 'neutral'} onClick={toAssets} action="Correct" />
         <Card label="My requests waiting" value={f.myWaiting.length} note={waitingNote(f.myWaiting)} />
-        <Card label="In store over 30 days" value={plural(f.staleItems, 'item')} note="Should have been issued by now" tone={f.staleItems ? 'warning' : 'neutral'} onClick={toAssets} action="See them" />
+        <Card
+          label="In store over 30 days"
+          value={plural(f.staleFixedUnits, 'fixed asset')}
+          note={`and ${plural(f.staleConsumables, 'consumable item')}: should have been issued by now`}
+          tone={f.staleFixedUnits || f.staleConsumables ? 'warning' : 'neutral'}
+          onClick={toAssets}
+          action="See them"
+        />
         <Card label="Entered this week" value={plural(f.myThisWeek, 'request')} note="Receipts, issues, transfers and disposals" onClick={toAssets} action="Receive or issue" />
       </div>
       <ListPanel title="Sent back to me" count={f.mySentBack.length} empty="Nothing was sent back to you." action={{ label: 'Open assets', onClick: toAssets }}>

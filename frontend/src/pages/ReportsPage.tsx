@@ -714,14 +714,17 @@ export const ReportsPage: React.FC = () => {
                   >
                     {report.tag}
                   </span>
+                  {/* A report lists records (one per line received, with the pieces issued from it): said so, as the
+                      dashboard counts differently (fixed assets in units, consumables by the different supplies) */}
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full tabular-nums font-mono font-bold ${
+                    className={`whitespace-nowrap text-xs px-2 py-0.5 rounded-full tabular-nums font-mono font-bold ${
                       isSelected
                         ? 'bg-slate-100 text-slate-900'
                         : 'bg-slate-100/70 text-slate-500'
                     }`}
+                    title="Records in this report: one per line received. The dashboard counts fixed assets in units and consumables by item."
                   >
-                    {report.count}
+                    {report.count.toLocaleString()} <span className="font-sans font-medium">{report.count === 1 ? 'record' : 'records'}</span>
                   </span>
                 </div>
                 <div className={`text-[13px] leading-tight ${isSelected ? 'font-bold text-slate-950' : 'font-semibold text-slate-700'}`}>

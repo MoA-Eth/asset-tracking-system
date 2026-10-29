@@ -4474,6 +4474,14 @@ export class StoreService {
     // Valued at what a unit cost, VAT and additional charges in, as IFMIS carries it
     const sum = (arr: typeof allItems) => arr.reduce((s, i) => s + (i.costPerUnit ?? i.unitCostETB ?? 0) * unitsOf(i), 0);
 
+    // A stock item is one kind of supply, whatever how many times it was bought: its IFMIS item code (a stray space
+    // from a misread slip ignored), or, without one, its name and unit
+    const stockKey = (i: { ifmisItemCode?: string | null; name?: string | null; uom?: string | null }) => {
+      const code = String(i.ifmisItemCode ?? '').replace(/\s+/g, '').toLowerCase();
+      return code ? `code:${code}` : `name:${String(i.name ?? '').trim().toLowerCase().replace(/\s+/g, ' ')}|${String(i.uom || 'EA').toUpperCase()}`;
+    };
+    const stockItems = (arr: { ifmisItemCode?: string | null; name?: string | null; uom?: string | null }[]) => new Set(arr.map(stockKey)).size;
+
     const departmentDistribution = departments.map((dept) => {
       const deptItems = onRecord.filter((i) => i.assignedDepartmentId === dept.id);
       return {
@@ -4485,6 +4493,8 @@ export class StoreService {
         // Item lines held and the fixed-asset units among them: the units above add up pieces, litres and kilograms
         itemLines: deptItems.length,
         fixedUnits: units(deptItems.filter((i) => (i.itemType ?? 'FIXED') !== 'CONSUMABLE')),
+        // The different supplies it holds (the same item code twice is one), as the dashboard counts consumables
+        consumableItems: stockItems(deptItems.filter((i) => i.itemType === 'CONSUMABLE')),
         totalValueETB: sum(deptItems),
         availableCount: units(deptItems.filter((i) => IN_STORE_STATUSES.includes(i.status))),
         issuedCount: units(deptItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
@@ -4547,6 +4557,8 @@ export class StoreService {
           itemCode: i.itemCode,
           name: i.name,
           itemType: i.itemType ?? 'FIXED',
+          // Tells one supply from another when counting them
+          ifmisItemCode: i.ifmisItemCode,
           unitsInStore: unitsOf(i),
           uom: i.uom || 'EA',
           inStoreSinceGc: since?.slice(0, 10),
@@ -4695,14 +4707,6 @@ export class StoreService {
     // A registration is a receipt line: the pieces a batch was issued in are parts of it, not registrations of their own
     const registrations = (arr: typeof allItems) => new Set(arr.map((i) => i.parentItemId ?? i.id)).size;
     const consumablesInStore = consumableItems.filter((i) => IN_STORE_STATUSES.includes(i.status));
-    // A stock item is one kind of supply, whatever how many times it was bought: its IFMIS item code (a stray space
-    // from a misread slip ignored), or, without one, its name and unit
-    const stockKey = (i: { ifmisItemCode?: string | null; name?: string | null; uom?: string | null }) => {
-      const code = String(i.ifmisItemCode ?? '').replace(/\s+/g, '').toLowerCase();
-      return code ? `code:${code}` : `name:${String(i.name ?? '').trim().toLowerCase().replace(/\s+/g, ' ')}|${String(i.uom || 'EA').toUpperCase()}`;
-    };
-    const stockItems = (arr: typeof allItems) => new Set(arr.map(stockKey)).size;
-
     return {
       // Total assets: fixed assets only, in units and registrations. Consumables are counted by lines and value:
       // adding up pieces, litres and kilograms of supplies says nothing about the assets on record
@@ -4760,6 +4764,9 @@ export class StoreService {
       staleInStore: {
         thresholdDays: STALE_IN_STORE_DAYS,
         itemCount: staleItems.length,
+        // As the dashboard counts: fixed assets one by one, consumables by the different supplies
+        fixedUnits: staleItems.filter((i) => i.itemType !== 'CONSUMABLE').reduce((sum, i) => sum + i.unitsInStore, 0),
+        consumableItems: stockItems(staleItems.filter((i) => i.itemType === 'CONSUMABLE')),
         units: staleItems.reduce((sum, i) => sum + i.unitsInStore, 0),
         valueETB: staleItems.reduce((sum, i) => sum + i.valueETB, 0),
         items: staleItems,

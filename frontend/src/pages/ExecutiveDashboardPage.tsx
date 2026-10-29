@@ -579,13 +579,16 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const issuedPct    = totalItems > 0 ? Math.round((issuedCount / totalItems) * 100) : 0;
   const availablePct = totalItems > 0 ? Math.round((availableCount / totalItems) * 100) : 0;
 
-  // Item lines a directorate holds (an older server sends only units)
+  // What a directorate holds, counted as the cards above: fixed assets one by one, consumables by the different supplies
+  const deptFixed = (d: any): number => d.fixedUnits ?? 0;
+  const deptSupplies = (d: any): number => d.consumableItems ?? 0;
   const deptLines = (d: any): number => d.itemLines ?? d.itemCount ?? 0;
   const deptRows: any[] = (data?.departmentDistribution || [])
     .filter((d: any) => d.itemCount > 0)
-    .sort((a: any, b: any) => (SHOW_VALUES ? b.totalValueETB - a.totalValueETB : deptLines(b) - deptLines(a)))
+    // Most fixed assets first (they can be added up; supplies of different kinds can't), then most supplies
+    .sort((a: any, b: any) => (SHOW_VALUES ? b.totalValueETB - a.totalValueETB : deptFixed(b) - deptFixed(a) || deptSupplies(b) - deptSupplies(a)))
     .slice(0, 6);
-  const deptSize = (d: any): number => (SHOW_VALUES ? d.totalValueETB : deptLines(d));
+  const deptSize = (d: any): number => (SHOW_VALUES ? d.totalValueETB : deptFixed(d));
   const deptMaxVal = deptRows.length > 0 ? deptSize(deptRows[0]) || 1 : 1;
 
   // Categories in their fixed order so colours never shift
@@ -782,7 +785,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           label="Assigned assets"
           labelAm="የተመደቡ ንብረቶች"
           value={<TypeRows fixed={fixedAssets.issuedUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsIssued} />}
-          footer="With staff"
+          footer="Assigned"
         />
         <StatTile
           label="Available assets"
@@ -1078,15 +1081,10 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   </div>
                 </div>
                 <dl className="flex flex-wrap gap-4 sm:gap-6 text-right">
+                  {/* Counted as the cards at the top: fixed assets one by one, consumables by the different supplies */}
                   {[
-                    { label: stale.itemCount === 1 ? 'Item' : 'Items', value: stale.itemCount.toLocaleString() },
-                    // A server that sends no items: its own total, as before
-                    {
-                      label: (staleItems.length ? staleMeasures.units : stale.units) === 1 ? 'Unit' : 'Units',
-                      value: (staleItems.length ? staleMeasures.units : stale.units).toLocaleString(),
-                    },
-                    ...(staleMeasures.litres > 0 ? [{ label: 'Litres', value: staleMeasures.litres.toLocaleString() }] : []),
-                    ...Object.entries(staleMeasures.other).map(([uom, q]) => ({ label: uom, value: q.toLocaleString() })),
+                    { label: 'Fixed assets (units)', value: (stale.fixedUnits ?? staleMeasures.units).toLocaleString() },
+                    { label: 'Consumables (items)', value: (stale.consumableItems ?? staleSupplies).toLocaleString() },
                     ...(SHOW_VALUES ? [{ label: 'Value', value: formatETBTotal(stale.valueETB) }] : []),
                   ].map((s) => (
                     <div key={s.label}>
@@ -1206,9 +1204,11 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                           </>
                         ) : (
                           <>
-                            <span className="block font-semibold text-slate-900">{deptLines(dept).toLocaleString()} {deptLines(dept) === 1 ? 'item' : 'items'}</span>
+                            <span className="block font-semibold text-slate-900">
+                              {deptFixed(dept).toLocaleString()} fixed {deptFixed(dept) === 1 ? 'asset' : 'assets'}
+                            </span>
                             <span className="text-[10px] text-slate-500">
-                              {(dept.fixedUnits ?? 0).toLocaleString()} fixed {(dept.fixedUnits ?? 0) === 1 ? 'asset' : 'assets'}
+                              {deptSupplies(dept).toLocaleString()} consumable {deptSupplies(dept) === 1 ? 'item' : 'items'}
                             </span>
                           </>
                         )}

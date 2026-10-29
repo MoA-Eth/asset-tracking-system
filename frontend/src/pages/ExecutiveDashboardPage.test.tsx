@@ -209,7 +209,7 @@ describe('Total assets', () => {
     expect(await card('Total valuation')).toHaveTextContent('All held, VAT included');
     // One short line under each card
     expect(await card('Total assets')).toHaveTextContent('In store and assigned');
-    expect(await card('Assigned assets')).toHaveTextContent('With staff');
+    expect(await card('Assigned assets')).toHaveTextContent('Assigned');
     expect(await card('Available assets')).toHaveTextContent('In store, ready to assign');
     expect(within(await card('Total valuation')).queryByText(/of value/)).not.toBeInTheDocument();
     // Categories are in the chart further down, not a card
@@ -285,26 +285,25 @@ describe('Asset categories', () => {
 });
 
 describe('Items in store too long', () => {
-  it('adds up litres apart from pieces, and kilograms on their own', async () => {
-    const stale = (itemCode: string, unitsInStore: number, uom: string) => ({
-      id: itemCode, itemCode, name: itemCode, itemType: 'CONSUMABLE', unitsInStore, uom, inStoreSinceGc: '2026-08-01', daysInStore: 90, valueETB: 1,
+  it('counts as the cards do: fixed assets in units, consumables in items, nothing added across measures', async () => {
+    const stale = (itemCode: string, itemType: string, unitsInStore: number, uom: string) => ({
+      id: itemCode, itemCode, name: itemCode, itemType, unitsInStore, uom, inStoreSinceGc: '2026-08-01', daysInStore: 90, valueETB: 1,
     });
     vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
       ...figures(10),
       staleInStore: {
-        thresholdDays: 30, itemCount: 4, units: 1095.5, valueETB: 4,
-        items: [stale('EAR-TAGS', 1000, 'EA'), stale('BOOTS', 64, 'PAIR'), stale('DELTAMETHRIN', 20, 'LTR'), stale('FEED', 11.5, 'KG')],
+        thresholdDays: 30, itemCount: 4, units: 1095.5, valueETB: 4, fixedUnits: 64, consumableItems: 3,
+        items: [stale('EAR-TAGS', 'CONSUMABLE', 1000, 'EA'), stale('CHAIRS', 'FIXED', 64, 'EA'), stale('DELTAMETHRIN', 'CONSUMABLE', 20, 'LTR'), stale('FEED', 'CONSUMABLE', 11.5, 'KG')],
       },
     } as any);
     renderPage();
 
     const summary = (await screen.findByText('These items should have been distributed by now')).closest('div')!.parentElement!.parentElement!;
     const figure = (label: string) => [...summary.querySelectorAll('dt')].find((dt) => dt.textContent === label)?.nextElementSibling?.textContent;
-    expect(figure('Items')).toBe('4');
-    expect(figure('Units')).toBe('1,064');
-    expect(figure('Litres')).toBe('20');
-    expect(figure('KG')).toBe('11.5');
-    // Not one figure adding litres and kilograms to pieces
+    expect(figure('Fixed assets (units)')).toBe('64');
+    expect(figure('Consumables (items)')).toBe('3');
+    // Not one figure adding pieces, litres and kilograms
     expect(summary).not.toHaveTextContent('1,095.5');
+    expect(summary).not.toHaveTextContent('Litres');
   });
 });

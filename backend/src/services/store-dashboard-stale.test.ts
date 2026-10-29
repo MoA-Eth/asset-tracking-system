@@ -260,7 +260,7 @@ describe('dashboard: figures checked against production data (29 Oct 2026)', () 
       record('THINNER', 'AVAILABLE', 3, { itemType: 'CONSUMABLE', notes: JSON.stringify({ quantity: 50, uom: 'LTR' }) }),
     ]);
     const d = await StoreService.getInstance().getExecutiveDashboard();
-    expect(d.departmentDistribution[0]).toMatchObject({ itemCount: 7702, itemLines: 2, fixedUnits: 2 });
+    expect(d.departmentDistribution[0]).toMatchObject({ itemCount: 7702, itemLines: 2, fixedUnits: 2, consumableItems: 1 });
     expect(d.locationUtilization[0]).toMatchObject({ itemLines: 3, availableLines: 1, issuedLines: 2, pendingLines: 0 });
   });
 
@@ -280,6 +280,16 @@ describe('dashboard: figures checked against production data (29 Oct 2026)', () 
     const d = await StoreService.getInstance().getExecutiveDashboard();
     expect(d.consumables).toMatchObject({ lines: 5, stockItems: 3, inStoreStockItems: 2, issuedStockItems: 2 });
     expect(d.fixedAssets).toMatchObject({ units: 2, registrations: 1 });
+  });
+
+  it('counts what has waited too long as the dashboard does: fixed assets by unit, supplies by item', async () => {
+    db.item.findMany.mockResolvedValue([
+      record('CHAIRS', 'AVAILABLE', 40, { itemType: 'FIXED', notes: JSON.stringify({ quantity: 3, uom: 'EA' }) }),
+      record('INK-A', 'AVAILABLE', 40, { itemType: 'CONSUMABLE', notes: JSON.stringify({ quantity: 5, uom: 'EA', ifmisItemCode: '102101103.0021' }) }),
+      record('INK-B', 'AVAILABLE', 45, { itemType: 'CONSUMABLE', notes: JSON.stringify({ quantity: 2, uom: 'EA', ifmisItemCode: '102101103.0021' }) }),
+    ]);
+    const d = await StoreService.getInstance().getExecutiveDashboard();
+    expect(d.staleInStore).toMatchObject({ itemCount: 3, fixedUnits: 3, consumableItems: 1 });
   });
 
   it('counts an item issued to several people once in its store, as the Assets page does', async () => {
