@@ -50,6 +50,8 @@ enum AssetCategory {
   OFFICE_FURNITURE
   LAB_EQUIPMENT
   FIELD_GEAR
+  // Tools and equipment: wheelbarrows and carts, ladders, hand tools, scales, survey and measuring instruments
+  TOOLS_EQUIPMENT
   // Consumables, matched from the IFMIS item categories on a Model 19
   OFFICE_SUPPLIES
   FUEL_LUBRICANTS

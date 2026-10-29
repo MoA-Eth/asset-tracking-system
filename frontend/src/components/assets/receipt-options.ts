@@ -11,6 +11,7 @@ export const CATEGORY_FROM_IFMIS: [RegExp, AssetCategory][] = [
   [/furniture|fixture/i, AssetCategory.OFFICE_FURNITURE],
   [/computer|\bit\b|ict|electronic/i, AssetCategory.IT_EQUIPMENT],
   [/uniform|field|gear|cloth/i, AssetCategory.FIELD_GEAR],
+  [/\btools?\b|workshop|implement/i, AssetCategory.TOOLS_EQUIPMENT],
   [/fuel|lubric/i, AssetCategory.FUEL_LUBRICANTS],
   [/office\s*suppl|stationer/i, AssetCategory.OFFICE_SUPPLIES],
   // Last: any other "materials and supplies" not matched above
@@ -90,6 +91,7 @@ export const COMMON_CATEGORIES = [
   { value: AssetCategory.VEHICLE, label: 'Vehicles & Transport' },
   { value: AssetCategory.OFFICE_FURNITURE, label: 'Office Furniture & Fixtures' },
   { value: AssetCategory.FIELD_GEAR, label: 'Field Gear & Uniforms' },
+  { value: AssetCategory.TOOLS_EQUIPMENT, label: 'Tools & Equipment' },
   { value: AssetCategory.OFFICE_SUPPLIES, label: 'Office Supplies & Stationery' },
   { value: AssetCategory.FUEL_LUBRICANTS, label: 'Fuel & Lubricants' },
   { value: AssetCategory.OTHER_SUPPLIES, label: 'Other Materials & Supplies' },

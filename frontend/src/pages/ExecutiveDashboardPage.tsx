@@ -56,6 +56,7 @@ const CATEGORY_STYLE: Record<string, { en: string; am: string; color: string }> 
   OFFICE_FURNITURE: { en: 'Office furniture', am: 'የቢሮ ዕቃዎች',      color: '#eda100' },
   LAB_EQUIPMENT:    { en: 'Lab equipment',    am: 'የላቦራቶሪ ዕቃዎች',  color: '#e87ba4' },
   FIELD_GEAR:       { en: 'Field gear',       am: 'የመስክ ቁሳቁሶች',    color: '#008300' },
+  TOOLS_EQUIPMENT:  { en: 'Tools & equipment', am: 'ቁሳቁሶችና መሣሪያዎች', color: '#b83280' },
   OFFICE_SUPPLIES:  { en: 'Office supplies',  am: 'የጽሕፈት መሣሪያና የቢሮ አላቂ ዕቃዎች', color: '#7a5af5' },
   FUEL_LUBRICANTS:  { en: 'Fuel & lubricants', am: 'ነዳጅና ቅባት',      color: '#a1672a' },
   OTHER_SUPPLIES:   { en: 'Other supplies',   am: 'ሌሎች አላቂ ዕቃዎች',  color: '#5f6b7a' },

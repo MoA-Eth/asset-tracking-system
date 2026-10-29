@@ -283,6 +283,12 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(db.item.create.mock.calls[2][0].data.itemCode).toMatch(/^MOA-[A-Z]+-\d{4}-\d{4}$/);
   });
 
+  it('codes tools and equipment as TLS', async () => {
+    const { itemCode: _tag, ...noTag } = basePayload;
+    await StoreService.getInstance().registerStockIn({ ...noTag, serialNumber: '', isHistoricalData: true, category: 'TOOLS_EQUIPMENT', name: 'Wheelbarrow' } as any);
+    expect(db.item.create.mock.calls[0][0].data).toMatchObject({ category: 'TOOLS_EQUIPMENT', itemCode: expect.stringMatching(/^MOA-TLS-\d{4}-\d{4}$/) });
+  });
+
   it('refuses a tag number already in the register, or twice on one slip', async () => {
     db.item.findFirst.mockImplementation(async ({ where }: any) => (where.itemCode ? { itemCode: 'MOA-072351', name: 'Handheld GPS' } : null));
     await expect(StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, itemCode: 'moa-072351' } as any)).rejects.toMatchObject({

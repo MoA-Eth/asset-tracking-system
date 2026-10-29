@@ -17,6 +17,13 @@ describe('IFMIS item categories', () => {
     expect(categoryOf('Office Furniture')).toBe(AssetCategory.OFFICE_FURNITURE);
     expect(categoryOf('Something unknown')).toBeUndefined();
   });
+
+  it('files tools and workshop equipment under Tools & equipment, not under supplies', () => {
+    expect(categoryOf('Hand Tools')).toBe(AssetCategory.TOOLS_EQUIPMENT);
+    expect(categoryOf('Workshop equipment and supplies')).toBe(AssetCategory.TOOLS_EQUIPMENT);
+    // "Agricultural implements" are still agricultural
+    expect(categoryOf('Agricultural implements')).toBe(AssetCategory.AGRI_MACHINERY);
+  });
 });
 
 describe('item type from the IFMIS item code', () => {

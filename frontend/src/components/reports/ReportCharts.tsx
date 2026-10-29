@@ -21,6 +21,7 @@ const CATEGORY_STYLE: Record<string, { label: string; short: string; color: stri
   OFFICE_FURNITURE: { label: 'Office furniture', short: 'Office', color: '#eda100' },
   LAB_EQUIPMENT: { label: 'Lab equipment', short: 'Lab', color: '#e87ba4' },
   FIELD_GEAR: { label: 'Field gear', short: 'Field', color: '#008300' },
+  TOOLS_EQUIPMENT: { label: 'Tools & equipment', short: 'Tools', color: '#b83280' },
   OFFICE_SUPPLIES: { label: 'Office supplies', short: 'Supplies', color: '#7a5af5' },
   FUEL_LUBRICANTS: { label: 'Fuel & lubricants', short: 'Fuel', color: '#a1672a' },
   OTHER_SUPPLIES: { label: 'Other supplies', short: 'Other', color: '#5f6b7a' },

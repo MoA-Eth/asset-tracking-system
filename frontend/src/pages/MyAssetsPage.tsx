@@ -14,6 +14,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   VEHICLE: 'Vehicles & Transport',
   OFFICE_FURNITURE: 'Office Furniture & Fixtures',
   FIELD_GEAR: 'Field Gear & Uniforms',
+  TOOLS_EQUIPMENT: 'Tools & Equipment',
   OFFICE_SUPPLIES: 'Office Supplies & Stationery',
   FUEL_LUBRICANTS: 'Fuel & Lubricants',
   OTHER_SUPPLIES: 'Other Materials & Supplies',
