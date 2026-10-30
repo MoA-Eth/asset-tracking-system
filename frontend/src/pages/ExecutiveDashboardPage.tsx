@@ -54,6 +54,9 @@ const SHOW_IDLE_CARD = false;
 /** The "Asset categories" card is off for now: the categories chart further down shows them. */
 const SHOW_CATEGORIES_CARD = false;
 
+/** The "Consumables in stock by unit" table is off for now. Set to true to show it again. */
+const SHOW_STOCK_BY_UNIT = false;
+
 /** The "Executive governance & activity" feed (recent audit log) is off for now; the Audit log page has it all. */
 const SHOW_ACTIVITY = false;
 
@@ -1325,6 +1328,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       </div>
 
       {/* ── Consumable stock by unit: quantities only add up within one unit (litres with litres, reams with reams) ── */}
+      {SHOW_STOCK_BY_UNIT && (
       <Panel title="Consumables in stock by unit" subtitle="Stock quantities grouped by measurement unit.">
         {stockByUnit.length === 0 ? (
           <EmptyState>No consumables held yet.</EmptyState>
@@ -1368,6 +1372,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           </>
         )}
       </Panel>
+      )}
 
       {/* ── Row 4: Locations (Warehouse & Store Distribution) ────────────────── */}
       {SHOW_STORE_LOCATIONS && (

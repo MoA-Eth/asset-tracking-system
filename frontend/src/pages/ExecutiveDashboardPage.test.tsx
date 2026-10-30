@@ -347,7 +347,7 @@ describe('A figure opens the list behind it on the Assets page', () => {
 });
 
 describe('Consumables in stock by unit', () => {
-  it('lists each unit with its own totals, as the server adds them up', async () => {
+  it('is off for now, even with consumables in stock', async () => {
     const base = figures(10) as any;
     vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
       ...base,
@@ -360,9 +360,7 @@ describe('Consumables in stock by unit', () => {
       },
     } as any);
     renderPage();
-    const table = await screen.findByRole('table', { name: 'Consumables in stock by unit' });
-    const rows = within(table).getAllByRole('row').map((r) => r.textContent);
-    expect(rows).toEqual(['UnitItemsIn stock', 'Litres21,060', 'Reams140']);
-    expect(screen.getByText('3 distinct products across 2 units')).toBeInTheDocument();
+    await screen.findByText('Total assets');
+    expect(screen.queryByRole('table', { name: 'Consumables in stock by unit' })).toBeNull();
   });
 });
