@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ItemWithRelations } from '../../types/asset-management';
 import { RecordDetailModal } from '../ui/RecordDetailModal';
 import { NAV_SECTIONS, SETTINGS_NAV } from './navigation';
-import { groupBySlip, isSlipGroup, requestOpenSlip, slipKey, slipNames } from '../assets/slip-groups';
+import { groupBySlip, isSlipGroup, requestOpenSlip, slipKey, slipNames, voucherSize } from '../assets/slip-groups';
 
 interface GlobalSearchProps {
   onNavigate: (tab: string) => void;
@@ -234,7 +234,8 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onNavigate }) => {
                       <span className="min-w-0">
                         <span className="block truncate font-medium text-slate-900">{slipNames(hit.items.map((it) => it.name))}</span>
                         <span className="block truncate text-[11px] text-slate-500">
-                          Model 19 <span className="font-mono">{hit.items[0].ifmisSlipNumber}</span> · {hit.items.length} items
+                          Model 19 <span className="font-mono">{hit.items[0].ifmisSlipNumber}</span> ·{' '}
+                          {voucherSize(hit.items.map((it) => ({ units: it.balance?.total ?? it.quantity, uom: it.uom })))}
                           {hit.items[0].poNumber ? ` · PO ${hit.items[0].poNumber}` : ''}
                         </span>
                       </span>

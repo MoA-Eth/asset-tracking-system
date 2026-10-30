@@ -122,6 +122,15 @@ export const takePendingCorrection = (has: (itemId: string) => boolean): { itemI
   return taken;
 };
 
+/** The units of a voucher's lines when they all count in one unit ("9 ea"); none when they don't add up (litres and drums) */
+export const voucherUnits = (lines: { units?: number | null; uom?: string | null }[]): string | null => {
+  const uoms = [...new Set(lines.map((l) => (l.uom || 'EA').toLowerCase()))];
+  if (uoms.length !== 1) return null;
+  return `${lines.reduce((sum, l) => sum + (Number(l.units) || 0), 0).toLocaleString()} ${uoms[0]}`;
+};
+/** How much a voucher of several lines holds, where a quantity is shown: its units ("9 ea"), or else its lines ("2 lines") */
+export const voucherSize = (lines: { units?: number | null; uom?: string | null }[]): string => voucherUnits(lines) ?? `${lines.length} lines`;
+
 /** "Dell Latitude, HP Printer +3" */
 export const slipNames = (names: string[], shown = 2): string => {
   const distinct = [...new Set(names.filter(Boolean))];

@@ -2601,7 +2601,8 @@ describe('One row per Model 19', () => {
 
     await user.click(within(slipRow).getByText('Dell Latitude, HP Printer +1'));
     const receipt = screen.getByRole('region', { name: 'Model 19 0000051' });
-    expect(within(receipt).getByText('3 items · PO PO-14')).toBeInTheDocument();
+    // Its units (1 laptop, 1 printer, 10 toners), as its row's quantity counts them
+    expect(within(receipt).getByText('12 ea · PO PO-14')).toBeInTheDocument();
     expect(within(receipt).getByText('2 In store')).toBeInTheDocument();
     expect(within(receipt).getByText('1 Issued')).toBeInTheDocument();
     const lines = within(receipt).getByRole('table', { name: 'Items on this Model 19' });

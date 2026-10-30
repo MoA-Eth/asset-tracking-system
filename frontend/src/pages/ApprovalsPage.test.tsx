@@ -39,7 +39,7 @@ describe('Approvals: one row per Model 19', () => {
     const user = userEvent.setup();
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
 
-    const row = (await screen.findByText('3 items')).closest('tr')!;
+    const row = (await screen.findByText('3 lines')).closest('tr')!;
     expect(within(row).getByText('Dell Latitude, HP Printer +1')).toBeInTheDocument();
     expect(within(row).getByText('PO PO-14')).toBeInTheDocument();
     // The other PO stays its own row
@@ -58,33 +58,33 @@ describe('Approvals: one row per Model 19', () => {
   it('finds a receipt by the name of any of its items', async () => {
     const user = userEvent.setup();
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
-    await screen.findByText('3 items');
+    await screen.findByText('3 lines');
     await user.type(screen.getByPlaceholderText(/search/i), 'toner');
-    expect(screen.getByText('3 items')).toBeInTheDocument();
+    expect(screen.getByText('3 lines')).toBeInTheDocument();
     expect(screen.queryByText('MOA-D')).toBeNull();
   });
 
   it('finds a receipt by its item code or batch item codes', async () => {
     const user = userEvent.setup();
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
-    await screen.findByText('3 items');
+    await screen.findByText('3 lines');
     await user.type(screen.getByPlaceholderText(/search/i), 'MOA-B');
-    expect(screen.getByText('3 items')).toBeInTheDocument();
+    expect(screen.getByText('3 lines')).toBeInTheDocument();
     expect(screen.queryByText('MOA-D')).toBeNull();
 
     await user.clear(screen.getByPlaceholderText(/search/i));
     await user.type(screen.getByPlaceholderText(/search/i), 'MOA-D');
     expect(screen.getByText('MOA-D')).toBeInTheDocument();
-    expect(screen.queryByText('3 items')).toBeNull();
+    expect(screen.queryByText('3 lines')).toBeNull();
   });
 
   it('finds a receipt by PO number', async () => {
     const user = userEvent.setup();
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
-    await screen.findByText('3 items');
+    await screen.findByText('3 lines');
     await user.type(screen.getByPlaceholderText(/search/i), 'PO-15');
     expect(screen.getByText('MOA-D')).toBeInTheDocument();
-    expect(screen.queryByText('3 items')).toBeNull();
+    expect(screen.queryByText('3 lines')).toBeNull();
   });
 
   it('finds a receipt by IFMIS item code', async () => {
@@ -134,7 +134,7 @@ describe('Approvals: one row per Model 22', () => {
     ] as any);
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
 
-    const row = (await screen.findByText('2 items')).closest('tr')!;
+    const row = (await screen.findByText('2 lines')).closest('tr')!;
     expect(within(row).getByText('Toner, Printer paper')).toBeInTheDocument();
     expect(screen.getByText('MOA-Z')).toBeInTheDocument();
 
@@ -203,7 +203,7 @@ describe('Approvals: rejecting', () => {
   it('needs a reason, then sends the whole Model 19 back to its requester; there is no separate Return', async () => {
     const user = userEvent.setup();
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
-    const row = (await screen.findByText('3 items')).closest('tr')!;
+    const row = (await screen.findByText('3 lines')).closest('tr')!;
     await user.click(within(row).getByRole('button', { name: /Endorse/ }));
     // The decision window's own Reject (the row has one too); wider than before, to read the voucher's lines
     const modalReject = () => screen.getAllByRole('button', { name: /^Reject$/ }).find((b) => b.closest('.max-w-2xl'))!;
@@ -223,7 +223,7 @@ describe('Approvals: rejecting', () => {
   it('rejects straight from the row: only the reason is asked, and the whole Model 19 goes back', async () => {
     const user = userEvent.setup();
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
-    const row = (await screen.findByText('3 items')).closest('tr')!;
+    const row = (await screen.findByText('3 lines')).closest('tr')!;
     await user.click(within(row).getByRole('button', { name: 'Reject' }));
     const dialog = screen.getByRole('dialog');
     // No reason, no rejecting

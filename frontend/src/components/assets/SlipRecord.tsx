@@ -10,6 +10,7 @@ import { formatETB } from '../../utils/eth-date';
 import { storeLocationLabel } from '../../utils/location';
 import { getSlipDisplayName } from '../../utils/slip-upload';
 import { AssetRow, AssetState, AssetStatus, ItemTypeBadge, requestLabel, shortDate } from './asset-state';
+import { voucherSize } from './slip-groups';
 
 /** What a line of a receipt cost, as on its Model 19 (VAT or other charges included) */
 export const slipLineTotal = (item: ItemWithRelations): number => {
@@ -137,7 +138,11 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, partly, onOpenItem
             <div className="min-w-0">
               <h3 className="truncate text-base font-extrabold text-slate-900">Model 19 #{lead.ifmisSlipNumber}</h3>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                <span>{rows.length} items{lead.poNumber ? ` · PO ${lead.poNumber}` : ''}</span>
+                <span>
+                  {/* Received on the slip (the units issued since included), as its row in the list counts them */}
+                  {voucherSize(rows.map((r) => ({ units: r.item.balance?.total ?? r.units, uom: r.item.uom })))}
+                  {lead.poNumber ? ` · PO ${lead.poNumber}` : ''}
+                </span>
                 <SlipStatus rows={rows} partly={partly} />
               </div>
             </div>

@@ -37,7 +37,7 @@ import { SlipRecord, SlipStatus, slipLineTotal } from '../components/assets/Slip
 import { isConsumable, itemsLabel, supplyKey, unitsLabel } from '../utils/counting';
 import { inCategory } from '../components/assets/receipt-options';
 import { assetsViewKey } from '../utils/assets-view';
-import { OPEN_CORRECTION_EVENT, OPEN_SLIP_EVENT, slipKey, slipNames, takePendingCorrection, takePendingSlip } from '../components/assets/slip-groups';
+import { OPEN_CORRECTION_EVENT, OPEN_SLIP_EVENT, slipKey, slipNames, takePendingCorrection, takePendingSlip, voucherSize } from '../components/assets/slip-groups';
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { Model21PrintModal } from '../components/ui/Model21PrintModal';
@@ -1626,14 +1626,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             const { isBatch, totalUnits } = batchSummary(g.row, g.children);
             return { name: g.row.item.name, units: isBatch ? totalUnits : g.row.units, uom: (g.row.item.uom || 'EA').toLowerCase() };
           });
-          const uoms = [...new Set(lines.map((l) => l.uom))];
-          const units = lines.reduce((sum, l) => sum + l.units, 0);
           return (
             <td
               className="px-3 py-2.5 tabular-nums text-slate-600 whitespace-nowrap"
               title={lines.map((l) => `${l.name}: ${l.units.toLocaleString()} ${l.uom}`).join('\n')}
             >
-              {uoms.length === 1 ? `${units.toLocaleString()} ${uoms[0]}` : `${members.length} lines`}
+              {voucherSize(lines)}
             </td>
           );
         })()}

@@ -57,7 +57,7 @@ import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { Modal } from '../components/ui/Modal';
 import { getSlipDisplayName } from '../utils/slip-upload';
 import { RefreshButton } from '../components/ui/RefreshButton';
-import { approvalPolicy, approvalRowKey, groupBySlip, isSlipGroup, needsChiefDirector, requestCorrection, slipNames, voucherName } from '../components/assets/slip-groups';
+import { approvalPolicy, approvalRowKey, groupBySlip, isSlipGroup, needsChiefDirector, requestCorrection, slipNames, voucherName, voucherUnits } from '../components/assets/slip-groups';
 import { formatETB } from '../utils/eth-date';
 import { shortDate } from '../components/assets/asset-state';
 
@@ -126,6 +126,9 @@ const approvalUnits = (a: TransactionApproval): string | null => {
   }
   return a.status === 'PENDING' && a.itemUnits ? `Qty ${a.itemUnits} ${uom}` : null;
 };
+/** The units of a voucher's lines together ("9 ea"), when they all count in one unit */
+const linesUnits = (lines: TransactionApproval[]): string | null =>
+  voucherUnits(lines.map((l) => ({ units: l.requestDetails?.quantity ?? l.itemUnits, uom: l.requestDetails?.uom || l.itemUom })));
 
 /** Who decided, by role: from their account, or else the stage they decided at */
 const deciderRole = (role?: string, stage?: number): string =>
@@ -244,7 +247,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         ...lead,
         id,
         itemName: slipNames(g.members.map((m) => m.itemName)),
-        itemCode: `${g.members.length} items`,
+        itemCode: `${g.members.length} lines`,
         itemUnits: undefined,
         totalAmount: total,
         requiredRole: high ? 'CHIEF_DIRECTOR' : 'DEPARTMENT_HEAD',
@@ -1176,9 +1179,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                               <span className="text-xs text-slate-500 font-mono">Tag {appr.ifmisTagNumber}</span>
                             )}
                             {slipLines.has(appr.id) ? (
-                              <span className="px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
-                                Batch · {slipLines.get(appr.id)!.length} items
-                              </span>
+                              <>
+                                <span className="px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                                  Batch · {slipLines.get(appr.id)!.length} lines
+                                </span>
+                                {linesUnits(slipLines.get(appr.id)!) && <span className="text-xs text-sky-800">· Qty {linesUnits(slipLines.get(appr.id)!)}</span>}
+                              </>
                             ) : approvalUnits(appr) ? (
                               <span className="text-xs text-sky-800">· {approvalUnits(appr)}</span>
                             ) : null}
@@ -1401,7 +1407,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Batch Voucher:</span>
                     <span className="px-1.5 py-0.5 rounded-[4px] text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
-                      {slipLines.get(selectedApproval.id)!.length} items decided together
+                      {slipLines.get(selectedApproval.id)!.length} lines decided together
+                      {linesUnits(slipLines.get(selectedApproval.id)!) ? ` · ${linesUnits(slipLines.get(selectedApproval.id)!)}` : ''}
                     </span>
                   </div>
                 ) : approvalUnits(selectedApproval) ? (
