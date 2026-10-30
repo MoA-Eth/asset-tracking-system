@@ -4,10 +4,10 @@ import { buildAssetsWorkbook, itemKey } from './assets-workbook';
 
 const headers = [
   '#', 'Asset Code', 'Asset Name', 'Category', 'Item Type', 'Status', 'UoM', 'Total Quantity', 'In Store Quantity', 'Issued Quantity',
-  'Held By / Where', 'IFMIS Slip #', 'Slip Date (G.C.)', 'Unit Cost (ETB)', 'Total Value (ETB)', 'IFMIS Item Code', 'On Register',
+  'Held By / Where', 'IFMIS Slip #', 'Slip Date (G.C.)', 'Unit Cost (ETB)', 'Total Value (ETB)', 'IFMIS Item Code', 'On Register', 'Days In Store',
 ];
 const row = (code: string, name: string, type: string, total: number, inStore: number, issued: number, value: number, ifmis: string, onRegister: string) =>
-  [1, code, name, 'X', type, 'IN_STORE', 'EA', total, inStore, issued, '', '', '', 1, value, ifmis, onRegister];
+  [1, code, name, 'IT Equipment', type, 'IN_STORE', 'EA', total, inStore, issued, '', '', '', 1, value, ifmis, onRegister, 40];
 
 const read = async (buffer: ArrayBuffer) => {
   const wb = new ExcelJS.Workbook();
@@ -31,14 +31,14 @@ describe('the Excel export', () => {
       row('R1', 'Scanner', 'Fixed asset', 2, 0, 0, 0, '', 'No'),
     ], 'Store: Saris'));
 
-    expect(wb.worksheets.map((w) => w.name)).toEqual(['Summary', 'Assets']);
     const data = wb.getWorksheet('Assets')!;
     expect(data.getRow(1).values).toEqual(expect.arrayContaining(['IFMIS Item Code', 'On Register', 'Item Key', 'Consumable Counted Once']));
     expect(data.rowCount).toBe(4);
     // The working columns: the supply's key, and formulas flagging it once and whether any is in store
-    expect(data.getCell('R3').value).toBe('code:102101103.0021');
-    expect(String((data.getCell('S3').value as any).formula)).toContain('COUNTIFS(');
-    expect(String((data.getCell('T3').value as any).formula)).toContain('SUMIFS(');
+    expect(data.getCell('S3').value).toBe('code:102101103.0021');
+    expect(String((data.getCell('T3').value as any).formula)).toContain('COUNTIFS(');
+    expect(String((data.getCell('U3').value as any).formula)).toContain('SUMIFS(');
+    expect(String((data.getCell('V3').value as any).formula)).toContain('">30"');
 
     const s = wb.getWorksheet('Summary')!;
     expect(s.getCell('A2').value).toContain('Store: Saris');
@@ -49,9 +49,13 @@ describe('the Excel export', () => {
     expect(formula('C5')).toContain('Assets!$J$2:$J$4');
     expect(formula('D5')).toContain('Assets!$I$2:$I$4');
     // Consumables as items: counted once each; Assigned is what is not available, so they add up
-    expect(formula('B6')).toBe('SUM(Assets!$S$2:$S$4)');
+    expect(formula('B6')).toBe('SUM(Assets!$T$2:$T$4)');
     expect(formula('C6')).toBe('B6-D6');
-    expect(formula('D6')).toBe('SUM(Assets!$T$2:$T$4)');
+    expect(formula('D6')).toBe('SUM(Assets!$U$2:$U$4)');
+    // The lower tables: by category, over 30 days, by directorate
+    const labels = s.getColumn(1).values.filter(Boolean).map(String);
+    expect(labels).toEqual(expect.arrayContaining(['Fixed assets by category (units)', 'IT Equipment', 'In store over 30 days', 'By directorate (issued to it)']));
+    expect(wb.worksheets.map((w) => w.name)).toEqual(['Summary', 'Assets', 'Issued']);
     expect(formula('B8')).toBe('SUMIFS(Assets!$O$2:$O$4,Assets!$Q$2:$Q$4,"Yes")');
   });
 

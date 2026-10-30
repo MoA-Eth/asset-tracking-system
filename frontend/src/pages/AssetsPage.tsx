@@ -82,6 +82,7 @@ import {
   decidedOn,
   isStale,
   recipientOf,
+  categoryLabel,
 } from '../components/assets/asset-state';
 
 // Where an item is now, or what it waits for. (A "Transferred / returned" filter was history, not a state: a moved
@@ -1315,6 +1316,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         // To check the dashboard: count different consumables by their code, and keep only what is on the register
         'IFMIS Item Code',
         'On Register',
+        'Days In Store',
       ];
 
       const csvRows = sortedShown.map((group, index) => {
@@ -1340,7 +1342,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           index + 1,
           item.itemCode,
           item.name,
-          item.category || '',
+          // The category as people read it (the Summary groups fixed assets by it)
+          categoryLabel(item),
           (item.itemType ?? 'FIXED') === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset',
           group.row.state,
           uom,
@@ -1354,10 +1357,26 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           totalValue,
           item.ifmisItemCode || '',
           onRegister ? 'Yes' : 'No',
+          // How long its units have been on the shelf (the longest of the batch), as the dashboard counts it
+          onRegister && inStoreUnits > 0 ? Math.max(0, ...[group.row, ...children].map((r) => r.daysInStore ?? 0)) : '',
         ];
       });
 
-      return { headers, rows: csvRows };
+      // Each issued piece, with the directorate holding it: a batch can be issued to several (the Excel Summary reads these)
+      const issued = sortedShown.flatMap((group) =>
+        [group.row, ...(group.children ?? [])]
+          .filter((r) => r.item.status === ItemStatus.ISSUED || r.item.status === ItemStatus.UNDER_TRANSFER)
+          .map((r) => [
+            r.item.itemCode,
+            r.item.name,
+            (r.item.itemType ?? 'FIXED') === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset',
+            r.item.assignedDepartment ? departmentLabel(r.item.assignedDepartment) : '',
+            r.units,
+            r.item.uom || 'EA',
+            r.item.ifmisItemCode || '',
+          ]),
+      );
+      return { headers, rows: csvRows, issued };
   };
 
   const handleExportCSV = () => {
@@ -1398,8 +1417,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       return;
     }
     try {
-      const { headers, rows } = exportTable();
-      await downloadAssetsWorkbook(`moa-assets-${new Date().toISOString().split('T')[0]}.xlsx`, headers, rows, filtersInForce());
+      const { headers, rows, issued } = exportTable();
+      await downloadAssetsWorkbook(`moa-assets-${new Date().toISOString().split('T')[0]}.xlsx`, headers, rows, filtersInForce(), issued);
       toast.success('Excel Exported', `Exported ${sortedShown.length} asset records, with a summary.`);
     } catch {
       toast.error('Export Failed', 'Failed to generate the Excel workbook.');
