@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { ItemWithRelations } from '../../types/asset-management';
 import { displaySerialNumber } from '../../utils/asset-tag';
+import { categoryLabel } from '../assets/asset-state';
 import { formatETB, getTodayGcAndEc } from '../../utils/eth-date';
 import { buildRecordPdf } from '../../utils/report-pdf';
 import { actionText, withRoleNames } from '../../utils/roles';
@@ -27,7 +28,7 @@ export const recordSections = (item: ItemWithRelations): { title: string; rows: 
       rows: [
         ['Item code', item.itemCode],
         ['Description', item.name],
-        ['Category', item.itemCategoryDisplay || item.category.replace(/_/g, ' ')],
+        ['Category', categoryLabel(item)],
         ['Status', itemStatusOf(item).label],
         ['Units', units],
         ['Unit price', formatETB(item.unitCostETB)],

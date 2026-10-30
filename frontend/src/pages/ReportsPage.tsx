@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRealtimeSync } from '../utils/realtime-sync';
 import { costOf, valueOf } from '../utils/item-cost';
 import { heldCounts, isConsumable, itemsLabel, unitsLabel } from '../utils/counting';
+import { inCategory } from '../components/assets/receipt-options';
 import {
   Search,
   FileText,
@@ -34,7 +35,7 @@ import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { ReportPdfViewer } from '../components/reports/ReportPdfViewer';
 import { buildReportPdf } from '../utils/report-pdf';
 import { useAuth } from '../context/AuthContext';
-import { CATEGORY_OPTIONS } from '../components/assets/asset-state';
+import { CATEGORY_OPTIONS, categoryLabel } from '../components/assets/asset-state';
 import { isGeneratedSerialNumber, displaySerialNumber } from '../utils/asset-tag';
 
 export type ReportType = 'all' | 'registered' | 'available' | 'issued' | 'transferred';
@@ -247,7 +248,7 @@ export const ReportsPage: React.FC = () => {
       }
 
       // 3. Category Filter
-      if (selectedCategory !== 'ALL' && item.category !== selectedCategory) return false;
+      if (!inCategory(item, selectedCategory)) return false;
 
       // 4. Store Location Filter
       if (selectedLocation !== 'ALL' && item.storeLocationId !== selectedLocation) return false;
@@ -1215,7 +1216,7 @@ export const ReportsPage: React.FC = () => {
                         )}
                       </td>
                       <td className="hidden 2xl:table-cell py-2 px-3 text-slate-600 whitespace-nowrap w-28 shrink-0">
-                        {item.itemCategoryDisplay || CATEGORY_OPTIONS.find((o) => o.value === item.category)?.label || item.category}
+                        {categoryLabel(item)}
                       </td>
                       <td className="py-2 px-3 whitespace-nowrap w-28 shrink-0">
                         <span

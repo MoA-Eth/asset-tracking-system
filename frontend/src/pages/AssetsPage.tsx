@@ -35,6 +35,7 @@ import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
 import { AssetRecord } from '../components/assets/AssetRecord';
 import { SlipRecord, SlipStatus, slipLineTotal } from '../components/assets/SlipRecord';
 import { isConsumable, itemsLabel, supplyKey, unitsLabel } from '../utils/counting';
+import { inCategory } from '../components/assets/receipt-options';
 import { assetsViewKey } from '../utils/assets-view';
 import { OPEN_CORRECTION_EVENT, OPEN_SLIP_EVENT, slipKey, slipNames, takePendingCorrection, takePendingSlip } from '../components/assets/slip-groups';
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
@@ -542,7 +543,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       return false;
     }
 
-    if (cat !== 'ALL' && row.item.category !== cat) {
+    // Vehicles with Accessories lists the vehicles themselves
+    if (!inCategory(row.item, cat)) {
       return false;
     }
 

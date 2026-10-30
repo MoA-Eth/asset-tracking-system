@@ -2,6 +2,7 @@ import React from 'react';
 import { Clock, Undo2 } from 'lucide-react';
 import { statusTone, pill } from '../ui/theme';
 import { ItemWithRelations, TransactionApproval, AssetCategory, ItemType } from '../../types/asset-management';
+import { SHOW_VEHICLE_PARTS } from './receipt-options';
 
 export const ITEM_TYPE_OPTIONS: { value: ItemType; label: string; amharic: string }[] = [
   { value: ItemType.FIXED, label: 'Fixed asset', amharic: 'ቋሚ ዕቃ' },
@@ -34,8 +35,8 @@ export const CATEGORY_OPTIONS: { value: AssetCategory; label: string }[] = [
   { value: AssetCategory.IT_EQUIPMENT, label: 'IT Equipment & Accessories' },
   { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery & Supplies' },
   { value: AssetCategory.LAB_EQUIPMENT, label: 'Medical & Lab Supplies' },
-  { value: AssetCategory.VEHICLE, label: 'Vehicles' },
-  { value: AssetCategory.VEHICLE_PARTS, label: 'Vehicle Parts & Accessories' },
+  { value: AssetCategory.VEHICLE, label: 'Vehicles with Accessories' },
+  ...(SHOW_VEHICLE_PARTS ? [{ value: AssetCategory.VEHICLE_PARTS, label: 'Vehicle Parts & Accessories' }] : []),
   { value: AssetCategory.OFFICE_FURNITURE, label: 'Office Furniture & Fixtures' },
   { value: AssetCategory.FIELD_GEAR, label: 'Field Gear & Uniforms' },
   { value: AssetCategory.TOOLS_EQUIPMENT, label: 'Tools & Equipment' },

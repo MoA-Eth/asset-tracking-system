@@ -8,6 +8,7 @@ import { statusTone, pill } from './theme';
 import { api } from '../../api/client';
 import { formatETB } from '../../utils/eth-date';
 import { displaySerialNumber } from '../../utils/asset-tag';
+import { categoryLabel } from '../assets/asset-state';
 import {
   ItemWithRelations,
   TransactionApproval,
@@ -272,7 +273,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
               <Section title="Item" icon={Package}>
                 <Row label="Item code" mono>{item.itemCode}</Row>
                 <Row label="Description">{item.name}</Row>
-                <Row label="Category">{item.itemCategoryDisplay || item.category.replace(/_/g, ' ')}</Row>
+                <Row label="Category">{categoryLabel(item)}</Row>
                 <Row label="Status">
                   {itemStatus && <span className={`${pill} ${statusTone[itemStatus.tone]}`}>{itemStatus.label}</span>}
                 </Row>

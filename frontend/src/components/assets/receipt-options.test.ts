@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CATEGORY_FROM_IFMIS, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
+import { CATEGORY_FROM_IFMIS, inCategory, itemTypeFromIfmisCode, provisionFromSlip } from './receipt-options';
 import { AssetCategory, ItemType } from '../../types/asset-management';
 
 const categoryOf = (ifmis: string) => CATEGORY_FROM_IFMIS.find(([pattern]) => pattern.test(ifmis))?.[1];
@@ -18,13 +18,21 @@ describe('IFMIS item categories', () => {
     expect(categoryOf('Something unknown')).toBeUndefined();
   });
 
-  it('files vehicle spare parts and accessories apart from the vehicles', () => {
-    expect(categoryOf('Vehicle Spare Parts')).toBe(AssetCategory.VEHICLE_PARTS);
-    expect(categoryOf('Vehicle accessories')).toBe(AssetCategory.VEHICLE_PARTS);
-    expect(categoryOf('Tyres and tubes')).toBe(AssetCategory.VEHICLE_PARTS);
-    // The vehicles themselves, and computer accessories, stay where they were
+  it('files vehicle spare parts and accessories with the vehicles, in Vehicles with Accessories', () => {
+    expect(categoryOf('Vehicle Spare Parts')).toBe(AssetCategory.VEHICLE);
+    expect(categoryOf('Vehicle accessories')).toBe(AssetCategory.VEHICLE);
+    expect(categoryOf('Tyres and tubes')).toBe(AssetCategory.VEHICLE);
     expect(categoryOf('Vehicles & Transport')).toBe(AssetCategory.VEHICLE);
+    // Computer accessories stay with IT
     expect(categoryOf('Computer accessories')).toBe(AssetCategory.IT_EQUIPMENT);
+  });
+
+  it('lists the vehicles only when Vehicles with Accessories is chosen in a filter', () => {
+    expect(inCategory({ category: 'VEHICLE', itemType: 'FIXED' }, 'VEHICLE')).toBe(true);
+    expect(inCategory({ category: 'VEHICLE', itemType: 'CONSUMABLE' }, 'VEHICLE')).toBe(false);
+    // Still counted everywhere else: no category chosen, or another category's own consumables
+    expect(inCategory({ category: 'VEHICLE', itemType: 'CONSUMABLE' }, 'ALL')).toBe(true);
+    expect(inCategory({ category: 'OFFICE_SUPPLIES', itemType: 'CONSUMABLE' }, 'OFFICE_SUPPLIES')).toBe(true);
   });
 
   it('files tools and workshop equipment under Tools & equipment, not under supplies', () => {

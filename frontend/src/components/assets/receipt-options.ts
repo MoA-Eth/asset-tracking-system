@@ -3,12 +3,22 @@ import { AssetCategory, ItemType, ProvisionType } from '../../types/asset-manage
 /** The transaction types the receipt offers */
 export const TRANSACTION_TYPES = ['PO Receipt', 'Petty Cash Purchase Receipt', 'Direct Delivery', 'Donation / Grant Receipt', 'Transfer Receipt', 'Internal Production'];
 
+/**
+ * Vehicle parts & accessories as a category of their own is off for now: they stay with the vehicles, in Vehicles with
+ * Accessories (choosing it in a filter lists the vehicles themselves). Set to true to offer the category again.
+ */
+export const SHOW_VEHICLE_PARTS = false;
+
+/** Whether a record is in the category chosen in a filter: for Vehicles with Accessories, the vehicles only */
+export const inCategory = (item: { category?: string | null; itemType?: string | null }, category: string): boolean =>
+  category === 'ALL' || (item.category === category && !(category === AssetCategory.VEHICLE && item.itemType === ItemType.CONSUMABLE));
+
 /** IFMIS item categories, matched to the categories of this register */
 export const CATEGORY_FROM_IFMIS: [RegExp, AssetCategory][] = [
   [/medical|laborator|\blab\b|veterinar|drug/i, AssetCategory.LAB_EQUIPMENT],
   [/agricultur|farm|seed|fertili/i, AssetCategory.AGRI_MACHINERY],
-  // Before vehicles: their spare parts and accessories are consumables of their own
-  [/spare\s*part|vehicle\s*accessor|\btyres?\b|\btires?\b/i, AssetCategory.VEHICLE_PARTS],
+  // Vehicle spare parts and accessories: their own category when it is on, otherwise with the vehicles
+  [/spare\s*part|vehicle\s*accessor|\btyres?\b|\btires?\b/i, SHOW_VEHICLE_PARTS ? AssetCategory.VEHICLE_PARTS : AssetCategory.VEHICLE],
   [/vehicle|transport|motor/i, AssetCategory.VEHICLE],
   [/furniture|fixture/i, AssetCategory.OFFICE_FURNITURE],
   [/computer|\bit\b|ict|electronic/i, AssetCategory.IT_EQUIPMENT],
@@ -90,8 +100,8 @@ export const COMMON_CATEGORIES = [
   { value: AssetCategory.IT_EQUIPMENT, label: 'IT Equipment & Accessories' },
   { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery & Supplies' },
   { value: AssetCategory.LAB_EQUIPMENT, label: 'Medical & Lab Supplies' },
-  { value: AssetCategory.VEHICLE, label: 'Vehicles' },
-  { value: AssetCategory.VEHICLE_PARTS, label: 'Vehicle Parts & Accessories' },
+  { value: AssetCategory.VEHICLE, label: 'Vehicles with Accessories' },
+  ...(SHOW_VEHICLE_PARTS ? [{ value: AssetCategory.VEHICLE_PARTS, label: 'Vehicle Parts & Accessories' }] : []),
   { value: AssetCategory.OFFICE_FURNITURE, label: 'Office Furniture & Fixtures' },
   { value: AssetCategory.FIELD_GEAR, label: 'Field Gear & Uniforms' },
   { value: AssetCategory.TOOLS_EQUIPMENT, label: 'Tools & Equipment' },
