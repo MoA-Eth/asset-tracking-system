@@ -5,11 +5,17 @@
 ## Find an asset
 
 1. Type in **Search** to find by name, code, IFMIS tag number, serial number, slip number or person.
-2. Press **Filter** to narrow the list: **Lifecycle status** (In store, Issued, Pending, Rejected, Disposed), **Store and custody location**, **Asset category**, **Item type** (fixed asset or consumable), and **Time in store** (over 30 days).
+2. Press **Filter** to narrow the list: **Lifecycle status** (In store, Issued, Pending, Rejected, Disposed), **Store and custody location**, **Asset category**, **Item type** (fixed asset or consumable), **Directorate** (the directorate holding them), and **Time in store** (over 30 days).
 3. Click a column heading to sort. Active filters show as chips you can remove. **Clear** resets everything.
 4. **Export CSV** saves every row that matches your filters, not only the page you see.
 
 Your search, filters and sort are remembered on your computer.
+
+## Check the dashboard figures
+
+The line above the table counts what is listed the way the dashboard does: **fixed assets in units** and **consumables in items** (each different supply once; litres and reams are never added to pieces), with how many are in store and assigned, and their value. With no filter it shows the dashboard's Total assets card; with a filter, that slice of it.
+
+On the dashboard, **List →** on a card, a directorate's name, a category in the chart and **Open in Asset Register** under "In store over 30 days" open this page on the matching list, so the line above the table shows the same figure.
 
 ## What the statuses mean
 

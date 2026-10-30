@@ -2891,3 +2891,39 @@ describe('Assets: a rejected request', () => {
   });
 });
 
+
+describe('Assets: the dashboard figures for what is listed', () => {
+  const held = [
+    item('L1', 'Laptop', 'AVAILABLE', { quantity: 7, itemType: 'FIXED' }),
+    item('L1-1', 'Laptop', 'ISSUED', { quantity: 3, itemType: 'FIXED', parentItemId: 'L1', assignedDepartmentId: 'D1' }),
+    item('F1', 'Diesel', 'AVAILABLE', { quantity: 1000, uom: 'LTR', itemType: 'CONSUMABLE', ifmisItemCode: '107201101.0007', category: 'FUEL_LUBRICANTS' }),
+    item('T1', 'Toner', 'ISSUED', { quantity: 20, itemType: 'CONSUMABLE', ifmisItemCode: '107101102.0006', category: 'OFFICE_SUPPLIES', assignedDepartmentId: 'D2' }),
+    // Waiting for approval: not on the register yet
+    item('W1', 'Wheelbarrow', 'PENDING_STOCK_IN', { quantity: 5, itemType: 'FIXED' }),
+  ];
+  const figures = () => screen.findByRole('group', { name: 'Held in the listed assets' });
+
+  beforeEach(() => {
+    vi.mocked(api.getItems).mockResolvedValue(held as any);
+    vi.mocked(api.getApprovals).mockResolvedValue([]);
+    vi.mocked(api.getDepartments).mockResolvedValue([{ id: 'D1', nameEn: 'Agricultural Extension' }, { id: 'D2', nameEn: 'Digital Agriculture' }] as any);
+  });
+
+  it('counts fixed assets in units and consumables in items, never adding litres to pieces', async () => {
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const line = await figures();
+    expect(line).toHaveTextContent('Fixed assets 10 units (7 in store · 3 assigned)');
+    expect(line).toHaveTextContent('Consumables 2 items (1 in store · 1 assigned)');
+    expect(line).toHaveTextContent('ETB 1,030,000.00');
+  });
+
+  it('opens on the directorate a dashboard figure chose, counting only what it holds', async () => {
+    localStorage.setItem('moa_assets_view_enc', JSON.stringify({ filter: 'ALL', department: 'D1', itemType: 'FIXED' }));
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const line = await figures();
+    expect(line).toHaveTextContent('Fixed assets 3 units (0 in store · 3 assigned)');
+    expect(line).toHaveTextContent('Consumables 0 items');
+    expect(screen.getByText('Directorate: Agricultural Extension')).toBeInTheDocument();
+    expect(screen.getByText('Type: Fixed asset')).toBeInTheDocument();
+  });
+});

@@ -24,6 +24,8 @@ import { actionText, roleName, withRoleNames } from '../utils/roles';
 import { formatETBShort, formatETBTotal, formatGcToEc, getTodayGcAndEc } from '../utils/eth-date';
 import { Store, UserRole } from '../types/asset-management';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
+import { AssetsPreset, presetAssetsView } from '../utils/assets-view';
 
 /**
  * Prices on record are still being checked and will be corrected: until then money shows on the Total valuation card
@@ -406,6 +408,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   setSelectedCenter,
 }) => {
   const toast = useToast();
+  const { user, canAccessTab } = useAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -580,6 +583,28 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const availablePct = totalItems > 0 ? Math.round((availableCount / totalItems) * 100) : 0;
 
   // What a directorate holds, counted as the cards above: fixed assets one by one, consumables by the different supplies
+  // A figure opens the Assets page on the list behind it (with this dashboard's category and type), for whoever has the page
+  const canOpenAssets = canAccessTab('assets');
+  const openAssets = (preset: AssetsPreset) => {
+    presetAssetsView(user?.id, {
+      category: filters.category || undefined,
+      itemType: filters.itemType === 'FIXED' || filters.itemType === 'CONSUMABLE' ? filters.itemType : undefined,
+      ...preset,
+    });
+    onNavigate('assets');
+  };
+  const listLink = (preset: AssetsPreset, what: string) =>
+    canOpenAssets ? (
+      <button
+        type="button"
+        onClick={() => openAssets(preset)}
+        title={`Open the list of ${what} on the Assets page`}
+        aria-label={`Open the list of ${what} on the Assets page`}
+        className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer"
+      >
+        List &rarr;
+      </button>
+    ) : undefined;
   const deptFixed = (d: any): number => d.fixedUnits ?? 0;
   const deptSupplies = (d: any): number => d.consumableItems ?? 0;
   const deptLines = (d: any): number => d.itemLines ?? d.itemCount ?? 0;
@@ -779,6 +804,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Total assets"
           labelAm="ጠቅላላ ንብረቶች"
+          action={listLink({ filter: 'ALL' }, 'all assets')}
           // Both types, each on its row in what it is counted in, never added together
           value={<TypeRows fixed={fixedAssets.units} consumables={consumableStockItems} />}
           footer="In store and assigned"
@@ -786,12 +812,14 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Assigned assets"
           labelAm="የተመደቡ ንብረቶች"
+          action={listLink({ filter: 'ISSUED' }, 'assigned assets')}
           value={<TypeRows fixed={fixedAssets.issuedUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsIssued} />}
           footer="Assigned"
         />
         <StatTile
           label="Available assets"
           labelAm="በመጋዘን ያሉ ንብረቶች"
+          action={listLink({ filter: 'IN_STORE' }, 'assets in store')}
           value={<TypeRows fixed={fixedAssets.inStoreUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsInStore} />}
           footer="In store, ready to assign"
         />
@@ -1108,14 +1136,16 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   {/* Records (one per line received, or piece), not the units and items the figures above count */}
                   {isStaleExpanded ? 'Hide the list' : `Show the list (${staleItems.length} ${staleItems.length === 1 ? 'record' : 'records'})`}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onNavigate('assets')}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
-                >
-                  <span>Open in Asset Register</span>
-                  &rarr;
-                </button>
+                {canOpenAssets && (
+                  <button
+                    type="button"
+                    onClick={() => openAssets({ staleOnly: true })}
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+                  >
+                    <span>Open in Asset Register</span>
+                    &rarr;
+                  </button>
+                )}
               </div>
 
               {/* One row per item, oldest first (collapsed by default to prevent dashboard clutter) */}
@@ -1196,7 +1226,18 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   <div key={dept.departmentId} className="space-y-1.5">
                     <div className="flex items-start justify-between gap-3 text-xs">
                       <div className="min-w-0">
-                        <span className="block truncate font-medium text-slate-900">{dept.nameEn || dept.nameAm}</span>
+                        {canOpenAssets && dept.departmentId ? (
+                          <button
+                            type="button"
+                            onClick={() => openAssets({ department: dept.departmentId })}
+                            title={`Open what ${dept.nameEn || dept.nameAm} holds on the Assets page`}
+                            className="block max-w-full truncate text-left font-medium text-slate-900 underline-offset-2 hover:text-emerald-800 hover:underline cursor-pointer"
+                          >
+                            {dept.nameEn || dept.nameAm}
+                          </button>
+                        ) : (
+                          <span className="block truncate font-medium text-slate-900">{dept.nameEn || dept.nameAm}</span>
+                        )}
                         {dept.nameAm && dept.nameAm !== dept.nameEn && <span className="text-[10px] text-slate-400">{dept.nameAm}</span>}
                       </div>
                       <div className="shrink-0 text-right">
@@ -1234,6 +1275,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               <Donut
                 label="Units by category"
                 empty="No fixed assets registered yet."
+                onSelect={canOpenAssets ? (key) => openAssets({ category: key, itemType: 'FIXED' }) : undefined}
+                selectLabel={(s) => `Open the ${s.label.toLowerCase()} on the Assets page`}
                 segments={categoryRows.map((c: any) => ({
                   key: c.category,
                   label: CATEGORY_STYLE[c.category]?.en || c.category,

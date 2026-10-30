@@ -34,6 +34,8 @@ import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
 import { AssetRecord } from '../components/assets/AssetRecord';
 import { SlipRecord, SlipStatus, slipLineTotal } from '../components/assets/SlipRecord';
+import { isConsumable, itemsLabel, supplyKey, unitsLabel } from '../utils/counting';
+import { assetsViewKey } from '../utils/assets-view';
 import { OPEN_CORRECTION_EVENT, OPEN_SLIP_EVENT, slipKey, slipNames, takePendingCorrection, takePendingSlip } from '../components/assets/slip-groups';
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
@@ -144,12 +146,16 @@ interface SavedView {
   filter: AssetFilter;
   location: string;
   category: string;
+  /** The directorate holding them */
+  department: string;
   staleOnly: boolean;
   sortColumn: SortColumn;
   sortDirection: SortDirection;
+  /** Fixed asset or consumable, only when a dashboard figure opened the page (not remembered after) */
+  itemType?: string;
 }
-const DEFAULT_VIEW: SavedView = { filter: 'ALL', location: 'ALL', category: 'ALL', staleOnly: false, sortColumn: 'activity', sortDirection: 'desc' };
-const viewKey = (userId?: string) => `moa_assets_view_${userId || 'anon'}`;
+const DEFAULT_VIEW: SavedView = { filter: 'ALL', location: 'ALL', category: 'ALL', department: 'ALL', staleOnly: false, sortColumn: 'activity', sortDirection: 'desc' };
+const viewKey = assetsViewKey;
 
 function loadView(userId?: string): SavedView {
   try {
@@ -158,6 +164,8 @@ function loadView(userId?: string): SavedView {
       filter: FILTERS.some((f) => f.value === saved.filter) ? saved.filter : DEFAULT_VIEW.filter,
       location: typeof saved.location === 'string' && saved.location ? saved.location : DEFAULT_VIEW.location,
       category: typeof saved.category === 'string' && saved.category ? saved.category : DEFAULT_VIEW.category,
+      department: typeof saved.department === 'string' && saved.department ? saved.department : DEFAULT_VIEW.department,
+      itemType: saved.itemType === 'FIXED' || saved.itemType === 'CONSUMABLE' ? saved.itemType : undefined,
       staleOnly: saved.staleOnly === true,
       sortColumn: SORT_COLUMNS.includes(saved.sortColumn) ? saved.sortColumn : DEFAULT_VIEW.sortColumn,
       sortDirection: saved.sortDirection === 'asc' ? 'asc' : DEFAULT_VIEW.sortDirection,
@@ -199,8 +207,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [filter, setFilter] = useState<AssetFilter>(savedView.filter);
   const [locationFilter, setLocationFilter] = useState<string>(savedView.location);
   const [categoryFilter, setCategoryFilter] = useState<string>(savedView.category);
-  // Fixed asset or consumable item (not remembered between visits)
-  const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [departmentFilter, setDepartmentFilter] = useState<string>(savedView.department);
+  // Fixed asset or consumable item (not remembered between visits, unless a dashboard figure opened the page on it)
+  const [typeFilter, setTypeFilter] = useState<string>(savedView.itemType ?? 'ALL');
   const [programFilter, setProgramFilter] = useState<string>('ALL');
   const [dbPrograms, setDbPrograms] = useState<string[]>([]);
   const [staleOnly, setStaleOnly] = useState<boolean>(savedView.staleOnly);
@@ -210,12 +219,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   useEffect(() => {
     try {
-      const view: SavedView = { filter, location: locationFilter, category: categoryFilter, staleOnly, sortColumn, sortDirection };
+      const view: SavedView = { filter, location: locationFilter, category: categoryFilter, department: departmentFilter, staleOnly, sortColumn, sortDirection };
       localStorage.setItem(viewKey(user?.id), JSON.stringify(view));
     } catch {
       // Storage can be unavailable (private window); the view then simply isn't remembered
     }
-  }, [user?.id, filter, locationFilter, categoryFilter, staleOnly, sortColumn, sortDirection]);
+  }, [user?.id, filter, locationFilter, categoryFilter, departmentFilter, staleOnly, sortColumn, sortDirection]);
   const [lastTouchedId, setLastTouchedId] = useState<string | null>(null);
 
   // 3-Dot Actions Menu
@@ -541,6 +550,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       return false;
     }
 
+    // As the dashboard's directorate allocation: the directorate the record is assigned to
+    if (departmentFilter !== 'ALL' && (row.item.assignedDepartmentId || '') !== departmentFilter) {
+      return false;
+    }
+
     if (programFilter !== 'ALL' && (row.item.programName || '') !== programFilter) {
       return false;
     }
@@ -686,7 +700,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const shown = useMemo(
     () => groups.map((g) => visibleGroup(g, filter, locationFilter, categoryFilter)).filter((g): g is ShownGroup => !!g),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [groups, filter, locationFilter, categoryFilter, typeFilter, programFilter, staleOnly, search],
+    [groups, filter, locationFilter, categoryFilter, typeFilter, departmentFilter, programFilter, staleOnly, search],
   );
 
   const sortedShown = useMemo(() => {
@@ -789,7 +803,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return out;
   }, [sortedShown, slips, slipOfItem]);
 
-  const pager = usePagination(listed, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${programFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}|${lastTouchedId}` });
+  const pager = usePagination(listed, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${departmentFilter}|${programFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}|${lastTouchedId}` });
   const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
   const toggleBatch = (id: string) =>
     setOpenBatches((prev) => {
@@ -1416,6 +1430,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         : '',
       categoryFilter !== 'ALL' ? `Category: ${CATEGORY_OPTIONS.find((c) => c.value === categoryFilter)?.label ?? categoryFilter}` : '',
       typeFilter !== 'ALL' ? `Item type: ${typeFilter === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset'}` : '',
+      departmentFilter !== 'ALL' ? `Directorate: ${departments.find((d) => d.id === departmentFilter)?.nameEn ?? departmentFilter}` : '',
       programFilter !== 'ALL' ? `Program: ${programFilter}` : '',
       staleOnly ? 'In store over 30 days' : '',
       search.trim() ? `Search: "${search.trim()}"` : '',
@@ -1761,6 +1776,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     (locationFilter !== 'ALL' ? 1 : 0) +
     (categoryFilter !== 'ALL' ? 1 : 0) +
     (typeFilter !== 'ALL' ? 1 : 0) +
+    (departmentFilter !== 'ALL' ? 1 : 0) +
     (programFilter !== 'ALL' ? 1 : 0) +
     (staleOnly ? 1 : 0);
   // Anything that narrows or reorders the list: filters, search or a non-default sort
@@ -1770,6 +1786,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setLocationFilter('ALL');
     setCategoryFilter('ALL');
     setTypeFilter('ALL');
+    setDepartmentFilter('ALL');
     setProgramFilter('ALL');
     setStaleOnly(false);
   };
@@ -1799,6 +1816,34 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     },
     { value: 0, inStore: 0 }
   );
+
+  // What the listed records hold, counted as the dashboard counts it (fixed assets in units, consumables by supply), so
+  // with no filter it reads as the dashboard's cards and with one as that slice of them. Each record by its own status:
+  // a batch and the units issued from it are separate records, one in store and one assigned. A consumable is assigned
+  // once none of it is left in store, as on the dashboard, so it is judged by all its stock, not only the listed records
+  const onRegister = useMemo(() => {
+    const inStore: string[] = [ItemStatus.AVAILABLE, ItemStatus.PENDING_STOCK_OUT, ItemStatus.PENDING_DISPOSAL];
+    const assigned: string[] = [ItemStatus.ISSUED, ItemStatus.UNDER_TRANSFER];
+    const held = (r: AssetRow) => inStore.includes(r.item.status) || assigned.includes(r.item.status);
+    const units = (r: AssetRow) => Number(r.item.quantity) || 1;
+    const all = groups.flatMap((g) => [g.row, ...g.children]).filter(held);
+    const records = all.filter((r) => inFilter(r, filter, locationFilter, categoryFilter) && matchesSearch(r));
+    // Supplies with some stock in store, within the store, category and type chosen (whatever the status shown)
+    const stocked = new Set(
+      all.filter((r) => isConsumable(r.item) && inStore.includes(r.item.status) && inFilter(r, 'ALL', locationFilter, categoryFilter)).map((r) => supplyKey(r.item)),
+    );
+    const fixed = records.filter((r) => !isConsumable(r.item));
+    const fixedInStore = fixed.filter((r) => inStore.includes(r.item.status)).reduce((n, r) => n + units(r), 0);
+    const fixedHeld = fixed.reduce((n, r) => n + units(r), 0);
+    const supplies = [...new Set(records.filter((r) => isConsumable(r.item)).map((r) => supplyKey(r.item)))];
+    const suppliesInStore = supplies.filter((k) => stocked.has(k)).length;
+    return {
+      fixed: { held: fixedHeld, inStore: fixedInStore, issued: fixedHeld - fixedInStore },
+      supplies: { held: supplies.length, inStore: suppliesInStore, issued: supplies.length - suppliesInStore },
+      value: records.reduce((sum, r) => sum + valueOf(r.item, units(r)), 0),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, shown]);
 
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
   // What can go on a Model 22: records in store with nothing waiting, and records whose waiting requests are all issues.
@@ -2089,6 +2134,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   />
                 </FilterSection>
 
+                {/* The directorate holding them, as the dashboard's directorate allocation */}
+                <FilterSection label="Directorate" htmlFor="filter-directorate">
+                  <FilterSelect
+                    id="filter-directorate"
+                    ariaLabel="Filter by directorate"
+                    placeholder="All directorates"
+                    value={departmentFilter}
+                    onChange={setDepartmentFilter}
+                    options={[...departments].sort((a, b) => a.nameEn.localeCompare(b.nameEn)).map((d) => ({ value: d.id, label: d.nameEn }))}
+                  />
+                </FilterSection>
+
                 {/* Program or donor project */}
                 {programOptions.length > 0 && (
                   <FilterSection label="Program or project" htmlFor="filter-program-project">
@@ -2257,6 +2314,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   </button>
                 </span>
               )}
+              {departmentFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                  <span>Directorate: {departments.find((d) => d.id === departmentFilter)?.nameEn || departmentFilter}</span>
+                  <button
+                    type="button"
+                    onClick={() => setDepartmentFilter('ALL')}
+                    title="Remove directorate filter"
+                    aria-label="Remove directorate filter"
+                    className="hover:text-emerald-950 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
               {programFilter !== 'ALL' && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
                   <span>Project: {programFilter}</span>
@@ -2304,6 +2375,28 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               )}
             </div>
           )}
+
+          {/* The dashboard's figures for what is listed: the same counting, so a filter here matches a slice there */}
+          {rows.length > 0 && (
+            <div
+              role="group"
+              aria-label="Held in the listed assets"
+              title="Counted as on the dashboard: approved records in store or assigned; receipts waiting for approval, rejected and disposed are not counted"
+              className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1.5 border-t border-slate-100 text-xs text-slate-600"
+            >
+              <span>
+                Fixed assets <b className="tabular-nums text-slate-900">{unitsLabel(onRegister.fixed.held)}</b>{' '}
+                <span className="text-slate-500">({onRegister.fixed.inStore.toLocaleString()} in store · {onRegister.fixed.issued.toLocaleString()} assigned)</span>
+              </span>
+              <span>
+                Consumables <b className="tabular-nums text-slate-900">{itemsLabel(onRegister.supplies.held)}</b>{' '}
+                <span className="text-slate-500">({onRegister.supplies.inStore.toLocaleString()} in store · {onRegister.supplies.issued.toLocaleString()} assigned)</span>
+              </span>
+              <span>
+                Value <b className="font-mono text-slate-900">{formatETB(onRegister.value)}</b>
+              </span>
+            </div>
+          )}
         </div>
 
         {loading && rows.length === 0 ? (
@@ -2327,6 +2420,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   setLocationFilter('ALL');
                   setCategoryFilter('ALL');
                   setTypeFilter('ALL');
+                  setDepartmentFilter('ALL');
                   setSearch('');
                   setSortColumn('activity');
                   setSortDirection('desc');

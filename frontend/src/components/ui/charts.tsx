@@ -31,7 +31,15 @@ export interface DonutSegment {
 }
 
 /** Parts of a whole, for up to about six parts; the total sits in the middle and each part carries its number */
-export const Donut: React.FC<{ segments: DonutSegment[]; unit?: string; label: string; empty: string }> = ({ segments, unit = 'units', label, empty }) => {
+export const Donut: React.FC<{
+  segments: DonutSegment[];
+  unit?: string;
+  label: string;
+  empty: string;
+  /** Makes each part in the legend a button (e.g. to open its list) */
+  onSelect?: (key: string) => void;
+  selectLabel?: (segment: DonutSegment) => string;
+}> = ({ segments, unit = 'units', label, empty, onSelect, selectLabel }) => {
   const [hover, setHover] = useState<string | null>(null);
   const total = segments.reduce((sum, s) => sum + s.value, 0);
   if (total === 0) return <ChartEmpty>{empty}</ChartEmpty>;
@@ -89,7 +97,19 @@ export const Donut: React.FC<{ segments: DonutSegment[]; unit?: string; label: s
           >
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: s.color }} aria-hidden />
-              <span className="text-slate-600">{s.label}</span>
+              {onSelect ? (
+                <button
+                  type="button"
+                  onClick={() => onSelect(s.key)}
+                  title={selectLabel?.(s)}
+                  aria-label={selectLabel?.(s)}
+                  className="text-left text-slate-600 underline-offset-2 hover:text-emerald-800 hover:underline cursor-pointer"
+                >
+                  {s.label}
+                </button>
+              ) : (
+                <span className="text-slate-600">{s.label}</span>
+              )}
               <span className="ml-auto font-semibold tabular-nums text-slate-900">{s.value.toLocaleString()}</span>
               <span className="w-8 text-right tabular-nums text-slate-400">{percent(s.value)}</span>
             </div>

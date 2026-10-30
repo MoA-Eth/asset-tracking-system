@@ -8,7 +8,8 @@ import { ExecutiveDashboardPage } from './ExecutiveDashboardPage';
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
 
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1', permissions: [] } }) }));
+const auth = vi.hoisted(() => ({ user: { id: 'u1', permissions: [] as string[] }, canAccessTab: (tab: string): boolean => tab === 'assets' }));
+vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }) }));
 vi.mock('../api/client', () => ({ api: { getExecutiveDashboard: vi.fn(), getStores: vi.fn() } }));
 
@@ -320,5 +321,25 @@ describe('Items in store too long', () => {
     expect(summary).not.toHaveTextContent('Litres');
     // The list under the figures counts records, and says so
     expect(screen.getByRole('button', { name: /Show the list \(4 records\)/ })).toBeInTheDocument();
+  });
+});
+
+describe('A figure opens the list behind it on the Assets page', () => {
+  it('opens the assigned assets, with the other filters cleared', async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    localStorage.setItem('moa_assets_view_u1', JSON.stringify({ filter: 'ALL', location: 'LOC-1', category: 'VEHICLE', sortColumn: 'name' }));
+    render(<ExecutiveDashboardPage onNavigate={onNavigate} currentRole={UserRole.MANAGER} />);
+    await user.click(await screen.findByRole('button', { name: 'Open the list of assigned assets on the Assets page' }));
+    expect(onNavigate).toHaveBeenCalledWith('assets');
+    expect(JSON.parse(localStorage.getItem('moa_assets_view_u1')!)).toMatchObject({ filter: 'ISSUED', location: 'ALL', category: 'ALL', staleOnly: false, sortColumn: 'name' });
+  });
+
+  it('offers no list to someone without the Assets page', async () => {
+    auth.canAccessTab = () => false;
+    renderPage();
+    await screen.findByText('Total assets');
+    expect(screen.queryByRole('button', { name: /on the Assets page/ })).toBeNull();
+    auth.canAccessTab = (tab: string) => tab === 'assets';
   });
 });
