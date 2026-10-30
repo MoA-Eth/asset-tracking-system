@@ -39,6 +39,7 @@ import { hasPermission, ROLE_POLICY } from '../security/role-policy';
 import { assertUsableLocation, locationView, requireStoreKeeper } from './reference.service';
 import { requireOrganization } from './organizations.service';
 import { isSlipRequired, SLIP_REQUIRED_MESSAGE } from './settings.service';
+import { stockByUnit } from './stock-units';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -4767,6 +4768,8 @@ export class StoreService {
         inStoreLines: registrations(consumablesInStore),
         issuedLines: registrations(consumableItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
         valueETB: sum(consumableItems),
+        // Their quantities by unit of measure (litres with litres, reams with reams), in store and issued
+        byUnit: stockByUnit<(typeof consumableItems)[number]>(consumableItems, stockKey, (i) => IN_STORE_STATUSES.includes(i.status)),
       },
       // Approved units only; pending receipts are in pendingStockInCount
       totalItems: units(onRecord),

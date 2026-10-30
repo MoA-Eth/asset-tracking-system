@@ -605,6 +605,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         List &rarr;
       </button>
     ) : undefined;
+  const stockByUnit: { unit: string; label: string; items: number; inStore: number; issued: number }[] = data?.consumables?.byUnit ?? [];
   const deptFixed = (d: any): number => d.fixedUnits ?? 0;
   const deptSupplies = (d: any): number => d.consumableItems ?? 0;
   const deptLines = (d: any): number => d.itemLines ?? d.itemCount ?? 0;
@@ -1322,6 +1323,41 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           )}
         </Panel>
       </div>
+
+      {/* ── Consumable stock by unit: quantities only add up within one unit (litres with litres, reams with reams) ── */}
+      <Panel
+        title="Consumables in stock by unit"
+        subtitle="አላቂ ዕቃዎች ክምችት በመለኪያ · quantities are totalled within each unit, never across units"
+      >
+        {stockByUnit.length === 0 ? (
+          <EmptyState>No consumables held yet.</EmptyState>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-xs" aria-label="Consumables in stock by unit">
+              <thead>
+                <tr className="border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="py-2 pr-3">Unit</th>
+                  <th className="px-3 py-2 text-right" title="Different consumables counted in this unit (each IFMIS item code once), as in the Consumables items on the cards">
+                    Different items
+                  </th>
+                  <th className="px-3 py-2 text-right">In store</th>
+                  <th className="py-2 pl-3 text-right">Issued</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {stockByUnit.map((u) => (
+                  <tr key={u.unit}>
+                    <td className="py-2 pr-3 font-medium text-slate-900">{u.label}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-600">{u.items.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900">{u.inStore.toLocaleString()}</td>
+                    <td className="py-2 pl-3 text-right tabular-nums text-slate-600">{u.issued.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
       {/* ── Row 4: Locations (Warehouse & Store Distribution) ────────────────── */}
       {SHOW_STORE_LOCATIONS && (

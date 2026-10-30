@@ -345,3 +345,23 @@ describe('A figure opens the list behind it on the Assets page', () => {
     auth.canAccessTab = (tab: string) => tab === 'assets';
   });
 });
+
+describe('Consumables in stock by unit', () => {
+  it('lists each unit with its own totals, as the server adds them up', async () => {
+    const base = figures(10) as any;
+    vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
+      ...base,
+      consumables: {
+        stockItems: 3, inStoreStockItems: 2, issuedStockItems: 1,
+        byUnit: [
+          { unit: 'LITRE', label: 'Litres', items: 2, inStore: 1060, issued: 0 },
+          { unit: 'REAM', label: 'Reams', items: 1, inStore: 40, issued: 10 },
+        ],
+      },
+    } as any);
+    renderPage();
+    const table = await screen.findByRole('table', { name: 'Consumables in stock by unit' });
+    const rows = within(table).getAllByRole('row').map((r) => r.textContent);
+    expect(rows).toEqual(['UnitDifferent itemsIn storeIssued', 'Litres21,0600', 'Reams14010']);
+  });
+});
