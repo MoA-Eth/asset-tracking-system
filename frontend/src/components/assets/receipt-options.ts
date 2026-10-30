@@ -90,7 +90,7 @@ export const COMMON_CATEGORIES = [
   { value: AssetCategory.IT_EQUIPMENT, label: 'IT Equipment & Accessories' },
   { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery & Supplies' },
   { value: AssetCategory.LAB_EQUIPMENT, label: 'Medical & Lab Supplies' },
-  { value: AssetCategory.VEHICLE, label: 'Vehicles & Transport' },
+  { value: AssetCategory.VEHICLE, label: 'Vehicles' },
   { value: AssetCategory.VEHICLE_PARTS, label: 'Vehicle Parts & Accessories' },
   { value: AssetCategory.OFFICE_FURNITURE, label: 'Office Furniture & Fixtures' },
   { value: AssetCategory.FIELD_GEAR, label: 'Field Gear & Uniforms' },
