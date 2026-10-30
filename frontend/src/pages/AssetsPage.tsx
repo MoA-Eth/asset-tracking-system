@@ -2524,7 +2524,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 In store <span className="font-mono font-semibold text-slate-900">{formatETB(totals.inStore)}</span>
               </span>
             </div>
-            <Pagination pager={pager} label="assets" />
+            {/* Rows of the list (a Model 19 of several items and a batch are one row each), not assets: the line above the table counts those */}
+            <Pagination pager={pager} label="rows" />
           </>
         )}
       </div>
