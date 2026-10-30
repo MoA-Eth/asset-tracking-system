@@ -500,7 +500,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         title="Fix a typo in the request yourself; it stays with you to endorse or authorize"
         className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
       >
-        <Pencil className="w-4 h-4" /> Correct
+        <Pencil className="w-4 h-4" /> Edit
       </button>
     );
 

@@ -363,7 +363,7 @@ describe('Approvals: correct a small mistake instead of rejecting', () => {
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={onNavigate} />);
     const row = (await screen.findByText('MOA-D')).closest('tr')!;
     await user.click(within(row).getByRole('button', { name: /Endorse/ }));
-    await user.click(screen.getByRole('button', { name: 'Correct' }));
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
     expect(onNavigate).toHaveBeenCalledWith('assets');
     expect(opened).toHaveBeenCalled();
     expect(takePendingCorrection(() => true)).toEqual({ itemId: 'item-D', requestId: undefined });
@@ -376,6 +376,6 @@ describe('Approvals: correct a small mistake instead of rejecting', () => {
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('MOA-D')).closest('tr')!;
     await user.click(within(row).getByRole('button', { name: /Endorse/ }));
-    expect(screen.queryByRole('button', { name: 'Correct' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 });

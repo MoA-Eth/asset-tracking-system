@@ -14,7 +14,7 @@ You cannot act on a request you made yourself, and you act only on the stage you
 
 ## Correct a small mistake
 
-A typo (a quantity, a price, a voucher number) doesn't need a rejection. Open the request and press **Correct**: its record opens in the edit form, where you fix it and press **Save changes**. The request stays with you, at the same stage, so you can then endorse or authorize it. The Team Leader can correct a request waiting for endorsement, the Department Head one waiting for authorization; nobody corrects their own request this way. Every correction is recorded in the asset's history and the audit log ("Corrected by the Department Head at Stage 2: quantity 3 → 4").
+A typo (a quantity, a price, a voucher number) doesn't need a rejection. Open the request and press **Edit**: its record opens in the edit form, where you fix it and press **Save changes**. The request stays with you, at the same stage, so you can then endorse or authorize it. The Team Leader can correct a request waiting for endorsement, the Department Head one waiting for authorization; nobody corrects their own request this way. Every correction is recorded in the asset's history and the audit log ("Corrected by the Department Head at Stage 2: quantity 3 → 4").
 
 ## Reject a request
 
