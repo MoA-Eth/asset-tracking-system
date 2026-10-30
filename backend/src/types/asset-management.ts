@@ -49,6 +49,7 @@ export enum ApprovalStatus {
 
 export enum AssetCategory {
   VEHICLE = 'VEHICLE',
+  VEHICLE_PARTS = 'VEHICLE_PARTS',
   AGRI_MACHINERY = 'AGRI_MACHINERY',
   IT_EQUIPMENT = 'IT_EQUIPMENT',
   OFFICE_FURNITURE = 'OFFICE_FURNITURE',

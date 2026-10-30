@@ -16,6 +16,7 @@ const UNIT_STATES = [
 // `short` is used under a column when all six categories share a narrow chart
 const CATEGORY_STYLE: Record<string, { label: string; short: string; color: string }> = {
   VEHICLE: { label: 'Vehicles', short: 'Vehicles', color: '#2a78d6' },
+  VEHICLE_PARTS: { label: 'Vehicle parts & accessories', short: 'Parts', color: '#0f6fa8' },
   AGRI_MACHINERY: { label: 'Agri. machinery', short: 'Agri.', color: '#eb6834' },
   IT_EQUIPMENT: { label: 'IT equipment', short: 'IT', color: '#1baf7a' },
   OFFICE_FURNITURE: { label: 'Office furniture', short: 'Office', color: '#eda100' },

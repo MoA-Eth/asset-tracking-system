@@ -400,6 +400,7 @@ const ITEM_LIST_INCLUDES = {
 function getCategoryCode(cat: AssetCategory): string {
   switch (cat) {
     case AssetCategory.VEHICLE: return 'VEH';
+    case AssetCategory.VEHICLE_PARTS: return 'VPA';
     case AssetCategory.AGRI_MACHINERY: return 'AGR';
     case AssetCategory.IT_EQUIPMENT: return 'IT';
     case AssetCategory.OFFICE_FURNITURE: return 'FUR';

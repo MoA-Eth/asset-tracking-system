@@ -12,6 +12,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   AGRI_MACHINERY: 'Agricultural Machinery & Supplies',
   LAB_EQUIPMENT: 'Medical & Lab Supplies',
   VEHICLE: 'Vehicles & Transport',
+  VEHICLE_PARTS: 'Vehicle Parts & Accessories',
   OFFICE_FURNITURE: 'Office Furniture & Fixtures',
   FIELD_GEAR: 'Field Gear & Uniforms',
   TOOLS_EQUIPMENT: 'Tools & Equipment',

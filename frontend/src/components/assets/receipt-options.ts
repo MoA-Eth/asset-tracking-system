@@ -7,6 +7,8 @@ export const TRANSACTION_TYPES = ['PO Receipt', 'Petty Cash Purchase Receipt', '
 export const CATEGORY_FROM_IFMIS: [RegExp, AssetCategory][] = [
   [/medical|laborator|\blab\b|veterinar|drug/i, AssetCategory.LAB_EQUIPMENT],
   [/agricultur|farm|seed|fertili/i, AssetCategory.AGRI_MACHINERY],
+  // Before vehicles: their spare parts and accessories are consumables of their own
+  [/spare\s*part|vehicle\s*accessor|\btyres?\b|\btires?\b/i, AssetCategory.VEHICLE_PARTS],
   [/vehicle|transport|motor/i, AssetCategory.VEHICLE],
   [/furniture|fixture/i, AssetCategory.OFFICE_FURNITURE],
   [/computer|\bit\b|ict|electronic/i, AssetCategory.IT_EQUIPMENT],
@@ -89,6 +91,7 @@ export const COMMON_CATEGORIES = [
   { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery & Supplies' },
   { value: AssetCategory.LAB_EQUIPMENT, label: 'Medical & Lab Supplies' },
   { value: AssetCategory.VEHICLE, label: 'Vehicles & Transport' },
+  { value: AssetCategory.VEHICLE_PARTS, label: 'Vehicle Parts & Accessories' },
   { value: AssetCategory.OFFICE_FURNITURE, label: 'Office Furniture & Fixtures' },
   { value: AssetCategory.FIELD_GEAR, label: 'Field Gear & Uniforms' },
   { value: AssetCategory.TOOLS_EQUIPMENT, label: 'Tools & Equipment' },

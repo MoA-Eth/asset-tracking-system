@@ -18,6 +18,15 @@ describe('IFMIS item categories', () => {
     expect(categoryOf('Something unknown')).toBeUndefined();
   });
 
+  it('files vehicle spare parts and accessories apart from the vehicles', () => {
+    expect(categoryOf('Vehicle Spare Parts')).toBe(AssetCategory.VEHICLE_PARTS);
+    expect(categoryOf('Vehicle accessories')).toBe(AssetCategory.VEHICLE_PARTS);
+    expect(categoryOf('Tyres and tubes')).toBe(AssetCategory.VEHICLE_PARTS);
+    // The vehicles themselves, and computer accessories, stay where they were
+    expect(categoryOf('Vehicles & Transport')).toBe(AssetCategory.VEHICLE);
+    expect(categoryOf('Computer accessories')).toBe(AssetCategory.IT_EQUIPMENT);
+  });
+
   it('files tools and workshop equipment under Tools & equipment, not under supplies', () => {
     expect(categoryOf('Hand Tools')).toBe(AssetCategory.TOOLS_EQUIPMENT);
     expect(categoryOf('Workshop equipment and supplies')).toBe(AssetCategory.TOOLS_EQUIPMENT);

@@ -45,6 +45,8 @@ enum ItemType {
 
 enum AssetCategory {
   VEHICLE
+  // Spare parts and accessories for vehicles (filters, brake pads, batteries, mats…): consumables, not vehicles
+  VEHICLE_PARTS
   AGRI_MACHINERY
   IT_EQUIPMENT
   OFFICE_FURNITURE

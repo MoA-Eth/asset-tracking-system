@@ -283,6 +283,12 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(db.item.create.mock.calls[2][0].data.itemCode).toMatch(/^MOA-[A-Z]+-\d{4}-\d{4}$/);
   });
 
+  it('codes vehicle parts and accessories as VPA', async () => {
+    const { itemCode: _tag, ...noTag } = basePayload;
+    await StoreService.getInstance().registerStockIn({ ...noTag, serialNumber: '', isHistoricalData: true, category: 'VEHICLE_PARTS', name: 'Oil Filter', itemType: 'CONSUMABLE' } as any);
+    expect(db.item.create.mock.calls[0][0].data).toMatchObject({ category: 'VEHICLE_PARTS', itemCode: expect.stringMatching(/^MOA-VPA-\d{4}-\d{4}$/) });
+  });
+
   it('codes tools and equipment as TLS', async () => {
     const { itemCode: _tag, ...noTag } = basePayload;
     await StoreService.getInstance().registerStockIn({ ...noTag, serialNumber: '', isHistoricalData: true, category: 'TOOLS_EQUIPMENT', name: 'Wheelbarrow' } as any);

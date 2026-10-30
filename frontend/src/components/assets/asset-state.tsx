@@ -35,6 +35,7 @@ export const CATEGORY_OPTIONS: { value: AssetCategory; label: string }[] = [
   { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery & Supplies' },
   { value: AssetCategory.LAB_EQUIPMENT, label: 'Medical & Lab Supplies' },
   { value: AssetCategory.VEHICLE, label: 'Vehicles & Transport' },
+  { value: AssetCategory.VEHICLE_PARTS, label: 'Vehicle Parts & Accessories' },
   { value: AssetCategory.OFFICE_FURNITURE, label: 'Office Furniture & Fixtures' },
   { value: AssetCategory.FIELD_GEAR, label: 'Field Gear & Uniforms' },
   { value: AssetCategory.TOOLS_EQUIPMENT, label: 'Tools & Equipment' },
