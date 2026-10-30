@@ -1103,7 +1103,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   className="inline-flex items-center gap-1.5 font-semibold text-emerald-700 hover:text-emerald-800 transition cursor-pointer"
                 >
                   {isStaleExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  {isStaleExpanded ? 'Hide item-level details' : `Inspect ${staleItems.length} overdue inventory items`}
+                  {/* Records (one per line received, or piece), not the units and items the figures above count */}
+                  {isStaleExpanded ? 'Hide the list' : `Show the list (${staleItems.length} ${staleItems.length === 1 ? 'record' : 'records'})`}
                 </button>
                 <button
                   type="button"

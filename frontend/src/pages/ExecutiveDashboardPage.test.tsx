@@ -305,5 +305,7 @@ describe('Items in store too long', () => {
     // Not one figure adding pieces, litres and kilograms
     expect(summary).not.toHaveTextContent('1,095.5');
     expect(summary).not.toHaveTextContent('Litres');
+    // The list under the figures counts records, and says so
+    expect(screen.getByRole('button', { name: /Show the list \(4 records\)/ })).toBeInTheDocument();
   });
 });
