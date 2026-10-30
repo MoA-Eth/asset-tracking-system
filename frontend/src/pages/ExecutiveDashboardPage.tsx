@@ -583,6 +583,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const deptFixed = (d: any): number => d.fixedUnits ?? 0;
   const deptSupplies = (d: any): number => d.consumableItems ?? 0;
   const deptLines = (d: any): number => d.itemLines ?? d.itemCount ?? 0;
+  // Every directorate holding something; the panel shows the first six
+  const deptHolding: number = (data?.departmentDistribution || []).filter((d: any) => d.itemCount > 0).length;
   const deptRows: any[] = (data?.departmentDistribution || [])
     .filter((d: any) => d.itemCount > 0)
     // Most fixed assets first (they can be added up; supplies of different kinds can't), then most supplies
@@ -1181,8 +1183,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <Panel
           className="lg:col-span-7"
           title="Directorate allocation"
-          subtitle={deptRows.length > 0 ? (SHOW_VALUES ? 'Asset value held by each directorate' : 'Items held by each directorate') : 'No assets assigned to directorates yet'}
-          action={<CountPill>{deptRows.length} directorates</CountPill>}
+          subtitle={deptRows.length > 0 ? (SHOW_VALUES ? 'Asset value held by each directorate' : 'Fixed assets (units) and consumables (items) held by each directorate') : 'No assets assigned to directorates yet'}
+          action={<CountPill>{deptRows.length < deptHolding ? `Top ${deptRows.length} of ${deptHolding}` : `${deptHolding} ${deptHolding === 1 ? 'directorate' : 'directorates'}`}</CountPill>}
         >
           {deptRows.length === 0 ? (
             <EmptyState>No directorate allocations yet. Issue items to directorates from Assets.</EmptyState>

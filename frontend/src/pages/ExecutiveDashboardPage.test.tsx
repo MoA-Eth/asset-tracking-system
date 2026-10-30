@@ -239,6 +239,19 @@ describe('Needs attention', () => {
   });
 });
 
+describe('Directorate allocation', () => {
+  it('shows each directorate in fixed assets (units) and consumables (items), and says when only the top six are listed', async () => {
+    const dept = (n: number) => ({ departmentId: `D${n}`, nameEn: `Directorate ${n}`, itemCount: 10, itemLines: 2, fixedUnits: 10 - n, consumableItems: n, totalValueETB: 1 });
+    vi.mocked(api.getExecutiveDashboard).mockResolvedValue({ ...figures(10), departmentDistribution: [1, 2, 3, 4, 5, 6, 7].map(dept) } as any);
+    renderPage();
+    const panel = (await screen.findByText('Directorate allocation')).closest('section')!;
+    expect(panel).toHaveTextContent('Fixed assets (units) and consumables (items) held by each directorate');
+    expect(panel).toHaveTextContent('Top 6 of 7');
+    // Most fixed assets first: Directorate 1 holds 9 fixed assets and 1 consumable item
+    expect(panel).toHaveTextContent('Directorate 19 fixed assets1 consumable item');
+  });
+});
+
 describe('Assets by store location', () => {
   it('is off for now', async () => {
     vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
