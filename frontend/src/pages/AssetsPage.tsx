@@ -1274,6 +1274,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   /** Units of a whole batch, from the registration's balance (it covers the records issued from it) */
   // What a row's units cost, VAT and charges in: a batch by all its units (the pieces issued from it included), as the
   // Total value under the table counts it
+  /** The items of a Model 19 with some units issued and the rest still in store */
+  const partlyIn = (members: AssetGroup[]) => new Set(members.filter((g) => batchSummary(g.row, g.children).partly).map((g) => g.row.item.id));
   const rowTotal = (row: AssetRow, children: AssetRow[]) => {
     const { isBatch, totalUnits } = batchSummary(row, children);
     return valueOf(row.item, isBatch ? totalUnits : row.units);
@@ -1599,7 +1601,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           </span>
         </td>
         <td className="px-3 py-2.5">
-          <SlipStatus rows={rowsOf} />
+          <SlipStatus rows={rowsOf} partly={partlyIn(members)} />
         </td>
         <td className="px-3 py-2.5 tabular-nums text-slate-600 whitespace-nowrap">{members.length} items</td>
         <td className="pl-4 pr-3 py-2.5 text-slate-700">{places.length === 1 ? places[0] : 'Several places'}</td>
@@ -1902,6 +1904,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           ) : selectedSlipMembers ? (
             <SlipRecord
               rows={selectedSlipMembers.map((g) => g.row)}
+              partly={partlyIn(selectedSlipMembers)}
               onOpenItem={(id) => openRecord(id, selectedSlip!)}
               onPrint={() => printSlip(selectedSlipMembers)}
               onDuplicate={canReceive ? () => duplicateSlip(selectedSlipMembers) : undefined}

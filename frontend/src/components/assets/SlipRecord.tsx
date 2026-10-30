@@ -42,18 +42,20 @@ const STATE_BADGES: Record<AssetState, { label: string; tone: string }> = {
  * How the items of a receipt stand, grouped: by state, and a pending request by its kind ("Issue pending",
  * "Disposal pending"), as each item's own badge says it
  */
-const standings = (rows: AssetRow[]) => {
+const standings = (rows: AssetRow[], partly?: Set<string>) => {
   const groups = new Map<string, { key: string; label: string; word: string; tone: string; n: number }>();
   for (const r of rows) {
     // A rejected request is with its requester, whatever kind it is
     const returned = r.request?.status === 'REJECTED' ? 'Rejected' : undefined;
     const pending = returned ?? (r.state === 'REQUEST_PENDING' && r.request ? requestLabel(r.request.transactionType, r.request.requestDetails).pending : undefined);
-    const key = returned ? 'REJECTED' : pending ? `REQUEST:${pending}` : r.state;
+    // An item with some units issued and the rest in store says so, as its own row does
+    const someOut = !returned && !pending && r.state === 'IN_STORE' && !!partly?.has(r.item.id);
+    const key = returned ? 'REJECTED' : pending ? `REQUEST:${pending}` : someOut ? 'PARTLY' : r.state;
     const g = groups.get(key) ?? {
       key,
-      label: pending ?? STATE_BADGES[r.state].label,
-      word: pending ? pending.toLowerCase() : STATE_WORDS[r.state],
-      tone: returned ? statusTone.rejected : STATE_BADGES[r.state].tone,
+      label: pending ?? (someOut ? 'Partly issued' : STATE_BADGES[r.state].label),
+      word: pending ? pending.toLowerCase() : someOut ? 'partly issued' : STATE_WORDS[r.state],
+      tone: returned ? statusTone.rejected : someOut ? statusTone.partly : STATE_BADGES[r.state].tone,
       n: 0,
     };
     groups.set(key, { ...g, n: g.n + 1 });
@@ -62,18 +64,19 @@ const standings = (rows: AssetRow[]) => {
 };
 
 /** "2 in store · 1 issued": where the items of a receipt stand */
-export const slipStatusSummary = (rows: AssetRow[]): string => standings(rows).map(({ word, n }) => `${n} ${word}`).join(' · ');
+export const slipStatusSummary = (rows: AssetRow[], partly?: Set<string>): string => standings(rows, partly).map(({ word, n }) => `${n} ${word}`).join(' · ');
 
 /**
  * The status of a Model 19 of several items, as badges: one normal badge when all its items stand the same way,
  * otherwise one badge per state with how many items are in it ("2 In store", "1 Issue pending").
  */
-export const SlipStatus: React.FC<{ rows: AssetRow[] }> = ({ rows }) => {
-  const list = standings(rows);
+export const SlipStatus: React.FC<{ rows: AssetRow[]; /** Items with some units issued and the rest in store */ partly?: Set<string> }> = ({ rows, partly }) => {
+  const list = standings(rows, partly);
   // All the same: the badge of one item; a rejected receipt keeps its reason, other states don't show an older rejection
-  if (list.length === 1) return <AssetStatus row={{ ...rows[0], rejected: rows[0].state === 'REJECTED' ? rows[0].rejected : undefined }} />;
+  if (list.length === 1)
+    return <AssetStatus row={{ ...rows[0], rejected: rows[0].state === 'REJECTED' ? rows[0].rejected : undefined }} partly={list[0].key === 'PARTLY'} />;
   return (
-    <span className="inline-flex flex-wrap items-center gap-1" aria-label={slipStatusSummary(rows)}>
+    <span className="inline-flex flex-wrap items-center gap-1" aria-label={slipStatusSummary(rows, partly)}>
       {list.map(({ key, label, tone, n }) => (
         <span key={key} className={`${pill} ${tone}`}>
           {n} {label}
@@ -86,6 +89,8 @@ export const SlipStatus: React.FC<{ rows: AssetRow[] }> = ({ rows }) => {
 export interface SlipRecordProps {
   /** The registrations received on this Model 19 (one per line), in slip order */
   rows: AssetRow[];
+  /** Its items with some units issued and the rest in store */
+  partly?: Set<string>;
   onOpenItem: (itemId: string) => void;
   onPrint: () => void;
   /** Opens a new receipt with every item of this one; absent when this person can't receive */
@@ -109,7 +114,7 @@ export interface SlipRecordProps {
  * A Model 19 receipt of several items, opened from its one row in the register: what the slip says, its total and
  * scanned copy, and its items, each opening its own record (where it is issued, transferred, corrected…).
  */
-export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrint, onDuplicate, onIssue, onTransfer, onEdit, onResubmit, onCancelRequest, form, onClose }) => {
+export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, partly, onOpenItem, onPrint, onDuplicate, onIssue, onTransfer, onEdit, onResubmit, onCancelRequest, form, onClose }) => {
   const [viewingSlip, setViewingSlip] = useState(false);
   const lead = rows[0].item;
   const total = rows.reduce((sum, r) => sum + slipLineTotal(r.item), 0);
@@ -133,7 +138,7 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, onOpenItem, onPrin
               <h3 className="truncate text-base font-extrabold text-slate-900">Model 19 #{lead.ifmisSlipNumber}</h3>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                 <span>{rows.length} items{lead.poNumber ? ` · PO ${lead.poNumber}` : ''}</span>
-                <SlipStatus rows={rows} />
+                <SlipStatus rows={rows} partly={partly} />
               </div>
             </div>
           </div>
