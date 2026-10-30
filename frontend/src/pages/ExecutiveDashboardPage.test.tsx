@@ -194,7 +194,7 @@ describe('Total assets', () => {
     } as any);
     renderPage();
 
-    const card = async (label: string) => (await screen.findByText(label, { selector: 'p' })).closest('div')!.parentElement!.parentElement!;
+    const card = (label: string) => screen.findByRole('group', { name: label });
     // Fixed assets, each unit an asset: 93 assigned + 800 available = 893
     // Both types on Total assets, each in what it is counted in, never added together
     const total = await card('Total assets');

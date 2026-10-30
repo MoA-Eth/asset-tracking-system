@@ -13,6 +13,13 @@ import {
   ChevronUp,
   LayoutGrid,
   List,
+  Boxes,
+  UserCheck,
+  Warehouse,
+  Wallet,
+  Clock,
+  Building2,
+  PieChart,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { StoreManReminder } from '../components/ui/StoreManReminder';
@@ -135,18 +142,39 @@ function getActionTone(action: string): string {
 
 // ─── Building blocks ────────────────────────────────────────────────────────
 
+/** The colour of a card or section: its icon chip and accent line */
+type Tone = 'emerald' | 'sky' | 'amber' | 'violet' | 'slate';
+const TONES: Record<Tone, { chip: string; line: string; wash: string }> = {
+  emerald: { chip: 'bg-emerald-50 text-emerald-700 ring-emerald-100', line: 'bg-emerald-600', wash: 'from-emerald-50/80' },
+  sky: { chip: 'bg-sky-50 text-sky-700 ring-sky-100', line: 'bg-sky-600', wash: 'from-sky-50/80' },
+  amber: { chip: 'bg-amber-50 text-amber-700 ring-amber-100', line: 'bg-amber-500', wash: 'from-amber-50/80' },
+  violet: { chip: 'bg-violet-50 text-violet-700 ring-violet-100', line: 'bg-violet-500', wash: 'from-violet-50/80' },
+  slate: { chip: 'bg-slate-100 text-slate-600 ring-slate-200', line: 'bg-slate-400', wash: 'from-slate-50' },
+};
+
+const IconChip: React.FC<{ icon: React.ElementType; tone: Tone; size?: 'sm' | 'md' }> = ({ icon: Icon, tone, size = 'md' }) => (
+  <span className={`flex shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${TONES[tone].chip} ${size === 'sm' ? 'h-8 w-8' : 'h-9 w-9'}`} aria-hidden>
+    <Icon className={size === 'sm' ? 'h-4 w-4' : 'h-[18px] w-[18px]'} />
+  </span>
+);
+
 const Panel: React.FC<{
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
   className?: string;
+  icon?: React.ElementType;
+  tone?: Tone;
   children: React.ReactNode;
-}> = ({ title, subtitle, action, className = '', children }) => (
+}> = ({ title, subtitle, action, className = '', icon, tone = 'slate', children }) => (
   <section className={`rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_4px_16px_-4px_rgba(15,23,42,0.08),0_2px_4px_-1px_rgba(15,23,42,0.04)] ${className}`}>
     <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
-      <div className="min-w-0">
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        {subtitle && <p className="mt-0.5 text-[11px] text-slate-500">{subtitle}</p>}
+      <div className="flex min-w-0 items-center gap-3">
+        {icon && <IconChip icon={icon} tone={tone} size="sm" />}
+        <div className="min-w-0">
+          <h2 className="text-[15px] font-semibold tracking-tight text-slate-900">{title}</h2>
+          {subtitle && <p className="mt-0.5 text-[11px] text-slate-500">{subtitle}</p>}
+        </div>
       </div>
       {action}
     </div>
@@ -171,7 +199,7 @@ const LinkButton: React.FC<{ onClick: () => void; children: React.ReactNode }> =
 
 /** Meter in the brand accent: same-ramp track and fill. */
 const Meter: React.FC<{ pct: number }> = ({ pct }) => (
-  <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-100">
+  <div className="h-2 w-full overflow-hidden rounded-full bg-emerald-100">
     <div className="h-full rounded-full bg-emerald-600 transition-all duration-700" style={{ width: `${pct}%` }} />
   </div>
 );
@@ -187,6 +215,8 @@ const StatTile: React.FC<{
   meterPct?: number;
   /** Extra layout classes, e.g. to span two columns of the grid */
   className?: string;
+  icon?: React.ElementType;
+  tone?: Tone;
   splitBar?: {
     primaryPct: number;
     primaryColor?: string;
@@ -194,18 +224,22 @@ const StatTile: React.FC<{
     primaryLabel?: string;
     secondaryLabel?: string;
   };
-}> = ({ label, labelAm, action, value, exact, footer, meterPct, className = '', splitBar }) => (
-  <div className={`${className} rounded-md flex flex-col border border-slate-200/90 border-b-2 border-b-slate-300 bg-white p-5 transition duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_4px_6px_rgba(15,23,42,0.06),0_16px_32px_-8px_rgba(15,23,42,0.18)] shadow-[0_3px_12px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.05)]`}>
+}> = ({ label, labelAm, action, value, exact, footer, meterPct, className = '', icon, tone = 'slate', splitBar }) => (
+  <div role="group" aria-label={label} className={`${className} relative overflow-hidden rounded-xl flex flex-col border border-slate-200/90 bg-gradient-to-b ${TONES[tone].wash} via-white to-white p-5 transition duration-200 motion-safe:hover:-translate-y-1 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_6px_16px_-4px_rgba(15,23,42,0.12),0_18px_36px_-12px_rgba(15,23,42,0.18)] hover:shadow-[0_2px_4px_rgba(15,23,42,0.08),0_12px_24px_-6px_rgba(15,23,42,0.16),0_28px_48px_-16px_rgba(15,23,42,0.26)]`}>
+    {/* The card's colour, as a thin line along its top */}
+    <span className={`absolute inset-x-0 top-0 h-1 ${TONES[tone].line}`} aria-hidden />
     <div className="flex items-start justify-between gap-2 min-w-0">
-      <div className="min-w-0">
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
-        <p className="text-[10px] text-slate-400">{labelAm}</p>
+      <div className="flex min-w-0 items-center gap-3">
+        {icon && <IconChip icon={icon} tone={tone} />}
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
+          <p className="text-[10px] text-slate-400">{labelAm}</p>
+        </div>
       </div>
-      {action && <div className="shrink-0">{action}</div>}
     </div>
     {/* A single figure, kept to one line; a small table (the fixed assets and consumables rows) takes the card's width */}
     {!React.isValidElement(value) || (value.type !== 'table' && value.type !== TypeRows) ? (
-      <div className="mt-3 min-w-0 truncate text-xl sm:text-2xl xl:text-3xl font-bold tracking-tight text-slate-900 tabular-nums" title={exact}>{value}</div>
+      <div className="mt-4 min-w-0 truncate text-2xl sm:text-3xl xl:text-[34px] font-extrabold tracking-tight text-slate-900 tabular-nums" title={exact}>{value}</div>
     ) : (
       <div className="mt-3 min-w-0">{value}</div>
     )}
@@ -230,7 +264,11 @@ const StatTile: React.FC<{
           )}
         </div>
       )}
-      <div className="text-[11px] text-slate-500">{footer}</div>
+      {/* The footer, with the link to the list behind the figures at its end */}
+      <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-[11px] text-slate-500">
+        <div className="min-w-0">{footer}</div>
+        {action && <div className="shrink-0">{action}</div>}
+      </div>
     </div>
   </div>
 );
@@ -288,15 +326,15 @@ const TypeRows: React.FC<{
         { name: 'Consumables', n: consumables, measure: consumables === 1 ? 'item' : 'items', share: undefined, color: TYPE_COLORS.consumables, title: 'Consumables (አላቂ ዕቃ): each different supply counted once, by IFMIS item code' },
       ].map((r, i) => (
         <tr key={r.name} title={r.title} className={i ? 'border-t border-slate-100' : ''}>
-          <th scope="row" className="py-1.5 pr-2 text-xs font-semibold text-slate-700">
+          <th scope="row" className="py-2 pr-2 text-xs font-semibold text-slate-700">
             <span className="flex items-center gap-1.5 whitespace-nowrap">
               <span className={`h-2 w-2 shrink-0 rounded-sm ${r.color}`} aria-hidden />
               {r.name}
             </span>
             {r.share && <span className="block pl-3.5 text-[10px] font-normal text-slate-400">{r.share}</span>}
           </th>
-          <td className="py-1.5 text-right text-2xl font-bold text-slate-900">{r.n.toLocaleString()}</td>
-          <td className="w-12 py-1.5 pl-1.5 text-left text-xs text-slate-500">{r.measure}</td>
+          <td className="py-2 text-right text-[28px] leading-none font-extrabold tracking-tight text-slate-900">{r.n.toLocaleString()}</td>
+          <td className="w-12 py-2 pl-1.5 text-left text-xs font-medium text-slate-500">{r.measure}</td>
         </tr>
       ))}
     </tbody>
@@ -604,7 +642,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         onClick={() => openAssets(preset)}
         title={`Open the list of ${what} on the Assets page`}
         aria-label={`Open the list of ${what} on the Assets page`}
-        className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer"
+        className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-100 transition hover:bg-emerald-100 hover:text-emerald-900 cursor-pointer"
       >
         List &rarr;
       </button>
@@ -780,7 +818,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   );
 
   return (
-    <div className="space-y-4 animate-fadeIn pb-16">
+    <div className="space-y-5 animate-fadeIn pb-16">
       <StoreManReminder onAssign={() => onNavigate('settings-stores')} />
 
       {headerSlot ? (
@@ -809,6 +847,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Total assets"
           labelAm="ጠቅላላ ንብረቶች"
+          icon={Boxes}
+          tone="emerald"
           action={listLink({ filter: 'ALL' }, 'all assets')}
           // Both types, each on its row in what it is counted in, never added together
           value={<TypeRows fixed={fixedAssets.units} consumables={consumableStockItems} />}
@@ -817,6 +857,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Assigned assets"
           labelAm="የተመደቡ ንብረቶች"
+          icon={UserCheck}
+          tone="sky"
           action={listLink({ filter: 'ISSUED' }, 'assigned assets')}
           value={<TypeRows fixed={fixedAssets.issuedUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsIssued} />}
           footer="Assigned"
@@ -824,6 +866,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Available assets"
           labelAm="በመጋዘን ያሉ ንብረቶች"
+          icon={Warehouse}
+          tone="violet"
           action={listLink({ filter: 'IN_STORE' }, 'assets in store')}
           value={<TypeRows fixed={fixedAssets.inStoreUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsInStore} />}
           footer="In store, ready to assign"
@@ -831,6 +875,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <StatTile
           label="Total valuation"
           labelAm="ጠቅላላ የካፒታል ንብረት ዋጋ"
+          icon={Wallet}
+          tone="amber"
           value={formatETBShort(totalValuation)}
           exact={totalValuation >= 1_000_000 ? formatETBTotal(totalValuation) : undefined}
           // One total: what everything held cost, VAT and charges included (not split by type)
@@ -1098,6 +1144,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       <div id="stale-in-store" className="scroll-mt-20">
         <Panel
           title={`In store over ${stale.thresholdDays} days`}
+          icon={Clock}
+          tone="amber"
           subtitle={`ከ${stale.thresholdDays} ቀን በላይ በመጋዘን የቆዩ ዕቃዎች · items should be distributed within a month of arriving`}
         >
           {staleItems.length === 0 ? (
@@ -1105,9 +1153,11 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           ) : (
             <div className="space-y-4">
               {/* Summary: what is overdue in total */}
-              <div className="flex flex-col gap-4 rounded-md border border-amber-200 bg-amber-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-4 rounded-lg border border-amber-200 border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50 to-amber-50/30 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-7 px-2.5 shrink-0 items-center justify-center rounded bg-amber-100 text-amber-900 font-mono text-[11px] font-bold">ATTN</span>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700" aria-hidden>
+                    <Clock className="h-4 w-4" />
+                  </span>
                   <div>
                     <p className="text-sm font-semibold text-amber-900">These items should have been distributed by now</p>
                     <p className="text-[11px] text-amber-800/80">
@@ -1222,6 +1272,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <Panel
           className="lg:col-span-7"
           title="Directorate allocation"
+          icon={Building2}
+          tone="emerald"
           subtitle={deptRows.length > 0 ? (SHOW_VALUES ? 'Asset value held by each directorate' : 'Fixed assets (units) and consumables (items) held by each directorate') : 'No assets assigned to directorates yet'}
           action={<CountPill>{deptRows.length < deptHolding ? `Top ${deptRows.length} of ${deptHolding}` : `${deptHolding} ${deptHolding === 1 ? 'directorate' : 'directorates'}`}</CountPill>}
         >
@@ -1229,12 +1281,16 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             <EmptyState>No directorate allocations yet. Issue items to directorates from Assets.</EmptyState>
           ) : (
             <div className="space-y-4">
-              {deptRows.map((dept: any) => {
+              {deptRows.map((dept: any, rank: number) => {
                 const pct = Math.min(100, Math.round((deptSize(dept) / deptMaxVal) * 100));
                 return (
                   <div key={dept.departmentId} className="space-y-1.5">
                     <div className="flex items-start justify-between gap-3 text-xs">
-                      <div className="min-w-0">
+                      {/* Its place in the list, largest first */}
+                      <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[10px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-100" aria-hidden>
+                        {rank + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
                         {canOpenAssets && dept.departmentId ? (
                           <button
                             type="button"
@@ -1267,7 +1323,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                         )}
                       </div>
                     </div>
-                    <Meter pct={pct} />
+                    <div className="pl-8">
+                      <Meter pct={pct} />
+                    </div>
                   </div>
                 );
               })}
@@ -1275,7 +1333,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           )}
         </Panel>
 
-        <Panel className="lg:col-span-5" title="Asset categories" subtitle="የንብረት አይነት ስርጭት">
+        <Panel className="lg:col-span-5" title="Asset categories" subtitle="የንብረት አይነት ስርጭት" icon={PieChart} tone="sky">
           {categoryRows.length === 0 ? (
             <EmptyState>No items registered yet.</EmptyState>
           ) : (
