@@ -74,7 +74,7 @@ interface ExecutiveDashboardPageProps {
 
 /** Asset categories: fixed slot per category, never by position or rank. */
 const CATEGORY_STYLE: Record<string, { en: string; am: string; color: string }> = {
-  VEHICLE:          { en: 'Vehicles',         am: 'ተሽከርካሪዎች',      color: '#2a78d6' },
+  VEHICLE:          { en: 'Vehicles with accessories', am: 'ተሽከርካሪዎች', color: '#2a78d6' },
   VEHICLE_PARTS:    { en: 'Vehicle parts & accessories', am: 'የተሽከርካሪ መለዋወጫዎች', color: '#0f6fa8' },
   // Not an item category: the dashboard shows motorcycles apart from the other vehicles
   MOTORCYCLE:       { en: 'Motorcycles',      am: 'ሞተር ሳይክሎች',     color: '#0e9fb5' },
@@ -105,7 +105,7 @@ function withVehiclesTogether<T extends { category: string; count: number }>(row
     category: 'VEHICLE',
     count: cars + motorcycles.count,
     parts: [
-      { key: 'VEHICLE-CARS', label: 'Cars & other vehicles', value: cars },
+      { key: 'VEHICLE-CARS', label: 'Cars', value: cars },
       { key: 'MOTORCYCLE', label: 'Motorcycles', value: motorcycles.count },
     ],
   };

@@ -9,9 +9,12 @@ export const TRANSACTION_TYPES = ['PO Receipt', 'Petty Cash Purchase Receipt', '
  */
 export const SHOW_VEHICLE_PARTS = false;
 
-/** Whether a record is in the category chosen in a filter: for Vehicles with Accessories, the vehicles only */
+/** Categories that hold machines with their accessories: chosen in a filter, they list the machines themselves */
+const MACHINES_ONLY: string[] = [AssetCategory.VEHICLE, AssetCategory.AGRI_MACHINERY];
+
+/** Whether a record is in the category chosen in a filter: for Vehicles or Agricultural Machinery with Accessories, the machines only */
 export const inCategory = (item: { category?: string | null; itemType?: string | null }, category: string): boolean =>
-  category === 'ALL' || (item.category === category && !(category === AssetCategory.VEHICLE && item.itemType === ItemType.CONSUMABLE));
+  category === 'ALL' || (item.category === category && !(MACHINES_ONLY.includes(category) && item.itemType === ItemType.CONSUMABLE));
 
 /** IFMIS item categories, matched to the categories of this register */
 export const CATEGORY_FROM_IFMIS: [RegExp, AssetCategory][] = [

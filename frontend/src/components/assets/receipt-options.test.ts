@@ -33,6 +33,9 @@ describe('IFMIS item categories', () => {
     // Still counted everywhere else: no category chosen, or another category's own consumables
     expect(inCategory({ category: 'VEHICLE', itemType: 'CONSUMABLE' }, 'ALL')).toBe(true);
     expect(inCategory({ category: 'OFFICE_SUPPLIES', itemType: 'CONSUMABLE' }, 'OFFICE_SUPPLIES')).toBe(true);
+    // Agricultural Machinery with Accessories likewise lists the machinery
+    expect(inCategory({ category: 'AGRI_MACHINERY', itemType: 'FIXED' }, 'AGRI_MACHINERY')).toBe(true);
+    expect(inCategory({ category: 'AGRI_MACHINERY', itemType: 'CONSUMABLE' }, 'AGRI_MACHINERY')).toBe(false);
   });
 
   it('files tools and workshop equipment under Tools & equipment, not under supplies', () => {
