@@ -716,7 +716,8 @@ function uomOf(item: { notes?: string | null }): string {
 /**
  * What one unit of a record cost: its Model 19 total ÷ its quantity, so the VAT and additional charges paid are in
  * it, as IFMIS carries cost on the Model 22 and Model 21 (16,490 + 15% VAT is issued at 18,963.50). The unit price
- * on the receipt stays the price before VAT. A donation costs nothing.
+ * on the receipt stays the price before VAT. A donation is valued at the price on its receipt, like a purchase; with
+ * no price given it counts as 0.
  */
 export function costPerUnit(item: { notes?: string | null; unitCostETB?: number | null }): number {
   // To 5 decimals, as IFMIS prints a unit price (18,963.50000)
