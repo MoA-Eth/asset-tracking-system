@@ -4659,6 +4659,9 @@ export class StoreService {
     );
     const receivedByMonth = new Map<string, number>();
     const issuedByMonth = new Map<string, number>();
+    // The same, fixed assets only: units of fixed assets add up, litres and pieces of supplies don't
+    const fixedReceivedByMonth = new Map<string, number>();
+    const fixedIssuedByMonth = new Map<string, number>();
     // Received: each approved registration with the units split off it, by its receiving (Model 19) month.
     // Units disposed of later were still received; rejected receipts never were.
     for (const reg of scopedItems.filter((i) => !i.parentItemId && i.status !== 'PENDING_STOCK_IN' && i.status !== ItemStatus.REJECTED)) {
@@ -4666,6 +4669,7 @@ export class StoreService {
       const month = (plausibleDate(reg.ifmisSlipDateGc) || reg.createdAtGc || '').slice(0, 7);
       const unitsReceived = unitsOf(reg) + units(scopedItems.filter((c) => c.parentItemId === reg.id && c.status !== ItemStatus.REJECTED));
       receivedByMonth.set(month, (receivedByMonth.get(month) ?? 0) + unitsReceived);
+      if ((reg.itemType ?? 'FIXED') !== 'CONSUMABLE') fixedReceivedByMonth.set(month, (fixedReceivedByMonth.get(month) ?? 0) + unitsReceived);
     }
     // Issued: each approved Stock-Out by the month it was approved (a partial issue counts its own units)
     const itemsById = scopedById;
@@ -4677,11 +4681,18 @@ export class StoreService {
       const item = itemsById.get(so.itemId);
       const unitsIssued = Number.isFinite(requested) && requested > 0 ? requested : item ? unitsOf(item) : 1;
       issuedByMonth.set(month, (issuedByMonth.get(month) ?? 0) + unitsIssued);
+      if (item && (item.itemType ?? 'FIXED') !== 'CONSUMABLE') fixedIssuedByMonth.set(month, (fixedIssuedByMonth.get(month) ?? 0) + unitsIssued);
     }
     const stockMovement = movementMonths.map((month) => ({
       month,
       received: receivedByMonth.get(month) ?? 0,
       issued: issuedByMonth.get(month) ?? 0,
+    }));
+
+    const fixedMovement = movementMonths.map((month) => ({
+      month,
+      received: fixedReceivedByMonth.get(month) ?? 0,
+      issued: fixedIssuedByMonth.get(month) ?? 0,
     }));
 
     const conditionDistribution = ['NEW', 'GOOD', 'FAIR', 'NEEDS_REPAIR', 'DAMAGED'].map((cond) => {
@@ -4805,6 +4816,7 @@ export class StoreService {
       unassignedValuationETB: sum(unassignedItems),
       unassignedItems,
       stockMovement,
+      fixedMovement,
       staleInStore: {
         thresholdDays: STALE_IN_STORE_DAYS,
         itemCount: staleItems.length,

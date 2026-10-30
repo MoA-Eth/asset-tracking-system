@@ -20,13 +20,14 @@ import {
   Clock,
   Building2,
   PieChart,
+  BarChart3,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { StoreManReminder } from '../components/ui/StoreManReminder';
 import { FilterPopover, FilterSection, FilterSelect } from '../components/ui/FilterPopover';
 import { CATEGORY_OPTIONS } from '../components/assets/asset-state';
 import { PERIOD_OPTIONS, PeriodKey, periodRange } from '../utils/periods';
-import { Donut } from '../components/ui/charts';
+import { Donut, PairedColumns } from '../components/ui/charts';
 import { actionText, roleName, withRoleNames } from '../utils/roles';
 import { formatETBShort, formatETBTotal, formatGcToEc, getTodayGcAndEc } from '../utils/eth-date';
 import { Store, UserRole } from '../types/asset-management';
@@ -648,6 +649,12 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       </button>
     ) : undefined;
   const stockByUnit: { unit: string; label: string; items: number; inStore: number; issued: number }[] = data?.consumables?.byUnit ?? [];
+  // Fixed assets received and issued by month, for the trend
+  const fixedMovement: { month: string; received: number; issued: number }[] = data?.fixedMovement ?? [];
+  const monthLabel = (month: string) => {
+    const [y, m] = month.split('-').map(Number);
+    return y && m ? `${new Date(Date.UTC(y, m - 1, 1)).toLocaleString('en', { month: 'short', timeZone: 'UTC' })} ${String(y).slice(2)}` : month;
+  };
   const deptFixed = (d: any): number => d.fixedUnits ?? 0;
   const deptSupplies = (d: any): number => d.consumableItems ?? 0;
   const deptLines = (d: any): number => d.itemLines ?? d.itemCount ?? 0;
@@ -1389,6 +1396,25 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           )}
         </Panel>
       </div>
+
+      {/* ── The trend, at the bottom: fixed assets received and issued, by month ── */}
+      <Panel
+        title="Received and issued"
+        subtitle="Fixed assets, in units, by month: what came into store and what went out to staff"
+        icon={BarChart3}
+        tone="sky"
+      >
+        <PairedColumns
+          label="Fixed assets received and issued by month"
+          unit="units"
+          empty="No fixed assets received or issued in these months."
+          series={[
+            { label: 'Received', color: '#10b981' },
+            { label: 'Issued', color: '#0284c7' },
+          ]}
+          rows={fixedMovement.map((m) => ({ key: m.month, label: monthLabel(m.month), a: m.received, b: m.issued }))}
+        />
+      </Panel>
 
       {/* ── Consumable stock by unit: quantities only add up within one unit (litres with litres, reams with reams) ── */}
       {SHOW_STOCK_BY_UNIT && (

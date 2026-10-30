@@ -252,3 +252,104 @@ export const ColumnChart: React.FC<{
     </div>
   );
 };
+
+// ─── Two series side by side, by period ─────────────────────────────────────
+
+export interface PairRow {
+  key: string;
+  label: string;
+  a: number;
+  b: number;
+}
+
+/** Two figures per period, side by side (e.g. units received and issued each month), with a legend */
+export const PairedColumns: React.FC<{
+  rows: PairRow[];
+  series: [{ label: string; color: string }, { label: string; color: string }];
+  unit: string;
+  empty: string;
+  label: string;
+}> = ({ rows, series, unit, empty, label }) => {
+  const [hover, setHover] = useState<string | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(480);
+  const hasData = rows.some((r) => r.a > 0 || r.b > 0);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([entry]) => setW(Math.max(260, Math.round(entry.contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hasData]);
+
+  const legend = (
+    <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">
+      {series.map((s) => (
+        <span key={s.label} className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: s.color }} aria-hidden />
+          {s.label}
+        </span>
+      ))}
+    </div>
+  );
+  if (!hasData) return <>{legend}<ChartEmpty>{empty}</ChartEmpty></>;
+
+  const H = 210, left = 40, right = 6, top = 18, bottom = 24;
+  const plotW = W - left - right, plotH = H - top - bottom;
+  const { top: axisTop, step } = niceAxis(Math.max(...rows.flatMap((r) => [r.a, r.b])));
+  const ticks = Array.from({ length: 5 }, (_, i) => i * step);
+  const y = (v: number) => top + plotH - (v / axisTop) * plotH;
+  const slot = plotW / rows.length;
+  const colW = Math.min(22, slot * 0.3);
+  const count = (v: number) => (v >= 1000 ? `${+(v / 1000).toFixed(1)}K` : String(Math.round(v)));
+
+  return (
+    <div ref={boxRef} onMouseLeave={() => setHover(null)}>
+      {legend}
+      <svg
+        width={W}
+        height={H}
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label={`${label}: ${rows.map((r) => `${r.label} ${series[0].label} ${r.a}, ${series[1].label} ${r.b}`).join('; ')}`}
+        className="block max-w-full"
+      >
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={left} x2={W - right} y1={y(t)} y2={y(t)} stroke={t === 0 ? '#cbd5e1' : '#f1f5f9'} strokeWidth={1} />
+            <text x={left - 6} y={y(t)} dy="0.32em" textAnchor="end" className="fill-slate-400 text-[10px] tabular-nums">
+              {count(t)}
+            </text>
+          </g>
+        ))}
+        {rows.map((r, i) => {
+          const cx = left + slot * i + slot / 2;
+          return (
+            <g key={r.key} opacity={hover && hover !== r.key ? 0.4 : 1} className="transition-opacity">
+              {[r.a, r.b].map((v, k) => {
+                const h = Math.max(y(0) - y(v), v > 0 ? 2 : 0);
+                const x = k === 0 ? cx - colW - 1.5 : cx + 1.5;
+                return (
+                  <g key={k}>
+                    <path d={columnPath(x, y(0) - h, colW, h)} fill={series[k].color} />
+                    {v > 0 && (
+                      <text x={x + colW / 2} y={y(0) - h - 4} textAnchor="middle" className="fill-slate-700 text-[9px] font-semibold tabular-nums">
+                        {count(v)}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+              <text x={cx} y={H - bottom + 15} textAnchor="middle" className="fill-slate-600 text-[10px]">
+                {r.label}
+              </text>
+              <rect x={left + slot * i} y={top} width={slot} height={plotH + bottom} fill="transparent" onMouseEnter={() => setHover(r.key)}>
+                <title>{`${r.label}: ${series[0].label.toLowerCase()} ${r.a.toLocaleString()} ${unit}, ${series[1].label.toLowerCase()} ${r.b.toLocaleString()} ${unit}`}</title>
+              </rect>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+};
