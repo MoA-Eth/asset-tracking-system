@@ -362,6 +362,7 @@ describe('Consumables in stock by unit', () => {
     renderPage();
     const table = await screen.findByRole('table', { name: 'Consumables in stock by unit' });
     const rows = within(table).getAllByRole('row').map((r) => r.textContent);
-    expect(rows).toEqual(['UnitDifferent itemsIn storeIssued', 'Litres21,0600', 'Reams14010']);
+    expect(rows).toEqual(['UnitItemsIn stock', 'Litres21,060', 'Reams140']);
+    expect(screen.getByText('3 distinct products across 2 units')).toBeInTheDocument();
   });
 });
