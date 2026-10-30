@@ -1115,15 +1115,19 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   </div>
                 </div>
                 <dl className="flex flex-wrap gap-4 sm:gap-6 text-right">
-                  {/* Counted as the cards at the top: fixed assets one by one, consumables by the different supplies */}
+                  {/* Counted as the cards at the top: fixed assets one by one, consumables by the different supplies; each
+                      as a part of what is in store (the Available card), so it isn't read against the total or the assigned */}
                   {[
-                    { label: 'Fixed assets (units)', value: (stale.fixedUnits ?? staleMeasures.units).toLocaleString() },
-                    { label: 'Consumables (items)', value: (stale.consumableItems ?? staleSupplies).toLocaleString() },
-                    ...(SHOW_VALUES ? [{ label: 'Value', value: formatETBTotal(stale.valueETB) }] : []),
+                    { label: 'Fixed assets (units)', value: (stale.fixedUnits ?? staleMeasures.units).toLocaleString(), of: fixedAssets.inStoreUnits },
+                    { label: 'Consumables (items)', value: (stale.consumableItems ?? staleSupplies).toLocaleString(), of: consumableStockItemsInStore },
+                    ...(SHOW_VALUES ? [{ label: 'Value', value: formatETBTotal(stale.valueETB), of: undefined }] : []),
                   ].map((s) => (
                     <div key={s.label}>
                       <dt className="text-[10px] font-semibold uppercase tracking-wider text-amber-800/70">{s.label}</dt>
-                      <dd className="text-base font-semibold text-slate-900 whitespace-nowrap">{s.value}</dd>
+                      <dd className="text-base font-semibold text-slate-900 whitespace-nowrap">
+                        {s.value}
+                        {typeof s.of === 'number' && <span className="text-xs font-normal text-slate-500"> of {s.of.toLocaleString()} in store</span>}
+                      </dd>
                     </div>
                   ))}
                 </dl>

@@ -307,6 +307,8 @@ describe('Items in store too long', () => {
     });
     vi.mocked(api.getExecutiveDashboard).mockResolvedValue({
       ...figures(10),
+      fixedAssets: { units: 70, inStoreUnits: 66, issuedUnits: 4 },
+      consumables: { stockItems: 5, inStoreStockItems: 4, issuedStockItems: 1 },
       staleInStore: {
         thresholdDays: 30, itemCount: 4, units: 1095.5, valueETB: 4, fixedUnits: 64, consumableItems: 3,
         items: [stale('EAR-TAGS', 'CONSUMABLE', 1000, 'EA'), stale('CHAIRS', 'FIXED', 64, 'EA'), stale('DELTAMETHRIN', 'CONSUMABLE', 20, 'LTR'), stale('FEED', 'CONSUMABLE', 11.5, 'KG')],
@@ -316,8 +318,9 @@ describe('Items in store too long', () => {
 
     const summary = (await screen.findByText('These items should have been distributed by now')).closest('div')!.parentElement!.parentElement!;
     const figure = (label: string) => [...summary.querySelectorAll('dt')].find((dt) => dt.textContent === label)?.nextElementSibling?.textContent;
-    expect(figure('Fixed assets (units)')).toBe('64');
-    expect(figure('Consumables (items)')).toBe('3');
+    // Each a part of what is in store (the Available card)
+    expect(figure('Fixed assets (units)')).toBe('64 of 66 in store');
+    expect(figure('Consumables (items)')).toBe('3 of 4 in store');
     // Not one figure adding pieces, litres and kilograms
     expect(summary).not.toHaveTextContent('1,095.5');
     expect(summary).not.toHaveTextContent('Litres');
