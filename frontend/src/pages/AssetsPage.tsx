@@ -20,6 +20,7 @@ import {
   Send,
   XCircle,
   AlertTriangle,
+  Upload,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -63,6 +64,7 @@ import {
 } from '../types/asset-management';
 import { formatETB } from '../utils/eth-date';
 import { storeLocationLabel } from '../utils/location';
+import { Model19ImportModal } from '../components/assets/Model19ImportModal';
 import { departmentLabel } from '../utils/department';
 import { downloadCsv } from '../utils/csv';
 import { downloadAssetsWorkbook } from '../utils/assets-workbook';
@@ -213,6 +215,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   // 3-Dot Actions Menu
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  // Receiving several Model 19s from the Excel template
+  const [isModel19ImportOpen, setIsModel19ImportOpen] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -2127,7 +2131,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   <div
                     role="menu"
                     aria-label="Asset export options"
-                    className="absolute right-0 top-full mt-1.5 w-48 z-50 rounded-md border border-slate-200 bg-white p-1 shadow-lg animate-fadeIn text-xs"
+                    className="absolute right-0 top-full mt-1.5 w-60 z-50 rounded-md border border-slate-200 bg-white p-1 shadow-lg animate-fadeIn text-xs"
                   >
                     <button
                       type="button"
@@ -2154,6 +2158,21 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       <Download className="w-3.5 h-3.5 text-slate-500" />
                       <span>Export Excel (with summary)</span>
                     </button>
+                    {/* Several Model 19s at once, from the Excel template: each waits for approval as from the receive form */}
+                    {canReceive && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setIsActionsMenuOpen(false);
+                          setIsModel19ImportOpen(true);
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                      >
+                        <Upload className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Import Model 19s (Excel)</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -2400,6 +2419,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       )}
 
       <Model19PrintModal isOpen={!!voucher19} voucher={voucher19} onClose={() => setVoucher19(null)} />
+      {canReceive && (
+        <Model19ImportModal
+          isOpen={isModel19ImportOpen}
+          onClose={() => setIsModel19ImportOpen(false)}
+          onImported={() => fetchData(true)}
+          // The stores goods can be received into, named as on the receive form
+          stores={locations.filter((l) => l.isActive !== false).map((l) => ({ id: l.id, label: storeLocationLabel(l) }))}
+        />
+      )}
       <Model22PrintModal isOpen={!!voucher22} voucher={voucher22} onClose={() => setVoucher22(null)} />
       <Model21PrintModal isOpen={!!voucher21} voucher={voucher21} onClose={() => setVoucher21(null)} />
       <DisposalPrintModal isOpen={!!voucherDisposal} voucher={voucherDisposal} onClose={() => setVoucherDisposal(null)} />
