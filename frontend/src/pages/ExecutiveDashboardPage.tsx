@@ -1274,6 +1274,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               <p className="-mb-1 text-[11px] text-slate-500">Fixed assets only: spare parts, accessories and supplies are not counted.</p>
               <Donut
                 label="Units by category"
+                percentages={false}
                 empty="No fixed assets registered yet."
                 onSelect={canOpenAssets ? (key) => openAssets({ category: key, itemType: 'FIXED' }) : undefined}
                 selectLabel={(s) => `Open the ${s.label.toLowerCase()} on the Assets page`}

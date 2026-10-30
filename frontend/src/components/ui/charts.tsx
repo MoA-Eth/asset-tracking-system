@@ -39,7 +39,9 @@ export const Donut: React.FC<{
   /** Makes each part in the legend a button (e.g. to open its list) */
   onSelect?: (key: string) => void;
   selectLabel?: (segment: DonutSegment) => string;
-}> = ({ segments, unit = 'units', label, empty, onSelect, selectLabel }) => {
+  /** Each part's share of the whole beside its number (on by default) */
+  percentages?: boolean;
+}> = ({ segments, unit = 'units', label, empty, onSelect, selectLabel, percentages = true }) => {
   const [hover, setHover] = useState<string | null>(null);
   const total = segments.reduce((sum, s) => sum + s.value, 0);
   if (total === 0) return <ChartEmpty>{empty}</ChartEmpty>;
@@ -83,7 +85,7 @@ export const Donut: React.FC<{
           {(focus ? focus.value : total).toLocaleString()}
         </text>
         <text x={cx} y={cy + 13} textAnchor="middle" className="fill-slate-500 text-[10px]">
-          {focus ? `${focus.label} · ${percent(focus.value)}` : unit}
+          {focus ? (percentages ? `${focus.label} · ${percent(focus.value)}` : focus.label) : unit}
         </text>
       </svg>
 
@@ -111,14 +113,14 @@ export const Donut: React.FC<{
                 <span className="text-slate-600">{s.label}</span>
               )}
               <span className="ml-auto font-semibold tabular-nums text-slate-900">{s.value.toLocaleString()}</span>
-              <span className="w-8 text-right tabular-nums text-slate-400">{percent(s.value)}</span>
+              {percentages && <span className="w-8 text-right tabular-nums text-slate-400">{percent(s.value)}</span>}
             </div>
             {/* Its parts, indented under it: counted in it, not beside it */}
             {s.parts?.filter((p) => p.value > 0).map((p) => (
               <div key={p.key} className="mt-0.5 flex items-center gap-2 pl-[18px] text-[10px] text-slate-500">
                 <span>↳ {p.label}</span>
                 <span className="ml-auto tabular-nums">{p.value.toLocaleString()}</span>
-                <span className="w-8" aria-hidden />
+                {percentages && <span className="w-8" aria-hidden />}
               </div>
             ))}
           </li>

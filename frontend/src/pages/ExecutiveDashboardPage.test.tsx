@@ -295,6 +295,8 @@ describe('Asset categories', () => {
     expect(legend).toHaveTextContent('Vehicles66');
     expect(legend).toHaveTextContent('↳ Cars & other vehicles14');
     expect(legend).toHaveTextContent('↳ Motorcycles52');
+    // Numbers only, no share of the whole
+    expect(legend).not.toHaveTextContent('%');
   });
 });
 
