@@ -86,7 +86,7 @@ export const requestLabel = (type?: string, details?: { disposal?: boolean } | n
 export const recipientOf = (request: TransactionApproval): string | undefined =>
   request.recipientEmployee?.fullNameEn || request.requestDetails?.organizationName || request.requestDetails?.recipientName || undefined;
 
-export const ENDORSED_REASON = 'The Team Leader has endorsed it. To correct it, ask an approver to reject it.';
+export const ENDORSED_REASON = 'The Team Leader has endorsed it: now only the Department Head can correct it, or reject it.';
 
 export interface AssetRow {
   item: ItemWithRelations;

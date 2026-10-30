@@ -177,9 +177,44 @@ describe('correcting a disposal request', () => {
     expect(audit.details).toMatch(/quantity 3 → 4/);
   });
 
-  it('is locked once a Team Leader has endorsed it', async () => {
+  it('is locked for its requester once a Team Leader has endorsed it', async () => {
     db.transactionApproval.findUnique.mockResolvedValue(pendingDisposal({ quantity: 3 }, 2));
     await expect(store().updateDisposal('appr-1', request as any, 'EMP-ENC')).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  describe('by the approver it waits for, instead of rejecting it for a typo', () => {
+    beforeEach(() => {
+      db.transactionApproval.update.mockImplementation(async ({ data }: any) => ({ ...pendingDisposal({}, 2), ...data }));
+    });
+
+    it('the Department Head corrects it at Stage 2: it stays there, and the record says who corrected it', async () => {
+      db.transactionApproval.findUnique.mockResolvedValue({ ...pendingDisposal({ quantity: 3, bookValue: 4500 }, 2), ifmisSlipDateGc: '2026-10-01' });
+
+      await store().updateDisposal('appr-1', { ...request, quantity: 4, bookValue: 6000 } as any, 'EMP-HEAD');
+
+      const saved = db.transactionApproval.update.mock.calls[0][0].data;
+      expect(saved.requestDetails).toMatchObject({ quantity: 4, bookValue: 6000 });
+      expect(saved).not.toHaveProperty('currentStage');
+      const audit = db.auditLog.create.mock.calls[0][0].data;
+      expect(audit).toMatchObject({ action: 'EDIT_DISPOSAL', userId: 'EMP-HEAD' });
+      expect(audit.details).toMatch(/Corrected by the Department Head at Stage 2: .*quantity 3 → 4/);
+    });
+
+    it('the Team Leader corrects it at Stage 1, recorded as theirs', async () => {
+      db.transactionApproval.findUnique.mockResolvedValue({ ...pendingDisposal({ quantity: 3 }, 1), ifmisSlipDateGc: '2026-10-01' });
+      await store().updateDisposal('appr-1', { ...request, quantity: 2 } as any, 'EMP-TL');
+      expect(db.auditLog.create.mock.calls[0][0].data.details).toMatch(/Corrected by the Team Leader at Stage 1/);
+    });
+
+    it('is not for an approver whose stage it is not at, nor for the one who made it', async () => {
+      // Waiting for the Department Head: the Team Leader has endorsed it already
+      db.transactionApproval.findUnique.mockResolvedValue(pendingDisposal({ quantity: 3 }, 2));
+      await expect(store().updateDisposal('appr-1', request as any, 'EMP-TL')).rejects.toMatchObject({ statusCode: 409 });
+      // The Department Head made this request: they correct it as its requester, not as its approver
+      db.transactionApproval.findUnique.mockResolvedValue({ ...pendingDisposal({ quantity: 3 }, 2), requestedById: 'EMP-HEAD' });
+      await expect(store().updateDisposal('appr-1', request as any, 'EMP-HEAD')).rejects.toMatchObject({ statusCode: 409 });
+      expect(db.transactionApproval.update).not.toHaveBeenCalled();
+    });
   });
 });
 

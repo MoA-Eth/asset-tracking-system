@@ -375,8 +375,8 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                   </span>
                   <p className="mt-0.5 text-[11px] text-slate-500">
                     {isStage1
-                      ? `Until the Team Leader endorses it, the request (recipient, quantity, voucher) can be corrected with Edit. The item's own details stay as received.`
-                      : 'The Team Leader has endorsed it, so it can no longer be changed. To correct it, ask an approver to reject it.'}
+                      ? `Until the Team Leader endorses it, the request (recipient, quantity, voucher) can be corrected with Edit. The item's own details stay as received. The Team Leader can also correct it with Edit.`
+                      : 'The Team Leader has endorsed it: now only the Department Head can correct it with Edit, or reject it.'}
                   </p>
                 </FormNotice>
               );
@@ -392,8 +392,8 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                   </span>
                   <p className="mt-0.5 text-[11px] text-slate-500">
                     {isStage1
-                      ? 'Until the Team Leader endorses it, the receipt can be corrected with Edit.'
-                      : 'The Team Leader has endorsed it, so it can no longer be changed. To correct it, ask an approver to reject it.'}
+                      ? 'Until the Team Leader endorses it, the receipt can be corrected with Edit, by its requester or the Team Leader.'
+                      : 'The Team Leader has endorsed it: now only the Department Head can correct it with Edit, or reject it.'}
                   </p>
                 </FormNotice>
               );

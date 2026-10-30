@@ -32,6 +32,7 @@ import {
   Paperclip,
   ArrowRightLeft,
   Ban,
+  Pencil,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { ApprovalsSkeleton } from '../components/ui/Skeleton';
@@ -56,7 +57,7 @@ import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { Modal } from '../components/ui/Modal';
 import { getSlipDisplayName } from '../utils/slip-upload';
 import { RefreshButton } from '../components/ui/RefreshButton';
-import { approvalPolicy, approvalRowKey, groupBySlip, isSlipGroup, needsChiefDirector, slipNames, voucherName } from '../components/assets/slip-groups';
+import { approvalPolicy, approvalRowKey, groupBySlip, isSlipGroup, needsChiefDirector, requestCorrection, slipNames, voucherName } from '../components/assets/slip-groups';
 import { formatETB } from '../utils/eth-date';
 import { shortDate } from '../components/assets/asset-state';
 
@@ -485,6 +486,24 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   };
 
   // Single Action Handler
+  /** A small mistake is corrected in the asset's record instead of rejecting the request; not on one's own request */
+  const correctButton = (a: TransactionApproval) =>
+    a.requestedById !== user?.id && (
+      <button
+        type="button"
+        disabled={actionLoading}
+        onClick={() => {
+          setSelectedApproval(null);
+          requestCorrection(a.itemId, a.transactionType === 'STOCK_IN' ? undefined : a.id);
+          onNavigate('assets');
+        }}
+        title="Fix a typo in the request yourself; it stays with you to endorse or authorize"
+        className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+      >
+        <Pencil className="w-4 h-4" /> Correct
+      </button>
+    );
+
   const handleAction = async (approvalId: string, action: 'ENDORSE' | 'APPROVE' | 'REJECT') => {
     setActionError(null);
     if (action === 'REJECT' && !reviewRemarks.trim()) {
@@ -1632,6 +1651,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
               {selectedApproval.status === ApprovalStatus.PENDING && selectedApproval.currentStage === 1 && canEndorse && (
                 <>
+                  {correctButton(selectedApproval)}
                   <button
                     type="button"
                     disabled={actionLoading}
@@ -1666,6 +1686,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   }
                   return (
                     <>
+                      {correctButton(selectedApproval)}
                       <button
                         type="button"
                         disabled={actionLoading}

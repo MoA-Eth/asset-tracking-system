@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { ApprovalsPage } from './ApprovalsPage';
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
-import { approvalPolicy } from '../components/assets/slip-groups';
+import { approvalPolicy, OPEN_CORRECTION_EVENT, takePendingCorrection } from '../components/assets/slip-groups';
 
 const auth = vi.hoisted(() => ({ user: { id: 'leader', fullNameEn: 'Getnet Taye', permissions: ['approvals.endorse'] }, role: 'TEAM_LEADER' }));
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn() }));
@@ -351,5 +351,31 @@ describe('Approvals: voiding an approved request', () => {
     expect(within(row).getByText('Voided')).toBeInTheDocument();
     expect(within(row).getByText(/^by Dept Head · 22 Oct/)).toBeInTheDocument();
     expect(within(row).getByText('Procurement cancelled by ministry directive.')).toBeInTheDocument();
+  });
+});
+
+describe('Approvals: correct a small mistake instead of rejecting', () => {
+  it('opens the request in its record, for correction, on the Assets page', async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const opened = vi.fn();
+    window.addEventListener(OPEN_CORRECTION_EVENT, opened);
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={onNavigate} />);
+    const row = (await screen.findByText('MOA-D')).closest('tr')!;
+    await user.click(within(row).getByRole('button', { name: /Endorse/ }));
+    await user.click(screen.getByRole('button', { name: 'Correct' }));
+    expect(onNavigate).toHaveBeenCalledWith('assets');
+    expect(opened).toHaveBeenCalled();
+    expect(takePendingCorrection(() => true)).toEqual({ itemId: 'item-D', requestId: undefined });
+    window.removeEventListener(OPEN_CORRECTION_EVENT, opened);
+  });
+
+  it('is not offered on the approver\'s own request', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getApprovals).mockResolvedValue([receiptLine('D', 'Scanner', { requestedById: 'leader' })] as any);
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+    const row = (await screen.findByText('MOA-D')).closest('tr')!;
+    await user.click(within(row).getByRole('button', { name: /Endorse/ }));
+    expect(screen.queryByRole('button', { name: 'Correct' })).toBeNull();
   });
 });

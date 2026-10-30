@@ -34,7 +34,7 @@ import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
 import { AssetRecord } from '../components/assets/AssetRecord';
 import { SlipRecord, SlipStatus, slipLineTotal } from '../components/assets/SlipRecord';
-import { OPEN_SLIP_EVENT, slipKey, slipNames, takePendingSlip } from '../components/assets/slip-groups';
+import { OPEN_CORRECTION_EVENT, OPEN_SLIP_EVENT, slipKey, slipNames, takePendingCorrection, takePendingSlip } from '../components/assets/slip-groups';
 import { Model19PrintModal } from '../components/ui/Model19PrintModal';
 import { Model22PrintModal } from '../components/ui/Model22PrintModal';
 import { Model21PrintModal } from '../components/ui/Model21PrintModal';
@@ -180,6 +180,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const canIssue = can('stock-out.write');
   const canTransfer = can('transfers.write');
   const canDispose = can('disposals.write');
+  const canEndorse = can('approvals.endorse');
+  const canAuthorize = can('approvals.authorize');
+  /** The approver a request waits for may correct it (not their own request) instead of rejecting it for a typo */
+  const approverCorrects = (r?: TransactionApproval | null) =>
+    !!r && r.status === ApprovalStatus.PENDING && r.requestedById !== user?.id && ((r.currentStage ?? 1) === 1 ? canEndorse : canAuthorize);
 
   const [items, setItems] = useState<ItemWithRelations[]>([]);
   const [approvals, setApprovals] = useState<TransactionApproval[]>([]);
@@ -1099,9 +1104,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             icon: Pencil,
             // Corrected in place, in the asset's record
             onClick: () => editInRecord(item.id),
-            hidden: !canReceive || !request,
-            disabled: request?.currentStage === 2,
-            reason: request?.currentStage === 2 ? ENDORSED_REASON : undefined,
+            hidden: !request || !(canReceive || approverCorrects(request)),
+            disabled: request?.currentStage === 2 && !approverCorrects(request),
+            reason: request?.currentStage === 2 && !approverCorrects(request) ? ENDORSED_REASON : undefined,
           },
           resubmitAction(request),
           cancelAction(request),
@@ -1177,9 +1182,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             label: `Edit ${requestLabel(r.transactionType, r.requestDetails).noun}${open.length > 1 ? ` ${r.ifmisSlipNumber}` : ''}`,
             icon: Pencil,
             onClick: () => editInRecord(item.id, r.id),
-            hidden: !(editPermission[r.transactionType] ?? false),
-            disabled: r.currentStage === 2,
-            reason: r.currentStage === 2 ? (open.length > 1 ? `Model 22 ${r.ifmisSlipNumber}: ${ENDORSED_REASON}` : ENDORSED_REASON) : undefined,
+            hidden: !(editPermission[r.transactionType] || approverCorrects(r)),
+            disabled: r.currentStage === 2 && !approverCorrects(r),
+            reason: r.currentStage === 2 && !approverCorrects(r) ? (open.length > 1 ? `Model 22 ${r.ifmisSlipNumber}: ${ENDORSED_REASON}` : ENDORSED_REASON) : undefined,
           })),
           resubmitAction(returned ?? request),
           cancelAction(returned ?? request),
@@ -1648,6 +1653,17 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return () => window.removeEventListener(OPEN_SLIP_EVENT, openRequested);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slips]);
+  // A request an approver chose to correct from the approvals queue opens in its record's edit form
+  useEffect(() => {
+    const openRequested = () => {
+      const taken = takePendingCorrection((id) => rows.some((r) => r.item.id === id));
+      if (taken) editInRecord(taken.itemId, taken.requestId);
+    };
+    openRequested();
+    window.addEventListener(OPEN_CORRECTION_EVENT, openRequested);
+    return () => window.removeEventListener(OPEN_CORRECTION_EVENT, openRequested);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
 
   // ── The open record ──
   const selectedRow = selectedId ? rows.find((r) => r.item.id === selectedId) : undefined;

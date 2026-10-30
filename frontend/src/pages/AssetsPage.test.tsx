@@ -1643,7 +1643,52 @@ describe('Asset record', () => {
     await screen.findByText('MOA-S1');
     const record = await open(user, 'MOA-R1');
     expect(within(within(record).getByRole('toolbar')).getByRole('button', { name: 'Edit receipt' })).toBeDisabled();
-    expect(within(record).getByText(/The Team Leader has endorsed it, so it can no longer be changed/)).toBeInTheDocument();
+    expect(within(record).getAllByText(/The Team Leader has endorsed it: now only the Department Head can correct it/).length).toBeGreaterThan(0);
+  });
+
+  describe('an approver corrects a request waiting for them, instead of rejecting it', () => {
+    const fromOthers = () => approvals.map((a) => ({ ...a, requestedById: 'E9' }));
+
+    it('the Department Head edits an endorsed receipt', async () => {
+      const user = userEvent.setup();
+      auth.user.permissions = ['inventory.read', 'approvals.read', 'approvals.authorize'];
+      vi.mocked(api.getApprovals).mockResolvedValue(fromOthers() as any);
+      render(<AssetsPage currentRole={UserRole.DEPARTMENT_HEAD} onNavigate={vi.fn()} />);
+      await screen.findByText('MOA-S1');
+      const record = await open(user, 'MOA-R1');
+      const edit = within(within(record).getByRole('toolbar')).getByRole('button', { name: 'Edit receipt' });
+      expect(edit).toBeEnabled();
+      await user.click(edit);
+      expect(record.querySelector('form#stock-in-form')).not.toBeNull();
+    });
+
+    it('the Team Leader edits an issue waiting for endorsement', async () => {
+      const user = userEvent.setup();
+      auth.user.permissions = ['inventory.read', 'approvals.read', 'approvals.endorse'];
+      vi.mocked(api.getApprovals).mockResolvedValue(fromOthers() as any);
+      render(<AssetsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+      await screen.findByText('MOA-S1');
+      const record = await open(user, 'MOA-O1');
+      expect(within(within(record).getByRole('toolbar')).getByRole('button', { name: 'Edit issue' })).toBeEnabled();
+    });
+
+    it('not an endorsed receipt for the Team Leader', async () => {
+      const user = userEvent.setup();
+      auth.user.permissions = ['inventory.read', 'approvals.read', 'approvals.endorse'];
+      vi.mocked(api.getApprovals).mockResolvedValue(fromOthers() as any);
+      render(<AssetsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+      await screen.findByText('MOA-S1');
+      expect(within(await open(user, 'MOA-R1')).queryByRole('toolbar')).toBeNull();
+    });
+
+    it('not on their own request', async () => {
+      const user = userEvent.setup();
+      auth.user.permissions = ['inventory.read', 'approvals.read', 'approvals.endorse'];
+      render(<AssetsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+      await screen.findByText('MOA-S1');
+      const record = await open(user, 'MOA-O1');
+      expect(within(record).queryByRole('toolbar')).toBeNull();
+    });
   });
 
   it('is read-only for approvers: no actions, and vouchers print from the requests', async () => {

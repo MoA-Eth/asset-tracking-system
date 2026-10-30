@@ -816,6 +816,32 @@ const OPEN_STATUSES = ['PENDING'] as any[];
 const correctable = (a: { status: string; currentStage?: number | null }) =>
   a.status === 'REJECTED' || (a.status === 'PENDING' && (a.currentStage ?? 1) === 1);
 
+/**
+ * Whether this person may correct this request now, and how the correction is recorded:
+ * - the approver it is waiting for (stage 1 the Team Leader, stage 2 the Department Head or Chief Director), who did
+ *   not make it, can correct any of it instead of rejecting it for a typo; the request stays at its stage;
+ * - someone who makes such requests can correct it while it waits for the Team Leader, or once it was rejected.
+ * Otherwise `locked` is the refusal. `label` opens the history note, so the record says who corrected it and when.
+ */
+async function correctionBy(
+  approval: { status: string; currentStage?: number | null; requestedById?: string | null },
+  actorId: string,
+  requestPermission: 'stock-in.write' | 'stock-out.write' | 'transfers.write' | 'disposals.write',
+  locked: string,
+): Promise<{ byApprover: boolean; label: string }> {
+  const actor = actorId ? await prisma.employee.findUnique({ where: { id: actorId } }) : null;
+  const stage = approval.currentStage ?? 1;
+  const decides = stage === 1 ? 'approvals.endorse' : 'approvals.authorize';
+  if (approval.status === 'PENDING' && actor && hasPermission(actor.role, decides) && approval.requestedById !== actorId) {
+    const role = (actor.role && ROLE_POLICY[actor.role as UserRole]?.name) || 'approver';
+    return { byApprover: true, label: `Corrected by the ${role} at Stage ${stage}` };
+  }
+  if (correctable(approval) && (!actor || hasPermission(actor.role, requestPermission))) {
+    return { byApprover: false, label: 'Corrected before endorsement' };
+  }
+  throw new ConflictError(locked);
+}
+
 /** What a voucher is called, by the request made on it */
 const VOUCHER_NAMES: Record<string, string> = { STOCK_IN: 'Model 19', STOCK_OUT: 'Model 22', TRANSFER: 'Model 21', RETURN: 'Model 21', DISPOSAL: 'Disposal form' };
 
@@ -1456,12 +1482,11 @@ export class StoreService {
     const approval = await prisma.transactionApproval.findFirst({
       where: { itemId, transactionType: 'STOCK_IN', status: { in: OPEN_STATUSES } },
     });
-    // Once the Team Leader has endorsed (or the request is decided) the registration is locked, until it is returned
-    if (item.status !== 'PENDING_STOCK_IN' || !approval || !correctable(approval)) {
-      throw new ConflictError(
-        `Item ${item.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`
-      );
-    }
+    // Its requester corrects it until the Team Leader endorses it (or once it is returned); the approver it waits for
+    // can correct it at their stage instead of rejecting it
+    const lockedMessage = `Item ${item.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`;
+    if (item.status !== 'PENDING_STOCK_IN' || !approval) throw new ConflictError(lockedMessage);
+    const correction = await correctionBy(approval, actorId, 'stock-in.write', lockedMessage);
 
     const slipNo = (payload.ifmisSlipNumber || '').trim();
     const name = (payload.name || '').trim();
@@ -1580,8 +1605,8 @@ export class StoreService {
     const today = getTodayGcAndEc();
     const time = new Date().toLocaleTimeString('en-US', { hour12: false });
     const summary = changed.length
-      ? `Corrected before endorsement: ${changed.map((k) => `${k} ${before[k] ?? '—'} → ${after[k] ?? '—'}`).join('; ')}`
-      : 'Corrected voucher details before endorsement';
+      ? `${correction.label}: ${changed.map((k) => `${k} ${before[k] ?? '—'} → ${after[k] ?? '—'}`).join('; ')}`
+      : `${correction.label}: voucher details`;
 
     const updated = await prisma.$transaction(async (tx) => {
       const saved = await tx.item.update({
@@ -1661,12 +1686,13 @@ export class StoreService {
     if (!approval || approval.transactionType !== 'STOCK_OUT') {
       throw new NotFoundError(`Issue request ${approvalId} not found.`);
     }
-    // Once the Team Leader has endorsed (or the request is decided) the request is locked, until it is returned
-    if (!correctable(approval)) {
-      throw new ConflictError(
-        `The issue request for ${approval.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`
-      );
-    }
+    // Its requester until the Team Leader endorses it (or once returned); the approver it waits for at their stage
+    const correction = await correctionBy(
+      approval,
+      actorId,
+      'stock-out.write',
+      `The issue request for ${approval.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`,
+    );
 
     const slipNo = (payload.ifmisSlipNumber || '').trim();
     const purpose = (payload.purpose || '').trim();
@@ -1770,7 +1796,7 @@ export class StoreService {
       if (k === 'ifmisSlipAttachmentUrl') return 'slip attachment replaced';
       return `${k} ${before[k] ?? '—'} → ${after[k] ?? '—'}`;
     };
-    const summary = `Corrected before endorsement: ${changed.map(describe).join('; ')}`;
+    const summary = `${correction.label}: ${changed.map(describe).join('; ')}`;
 
     const actor = await prisma.employee.findUnique({ where: { id: actorId } });
     const today = getTodayGcAndEc();
@@ -2163,11 +2189,12 @@ export class StoreService {
     if (!approval || approval.transactionType !== ('DISPOSAL' as any)) {
       throw new NotFoundError(`Disposal request ${approvalId} not found.`);
     }
-    if (!correctable(approval)) {
-      throw new ConflictError(
-        `The disposal request for ${approval.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`
-      );
-    }
+    const correction = await correctionBy(
+      approval,
+      actorId,
+      'disposals.write',
+      `The disposal request for ${approval.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`,
+    );
     const item = await prisma.item.findUnique({ where: { id: approval.itemId } });
     if (!item) throw new NotFoundError(`Item ${approval.itemId} not found.`);
 
@@ -2209,7 +2236,7 @@ export class StoreService {
       const unchanged = await prisma.transactionApproval.findUnique({ where: { id: approvalId }, include: APPROVAL_INCLUDES });
       return mapApproval(unchanged);
     }
-    const summary = `Corrected before endorsement: ${changes.join('; ')}`;
+    const summary = `${correction.label}: ${changes.join('; ')}`;
 
     const actor = await prisma.employee.findUnique({ where: { id: actorId } });
     const today = getTodayGcAndEc();
@@ -2425,19 +2452,23 @@ export class StoreService {
     return mapApproval(approval);
   }
 
-  /** A transfer or return can only be corrected while it waits for Team Leader endorsement, or once it is returned */
-  private async loadEditableModel21Request(approvalId: string, type: 'TRANSFER' | 'RETURN') {
+  /**
+   * A transfer or return its requester can correct while it waits for Team Leader endorsement, or once it is returned;
+   * the approver it waits for can correct it at their stage. Returns the request, and how the correction is recorded.
+   */
+  private async loadEditableModel21Request(approvalId: string, type: 'TRANSFER' | 'RETURN', actorId: string) {
     const label = type === 'TRANSFER' ? 'Transfer' : 'Return';
     const approval = await prisma.transactionApproval.findUnique({ where: { id: approvalId } });
     if (!approval || approval.transactionType !== type) {
       throw new NotFoundError(`${label} request ${approvalId} not found.`);
     }
-    if (!correctable(approval)) {
-      throw new ConflictError(
-        `The ${label.toLowerCase()} request for ${approval.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`
-      );
-    }
-    return approval;
+    const correction = await correctionBy(
+      approval,
+      actorId,
+      'transfers.write',
+      `The ${label.toLowerCase()} request for ${approval.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`,
+    );
+    return { approval, correction };
   }
 
   /** Saves a corrected transfer/return with its history entry and audit log in one transaction */
@@ -2454,11 +2485,13 @@ export class StoreService {
     before: Record<string, unknown>;
     after: Record<string, unknown>;
     actorId: string;
+    /** Who corrected it and when, as the history note opens */
+    correctionLabel: string;
   }): Promise<TransactionApproval> {
     const actor = await prisma.employee.findUnique({ where: { id: opts.actorId } });
     const today = getTodayGcAndEc();
     const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-    const summary = `Corrected before endorsement: ${opts.changes.join('; ')}`;
+    const summary = `${opts.correctionLabel}: ${opts.changes.join('; ')}`;
 
     const updated = await prisma.$transaction(async (tx) => {
       const saved = await tx.transactionApproval.update({
@@ -2514,7 +2547,7 @@ export class StoreService {
    * The asset stays the same; the voucher, new custodian, destination and particulars can change.
    */
   public async updateTransfer(approvalId: string, payload: UpdateTransferRequest, actorId: string): Promise<TransactionApproval> {
-    const approval = await this.loadEditableModel21Request(approvalId, 'TRANSFER');
+    const { approval, correction } = await this.loadEditableModel21Request(approvalId, 'TRANSFER', actorId);
 
     const slipNo = (payload.model21No || '').trim();
     const reason = (payload.reason || '').trim();
@@ -2612,6 +2645,7 @@ export class StoreService {
     const fromName = custodian?.fullNameEn ?? (await storeLabelOfItem(approval.itemId));
     return this.saveModel21Edit({
       approval,
+      correctionLabel: correction.label,
       data: {
         ifmisSlipNumber: slipNo,
         ifmisSlipDateGc: dateGc,
@@ -2641,7 +2675,7 @@ export class StoreService {
    * The asset stays the same; the voucher, condition, reason and particulars can change.
    */
   public async updateReturn(approvalId: string, payload: UpdateReturnRequest, actorId: string): Promise<TransactionApproval> {
-    const approval = await this.loadEditableModel21Request(approvalId, 'RETURN');
+    const { approval, correction } = await this.loadEditableModel21Request(approvalId, 'RETURN', actorId);
 
     const slipNo = (payload.model21No || '').trim();
     const reason = (payload.returnReason || '').trim();
@@ -2746,6 +2780,7 @@ export class StoreService {
 
     return this.saveModel21Edit({
       approval,
+      correctionLabel: correction.label,
       data: {
         ifmisSlipNumber: slipNo,
         ifmisSlipDateGc: slipDateGc,

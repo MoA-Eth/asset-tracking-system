@@ -107,6 +107,21 @@ export const takePendingSlip = (has: (key: string) => boolean): string | null =>
   return key;
 };
 
+// A request an approver chose to correct (from the approvals queue): the Assets page opens its record into the edit form
+let pendingCorrection: { itemId: string; requestId?: string } | null = null;
+export const OPEN_CORRECTION_EVENT = 'moa_open_correction';
+export const requestCorrection = (itemId: string, requestId?: string) => {
+  pendingCorrection = { itemId, requestId };
+  window.dispatchEvent(new CustomEvent(OPEN_CORRECTION_EVENT));
+};
+/** The request waiting to be corrected, once the page has its record */
+export const takePendingCorrection = (has: (itemId: string) => boolean): { itemId: string; requestId?: string } | null => {
+  if (!pendingCorrection || !has(pendingCorrection.itemId)) return null;
+  const taken = pendingCorrection;
+  pendingCorrection = null;
+  return taken;
+};
+
 /** "Dell Latitude, HP Printer +3" */
 export const slipNames = (names: string[], shown = 2): string => {
   const distinct = [...new Set(names.filter(Boolean))];

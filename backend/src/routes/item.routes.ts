@@ -20,17 +20,18 @@ router.get('/mine', requirePermission('assets.own'), controller.getMyAssets);
 router.get('/:id', requirePermission('inventory.read'), controller.getItemById);
 
 router.post('/stock-in', requirePermission('stock-in.write'), controller.registerStockIn);
-router.put('/:id/stock-in', requirePermission('stock-in.write'), controller.updateStockIn);
+// Approvers may also correct a request waiting for them (the service checks it is theirs to decide)
+router.put('/:id/stock-in', requirePermission('stock-in.write', 'approvals.endorse', 'approvals.authorize'), controller.updateStockIn);
 // Whoever records receipts, transfers or disposals may record the IFMIS tag those forms name the asset by
 router.patch('/:id/ifmis-tag', requirePermission('stock-in.write', 'transfers.write', 'disposals.write'), controller.setIfmisTag);
 router.post('/stock-out', requirePermission('stock-out.write'), controller.registerStockOut);
-router.put('/stock-out/:approvalId', requirePermission('stock-out.write'), controller.updateStockOut);
+router.put('/stock-out/:approvalId', requirePermission('stock-out.write', 'approvals.endorse', 'approvals.authorize'), controller.updateStockOut);
 router.post('/disposal', requirePermission('disposals.write'), controller.registerDisposal);
-router.put('/disposal/:approvalId', requirePermission('disposals.write'), controller.updateDisposal);
+router.put('/disposal/:approvalId', requirePermission('disposals.write', 'approvals.endorse', 'approvals.authorize'), controller.updateDisposal);
 router.post('/return-to-store', requirePermission('transfers.write'), controller.registerReturn);
-router.put('/return-to-store/:approvalId', requirePermission('transfers.write'), controller.updateReturn);
+router.put('/return-to-store/:approvalId', requirePermission('transfers.write', 'approvals.endorse', 'approvals.authorize'), controller.updateReturn);
 router.post('/transfer', requirePermission('transfers.write'), controller.transferItem);
-router.put('/transfer/:approvalId', requirePermission('transfers.write'), controller.updateTransfer);
+router.put('/transfer/:approvalId', requirePermission('transfers.write', 'approvals.endorse', 'approvals.authorize'), controller.updateTransfer);
 
 router.post('/approvals/action', requirePermission('approvals.endorse', 'approvals.authorize'), controller.handleApproval);
 router.post('/approvals/slip-action', requirePermission('approvals.endorse', 'approvals.authorize'), controller.handleSlipApproval);

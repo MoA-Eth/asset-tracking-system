@@ -59,7 +59,7 @@ Choose it in **IFMIS Model 19 PDF** at the top. The form fills in what is still 
 | Only a scan or photo, no IFMIS PDF | Choose it in the IFMIS PDF box: it is read with OCR and kept as the copy. Check every value against the paper, and add the items it could not read. |
 | A Model 21, Model 22 or disposal form | Refused here and not attached; the note says which form it belongs to. |
 | The slip was already received | Duplicate entrance is not permitted: the note warns with the existing record codes and submission is blocked so the goods aren't counted twice. |
-| A mistake after submitting | Until the Team Leader endorses it: **Edit receipt**, fix, **Save changes**. After that: ask an approver to reject it, then register it again. |
+| A mistake after submitting | Until the Team Leader endorses it: **Edit receipt**, fix, **Save changes**. After that, the Department Head can correct it (Edit receipt, or **Correct** in Approvals) or reject it. Every correction is recorded in its history. |
 | Rejected | It stays on record as **Rejected** with the reason; register it again. |
 
 ## After approval

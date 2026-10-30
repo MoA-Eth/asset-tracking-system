@@ -12,6 +12,10 @@ You cannot act on a request you made yourself, and you act only on the stage you
 4. Press **Endorse** (Team Leader) or **Authorize** (Department Head).
 5. Add remarks if you wish, then confirm with **Endorse (Stage 1)** or **Authorize & Sign-Off**.
 
+## Correct a small mistake
+
+A typo (a quantity, a price, a voucher number) doesn't need a rejection. Open the request and press **Correct**: its record opens in the edit form, where you fix it and press **Save changes**. The request stays with you, at the same stage, so you can then endorse or authorize it. The Team Leader can correct a request waiting for endorsement, the Department Head one waiting for authorization; nobody corrects their own request this way. Every correction is recorded in the asset's history and the audit log ("Corrected by the Department Head at Stage 2: quantity 3 → 4").
+
 ## Reject a request
 
 Press **Reject** instead. You **must** give a reason (up to 500 characters). The reason is shown on the asset, so the person who made the request knows what to correct. They can then make a new request.
@@ -36,4 +40,4 @@ Tick the boxes of the requests, then use the bar that appears: **Batch Endorse**
 
 > **High-Value Authorizations:** Requests valued above **10,000,000 ETB** are flagged as High-Value and require Stage 2 authorization by the **Chief Director**.
 >
-> **Tip:** Once endorsed by the Team Leader, a request can no longer be edited by the person who made it. If something needs correction, reject it with a reason so the requester can amend and resubmit.
+> **Tip:** Once endorsed by the Team Leader, a request can no longer be edited by the person who made it. The approver it waits for can correct a small mistake (see above); for anything else, reject it with a reason so the requester can amend and resubmit.
