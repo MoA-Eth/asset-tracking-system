@@ -2927,3 +2927,23 @@ describe('Assets: the dashboard figures for what is listed', () => {
     expect(screen.getByText('Type: Fixed asset')).toBeInTheDocument();
   });
 });
+
+describe('Assets: a Model 19 of several lines in one row', () => {
+  const slip = (lines: [string, string, number, string][]) =>
+    lines.map(([id, name, quantity, uom]) => item(id, name, 'AVAILABLE', { quantity, uom, itemType: 'FIXED', ifmisSlipNumber: '0000022', poNumber: '117/0' }));
+
+  it('shows its units when its lines count in one unit, with each line on hover', async () => {
+    vi.mocked(api.getItems).mockResolvedValue(slip([['B1', 'Electric Bus', 4, 'EA'], ['B2', 'Electric Minibus', 5, 'EA']]) as any);
+    vi.mocked(api.getApprovals).mockResolvedValue([]);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    const qty = await screen.findByText('9 ea');
+    expect(qty).toHaveAttribute('title', 'Electric Bus: 4 ea\nElectric Minibus: 5 ea');
+  });
+
+  it('counts its lines when they are in different units', async () => {
+    vi.mocked(api.getItems).mockResolvedValue(slip([['F1', 'Diesel', 1000, 'LTR'], ['F2', 'Engine oil drum', 2, 'DRUM']]) as any);
+    vi.mocked(api.getApprovals).mockResolvedValue([]);
+    render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
+    expect(await screen.findByText('2 lines')).toBeInTheDocument();
+  });
+});

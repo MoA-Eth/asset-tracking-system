@@ -1620,7 +1620,23 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         <td className="px-3 py-2.5">
           <SlipStatus rows={rowsOf} partly={partlyIn(members)} />
         </td>
-        <td className="px-3 py-2.5 tabular-nums text-slate-600 whitespace-nowrap">{members.length} items</td>
+        {/* Its units, as a single line's row shows them (9 ea), when every line counts in one unit; otherwise its lines */}
+        {(() => {
+          const lines = members.map((g) => {
+            const { isBatch, totalUnits } = batchSummary(g.row, g.children);
+            return { name: g.row.item.name, units: isBatch ? totalUnits : g.row.units, uom: (g.row.item.uom || 'EA').toLowerCase() };
+          });
+          const uoms = [...new Set(lines.map((l) => l.uom))];
+          const units = lines.reduce((sum, l) => sum + l.units, 0);
+          return (
+            <td
+              className="px-3 py-2.5 tabular-nums text-slate-600 whitespace-nowrap"
+              title={lines.map((l) => `${l.name}: ${l.units.toLocaleString()} ${l.uom}`).join('\n')}
+            >
+              {uoms.length === 1 ? `${units.toLocaleString()} ${uoms[0]}` : `${members.length} lines`}
+            </td>
+          );
+        })()}
         <td className="pl-4 pr-3 py-2.5 text-slate-700">{places.length === 1 ? places[0] : 'Several places'}</td>
         {/* Several items: no one unit cost */}
         <td className="px-3.5 py-2.5" aria-hidden="true" />
