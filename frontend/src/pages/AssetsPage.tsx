@@ -65,6 +65,7 @@ import { formatETB } from '../utils/eth-date';
 import { storeLocationLabel } from '../utils/location';
 import { departmentLabel } from '../utils/department';
 import { downloadCsv } from '../utils/csv';
+import { downloadAssetsWorkbook } from '../utils/assets-workbook';
 import {
   AssetGroup,
   AssetRow,
@@ -1293,12 +1294,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     };
   };
 
-  const handleExportCSV = () => {
-    if (sortedShown.length === 0) {
-      toast.warning('No Records', 'There are no assets matching current filters to export.');
-      return;
-    }
-    try {
+  /** The listed rows, as both exports write them */
+  const exportTable = () => {
       const headers = [
         '#',
         'Asset Code',
@@ -1360,10 +1357,52 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         ];
       });
 
+      return { headers, rows: csvRows };
+  };
+
+  const handleExportCSV = () => {
+    if (sortedShown.length === 0) {
+      toast.warning('No Records', 'There are no assets matching current filters to export.');
+      return;
+    }
+    try {
+      const { headers, rows: csvRows } = exportTable();
       downloadCsv(`moa-assets-export-${new Date().toISOString().split('T')[0]}.csv`, headers, csvRows);
       toast.success('CSV Exported', `Exported ${sortedShown.length} asset records.`);
     } catch {
       toast.error('Export Failed', 'Failed to generate asset spreadsheet.');
+    }
+  };
+
+  /** The filters in force, written on the workbook's Summary so it says what its figures cover */
+  const filtersInForce = () =>
+    [
+      filter !== 'ALL' ? `Status: ${FILTERS.find((f) => f.value === filter)?.label ?? filter}` : '',
+      locationFilter !== 'ALL'
+        ? `Store: ${(() => {
+            const l = locations.find((x) => x.id === locationFilter);
+            return l ? storeLocationLabel(l) : locationFilter;
+          })()}`
+        : '',
+      categoryFilter !== 'ALL' ? `Category: ${CATEGORY_OPTIONS.find((c) => c.value === categoryFilter)?.label ?? categoryFilter}` : '',
+      typeFilter !== 'ALL' ? `Item type: ${typeFilter === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset'}` : '',
+      programFilter !== 'ALL' ? `Program: ${programFilter}` : '',
+      staleOnly ? 'In store over 30 days' : '',
+      search.trim() ? `Search: "${search.trim()}"` : '',
+    ].filter(Boolean).join(' · ');
+
+  /** An Excel workbook: the rows, and a Summary with the dashboard's figures worked out by formulas from them */
+  const handleExportExcel = async () => {
+    if (sortedShown.length === 0) {
+      toast.warning('No Records', 'There are no assets matching current filters to export.');
+      return;
+    }
+    try {
+      const { headers, rows } = exportTable();
+      await downloadAssetsWorkbook(`moa-assets-${new Date().toISOString().split('T')[0]}.xlsx`, headers, rows, filtersInForce());
+      toast.success('Excel Exported', `Exported ${sortedShown.length} asset records, with a summary.`);
+    } catch {
+      toast.error('Export Failed', 'Failed to generate the Excel workbook.');
     }
   };
 
@@ -2082,6 +2121,19 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     >
                       <Download className="w-3.5 h-3.5 text-slate-500" />
                       <span>Export CSV</span>
+                    </button>
+                    {/* The same rows, with a Summary sheet that works out the dashboard's figures from them */}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsActionsMenuOpen(false);
+                        void handleExportExcel();
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Export Excel (with summary)</span>
                     </button>
                   </div>
                 )}

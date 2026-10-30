@@ -1783,7 +1783,7 @@ describe('Asset record', () => {
     await user.click(screen.getByRole('button', { name: /asset export and print actions/i }));
     await user.click(screen.getByRole('menuitem', { name: /Export CSV/i }));
 
-    const blob = vi.mocked(window.URL.createObjectURL).mock.calls.at(-1)![0] as Blob;
+    const blob = (() => { const calls = vi.mocked(window.URL.createObjectURL).mock.calls; return calls[calls.length - 1][0] as Blob; })();
     const lines = (await blob.text()).replace(/^﻿/, '').trim().split(/\r?\n/);
     const header = lines[0].split(',');
     const col = (name: string) => header.findIndex((h) => h.replace(/"/g, '') === name);
