@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { costOf } from '../utils/item-cost';
@@ -1191,84 +1191,53 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                 </dl>
               </div>
 
-              {/* Collapsible toggle bar */}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setIsStaleExpanded((prev) => !prev)}
-                  className="inline-flex items-center gap-1.5 font-semibold text-emerald-700 hover:text-emerald-800 transition cursor-pointer"
-                >
-                  {isStaleExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  {/* Records (one per line received, or piece), not the units and items the figures above count */}
-                  {isStaleExpanded ? 'Hide the list' : `Show the list (${staleItems.length} ${staleItems.length === 1 ? 'record' : 'records'})`}
-                </button>
-                {canOpenAssets && (
-                  <button
-                    type="button"
-                    onClick={() => openAssets({ staleOnly: true })}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
-                  >
-                    <span>Open in Asset Register</span>
-                    &rarr;
-                  </button>
-                )}
-              </div>
-
-              {/* One row per item, oldest first (collapsed by default to prevent dashboard clutter) */}
-              {isStaleExpanded && (
-                <ul className="max-h-[22rem] divide-y divide-slate-100 overflow-auto pt-2">
-                  {staleItems.map((i: any) => {
-                    const overdue = Math.max(0, i.daysInStore - stale.thresholdDays);
-                    const overduePct = Math.min(100, Math.round((overdue / stale.thresholdDays) * 100));
-                    const arrived = i.inStoreSinceGc
-                      ? new Date(`${i.inStoreSinceGc}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                      : '—';
-                    return (
-                      <li key={i.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:gap-4">
-                        <div className="flex min-w-0 flex-1 items-center gap-3">
-                          
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-slate-900">{i.name}</p>
-                            <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
+              {/* Item → Department mapping: each overdue item with its directorate */}
+              <div className="border-t border-slate-100 pt-3 space-y-1.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                  Overdue items by directorate
+                </p>
+                <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 overflow-hidden">
+                  {staleItems
+                    .slice()
+                    .sort((a: any, b: any) => b.daysInStore - a.daysInStore)
+                    .map((i: any) => {
+                      const overdue = Math.max(0, i.daysInStore - stale.thresholdDays);
+                      const dept = (i.departmentName as string | null);
+                      const arrived = i.inStoreSinceGc
+                        ? new Date(`${i.inStoreSinceGc}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : '—';
+                      return (
+                        <li key={i.id} className="flex items-center justify-between gap-3 bg-white px-3 py-2.5 hover:bg-slate-50 transition-colors">
+                          {/* Item info */}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-semibold text-slate-900">{i.name}</p>
+                            <p className="flex flex-wrap items-center gap-x-1.5 text-[10px] text-slate-400 mt-0.5">
                               <span className="font-mono">{i.itemCode}</span>
-                              <span>· Arrived {arrived}</span>
-                              {i.issuePending && (
-                                <span className="rounded-full border border-slate-200 bg-white px-1.5 py-px text-[10px] font-medium text-slate-600">
-                                  Issue requested
-                                </span>
-                              )}
-                              {i.disposalPending && (
-                                <span className="rounded-full border border-slate-200 bg-white px-1.5 py-px text-[10px] font-medium text-slate-600">
-                                  Disposal requested
-                                </span>
-                              )}
+                              <span>· arrived {arrived}</span>
+                              <span>· {i.unitsInStore} {i.uom}</span>
+                              {i.issuePending && <span className="text-sky-600 font-medium">issue pending</span>}
+                              {i.disposalPending && <span className="text-rose-600 font-medium">disposal pending</span>}
                             </p>
                           </div>
-                        </div>
-
-                        <div className="w-full sm:w-44">
-                          <div className="flex items-baseline justify-between text-[11px]">
-                            <span className="font-semibold text-amber-800">
-                              Overdue by {overdue} {overdue === 1 ? 'day' : 'days'}
+                          {/* Department tag + store + overdue badge */}
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <span className="rounded-full bg-amber-100 px-2 py-px text-[10px] font-bold text-amber-800 whitespace-nowrap">
+                              {overdue}d overdue
                             </span>
-                            <span className="text-slate-400">{i.daysInStore}d</span>
+                            {dept ? (
+                              <span className="text-[10px] font-medium text-slate-600 truncate max-w-[140px] text-right">{dept}</span>
+                            ) : (
+                              <span className="text-[10px] font-semibold italic text-rose-500">Not issued to any directorate</span>
+                            )}
+                            {i.storeLocationName && (
+                              <span className="text-[10px] text-slate-400 truncate max-w-[140px] text-right">{i.storeLocationName}</span>
+                            )}
                           </div>
-                          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-amber-100">
-                            <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.max(6, overduePct)}%` }} />
-                          </div>
-                        </div>
-
-                        <div className="flex shrink-0 items-baseline justify-between gap-4 sm:w-40 sm:flex-col sm:items-end sm:gap-0">
-                          <span className="font-mono text-xs font-semibold text-slate-900">
-                            {i.unitsInStore} {i.uom}
-                          </span>
-                          {SHOW_VALUES && <span className="text-[11px] text-slate-500">{formatETBTotal(i.valueETB)}</span>}
-                        </div>
-                      </li>
-                    );
-                  })}
+                        </li>
+                      );
+                    })}
                 </ul>
-              )}
+              </div>
             </div>
           )}
         </Panel>

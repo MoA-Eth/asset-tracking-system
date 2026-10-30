@@ -2,7 +2,12 @@ import React from 'react';
 import clsx from 'clsx';
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  /** Visual variant: background / border style */
   variant?: 'default' | 'subtle' | 'bordered';
+  /** Optional icon to display on the left */
+  icon?: React.ReactNode;
+  /** Optional title shown above the children */
+  title?: string;
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -11,14 +16,34 @@ export const Card: React.FC<CardProps> = ({
   className,
   ...props
 }) => {
+  const isClickable = !!props.onClick;
   const variantStyles = {
     default: 'bg-white border border-slate-200 shadow-xs',
     subtle: 'bg-slate-50/70 border border-slate-200',
     bordered: 'bg-white border-2 border-slate-300 shadow-xs',
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!isClickable) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      (props.onClick as any)?.(e);
+    }
+  };
+
   return (
-    <div className={clsx('rounded-2xl p-4 sm:p-5', variantStyles[variant], className)} {...props}>
+    <div
+      className={clsx(
+        'rounded-2xl p-4 sm:p-5 transition-shadow duration-200 ease-in-out hover:shadow-md hover:bg-slate-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+        isClickable && 'cursor-pointer',
+        variantStyles[variant],
+        className
+      )}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={handleKeyDown}
+      {...props}
+    >
       {children}
     </div>
   );

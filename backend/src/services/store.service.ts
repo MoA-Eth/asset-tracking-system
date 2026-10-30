@@ -4604,6 +4604,11 @@ export class StoreService {
           valueETB: (i.unitCostETB || 0) * unitsOf(i),
           issuePending: i.status === 'PENDING_STOCK_OUT',
           disposalPending: i.status === ItemStatus.PENDING_DISPOSAL,
+          // Store location and assigned department so the dashboard can group overdue items meaningfully
+          storeLocationName: i.storeLocation?.name ?? null,
+          storeId: i.storeLocation?.storeId ?? null,
+          departmentId: i.assignedDepartmentId ?? null,
+          departmentName: i.assignedDepartment?.nameEn ?? i.assignedDepartment?.nameAm ?? null,
         };
       })
       .filter((i) => i.daysInStore > STALE_IN_STORE_DAYS)
