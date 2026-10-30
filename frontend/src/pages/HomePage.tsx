@@ -7,6 +7,7 @@ import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { approvalRows, needsChiefDirector, voucherName } from '../components/assets/slip-groups';
 import { daysInStore, requestLabel, shortDate, STALE_IN_STORE_DAYS } from '../components/assets/asset-state';
 import { roleName } from '../utils/roles';
+import { isConsumable, supplyKey } from '../utils/counting';
 import { ApprovalStatus, AuditLogEntry, Employee, ItemStatus, ItemWithRelations, TransactionApproval, UserRole } from '../types/asset-management';
 
 /**
@@ -42,15 +43,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString
 const unitsOfFixed = (records: ItemWithRelations[]) =>
   records.filter((i) => (i.itemType ?? 'FIXED') !== 'CONSUMABLE').reduce((sum, i) => sum + (Number(i.quantity) || 1), 0);
 /** Consumables by the different supplies: the same IFMIS item code (a stray space ignored) is one; no code, name and unit */
-const supplies = (records: ItemWithRelations[]) =>
-  new Set(
-    records
-      .filter((i) => i.itemType === 'CONSUMABLE')
-      .map((i) => {
-        const code = String(i.ifmisItemCode ?? '').replace(/\s+/g, '').toLowerCase();
-        return code ? `code:${code}` : `name:${String(i.name ?? '').trim().toLowerCase()}|${String(i.uom || 'EA').toUpperCase()}`;
-      }),
-  ).size;
+const supplies = (records: ItemWithRelations[]) => new Set(records.filter(isConsumable).map(supplyKey)).size;
 
 const Card: React.FC<{ label: string; value: React.ReactNode; note?: React.ReactNode; tone?: 'neutral' | 'warning'; onClick?: () => void; action?: string }> = ({
   label, value, note, tone = 'neutral', onClick, action,

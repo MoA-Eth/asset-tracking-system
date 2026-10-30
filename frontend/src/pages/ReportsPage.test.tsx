@@ -49,7 +49,7 @@ describe('Reports count approved assets only', () => {
     expect(screen.getAllByText('WITH-STAFF')).toHaveLength(2);
     expect(screen.queryByText('AWAITING')).not.toBeInTheDocument();
     expect(screen.queryByText('REJECTED')).not.toBeInTheDocument();
-    expect(screen.getByText(/Showing 2 of 2 registrations · Units: 6 received, 2 issued, 4 in store/)).toBeInTheDocument();
+    expect(screen.getByText(/Showing 2 of 2 registrations · Fixed assets: 6 units \(4 in store, 2 assigned\) · Consumables: 0 items/)).toBeInTheDocument();
 
     // The report tabs come before the table's Received column
     await user.click(screen.getAllByRole('button', { name: /^Received/ })[0]);

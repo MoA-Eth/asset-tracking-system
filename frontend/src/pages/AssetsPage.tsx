@@ -1603,9 +1603,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         </td>
         <td className="px-3 py-2.5 tabular-nums text-slate-600 whitespace-nowrap">{members.length} items</td>
         <td className="pl-4 pr-3 py-2.5 text-slate-700">{places.length === 1 ? places[0] : 'Several places'}</td>
-        <td className="px-3.5 py-2.5 tabular-nums text-slate-600 whitespace-nowrap">
-          {formatCreatedDate(lead.createdAtGc || lead.createdAt || lead.ifmisSlipDateGc)}
-        </td>
+        {/* Several items: no one unit cost */}
+        <td className="px-3.5 py-2.5" aria-hidden="true" />
         <td className="pl-2 pr-4 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
           {formatETB(total)}
         </td>

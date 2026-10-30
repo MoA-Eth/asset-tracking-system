@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRealtimeSync } from '../utils/realtime-sync';
 import { costOf, valueOf } from '../utils/item-cost';
+import { heldCounts, isConsumable, itemsLabel, unitsLabel } from '../utils/counting';
 import {
   Search,
   FileText,
@@ -341,6 +342,11 @@ export const ReportsPage: React.FC = () => {
       ),
     [filteredItems]
   );
+  // Counted as on the dashboard: fixed assets in units, consumables by supply (litres and reams don't add to pieces)
+  const held = useMemo(() => heldCounts(filteredItems, balanceOf), [filteredItems]);
+  const heldSummary = `Fixed assets: ${unitsLabel(held.fixed.held)} (${held.fixed.inStore.toLocaleString()} in store, ${held.fixed.issued.toLocaleString()} assigned) · Consumables: ${itemsLabel(held.supplies.held)} (${held.supplies.inStore.toLocaleString()} in store, ${held.supplies.issued.toLocaleString()} assigned)`;
+  // A column total only means something when every row counts in units of fixed assets
+  const columnTotals = filteredItems.every((i) => !isConsumable(i));
 
   const tabCounts = useMemo(() => ({ all: recordedItems.length, registered: recordedItems.length, available: recordedItems.filter((i) => balanceOf(i).available > 0).length, issued: recordedItems.filter((i) => balanceOf(i).issued > 0).length, transferred: recordedItems.filter((i) => i.status === ItemStatus.UNDER_TRANSFER || (splitsByRoot.get(i.id) || []).some((sp) => sp.status === ItemStatus.UNDER_TRANSFER || (sp.history || []).some((h) => /TRANSFER|RETURN/i.test(h.action))) || (i.history || []).some((h) => /TRANSFER|RETURN/i.test(h.action))).length }), [recordedItems, splitsByRoot]);
 
@@ -470,9 +476,8 @@ export const ReportsPage: React.FC = () => {
           ['Category', category],
           ['Store or location', location],
           ['Registrations', String(filteredItems.length)],
-          ['Units received', unitTotals.total.toLocaleString()],
-          ['Units issued', unitTotals.issued.toLocaleString()],
-          ['Units in store', unitTotals.available.toLocaleString()],
+          ['Fixed assets (units)', `${held.fixed.held.toLocaleString()}: ${held.fixed.inStore.toLocaleString()} in store, ${held.fixed.issued.toLocaleString()} assigned`],
+          ['Consumables (items)', `${held.supplies.held.toLocaleString()}: ${held.supplies.inStore.toLocaleString()} in store, ${held.supplies.issued.toLocaleString()} assigned`],
           ['Total valuation', formatETB(totalValuation)],
         ],
         head: ['#', 'Code', 'Asset', 'Category', 'Status', 'Received', 'Issued', 'In store', 'Date (E.C.)', 'Held by / where', 'Unit cost (ETB)'],
@@ -489,7 +494,7 @@ export const ReportsPage: React.FC = () => {
           item.currentCustodian?.fullNameEn || item.heldByOrganization || item.assignedDepartment?.nameEn || storeLocationLabel(item.storeLocation),
           formatETB(costOf(item)).replace(/^ETB\s*/, ''),
         ]),
-        totals: ['', 'Total', `${filteredItems.length} registrations`, '', '', String(unitTotals.total), String(unitTotals.issued), String(unitTotals.available), '', 'Valuation', formatETB(totalValuation).replace(/^ETB\s*/, '')],
+        totals: ['', 'Total', `${filteredItems.length} registrations`, '', '', ...(columnTotals ? [String(unitTotals.total), String(unitTotals.issued), String(unitTotals.available)] : ['', '', '']), '', 'Valuation', formatETB(totalValuation).replace(/^ETB\s*/, '')],
         numeric: [0, 5, 6, 7, 10],
         widths: { 0: 24, 1: 82, 3: 92, 4: 62, 5: 46, 6: 40, 7: 44, 8: 60, 10: 74 },
         dateGc: dateInfo.gc,
@@ -678,7 +683,8 @@ export const ReportsPage: React.FC = () => {
             <span><strong>Scope:</strong> {selectedCategory === "ALL" ? "All Categories" : selectedCategory.replace(/_/g, " ")} · </span>
             <span><strong>Location:</strong> {selectedLocation === "ALL" ? "All Stores" : locations.find(l => l.id === selectedLocation)?.siteName || "Store"} · </span>
             <span><strong>Registrations:</strong> {filteredItems.length} · </span>
-            <span><strong>Units:</strong> {unitTotals.total} (Store: {unitTotals.available}, Custody: {unitTotals.issued})</span>
+            <span><strong>Fixed assets:</strong> {unitsLabel(held.fixed.held)} (Store: {held.fixed.inStore}, Assigned: {held.fixed.issued}) · </span>
+            <span><strong>Consumables:</strong> {itemsLabel(held.supplies.held)} (Store: {held.supplies.inStore}, Assigned: {held.supplies.issued})</span>
           </div>
           <div className="font-mono font-bold">
             Total Valuation: {formatETB(totalValuation)}
@@ -1046,7 +1052,7 @@ export const ReportsPage: React.FC = () => {
               {filteredItems.length} {filteredItems.length === 1 ? 'record' : 'records'}
             </span>
             <span className="text-slate-500 font-mono text-[11px]">
-              ({unitTotals.total} units: {unitTotals.available} in store, {unitTotals.issued} in custody)
+              ({heldSummary})
             </span>
           </div>
 
@@ -1312,7 +1318,7 @@ export const ReportsPage: React.FC = () => {
         {filteredItems.length > 0 && (
           <div className="px-4 py-2 bg-slate-50/80 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 font-mono">
             <div>
-              Showing {filteredItems.length} of {recordedItems.length} registrations · Units: {unitTotals.total} received, {unitTotals.issued} issued, {unitTotals.available} in store
+              Showing {filteredItems.length} of {recordedItems.length} registrations · {heldSummary}
             </div>
             <div className="font-bold text-slate-800">
               Total Valuation: <span className="text-emerald-800 font-mono">{formatETB(totalValuation)}</span>
