@@ -98,7 +98,7 @@ export const COMMON_UOM_OPTIONS: { value: string; label: string }[] = COMMON_UOM
 }));
 export const COMMON_CATEGORIES = [
   { value: AssetCategory.IT_EQUIPMENT, label: 'IT Equipment & Accessories' },
-  { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery & Supplies' },
+  { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery with Accessories' },
   { value: AssetCategory.LAB_EQUIPMENT, label: 'Medical & Lab Supplies' },
   { value: AssetCategory.VEHICLE, label: 'Vehicles with Accessories' },
   ...(SHOW_VEHICLE_PARTS ? [{ value: AssetCategory.VEHICLE_PARTS, label: 'Vehicle Parts & Accessories' }] : []),

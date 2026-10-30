@@ -78,7 +78,7 @@ const CATEGORY_STYLE: Record<string, { en: string; am: string; color: string }> 
   VEHICLE_PARTS:    { en: 'Vehicle parts & accessories', am: 'የተሽከርካሪ መለዋወጫዎች', color: '#0f6fa8' },
   // Not an item category: the dashboard shows motorcycles apart from the other vehicles
   MOTORCYCLE:       { en: 'Motorcycles',      am: 'ሞተር ሳይክሎች',     color: '#0e9fb5' },
-  AGRI_MACHINERY:   { en: 'Agri. machinery',  am: 'የግብርና ማሽነሪዎች', color: '#eb6834' },
+  AGRI_MACHINERY:   { en: 'Agricultural machinery with accessories', am: 'የግብርና ማሽነሪዎች', color: '#eb6834' },
   IT_EQUIPMENT:     { en: 'IT equipment',     am: 'የአይቲ መሣሪያዎች',  color: '#1baf7a' },
   OFFICE_FURNITURE: { en: 'Office furniture', am: 'የቢሮ ዕቃዎች',      color: '#eda100' },
   LAB_EQUIPMENT:    { en: 'Lab equipment',    am: 'የላቦራቶሪ ዕቃዎች',  color: '#e87ba4' },

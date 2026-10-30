@@ -33,7 +33,7 @@ export const ItemTypeBadge: React.FC<{ type?: ItemType | string | null }> = ({ t
 
 export const CATEGORY_OPTIONS: { value: AssetCategory; label: string }[] = [
   { value: AssetCategory.IT_EQUIPMENT, label: 'IT Equipment & Accessories' },
-  { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery & Supplies' },
+  { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery with Accessories' },
   { value: AssetCategory.LAB_EQUIPMENT, label: 'Medical & Lab Supplies' },
   { value: AssetCategory.VEHICLE, label: 'Vehicles with Accessories' },
   ...(SHOW_VEHICLE_PARTS ? [{ value: AssetCategory.VEHICLE_PARTS, label: 'Vehicle Parts & Accessories' }] : []),

@@ -9,7 +9,7 @@ import { displaySerialNumber } from '../utils/asset-tag';
 
 const CATEGORY_LABELS: Record<string, string> = {
   IT_EQUIPMENT: 'IT Equipment & Accessories',
-  AGRI_MACHINERY: 'Agricultural Machinery & Supplies',
+  AGRI_MACHINERY: 'Agricultural Machinery with Accessories',
   LAB_EQUIPMENT: 'Medical & Lab Supplies',
   VEHICLE: 'Vehicles with Accessories',
   VEHICLE_PARTS: 'Vehicle Parts & Accessories',

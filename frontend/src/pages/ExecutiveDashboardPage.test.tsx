@@ -290,7 +290,7 @@ describe('Asset categories', () => {
     renderPage();
 
     const chart = await screen.findByRole('img', { name: /^Units by category/ });
-    expect(chart).toHaveAttribute('aria-label', 'Units by category: Vehicles 66, Agri. machinery 37');
+    expect(chart).toHaveAttribute('aria-label', 'Units by category: Vehicles 66, Agricultural machinery with accessories 37');
     const legend = chart.parentElement!.querySelector('ul')!;
     expect(legend).toHaveTextContent('Vehicles66');
     expect(legend).toHaveTextContent('↳ Cars & other vehicles14');
