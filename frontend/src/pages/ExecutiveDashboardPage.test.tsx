@@ -207,11 +207,11 @@ describe('Total assets', () => {
     expect(await row('Available assets', /Fixed assets/)).toHaveTextContent('Fixed assets90% of all800units');
     expect(await row('Available assets', /Consumables/)).toHaveTextContent('Consumables140items');
     // Total valuation is one figure, not split by type
-    expect(await card('Total valuation')).toHaveTextContent('All held, VAT included');
+    expect(within(await card('Total valuation')).queryByText('All held, VAT included')).not.toBeInTheDocument();
     // One short line under each card
     expect(await card('Total assets')).toHaveTextContent('In store and assigned');
     expect(await card('Assigned assets')).toHaveTextContent('Assigned');
-    expect(await card('Available assets')).toHaveTextContent('In store, ready to assign');
+    expect(await card('Available assets')).toHaveTextContent('In store');
     expect(within(await card('Total valuation')).queryByText(/of value/)).not.toBeInTheDocument();
     // Categories are in the chart further down, not a card
     expect(screen.queryByText('Asset categories', { selector: 'p' })).not.toBeInTheDocument();
@@ -324,28 +324,24 @@ describe('Items in store too long', () => {
     // Not one figure adding pieces, litres and kilograms
     expect(summary).not.toHaveTextContent('1,095.5');
     expect(summary).not.toHaveTextContent('Litres');
-    // The high-level category breakdown is shown
-    expect(screen.getByText('Overdue inventory by category')).toBeInTheDocument();
+    // The accountability items list is shown and can be expanded/collapsed
+    expect(screen.getByText('Overdue items for accountability')).toBeInTheDocument();
+    expect(screen.queryByText('EAR-TAGS')).toBeNull();
+    // Expand details
+    fireEvent.click(screen.getByRole('button', { name: /Show details/i }));
+    expect(screen.getAllByText('EAR-TAGS')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('CHAIRS')[0]).toBeInTheDocument();
+    // Hide details
+    fireEvent.click(screen.getByRole('button', { name: /Hide details/i }));
+    expect(screen.queryByText('EAR-TAGS')).toBeNull();
   });
 });
 
-describe('A figure opens the list behind it on the Assets page', () => {
-  it('opens the assigned assets, with the other filters cleared', async () => {
-    const user = userEvent.setup();
-    const onNavigate = vi.fn();
-    localStorage.setItem('moa_assets_view_u1', JSON.stringify({ filter: 'ALL', location: 'LOC-1', category: 'VEHICLE', sortColumn: 'name' }));
-    render(<ExecutiveDashboardPage onNavigate={onNavigate} currentRole={UserRole.MANAGER} />);
-    await user.click(await screen.findByRole('button', { name: 'Open the list of assigned assets on the Assets page' }));
-    expect(onNavigate).toHaveBeenCalledWith('assets');
-    expect(JSON.parse(localStorage.getItem('moa_assets_view_u1')!)).toMatchObject({ filter: 'ISSUED', location: 'ALL', category: 'ALL', staleOnly: false, sortColumn: 'name' });
-  });
-
-  it('offers no list to someone without the Assets page', async () => {
-    auth.canAccessTab = () => false;
+describe('Cards do not show List button', () => {
+  it('does not render List button on cards', async () => {
     renderPage();
     await screen.findByText('Total assets');
     expect(screen.queryByRole('button', { name: /on the Assets page/ })).toBeNull();
-    auth.canAccessTab = (tab: string) => tab === 'assets';
   });
 });
 

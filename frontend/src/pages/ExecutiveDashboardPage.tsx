@@ -145,16 +145,16 @@ function getActionTone(action: string): string {
 
 /** The colour of a card or section: its icon chip and accent line */
 type Tone = 'emerald' | 'sky' | 'amber' | 'violet' | 'slate';
-const TONES: Record<Tone, { chip: string; line: string; wash: string }> = {
-  emerald: { chip: 'bg-emerald-50 text-emerald-700 ring-emerald-100', line: 'bg-emerald-600', wash: 'from-emerald-50/80' },
-  sky: { chip: 'bg-sky-50 text-sky-700 ring-sky-100', line: 'bg-sky-600', wash: 'from-sky-50/80' },
-  amber: { chip: 'bg-amber-50 text-amber-700 ring-amber-100', line: 'bg-amber-500', wash: 'from-amber-50/80' },
-  violet: { chip: 'bg-violet-50 text-violet-700 ring-violet-100', line: 'bg-violet-500', wash: 'from-violet-50/80' },
-  slate: { chip: 'bg-slate-100 text-slate-600 ring-slate-200', line: 'bg-slate-400', wash: 'from-slate-50' },
+const TONES: Record<Tone, { chip: string; line: string; wash: string; ring: string }> = {
+  emerald: { chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200/70', line: 'bg-gradient-to-r from-emerald-500 to-teal-600', wash: 'from-emerald-50/60 via-white to-white', ring: 'hover:border-emerald-300/80' },
+  sky:     { chip: 'bg-sky-50 text-sky-700 ring-sky-200/70',         line: 'bg-gradient-to-r from-sky-500 to-blue-600',       wash: 'from-sky-50/60 via-white to-white',     ring: 'hover:border-sky-300/80' },
+  amber:   { chip: 'bg-amber-50 text-amber-700 ring-amber-200/70',   line: 'bg-gradient-to-r from-amber-400 to-amber-600',    wash: 'from-amber-50/60 via-white to-white',   ring: 'hover:border-amber-300/80' },
+  violet:  { chip: 'bg-violet-50 text-violet-700 ring-violet-200/70', line: 'bg-gradient-to-r from-violet-500 to-purple-600', wash: 'from-violet-50/60 via-white to-white', ring: 'hover:border-violet-300/80' },
+  slate:   { chip: 'bg-slate-100 text-slate-700 ring-slate-200',     line: 'bg-slate-400',                                     wash: 'from-slate-50 via-white to-white',      ring: 'hover:border-slate-300' },
 };
 
 const IconChip: React.FC<{ icon: React.ElementType; tone: Tone; size?: 'sm' | 'md' }> = ({ icon: Icon, tone, size = 'md' }) => (
-  <span className={`flex shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${TONES[tone].chip} ${size === 'sm' ? 'h-8 w-8' : 'h-9 w-9'}`} aria-hidden>
+  <span className={`flex shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${TONES[tone].chip} ${size === 'sm' ? 'h-8 w-8' : 'h-9 w-9'} shadow-2xs`} aria-hidden>
     <Icon className={size === 'sm' ? 'h-4 w-4' : 'h-[18px] w-[18px]'} />
   </span>
 );
@@ -168,13 +168,13 @@ const Panel: React.FC<{
   tone?: Tone;
   children: React.ReactNode;
 }> = ({ title, subtitle, action, className = '', icon, tone = 'slate', children }) => (
-  <section className={`rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_4px_16px_-4px_rgba(15,23,42,0.08),0_2px_4px_-1px_rgba(15,23,42,0.04)] ${className}`}>
-    <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+  <section className={`rounded-2xl border border-slate-200/85 bg-white p-5 sm:p-6 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] ${className}`}>
+    <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-100 pb-3.5">
       <div className="flex min-w-0 items-center gap-3">
         {icon && <IconChip icon={icon} tone={tone} size="sm" />}
         <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold tracking-tight text-slate-900">{title}</h2>
-          {subtitle && <p className="mt-0.5 text-[11px] text-slate-500">{subtitle}</p>}
+          <h2 className="text-[15px] font-bold tracking-tight text-slate-900">{title}</h2>
+          {subtitle && <p className="mt-0.5 text-[11px] text-slate-500 font-normal">{subtitle}</p>}
         </div>
       </div>
       {action}
@@ -200,8 +200,8 @@ const LinkButton: React.FC<{ onClick: () => void; children: React.ReactNode }> =
 
 /** Meter in the brand accent: same-ramp track and fill. */
 const Meter: React.FC<{ pct: number }> = ({ pct }) => (
-  <div className="h-2 w-full overflow-hidden rounded-full bg-emerald-100">
-    <div className="h-full rounded-full bg-emerald-600 transition-all duration-700" style={{ width: `${pct}%` }} />
+  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+    <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-700" style={{ width: `${pct}%` }} />
   </div>
 );
 
@@ -212,7 +212,7 @@ const StatTile: React.FC<{
   value: React.ReactNode;
   /** The exact figure, in small type under a shortened value (e.g. "ETB 16,484,461.10" under "ETB 16.48M") */
   exact?: string;
-  footer: React.ReactNode;
+  footer?: React.ReactNode;
   meterPct?: number;
   /** Extra layout classes, e.g. to span two columns of the grid */
   className?: string;
@@ -226,15 +226,15 @@ const StatTile: React.FC<{
     secondaryLabel?: string;
   };
 }> = ({ label, labelAm, action, value, exact, footer, meterPct, className = '', icon, tone = 'slate', splitBar }) => (
-  <div role="group" aria-label={label} className={`${className} relative overflow-hidden rounded-xl flex flex-col border border-slate-200/90 bg-gradient-to-b ${TONES[tone].wash} via-white to-white p-5 transition duration-200 motion-safe:hover:-translate-y-1 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_6px_16px_-4px_rgba(15,23,42,0.12),0_18px_36px_-12px_rgba(15,23,42,0.18)] hover:shadow-[0_2px_4px_rgba(15,23,42,0.08),0_12px_24px_-6px_rgba(15,23,42,0.16),0_28px_48px_-16px_rgba(15,23,42,0.26)]`}>
+  <div role="group" aria-label={label} className={`${className} group relative overflow-hidden rounded-2xl flex flex-col border border-slate-200/85 bg-gradient-to-b ${TONES[tone].wash} p-5 transition-all duration-300 motion-safe:hover:-translate-y-0.5 shadow-[0_2px_10px_-3px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_12px_24px_-8px_rgba(15,23,42,0.12),0_4px_8px_-2px_rgba(15,23,42,0.04)] ${TONES[tone].ring}`}>
     {/* The card's colour, as a thin line along its top */}
     <span className={`absolute inset-x-0 top-0 h-1 ${TONES[tone].line}`} aria-hidden />
     <div className="flex items-start justify-between gap-2 min-w-0">
       <div className="flex min-w-0 items-center gap-3">
         {icon && <IconChip icon={icon} tone={tone} />}
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
-          <p className="text-[10px] text-slate-400">{labelAm}</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-600">{label}</p>
+          <p className="text-[10px] font-medium text-slate-400">{labelAm}</p>
         </div>
       </div>
     </div>
@@ -244,7 +244,11 @@ const StatTile: React.FC<{
     ) : (
       <div className="mt-3 min-w-0">{value}</div>
     )}
-    {exact && <p className="mt-0.5 truncate text-[11px] tabular-nums text-slate-500">{exact}</p>}
+    {exact && (
+      <p className="mt-1 truncate text-[11px] font-medium tabular-nums text-slate-600 bg-slate-50/90 px-2 py-0.5 rounded border border-slate-200/70 inline-block self-start shadow-2xs">
+        {exact}
+      </p>
+    )}
     <div className="mt-auto space-y-1.5 pt-3">
       {meterPct !== undefined && <Meter pct={meterPct} />}
       {splitBar && (
@@ -266,7 +270,7 @@ const StatTile: React.FC<{
         </div>
       )}
       {/* The footer, with the link to the list behind the figures at its end */}
-      <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-[11px] text-slate-500">
+      <div className="flex items-center justify-between gap-2 border-t border-slate-100/90 pt-3 text-[11px] text-slate-500 font-medium">
         <div className="min-w-0">{footer}</div>
         {action && <div className="shrink-0">{action}</div>}
       </div>
@@ -327,15 +331,15 @@ const TypeRows: React.FC<{
         { name: 'Consumables', n: consumables, measure: consumables === 1 ? 'item' : 'items', share: undefined, color: TYPE_COLORS.consumables, title: 'Consumables (አላቂ ዕቃ): each different supply counted once, by IFMIS item code' },
       ].map((r, i) => (
         <tr key={r.name} title={r.title} className={i ? 'border-t border-slate-100' : ''}>
-          <th scope="row" className="py-2 pr-2 text-xs font-semibold text-slate-700">
+          <th scope="row" className="py-2.5 pr-2 text-xs font-semibold text-slate-700">
             <span className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className={`h-2 w-2 shrink-0 rounded-sm ${r.color}`} aria-hidden />
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${r.color} ring-2 ring-white shadow-2xs`} aria-hidden />
               {r.name}
             </span>
-            {r.share && <span className="block pl-3.5 text-[10px] font-normal text-slate-400">{r.share}</span>}
+            {r.share && <span className="block pl-4 text-[10px] font-medium text-slate-400">{r.share}</span>}
           </th>
-          <td className="py-2 text-right text-[28px] leading-none font-extrabold tracking-tight text-slate-900">{r.n.toLocaleString()}</td>
-          <td className="w-12 py-2 pl-1.5 text-left text-xs font-medium text-slate-500">{r.measure}</td>
+          <td className="py-2.5 text-right text-[26px] sm:text-[28px] leading-none font-extrabold tracking-tight text-slate-900">{r.n.toLocaleString()}</td>
+          <td className="w-12 py-2.5 pl-1.5 text-left text-xs font-medium text-slate-500">{r.measure}</td>
         </tr>
       ))}
     </tbody>
@@ -467,6 +471,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const [isStaleExpanded, setIsStaleExpanded] = useState(false);
   const [isLowStockExpanded, setIsLowStockExpanded] = useState(false);
   const [locationsViewMode, setLocationsViewMode] = useState<'table' | 'grid'>('table');
+  const [staleCategoryFilter, setStaleCategoryFilter] = useState<string>('ALL');
 
   // Synchronize store selection from TopHeader with dashboard filters
   useEffect(() => {
@@ -677,6 +682,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   // Items that should have been distributed: in store longer than the limit (30 days)
   const stale = data?.staleInStore || { thresholdDays: 30, itemCount: 0, units: 0, valueETB: 0, items: [] };
   const staleItems: any[] = stale.items || [];
+  const displayedStaleItems = staleCategoryFilter === 'ALL'
+    ? staleItems
+    : staleItems.filter((i: any) => (i.category || 'OTHER_SUPPLIES') === staleCategoryFilter);
   // Counted as items, fixed assets apart from supplies: units would add up pieces, litres and kilograms
   const staleFixed = staleItems.filter((i: any) => i.itemType !== 'CONSUMABLE').length;
   const staleSupplies = staleItems.length - staleFixed;
@@ -876,7 +884,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="ጠቅላላ ንብረቶች"
           icon={Boxes}
           tone="emerald"
-          action={listLink({ filter: 'ALL' }, 'all assets')}
           // Both types, each on its row in what it is counted in, never added together
           value={<TypeRows fixed={fixedAssets.units} consumables={consumableStockItems} />}
           footer="In store and assigned"
@@ -886,7 +893,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="የተመደቡ ንብረቶች"
           icon={UserCheck}
           tone="sky"
-          action={listLink({ filter: 'ISSUED' }, 'assigned assets')}
           value={<TypeRows fixed={fixedAssets.issuedUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsIssued} />}
           footer="Assigned"
         />
@@ -895,9 +901,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="በመጋዘን ያሉ ንብረቶች"
           icon={Warehouse}
           tone="violet"
-          action={listLink({ filter: 'IN_STORE' }, 'assets in store')}
           value={<TypeRows fixed={fixedAssets.inStoreUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsInStore} />}
-          footer="In store, ready to assign"
+          footer="In store"
         />
         <StatTile
           label="Total valuation"
@@ -906,8 +911,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           tone="amber"
           value={formatETBShort(totalValuation)}
           exact={totalValuation >= 1_000_000 ? formatETBTotal(totalValuation) : undefined}
-          // One total: what everything held cost, VAT and charges included (not split by type)
-          footer="All held, VAT included"
         />
         {SHOW_CATEGORIES_CARD && (
         <StatTile
@@ -1180,9 +1183,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           ) : (
             <div className="space-y-4">
               {/* Summary: what is overdue in total */}
-              <div className="flex flex-col gap-4 rounded-lg border border-amber-200 border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50 to-amber-50/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-4 rounded-xl border border-amber-200/90 border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/90 via-amber-50/50 to-white p-4 sm:p-5 sm:flex-row sm:items-center sm:justify-between shadow-xs">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700" aria-hidden>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 ring-1 ring-amber-200/70" aria-hidden>
                     <Clock className="h-4 w-4" />
                   </span>
                   <div>
@@ -1211,69 +1214,173 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                 </dl>
               </div>
 
-              {/* High-level category breakdown for executive management oversight */}
+              {/* Simple & concise accountability list of overdue items */}
               <div className="border-t border-slate-100 pt-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Overdue inventory by category
-                  </p>
-                  <span className="text-[11px] text-slate-400">
-                    {staleCategories.length} {staleCategories.length === 1 ? 'category' : 'categories'}
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                      Overdue items for accountability
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Specific items held in store exceeding the {stale.thresholdDays}-day distribution limit
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                      {staleItems.length} {staleItems.length === 1 ? 'item' : 'items'} overdue
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsStaleExpanded(!isStaleExpanded)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 shadow-2xs cursor-pointer transition"
+                      aria-expanded={isStaleExpanded}
+                    >
+                      <span>{isStaleExpanded ? 'Hide details' : 'Show details'}</span>
+                      {isStaleExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {staleCategories.map((cat: any) => {
-                    const style = CATEGORY_STYLE[cat.category] || { en: cat.category, am: '', color: '#64748b' };
-                    const overdue = Math.max(0, cat.maxDaysInStore - stale.thresholdDays);
-                    const unitsLabel = cat.fixedUnits > 0 && cat.consumableItems > 0
-                      ? `${cat.fixedUnits.toLocaleString()} fixed (${cat.consumableItems} consumable)`
-                      : cat.fixedUnits > 0
-                        ? `${cat.fixedUnits.toLocaleString()} ${cat.fixedUnits === 1 ? 'unit' : 'units'}`
-                        : `${cat.consumableItems.toLocaleString()} ${cat.consumableItems === 1 ? 'item' : 'items'}`;
-
-                    return (
-                      <div
-                        key={cat.category}
-                        className="flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-3.5 shadow-2xs hover:border-slate-300 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span
-                              className="h-3 w-3 shrink-0 rounded-full"
-                              style={{ backgroundColor: style.color }}
-                              aria-hidden="true"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-xs font-semibold text-slate-900 truncate" title={style.en}>
-                                {style.en}
-                              </p>
-                              {style.am && <p className="text-[10px] text-slate-400 truncate">{style.am}</p>}
-                            </div>
-                          </div>
-                          <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                            Up to {overdue}d overdue
+                {isStaleExpanded && (
+                  <>
+                    {/* Quick category filter pills when multiple categories exist */}
+                {staleCategories.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setStaleCategoryFilter('ALL')}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition cursor-pointer ${
+                        staleCategoryFilter === 'ALL'
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      All ({staleItems.length})
+                    </button>
+                    {staleCategories.map((cat: any) => {
+                      const style = CATEGORY_STYLE[cat.category] || { en: cat.category, am: '', color: '#64748b' };
+                      const isActive = staleCategoryFilter === cat.category;
+                      return (
+                        <button
+                          key={cat.category}
+                          type="button"
+                          onClick={() => setStaleCategoryFilter(isActive ? 'ALL' : cat.category)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition cursor-pointer ${
+                            isActive
+                              ? 'bg-slate-900 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          <span
+                            className="h-2 w-2 rounded-full shrink-0"
+                            style={{ backgroundColor: style.color }}
+                            aria-hidden="true"
+                          />
+                          <span>{style.en}</span>
+                          <span className={`text-[10px] ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                            ({cat.itemCount})
                           </span>
-                        </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
-                        <div className="mt-3 flex items-baseline justify-between border-t border-slate-100 pt-2.5">
-                          <div>
-                            <span className="text-sm font-bold text-slate-900">{unitsLabel}</span>
-                            <span className="ml-1 text-[11px] text-slate-400">
-                              ({cat.itemCount} {cat.itemCount === 1 ? 'record' : 'records'})
-                            </span>
-                          </div>
+                {/* Concise Accountability Table */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs max-h-96 overflow-y-auto">
+                  <table className="min-w-full text-left text-xs">
+                    <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+                      <tr>
+                        <th className="py-2.5 px-3">Item Code</th>
+                        <th className="py-2.5 px-3">Item Name & Category</th>
+                        <th className="py-2.5 px-3">Store Location</th>
+                        <th className="py-2.5 px-3 text-right">In Store</th>
+                        <th className="py-2.5 px-3 text-center">Overdue</th>
+                        
+                        {SHOW_VALUES && <th className="py-2.5 px-3 text-right">Value (ETB)</th>}
+                        
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {displayedStaleItems.length === 0 ? (
+                        <tr>
+                          <td colSpan={SHOW_VALUES ? 6 : 5} className="py-6 text-center text-slate-400">
+                            No overdue items in this category.
+                          </td>
+                        </tr>
+                      ) : (
+                        displayedStaleItems.map((it: any) => {
+                          const catStyle = CATEGORY_STYLE[it.category] || { en: it.category, color: '#64748b' };
+                          const daysInStore = it.daysInStore ?? 0;
+                          const daysOverdue = Math.max(0, daysInStore - stale.thresholdDays);
+                          return (
+                            <tr key={it.id || it.itemCode} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-2.5 px-3 font-mono font-medium text-slate-900 whitespace-nowrap">
+                                {it.itemCode}
+                              </td>
+                              <td className="py-2.5 px-3 min-w-[200px]">
+                                <div className="font-medium text-slate-900 line-clamp-1" title={it.name}>
+                                  {it.name}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span
+                                    className="h-2 w-2 shrink-0 rounded-full"
+                                    style={{ backgroundColor: catStyle.color }}
+                                    aria-hidden="true"
+                                  />
+                                  <span className="text-[10px] text-slate-500 truncate">
+                                    {catStyle.en}
+                                  </span>
+                                  <span className="text-[10px] text-slate-300">·</span>
+                                  <span className="text-[10px] text-slate-400 font-medium">
+                                    {it.itemType === 'CONSUMABLE' ? 'Consumable' : 'Fixed Asset'}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                                <div className="text-xs text-slate-800 font-medium">
+                                  {it.storeLocationName || it.storeName || 'Central Store'}
+                                </div>
+                                {it.departmentName && (
+                                  <div className="text-[10px] text-slate-400 truncate max-w-[150px]" title={it.departmentName}>
+                                    Assigned: {it.departmentName}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-semibold tabular-nums text-slate-900 whitespace-nowrap">
+                                {Number(it.unitsInStore ?? it.quantity ?? 1).toLocaleString()}{' '}
+                                <span className="text-[11px] font-normal text-slate-500">{it.uom || 'EA'}</span>
+                              </td>
+                              <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    daysOverdue >= 30
+                                      ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                      : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                  }`}
+                                >
+                                  +{daysOverdue}d overdue
+                                </span>
+                                <span className="block text-[10px] text-slate-400 mt-0.5">
+                                  {daysInStore}d total in store
+                                </span>
+                              </td>
+                              
+                              {SHOW_VALUES && (
+                                <td className="py-2.5 px-3 text-right font-semibold tabular-nums text-slate-700 whitespace-nowrap">
+                                  {formatETBTotal(it.valueETB)}
+                                </td>
+                              )}
 
-                          {SHOW_VALUES && cat.valueETB > 0 && (
-                            <span className="text-xs font-semibold text-slate-600">
-                              {formatETBTotal(cat.valueETB)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
                 </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -1300,9 +1407,14 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   <div key={dept.departmentId} className="space-y-1.5">
                     <div className="flex items-start justify-between gap-3 text-xs">
                       {/* Its place in the list, largest first */}
-                      <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[10px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-100" aria-hidden>
-                        {rank + 1}
-                      </span>
+                      <span className={`mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ring-1 ring-inset ${
+    rank === 0 ? 'bg-amber-100 text-amber-800 ring-amber-300' :
+    rank === 1 ? 'bg-slate-200 text-slate-800 ring-slate-300' :
+    rank === 2 ? 'bg-amber-50 text-amber-900 ring-amber-200' :
+    'bg-emerald-50 text-emerald-700 ring-emerald-100'
+  }`} aria-hidden>
+    {rank + 1}
+  </span>
                       <div className="min-w-0 flex-1">
                         {canOpenAssets && dept.departmentId ? (
                           <button
