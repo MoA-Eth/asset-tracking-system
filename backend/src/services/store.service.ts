@@ -4608,7 +4608,7 @@ export class StoreService {
           // Store location and assigned department so the dashboard can group overdue items meaningfully
           storeLocationName: i.storeLocation?.name ?? null,
           storeId: i.storeLocation?.storeId ?? null,
-          storeName: i.storeLocation?.store?.name ?? 'Store',
+          storeName: i.storeLocation?.storeName ?? (i.storeLocation as any)?.store?.name ?? 'Store',
           departmentId: i.assignedDepartmentId ?? null,
           departmentName: i.assignedDepartment?.nameEn ?? i.assignedDepartment?.nameAm ?? null,
           // Model 19 intake metadata for accountability

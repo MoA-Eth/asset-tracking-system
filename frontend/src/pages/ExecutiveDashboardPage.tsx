@@ -146,11 +146,11 @@ function getActionTone(action: string): string {
 /** The colour of a card or section: its icon chip and accent line */
 type Tone = 'emerald' | 'sky' | 'amber' | 'violet' | 'slate';
 const TONES: Record<Tone, { chip: string; line: string; wash: string; ring: string }> = {
-  emerald: { chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200/70', line: 'bg-gradient-to-r from-emerald-500 to-teal-600', wash: 'from-emerald-50/60 via-white to-white', ring: 'hover:border-emerald-300/80' },
-  sky:     { chip: 'bg-sky-50 text-sky-700 ring-sky-200/70',         line: 'bg-gradient-to-r from-sky-500 to-blue-600',       wash: 'from-sky-50/60 via-white to-white',     ring: 'hover:border-sky-300/80' },
-  amber:   { chip: 'bg-amber-50 text-amber-700 ring-amber-200/70',   line: 'bg-gradient-to-r from-amber-400 to-amber-600',    wash: 'from-amber-50/60 via-white to-white',   ring: 'hover:border-amber-300/80' },
-  violet:  { chip: 'bg-violet-50 text-violet-700 ring-violet-200/70', line: 'bg-gradient-to-r from-violet-500 to-purple-600', wash: 'from-violet-50/60 via-white to-white', ring: 'hover:border-violet-300/80' },
-  slate:   { chip: 'bg-slate-100 text-slate-700 ring-slate-200',     line: 'bg-slate-400',                                     wash: 'from-slate-50 via-white to-white',      ring: 'hover:border-slate-300' },
+  emerald: { chip: 'bg-emerald-50 text-emerald-800 ring-emerald-200/80 border border-emerald-200/60', line: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600', wash: 'from-emerald-50/50 via-white to-white', ring: 'hover:border-emerald-400 hover:shadow-emerald-950/5' },
+  sky:     { chip: 'bg-sky-50 text-sky-800 ring-sky-200/80 border border-sky-200/60',         line: 'bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-600',       wash: 'from-sky-50/50 via-white to-white',     ring: 'hover:border-sky-400 hover:shadow-sky-950/5' },
+  amber:   { chip: 'bg-amber-50 text-amber-800 ring-amber-200/80 border border-amber-200/60',   line: 'bg-gradient-to-r from-amber-500 via-orange-400 to-amber-600',    wash: 'from-amber-50/50 via-white to-white',   ring: 'hover:border-amber-400 hover:shadow-amber-950/5' },
+  violet:  { chip: 'bg-violet-50 text-violet-800 ring-violet-200/80 border border-violet-200/60', line: 'bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-600', wash: 'from-violet-50/50 via-white to-white', ring: 'hover:border-violet-400 hover:shadow-violet-950/5' },
+  slate:   { chip: 'bg-slate-100 text-slate-800 ring-slate-200 border border-slate-200',     line: 'bg-slate-400',                                     wash: 'from-slate-50 via-white to-white',      ring: 'hover:border-slate-300' },
 };
 
 const IconChip: React.FC<{ icon: React.ElementType; tone: Tone; size?: 'sm' | 'md' }> = ({ icon: Icon, tone, size = 'md' }) => (
