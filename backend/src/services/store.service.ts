@@ -4594,6 +4594,7 @@ export class StoreService {
           id: i.id,
           itemCode: i.itemCode,
           name: i.name,
+          category: i.category,
           itemType: i.itemType ?? 'FIXED',
           // Tells one supply from another when counting them
           ifmisItemCode: i.ifmisItemCode,
@@ -4830,6 +4831,23 @@ export class StoreService {
         consumableItems: stockItems(staleItems.filter((i) => i.itemType === 'CONSUMABLE')),
         units: staleItems.reduce((sum, i) => sum + i.unitsInStore, 0),
         valueETB: staleItems.reduce((sum, i) => sum + i.valueETB, 0),
+        categoryBreakdown: (() => {
+          const map = new Map<string, { category: string; itemCount: number; fixedUnits: number; consumableItems: number; valueETB: number; maxDaysInStore: number }>();
+          for (const item of staleItems) {
+            const cat = item.category || 'OTHER_SUPPLIES';
+            const cur = map.get(cat) || { category: cat, itemCount: 0, fixedUnits: 0, consumableItems: 0, valueETB: 0, maxDaysInStore: 0 };
+            cur.itemCount += 1;
+            if (item.itemType === 'CONSUMABLE') {
+              cur.consumableItems += 1;
+            } else {
+              cur.fixedUnits += item.unitsInStore;
+            }
+            cur.valueETB += item.valueETB;
+            cur.maxDaysInStore = Math.max(cur.maxDaysInStore, item.daysInStore);
+            map.set(cat, cur);
+          }
+          return Array.from(map.values()).sort((a, b) => (b.fixedUnits + b.consumableItems) - (a.fixedUnits + a.consumableItems));
+        })(),
         items: staleItems,
       },
       lowStockConsumables: {
