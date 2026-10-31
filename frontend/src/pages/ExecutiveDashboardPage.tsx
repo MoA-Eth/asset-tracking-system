@@ -472,6 +472,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const [isLowStockExpanded, setIsLowStockExpanded] = useState(false);
   const [locationsViewMode, setLocationsViewMode] = useState<'table' | 'grid'>('table');
   const [staleCategoryFilter, setStaleCategoryFilter] = useState<string>('ALL');
+  const [expandedCat, setExpandedCat] = useState<string | null>(null);
 
   // Synchronize store selection from TopHeader with dashboard filters
   useEffect(() => {
@@ -690,6 +691,55 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const staleSupplies = staleItems.length - staleFixed;
   // Pieces, litres and kilograms each added up on their own, never into one figure
   const staleMeasures = totalsByMeasure(staleItems.map((i: any) => ({ quantity: Number(i.unitsInStore ?? i.quantity) || 0, uom: i.uom })));
+  const staleByCategory = (() => {
+    const map = new Map<string, {
+      category: string;
+      itemsCount: number;
+      fixedUnits: number;
+      consumableItems: number;
+      totalUnits: number;
+      maxDaysInStore: number;
+      stores: Set<string>;
+      items: any[];
+      valueETB: number;
+    }>();
+
+    for (const item of staleItems) {
+      const cat = item.category || 'OTHER_SUPPLIES';
+      const existing = map.get(cat);
+      const units = Number(item.unitsInStore ?? item.quantity ?? 1);
+      const storeLabel = item.storeName || item.storeLocationName || 'Central Store';
+
+      if (!existing) {
+        map.set(cat, {
+          category: cat,
+          itemsCount: 1,
+          fixedUnits: item.itemType === 'CONSUMABLE' ? 0 : units,
+          consumableItems: item.itemType === 'CONSUMABLE' ? 1 : 0,
+          totalUnits: units,
+          maxDaysInStore: item.daysInStore ?? 0,
+          stores: new Set([storeLabel]),
+          items: [item],
+          valueETB: item.valueETB ?? 0,
+        });
+      } else {
+        existing.itemsCount += 1;
+        if (item.itemType === 'CONSUMABLE') {
+          existing.consumableItems += 1;
+        } else {
+          existing.fixedUnits += units;
+        }
+        existing.totalUnits += units;
+        existing.maxDaysInStore = Math.max(existing.maxDaysInStore, item.daysInStore ?? 0);
+        existing.stores.add(storeLabel);
+        existing.items.push(item);
+        existing.valueETB += (item.valueETB ?? 0);
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.maxDaysInStore - a.maxDaysInStore);
+  })();
+
   const staleCategories = (() => {
     if (Array.isArray(stale.categoryBreakdown) && stale.categoryBreakdown.length > 0) {
       return stale.categoryBreakdown;
@@ -1243,142 +1293,148 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
 
                 {isStaleExpanded && (
                   <>
-                    {/* Quick category filter pills when multiple categories exist */}
-                {staleCategories.length > 1 && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setStaleCategoryFilter('ALL')}
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition cursor-pointer ${
-                        staleCategoryFilter === 'ALL'
-                          ? 'bg-slate-900 text-white shadow-xs'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      All ({staleItems.length})
-                    </button>
-                    {staleCategories.map((cat: any) => {
-                      const style = CATEGORY_STYLE[cat.category] || { en: cat.category, am: '', color: '#64748b' };
-                      const isActive = staleCategoryFilter === cat.category;
-                      return (
-                        <button
-                          key={cat.category}
-                          type="button"
-                          onClick={() => setStaleCategoryFilter(isActive ? 'ALL' : cat.category)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition cursor-pointer ${
-                            isActive
-                              ? 'bg-slate-900 text-white shadow-xs'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                        >
-                          <span
-                            className="h-2 w-2 rounded-full shrink-0"
-                            style={{ backgroundColor: style.color }}
-                            aria-hidden="true"
-                          />
-                          <span>{style.en}</span>
-                          <span className={`text-[10px] ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
-                            ({cat.itemCount})
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Concise Accountability Table */}
-                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs max-h-96 overflow-y-auto">
-                  <table className="min-w-full text-left text-xs">
-                    <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
-                      <tr>
-                        <th className="py-2.5 px-3">Item Code</th>
-                        <th className="py-2.5 px-3">Item Name & Category</th>
-                        <th className="py-2.5 px-3">Store Location</th>
-                        <th className="py-2.5 px-3 text-right">In Store</th>
-                        <th className="py-2.5 px-3 text-center">Overdue</th>
-                        
-                        {SHOW_VALUES && <th className="py-2.5 px-3 text-right">Value (ETB)</th>}
-                        
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {displayedStaleItems.length === 0 ? (
-                        <tr>
-                          <td colSpan={SHOW_VALUES ? 6 : 5} className="py-6 text-center text-slate-400">
-                            No overdue items in this category.
-                          </td>
-                        </tr>
-                      ) : (
-                        displayedStaleItems.map((it: any) => {
-                          const catStyle = CATEGORY_STYLE[it.category] || { en: it.category, color: '#64748b' };
-                          const daysInStore = it.daysInStore ?? 0;
-                          const daysOverdue = Math.max(0, daysInStore - stale.thresholdDays);
-                          return (
-                            <tr key={it.id || it.itemCode} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="py-2.5 px-3 font-mono font-medium text-slate-900 whitespace-nowrap">
-                                {it.itemCode}
+                    {/* Concise Category Accountability Table (never bulky; hover & click to inspect items) */}
+                    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs max-h-96 overflow-y-auto">
+                      <table className="min-w-full text-left text-xs">
+                        <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+                          <tr>
+                            <th className="py-2.5 px-3">Asset Category</th>
+                            <th className="py-2.5 px-3 text-right">Overdue Quantity</th>
+                            <th className="py-2.5 px-3">Store Locations</th>
+                            <th className="py-2.5 px-3 text-center">Overdue Duration</th>
+                            <th className="py-2.5 px-3 text-center">Items Detail</th>
+                            {SHOW_VALUES && <th className="py-2.5 px-3 text-right">Value (ETB)</th>}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {staleByCategory.length === 0 ? (
+                            <tr>
+                              <td colSpan={SHOW_VALUES ? 6 : 5} className="py-6 text-center text-slate-400">
+                                No overdue items in store.
                               </td>
-                              <td className="py-2.5 px-3 min-w-[200px]">
-                                <div className="font-medium text-slate-900 line-clamp-1" title={it.name}>
-                                  {it.name}
-                                </div>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <span
-                                    className="h-2 w-2 shrink-0 rounded-full"
-                                    style={{ backgroundColor: catStyle.color }}
-                                    aria-hidden="true"
-                                  />
-                                  <span className="text-[10px] text-slate-500 truncate">
-                                    {catStyle.en}
-                                  </span>
-                                  <span className="text-[10px] text-slate-300">·</span>
-                                  <span className="text-[10px] text-slate-400 font-medium">
-                                    {it.itemType === 'CONSUMABLE' ? 'Consumable' : 'Fixed Asset'}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
-                                <div className="text-xs text-slate-800 font-medium">
-                                  {it.storeLocationName || it.storeName || 'Central Store'}
-                                </div>
-                                {it.departmentName && (
-                                  <div className="text-[10px] text-slate-400 truncate max-w-[150px]" title={it.departmentName}>
-                                    Assigned: {it.departmentName}
-                                  </div>
-                                )}
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-semibold tabular-nums text-slate-900 whitespace-nowrap">
-                                {Number(it.unitsInStore ?? it.quantity ?? 1).toLocaleString()}{' '}
-                                <span className="text-[11px] font-normal text-slate-500">{it.uom || 'EA'}</span>
-                              </td>
-                              <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                                <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                    daysOverdue >= 30
-                                      ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                      : 'bg-amber-100 text-amber-800 border border-amber-200'
-                                  }`}
-                                >
-                                  +{daysOverdue}d overdue
-                                </span>
-                                <span className="block text-[10px] text-slate-400 mt-0.5">
-                                  {daysInStore}d total in store
-                                </span>
-                              </td>
-                              
-                              {SHOW_VALUES && (
-                                <td className="py-2.5 px-3 text-right font-semibold tabular-nums text-slate-700 whitespace-nowrap">
-                                  {formatETBTotal(it.valueETB)}
-                                </td>
-                              )}
-
                             </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                          ) : (
+                            staleByCategory.map((catGroup) => {
+                              const style = CATEGORY_STYLE[catGroup.category] || { en: catGroup.category, am: '', color: '#64748b' };
+                              const overdue = Math.max(0, catGroup.maxDaysInStore - stale.thresholdDays);
+                              const isExpanded = expandedCat === catGroup.category;
+                              const itemsTooltip = catGroup.items
+                                .map((i: any) => `• ${i.name} (${i.itemCode}) — ${i.unitsInStore} ${i.uom} · ${i.daysInStore}d in store${i.ifmisSlipNumber ? ` [M19 #${i.ifmisSlipNumber}]` : ''}`)
+                                .join('\n');
+
+                              return (
+                                <React.Fragment key={catGroup.category}>
+                                  <tr className="hover:bg-slate-50/80 transition-colors">
+                                    <td className="py-2.5 px-3">
+                                      <div className="flex items-center gap-2">
+                                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: style.color }} />
+                                        <div>
+                                          <div className="font-semibold text-xs text-slate-900">{style.en}</div>
+                                          {style.am && <div className="text-[10px] text-slate-400">{style.am}</div>}
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td className="py-2.5 px-3 text-right tabular-nums whitespace-nowrap">
+                                      <span className="font-bold text-xs text-slate-900">
+                                        {catGroup.fixedUnits > 0 && catGroup.consumableItems > 0
+                                          ? `${catGroup.fixedUnits.toLocaleString()} fixed (${catGroup.consumableItems} supplies)`
+                                          : catGroup.fixedUnits > 0
+                                            ? `${catGroup.fixedUnits.toLocaleString()} ${catGroup.fixedUnits === 1 ? 'unit' : 'units'}`
+                                            : `${catGroup.consumableItems.toLocaleString()} ${catGroup.consumableItems === 1 ? 'item' : 'items'}`}
+                                      </span>
+                                      <span className="block text-[10px] text-slate-400 font-normal">
+                                        {catGroup.itemsCount} {catGroup.itemsCount === 1 ? 'record' : 'records'}
+                                      </span>
+                                    </td>
+                                    <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap text-xs">
+                                      {[...catGroup.stores].join(', ')}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                        overdue >= 30
+                                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                          : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                      }`}>
+                                        Up to +{overdue}d overdue
+                                      </span>
+                                      <span className="block text-[10px] text-slate-400 mt-0.5">
+                                        Oldest: {catGroup.maxDaysInStore}d in store
+                                      </span>
+                                    </td>
+                                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                      <button
+                                        type="button"
+                                        onClick={() => setExpandedCat(isExpanded ? null : catGroup.category)}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition cursor-pointer"
+                                        title={itemsTooltip}
+                                      >
+                                        <span>{isExpanded ? 'Hide items' : `${catGroup.itemsCount} items`}</span>
+                                        <span className="text-[10px] text-slate-400" title={itemsTooltip}>ⓘ</span>
+                                        {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                      </button>
+                                    </td>
+                                    {SHOW_VALUES && (
+                                      <td className="py-2.5 px-3 text-right font-semibold tabular-nums text-slate-700 whitespace-nowrap">
+                                        {formatETBTotal(catGroup.valueETB)}
+                                      </td>
+                                    )}
+                                  </tr>
+
+                                  {/* Expandable item sub-rows */}
+                                  {isExpanded && (
+                                    <tr className="bg-slate-50/60">
+                                      <td colSpan={SHOW_VALUES ? 6 : 5} className="py-2 px-4">
+                                        <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2 shadow-2xs">
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                            Overdue items in {style.en}:
+                                          </p>
+                                          <div className="divide-y divide-slate-100 text-xs">
+                                            {catGroup.items.map((it: any) => (
+                                              <div key={it.id || it.itemCode} className="py-2 flex items-center justify-between gap-3">
+                                                <div className="min-w-0">
+                                                  <div className="font-semibold text-slate-900 truncate" title={it.name}>
+                                                    {it.name}
+                                                  </div>
+                                                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 mt-0.5">
+                                                    <span className="font-mono text-slate-700 font-medium">{it.itemCode}</span>
+                                                    {it.ifmisSlipNumber && (
+                                                      <span
+                                                        className="bg-slate-100 text-slate-600 px-1 rounded border border-slate-200 cursor-help"
+                                                        title={`Model 19 #${it.ifmisSlipNumber}\nReceived: ${it.inStoreSinceGc || '—'}${it.source ? `\nSupplier: ${it.source}` : ''}${it.receivedBy ? `\nStorekeeper: ${it.receivedBy}` : ''}`}
+                                                      >
+                                                        M19 #{it.ifmisSlipNumber}
+                                                      </span>
+                                                    )}
+                                                    {it.programName && (
+                                                      <span className="text-sky-700 font-medium">· {it.programName}</span>
+                                                    )}
+                                                    {it.storeName && (
+                                                      <span className="text-slate-400">· {it.storeName} ({it.storeLocationName || 'Central'})</span>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                                <div className="shrink-0 flex items-center gap-3 text-right">
+                                                  <span className="font-semibold text-slate-800 tabular-nums">
+                                                    {it.unitsInStore} {it.uom}
+                                                  </span>
+                                                  <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                                    +{Math.max(0, it.daysInStore - stale.thresholdDays)}d overdue
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </>
                 )}
               </div>

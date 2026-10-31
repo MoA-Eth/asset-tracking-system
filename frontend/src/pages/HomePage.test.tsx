@@ -5,12 +5,13 @@ import userEvent from '@testing-library/user-event';
 import { HomePage, homeView } from './HomePage';
 import { api } from '../api/client';
 import { UserRole } from '../types/asset-management';
+import { getTodayGcAndEc } from '../utils/eth-date';
 
 const auth = vi.hoisted(() => ({ user: { id: 'me', departmentId: 'DEP-1', permissions: [] as string[] } }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../api/client', () => ({ api: { getApprovals: vi.fn(), getItems: vi.fn(), getEmployees: vi.fn(), getAuditLogs: vi.fn() } }));
 
-const daysAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+const daysAgo = (n: number) => new Date(Date.parse(getTodayGcAndEc().gc) - n * 864e5).toISOString().slice(0, 10);
 const request = (id: string, extra: object = {}) => ({
   id, transactionType: 'STOCK_OUT', itemId: `item-${id}`, itemCode: `MOA-${id}`, itemName: `Item ${id}`, ifmisSlipNumber: `M22-${id}`,
   status: 'PENDING', currentStage: 1, requestedById: 'someone', createdAtGc: daysAgo(1), totalAmount: 1000, ...extra,

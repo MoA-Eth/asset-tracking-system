@@ -4608,8 +4608,17 @@ export class StoreService {
           // Store location and assigned department so the dashboard can group overdue items meaningfully
           storeLocationName: i.storeLocation?.name ?? null,
           storeId: i.storeLocation?.storeId ?? null,
+          storeName: i.storeLocation?.store?.name ?? 'Store',
           departmentId: i.assignedDepartmentId ?? null,
           departmentName: i.assignedDepartment?.nameEn ?? i.assignedDepartment?.nameAm ?? null,
+          // Model 19 intake metadata for accountability
+          ifmisSlipNumber: i.ifmisSlipNumber ?? null,
+          poNumber: i.poNumber ?? null,
+          source: i.source ?? null,
+          buyer: i.buyer ?? null,
+          programName: i.programName ?? null,
+          receivedBy: i.receivedBy ?? null,
+          remark: i.remark ?? null,
         };
       })
       .filter((i) => i.daysInStore > STALE_IN_STORE_DAYS)

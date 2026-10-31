@@ -329,6 +329,10 @@ describe('Items in store too long', () => {
     expect(screen.queryByText('EAR-TAGS')).toBeNull();
     // Expand details
     fireEvent.click(screen.getByRole('button', { name: /Show details/i }));
+    // Categories are rendered (defaults to Other supplies if category is null)
+    expect(screen.getByText('Other supplies')).toBeInTheDocument();
+    // Items are inside expandable category sub-rows (button text is "4 items")
+    fireEvent.click(screen.getByRole('button', { name: /4 items/i }));
     expect(screen.getAllByText('EAR-TAGS')[0]).toBeInTheDocument();
     expect(screen.getAllByText('CHAIRS')[0]).toBeInTheDocument();
     // Hide details
