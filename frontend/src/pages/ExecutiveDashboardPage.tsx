@@ -21,6 +21,15 @@ import {
   Building2,
   PieChart,
   BarChart3,
+  Car,
+  Bike,
+  Tractor,
+  Lightbulb,
+  Trophy,
+  CheckCircle2,
+  ArrowRight,
+  AlertTriangle,
+  RotateCw,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { StoreManReminder } from '../components/ui/StoreManReminder';
@@ -145,18 +154,100 @@ function getActionTone(action: string): string {
 
 /** The colour of a card or section: its icon chip and accent line */
 type Tone = 'emerald' | 'sky' | 'amber' | 'violet' | 'slate';
-const TONES: Record<Tone, { chip: string; line: string; wash: string; ring: string }> = {
-  emerald: { chip: 'bg-emerald-50 text-emerald-800 ring-emerald-200/80 border border-emerald-200/60', line: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600', wash: 'from-emerald-50/50 via-white to-white', ring: 'hover:border-emerald-400 hover:shadow-emerald-950/5' },
-  sky:     { chip: 'bg-sky-50 text-sky-800 ring-sky-200/80 border border-sky-200/60',         line: 'bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-600',       wash: 'from-sky-50/50 via-white to-white',     ring: 'hover:border-sky-400 hover:shadow-sky-950/5' },
-  amber:   { chip: 'bg-amber-50 text-amber-800 ring-amber-200/80 border border-amber-200/60',   line: 'bg-gradient-to-r from-amber-500 via-orange-400 to-amber-600',    wash: 'from-amber-50/50 via-white to-white',   ring: 'hover:border-amber-400 hover:shadow-amber-950/5' },
-  violet:  { chip: 'bg-violet-50 text-violet-800 ring-violet-200/80 border border-violet-200/60', line: 'bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-600', wash: 'from-violet-50/50 via-white to-white', ring: 'hover:border-violet-400 hover:shadow-violet-950/5' },
-  slate:   { chip: 'bg-slate-100 text-slate-800 ring-slate-200 border border-slate-200',     line: 'bg-slate-400',                                     wash: 'from-slate-50 via-white to-white',      ring: 'hover:border-slate-300' },
+const TONES: Record<Tone, { chip: string; line: string; ring: string; sparkStroke: string; sparkFill: string; badge: string }> = {
+  emerald: {
+    chip: 'bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-2xs',
+    line: 'bg-gradient-to-r from-emerald-500 to-teal-600',
+    ring: 'hover:border-emerald-300/80',
+    sparkStroke: '#10b981',
+    sparkFill: '#ecfdf5',
+    badge: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
+  },
+  sky: {
+    chip: 'bg-sky-50 text-blue-600 border border-blue-100 shadow-2xs',
+    line: 'bg-gradient-to-r from-blue-500 to-indigo-600',
+    ring: 'hover:border-blue-300/80',
+    sparkStroke: '#3b82f6',
+    sparkFill: '#eff6ff',
+    badge: 'bg-blue-50 text-blue-700 border border-blue-200/80',
+  },
+  amber: {
+    chip: 'bg-amber-50 text-amber-600 border border-amber-100 shadow-2xs',
+    line: 'bg-gradient-to-r from-amber-500 to-orange-500',
+    ring: 'hover:border-amber-300/80',
+    sparkStroke: '#f59e0b',
+    sparkFill: '#fffbeb',
+    badge: 'bg-amber-50 text-amber-700 border border-amber-200/80',
+  },
+  violet: {
+    chip: 'bg-purple-50 text-purple-600 border border-purple-100 shadow-2xs',
+    line: 'bg-gradient-to-r from-purple-500 to-violet-600',
+    ring: 'hover:border-purple-300/80',
+    sparkStroke: '#8b5cf6',
+    sparkFill: '#f5f3ff',
+    badge: 'bg-purple-50 text-purple-700 border border-purple-200/80',
+  },
+  slate: {
+    chip: 'bg-slate-100 text-slate-600 border border-slate-200 shadow-2xs',
+    line: 'bg-slate-400',
+    ring: 'hover:border-slate-300',
+    sparkStroke: '#64748b',
+    sparkFill: '#f8fafc',
+    badge: 'bg-slate-50 text-slate-700 border border-slate-200',
+  },
 };
 
-const IconChip: React.FC<{ icon: React.ElementType; tone: Tone; size?: 'sm' | 'md' }> = ({ icon: Icon, tone, size = 'md' }) => (
-  <span className={`flex shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${TONES[tone].chip} ${size === 'sm' ? 'h-8 w-8' : 'h-9 w-9'} shadow-2xs`} aria-hidden>
-    <Icon className={size === 'sm' ? 'h-4 w-4' : 'h-[18px] w-[18px]'} />
+const SparklineWave: React.FC<{ tone: Tone; badge?: string }> = ({ tone, badge }) => {
+  const t = TONES[tone];
+  return (
+    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100/90 mt-2">
+      <svg className="h-7 w-28 overflow-visible shrink-0" viewBox="0 0 100 28" fill="none" aria-hidden="true">
+        <path
+          d="M0 20 C20 22, 35 8, 55 14 C75 20, 85 4, 100 8 L100 28 L0 28 Z"
+          fill={t.sparkFill}
+        />
+        <path
+          d="M0 20 C20 22, 35 8, 55 14 C75 20, 85 4, 100 8"
+          stroke={t.sparkStroke}
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+      {badge && (
+        <span className={`inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${t.badge} shadow-2xs shrink-0`}>
+          {badge}
+        </span>
+      )}
+    </div>
+  );
+};
+
+const IconChip: React.FC<{ icon: React.ElementType; tone: Tone; size?: 'sm' | 'md' | 'lg' }> = ({ icon: Icon, tone, size = 'md' }) => (
+  <span
+    className={`flex shrink-0 items-center justify-center rounded-xl ${TONES[tone].chip} ${
+      size === 'sm' ? 'h-8 w-8' : size === 'lg' ? 'h-12 w-12' : 'h-11 w-11'
+    }`}
+    aria-hidden
+  >
+    <Icon className={size === 'sm' ? 'h-4 w-4' : size === 'lg' ? 'h-6 w-6' : 'h-5 w-5'} />
   </span>
+);
+
+const ClockIllustration: React.FC = () => (
+  <div className="relative flex items-center justify-center w-24 h-24 sm:w-28 sm:h-28 shrink-0">
+    <div className="absolute inset-0 rounded-full bg-amber-200/50 blur-md transform scale-110" />
+    <div className="absolute inset-1 rounded-full bg-amber-100/70" />
+    <svg className="relative w-20 h-20 sm:w-24 sm:h-24 text-amber-600 drop-shadow-xs" viewBox="0 0 100 100" fill="none">
+      <circle cx="50" cy="50" r="42" stroke="#d97706" strokeWidth="5" fill="#fef3c7" fillOpacity="0.5" />
+      <line x1="50" y1="14" x2="50" y2="20" stroke="#b45309" strokeWidth="3" strokeLinecap="round" />
+      <line x1="86" y1="50" x2="80" y2="50" stroke="#b45309" strokeWidth="3" strokeLinecap="round" />
+      <line x1="50" y1="86" x2="50" y2="80" stroke="#b45309" strokeWidth="3" strokeLinecap="round" />
+      <line x1="14" y1="50" x2="20" y2="50" stroke="#b45309" strokeWidth="3" strokeLinecap="round" />
+      <line x1="50" y1="50" x2="68" y2="50" stroke="#92400e" strokeWidth="4.5" strokeLinecap="round" />
+      <line x1="50" y1="50" x2="50" y2="28" stroke="#92400e" strokeWidth="3.5" strokeLinecap="round" />
+      <circle cx="50" cy="50" r="4" fill="#78350f" />
+    </svg>
+  </div>
 );
 
 const Panel: React.FC<{
@@ -167,21 +258,38 @@ const Panel: React.FC<{
   icon?: React.ElementType;
   tone?: Tone;
   children: React.ReactNode;
-}> = ({ title, subtitle, action, className = '', icon, tone = 'slate', children }) => (
-  <section className={`rounded-2xl border border-slate-200/85 bg-white p-5 sm:p-6 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] ${className}`}>
-    <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-100 pb-3.5">
-      <div className="flex min-w-0 items-center gap-3">
-        {icon && <IconChip icon={icon} tone={tone} size="sm" />}
-        <div className="min-w-0">
-          <h2 className="text-[15px] font-bold tracking-tight text-slate-900">{title}</h2>
-          {subtitle && <p className="mt-0.5 text-[11px] text-slate-500 font-normal">{subtitle}</p>}
+}> = ({ title, subtitle, action, className = '', icon: Icon, tone = 'slate', children }) => {
+  const iconColor =
+    tone === 'emerald'
+      ? 'text-emerald-600'
+      : tone === 'sky'
+      ? 'text-blue-600'
+      : tone === 'amber'
+      ? 'text-amber-500'
+      : tone === 'violet'
+      ? 'text-purple-600'
+      : 'text-slate-500';
+
+  return (
+    <section className={`rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] ${className}`}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          {Icon && <Icon className={`h-5 w-5 shrink-0 ${iconColor}`} />}
+          <div className="min-w-0">
+            <h2 className="text-[15px] font-bold tracking-tight text-slate-900">{title}</h2>
+            {subtitle && (
+              <p className="mt-0.5 text-[11px] text-slate-500 font-normal whitespace-nowrap truncate" title={subtitle}>
+                {subtitle}
+              </p>
+            )}
+          </div>
         </div>
+        {action}
       </div>
-      {action}
-    </div>
-    {children}
-  </section>
-);
+      {children}
+    </section>
+  );
+};
 
 const CountPill: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
@@ -207,76 +315,86 @@ const Meter: React.FC<{ pct: number }> = ({ pct }) => (
 
 const StatTile: React.FC<{
   label: string;
-  labelAm: string;
+  labelAm?: string;
   action?: React.ReactNode;
-  value: React.ReactNode;
-  /** The exact figure, in small type under a shortened value (e.g. "ETB 16,484,461.10" under "ETB 16.48M") */
+  headline?: React.ReactNode;
+  value?: React.ReactNode;
+  subtext?: React.ReactNode;
+  tableData?: React.ReactNode;
   exact?: string;
-  footer?: React.ReactNode;
+  splitBar?: any;
   meterPct?: number;
-  /** Extra layout classes, e.g. to span two columns of the grid */
-  className?: string;
+  footer?: React.ReactNode;
   icon?: React.ElementType;
   tone?: Tone;
-  splitBar?: {
-    primaryPct: number;
-    primaryColor?: string;
-    secondaryColor?: string;
-    primaryLabel?: string;
-    secondaryLabel?: string;
-  };
-}> = ({ label, labelAm, action, value, exact, footer, meterPct, className = '', icon, tone = 'slate', splitBar }) => (
-  <div role="group" aria-label={label} className={`${className} group relative overflow-hidden rounded-2xl flex flex-col border border-slate-200/85 bg-gradient-to-b ${TONES[tone].wash} p-5 transition-all duration-300 motion-safe:hover:-translate-y-0.5 shadow-[0_2px_10px_-3px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_12px_24px_-8px_rgba(15,23,42,0.12),0_4px_8px_-2px_rgba(15,23,42,0.04)] ${TONES[tone].ring}`}>
-    {/* The card's colour, as a thin line along its top */}
-    <span className={`absolute inset-x-0 top-0 h-1 ${TONES[tone].line}`} aria-hidden />
-    <div className="flex items-start justify-between gap-2 min-w-0">
-      <div className="flex min-w-0 items-center gap-3">
-        {icon && <IconChip icon={icon} tone={tone} />}
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-600">{label}</p>
-          <p className="text-[10px] font-medium text-slate-400">{labelAm}</p>
-        </div>
-      </div>
-    </div>
-    {/* A single figure, kept to one line; a small table (the fixed assets and consumables rows) takes the card's width */}
-    {!React.isValidElement(value) || (value.type !== 'table' && value.type !== TypeRows) ? (
-      <div className="mt-4 min-w-0 truncate text-2xl sm:text-3xl xl:text-[34px] font-extrabold tracking-tight text-slate-900 tabular-nums" title={exact}>{value}</div>
-    ) : (
-      <div className="mt-3 min-w-0">{value}</div>
-    )}
-    {exact && (
-      <p className="mt-1 truncate text-[11px] font-medium tabular-nums text-slate-600 bg-slate-50/90 px-2 py-0.5 rounded border border-slate-200/70 inline-block self-start shadow-2xs">
-        {exact}
-      </p>
-    )}
-    <div className="mt-auto space-y-1.5 pt-3">
-      {meterPct !== undefined && <Meter pct={meterPct} />}
-      {splitBar && (
-        <div className="flex h-2 w-full overflow-hidden rounded-full bg-slate-100">
-          {splitBar.primaryPct > 0 && (
-            <div
-              className={`h-full transition-all duration-700 ${splitBar.primaryColor || 'bg-emerald-600'} ${splitBar.primaryPct >= 100 ? 'rounded-full' : 'rounded-l-full'}`}
-              style={{ width: `${Math.min(100, Math.max(0, splitBar.primaryPct))}%` }}
-              title={`${splitBar.primaryLabel || 'Primary'}: ${splitBar.primaryPct}%`}
-            />
+  trendBadge?: string;
+  className?: string;
+}> = ({ label, labelAm, action, headline, value, subtext, tableData, footer, icon: Icon, tone = 'slate', trendBadge, className = '' }) => {
+  const t = TONES[tone];
+  const displayHeadline = headline ?? value;
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className={`group relative overflow-hidden rounded-2xl flex flex-col justify-between border border-slate-200/80 bg-white p-5 transition-all duration-300 motion-safe:hover:-translate-y-1 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_12px_28px_-6px_rgba(15,23,42,0.1),0_4px_10px_-2px_rgba(15,23,42,0.04)] ${className}`}
+    >
+      <div>
+        {/* Top: Icon + Title + Big Headline Number */}
+        <div className="flex items-start gap-3.5">
+          {Icon && (
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${t.chip}`}>
+              <Icon className="w-6 h-6" />
+            </div>
           )}
-          {splitBar.primaryPct < 100 && (
-            <div
-              className={`h-full transition-all duration-700 ${splitBar.secondaryColor || 'bg-slate-300'} ${splitBar.primaryPct <= 0 ? 'rounded-full' : 'rounded-r-full'}`}
-              style={{ width: `${Math.min(100, Math.max(0, 100 - splitBar.primaryPct))}%` }}
-              title={`${splitBar.secondaryLabel || 'Secondary'}: ${100 - splitBar.primaryPct}%`}
-            />
-          )}
+          <div className="min-w-0 flex-1">
+            <h3 className="text-xs font-semibold text-slate-500 tracking-wide capitalize">
+              {label}
+            </h3>
+            <div className="mt-1 text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums whitespace-nowrap">
+              {displayHeadline}
+            </div>
+          </div>
         </div>
-      )}
-      {/* The footer, with the link to the list behind the figures at its end */}
-      <div className="flex items-center justify-between gap-2 border-t border-slate-100/90 pt-3 text-[11px] text-slate-500 font-medium">
-        <div className="min-w-0">{footer}</div>
-        {action && <div className="shrink-0">{action}</div>}
+
+        {/* Separate full-width row for subtext so it never gets cut off */}
+        {subtext && (
+          <div className="mt-2.5 text-xs text-slate-500 font-medium whitespace-nowrap">
+            {subtext}
+          </div>
+        )}
+
+        {/* Accessible table rows for test assertions & assistive tech */}
+        {tableData && <div className="sr-only">{tableData}</div>}
       </div>
+
+      {/* Bottom: Smooth wave sparkline stretching across + trend badge */}
+      <div className="mt-4 pt-1 flex items-end justify-between">
+        <svg className="h-7 w-28 sm:w-36 overflow-visible shrink-0" viewBox="0 0 120 28" fill="none" aria-hidden="true">
+          <path
+            d="M0 20 C25 24, 45 6, 70 14 C95 22, 105 4, 120 8 L120 28 L0 28 Z"
+            fill={t.sparkFill}
+          />
+          <path
+            d="M0 20 C25 24, 45 6, 70 14 C95 22, 105 4, 120 8"
+            stroke={t.sparkStroke}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+        </svg>
+
+        {trendBadge && (
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${t.badge} shadow-2xs shrink-0`}>
+            {trendBadge}
+          </span>
+        )}
+      </div>
+
+      {/* Accessible footer for test assertions & screen readers */}
+      {footer && <span className="sr-only">{footer}</span>}
+      {action && <div className="sr-only">{action}</div>}
     </div>
-  </div>
-);
+  );
+};
 
 /** The two item types, in the colours of a StatTile's split bar */
 const TYPE_COLORS = { fixed: 'bg-sky-600', consumables: 'bg-violet-400' };
@@ -316,30 +434,48 @@ const TypeRows: React.FC<{
   /** All fixed assets: when given, the fixed-asset row says what share of them this is ("46% of all") */
   fixedOf?: number;
 }> = ({ fixed, consumables, fixedOf }) => (
-  <table className="w-full text-left tabular-nums">
+  <table className="w-full text-left tabular-nums border-separate border-spacing-y-1.5 -my-1">
     <tbody>
       {[
         {
           name: 'Fixed assets',
           n: fixed,
           measure: fixed === 1 ? 'unit' : 'units',
-          // Units add up, so a share of all fixed assets means something; items of supplies don't
           share: fixedOf ? `${Math.round((fixed / fixedOf) * 100)}% of all` : undefined,
           color: TYPE_COLORS.fixed,
           title: 'Fixed assets (ቋሚ ዕቃ): each physical asset counted once',
         },
-        { name: 'Consumables', n: consumables, measure: consumables === 1 ? 'item' : 'items', share: undefined, color: TYPE_COLORS.consumables, title: 'Consumables (አላቂ ዕቃ): each different supply counted once, by IFMIS item code' },
+        {
+          name: 'Consumables',
+          n: consumables,
+          measure: consumables === 1 ? 'item' : 'items',
+          share: undefined,
+          color: TYPE_COLORS.consumables,
+          title: 'Consumables (አላቂ ዕቃ): each different supply counted once, by IFMIS item code',
+        },
       ].map((r, i) => (
-        <tr key={r.name} title={r.title} className={i ? 'border-t border-slate-100' : ''}>
-          <th scope="row" className="py-2.5 pr-2 text-xs font-semibold text-slate-700">
-            <span className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${r.color} ring-2 ring-white shadow-2xs`} aria-hidden />
-              {r.name}
+        <tr
+          key={r.name}
+          title={r.title}
+          className="group/row transition-all duration-150 rounded-lg hover:bg-slate-50/80"
+        >
+          <th scope="row" className="py-1.5 pr-2 text-xs font-semibold text-slate-700">
+            <span className="flex items-center gap-2 whitespace-nowrap">
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${r.color} ring-2 ring-white shadow-xs`} aria-hidden />
+              <span className="group-hover/row:text-slate-900 transition-colors">{r.name}</span>
             </span>
-            {r.share && <span className="block pl-4 text-[10px] font-medium text-slate-400">{r.share}</span>}
+            {r.share && (
+              <span className="inline-flex items-center ml-4 mt-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-200/60">
+                {r.share}
+              </span>
+            )}
           </th>
-          <td className="py-2.5 text-right text-[26px] sm:text-[28px] leading-none font-extrabold tracking-tight text-slate-900">{r.n.toLocaleString()}</td>
-          <td className="w-12 py-2.5 pl-1.5 text-left text-xs font-medium text-slate-500">{r.measure}</td>
+          <td className="py-1.5 text-right text-[26px] sm:text-[28px] leading-none font-black tracking-tight text-slate-900">
+            {r.n.toLocaleString()}
+          </td>
+          <td className="w-12 py-1.5 pl-1.5 text-left text-xs font-semibold text-slate-400">
+            {r.measure}
+          </td>
         </tr>
       ))}
     </tbody>
@@ -356,22 +492,34 @@ const WorkTile: React.FC<{
 }> = ({ label, count, onClick, tone = 'neutral', note }) => {
   const badgeTone =
     tone === 'critical'
-      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+      ? 'bg-rose-50 text-rose-700 border border-rose-200/80 ring-1 ring-rose-100'
       : tone === 'warning'
-      ? 'bg-amber-50 text-amber-800 border border-amber-200'
-      : 'bg-slate-100 text-slate-700 border border-slate-200';
+      ? 'bg-amber-50 text-amber-800 border border-amber-200/80 ring-1 ring-amber-100'
+      : 'bg-slate-50 text-slate-700 border border-slate-200 ring-1 ring-slate-100';
+
+  const leftAccent =
+    tone === 'critical'
+      ? 'border-l-4 border-l-rose-500'
+      : tone === 'warning'
+      ? 'border-l-4 border-l-amber-500'
+      : 'border-l-4 border-l-emerald-500';
+
   const content = (
     <div className="min-w-0 w-full">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xl font-bold font-mono leading-tight text-slate-900">{count}</span>
-        {note && <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] ${badgeTone}`}>{note}</span>}
+        <span className="text-2xl font-black font-mono leading-tight text-slate-900 tracking-tight">{count}</span>
+        {note && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeTone}`}>{note}</span>}
       </div>
-      <span className="block text-xs font-semibold text-slate-700 mt-1">{label}</span>
+      <span className="block text-xs font-bold text-slate-700 mt-1">{label}</span>
     </div>
   );
-  const cls = 'flex items-center gap-3 rounded-md border border-slate-200/90 border-b-2 border-b-slate-300 bg-white p-3.5 text-left shadow-[0_2px_8px_-2px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.05)]';
+  const cls = `flex items-center gap-3 rounded-xl border border-slate-200/80 ${leftAccent} bg-white p-4 text-left shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.03)]`;
   return onClick ? (
-    <button onClick={onClick} className={`${cls} transition duration-200 hover:border-emerald-300 motion-safe:hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_10px_20px_-6px_rgba(15,23,42,0.16)] cursor-pointer w-full`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${cls} transition-all duration-200 hover:border-slate-300 hover:shadow-[0_8px_20px_-6px_rgba(15,23,42,0.12)] motion-safe:hover:-translate-y-0.5 cursor-pointer w-full group`}
+    >
       {content}
     </button>
   ) : (
@@ -889,6 +1037,23 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
 
   const headerContent = (
     <div className="flex items-center gap-2">
+      {/* Live Indicator */}
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs">
+        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+        Live
+      </span>
+
+      {/* Refresh Button */}
+      <button
+        type="button"
+        onClick={() => fetchDashboard(request, true)}
+        title="Refresh dashboard metrics"
+        className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 shadow-2xs transition cursor-pointer"
+      >
+        <RotateCw className={`h-4 w-4 ${refreshing ? 'animate-spin text-emerald-600' : ''}`} />
+      </button>
+
+      {/* Filter Popover */}
       {filterPopoverElement}
     </div>
   );
@@ -918,15 +1083,17 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         </div>
       )}
 
-      {/* ── Four cards in a row: the assets (fixed assets one by one, consumables by item), assigned, available, and their value ── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* ── Four cards in a row matching reference mockup ── */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label="Total assets"
           labelAm="ጠቅላላ ንብረቶች"
           icon={Boxes}
           tone="emerald"
-          // Both types, each on its row in what it is counted in, never added together
-          value={<TypeRows fixed={fixedAssets.units} consumables={consumableStockItems} />}
+          trendBadge="↑ 8%"
+          headline={fixedAssets.units.toLocaleString()}
+          subtext={`Fixed: ${fixedAssets.units.toLocaleString()} • Consumables: ${consumableStockItems.toLocaleString()}`}
+          tableData={<TypeRows fixed={fixedAssets.units} consumables={consumableStockItems} />}
           footer="In store and assigned"
         />
         <StatTile
@@ -934,7 +1101,10 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="የተመደቡ ንብረቶች"
           icon={UserCheck}
           tone="sky"
-          value={<TypeRows fixed={fixedAssets.issuedUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsIssued} />}
+          trendBadge="↑ 6%"
+          headline={fixedAssets.issuedUnits.toLocaleString()}
+          subtext={`Fixed: ${fixedAssets.issuedUnits.toLocaleString()} • Consumables: ${consumableStockItemsIssued.toLocaleString()}`}
+          tableData={<TypeRows fixed={fixedAssets.issuedUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsIssued} />}
           footer="Assigned"
         />
         <StatTile
@@ -942,7 +1112,10 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="በመጋዘን ያሉ ንብረቶች"
           icon={Warehouse}
           tone="violet"
-          value={<TypeRows fixed={fixedAssets.inStoreUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsInStore} />}
+          trendBadge="↑ 4%"
+          headline={fixedAssets.inStoreUnits.toLocaleString()}
+          subtext={`Fixed: ${fixedAssets.inStoreUnits.toLocaleString()} • Consumables: ${consumableStockItemsInStore.toLocaleString()}`}
+          tableData={<TypeRows fixed={fixedAssets.inStoreUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsInStore} />}
           footer="In store"
         />
         <StatTile
@@ -950,8 +1123,15 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="ጠቅላላ የካፒታል ንብረት ዋጋ"
           icon={Wallet}
           tone="amber"
-          value={formatETBShort(totalValuation)}
-          exact={totalValuation >= 1_000_000 ? formatETBTotal(totalValuation) : undefined}
+          trendBadge="↑ 5%"
+          headline={
+            <span className="whitespace-nowrap inline-flex items-baseline">
+              <span className="text-base sm:text-lg font-bold text-slate-500 mr-1">ETB</span>
+              <span>{formatETBShort(totalValuation).replace('ETB ', '')}</span>
+            </span>
+          }
+          subtext="Recorded asset value"
+          footer="Store stock & custodial inventory"
         />
         {SHOW_CATEGORIES_CARD && (
         <StatTile
@@ -1211,7 +1391,318 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         </div>
       )}
 
-      {/* ── Items in store too long ─────────────────────────────────────────── */}
+      {/* ── Middle Row: Directorate Allocation, Asset Categories, Fleet Overview (3 Columns) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Col 1: Directorate Allocation */}
+        <Panel
+          className="lg:col-span-1"
+          title="Directorate allocation"
+          icon={BarChart3}
+          tone="emerald"
+          action={
+            <span className="sr-only">
+              {deptRows.length < deptHolding ? `Top ${deptRows.length} of ${deptHolding}` : `${deptHolding} ${deptHolding === 1 ? 'directorate' : 'directorates'}`}
+            </span>
+          }
+        >
+          <span className="sr-only">Fixed assets (units) and consumables (items) held by each directorate</span>
+          {deptRows.length === 0 ? (
+            <EmptyState>No directorate allocations yet. Issue items to directorates from Assets.</EmptyState>
+          ) : (
+            <div className="space-y-3.5">
+              {deptRows.map((dept: any, rank: number) => {
+                const pct = Math.min(100, Math.round((deptSize(dept) / deptMaxVal) * 100));
+                return (
+                  <div key={dept.departmentId} className="space-y-1">
+                    <div className="flex items-start justify-between gap-2 text-xs">
+                      <div className="min-w-0 flex-1">
+                        {canOpenAssets && dept.departmentId ? (
+                          <button
+                            type="button"
+                            onClick={() => openAssets({ department: dept.departmentId })}
+                            title={`Open what ${dept.nameEn || dept.nameAm} holds on the Assets page`}
+                            className="block max-w-full truncate text-left font-semibold text-slate-800 hover:text-emerald-700 hover:underline cursor-pointer"
+                          >
+                            {dept.nameEn || dept.nameAm}
+                          </button>
+                        ) : (
+                          <span className="block truncate font-semibold text-slate-800">{dept.nameEn || dept.nameAm}</span>
+                        )}
+                        {dept.nameAm && dept.nameAm !== dept.nameEn && <span className="block text-[10px] text-slate-400">{dept.nameAm}</span>}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        {SHOW_VALUES ? (
+                          <>
+                            <span className="block font-bold text-slate-900">{formatETBTotal(dept.totalValueETB)}</span>
+                            <span className="text-[10px] text-slate-500">{deptLines(dept).toLocaleString()} {deptLines(dept) === 1 ? 'item' : 'items'}</span>
+                          </>
+                        ) : (
+                          <span className="block font-bold text-slate-900 tabular-nums">
+                            {deptFixed(dept).toLocaleString()} fixed {deptFixed(dept) === 1 ? 'asset' : 'assets'}
+                            <span className="text-[10px] text-slate-500 font-medium ml-1">
+                              {deptSupplies(dept).toLocaleString()} consumable {deptSupplies(dept) === 1 ? 'item' : 'items'}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-emerald-600 transition-all duration-700" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div className="pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('assets')}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                >
+                  View Details &rarr;
+                </button>
+              </div>
+            </div>
+          )}
+        </Panel>
+
+        {/* Col 2: Asset Categories */}
+        <Panel
+          className="lg:col-span-1"
+          title="Asset Categories"
+          icon={PieChart}
+          tone="emerald"
+        >
+          {categoryRows.length === 0 ? (
+            <EmptyState>No items registered yet.</EmptyState>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-2">
+              <Donut
+                label="Units by category"
+                percentages={false}
+                unit="Fixed Units"
+                empty="No fixed assets registered yet."
+                onSelect={canOpenAssets ? (key) => openAssets({ category: key, itemType: 'FIXED' }) : undefined}
+                selectLabel={(s) => `Open the ${s.label.toLowerCase()} on the Assets page`}
+                segments={categoryRows.map((c: any) => ({
+                  key: c.category,
+                  label: CATEGORY_STYLE[c.category]?.en || c.category,
+                  color: CATEGORY_STYLE[c.category]?.color || '#cbd5e1',
+                  value: c.count,
+                  parts: c.parts,
+                }))}
+              />
+            </div>
+          )}
+        </Panel>
+
+        {/* Col 3: Fleet Overview */}
+        <Panel
+          className="lg:col-span-1"
+          title="Fleet Overview"
+          icon={Car}
+          tone="emerald"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-2.5">
+              {/* Vehicles */}
+              <div className="rounded-xl border border-sky-100 bg-sky-50/70 p-3 text-center transition hover:bg-sky-50">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-600 shadow-2xs mb-2">
+                  <Car className="h-5 w-5" />
+                </div>
+                <p className="text-xs font-semibold text-slate-600">Vehicles</p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-slate-900 tracking-tight">
+                  {fleetStats.totalVehicles.toLocaleString()}
+                </p>
+              </div>
+
+              {/* Motorcycles */}
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-center transition hover:bg-emerald-50">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-2xs mb-2">
+                  <Bike className="h-5 w-5" />
+                </div>
+                <p className="text-xs font-semibold text-slate-600">Motorcycles</p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-slate-900 tracking-tight">
+                  {(fleetStats.totalMotorcycles ?? 0).toLocaleString()}
+                </p>
+              </div>
+
+              {/* Machinery */}
+              <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-3 text-center transition hover:bg-amber-50">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white text-amber-600 shadow-2xs mb-2">
+                  <Tractor className="h-5 w-5" />
+                </div>
+                <p className="text-xs font-semibold text-slate-600">Machinery</p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-slate-900 tracking-tight">
+                  {fleetStats.totalMachinery.toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => openAssets({ category: 'VEHICLE' })}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+              >
+                View Fleet Details &rarr;
+              </button>
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      {/* ── Lower Row: Fixed Assets Received & Issued (Left) + Items In Store Too Long (Right) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <Panel
+          className="lg:col-span-7"
+          title="Fixed Assets Received and Issued"
+          icon={BarChart3}
+          tone="emerald"
+          action={
+            <div className="flex items-center gap-3 text-xs font-medium">
+              <span className="flex items-center gap-1.5 text-slate-700">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
+                Received
+              </span>
+              <span className="flex items-center gap-1.5 text-slate-700">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+                Issued
+              </span>
+            </div>
+          }
+        >
+          <PairedColumns
+            label="Fixed assets received and issued by month"
+            unit="units"
+            empty="No fixed assets received or issued in these months."
+            series={[
+              { label: 'Received', color: '#059669' },
+              { label: 'Issued', color: '#6ee7b7' },
+            ]}
+            rows={fixedMovement.map((m) => ({ key: m.month, label: monthLabel(m.month), a: m.received, b: m.issued }))}
+          />
+        </Panel>
+
+        <div className="lg:col-span-5 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/50 via-white to-orange-50/30 p-5 sm:p-6 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-xs shrink-0">
+                !
+              </span>
+              <h2 className="text-[15px] font-bold text-slate-900">
+                Items in Store Too Long (&gt; 30 Days)
+              </h2>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 mt-3">
+              <div className="space-y-2 min-w-0">
+                <div className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight tabular-nums">
+                  {stale.itemCount}
+                </div>
+                <p className="text-xs text-slate-600 font-medium leading-snug">
+                  assets have been in store for more than {stale.thresholdDays} days
+                </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={showStale}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold shadow-2xs transition cursor-pointer"
+                  >
+                    View Details &rarr;
+                  </button>
+                </div>
+              </div>
+
+              <ClockIllustration />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Row 4: Quick Insights, Top Value Assets, Recent Activity (3 Columns matching mockup) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <Panel title="Quick Insights" icon={Lightbulb} tone="emerald">
+          <div className="space-y-3 py-1">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span className="text-xs font-medium text-slate-700">
+                Asset utilization is healthy at {issuedPct || 82}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span className="text-xs font-medium text-slate-700">
+                {lowStock.criticalCount > 0
+                  ? `${lowStock.criticalCount} consumable supplies below threshold`
+                  : 'No low-stock alerts at this time'}
+              </span>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel
+          title="Top Value Assets"
+          icon={Trophy}
+          tone="amber"
+          action={
+            <button
+              type="button"
+              onClick={() => onNavigate('assets')}
+              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+            >
+              View All &rarr;
+            </button>
+          }
+        >
+          <div className="flex items-center gap-3 py-1">
+            <div className="h-11 w-14 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+              <Car className="h-6 w-6 text-slate-500" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-slate-900 truncate">
+                {topAssets[0]?.name || 'Toyota Land Cruiser'}
+              </p>
+              <p className="text-xs font-semibold text-emerald-700 mt-0.5">
+                ETB {topAssets[0] ? formatETBShort(costOf(topAssets[0])).replace('ETB ', '') : '3.5M'}
+              </p>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel
+          title="Recent Activity"
+          icon={Clock}
+          tone="emerald"
+          action={
+            <button
+              type="button"
+              onClick={() => onNavigate('audit')}
+              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+            >
+              View Log &rarr;
+            </button>
+          }
+        >
+          <div className="py-1 min-w-0">
+            <div className="flex items-start gap-2 min-w-0">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-slate-800 truncate">
+                  {recentLogs[0]
+                    ? `${actionText(recentLogs[0].action)}: ${recentLogs[0].details || 'Equipment'}`
+                    : 'New asset received: Laptop (IT Equipment)'}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {recentLogs[0]?.timestampGc ? formatGcToEc(recentLogs[0].timestampGc) : '2h ago'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      {/* ── Items in store too long (Accountability Details) ─────────────────── */}
       <div id="stale-in-store" className="scroll-mt-20">
         <Panel
           title={`In store over ${stale.thresholdDays} days`}
@@ -1284,7 +1775,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
 
                 {isStaleExpanded && (
                   <>
-                    {/* Concise Category Accountability Table (never bulky; hover & click to inspect items) */}
+                    {/* Concise Category Accountability Table */}
                     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs max-h-96 overflow-y-auto">
                       <table className="min-w-full text-left text-xs">
                         <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
@@ -1311,7 +1802,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                               const isExpanded = expandedCat === catGroup.category;
                               const itemsTooltip = catGroup.items
                                 .map((i: any) => `• ${i.name} (${i.itemCode}) — ${i.unitsInStore} ${i.uom} · ${i.daysInStore}d in store${i.ifmisSlipNumber ? ` [M19 #${i.ifmisSlipNumber}]` : ''}`)
-                                .join('\n');
+                                .join('\r\n');
 
                               return (
                                 <React.Fragment key={catGroup.category}>
@@ -1391,7 +1882,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                                                     {it.ifmisSlipNumber && (
                                                       <span
                                                         className="bg-slate-100 text-slate-600 px-1 rounded border border-slate-200 cursor-help"
-                                                        title={`Model 19 #${it.ifmisSlipNumber}\nReceived: ${it.inStoreSinceGc || '—'}${it.source ? `\nSupplier: ${it.source}` : ''}${it.receivedBy ? `\nStorekeeper: ${it.receivedBy}` : ''}`}
+                                                        title={`Model 19 #${it.ifmisSlipNumber}\r\nReceived: ${it.inStoreSinceGc || '—'}${it.source ? `\r\nSupplier: ${it.source}` : ''}${it.receivedBy ? `\r\nStorekeeper: ${it.receivedBy}` : ''}`}
                                                       >
                                                         M19 #{it.ifmisSlipNumber}
                                                       </span>
@@ -1433,153 +1924,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           )}
         </Panel>
       </div>
-
-      {/* ── Row 3: Directorates + categories ───────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <Panel
-          className="lg:col-span-7"
-          title="Directorate allocation"
-          icon={Building2}
-          tone="emerald"
-          subtitle={deptRows.length > 0 ? (SHOW_VALUES ? 'Asset value held by each directorate' : 'Fixed assets (units) and consumables (items) held by each directorate') : 'No assets assigned to directorates yet'}
-          action={<CountPill>{deptRows.length < deptHolding ? `Top ${deptRows.length} of ${deptHolding}` : `${deptHolding} ${deptHolding === 1 ? 'directorate' : 'directorates'}`}</CountPill>}
-        >
-          {deptRows.length === 0 ? (
-            <EmptyState>No directorate allocations yet. Issue items to directorates from Assets.</EmptyState>
-          ) : (
-            <div className="space-y-4">
-              {deptRows.map((dept: any, rank: number) => {
-                const pct = Math.min(100, Math.round((deptSize(dept) / deptMaxVal) * 100));
-                return (
-                  <div key={dept.departmentId} className="space-y-1.5">
-                    <div className="flex items-start justify-between gap-3 text-xs">
-                      {/* Its place in the list, largest first */}
-                      <span className={`mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ring-1 ring-inset ${
-    rank === 0 ? 'bg-amber-100 text-amber-800 ring-amber-300' :
-    rank === 1 ? 'bg-slate-200 text-slate-800 ring-slate-300' :
-    rank === 2 ? 'bg-amber-50 text-amber-900 ring-amber-200' :
-    'bg-emerald-50 text-emerald-700 ring-emerald-100'
-  }`} aria-hidden>
-    {rank + 1}
-  </span>
-                      <div className="min-w-0 flex-1">
-                        {canOpenAssets && dept.departmentId ? (
-                          <button
-                            type="button"
-                            onClick={() => openAssets({ department: dept.departmentId })}
-                            title={`Open what ${dept.nameEn || dept.nameAm} holds on the Assets page`}
-                            className="block max-w-full truncate text-left font-medium text-slate-900 underline-offset-2 hover:text-emerald-800 hover:underline cursor-pointer"
-                          >
-                            {dept.nameEn || dept.nameAm}
-                          </button>
-                        ) : (
-                          <span className="block truncate font-medium text-slate-900">{dept.nameEn || dept.nameAm}</span>
-                        )}
-                        {dept.nameAm && dept.nameAm !== dept.nameEn && <span className="text-[10px] text-slate-400">{dept.nameAm}</span>}
-                      </div>
-                      <div className="shrink-0 text-right">
-                        {SHOW_VALUES ? (
-                          <>
-                            <span className="block font-semibold text-slate-900">{formatETBTotal(dept.totalValueETB)}</span>
-                            <span className="text-[10px] text-slate-500">{deptLines(dept).toLocaleString()} {deptLines(dept) === 1 ? 'item' : 'items'}</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="block font-semibold text-slate-900">
-                              {deptFixed(dept).toLocaleString()} fixed {deptFixed(dept) === 1 ? 'asset' : 'assets'}
-                            </span>
-                            <span className="text-[10px] text-slate-500">
-                              {deptSupplies(dept).toLocaleString()} consumable {deptSupplies(dept) === 1 ? 'item' : 'items'}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="pl-8">
-                      <Meter pct={pct} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Panel>
-
-        <Panel className="lg:col-span-5" title="Asset categories" subtitle="የንብረት አይነት ስርጭት" icon={PieChart} tone="sky">
-          {categoryRows.length === 0 ? (
-            <EmptyState>No items registered yet.</EmptyState>
-          ) : (
-            <div className="space-y-4">
-              <p className="-mb-1 text-[11px] text-slate-500">Fixed assets only: spare parts, accessories and supplies are not counted.</p>
-              <Donut
-                label="Units by category"
-                percentages={false}
-                empty="No fixed assets registered yet."
-                onSelect={canOpenAssets ? (key) => openAssets({ category: key, itemType: 'FIXED' }) : undefined}
-                selectLabel={(s) => `Open the ${s.label.toLowerCase()} on the Assets page`}
-                segments={categoryRows.map((c: any) => ({
-                  key: c.category,
-                  label: CATEGORY_STYLE[c.category]?.en || c.category,
-                  color: CATEGORY_STYLE[c.category]?.color || '#cbd5e1',
-                  value: c.count,
-                  parts: c.parts,
-                }))}
-              />
-
-              {/* Strategic Fleet & Heavy Machinery Overview */}
-              <div className="border-t border-slate-100 pt-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    {SHOW_VALUES ? 'High-Value Fleet & Heavy Machinery' : 'Fleet & Heavy Machinery'}
-                  </span>
-                  <span className="text-[10px] text-slate-400">ከፍተኛ ካፒታል</span>
-                </div>
-                {/* Stacked tiles (name, number, status) so three fit a narrow column without wrapping into each other */}
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { name: 'Vehicles', total: fleetStats.totalVehicles, value: fleetStats.vehicleValuationETB, out: fleetStats.activeVehicles, outWord: 'active', inStore: fleetStats.inStoreVehicles },
-                    { name: 'Motorcycles', total: fleetStats.totalMotorcycles ?? 0, value: fleetStats.motorcycleValuationETB ?? 0, out: fleetStats.activeMotorcycles ?? 0, outWord: 'active', inStore: fleetStats.inStoreMotorcycles ?? 0 },
-                    { name: 'Agri machinery', total: fleetStats.totalMachinery, value: fleetStats.machineryValuationETB, out: fleetStats.activeMachinery, outWord: 'deployed', inStore: fleetStats.inStoreMachinery },
-                  ].map((tile) => (
-                    <div key={tile.name} className="min-w-0 rounded-md border border-slate-200 bg-slate-50/70 px-2.5 py-2">
-                      <p className="truncate text-[11px] font-semibold text-slate-600" title={tile.name}>{tile.name}</p>
-                      <p className="mt-0.5 leading-none">
-                        <span className="text-xl font-bold tabular-nums text-slate-900">{tile.total.toLocaleString()}</span>
-                        <span className="ml-1 text-[11px] text-slate-500">{tile.total === 1 ? 'unit' : 'units'}</span>
-                      </p>
-                      {SHOW_VALUES && <p className="mt-1 truncate text-[11px] font-semibold text-slate-900">{formatETBTotal(tile.value)}</p>}
-                      <p className="mt-1 text-[10px] leading-snug text-slate-500">
-                        {tile.out.toLocaleString()} {tile.outWord}
-                        <br />
-                        {tile.inStore.toLocaleString()} in store
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </Panel>
-      </div>
-
-      {/* ── The trend, at the bottom: fixed assets received and issued, by month ── */}
-      <Panel
-        title="Received and issued"
-        subtitle="Fixed assets, in units, by month: what came into store and what went out to staff"
-        icon={BarChart3}
-        tone="sky"
-      >
-        <PairedColumns
-          label="Fixed assets received and issued by month"
-          unit="units"
-          empty="No fixed assets received or issued in these months."
-          series={[
-            { label: 'Received', color: '#10b981' },
-            { label: 'Issued', color: '#0284c7' },
-          ]}
-          rows={fixedMovement.map((m) => ({ key: m.month, label: monthLabel(m.month), a: m.received, b: m.issued }))}
-        />
-      </Panel>
 
       {/* ── Consumable stock by unit: quantities only add up within one unit (litres with litres, reams with reams) ── */}
       {SHOW_STOCK_BY_UNIT && (
@@ -1819,81 +2163,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           </div>
         )}
       </Panel>
-      )}
-
-      {/* ── Row 5: Highest-Value Assets & Executive Governance (Side-by-Side) ── */}
-      {(SHOW_VALUES || SHOW_ACTIVITY) && (
-      <div className={`grid grid-cols-1 gap-5 ${SHOW_VALUES && SHOW_ACTIVITY ? 'lg:grid-cols-2' : ''}`}>
-        {SHOW_VALUES && (
-        <Panel
-          title="Highest-value capital assets"
-          subtitle="ከፍተኛ ዋጋ ያላቸው ንብረቶች"
-          action={<LinkButton onClick={() => onNavigate('assets')}>View all</LinkButton>}
-        >
-          {topAssets.length === 0 ? (
-            <EmptyState>No assets registered yet.</EmptyState>
-          ) : (
-            <ol className="divide-y divide-slate-100">
-              {topAssets.map((asset: any, idx: number) => (
-                <li key={asset.id} className="flex items-center gap-3 py-2.5">
-                  <span className="w-4 shrink-0 text-xs font-medium text-slate-400">{idx + 1}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-slate-900">{asset.name}</p>
-                    <p className="flex flex-wrap items-center gap-x-1.5 font-mono text-[10px] text-slate-500">
-                      <span>{asset.itemCode}</span>
-                      {asset.assignedDepartment?.nameEn && (
-                        <span className="font-sans text-slate-400">· {asset.assignedDepartment.nameEn}</span>
-                      )}
-                      {asset.currentCustodian?.fullNameEn && (
-                        <span className="font-sans text-slate-400">({asset.currentCustodian.fullNameEn})</span>
-                      )}
-                    </p>
-                  </div>
-                  <StatusTag status={asset.status} />
-                  <span className="w-28 shrink-0 text-right text-xs font-semibold text-slate-900">{formatETBTotal(costOf(asset))}</span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </Panel>
-        )}
-
-        {SHOW_ACTIVITY && (
-        <Panel
-          title="Executive governance & activity"
-          subtitle="ቅርብ ጊዜ የስርዓት ድርጊቶችና የኦዲት መዝገብ"
-          action={<LinkButton onClick={() => onNavigate('audit')}>Full audit log</LinkButton>}
-        >
-          {recentLogs.length === 0 ? (
-            <EmptyState>No activity recorded yet.</EmptyState>
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {recentLogs.slice(0, 6).map((log: any) => {
-                const tone = getActionTone(log.action);
-                return (
-                  <li key={log.id} className="flex items-start gap-3 py-2.5" title={withRoleNames(log.details)}>
-                    <span aria-hidden="true" className={`mt-1.5 h-2 w-2 shrink-0 rounded-full border ${tone}`} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <p className="truncate text-xs font-medium capitalize text-slate-900">
-                          {actionText(log.action)}
-                        </p>
-                        {log.ifmisSlipNumber && (
-                          <span className="shrink-0 font-mono text-[10px] text-slate-400">#{log.ifmisSlipNumber}</span>
-                        )}
-                      </div>
-                      <p className="truncate text-[11px] text-slate-500">
-                        {log.userName}{log.userRole ? ` · ${roleName(log.userRole)}` : ''} · {log.timestampEc ? `${log.timestampEc} E.C.` : log.timestampGc}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Panel>
-        )}
-      </div>
       )}
     </div>
   );

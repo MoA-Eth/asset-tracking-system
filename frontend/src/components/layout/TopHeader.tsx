@@ -118,7 +118,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           setLocations(locs);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const dateInfo = getTodayGcAndEc();
@@ -356,10 +356,12 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         </div>
       </div>
 
-      {/* Centre: search items and pages from anywhere */}
-      <div className="hidden md:flex flex-1 justify-center min-w-0">
-        <GlobalSearch onNavigate={onNavigate} />
-      </div>
+      {/* Centre: search items and pages from anywhere (hidden on executive dashboard) */}
+      {activeTab !== 'dashboard' && (
+        <div className="hidden md:flex flex-1 justify-center min-w-0">
+          <GlobalSearch onNavigate={onNavigate} />
+        </div>
+      )}
 
       {/* Right: today's date and notifications */}
       <div className="flex items-center gap-2.5 text-xs shrink-0">
@@ -368,15 +370,15 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         {/* Today in the Ethiopian calendar, as the vouchers use it; click to switch to Gregorian. The dashboard
             uses this place for its filters. */}
         {activeTab !== 'dashboard' && (
-        <button
-          type="button"
-          onClick={() => setShowAmDate((v) => !v)}
-          title={showAmDate ? 'Showing the Gregorian date. Click for the Ethiopian calendar.' : 'Showing the Ethiopian calendar. Click for the Gregorian date.'}
-          className="hidden xl:flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-600 transition hover:border-emerald-300 hover:text-emerald-800 cursor-pointer"
-        >
-          <Calendar className="h-3.5 w-3.5 text-emerald-700" />
-          <span className="tabular-nums">{showAmDate ? dateInfo.gc + ' G.C.' : dateInfo.ecFormattedEn || dateInfo.ec + ' E.C.'}</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setShowAmDate((v) => !v)}
+            title={showAmDate ? 'Showing the Gregorian date. Click for the Ethiopian calendar.' : 'Showing the Ethiopian calendar. Click for the Gregorian date.'}
+            className="hidden xl:flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-600 transition hover:border-emerald-300 hover:text-emerald-800 cursor-pointer"
+          >
+            <Calendar className="h-3.5 w-3.5 text-emerald-700" />
+            <span className="tabular-nums">{showAmDate ? dateInfo.gc + ' G.C.' : dateInfo.ecFormattedEn || dateInfo.ec + ' E.C.'}</span>
+          </button>
         )}
 
         {/* Store scope selector: hidden until pages filter by the selected store. Its options come from Settings → Stores. */}
@@ -407,22 +409,20 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   return next;
                 });
               }}
-              className={`relative p-2 rounded-[4px] transition cursor-pointer select-none ${
-                showNotifications
+              className={`relative p-2 rounded-[4px] transition cursor-pointer select-none ${showNotifications
                   ? 'bg-amber-100/70 text-slate-900 border border-amber-300 shadow-xs'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-              }`}
+                }`}
               title="Approvals & Activity Notifications"
               aria-label="Approvals & Activity Notifications"
             >
               <Bell className={`w-4 h-4 ${hasNewArrival ? 'text-amber-700 animate-bounce' : ''}`} />
               {displayBadgeCount > 0 && (
                 <span
-                  className={`absolute top-0.5 right-0.5 w-4 h-4 rounded-full font-extrabold text-[10px] flex items-center justify-center shadow-xs ${
-                    hasNewArrival
+                  className={`absolute top-0.5 right-0.5 w-4 h-4 rounded-full font-extrabold text-[10px] flex items-center justify-center shadow-xs ${hasNewArrival
                       ? 'bg-red-600 text-white animate-pulse ring-2 ring-red-300'
                       : 'bg-amber-400 text-slate-950'
-                  }`}
+                    }`}
                 >
                   {displayBadgeCount > 99 ? '99+' : displayBadgeCount}
                 </span>
@@ -451,9 +451,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                     <button
                       type="button"
                       onClick={toggleSound}
-                      className={`p-1.5 rounded-[4px] transition cursor-pointer ${
-                        soundEnabled ? 'text-emerald-800 hover:bg-slate-200/60' : 'text-slate-400 hover:bg-slate-200/60'
-                      }`}
+                      className={`p-1.5 rounded-[4px] transition cursor-pointer ${soundEnabled ? 'text-emerald-800 hover:bg-slate-200/60' : 'text-slate-400 hover:bg-slate-200/60'
+                        }`}
                       title={soundEnabled ? 'Sound alerts on (click to mute)' : 'Sound alerts muted (click to unmute)'}
                       aria-label={soundEnabled ? 'Mute sound' : 'Unmute sound'}
                     >
@@ -465,11 +464,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       <button
                         type="button"
                         onClick={desktopPermission === 'granted' ? toggleDesktop : requestDesktopPermission}
-                        className={`p-1.5 rounded-[4px] transition cursor-pointer ${
-                          desktopPermission === 'granted' && desktopEnabled
+                        className={`p-1.5 rounded-[4px] transition cursor-pointer ${desktopPermission === 'granted' && desktopEnabled
                             ? 'text-emerald-800 hover:bg-slate-200/60'
                             : 'text-slate-400 hover:bg-slate-200/60'
-                        }`}
+                          }`}
                         title={
                           desktopPermission === 'granted'
                             ? desktopEnabled
@@ -544,12 +542,12 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       const typeLabel = isStockIn
                         ? 'Receipt'
                         : isStockOut
-                        ? 'Issue'
-                        : item.transactionType === TransactionType.RETURN
-                        ? 'Return'
-                        : item.transactionType === TransactionType.DISPOSAL
-                        ? 'Disposal'
-                        : 'Transfer';
+                          ? 'Issue'
+                          : item.transactionType === TransactionType.RETURN
+                            ? 'Return'
+                            : item.transactionType === TransactionType.DISPOSAL
+                              ? 'Disposal'
+                              : 'Transfer';
                       const stageText = stage === 1 ? 'Endorsement' : 'Authorization';
                       const isRead = readIds.includes(item.id);
 
@@ -565,13 +563,12 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       let messageText = `${item.itemName} awaits ${stageText.toLowerCase()}`;
                       let iconEl = (
                         <div
-                          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                            isStockIn
+                          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isStockIn
                               ? 'bg-emerald-50 text-emerald-600'
                               : isStockOut
-                              ? 'bg-blue-50 text-blue-600'
-                              : 'bg-purple-50 text-purple-600'
-                          }`}
+                                ? 'bg-blue-50 text-blue-600'
+                                : 'bg-purple-50 text-purple-600'
+                            }`}
                         >
                           {isStockIn && <PackagePlus className="w-4 h-4" />}
                           {isStockOut && <PackageMinus className="w-4 h-4" />}
@@ -633,11 +630,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                               onNavigate('approvals');
                             }
                           }}
-                          className={`px-4 py-3 transition cursor-pointer flex items-start gap-3 select-none ${
-                            isRead
+                          className={`px-4 py-3 transition cursor-pointer flex items-start gap-3 select-none ${isRead
                               ? 'bg-white opacity-75 hover:bg-slate-50'
                               : 'bg-emerald-50/25 hover:bg-emerald-50'
-                          }`}
+                            }`}
                         >
                           {iconEl}
 
@@ -691,11 +687,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               aria-expanded={showUserMenu}
               aria-label={`Account menu for ${user.fullNameEn || ROLE_TITLES[role] || role}`}
               title={`Account menu (${user.fullNameEn || ROLE_TITLES[role] || role})`}
-              className={`inline-flex size-8 items-center justify-center overflow-hidden rounded-full font-bold text-xs transition cursor-pointer select-none ${
-                showUserMenu
+              className={`inline-flex size-8 items-center justify-center overflow-hidden rounded-full font-bold text-xs transition cursor-pointer select-none ${showUserMenu
                   ? 'ring-2 ring-emerald-600 bg-moa-green text-white shadow-xs'
                   : 'bg-moa-green hover:bg-moa-green-hover text-white hover:ring-2 hover:ring-emerald-600/40 shadow-2xs'
-              }`}
+                }`}
             >
               <span>{getInitials(user.fullNameEn || user.email)}</span>
             </button>
