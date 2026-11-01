@@ -21,6 +21,8 @@ import {
   XCircle,
   AlertTriangle,
   Upload,
+  ShoppingCart,
+  Coins,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -2069,7 +2071,63 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         </div>
       ) : (
         /* ── Register ── */
-        <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
+        <div className="space-y-3.5">
+          {/* Top Unified Stats Cards */}
+          <div
+            role="group"
+            aria-label="Held in the listed assets"
+            title="Counted as on the dashboard: approved records in store or assigned; receipts waiting for approval, rejected and disposed are not counted"
+            className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)]"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200/80">
+              {/* Fixed Assets */}
+              <div className="flex items-center gap-4 py-2 md:py-0 md:px-5 first:pl-0">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100 shadow-2xs">
+                  <Boxes className="w-6 h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs sm:text-[13px] font-semibold text-slate-700 capitalize">Fixed assets</h3>
+                  <div className="text-xl sm:text-2xl lg:text-[26px] font-black text-slate-900 tracking-tight leading-tight mt-0.5 tabular-nums">
+                    {' '}{unitsLabel(onRegister.fixed.held)}{' '}
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                    {' '}({onRegister.fixed.inStore.toLocaleString()} in store · {onRegister.fixed.issued.toLocaleString()} assigned)
+                  </p>
+                </div>
+              </div>
+
+              {/* Consumables */}
+              <div className="flex items-center gap-4 py-3 md:py-0 md:px-6">
+                <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100 shadow-2xs">
+                  <ShoppingCart className="w-6 h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs sm:text-[13px] font-semibold text-slate-700">Consumables</h3>
+                  <div className="text-xl sm:text-2xl lg:text-[26px] font-black text-slate-900 tracking-tight leading-tight mt-0.5 tabular-nums">
+                    {' '}{itemsLabel(onRegister.supplies.held)}{' '}
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                    {' '}({onRegister.supplies.inStore.toLocaleString()} in store · {onRegister.supplies.issued.toLocaleString()} assigned)
+                  </p>
+                </div>
+              </div>
+
+              {/* Total Value */}
+              <div className="flex items-center gap-4 py-3 md:py-0 md:px-6 last:pr-0">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100 shadow-2xs">
+                  <Coins className="w-6 h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs sm:text-[13px] font-semibold text-slate-700">Total Value</h3>
+                  <div className="text-xl sm:text-2xl lg:text-[26px] font-black text-slate-900 tracking-tight leading-tight mt-0.5 tabular-nums">
+                    {' '}{formatETB(onRegister.value)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
           {/* Status: always in sight, with how many of each */}
           <div role="group" aria-label="Status" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
@@ -2391,28 +2449,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               )}
             </div>
           )}
-
-          {/* The dashboard's figures for what is listed: the same counting, so a filter here matches a slice there */}
-          {rows.length > 0 && (
-            <div
-              role="group"
-              aria-label="Held in the listed assets"
-              title="Counted as on the dashboard: approved records in store or assigned; receipts waiting for approval, rejected and disposed are not counted"
-              className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1.5 border-t border-slate-100 text-xs text-slate-600"
-            >
-              <span>
-                Fixed assets <b className="tabular-nums text-slate-900">{unitsLabel(onRegister.fixed.held)}</b>{' '}
-                <span className="text-slate-500">({onRegister.fixed.inStore.toLocaleString()} in store · {onRegister.fixed.issued.toLocaleString()} assigned)</span>
-              </span>
-              <span>
-                Consumables <b className="tabular-nums text-slate-900">{itemsLabel(onRegister.supplies.held)}</b>{' '}
-                <span className="text-slate-500">({onRegister.supplies.inStore.toLocaleString()} in store · {onRegister.supplies.issued.toLocaleString()} assigned)</span>
-              </span>
-              <span>
-                Value <b className="font-mono text-slate-900">{formatETB(onRegister.value)}</b>
-              </span>
-            </div>
-          )}
         </div>
 
         {loading && rows.length === 0 ? (
@@ -2545,7 +2581,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           </>
         )}
       </div>
-      )}
+    </div>
+  )}
 
       <Model19PrintModal isOpen={!!voucher19} voucher={voucher19} onClose={() => setVoucher19(null)} />
       {canReceive && (
