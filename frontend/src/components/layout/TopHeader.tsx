@@ -137,7 +137,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const isRequester = user?.permissions?.some((p) =>
     ['stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write'].includes(p)
   ) ?? (role === UserRole.DATA_ENCODER || role === UserRole.SUPER_ADMIN);
-  const showBell = !isManager && (isApprover || isRequester);
+  // Notifications bell is visible for all users across the system (managers, approvers, encoders, admins)
+  const showBell = true;
 
   const displayBadgeCount = notifications.length > 0 ? unreadCount : pendingApprovalsCount;
 
@@ -172,41 +173,149 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const getPageInfo = () => {
     switch (activeTab) {
       case 'dashboard':
-        return { title: 'Dashboard', am: 'የንብረትና የመጋዘን ክምችት መከታተያ', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
+        return {
+          title: 'Dashboard',
+          am: 'የንብረትና የመጋዘን ክምችት',
+          subtitle: 'Executive valuation, store inventory health & status distribution',
+          icon: LayoutDashboard,
+          iconColor: 'text-emerald-700',
+        };
       case 'home':
-        return { title: 'Dashboard', am: 'የሥራ ማጠቃለያ', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
+        return {
+          title: 'Operations Hub',
+          am: 'የሥራ ማጠቃለያ',
+          subtitle: 'Daily operational workflows, pending tasks & quick actions',
+          icon: LayoutDashboard,
+          iconColor: 'text-emerald-700',
+        };
       case 'assets':
-        return { title: 'Assets', am: 'ንብረቶች', icon: Boxes, iconColor: 'text-emerald-700' };
+        return {
+          title: 'Assets & Inventory Registry',
+          am: 'ንብረቶች',
+          subtitle: 'Fixed assets, consumable supplies & catalog item records',
+          icon: Boxes,
+          iconColor: 'text-emerald-700',
+        };
       case 'docs':
-        return { title: 'Help', am: 'የተጠቃሚ መመሪያ', icon: CircleHelp, iconColor: 'text-emerald-700' };
+        return {
+          title: 'Help & Knowledge Base',
+          am: 'የተጠቃሚ መመሪያ',
+          subtitle: 'ATS standard operating guides, voucher rules & user documentation',
+          icon: CircleHelp,
+          iconColor: 'text-emerald-700',
+        };
       case 'my-assets':
-        return { title: 'My assets', am: 'የእኔ ንብረቶች', icon: PackageCheck, iconColor: 'text-emerald-700' };
+        return {
+          title: 'My Custody Assets',
+          am: 'የእኔ ንብረቶች',
+          subtitle: 'Fixed assets and equipment currently assigned under your personal custody',
+          icon: PackageCheck,
+          iconColor: 'text-emerald-700',
+        };
       case 'approvals':
-        return { title: 'Approvals', am: 'የማረጋገጫና ፈቃድ መስጫ', icon: FileCheck2, iconColor: 'text-emerald-700' };
+        return {
+          title: 'Voucher Approvals & Authorizations',
+          am: 'የማረጋገጫና ፈቃድ መስጫ',
+          subtitle: 'Endorsement & authorization queue for Model 19, 20, 21 & 22 slips',
+          icon: FileCheck2,
+          iconColor: 'text-emerald-700',
+        };
       case 'audit':
-        return { title: 'Audit Log', am: 'የኦዲት መዝገብ', icon: ShieldCheck, iconColor: 'text-emerald-700' };
+        return {
+          title: 'System Audit Trail',
+          am: 'የኦዲት መዝገብ',
+          subtitle: 'Security, compliance & immutable activity tracking log',
+          icon: ShieldCheck,
+          iconColor: 'text-emerald-700',
+        };
       case 'reports':
-        return { title: 'Reports', am: 'የሪፖርት መዝገብ', icon: FileSpreadsheet, iconColor: 'text-emerald-700' };
+        return {
+          title: 'Reports & Analytics',
+          am: 'የሪፖርት መዝገብ',
+          subtitle: 'Official asset registers, store balance sheets & exportable summaries',
+          icon: FileSpreadsheet,
+          iconColor: 'text-emerald-700',
+        };
       case 'settings-profile':
-        return { title: 'Profile', am: 'የተጠቃሚ መገለጫ', icon: User, iconColor: 'text-emerald-700' };
+        return {
+          title: 'User Account Profile',
+          am: 'የተጠቃሚ መገለጫ',
+          subtitle: 'Manage your credentials, contact information & preferences',
+          icon: User,
+          iconColor: 'text-emerald-700',
+        };
       case 'settings-users':
-        return { title: 'Users & Permissions', am: 'ተጠቃሚዎች እና ፈቃዶች', icon: Settings, iconColor: 'text-emerald-700' };
+        return {
+          title: 'User Access & Accounts',
+          am: 'ተጠቃሚዎች እና ፈቃዶች',
+          subtitle: 'Employee sign-in accounts, password resets & role assignments',
+          icon: Settings,
+          iconColor: 'text-emerald-700',
+        };
       case 'settings-roles':
-        return { title: 'Roles', am: 'ሚናዎች', icon: Shield, iconColor: 'text-emerald-700' };
+        return {
+          title: 'Roles & Permissions',
+          am: 'ሚናዎች',
+          subtitle: 'Access control matrices, segregation of duties & privilege policies',
+          icon: Shield,
+          iconColor: 'text-emerald-700',
+        };
       case 'settings-employees':
-        return { title: 'Employees', am: 'ሰራተኞች', icon: UserCheck, iconColor: 'text-emerald-700' };
+        return {
+          title: 'Staff & Personnel Directory',
+          am: 'ሰራተኞች',
+          subtitle: 'Ministry employee records, directorates & job designations',
+          icon: UserCheck,
+          iconColor: 'text-emerald-700',
+        };
       case 'settings-stores':
-        return { title: 'Stores', am: 'መጋዘኖች', icon: Warehouse, iconColor: 'text-emerald-700' };
+        return {
+          title: 'Stores & Warehouses',
+          am: 'መጋዘኖች',
+          subtitle: 'Central & regional warehouse locations and designated storekeepers',
+          icon: Warehouse,
+          iconColor: 'text-emerald-700',
+        };
       case 'settings-organizations':
-        return { title: 'Organizations', am: 'ድርጅቶች', icon: Building2, iconColor: 'text-emerald-700' };
+        return {
+          title: 'External Partner Organizations',
+          am: 'ድርጅቶች',
+          subtitle: 'Inter-governmental agencies, donors & partner institutions',
+          icon: Building2,
+          iconColor: 'text-emerald-700',
+        };
       case 'settings-programs':
-        return { title: 'Programs & Projects', am: 'ፕሮግራሞች እና ፕሮጀክቶች', icon: Briefcase, iconColor: 'text-emerald-700' };
+        return {
+          title: 'Programs & Development Projects',
+          am: 'ፕሮግራሞች እና ፕሮጀክቶች',
+          subtitle: 'Agricultural programs & donor-funded project registry',
+          icon: Briefcase,
+          iconColor: 'text-emerald-700',
+        };
       case 'settings-system':
-        return { title: 'System Settings', am: 'የስርዓት ቅንብሮች', icon: Sliders, iconColor: 'text-emerald-700' };
+        return {
+          title: 'System Configurations',
+          am: 'የስርዓት ቅንብሮች',
+          subtitle: 'Operational thresholds, voucher numbering sequences & global settings',
+          icon: Sliders,
+          iconColor: 'text-emerald-700',
+        };
       case 'settings-api-keys':
-        return { title: 'API keys', am: 'የኤፒአይ ቁልፎች', icon: KeyRound, iconColor: 'text-emerald-700' };
+        return {
+          title: 'API Integration Keys',
+          am: 'የኤፒአይ ቁልፎች',
+          subtitle: 'External data integration credentials & sync tokens',
+          icon: KeyRound,
+          iconColor: 'text-emerald-700',
+        };
       default:
-        return { title: 'Asset Tracking System', am: 'የግብርና ሚኒስቴር', icon: LayoutDashboard, iconColor: 'text-emerald-700' };
+        return {
+          title: 'Fixed Asset Tracking',
+          am: 'የግብርና ሚኒስቴር',
+          subtitle: 'Fixed assets & store inventory portfolio management',
+          icon: LayoutDashboard,
+          iconColor: 'text-emerald-700',
+        };
     }
   };
 
@@ -237,34 +346,20 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <MoaLogo className="w-8 h-8 drop-shadow-sm" alt="Ministry of Agriculture" />
         </div>
 
-        {activeTab === 'dashboard' ? (
-          <div className="flex flex-col min-w-0">
-            <h1 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight whitespace-nowrap truncate flex items-center gap-1.5">
-              <span>{greeting}, <span className="text-emerald-700">{firstName}!</span></span>
-            </h1>
-            <p className="text-[11px] text-slate-500 truncate hidden sm:block">
-              Ministry of Agriculture · Fixed Assets &amp; Inventory Portfolio Overview
-            </p>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-            <PageIcon className={`w-5 h-5 ${pageInfo.iconColor} shrink-0`} />
-            <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight whitespace-nowrap truncate">
-              {pageInfo.title}
-            </h1>
-            <span className="text-xs text-slate-400 font-amharic hidden md:inline whitespace-nowrap truncate">
-              - {pageInfo.am}
-            </span>
-          </div>
-        )}
+        <div className="flex flex-col min-w-0">
+          <h1 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight whitespace-nowrap truncate flex items-center gap-1.5">
+            <span>{greeting}, <span className="text-emerald-700">{firstName}!</span></span>
+          </h1>
+          <p className="text-[11px] text-slate-500 truncate hidden sm:block">
+            {pageInfo.subtitle}
+          </p>
+        </div>
       </div>
 
-      {/* Centre: search items and pages from anywhere (hidden for managers) */}
-      {!isManager && (
-        <div className="hidden md:flex flex-1 justify-center min-w-0">
-          <GlobalSearch onNavigate={onNavigate} />
-        </div>
-      )}
+      {/* Centre: search items and pages from anywhere */}
+      <div className="hidden md:flex flex-1 justify-center min-w-0">
+        <GlobalSearch onNavigate={onNavigate} />
+      </div>
 
       {/* Right: today's date and notifications */}
       <div className="flex items-center gap-2.5 text-xs shrink-0">
