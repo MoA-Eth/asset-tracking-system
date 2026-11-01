@@ -1239,7 +1239,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         />
         {SHOW_CATEGORIES_CARD && (
         <StatTile
-          label="Asset categories"
+          label="Fixed asset categories"
           labelAm="የንብረት ዓይነቶች"
           value={assetCategoryCount.toLocaleString()}
           footer="Categories with assets"
@@ -1575,10 +1575,10 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           )}
         </Panel>
 
-        {/* Col 2: Asset Categories */}
+        {/* Col 2: Fixed Asset Categories */}
         <Panel
           className="lg:col-span-1"
-          title="Asset Categories"
+          title="Fixed Asset Categories"
           icon={PieChart}
           tone="emerald"
         >
@@ -1587,7 +1587,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           ) : (
             <div className="flex flex-col items-center justify-center py-2">
               <Donut
-                label="Units by category"
+                label="Fixed units by category"
                 percentages={false}
                 unit="Fixed Units"
                 empty="No fixed assets registered yet."
@@ -1774,7 +1774,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               <span className="text-xs font-medium text-slate-700">
                 {fleetStats.totalVehicles > 0
                   ? `${fleetStats.totalVehicles} operational vehicles in fleet registry`
-                  : `${assetCategoryCount} active asset categories on record`}
+                  : `${assetCategoryCount} active fixed asset categories on record`}
               </span>
             </div>
           </div>
