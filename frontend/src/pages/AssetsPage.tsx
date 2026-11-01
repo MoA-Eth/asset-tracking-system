@@ -1670,8 +1670,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             );
           }
           if (distinctCosts.length > 1) {
-            const min = Math.min(...distinctCosts);
-            const max = Math.max(...distinctCosts);
             const tooltip = rowsOf
               .map((r) => `${r.item.name}: ${costOf(r.item) > 0 ? formatETB(Math.round(costOf(r.item) * 100) / 100) : '-'}`)
               .join('\n');
@@ -1682,9 +1680,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   title={`${tooltip}\n\nClick "Show items" to view individual lines`}
                 >
                   Varies
-                </span>
-                <span className="block text-[10px] text-slate-500 font-sans tabular-nums">
-                  {formatETBShort(min)} – {formatETBShort(max)}
                 </span>
               </td>
             );
