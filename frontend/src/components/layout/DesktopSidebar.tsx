@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { CircleHelp, ChevronDown, ChevronsUpDown, User, LogOut, Shield, Users } from 'lucide-react';
+import { CircleHelp, ChevronDown, ChevronRight, User, LogOut, Shield, Users } from 'lucide-react';
 import { UserRole } from '../../types/asset-management';
 import { useAuth } from '../../context/AuthContext';
 import { SETTINGS_NAV, getSettingsGroups, getNavSections, NavItem } from './navigation';
 import { MoaLogo } from '../ui/MoaLogo';
 import { APP_COMMIT, APP_VERSION } from '../../version';
+import sidebarBgUrl from '../../assets/sidebar-bg.png';
 
 interface DesktopSidebarProps {
   activeTab: string;
@@ -34,9 +35,14 @@ const getInitials = (name?: string): string => {
   return name.slice(0, 2).toUpperCase();
 };
 
-/** Gold bar marking the current page, echoing the emblem colour. */
-const ActiveBar: React.FC = () => (
-  <span aria-hidden="true" className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-[#FCDD09]" />
+/** Gold vertical indicator marking the current page */
+const ActiveBar: React.FC<{ collapsed: boolean }> = ({ collapsed }) => (
+  <span
+    aria-hidden="true"
+    className={`absolute ${
+      collapsed ? 'left-1' : 'left-1.5'
+    } top-1/2 -translate-y-1/2 h-6 w-1.5 rounded-full bg-[#FCDD09] shadow-[0_0_8px_rgba(252,221,9,0.5)]`}
+  />
 );
 
 export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
@@ -108,15 +114,17 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   const settingsGroups = getSettingsGroups(user?.allowedTabs);
 
   const itemClass = (isActive: boolean) =>
-    `group relative w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2 rounded-[4px] text-[13px] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
+    `group relative w-full flex items-center ${
+      collapsed ? 'justify-center px-0 h-10' : 'gap-3 px-3 py-2.5'
+    } rounded-2xl text-[13px] transition-all duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
       isActive
-        ? 'bg-white/[0.13] text-white font-semibold'
-        : 'text-emerald-50/85 hover:bg-white/[0.07] hover:text-white font-medium'
+        ? 'bg-white/[0.13] border border-white/20 text-white font-semibold shadow-sm backdrop-blur-xs'
+        : 'text-white/90 hover:bg-white/[0.08] hover:text-white font-medium border border-transparent'
     }`;
 
   const iconClass = (isActive: boolean) =>
     `w-5 h-5 shrink-0 transition-colors ${
-      isActive ? 'text-[#FCDD09]' : 'text-emerald-50/75 group-hover:text-emerald-100'
+      isActive ? 'text-[#FCDD09]' : 'text-white/85 group-hover:text-white'
     }`;
 
   const renderItem = (item: NavItem) => {
@@ -137,7 +145,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         onBlur={hideTip}
         aria-current={isActive ? 'page' : undefined}
       >
-        {isActive && <ActiveBar />}
+        {isActive && <ActiveBar collapsed={collapsed} />}
         <Icon className={iconClass(isActive)} />
         {!collapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
         {!collapsed && item.formTag && !showCount && (
@@ -148,11 +156,14 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
         {showCount && (
           <span
             className={`${
-              collapsed ? 'absolute top-0.5 right-1.5' : ''
-            } min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold leading-5 text-center bg-[#FCDD09] text-emerald-950`}
+              collapsed ? 'absolute top-1 right-1' : ''
+            } size-5 min-w-[20px] h-5 rounded-full bg-[#FCDD09] text-slate-900 font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs leading-none`}
           >
             {pendingApprovalsCount}
           </span>
+        )}
+        {!collapsed && isActive && (
+          <ChevronRight className="w-4 h-4 text-white/80 shrink-0" />
         )}
       </button>
     );
@@ -160,12 +171,16 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
   return (
     <aside
-      className={`no-print hidden lg:flex flex-col bg-gradient-to-b from-moa-green-hover via-[#086034] to-moa-green-deep border-r border-black/20 text-white shadow-xl transition-all duration-300 select-none z-30 shrink-0 h-full overflow-hidden ${
+      className={`no-print hidden lg:flex flex-col border-r border-black/20 text-white shadow-xl transition-all duration-300 select-none z-30 shrink-0 h-full overflow-hidden relative bg-cover bg-no-repeat bg-bottom ${
         collapsed ? 'w-14' : 'w-56'
       }`}
+      style={{
+        backgroundImage: `url(${sidebarBgUrl})`,
+        backgroundColor: '#086034',
+      }}
     >
-      {/* Brand */}
-      <div className={`h-[61px] px-3 border-b border-white/[0.07] flex items-center shrink-0 ${collapsed ? 'justify-center px-0' : ''}`}>
+      {/* Brand Header */}
+      <div className={`h-[61px] px-3 border-b border-white/[0.08] flex items-center shrink-0 relative z-10 ${collapsed ? 'justify-center px-0' : ''}`}>
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={collapsed ? onToggleCollapse : undefined}
@@ -179,7 +194,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           </button>
 
           {!collapsed && (
-            <div className="min-w-0">
+            <div className="min-w-0" title={APP_COMMIT ? `v${APP_VERSION} (${APP_COMMIT})` : `v${APP_VERSION}`}>
               <span className="block font-bold text-sm text-white tracking-tight">
                 MoA ATS
               </span>
@@ -189,25 +204,24 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 py-2.5" aria-label="Main navigation">
-        {sections.map((section, idx) => (
-          <div key={section.id} className={idx > 0 ? 'mt-4' : ''}>
-            {collapsed ? (
-              idx > 0 && <div aria-hidden="true" className="mx-3 mb-3 border-t border-white/[0.07]" />
-            ) : (
-              section.items.length > 1 && (
-                <p className="px-3 mb-1.5 text-xs font-medium text-emerald-50/75">
-                  {section.label}
-                </p>
-              )
-            )}
-            <div className="space-y-0.5">{section.items.map(renderItem)}</div>
-          </div>
-        ))}
+      <nav className="flex-1 overflow-y-auto px-2 py-2.5 relative z-10" aria-label="Main navigation">
+        <div className="space-y-1">
+          {sections.map((section) => (
+            <div key={section.id} className="space-y-1">
+              {!collapsed && section.id === 'insights' && (
+                <div className="flex items-center gap-2 px-3 pt-2 pb-1 select-none">
+                  <span className="text-[11px] font-medium text-emerald-100/70">{section.label}</span>
+                  <div className="flex-1 border-t border-white/10" />
+                </div>
+              )}
+              {section.items.map(renderItem)}
+            </div>
+          ))}
+        </div>
 
         {settingsGroups.length > 0 && (
-          <div className="mt-4">
-            {collapsed && <div aria-hidden="true" className="mx-3 mb-3 border-t border-white/[0.07]" />}
+          <div className="mt-2">
+            <div aria-hidden="true" className="mx-2 mb-2 border-t border-white/[0.08]" />
 
             <button
               onClick={() => (collapsed ? setActiveTab(settingsGroups[0].items[0].id) : setSettingsOpen((o) => !o))}
@@ -219,20 +233,20 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               onBlur={hideTip}
               aria-expanded={collapsed ? undefined : settingsOpen}
             >
-              {isSettingsActive && (collapsed || !settingsOpen) && <ActiveBar />}
+              {isSettingsActive && (collapsed || !settingsOpen) && <ActiveBar collapsed={collapsed} />}
               <SETTINGS_NAV.icon className={iconClass(isSettingsActive)} />
               {!collapsed && (
                 <>
                   <span className="flex-1 text-left">{SETTINGS_NAV.label}</span>
-                  <ChevronDown
-                    className={`w-4 h-4 shrink-0 text-emerald-50/70 transition-transform ${settingsOpen ? '' : '-rotate-90'}`}
+                  <ChevronRight
+                    className={`w-4 h-4 shrink-0 text-emerald-50/70 transition-transform ${settingsOpen ? 'rotate-90 text-white' : ''}`}
                   />
                 </>
               )}
             </button>
 
             {!collapsed && settingsOpen && (
-              <div className="mt-1 ml-[21px] pl-3 border-l border-white/[0.08] space-y-2.5 pb-1">
+              <div className="mt-1 ml-4 pl-2.5 border-l border-white/[0.08] space-y-1.5 pb-1">
                 {settingsGroups.map((group) => (
                   <div key={group.label}>
                     <p className="px-2 pt-1 pb-1 text-[11px] font-medium text-emerald-50/70">{group.label}</p>
@@ -245,7 +259,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                             key={sub.id}
                             onClick={() => setActiveTab(sub.id)}
                             aria-current={isActive ? 'page' : undefined}
-                            className={`group w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[4px] text-[13px] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
+                            className={`group w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
                               isActive
                                 ? 'bg-white/[0.13] text-white font-semibold'
                                 : 'text-emerald-50/85 hover:bg-white/[0.07] hover:text-white font-medium'
@@ -271,7 +285,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
       {/* Pinned Bottom User Profile Card */}
       {user && (
-        <div className="p-2 border-t border-white/[0.08] relative shrink-0" ref={userMenuRef}>
+        <div className="px-2.5 pb-2.5 pt-1 relative shrink-0 z-10" ref={userMenuRef}>
           {/* Menu Trigger Button */}
           <button
             type="button"
@@ -282,31 +296,31 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             title={collapsed ? `${user.fullNameEn || 'Account'} (${ROLE_TITLES[role] || role})` : undefined}
             className={`group w-full flex items-center ${
               collapsed ? 'justify-center p-2' : 'gap-3 p-2.5'
-            } rounded-lg transition-all duration-200 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
+            } rounded-2xl transition-all duration-200 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCDD09]/60 ${
               showUserMenu
-                ? 'bg-white/[0.12] border border-white/20 shadow-lg backdrop-blur-md'
-                : 'bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.09] hover:border-white/15 shadow-sm'
+                ? 'bg-white/[0.18] border border-emerald-300/40 shadow-xl backdrop-blur-md'
+                : 'bg-white/[0.10] hover:bg-white/[0.16] border border-white/20 hover:border-white/30 shadow-lg backdrop-blur-md'
             }`}
           >
             {/* Avatar Circle with Status Indicator */}
             <div className="relative shrink-0">
-              <div className="size-9 rounded-full bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-800 border border-emerald-300/40 text-white flex items-center justify-center font-bold text-xs shadow-md tracking-wider">
+              <div className="size-9 rounded-full bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 border border-white/30 text-white flex items-center justify-center font-bold text-xs shadow-md tracking-wider">
                 {getInitials(user.fullNameEn || user.email)}
               </div>
-              <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-400 ring-2 ring-[#086034]" />
+              <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-[#00FF87] ring-2 ring-emerald-950/60" />
             </div>
 
             {!collapsed && (
               <>
                 <div className="min-w-0 flex-1 leading-tight">
-                  <span className="block font-semibold text-xs text-white truncate tracking-tight">
+                  <span className="block font-semibold text-xs text-white truncate tracking-tight drop-shadow-xs">
                     {user.fullNameEn || ROLE_TITLES[role] || role}
                   </span>
-                  <span className="block text-[11px] font-medium text-emerald-300/75 truncate mt-0.5">
+                  <span className="block text-[11px] font-medium text-emerald-100/90 truncate mt-0.5">
                     {ROLE_TITLES[role] || role}
                   </span>
                 </div>
-                <ChevronsUpDown className="w-4 h-4 text-emerald-50/70 group-hover:text-emerald-100 shrink-0 transition-colors" />
+                <ChevronDown className="w-4 h-4 text-white/90 group-hover:text-white shrink-0 transition-colors" />
               </>
             )}
           </button>
@@ -414,15 +428,6 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 </button>
               </div>
             </div>
-          )}
-
-          {!collapsed && (
-            <p
-              className="mt-2 text-center text-[10px] font-mono text-emerald-50/50 truncate tracking-wide"
-              title={APP_COMMIT ? `Commit ${APP_COMMIT}` : undefined}
-            >
-              {APP_VERSION}
-            </p>
           )}
         </div>
       )}

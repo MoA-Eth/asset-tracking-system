@@ -1,9 +1,12 @@
 import {
   LayoutDashboard,
+  LayoutGrid,
   FileCheck2,
+  Box,
   Boxes,
   PackageCheck,
   FileSpreadsheet,
+  BarChart3,
   ShieldCheck,
   Settings,
   Users,
@@ -42,16 +45,16 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'overview',
     label: 'Overview',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
       // The work dashboard of a Team Leader, Department Head or Data Encoder (they don't see the executive one)
-      { id: 'home', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'home', label: 'Dashboard', icon: LayoutGrid },
     ],
   },
   {
     id: 'operations',
     label: 'Inventory',
     items: [
-      { id: 'assets', label: 'Assets', icon: Boxes, hint: 'Assets — receive (Model 19), issue (Model 22), transfer or return (Model 21)' },
+      { id: 'assets', label: 'Assets', icon: Box, hint: 'Assets — receive (Model 19), issue (Model 22), transfer or return (Model 21)' },
     ],
   },
   {
@@ -65,7 +68,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'insights',
     label: 'Reports',
     items: [
-      { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
+      { id: 'reports', label: 'Reports', icon: BarChart3 },
       { id: 'audit', label: 'Audit Log', icon: ShieldCheck },
     ],
   },
