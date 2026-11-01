@@ -1587,7 +1587,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           ) : (
             <div className="flex flex-col items-center justify-center py-2">
               <Donut
-                label="Fixed units by category"
+                label="Units by category"
                 percentages={false}
                 unit="Fixed Units"
                 empty="No fixed assets registered yet."
