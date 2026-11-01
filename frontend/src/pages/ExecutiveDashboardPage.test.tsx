@@ -163,19 +163,6 @@ describe('Dashboard low-stock consumables banner', () => {
       expect(api.getExecutiveDashboard).toHaveBeenCalledTimes(2);
     });
   });
-
-  it('refreshes metrics when clicking the manual refresh button', async () => {
-    renderPage();
-    const refreshBtn = await screen.findByRole('button', { name: 'Refresh dashboard' });
-    expect(refreshBtn).toBeInTheDocument();
-    expect(api.getExecutiveDashboard).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(refreshBtn);
-
-    await vi.waitFor(() => {
-      expect(api.getExecutiveDashboard).toHaveBeenCalledTimes(2);
-    });
-  });
 });
 
 

@@ -889,22 +889,41 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
 
   const headerContent = (
     <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={() => fetchDashboard(request, false)}
-        title="Refresh dashboard"
-        aria-label="Refresh dashboard"
-        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 cursor-pointer transition shadow-xs"
-      >
-        <RefreshCw className={`h-3.5 w-3.5 ${(loading || refreshing) ? 'animate-spin text-emerald-600' : ''}`} />
-      </button>
       {filterPopoverElement}
     </div>
   );
 
+  const firstName = user?.fullNameEn?.split(' ')[0] || user?.fullNameEn || 'there';
+  const greeting = (() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  })();
+
   return (
     <div className="space-y-5 animate-fadeIn pb-16">
       <StoreManReminder onAssign={() => onNavigate('settings-stores')} />
+
+      {/* Executive Welcome Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 p-5 text-white shadow-sm border border-slate-700/50">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+            {greeting}, <span className="text-emerald-400">{firstName}!</span>
+          </h1>
+          <p className="mt-1 text-xs text-slate-300">
+            Ministry of Agriculture · Fixed Assets & Inventory Portfolio Overview
+          </p>
+        </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          {user?.role && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              {roleName(user.role)}
+            </span>
+          )}
+        </div>
+      </div>
 
       {headerSlot ? (
         createPortal(headerContent, headerSlot)
