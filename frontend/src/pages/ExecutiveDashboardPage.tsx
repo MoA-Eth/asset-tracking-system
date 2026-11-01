@@ -375,7 +375,7 @@ const StatTile: React.FC<{
 
         {/* Separate full-width row for subtext so it never gets cut off */}
         {subtext && (
-          <div className="mt-2 text-xs text-slate-500 font-medium whitespace-nowrap truncate">
+          <div className="mt-2 text-xs text-slate-500 font-medium">
             {subtext}
           </div>
         )}
@@ -458,6 +458,29 @@ const StatTile: React.FC<{
     </div>
   );
 };
+
+/** Stacked breakdown subtext so long numbers never get clipped horizontally */
+const BreakdownSubtext: React.FC<{
+  fixed: number;
+  consumables: number;
+}> = ({ fixed, consumables }) => (
+  <div className="flex flex-col gap-1 text-[11px] sm:text-xs">
+    <div className="flex items-center justify-between text-slate-600">
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" />
+        <span>Fixed</span>
+      </span>
+      <span className="font-semibold text-slate-800 tabular-nums">{fixed.toLocaleString()}</span>
+    </div>
+    <div className="flex items-center justify-between text-slate-600">
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
+        <span>Consumables</span>
+      </span>
+      <span className="font-semibold text-slate-800 tabular-nums">{consumables.toLocaleString()}</span>
+    </div>
+  </div>
+);
 
 /** The two item types, in the colours of a StatTile's split bar */
 const TYPE_COLORS = { fixed: 'bg-sky-600', consumables: 'bg-violet-400' };
@@ -1161,19 +1184,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           trendBadge={totalAssetsTrend?.label ?? '0%'}
           trendDirection={totalAssetsTrend?.direction ?? 'neutral'}
           headline={fixedAssets.units.toLocaleString()}
-          subtext={
-            <span className="inline-flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" />
-                <span>Fixed: {fixedAssets.units.toLocaleString()}</span>
-              </span>
-              <span className="text-slate-300">•</span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
-                <span>Consumables: {consumableStockItems.toLocaleString()}</span>
-              </span>
-            </span>
-          }
+          subtext={<BreakdownSubtext fixed={fixedAssets.units} consumables={consumableStockItems} />}
           tableData={<TypeRows fixed={fixedAssets.units} consumables={consumableStockItems} />}
           footer="In store and assigned"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ALL' }) : undefined}
@@ -1186,19 +1197,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           trendBadge={assignedAssetsTrend?.label ?? '0%'}
           trendDirection={assignedAssetsTrend?.direction ?? 'neutral'}
           headline={fixedAssets.issuedUnits.toLocaleString()}
-          subtext={
-            <span className="inline-flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" />
-                <span>Fixed: {fixedAssets.issuedUnits.toLocaleString()}</span>
-              </span>
-              <span className="text-slate-300">•</span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
-                <span>Consumables: {consumableStockItemsIssued.toLocaleString()}</span>
-              </span>
-            </span>
-          }
+          subtext={<BreakdownSubtext fixed={fixedAssets.issuedUnits} consumables={consumableStockItemsIssued} />}
           tableData={<TypeRows fixed={fixedAssets.issuedUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsIssued} />}
           footer="Assigned"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ISSUED' }) : undefined}
@@ -1211,19 +1210,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           trendBadge={availableAssetsTrend?.label ?? '0%'}
           trendDirection={availableAssetsTrend?.direction ?? 'neutral'}
           headline={fixedAssets.inStoreUnits.toLocaleString()}
-          subtext={
-            <span className="inline-flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" />
-                <span>Fixed: {fixedAssets.inStoreUnits.toLocaleString()}</span>
-              </span>
-              <span className="text-slate-300">•</span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
-                <span>Consumables: {consumableStockItemsInStore.toLocaleString()}</span>
-              </span>
-            </span>
-          }
+          subtext={<BreakdownSubtext fixed={fixedAssets.inStoreUnits} consumables={consumableStockItemsInStore} />}
           tableData={<TypeRows fixed={fixedAssets.inStoreUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsInStore} />}
           footer="In store"
           onClick={canOpenAssets ? () => openAssets({ filter: 'IN_STORE' }) : undefined}
@@ -1241,7 +1228,12 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               <span>{formatETBShort(totalValuation).replace('ETB ', '')}</span>
             </span>
           }
-          subtext="Recorded asset value"
+          subtext={
+            <div className="flex flex-col gap-1 text-[11px] sm:text-xs">
+              <div className="text-slate-600 font-medium truncate">Recorded asset value</div>
+              <div className="text-[10px] sm:text-[11px] text-slate-400 truncate">Store stock & custodial inventory</div>
+            </div>
+          }
           footer="Store stock & custodial inventory"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ALL' }) : undefined}
         />
