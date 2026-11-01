@@ -336,21 +336,21 @@ const StatTile: React.FC<{
     <div
       role="group"
       aria-label={label}
-      className={`group relative overflow-hidden rounded-2xl flex flex-col justify-between border border-slate-200/80 bg-white p-5 transition-all duration-300 motion-safe:hover:-translate-y-1 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_12px_28px_-6px_rgba(15,23,42,0.1),0_4px_10px_-2px_rgba(15,23,42,0.04)] ${className}`}
+      className={`group relative overflow-hidden rounded-2xl flex flex-col justify-between border border-slate-200/80 bg-white p-4 sm:p-5 transition-all duration-300 motion-safe:hover:-translate-y-1 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_12px_28px_-6px_rgba(15,23,42,0.1),0_4px_10px_-2px_rgba(15,23,42,0.04)] ${className}`}
     >
       <div>
         {/* Top: Icon + Title + Big Headline Number */}
-        <div className="flex items-start gap-3.5">
+        <div className="flex items-start gap-2.5 sm:gap-3">
           {Icon && (
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${t.chip}`}>
-              <Icon className="w-6 h-6" />
+            <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${t.chip}`}>
+              <Icon className="w-5 h-5 sm:w-5.5 sm:h-5.5" />
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <h3 className="text-xs font-semibold text-slate-500 tracking-wide capitalize">
+            <h3 className="text-xs font-semibold text-slate-500 tracking-wide capitalize truncate">
               {label}
             </h3>
-            <div className="mt-1 text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums whitespace-nowrap">
+            <div className="mt-0.5 text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums whitespace-nowrap">
               {displayHeadline}
             </div>
           </div>
@@ -358,7 +358,7 @@ const StatTile: React.FC<{
 
         {/* Separate full-width row for subtext so it never gets cut off */}
         {subtext && (
-          <div className="mt-2.5 text-xs text-slate-500 font-medium whitespace-nowrap">
+          <div className="mt-2 text-xs text-slate-500 font-medium whitespace-nowrap truncate">
             {subtext}
           </div>
         )}
@@ -368,8 +368,8 @@ const StatTile: React.FC<{
       </div>
 
       {/* Bottom: Smooth wave sparkline stretching across + trend badge */}
-      <div className="mt-4 pt-1 flex items-end justify-between">
-        <svg className="h-7 w-28 sm:w-36 overflow-visible shrink-0" viewBox="0 0 120 28" fill="none" aria-hidden="true">
+      <div className="mt-3.5 pt-1 flex items-end justify-between">
+        <svg className="h-6 sm:h-7 w-24 sm:w-32 overflow-visible shrink-0" viewBox="0 0 120 28" fill="none" aria-hidden="true">
           <path
             d="M0 20 C25 24, 45 6, 70 14 C95 22, 105 4, 120 8 L120 28 L0 28 Z"
             fill={t.sparkFill}
@@ -383,7 +383,7 @@ const StatTile: React.FC<{
         </svg>
 
         {trendBadge && (
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${t.badge} shadow-2xs shrink-0`}>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold border ${t.badge} shadow-2xs shrink-0`}>
             {trendBadge}
           </span>
         )}
@@ -1084,7 +1084,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       )}
 
       {/* ── Four cards in a row matching reference mockup ── */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-5">
         <StatTile
           label="Total assets"
           labelAm="ጠቅላላ ንብረቶች"
@@ -1126,7 +1126,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           trendBadge="↑ 5%"
           headline={
             <span className="whitespace-nowrap inline-flex items-baseline">
-              <span className="text-base sm:text-lg font-bold text-slate-500 mr-1">ETB</span>
+              <span className="text-xs sm:text-sm font-bold text-slate-400 mr-1 shrink-0">ETB</span>
               <span>{formatETBShort(totalValuation).replace('ETB ', '')}</span>
             </span>
           }
