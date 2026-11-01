@@ -82,6 +82,18 @@ describe('dashboard figures', () => {
     expect(d.topValuationAssets.length).toBeGreaterThan(0);
     expect(d.topValuationAssets.every((a: any) => a.itemType !== 'CONSUMABLE')).toBe(true);
   });
+
+  it('calculates dynamic Month-over-Month trends for key KPI cards', async () => {
+    const d = await dashboard();
+    expect(d.trends).toBeDefined();
+    expect(d.trends.totalAssets).toHaveProperty('percentage');
+    expect(d.trends.totalAssets).toHaveProperty('direction');
+    expect(d.trends.totalAssets).toHaveProperty('label');
+    expect(['up', 'down', 'neutral']).toContain(d.trends.totalAssets.direction);
+    expect(d.trends.assignedAssets).toBeDefined();
+    expect(d.trends.availableAssets).toBeDefined();
+    expect(d.trends.totalValuation).toBeDefined();
+  });
 });
 
 describe('dashboard filters', () => {

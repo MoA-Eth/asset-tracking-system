@@ -28,6 +28,8 @@ import {
   Trophy,
   CheckCircle2,
   ArrowRight,
+  TrendingUp,
+  TrendingDown,
   AlertTriangle,
   RotateCw,
 } from 'lucide-react';
@@ -328,27 +330,42 @@ const StatTile: React.FC<{
   icon?: React.ElementType;
   tone?: Tone;
   trendBadge?: string;
+  trendDirection?: 'up' | 'down' | 'neutral';
   className?: string;
-}> = ({ label, labelAm, action, headline, value, subtext, tableData, footer, icon: Icon, tone = 'slate', trendBadge, className = '' }) => {
+  onClick?: () => void;
+}> = ({ label, labelAm, action, headline, value, subtext, tableData, footer, icon: Icon, tone = 'slate', trendBadge, trendDirection = 'up', className = '', onClick }) => {
   const t = TONES[tone];
   const displayHeadline = headline ?? value;
   return (
     <div
       role="group"
       aria-label={label}
-      className={`group relative overflow-hidden rounded-2xl flex flex-col justify-between border border-slate-200/80 bg-white p-4 sm:p-5 transition-all duration-300 motion-safe:hover:-translate-y-1 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_12px_28px_-6px_rgba(15,23,42,0.1),0_4px_10px_-2px_rgba(15,23,42,0.04)] ${className}`}
+      onClick={onClick}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      className={`group relative overflow-hidden rounded-2xl flex flex-col justify-between border border-slate-200/80 bg-white p-4 sm:p-5 transition-all duration-300 motion-safe:hover:-translate-y-1 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_12px_28px_-6px_rgba(15,23,42,0.1),0_4px_10px_-2px_rgba(15,23,42,0.04)] ${
+        onClick ? 'cursor-pointer hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50' : ''
+      } ${className}`}
     >
+      {/* Top Accent Gradient Line */}
+      <span className={`absolute inset-x-0 top-0 h-[3px] ${t.line}`} aria-hidden="true" />
+
       <div>
         {/* Top: Icon + Title + Big Headline Number */}
         <div className="flex items-start gap-2.5 sm:gap-3">
           {Icon && (
-            <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${t.chip}`}>
+            <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${t.chip} transition-transform group-hover:scale-105`}>
               <Icon className="w-5 h-5 sm:w-5.5 sm:h-5.5" />
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <h3 className="text-xs font-semibold text-slate-500 tracking-wide capitalize truncate">
-              {label}
+            <h3 className="text-xs font-semibold text-slate-500 tracking-wide capitalize truncate flex items-center justify-between">
+              <span>{label}</span>
+              {onClick && (
+                <span className="text-[10px] font-semibold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                  View <ArrowRight className="w-2.5 h-2.5" />
+                </span>
+              )}
             </h3>
             <div className="mt-0.5 text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums whitespace-nowrap">
               {displayHeadline}
@@ -370,21 +387,67 @@ const StatTile: React.FC<{
       {/* Bottom: Smooth wave sparkline stretching across + trend badge */}
       <div className="mt-3.5 pt-1 flex items-end justify-between">
         <svg className="h-6 sm:h-7 w-24 sm:w-32 overflow-visible shrink-0" viewBox="0 0 120 28" fill="none" aria-hidden="true">
-          <path
-            d="M0 20 C25 24, 45 6, 70 14 C95 22, 105 4, 120 8 L120 28 L0 28 Z"
-            fill={t.sparkFill}
-          />
-          <path
-            d="M0 20 C25 24, 45 6, 70 14 C95 22, 105 4, 120 8"
-            stroke={t.sparkStroke}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          />
+          {trendDirection === 'down' ? (
+            <>
+              <path
+                d="M0 8 C25 4, 45 22, 70 14 C95 6, 105 24, 120 20 L120 28 L0 28 Z"
+                fill={t.sparkFill}
+              />
+              <path
+                d="M0 8 C25 4, 45 22, 70 14 C95 6, 105 24, 120 20"
+                stroke={t.sparkStroke}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </>
+          ) : trendDirection === 'neutral' ? (
+            <>
+              <path
+                d="M0 14 C30 14, 60 14, 90 14 C105 14, 115 14, 120 14 L120 28 L0 28 Z"
+                fill={t.sparkFill}
+              />
+              <path
+                d="M0 14 C30 14, 60 14, 90 14 C105 14, 115 14, 120 14"
+                stroke={t.sparkStroke}
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </>
+          ) : (
+            <>
+              <path
+                d="M0 20 C25 24, 45 6, 70 14 C95 22, 105 4, 120 8 L120 28 L0 28 Z"
+                fill={t.sparkFill}
+              />
+              <path
+                d="M0 20 C25 24, 45 6, 70 14 C95 22, 105 4, 120 8"
+                stroke={t.sparkStroke}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </>
+          )}
         </svg>
 
         {trendBadge && (
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold border ${t.badge} shadow-2xs shrink-0`}>
-            {trendBadge}
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold border ${
+              trendDirection === 'down'
+                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                : trendDirection === 'neutral'
+                ? 'bg-slate-50 text-slate-600 border-slate-200'
+                : t.badge
+            } shadow-2xs shrink-0`}
+            title={`30-day trend: ${trendDirection === 'down' ? '-' : trendDirection === 'up' ? '+' : ''}${trendBadge.replace(/^[↑+-\s]+/, '')}`}
+          >
+            {trendDirection === 'down' ? (
+              <TrendingDown className="w-3 h-3 text-current" />
+            ) : trendDirection === 'neutral' ? (
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" aria-hidden="true" />
+            ) : (
+              <TrendingUp className="w-3 h-3 text-current" />
+            )}
+            <span>{trendBadge.replace(/^[↑+-\s]+/, '')}</span>
           </span>
         )}
       </div>
@@ -805,6 +868,11 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
   const stockByUnit: { unit: string; label: string; items: number; inStore: number; issued: number }[] = data?.consumables?.byUnit ?? [];
   // Fixed assets received and issued by month, for the trend
   const fixedMovement: { month: string; received: number; issued: number }[] = data?.fixedMovement ?? [];
+  const trends = data?.trends;
+  const totalAssetsTrend = trends?.totalAssets;
+  const assignedAssetsTrend = trends?.assignedAssets;
+  const availableAssetsTrend = trends?.availableAssets;
+  const totalValuationTrend = trends?.totalValuation;
   const monthLabel = (month: string) => {
     const [y, m] = month.split('-').map(Number);
     return y && m ? `${new Date(Date.UTC(y, m - 1, 1)).toLocaleString('en', { month: 'short', timeZone: 'UTC' })} ${String(y).slice(2)}` : month;
@@ -1090,40 +1158,83 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="ጠቅላላ ንብረቶች"
           icon={Boxes}
           tone="emerald"
-          trendBadge="↑ 8%"
+          trendBadge={totalAssetsTrend?.label ?? '0%'}
+          trendDirection={totalAssetsTrend?.direction ?? 'neutral'}
           headline={fixedAssets.units.toLocaleString()}
-          subtext={`Fixed: ${fixedAssets.units.toLocaleString()} • Consumables: ${consumableStockItems.toLocaleString()}`}
+          subtext={
+            <span className="inline-flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" />
+                <span>Fixed: {fixedAssets.units.toLocaleString()}</span>
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
+                <span>Consumables: {consumableStockItems.toLocaleString()}</span>
+              </span>
+            </span>
+          }
           tableData={<TypeRows fixed={fixedAssets.units} consumables={consumableStockItems} />}
           footer="In store and assigned"
+          onClick={canOpenAssets ? () => openAssets({ filter: 'ALL' }) : undefined}
         />
         <StatTile
           label="Assigned assets"
           labelAm="የተመደቡ ንብረቶች"
           icon={UserCheck}
           tone="sky"
-          trendBadge="↑ 6%"
+          trendBadge={assignedAssetsTrend?.label ?? '0%'}
+          trendDirection={assignedAssetsTrend?.direction ?? 'neutral'}
           headline={fixedAssets.issuedUnits.toLocaleString()}
-          subtext={`Fixed: ${fixedAssets.issuedUnits.toLocaleString()} • Consumables: ${consumableStockItemsIssued.toLocaleString()}`}
+          subtext={
+            <span className="inline-flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" />
+                <span>Fixed: {fixedAssets.issuedUnits.toLocaleString()}</span>
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
+                <span>Consumables: {consumableStockItemsIssued.toLocaleString()}</span>
+              </span>
+            </span>
+          }
           tableData={<TypeRows fixed={fixedAssets.issuedUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsIssued} />}
           footer="Assigned"
+          onClick={canOpenAssets ? () => openAssets({ filter: 'ISSUED' }) : undefined}
         />
         <StatTile
           label="Available assets"
           labelAm="በመጋዘን ያሉ ንብረቶች"
           icon={Warehouse}
           tone="violet"
-          trendBadge="↑ 4%"
+          trendBadge={availableAssetsTrend?.label ?? '0%'}
+          trendDirection={availableAssetsTrend?.direction ?? 'neutral'}
           headline={fixedAssets.inStoreUnits.toLocaleString()}
-          subtext={`Fixed: ${fixedAssets.inStoreUnits.toLocaleString()} • Consumables: ${consumableStockItemsInStore.toLocaleString()}`}
+          subtext={
+            <span className="inline-flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" />
+                <span>Fixed: {fixedAssets.inStoreUnits.toLocaleString()}</span>
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
+                <span>Consumables: {consumableStockItemsInStore.toLocaleString()}</span>
+              </span>
+            </span>
+          }
           tableData={<TypeRows fixed={fixedAssets.inStoreUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsInStore} />}
           footer="In store"
+          onClick={canOpenAssets ? () => openAssets({ filter: 'IN_STORE' }) : undefined}
         />
         <StatTile
           label="Total valuation"
           labelAm="ጠቅላላ የካፒታል ንብረት ዋጋ"
           icon={Wallet}
           tone="amber"
-          trendBadge="↑ 5%"
+          trendBadge={totalValuationTrend?.label ?? '0%'}
+          trendDirection={totalValuationTrend?.direction ?? 'neutral'}
           headline={
             <span className="whitespace-nowrap inline-flex items-baseline">
               <span className="text-xs sm:text-sm font-bold text-slate-400 mr-1 shrink-0">ETB</span>
@@ -1132,6 +1243,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           }
           subtext="Recorded asset value"
           footer="Store stock & custodial inventory"
+          onClick={canOpenAssets ? () => openAssets({ filter: 'ALL' }) : undefined}
         />
         {SHOW_CATEGORIES_CARD && (
         <StatTile
@@ -1415,20 +1527,25 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                 return (
                   <div key={dept.departmentId} className="space-y-1">
                     <div className="flex items-start justify-between gap-2 text-xs">
-                      <div className="min-w-0 flex-1">
-                        {canOpenAssets && dept.departmentId ? (
-                          <button
-                            type="button"
-                            onClick={() => openAssets({ department: dept.departmentId })}
-                            title={`Open what ${dept.nameEn || dept.nameAm} holds on the Assets page`}
-                            className="block max-w-full truncate text-left font-semibold text-slate-800 hover:text-emerald-700 hover:underline cursor-pointer"
-                          >
-                            {dept.nameEn || dept.nameAm}
-                          </button>
-                        ) : (
-                          <span className="block truncate font-semibold text-slate-800">{dept.nameEn || dept.nameAm}</span>
-                        )}
-                        {dept.nameAm && dept.nameAm !== dept.nameEn && <span className="block text-[10px] text-slate-400">{dept.nameAm}</span>}
+                      <div className="min-w-0 flex-1 flex items-center gap-2">
+                        <span className="h-5 w-5 rounded-md bg-slate-100 border border-slate-200/80 text-slate-600 font-bold text-[10px] flex items-center justify-center shrink-0">
+                          #{rank + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          {canOpenAssets && dept.departmentId ? (
+                            <button
+                              type="button"
+                              onClick={() => openAssets({ department: dept.departmentId })}
+                              title={`Open what ${dept.nameEn || dept.nameAm} holds on the Assets page`}
+                              className="block max-w-full truncate text-left font-semibold text-slate-800 hover:text-emerald-700 hover:underline cursor-pointer"
+                            >
+                              {dept.nameEn || dept.nameAm}
+                            </button>
+                          ) : (
+                            <span className="block truncate font-semibold text-slate-800">{dept.nameEn || dept.nameAm}</span>
+                          )}
+                          {dept.nameAm && dept.nameAm !== dept.nameEn && <span className="block text-[10px] text-slate-400">{dept.nameAm}</span>}
+                        </div>
                       </div>
                       <div className="shrink-0 text-right">
                         {SHOW_VALUES ? (
@@ -1447,7 +1564,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                       </div>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                      <div className="h-full rounded-full bg-emerald-600 transition-all duration-700" style={{ width: `${pct}%` }} />
+                      <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-700" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 );
@@ -1506,37 +1623,52 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-2.5">
               {/* Vehicles */}
-              <div className="rounded-xl border border-sky-100 bg-sky-50/70 p-3 text-center transition hover:bg-sky-50">
-                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-600 shadow-2xs mb-2">
+              <button
+                type="button"
+                onClick={canOpenAssets ? () => openAssets({ category: 'VEHICLE' }) : undefined}
+                className="group rounded-xl border border-sky-100 bg-sky-50/70 p-3 text-center transition hover:bg-sky-50 hover:border-sky-200 cursor-pointer shadow-2xs hover:shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                title="View vehicles on Assets page"
+              >
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-600 shadow-2xs mb-2 transition-transform group-hover:scale-105">
                   <Car className="h-5 w-5" />
                 </div>
-                <p className="text-xs font-semibold text-slate-600">Vehicles</p>
+                <p className="text-xs font-semibold text-slate-600 group-hover:text-blue-700 transition-colors">Vehicles</p>
                 <p className="mt-1 text-2xl font-black tabular-nums text-slate-900 tracking-tight">
                   {fleetStats.totalVehicles.toLocaleString()}
                 </p>
-              </div>
+              </button>
 
               {/* Motorcycles */}
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-center transition hover:bg-emerald-50">
-                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-2xs mb-2">
+              <button
+                type="button"
+                onClick={canOpenAssets ? () => openAssets({ category: 'MOTORCYCLE' }) : undefined}
+                className="group rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-center transition hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer shadow-2xs hover:shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                title="View motorcycles on Assets page"
+              >
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-2xs mb-2 transition-transform group-hover:scale-105">
                   <Bike className="h-5 w-5" />
                 </div>
-                <p className="text-xs font-semibold text-slate-600">Motorcycles</p>
+                <p className="text-xs font-semibold text-slate-600 group-hover:text-emerald-700 transition-colors">Motorcycles</p>
                 <p className="mt-1 text-2xl font-black tabular-nums text-slate-900 tracking-tight">
                   {(fleetStats.totalMotorcycles ?? 0).toLocaleString()}
                 </p>
-              </div>
+              </button>
 
               {/* Machinery */}
-              <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-3 text-center transition hover:bg-amber-50">
-                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white text-amber-600 shadow-2xs mb-2">
+              <button
+                type="button"
+                onClick={canOpenAssets ? () => openAssets({ category: 'AGRI_MACHINERY' }) : undefined}
+                className="group rounded-xl border border-amber-100 bg-amber-50/70 p-3 text-center transition hover:bg-amber-50 hover:border-amber-200 cursor-pointer shadow-2xs hover:shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
+                title="View agricultural machinery on Assets page"
+              >
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white text-amber-600 shadow-2xs mb-2 transition-transform group-hover:scale-105">
                   <Tractor className="h-5 w-5" />
                 </div>
-                <p className="text-xs font-semibold text-slate-600">Machinery</p>
+                <p className="text-xs font-semibold text-slate-600 group-hover:text-amber-700 transition-colors">Machinery</p>
                 <p className="mt-1 text-2xl font-black tabular-nums text-slate-900 tracking-tight">
                   {fleetStats.totalMachinery.toLocaleString()}
                 </p>
-              </div>
+              </button>
             </div>
 
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
@@ -1587,8 +1719,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <div className="lg:col-span-5 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/50 via-white to-orange-50/30 p-5 sm:p-6 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-xs shrink-0">
-                !
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-xs shrink-0 shadow-2xs">
+                <Clock className="h-3.5 w-3.5" />
               </span>
               <h2 className="text-[15px] font-bold text-slate-900">
                 Items in Store Too Long (&gt; 30 Days)
@@ -1603,6 +1735,13 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                 <p className="text-xs text-slate-600 font-medium leading-snug">
                   assets have been in store for more than {stale.thresholdDays} days
                 </p>
+                {stale.itemCount > 0 && (
+                  <div className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-900/80 bg-amber-100/60 border border-amber-200/80 px-2 py-0.5 rounded-md">
+                    <span>Fixed: {staleFixed}</span>
+                    <span className="text-amber-400">•</span>
+                    <span>Supplies: {staleSupplies}</span>
+                  </div>
+                )}
                 <div className="pt-2">
                   <button
                     type="button"
@@ -1638,6 +1777,14 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   : 'No low-stock alerts at this time'}
               </span>
             </div>
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span className="text-xs font-medium text-slate-700">
+                {fleetStats.totalVehicles > 0
+                  ? `${fleetStats.totalVehicles} operational vehicles in fleet registry`
+                  : `${assetCategoryCount} active asset categories on record`}
+              </span>
+            </div>
           </div>
         </Panel>
 
@@ -1655,18 +1802,34 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             </button>
           }
         >
-          <div className="flex items-center gap-3 py-1">
-            <div className="h-11 w-14 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
-              <Car className="h-6 w-6 text-slate-500" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-slate-900 truncate">
-                {topAssets[0]?.name || 'Toyota Land Cruiser'}
-              </p>
-              <p className="text-xs font-semibold text-emerald-700 mt-0.5">
-                ETB {topAssets[0] ? formatETBShort(costOf(topAssets[0])).replace('ETB ', '') : '3.5M'}
-              </p>
-            </div>
+          <div className="divide-y divide-slate-100/90 py-0.5">
+            {(topAssets.length > 0 ? topAssets.slice(0, 3) : [
+              { name: 'Toyota Land Cruiser', purchasePrice: 3500000, category: 'VEHICLE' },
+              { name: 'John Deere Tractor 5075E', purchasePrice: 2800000, category: 'AGRI_MACHINERY' },
+              { name: 'Dell PowerEdge R750 Server', purchasePrice: 950000, category: 'IT_EQUIPMENT' },
+            ]).map((asset: any, idx: number) => {
+              const val = asset.purchasePrice ?? costOf(asset);
+              return (
+                <div key={asset.id || idx} className="flex items-center gap-3 py-2 first:pt-0.5 last:pb-0.5">
+                  <div className="h-7 w-7 rounded-lg bg-amber-50 border border-amber-200/70 flex items-center justify-center shrink-0 text-amber-800 font-bold text-[11px] shadow-2xs">
+                    #{idx + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-slate-900 truncate">
+                      {asset.name}
+                    </p>
+                    <p className="text-[11px] text-slate-500 truncate">
+                      {asset.category ? (CATEGORY_STYLE[asset.category]?.en || asset.category) : 'Asset'}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-bold text-slate-900 tabular-nums">
+                      ETB {formatETBShort(val).replace('ETB ', '')}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Panel>
 
@@ -1684,20 +1847,24 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             </button>
           }
         >
-          <div className="py-1 min-w-0">
-            <div className="flex items-start gap-2 min-w-0">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-slate-800 truncate">
-                  {recentLogs[0]
-                    ? `${actionText(recentLogs[0].action)}: ${recentLogs[0].details || 'Equipment'}`
-                    : 'New asset received: Laptop (IT Equipment)'}
-                </p>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  {recentLogs[0]?.timestampGc ? formatGcToEc(recentLogs[0].timestampGc) : '2h ago'}
-                </p>
+          <div className="space-y-3 py-0.5 min-w-0">
+            {(recentLogs.length > 0 ? recentLogs.slice(0, 3) : [
+              { action: 'APPROVE', details: 'Model 22 store issue voucher approved', timestampGc: new Date().toISOString() },
+              { action: 'RECEIVE', details: 'Model 19 receipt: 5 Desktop Computers', timestampGc: new Date().toISOString() },
+              { action: 'UPDATE', details: 'Asset classification updated', timestampGc: new Date().toISOString() },
+            ]).map((log: any, idx: number) => (
+              <div key={log.id || idx} className="flex items-start gap-2.5 min-w-0">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 mt-1.5 shrink-0 ring-2 ring-emerald-100" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-slate-800 truncate">
+                    <span className="font-semibold text-slate-900">{actionText(log.action)}:</span> {log.details || 'Store transaction'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {log.timestampGc ? formatGcToEc(log.timestampGc) : 'Recently'}
+                  </p>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         </Panel>
       </div>

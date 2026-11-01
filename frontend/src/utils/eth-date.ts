@@ -114,7 +114,13 @@ export function formatETB(amount: number): string {
  * "151,760,701.102". formatETB keeps a unit price's own decimals; this rounds.
  */
 export function formatETBTotal(amount: number): string {
-  return formatETB(Math.round((Number(amount) || 0) * 100) / 100);
+  const num = Math.round((Number(amount) || 0) * 100) / 100;
+  return new Intl.NumberFormat('en-ET', {
+    style: 'currency',
+    currency: 'ETB',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
 }
 
 /**

@@ -67,7 +67,7 @@ import {
   TransactionApproval,
   UserRole,
 } from '../types/asset-management';
-import { formatETB } from '../utils/eth-date';
+import { formatETB, formatETBTotal, formatETBShort } from '../utils/eth-date';
 import { storeLocationLabel } from '../utils/location';
 import { Model19ImportModal } from '../components/assets/Model19ImportModal';
 import { departmentLabel } from '../utils/department';
@@ -2113,15 +2113,23 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               </div>
 
               {/* Total Value */}
-              <div className="flex items-center gap-4 py-3 md:py-0 md:px-6 last:pr-0">
+              <div className="flex items-center gap-4 py-3 md:py-0 md:px-6 last:pr-0 min-w-0">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100 shadow-2xs">
                   <Coins className="w-6 h-6" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="text-xs sm:text-[13px] font-semibold text-slate-700">Total Value</h3>
-                  <div className="text-xl sm:text-2xl lg:text-[26px] font-black text-slate-900 tracking-tight leading-tight mt-0.5 tabular-nums">
-                    {' '}{formatETB(onRegister.value)}
+                  <div
+                    className="text-base sm:text-lg lg:text-xl font-black text-slate-900 tracking-tight leading-tight mt-0.5 tabular-nums truncate"
+                    title={formatETBTotal(onRegister.value)}
+                  >
+                    {formatETBTotal(onRegister.value)}
                   </div>
+                  {onRegister.value >= 1_000_000 && (
+                    <p className="text-xs text-slate-500 font-medium mt-0.5 truncate" title={formatETBTotal(onRegister.value)}>
+                      ({formatETBShort(onRegister.value)})
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -2570,10 +2578,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               aria-label="Totals of listed assets"
             >
               <span>
-                Total value <span className="font-mono font-semibold text-slate-900">{formatETB(totals.value)}</span>
+                Total value <span className="font-mono font-semibold text-slate-900">{formatETBTotal(totals.value)}</span>
               </span>
               <span>
-                In store <span className="font-mono font-semibold text-slate-900">{formatETB(totals.inStore)}</span>
+                In store <span className="font-mono font-semibold text-slate-900">{formatETBTotal(totals.inStore)}</span>
               </span>
             </div>
             {/* Rows of the list (a Model 19 of several items and a batch are one row each), not assets: the line above the table counts those */}

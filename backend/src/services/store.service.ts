@@ -4710,6 +4710,100 @@ export class StoreService {
       issued: fixedIssuedByMonth.get(month) ?? 0,
     }));
 
+    // Rolling 30-day window (or user-filtered period) for dynamic Month-over-Month trend comparison
+    const trendWindowStart = periodSet ? (from ?? '') : new Date(todayMs - 30 * DAY_MS).toISOString().slice(0, 10);
+    const trendWindowEnd = periodSet ? (to ?? '') : getTodayGcAndEc().gc.slice(0, 10);
+    const inTrendWindow = (date?: string | null) => {
+      const d = (date || '').slice(0, 10);
+      return !!d && (!trendWindowStart || d >= trendWindowStart) && (!trendWindowEnd || d <= trendWindowEnd);
+    };
+
+    let trendFixedReceived = 0;
+    let trendValueReceived = 0;
+    for (const reg of scopedItems.filter((i) => !i.parentItemId && i.status !== 'PENDING_STOCK_IN' && i.status !== ItemStatus.REJECTED)) {
+      const recDate = plausibleDate(reg.ifmisSlipDateGc) || reg.createdAtGc;
+      if (!inTrendWindow(recDate)) continue;
+      const unitsReceived = unitsOf(reg) + units(scopedItems.filter((c) => c.parentItemId === reg.id && c.status !== ItemStatus.REJECTED));
+      const val = (reg.costPerUnit ?? reg.unitCostETB ?? 0) * unitsReceived;
+      trendValueReceived += val;
+      if ((reg.itemType ?? 'FIXED') !== 'CONSUMABLE') {
+        trendFixedReceived += unitsReceived;
+      }
+    }
+
+    let trendFixedIssued = 0;
+    for (const so of approvedStockOuts) {
+      if (filtered && !keptIds.has(so.itemId)) continue;
+      const soDate = so.reviewedAtGc || so.createdAtGc;
+      if (!inTrendWindow(soDate)) continue;
+      const item = itemsById.get(so.itemId);
+      if (item && (item.itemType ?? 'FIXED') !== 'CONSUMABLE') {
+        const requested = Number((so.requestDetails as Record<string, any> | null)?.quantity);
+        const unitsIssued = Number.isFinite(requested) && requested > 0 ? requested : unitsOf(item);
+        trendFixedIssued += unitsIssued;
+      }
+    }
+
+    let trendFixedDisposed = 0;
+    let trendFixedDisposedFromStore = 0;
+    let trendValueDisposed = 0;
+    for (const disp of disposed) {
+      const dispDate = plausibleDate(disp.ifmisSlipDateGc) || disp.createdAtGc;
+      if (!inTrendWindow(dispDate)) continue;
+      const u = unitsOf(disp);
+      const val = (disp.costPerUnit ?? disp.unitCostETB ?? 0) * u;
+      trendValueDisposed += val;
+      if ((disp.itemType ?? 'FIXED') !== 'CONSUMABLE') {
+        trendFixedDisposed += u;
+        if (!disp.currentCustodianId) {
+          trendFixedDisposedFromStore += u;
+        }
+      }
+    }
+
+    const formatPct = (pct: number) => {
+      const clamped = Math.min(100, Math.max(-100, pct));
+      let rounded = Math.round(clamped * 10) / 10;
+      if (Math.abs(rounded) < 0.05 || Object.is(rounded, -0)) {
+        rounded = 0;
+      }
+      const abs = Math.abs(rounded);
+      const formatted = abs % 1 === 0 ? abs.toFixed(0) : abs.toFixed(1);
+      const direction: 'up' | 'down' | 'neutral' = rounded > 0 ? 'up' : rounded < 0 ? 'down' : 'neutral';
+      const label = direction === 'neutral' ? '0%' : `${formatted}%`;
+      return { percentage: rounded, direction, label };
+    };
+
+    const currentFixedUnits = units(fixedItems);
+    const currentIssuedUnits = units(fixedItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status)));
+    const currentInStoreUnits = units(fixedItems.filter((i) => IN_STORE_STATUSES.includes(i.status)));
+    const currentTotalValuation = sum(onRecord);
+
+    const netFixedChange = trendFixedReceived - trendFixedDisposed;
+    const netIssuedChange = trendFixedIssued;
+    const netStoreChange = trendFixedReceived - trendFixedIssued - trendFixedDisposedFromStore;
+    const netValueChange = trendValueReceived - trendValueDisposed;
+
+    // Total assets: growth of total fixed register against baseline
+    const fixedBaseline = Math.max(0, currentFixedUnits - netFixedChange);
+    const totalAssetsPct = fixedBaseline > 0 ? (netFixedChange / fixedBaseline) * 100 : (netFixedChange > 0 ? 100 : 0);
+
+    // Assigned & Available: active deployment rate and store buffer shift relative to total inventory base
+    const baseDenom = currentFixedUnits > 0 ? currentFixedUnits : 1;
+    const assignedPct = (netIssuedChange / baseDenom) * 100;
+    const availablePct = (netStoreChange / baseDenom) * 100;
+
+    // Valuation: financial register change against baseline valuation
+    const valBaseline = Math.max(0, currentTotalValuation - netValueChange);
+    const valuationPct = valBaseline > 0 ? (netValueChange / valBaseline) * 100 : (netValueChange > 0 ? 100 : 0);
+
+    const trends = {
+      totalAssets: formatPct(totalAssetsPct),
+      assignedAssets: formatPct(assignedPct),
+      availableAssets: formatPct(availablePct),
+      totalValuation: formatPct(valuationPct),
+    };
+
     const conditionDistribution = ['NEW', 'GOOD', 'FAIR', 'NEEDS_REPAIR', 'DAMAGED'].map((cond) => {
       const matching = onRecord.filter((i) => i.condition === cond);
       return {
@@ -4832,6 +4926,7 @@ export class StoreService {
       unassignedItems,
       stockMovement,
       fixedMovement,
+      trends,
       staleInStore: {
         thresholdDays: STALE_IN_STORE_DAYS,
         itemCount: staleItems.length,
