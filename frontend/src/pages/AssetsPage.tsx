@@ -1647,14 +1647,38 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         {(() => {
           const lines = members.map((g) => {
             const { isBatch, totalUnits } = batchSummary(g.row, g.children);
-            return { name: g.row.item.name, units: isBatch ? totalUnits : g.row.units, uom: (g.row.item.uom || 'EA').toLowerCase() };
+            const isRej = g.row.state === 'REJECTED' || g.row.item.status === ItemStatus.REJECTED;
+            return {
+              name: g.row.item.name,
+              units: isBatch ? totalUnits : g.row.units,
+              uom: (g.row.item.uom || 'EA').toLowerCase(),
+              rejected: isRej,
+            };
           });
+
+          const uoms = [...new Set(lines.map((l) => l.uom))];
+          const sameUom = uoms.length === 1;
+          const uom = sameUom ? uoms[0] : '';
+          const totalUnits = lines.reduce((sum, l) => sum + (Number(l.units) || 0), 0);
+          const activeUnits = lines.filter((l) => !l.rejected).reduce((sum, l) => sum + (Number(l.units) || 0), 0);
+          const rejectedUnits = lines.filter((l) => l.rejected).reduce((sum, l) => sum + (Number(l.units) || 0), 0);
+
+          const title = lines.map((l) => `${l.name}: ${l.units.toLocaleString()} ${l.uom}${l.rejected ? ' (rejected)' : ''}`).join('\n');
+
           return (
-            <td
-              className="px-3 py-2.5 tabular-nums text-slate-600 whitespace-nowrap"
-              title={lines.map((l) => `${l.name}: ${l.units.toLocaleString()} ${l.uom}`).join('\n')}
-            >
-              {voucherSize(lines)}
+            <td className="px-3 py-2.5 tabular-nums text-slate-600 whitespace-nowrap" title={title}>
+              {rejectedUnits > 0 && sameUom ? (
+                <>
+                  <span className="whitespace-nowrap">
+                    {activeUnits > 0 ? `${activeUnits.toLocaleString()} of ${totalUnits.toLocaleString()} ${uom}` : `${totalUnits.toLocaleString()} ${uom}`}
+                  </span>
+                  <span className="mt-0.5 block whitespace-nowrap font-sans text-[10px] font-medium leading-tight text-rose-600">
+                    {rejectedUnits === totalUnits ? 'all rejected' : `${rejectedUnits.toLocaleString()} rejected`}
+                  </span>
+                </>
+              ) : (
+                voucherSize(lines)
+              )}
             </td>
           );
         })()}

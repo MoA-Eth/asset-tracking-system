@@ -1578,7 +1578,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         {/* Col 2: Fixed Asset Categories */}
         <Panel
           className="lg:col-span-1"
-          title="Fixed Asset Categories"
+          title="Fixed Asset Categories (In Store & Issued)"
           icon={PieChart}
           tone="emerald"
         >
