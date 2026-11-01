@@ -1638,8 +1638,33 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           );
         })()}
         <td className="pl-4 pr-3 py-2.5 text-slate-700">{places.length === 1 ? places[0] : 'Several places'}</td>
-        {/* Several items: no one unit cost */}
-        <td className="px-3.5 py-2.5" aria-hidden="true" />
+        {/* Several items on this slip: show single cost if identical, or 'Varies' with tooltip */}
+        {(() => {
+          const distinctCosts = [...new Set(rowsOf.map((r) => Math.round(costOf(r.item) * 100) / 100))].filter((c) => c > 0);
+          if (distinctCosts.length === 1) {
+            return (
+              <td className="pl-2 pr-2 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
+                {formatETB(distinctCosts[0])}
+              </td>
+            );
+          }
+          if (distinctCosts.length > 1) {
+            const tooltip = rowsOf
+              .map((r) => `${r.item.name}: ${costOf(r.item) > 0 ? formatETB(Math.round(costOf(r.item) * 100) / 100) : '-'}`)
+              .join('\n');
+            return (
+              <td className="pl-2 pr-2 py-2.5 text-right whitespace-nowrap">
+                <span
+                  className="inline-block cursor-help rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                  title={tooltip}
+                >
+                  Varies
+                </span>
+              </td>
+            );
+          }
+          return <td className="pl-2 pr-2 py-2.5 text-right text-slate-400 whitespace-nowrap">-</td>;
+        })()}
         <td className="pl-2 pr-4 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
           {formatETB(total)}
         </td>
