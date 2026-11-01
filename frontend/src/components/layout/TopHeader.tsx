@@ -122,6 +122,14 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   }, []);
 
   const dateInfo = getTodayGcAndEc();
+  const isManager = role === UserRole.MANAGER || role === UserRole.CHIEF_DIRECTOR;
+  const firstName = user?.fullNameEn?.split(' ')[0] || user?.fullNameEn || 'there';
+  const greeting = (() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  })();
 
   const canEndorse = user?.permissions?.includes('approvals.endorse') ?? (role === UserRole.TEAM_LEADER);
   const canAuthorize = user?.permissions?.includes('approvals.authorize') ?? (role === UserRole.DEPARTMENT_HEAD || role === UserRole.CHIEF_DIRECTOR);
@@ -129,7 +137,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const isRequester = user?.permissions?.some((p) =>
     ['stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write'].includes(p)
   ) ?? (role === UserRole.DATA_ENCODER || role === UserRole.SUPER_ADMIN);
-  const showBell = isApprover || isRequester;
+  const showBell = !isManager && (isApprover || isRequester);
 
   const displayBadgeCount = notifications.length > 0 ? unreadCount : pendingApprovalsCount;
 
@@ -229,21 +237,34 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <MoaLogo className="w-8 h-8 drop-shadow-sm" alt="Ministry of Agriculture" />
         </div>
 
-        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-          <PageIcon className={`w-5 h-5 ${pageInfo.iconColor} shrink-0`} />
-          <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight whitespace-nowrap truncate">
-            {pageInfo.title}
-          </h1>
-          <span className="text-xs text-slate-400 font-amharic hidden md:inline whitespace-nowrap truncate">
-            - {pageInfo.am}
-          </span>
-        </div>
+        {activeTab === 'dashboard' ? (
+          <div className="flex flex-col min-w-0">
+            <h1 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight whitespace-nowrap truncate flex items-center gap-1.5">
+              <span>{greeting}, <span className="text-emerald-700">{firstName}!</span></span>
+            </h1>
+            <p className="text-[11px] text-slate-500 truncate hidden sm:block">
+              Ministry of Agriculture · Fixed Assets &amp; Inventory Portfolio Overview
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+            <PageIcon className={`w-5 h-5 ${pageInfo.iconColor} shrink-0`} />
+            <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight whitespace-nowrap truncate">
+              {pageInfo.title}
+            </h1>
+            <span className="text-xs text-slate-400 font-amharic hidden md:inline whitespace-nowrap truncate">
+              - {pageInfo.am}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Centre: search items and pages from anywhere */}
-      <div className="hidden md:flex flex-1 justify-center min-w-0">
-        <GlobalSearch onNavigate={onNavigate} />
-      </div>
+      {/* Centre: search items and pages from anywhere (hidden for managers) */}
+      {!isManager && (
+        <div className="hidden md:flex flex-1 justify-center min-w-0">
+          <GlobalSearch onNavigate={onNavigate} />
+        </div>
+      )}
 
       {/* Right: today's date and notifications */}
       <div className="flex items-center gap-2.5 text-xs shrink-0">
