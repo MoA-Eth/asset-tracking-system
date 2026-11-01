@@ -809,11 +809,19 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   const pager = usePagination(listed, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${departmentFilter}|${programFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}|${lastTouchedId}` });
   const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
+  const [openSlips, setOpenSlips] = useState<Set<string>>(new Set());
   const toggleBatch = (id: string) =>
     setOpenBatches((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  const toggleSlip = (key: string) =>
+    setOpenSlips((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
 
@@ -1459,10 +1467,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
    * One table row. A batch with issued units shows the whole batch (received · issued · in store) and a toggle
    * for those units; a unit listed under its batch is indented.
    */
-  const renderRow = (row: AssetRow, batch?: { group: ShownGroup; open: boolean }) => {
+  const renderRow = (row: AssetRow, batch?: { group: AssetGroup; open: boolean }, slipNested?: boolean) => {
     const { item } = row;
     const uom = item.uom || 'EA';
-    const nested = !batch && !!item.parentItemId && rows.some((r) => r.item.id === item.parentItemId);
+    const isBatchUnit = !batch && !!item.parentItemId && rows.some((r) => r.item.id === item.parentItemId);
+    const nested = Boolean(slipNested) || isBatchUnit;
     const orphanParent = !batch && !nested && item.parentItemId ? items.find((i) => i.id === item.parentItemId) : undefined;
     const children = batch?.group.children ?? [];
     const { isBatch, out, issuedUnits, inStoreUnits, requestedUnits, disposedUnits, recordsKind, totalUnits, holders } = batchSummary(row, children);
@@ -1586,7 +1595,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   };
 
   /** One row for a Model 19 of several items: what they are, where they stand, the slip and its total */
-  const renderSlipRow = (key: string, members: AssetGroup[]) => {
+  const renderSlipRow = (key: string, members: AssetGroup[], isOpen = false) => {
     const rowsOf = members.map((g) => g.row);
     const lead = rowsOf[0].item;
     const places = [...new Set(rowsOf.map((r) => r.where))];
@@ -1618,6 +1627,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             {lead.ifmisSlipNumber && <span className="font-mono text-[11px] text-slate-500">· {lead.ifmisSlipNumber}</span>}
             {lead.poNumber && <span className="text-[11px] text-slate-500">PO {lead.poNumber}</span>}
           </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSlip(key);
+            }}
+            aria-expanded={isOpen}
+            className="mt-1 inline-flex items-center gap-1 rounded-[4px] text-[10px] font-semibold text-emerald-800 hover:text-emerald-950 hover:underline cursor-pointer"
+          >
+            <ChevronRight className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+            {isOpen ? 'Hide' : 'Show'} {members.length} items
+          </button>
         </td>
         <td className="px-3 py-2.5">
           <SlipStatus rows={rowsOf} partly={partlyIn(members)} />
@@ -1649,6 +1670,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             );
           }
           if (distinctCosts.length > 1) {
+            const min = Math.min(...distinctCosts);
+            const max = Math.max(...distinctCosts);
             const tooltip = rowsOf
               .map((r) => `${r.item.name}: ${costOf(r.item) > 0 ? formatETB(Math.round(costOf(r.item) * 100) / 100) : '-'}`)
               .join('\n');
@@ -1656,9 +1679,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               <td className="pl-2 pr-2 py-2.5 text-right whitespace-nowrap">
                 <span
                   className="inline-block cursor-help rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-200"
-                  title={tooltip}
+                  title={`${tooltip}\n\nClick "Show items" to view individual lines`}
                 >
                   Varies
+                </span>
+                <span className="block text-[10px] text-slate-500 font-sans tabular-nums">
+                  {formatETBShort(min)} – {formatETBShort(max)}
                 </span>
               </td>
             );
@@ -2583,7 +2609,23 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {pager.pageItems.map((entry) => {
-                    if ('members' in entry && entry.members) return renderSlipRow(entry.slip, entry.members);
+                    if ('members' in entry && entry.members) {
+                      const isSearched = !!q && entry.members.some((m) => matchesSearch(m.row));
+                      const isSelected = !!selectedId && entry.members.some((m) => m.row.item.id === selectedId || m.children.some((c) => c.item.id === selectedId));
+                      const isOpen = openSlips.has(entry.slip) || isSearched || isSelected;
+                      return (
+                        <React.Fragment key={`slip-${entry.slip}`}>
+                          {renderSlipRow(entry.slip, entry.members, isOpen)}
+                          {isOpen &&
+                            entry.members.map((member) => (
+                              <React.Fragment key={member.row.item.id}>
+                                {renderRow(member.row, { group: member, open: openBatches.has(member.row.item.id) }, true)}
+                                {openBatches.has(member.row.item.id) && member.children.map((child) => renderRow(child, undefined, true))}
+                              </React.Fragment>
+                            ))}
+                        </React.Fragment>
+                      );
+                    }
                     const { group } = entry;
                     const open = group.forceOpen || openBatches.has(group.row.item.id);
                     return (
