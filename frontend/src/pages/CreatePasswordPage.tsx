@@ -64,11 +64,18 @@ export const CreatePasswordPage: React.FC = () => {
     setSubmitting(true);
     try {
       await api.createPasswordWithToken(token, newPassword);
+      // Clear any existing session from previous user/admin
+      try {
+        localStorage.removeItem('moa_token');
+        localStorage.removeItem('moa_user');
+      } catch {
+        // ignore
+      }
       setSubmitSuccess(true);
       setTimeout(() => {
         // Redirect cleanly to login screen
-        window.location.href = window.location.pathname.replace(/\/create-password\/?$/, '/') || '/';
-      }, 2000);
+        window.location.href = '/';
+      }, 1800);
     } catch (err: any) {
       setSubmitError(err.message || 'Could not set password. Please try again or request a new invitation.');
     } finally {

@@ -208,7 +208,7 @@ const AuthenticatedPortal: React.FC = () => {
     new URLSearchParams(window.location.search).has('token')
   );
 
-  if (isCreatePasswordPath && !isAuthenticated) {
+  if (isCreatePasswordPath) {
     return (
       <Suspense fallback={<AuthLoadingFallback />}>
         <CreatePasswordPage />
