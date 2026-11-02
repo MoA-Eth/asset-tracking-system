@@ -466,18 +466,24 @@ const BreakdownSubtext: React.FC<{
 }> = ({ fixed, consumables }) => (
   <div className="flex flex-col gap-1 text-[11px] sm:text-xs">
     <div className="flex items-center justify-between text-slate-600">
-      <span className="inline-flex items-center gap-1.5">
+      <span className="inline-flex items-center gap-1.5 min-w-0">
         <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" />
-        <span>Fixed</span>
+        <span className="truncate">
+          <span className="font-medium text-slate-700">Fixed assets</span>{' '}
+          <span className="text-[10px] text-slate-400 font-normal">ቋሚ ንብረቶች</span>
+        </span>
       </span>
-      <span className="font-semibold text-slate-800 tabular-nums">{fixed.toLocaleString()}</span>
+      <span className="font-semibold text-slate-800 tabular-nums ml-2 shrink-0">{fixed.toLocaleString()}</span>
     </div>
     <div className="flex items-center justify-between text-slate-600">
-      <span className="inline-flex items-center gap-1.5">
+      <span className="inline-flex items-center gap-1.5 min-w-0">
         <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
-        <span>Consumables</span>
+        <span className="truncate">
+          <span className="font-medium text-slate-700">Consumables</span>{' '}
+          <span className="text-[10px] text-slate-400 font-normal">አላቂ ዕቃዎች</span>
+        </span>
       </span>
-      <span className="font-semibold text-slate-800 tabular-nums">{consumables.toLocaleString()}</span>
+      <span className="font-semibold text-slate-800 tabular-nums ml-2 shrink-0">{consumables.toLocaleString()}</span>
     </div>
   </div>
 );
@@ -495,13 +501,14 @@ const TypeColumns: React.FC<{
 }> = ({ fixed, consumables }) => (
   <div className="grid grid-cols-2 divide-x divide-slate-100 pt-0.5">
     {([
-      ['Fixed assets', TYPE_COLORS.fixed, fixed],
-      ['Consumables', TYPE_COLORS.consumables, consumables],
-    ] as const).map(([name, color, col], i) => (
+      ['Fixed assets', 'ቋሚ ንብረቶች', TYPE_COLORS.fixed, fixed],
+      ['Consumables', 'አላቂ ዕቃዎች', TYPE_COLORS.consumables, consumables],
+    ] as const).map(([name, nameAm, color, col], i) => (
       <div key={name} className={`min-w-0 ${i === 0 ? 'pr-3' : 'pl-3'}`} title={col.title}>
         <p className="flex items-center gap-1.5 text-[11px] text-slate-600">
           <span className={`h-2 w-2 shrink-0 rounded-sm ${color}`} aria-hidden />
-          {name}
+          <span className="truncate">{name}</span>
+          <span className="text-[10px] text-slate-400 font-normal shrink-0">({nameAm})</span>
         </p>
         <p className="mt-1 truncate text-base font-bold leading-tight tabular-nums text-slate-900">{col.value}</p>
         {col.detail && <p className="truncate text-[11px] tabular-nums text-slate-600">{col.detail}</p>}
@@ -525,19 +532,21 @@ const TypeRows: React.FC<{
       {[
         {
           name: 'Fixed assets',
+          nameAm: 'ቋሚ ንብረቶች',
           n: fixed,
           measure: fixed === 1 ? 'unit' : 'units',
           share: fixedOf ? `${Math.round((fixed / fixedOf) * 100)}% of all` : undefined,
           color: TYPE_COLORS.fixed,
-          title: 'Fixed assets (ቋሚ ዕቃ): each physical asset counted once',
+          title: 'Fixed assets (ቋሚ ንብረቶች): each physical asset counted once',
         },
         {
           name: 'Consumables',
+          nameAm: 'አላቂ ዕቃዎች',
           n: consumables,
           measure: consumables === 1 ? 'item' : 'items',
           share: undefined,
           color: TYPE_COLORS.consumables,
-          title: 'Consumables (አላቂ ዕቃ): each different supply counted once, by IFMIS item code',
+          title: 'Consumables (አላቂ ዕቃዎች): each different supply counted once, by IFMIS item code',
         },
       ].map((r, i) => (
         <tr
@@ -549,6 +558,7 @@ const TypeRows: React.FC<{
             <span className="flex items-center gap-2 whitespace-nowrap">
               <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${r.color} ring-2 ring-white shadow-xs`} aria-hidden />
               <span className="group-hover/row:text-slate-900 transition-colors">{r.name}</span>
+              <span className="text-[10px] font-normal text-slate-400">({r.nameAm})</span>
             </span>
             {r.share && (
               <span className="inline-flex items-center ml-4 mt-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-200/60">
@@ -679,8 +689,8 @@ const recallFilters = (): DashboardFilters => {
   }
 };
 const ITEM_TYPE_OPTIONS = [
-  { value: 'FIXED', label: 'Fixed assets' },
-  { value: 'CONSUMABLE', label: 'Consumables' },
+  { value: 'FIXED', label: 'Fixed assets (ቋሚ ንብረቶች)' },
+  { value: 'CONSUMABLE', label: 'Consumables (አላቂ ዕቃዎች)' },
 ];
 
 export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
@@ -1320,8 +1330,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   primaryPct: Math.round((staleFixed / staleItems.length) * 100),
                   primaryColor: TYPE_COLORS.fixed,
                   secondaryColor: TYPE_COLORS.consumables,
-                  primaryLabel: 'Fixed assets',
-                  secondaryLabel: 'Consumables',
+                  primaryLabel: 'Fixed assets (ቋሚ ንብረቶች)',
+                  secondaryLabel: 'Consumables (አላቂ ዕቃዎች)',
                 }
               : undefined
           }

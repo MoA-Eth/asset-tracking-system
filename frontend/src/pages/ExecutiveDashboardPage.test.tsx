@@ -96,7 +96,7 @@ describe('Dashboard filters', () => {
     await user.selectOptions(screen.getByLabelText('Fixed assets and consumables'), 'CONSUMABLE');
     await vi.waitFor(() => expect(api.getExecutiveDashboard).toHaveBeenLastCalledWith({ storeId: '', category: 'FUEL_LUBRICANTS', itemType: 'CONSUMABLE', from: '', to: '' }));
     const chips = screen.getAllByRole.bind(screen)('button', { name: /Remove filter/ }).map((b) => b.getAttribute('aria-label'));
-    expect(chips).toEqual(['Remove filter Fuel & Lubricants', 'Remove filter Consumables']);
+    expect(chips).toEqual(['Remove filter Fuel & Lubricants', 'Remove filter Consumables (አላቂ ዕቃዎች)']);
   });
 });
 
@@ -185,14 +185,14 @@ describe('Total assets', () => {
     // Fixed assets, each unit an asset: 93 assigned + 800 available = 893
     // Both types on Total assets, each in what it is counted in, never added together
     const total = await card('Total assets');
-    expect(within(total).getByRole('row', { name: /Fixed assets/ })).toHaveTextContent('Fixed assets893units');
-    expect(within(total).getByRole('row', { name: /Consumables/ })).toHaveTextContent('Consumables312items');
+    expect(within(total).getByRole('row', { name: /Fixed assets/ })).toHaveTextContent('Fixed assets(ቋሚ ንብረቶች)893units');
+    expect(within(total).getByRole('row', { name: /Consumables/ })).toHaveTextContent('Consumables(አላቂ ዕቃዎች)312items');
     // Assigned and available, each by type: fixed assets add up (93 + 800 = 893); a partly issued supply is in both
     const row = async (label: string, type: RegExp) => within(await card(label)).getByRole('row', { name: type });
-    expect(await row('Assigned assets', /Fixed assets/)).toHaveTextContent('Fixed assets10% of all93units');
-    expect(await row('Assigned assets', /Consumables/)).toHaveTextContent('Consumables200items');
-    expect(await row('Available assets', /Fixed assets/)).toHaveTextContent('Fixed assets90% of all800units');
-    expect(await row('Available assets', /Consumables/)).toHaveTextContent('Consumables140items');
+    expect(await row('Assigned assets', /Fixed assets/)).toHaveTextContent('Fixed assets(ቋሚ ንብረቶች)10% of all93units');
+    expect(await row('Assigned assets', /Consumables/)).toHaveTextContent('Consumables(አላቂ ዕቃዎች)200items');
+    expect(await row('Available assets', /Fixed assets/)).toHaveTextContent('Fixed assets(ቋሚ ንብረቶች)90% of all800units');
+    expect(await row('Available assets', /Consumables/)).toHaveTextContent('Consumables(አላቂ ዕቃዎች)140items');
     // Total valuation is one figure, not split by type
     expect(within(await card('Total valuation')).queryByText('All held, VAT included')).not.toBeInTheDocument();
     // One short line under each card
