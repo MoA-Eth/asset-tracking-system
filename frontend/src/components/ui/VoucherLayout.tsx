@@ -1,6 +1,7 @@
 import React from 'react';
-import { Printer, FileText } from 'lucide-react';
+import { Printer, FileText, ChevronRight } from 'lucide-react';
 import { CloseButton } from './CloseButton';
+import { BackButton } from './BackButton';
 import { MoaLogo } from './MoaLogo';
 import { VoucherStatusBanner, VoucherApprovalState } from './VoucherStatusBanner';
 
@@ -66,15 +67,25 @@ export const VoucherShell: React.FC<VoucherShellProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
       <div className="bg-white border border-slate-300 rounded-2xl w-full max-w-6xl overflow-hidden shadow-2xl flex flex-col max-h-[96vh]">
         {/* Toolbar (not printed) */}
-        <div className="p-3.5 bg-slate-900 text-white flex items-center justify-between print:hidden shrink-0">
-          <div className="flex items-center gap-2.5">
-            <FileText className="w-5 h-5 text-emerald-400" />
-            <div>
-              <h3 className="text-sm font-bold text-white">{toolbarTitle}</h3>
-              <p className="text-[11px] text-slate-300">FDRE Ministry of Agriculture · Asset Tracking System</p>
+        <div className="p-3.5 bg-slate-900 text-white flex items-center justify-between print:hidden shrink-0 gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <BackButton
+              onBack={onClose}
+              label="Back to records"
+              title="Back (Esc)"
+              tone="dark"
+            />
+            <FileText className="w-5 h-5 text-emerald-400 shrink-0" />
+            <div className="min-w-0">
+              <nav aria-label="Breadcrumb navigation" className="mb-0.5 flex items-center gap-1.5 text-xs text-slate-400">
+                <span>Vouchers</span>
+                <ChevronRight className="h-3 w-3 text-slate-500 shrink-0" aria-hidden="true" />
+                <span className="text-slate-300 font-semibold">Official Printout</span>
+              </nav>
+              <h3 className="text-sm font-bold text-white truncate">{toolbarTitle}</h3>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => window.print()}
               aria-label={`Print ${model} / PDF`}

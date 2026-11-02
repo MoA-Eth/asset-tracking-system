@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { AlertCircle, Download, FileText, Loader2 } from 'lucide-react';
+import { AlertCircle, ChevronRight, Download, FileText, Loader2 } from 'lucide-react';
 import { CloseButton } from '../ui/CloseButton';
+import { BackButton } from '../ui/BackButton';
 import { SlipContent, useSlip } from '../ui/SlipViewerModal';
 
 interface ReportPdfViewerProps {
@@ -58,11 +59,27 @@ export const ReportPdfViewer: React.FC<ReportPdfViewerProps> = ({ file, title, s
     >
       <div className="bg-white rounded-md w-full max-w-6xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <FileText className="w-4 h-4 text-emerald-700 shrink-0" />
+          <div className="flex items-start gap-2.5 min-w-0">
+            <BackButton onBack={onClose} label="Back to reports" title="Back to reports (Esc)" size="sm" />
             <div className="min-w-0">
-              <p className="text-sm font-bold text-slate-900 truncate">{title}</p>
-              {subtitle && <p className="text-[11px] text-slate-500 truncate">{subtitle}</p>}
+              <nav aria-label="Breadcrumb navigation" className="mb-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="font-medium text-slate-500 hover:text-emerald-700 hover:underline transition cursor-pointer"
+                >
+                  Reports
+                </button>
+                <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" aria-hidden="true" />
+                <span className="font-bold text-slate-900 truncate">
+                  PDF Preview
+                </span>
+              </nav>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <FileText className="w-4 h-4 text-emerald-700 shrink-0" />
+                <p className="text-sm font-bold text-slate-900 truncate">{title}</p>
+                {subtitle && <p className="text-[11px] text-slate-500 truncate hidden sm:inline">· {subtitle}</p>}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">

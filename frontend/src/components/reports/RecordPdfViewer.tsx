@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, Download, Loader2, Paperclip, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ChevronRight, Download, Loader2, Paperclip, ShieldCheck } from 'lucide-react';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { ItemWithRelations } from '../../types/asset-management';
@@ -9,6 +9,7 @@ import { formatETB, getTodayGcAndEc } from '../../utils/eth-date';
 import { buildRecordPdf } from '../../utils/report-pdf';
 import { actionText, withRoleNames } from '../../utils/roles';
 import { CloseButton } from '../ui/CloseButton';
+import { BackButton } from '../ui/BackButton';
 import { itemStatusOf, itemValuation } from '../ui/RecordDetailModal';
 import { SlipViewerModal } from '../ui/SlipViewerModal';
 import { useToast } from '../../context/ToastContext';
@@ -150,7 +151,20 @@ export const RecordPdfViewer: React.FC<{ itemId: string; onClose: () => void }> 
         <div className="bg-white rounded-lg w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
           {/* The window: what this is, its reference, and Download */}
           <div className="flex items-center justify-between gap-3 px-5 pt-4 shrink-0">
-            <p className="text-sm font-semibold text-slate-800 truncate">Item · {item?.itemCode ?? '…'}</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <BackButton onBack={onClose} label="Back to reports" title="Back to reports (Esc)" size="sm" />
+              <nav aria-label="Breadcrumb navigation" className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="font-medium text-slate-500 hover:text-emerald-700 hover:underline transition cursor-pointer"
+                >
+                  Reports
+                </button>
+                <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" aria-hidden="true" />
+                <span className="font-bold text-slate-900 truncate">Item · {item?.itemCode ?? '…'}</span>
+              </nav>
+            </div>
             <CloseButton onClose={onClose} label="Close record" size="sm" />
           </div>
           <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-3 pb-4 shrink-0">

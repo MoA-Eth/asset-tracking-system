@@ -196,7 +196,18 @@ export const MyAssetsPage: React.FC = () => {
       )}
 
       {selected && (
-        <Modal isOpen onClose={() => setSelected(null)} title={selected.name} subtitle={selected.itemCode} size="md">
+        <Modal
+          isOpen
+          onClose={() => setSelected(null)}
+          onBack={() => setSelected(null)}
+          breadcrumbs={[
+            { label: 'My assets', onClick: () => setSelected(null) },
+            { label: CATEGORY_LABELS[selected.category] ?? selected.category },
+          ]}
+          title={selected.name}
+          subtitle={selected.itemCode}
+          size="md"
+        >
           {(() => {
             const status = statusOf(selected);
             return (

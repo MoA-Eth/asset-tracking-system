@@ -117,7 +117,18 @@ export const Model19ImportModal: React.FC<{
   const done = sent.size > 0 && busy === null;
 
   return (
-    <Modal isOpen={isOpen} onClose={close} title="Import Model 19s from Excel" subtitle="Receive several Model 19s at once, from the template" size="xl">
+    <Modal
+      isOpen={isOpen}
+      onClose={close}
+      onBack={close}
+      breadcrumbs={[
+        { label: 'Assets Register', onClick: close },
+        { label: 'Import Model 19s' },
+      ]}
+      title="Import Model 19s from Excel"
+      subtitle="Receive several Model 19s at once, from the template"
+      size="xl"
+    >
       <div className="space-y-4">
         {scanRequired && (
           <FormNotice icon={AlertTriangle} tone="warn">

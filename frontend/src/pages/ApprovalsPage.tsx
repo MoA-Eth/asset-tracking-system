@@ -55,6 +55,8 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { SlipViewerModal } from '../components/ui/SlipViewerModal';
 import { Modal } from '../components/ui/Modal';
+import { BackButton } from '../components/ui/BackButton';
+import { CloseButton } from '../components/ui/CloseButton';
 import { getSlipDisplayName } from '../utils/slip-upload';
 import { RefreshButton } from '../components/ui/RefreshButton';
 import { approvalPolicy, approvalRowKey, groupBySlip, isSlipGroup, needsChiefDirector, requestCorrection, slipNames, voucherName, voucherUnits } from '../components/assets/slip-groups';
@@ -1379,21 +1381,42 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-fadeIn">
           {/* Fits the screen at either stage: the header and the buttons stay, the middle scrolls */}
           <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col rounded-md border border-slate-200 bg-white text-slate-900 shadow-2xl">
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <FileCheck2 className="w-4 h-4 text-emerald-800" />
-                {selectedApproval.currentStage === 1
-                  ? 'Stage 1: Team Leader Endorsement'
-                  : isHigh(selectedApproval)
-                    ? 'Stage 2: Chief Director Final Authorization (> 10M ETB)'
-                    : 'Stage 2: Department Head Final Authorization'}
-              </h3>
-              <button
-                onClick={() => setSelectedApproval(null)}
-                className="text-slate-400 hover:text-slate-700 font-bold p-1 rounded-[4px]"
-              >
-                ✕
-              </button>
+            <div className="flex shrink-0 items-start justify-between border-b border-slate-200 px-5 py-3 gap-3">
+              <div className="flex items-start gap-2.5 min-w-0">
+                <BackButton
+                  onBack={() => setSelectedApproval(null)}
+                  label="Back to approvals"
+                  title="Back to approvals (Esc)"
+                />
+                <div className="min-w-0">
+                  <nav aria-label="Breadcrumb navigation" className="mb-1 flex items-center gap-1.5 text-xs text-slate-500">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedApproval(null)}
+                      className="font-medium text-slate-500 hover:text-emerald-700 hover:underline transition cursor-pointer"
+                    >
+                      Approvals
+                    </button>
+                    <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" aria-hidden="true" />
+                    <span className="font-bold text-slate-900 truncate">
+                      {selectedApproval.currentStage === 1 ? 'Stage 1 Endorsement' : 'Stage 2 Authorization'}
+                    </span>
+                  </nav>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 truncate">
+                    <FileCheck2 className="w-4 h-4 text-emerald-800 shrink-0" />
+                    {selectedApproval.currentStage === 1
+                      ? 'Stage 1: Team Leader Endorsement'
+                      : isHigh(selectedApproval)
+                        ? 'Stage 2: Chief Director Final Authorization (> 10M ETB)'
+                        : 'Stage 2: Department Head Final Authorization'}
+                  </h3>
+                </div>
+              </div>
+              <CloseButton
+                onClose={() => setSelectedApproval(null)}
+                label="Close review"
+                title="Close (Esc)"
+              />
             </div>
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4 text-xs">

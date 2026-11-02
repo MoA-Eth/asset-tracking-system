@@ -154,6 +154,11 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ itemId, ap
       <Modal
         isOpen
         onClose={onClose}
+        onBack={onClose}
+        breadcrumbs={[
+          { label: approval ? 'Approvals' : 'Assets Register', onClick: onClose },
+          ...(approval ? [{ label: requestTypeLabel(approval) }] : []),
+        ]}
         title={`${approval ? requestTypeLabel(approval) : 'Item'} · ${approval?.itemCode ?? item?.itemCode ?? ''}`}
         subtitle={approval?.itemName ?? item?.name ?? 'Loading record…'}
         size="xl"

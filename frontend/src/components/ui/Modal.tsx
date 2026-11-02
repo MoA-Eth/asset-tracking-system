@@ -1,11 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { CloseButton } from './CloseButton';
+import { BackButton } from './BackButton';
+
+export interface ModalBreadcrumb {
+  label: string;
+  onClick?: () => void;
+}
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   subtitle?: string;
+  breadcrumbs?: ModalBreadcrumb[];
+  onBack?: () => void;
   children: React.ReactNode;
   /** Width class — defaults to lg */
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
@@ -24,6 +33,8 @@ export const Modal: React.FC<ModalProps> = ({
   onClose,
   title,
   subtitle,
+  breadcrumbs,
+  onBack,
   children,
   size = 'lg',
 }) => {
@@ -92,11 +103,44 @@ export const Modal: React.FC<ModalProps> = ({
       >
         {/* Modal Header */}
         <div className="flex items-start justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-          <div>
-            <h2 className="text-base font-extrabold text-slate-900">{title}</h2>
-            {subtitle && (
-              <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
+          <div className="flex items-start gap-2.5 min-w-0">
+            {onBack && (
+              <BackButton
+                onBack={onBack}
+                label="Back"
+                title="Back (Esc)"
+              />
             )}
+            <div className="min-w-0">
+              {breadcrumbs && breadcrumbs.length > 0 && (
+                <nav aria-label="Breadcrumb navigation" className="mb-1 flex items-center gap-1.5 text-xs text-slate-500 flex-wrap">
+                  {breadcrumbs.map((crumb, idx) => (
+                    <React.Fragment key={idx}>
+                      {crumb.onClick ? (
+                        <button
+                          type="button"
+                          onClick={crumb.onClick}
+                          className="font-medium text-slate-500 hover:text-emerald-700 hover:underline transition cursor-pointer"
+                        >
+                          {crumb.label}
+                        </button>
+                      ) : (
+                        <span className="text-slate-500">
+                          {crumb.label}
+                        </span>
+                      )}
+                      {idx < breadcrumbs.length - 1 && (
+                        <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" aria-hidden="true" />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </nav>
+              )}
+              <h2 className="text-base font-extrabold text-slate-900 truncate">{title}</h2>
+              {subtitle && (
+                <p className="text-xs text-slate-500 mt-0.5 truncate">{subtitle}</p>
+              )}
+            </div>
           </div>
           <CloseButton
             onClose={requestClose}

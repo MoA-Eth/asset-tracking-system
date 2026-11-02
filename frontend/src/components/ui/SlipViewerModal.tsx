@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ExternalLink, FileText, FileX, RefreshCw } from 'lucide-react';
+import { ChevronRight, ExternalLink, FileText, FileX, RefreshCw } from 'lucide-react';
 import { CloseButton } from './CloseButton';
+import { BackButton } from './BackButton';
 import { DocumentSkeleton } from './Skeleton';
 import { getSlipDisplayName, fetchSlip } from '../../utils/slip-upload';
 
@@ -225,10 +226,31 @@ export const SlipViewerModal: React.FC<SlipViewerModalProps> = ({ url, file, onC
     >
       <div className="bg-white rounded-md w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <FileText className="w-4 h-4 text-emerald-700 shrink-0" />
+          <div className="flex items-start gap-2.5 min-w-0">
+            <BackButton
+              onBack={onClose}
+              label="Back"
+              title="Back (Esc)"
+              size="sm"
+            />
             <div className="min-w-0">
-              <p className="text-sm font-bold text-slate-900 truncate">{fileName}</p>
+              <nav aria-label="Breadcrumb navigation" className="mb-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="font-medium text-slate-500 hover:text-emerald-700 hover:underline transition cursor-pointer"
+                >
+                  Attachments
+                </button>
+                <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" aria-hidden="true" />
+                <span className="text-slate-500 truncate">
+                  Preview
+                </span>
+              </nav>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <FileText className="w-4 h-4 text-emerald-700 shrink-0" />
+                <p className="text-sm font-bold text-slate-900 truncate">{fileName}</p>
+              </div>
               <p className="text-[10px] text-slate-500">{file ? 'Attached, not saved yet' : 'Scanned IFMIS Slip Attachment'}</p>
             </div>
           </div>
