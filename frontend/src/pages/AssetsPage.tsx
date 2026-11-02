@@ -2160,16 +2160,16 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             role="group"
             aria-label="Held in the listed assets"
             title="Counted as on the dashboard: approved records in store or assigned; receipts waiting for approval, rejected and disposed are not counted"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-2.5 shadow-2xs text-xs"
+            className="grid grid-cols-3 divide-x divide-slate-200/80 rounded-xl border border-slate-200/80 bg-white px-3.5 sm:px-4 py-2.5 shadow-2xs text-xs overflow-x-auto"
           >
             {/* Fixed Assets */}
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 pr-2 sm:pr-3">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100/80">
                 <Boxes className="h-3.5 w-3.5" />
               </span>
               <div className="flex items-baseline gap-1.5 min-w-0">
-                <span className="font-semibold text-slate-700">Fixed assets</span>
-                <span className="font-bold text-slate-900 tabular-nums">
+                <span className="font-semibold text-slate-700 shrink-0">Fixed assets</span>
+                <span className="font-bold text-slate-900 tabular-nums shrink-0">
                   {' '}{unitsLabel(onRegister.fixed.held)}{' '}
                 </span>
                 <span className="text-slate-400 font-normal truncate">
@@ -2178,16 +2178,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               </div>
             </div>
 
-            <div className="hidden lg:block h-4 w-px bg-slate-200/80" aria-hidden="true" />
-
             {/* Consumables */}
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 px-2 sm:px-3">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 border border-teal-100/80">
                 <ShoppingCart className="h-3.5 w-3.5" />
               </span>
               <div className="flex items-baseline gap-1.5 min-w-0">
-                <span className="font-semibold text-slate-700">Consumables</span>
-                <span className="font-bold text-slate-900 tabular-nums">
+                <span className="font-semibold text-slate-700 shrink-0">Consumables</span>
+                <span className="font-bold text-slate-900 tabular-nums shrink-0">
                   {' '}{itemsLabel(onRegister.supplies.held)}{' '}
                 </span>
                 <span className="text-slate-400 font-normal truncate">
@@ -2196,20 +2194,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               </div>
             </div>
 
-            <div className="hidden lg:block h-4 w-px bg-slate-200/80" aria-hidden="true" />
-
             {/* Total Value */}
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 pl-2 sm:pl-3">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100/80">
                 <Coins className="h-3.5 w-3.5" />
               </span>
               <div className="flex items-baseline gap-1.5 min-w-0">
-                <span className="font-semibold text-slate-700">Total Value</span>
+                <span className="font-semibold text-slate-700 shrink-0">Total Value</span>
                 <span className="font-bold text-slate-900 tabular-nums truncate" title={formatETBTotal(onRegister.value)}>
                   {' '}{formatETBTotal(onRegister.value)}{' '}
                 </span>
                 {onRegister.value >= 1_000_000 && (
-                  <span className="text-slate-400 font-normal truncate" title={formatETBTotal(onRegister.value)}>
+                  <span className="text-slate-400 font-normal truncate shrink-0" title={formatETBTotal(onRegister.value)}>
                     {' '}({formatETBShort(onRegister.value)})
                   </span>
                 )}
