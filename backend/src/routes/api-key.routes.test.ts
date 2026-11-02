@@ -64,9 +64,10 @@ describe('Reading the key figures with an API key', () => {
     expect((await request('/v1/assets-dashboard', { authorization: 'Bearer SYSTEM_ADMIN' })).status).toBe(401);
   });
 
-  it('opens nothing else with a key: other routes still need a signed-in person', async () => {
+  it('opens /items/dashboard/executive to a valid key or person, while keeping other operational routes protected', async () => {
+    expect((await request('/items/dashboard/executive', { 'x-api-key': 'good-key' })).status).toBe(200);
+    expect((await request('/items/dashboard/executive', { 'x-api-key': 'bad-key' })).status).toBe(401);
     expect((await request('/items', { 'x-api-key': 'good-key' })).status).toBe(401);
-    expect((await request('/items/dashboard/executive', { 'x-api-key': 'good-key' })).status).toBe(401);
     expect((await request('/settings/api-keys', { 'x-api-key': 'good-key' })).status).toBe(401);
   });
 

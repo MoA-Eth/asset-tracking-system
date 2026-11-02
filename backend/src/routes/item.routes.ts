@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import { ItemController } from '../controllers/item.controller';
-import { requireAuth, requirePermission } from '../middleware/auth.middleware';
+import { requireAuth, requireAuthOrApiKey, requirePermission } from '../middleware/auth.middleware';
 
 const router = Router();
 const controller = new ItemController();
 
-router.use(requireAuth);
+// Dual auth: accepts either an executive user Bearer token or a valid X-API-Key for dashboard metrics
+router.get('/dashboard/executive', requireAuthOrApiKey('dashboard.read'), controller.getExecutiveDashboard);
 
-router.get('/dashboard/executive', requirePermission('dashboard.read'), controller.getExecutiveDashboard);
+router.use(requireAuth);
 router.get(
   '/approvals/pending',
   requirePermission('approvals.read', 'stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write'),

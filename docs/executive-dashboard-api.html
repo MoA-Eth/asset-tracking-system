@@ -377,32 +377,35 @@
       </div>
     </div>
 
-    <!-- Step 1: Authentication -->
+        <!-- Step 1: Authentication -->
     <div class="card">
-      <h2><span class="step-number">1</span> Authentication & Authorization</h2>
-      <p>This endpoint requires a Bearer JWT Token in the <code>Authorization</code> header. The authenticated user must possess an executive role or the <code>dashboard.read</code> permission (Directors, Managers, System Admins).</p>
+      <h2><span class="step-number">1</span> Dual Authentication & Authorization</h2>
+      <p>This endpoint supports <strong>two flexible authentication methods</strong>. For a separate dashboard app, kiosk, or automated service, <strong>Method A (API Key)</strong> is strongly recommended as no user login or password management is required.</p>
 
-      <div class="code-container">
-        <div class="code-header">
-          <span>POST /api/auth/login — Obtain JWT Token</span>
-          <button class="copy-btn" onclick="copyText('login-req')">Copy</button>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px;">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;">
+          <h3 style="font-size: 14px; font-weight: 700; color: #15803d; margin-bottom: 8px;">Method A: API Key (Recommended for Dashboard App)</h3>
+          <p style="font-size: 12.5px; color: #475569; margin-bottom: 12px;">Generate a key under <strong>Settings &rarr; API keys</strong> in the MoA-ATS web app. Pass it via the <code>X-API-Key</code> header:</p>
+          <div class="code-container" style="margin: 0;">
+            <div class="code-header">
+              <span>X-API-Key Header</span>
+              <button class="copy-btn" onclick="copyText('apikey-hdr')">Copy</button>
+            </div>
+            <pre id="apikey-hdr">X-API-Key: ats_live_&lt;YOUR_API_KEY&gt;</pre>
+          </div>
         </div>
-        <pre id="login-req">curl -X POST "https://&lt;MOA_HOST&gt;/api/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "usernameOrEmail": "director.user@moa.gov.et",
-    "password": "YourPassword123"
-  }'</pre>
-      </div>
 
-      <p>The login response returns the token in <code>data.token</code>. Include it in all subsequent requests:</p>
-      
-      <div class="code-container">
-        <div class="code-header">
-          <span>Authorization Header</span>
-          <button class="copy-btn" onclick="copyText('auth-hdr')">Copy</button>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;">
+          <h3 style="font-size: 14px; font-weight: 700; color: #0284c7; margin-bottom: 8px;">Method B: User Bearer Token (For User Sign-In)</h3>
+          <p style="font-size: 12.5px; color: #475569; margin-bottom: 12px;">For apps with user login screens, call <code>POST /api/auth/login</code> and pass the returned token:</p>
+          <div class="code-container" style="margin: 0;">
+            <div class="code-header">
+              <span>Authorization Header</span>
+              <button class="copy-btn" onclick="copyText('auth-hdr')">Copy</button>
+            </div>
+            <pre id="auth-hdr">Authorization: Bearer &lt;YOUR_JWT_TOKEN&gt;</pre>
+          </div>
         </div>
-        <pre id="auth-hdr">Authorization: Bearer &lt;YOUR_JWT_TOKEN&gt;</pre>
       </div>
     </div>
 

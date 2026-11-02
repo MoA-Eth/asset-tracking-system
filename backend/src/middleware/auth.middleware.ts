@@ -4,6 +4,7 @@ import { UnauthorizedError, ForbiddenError } from '../errors/app-error';
 import { UserRole, AuthUser } from '../types/asset-management';
 import { asyncHandler } from './async-handler';
 import { hasPermission, Permission } from '../security/role-policy';
+import { ApiKeyScope, verifyApiKey } from '../services/api-key.service';
 
 declare global {
   namespace Express {
@@ -54,6 +55,23 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
   next();
 });
 
+
+/**
+ * Allows access with either an authenticated user Bearer token (with the given permission)
+ * OR an API key (X-API-Key header) granted the specified scope.
+ */
+export const requireAuthOrApiKey = (scope: ApiKeyScope) => {
+  return asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const apiKey = req.header('x-api-key');
+    if (apiKey) {
+      (req as any).apiKey = await verifyApiKey(apiKey, scope, req.ip);
+      return next();
+    }
+    return requireAuth(req, res, () => {
+      requirePermission(scope as Permission)(req, res, next);
+    });
+  });
+};
 export const requireRole = (...allowedRoles: UserRole[]) => {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {
