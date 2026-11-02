@@ -103,44 +103,6 @@ const RequestRow: React.FC<{ lead: TransactionApproval; members: TransactionAppr
   );
 };
 
-const ViewHeader: React.FC<{
-  title: string;
-  roleTitle: string;
-  subtitle: string;
-}> = ({ title, roleTitle, subtitle }) => (
-  <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-r from-emerald-50/70 via-white to-slate-50/60 p-5 sm:p-6 shadow-[0_2px_10px_-3px_rgba(15,23,42,0.05),0_1px_3px_rgba(15,23,42,0.03)]">
-    <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-emerald-500/5 blur-3xl" />
-    <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-300/60 shadow-2xs">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-            {roleTitle}
-          </span>
-          <span className="text-[11px] text-slate-500 font-medium">
-            · Ministry of Agriculture
-          </span>
-        </div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-          {title}
-        </h1>
-        <p className="text-xs text-slate-600 font-normal leading-relaxed max-w-2xl">
-          {subtitle}
-        </p>
-      </div>
-      <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-        <div className="rounded-xl bg-white border border-slate-200/90 px-3.5 py-2 text-left shadow-2xs">
-          <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">System Status</p>
-          <p className="text-xs font-bold text-emerald-700 flex items-center gap-1.5 mt-0.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Operational
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
 export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole: UserRole }> = ({ onNavigate, currentRole }) => {
   const { user } = useAuth();
   const view = homeView(currentRole, user?.permissions);
@@ -256,7 +218,6 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
     const toUsers = () => onNavigate('settings-users');
     return (
       <div className="space-y-6">
-        <ViewHeader title="System & Access Administration" roleTitle="System Administrator" subtitle="Centralized user account security, role management, and system-wide audit telemetry." />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card label="Can sign in" value={plural(canSignIn.length, 'person', 'people')} note={`Of ${plural(people.length, 'employee')} on record`} onClick={toUsers} action="Manage users" />
           <Card
@@ -295,7 +256,6 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
   if (view === 'team-leader') {
     return (
       <div className="space-y-6">
-        <ViewHeader title="Endorsement Queue & Verification" roleTitle="Team Leader" subtitle="Review store vouchers, verify asset items, and advance authorized requests to Department Head." />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card label="Waiting for my endorsement" value={f.atStage1.length} note={byType(f.atStage1) || 'Nothing waiting'} tone={f.atStage1.length ? 'warning' : 'neutral'} onClick={toApprovals} action="Review" />
           <Card label="Oldest waiting" value={f.oldestDays(f.atStage1) === undefined ? '—' : plural(f.oldestDays(f.atStage1)!, 'day')} note="Since the request came in" />
@@ -311,7 +271,6 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
   if (view === 'department-head') {
     return (
       <div className="space-y-6">
-        <ViewHeader title="Directorate Approvals & Asset Custody" roleTitle="Department Head" subtitle="Final authorization for store transactions and oversight of assets allocated to your directorate." />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card label="Waiting for my approval" value={f.forHead.length} note={waitingNote(f.forHead)} tone={f.forHead.length ? 'warning' : 'neutral'} onClick={toApprovals} action="Review" />
           <Card label="With the Team Leader" value={f.atStage1.length} note="Not yet endorsed" />
@@ -330,7 +289,6 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
 
   return (
     <div className="space-y-6">
-      <ViewHeader title="Store Operations & Transaction Registry" roleTitle="Data Encoder" subtitle="Track Model 19 receipts, Model 22 issues, transfers, and items awaiting approval or correction." />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card label="Sent back to me" value={f.mySentBack.length} note="To correct and resubmit, or cancel" tone={f.mySentBack.length ? 'warning' : 'neutral'} onClick={toAssets} action="Correct" />
         <Card label="My requests waiting" value={f.myWaiting.length} note={waitingNote(f.myWaiting)} />
