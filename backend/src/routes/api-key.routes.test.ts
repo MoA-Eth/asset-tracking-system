@@ -6,6 +6,7 @@ import { apiKeyAdminRoutes, assetsDashboardRoutes } from './api-key.routes';
 import itemRoutes from './item.routes';
 import { errorHandler } from '../middleware/error-handler';
 import { AuthService } from '../services/auth.service';
+import { StoreService } from '../services/store.service';
 import { UnauthorizedError } from '../errors/app-error';
 
 const service = vi.hoisted(() => ({
@@ -19,6 +20,10 @@ vi.mock('../services/assets-dashboard.service', () => ({ getAssetsDashboard: vi.
 
 let app: express.Express;
 beforeAll(() => {
+    vi.spyOn(StoreService.getInstance(), 'getExecutiveDashboard').mockResolvedValue({
+      totalItems: 3,
+      totalValuationETB: 900,
+    } as any);
   vi.spyOn(AuthService.getInstance(), 'verifyToken').mockImplementation(async (role) => {
     if (role === 'invalid') throw new UnauthorizedError();
     return { id: 'actor', role } as any;
