@@ -1983,6 +1983,19 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 <div className="flex items-center gap-2.5 pr-8">
                   <BackButton onBack={() => setReceipt(null)} label="Back to assets" title="Back to assets (Esc)" />
                   <div className="min-w-0">
+                    <nav aria-label="Breadcrumb navigation" className="mb-1 flex items-center gap-1.5 text-xs text-slate-500">
+                      <button
+                        type="button"
+                        onClick={() => setReceipt(null)}
+                        className="font-medium text-slate-500 hover:text-emerald-700 hover:underline transition cursor-pointer"
+                      >
+                        Assets Register
+                      </button>
+                      <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" aria-hidden="true" />
+                      <span className="font-bold text-slate-900">
+                        {receipt.edit ? 'Edit Receipt' : 'Model 19 Receipt'}
+                      </span>
+                    </nav>
                     <div className="flex items-center gap-2.5">
                       <h3 className="text-base font-extrabold text-slate-900">
                         {receipt.editBatch && receipt.editBatch.length > 1

@@ -251,15 +251,54 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               />
             )}
             <div className="min-w-0">
-              {backTo && (
+              <nav aria-label="Breadcrumb navigation" className="mb-1 flex items-center gap-1.5 text-xs text-slate-500 flex-wrap">
                 <button
                   type="button"
-                  onClick={backTo.onClick}
-                  className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer"
+                  onClick={onClose}
+                  className="font-medium text-slate-500 hover:text-emerald-700 hover:underline transition cursor-pointer"
                 >
-                  <ChevronLeft className="h-3 w-3" /> {backTo.label}
+                  Assets Register
                 </button>
-              )}
+                <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" aria-hidden="true" />
+                {backTo ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={backTo.onClick}
+                      className="inline-flex items-center gap-0.5 font-semibold text-emerald-800 hover:underline transition cursor-pointer"
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                      {backTo.label}
+                    </button>
+                    <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" aria-hidden="true" />
+                  </>
+                ) : item.category ? (
+                  <>
+                    <span className="text-slate-500">{categoryLabel(item)}</span>
+                    <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" aria-hidden="true" />
+                  </>
+                ) : null}
+                {editing ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={onCancelForm || onClose}
+                      className="font-medium text-slate-500 hover:text-emerald-700 hover:underline transition cursor-pointer truncate max-w-[200px]"
+                      title={item.name}
+                    >
+                      {item.name}
+                    </button>
+                    <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" aria-hidden="true" />
+                    <span className="font-bold text-slate-900 truncate">
+                      Edit & Actions
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-bold text-slate-900 truncate max-w-[240px] sm:max-w-[360px]" title={item.name}>
+                    {item.name}
+                  </span>
+                )}
+              </nav>
               <h3 className="truncate text-base font-extrabold text-slate-900" title={item.name}>{item.name}</h3>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
               <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-slate-700 bg-slate-100 pl-2 pr-1 py-0.5 rounded-md border border-slate-200">

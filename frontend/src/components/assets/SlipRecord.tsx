@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRightLeft, Copy, FileText, PackageMinus, Paperclip, Pencil, Printer, Send } from 'lucide-react';
+import { ArrowRightLeft, ChevronRight, Copy, FileText, PackageMinus, Paperclip, Pencil, Printer, Send } from 'lucide-react';
 import { btn, pill, statusTone } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { BackButton } from '../ui/BackButton';
@@ -136,6 +136,19 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, partly, onOpenItem
           <div className="flex items-start gap-2.5 min-w-0">
             <BackButton onBack={onClose} label="Back to assets" title="Back to assets (Esc)" />
             <div className="min-w-0">
+              <nav aria-label="Breadcrumb navigation" className="mb-1 flex items-center gap-1.5 text-xs text-slate-500">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="font-medium text-slate-500 hover:text-emerald-700 hover:underline transition cursor-pointer"
+                >
+                  Assets Register
+                </button>
+                <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" aria-hidden="true" />
+                <span className="font-bold text-slate-900">
+                  Model 19 #{lead.ifmisSlipNumber}
+                </span>
+              </nav>
               <h3 className="truncate text-base font-extrabold text-slate-900">Model 19 #{lead.ifmisSlipNumber}</h3>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                 <span>
