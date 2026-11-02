@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Reference — Executive Dashboard | MoA Asset Tracking System</title>
+  <style>
+    :root {
+      --primary: #15803d;
+      --primary-dark: #166534;
+      --primary-light: #dcfce7;
+      --primary-border: #bbf7d0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --bg-page: #f8fafc;
+      --bg-card: #ffffff;
+      --code-bg: #0f172a;
+      --code-text: #f1f5f9;
+      --method-get: #0284c7;
+      --method-get-bg: #e0f2fe;
+      --method-post: #16a34a;
+      --method-post-bg: #dcfce7;
+      --tag-bg: #f1f5f9;
+      --tag-border: #cbd5e1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding: 0 0 60px 0;
+    }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-badge {
+      width: 36px;
+      height: 36px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .status-badge {
+      font-size: 12px;
+      font-weight: 600;
+      color: #166534;
+      background: var(--primary-light);
+      padding: 4px 10px;
+      border-radius: 9999px;
+      border: 1px solid var(--primary-border);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-badge::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      background: #16a34a;
+      border-radius: 50%;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 32px auto 0 auto;
+      padding: 0 24px;
+    }
+
+    .banner {
+      background: linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%);
+      color: #ffffff;
+      padding: 36px 32px;
+      border-radius: 16px;
+      margin-bottom: 32px;
+      box-shadow: 0 10px 25px -5px rgba(21, 128, 61, 0.25);
+    }
+
+    .banner h1 {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .banner p {
+      font-size: 15px;
+      color: #bbf7d0;
+      max-width: 700px;
+    }
+
+    .endpoint-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 8px 14px;
+      border-radius: 8px;
+      margin-top: 18px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+
+    .endpoint-pill .method {
+      background: #38bdf8;
+      color: #0f172a;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      margin-bottom: 28px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .card h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #1e293b;
+    }
+
+    .step-number {
+      width: 26px;
+      height: 26px;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    p {
+      margin-bottom: 14px;
+      font-size: 14.5px;
+      color: #334155;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: #f8fafc;
+      font-weight: 600;
+      color: #475569;
+      text-transform: uppercase;
+      font-size: 11.5px;
+      letter-spacing: 0.5px;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12.5px;
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #0f172a;
+      border: 1px solid #e2e8f0;
+    }
+
+    .code-container {
+      position: relative;
+      background: var(--code-bg);
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 14px 0;
+    }
+
+    .code-header {
+      background: #1e293b;
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #94a3b8;
+      font-size: 12px;
+      font-family: monospace;
+    }
+
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #e2e8f0;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+    }
+
+    pre {
+      padding: 16px;
+      overflow-x: auto;
+      color: var(--code-text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .notice {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 14px 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+      font-size: 13.5px;
+      color: #1e3a8a;
+    }
+
+    .notice strong {
+      color: #1d4ed8;
+    }
+
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .pill {
+      font-size: 11px;
+      font-family: monospace;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: #334155;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+      .banner {
+        padding: 24px 20px;
+      }
+      .banner h1 {
+        font-size: 22px;
+      }
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <div class="logo-badge">MoA</div>
+        <div>
+          <div class="brand-title">Ministry of Agriculture — Asset Tracking System</div>
+          <div class="brand-subtitle">Mobile App Developer Integration API</div>
+        </div>
+      </div>
+      <div class="status-badge">REST API v1 · Ready</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="banner">
+      <h1>Executive Dashboard API Reference</h1>
+      <p>Technical integration guide for mobile applications retrieving ministry-wide asset valuations, inventory counts, approvals queue status, and category breakdowns.</p>
+      
+      <div class="endpoint-pill">
+        <span class="method">GET</span>
+        <span>/api/items/dashboard/executive</span>
+      </div>
+    </div>
+
+    <!-- Step 1: Authentication -->
+    <div class="card">
+      <h2><span class="step-number">1</span> Authentication & Authorization</h2>
+      <p>This endpoint requires a Bearer JWT Token in the <code>Authorization</code> header. The authenticated user must possess an executive role or the <code>dashboard.read</code> permission (Directors, Managers, System Admins).</p>
+
+      <div class="code-container">
+        <div class="code-header">
+          <span>POST /api/auth/login — Obtain JWT Token</span>
+          <button class="copy-btn" onclick="copyText('login-req')">Copy</button>
+        </div>
+        <pre id="login-req">curl -X POST "https://&lt;MOA_HOST&gt;/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "usernameOrEmail": "director.user@moa.gov.et",
+    "password": "YourPassword123"
+  }'</pre>
+      </div>
+
+      <p>The login response returns the token in <code>data.token</code>. Include it in all subsequent requests:</p>
+      
+      <div class="code-container">
+        <div class="code-header">
+          <span>Authorization Header</span>
+          <button class="copy-btn" onclick="copyText('auth-hdr')">Copy</button>
+        </div>
+        <pre id="auth-hdr">Authorization: Bearer &lt;YOUR_JWT_TOKEN&gt;</pre>
+      </div>
+    </div>
+
+    <!-- Step 2: Request & Parameters -->
+    <div class="card">
+      <h2><span class="step-number">2</span> Query Filters (Optional)</h2>
+      <p>You can filter the aggregated statistics by store, category, item type, or calendar date range:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Allowed Values / Format</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>storeId</code></td>
+            <td>String</td>
+            <td>Narrows figures to items physically registered or held in a specific warehouse</td>
+            <td>Location UUID or ID</td>
+          </tr>
+          <tr>
+            <td><code>category</code></td>
+            <td>String</td>
+            <td>Filters assets to one of the 8 MoA standard fixed asset categories</td>
+            <td>
+              <div class="pill-list">
+                <span class="pill">VEHICLE</span>
+                <span class="pill">AGRI_MACHINERY</span>
+                <span class="pill">IT_EQUIPMENT</span>
+                <span class="pill">OFFICE_FURNITURE</span>
+                <span class="pill">LAB_EQUIPMENT</span>
+                <span class="pill">TOOLS_AND_EQUIPMENT</span>
+                <span class="pill">OFFICE_SUPPLIES</span>
+                <span class="pill">OTHER_SUPPLIES</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td><code>itemType</code></td>
+            <td>String</td>
+            <td>Filters between capital fixed property and operational supplies</td>
+            <td><code>FIXED</code>, <code>CONSUMABLE</code></td>
+          </tr>
+          <tr>
+            <td><code>from</code></td>
+            <td>String</td>
+            <td>Start of period (filter by voucher registration date)</td>
+            <td><code>YYYY-MM-DD</code></td>
+          </tr>
+          <tr>
+            <td><code>to</code></td>
+            <td>String</td>
+            <td>End of period</td>
+            <td><code>YYYY-MM-DD</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Step 3: Response Structure -->
+    <div class="card">
+      <h2><span class="step-number">3</span> JSON Response Payload (res.data.data)</h2>
+      <p>The endpoint returns standard JSON wrapped in <code>{ success: true, data: { ... } }</code>:</p>
+
+      <div class="code-container">
+        <div class="code-header">
+          <span>Response Sample (200 OK)</span>
+          <button class="copy-btn" onclick="copyText('json-resp')">Copy JSON</button>
+        </div>
+        <pre id="json-resp">{
+  "success": true,
+  "message": "Executive dashboard data retrieved",
+  "data": {
+    "totalValuationETB": 57166331.38,
+    "totalItems": 945,
+    "availableCount": 780,
+    "availableValuationETB": 48250000.00,
+    "issuedCount": 165,
+    "issuedValuationETB": 8916331.38,
+    "fixedAssetsCount": 850,
+    "fixedAssetsValuationETB": 55100000.00,
+    "consumableCount": 95,
+    "consumableValuationETB": 2066331.38,
+    "disposedCount": 12,
+    "disposedValuationETB": 1496660.00,
+
+    "pendingApprovalsCount": 7,
+    "pendingApprovalsValuationETB": 3200000.00,
+    "pendingStockInCount": 3,
+    "pendingStockOutCount": 2,
+    "pendingTransferCount": 1,
+    "pendingDisposalCount": 1,
+    "rejectedWaitingCount": 1,
+    "pendingStageCounts": {
+      "stage1": 4,
+      "stage2": 3,
+      "departmentHead": 2,
+      "executive": 1
+    },
+
+    "categoryBreakdown": [
+      { "category": "VEHICLE", "count": 9, "totalValueETB": 35000000.00 },
+      { "category": "MOTORCYCLE", "count": 52, "totalValueETB": 6240000.00 },
+      { "category": "AGRI_MACHINERY", "count": 37, "totalValueETB": 57166331.38 },
+      { "category": "IT_EQUIPMENT", "count": 741, "totalValueETB": 12500000.00 },
+      { "category": "OFFICE_FURNITURE", "count": 2, "totalValueETB": 85000.00 },
+      { "category": "LAB_EQUIPMENT", "count": 80, "totalValueETB": 1500000.00 },
+      { "category": "TOOLS_AND_EQUIPMENT", "count": 5, "totalValueETB": 240000.00 }
+    ],
+
+    "fleetStats": {
+      "totalVehicles": 9,
+      "vehicleValuationETB": 35000000.00,
+      "activeVehicles": 7,
+      "inStoreVehicles": 2,
+      "totalMotorcycles": 52,
+      "motorcycleValuationETB": 6240000.00,
+      "activeMotorcycles": 48,
+      "inStoreMotorcycles": 4
+    },
+
+    "stockMovement": [
+      { "month": "2026-08", "received": 45, "issued": 30 },
+      { "month": "2026-09", "received": 60, "issued": 52 }
+    ],
+
+    "conditionDistribution": [
+      { "condition": "NEW", "count": 650, "totalValueETB": 42000000.00 },
+      { "condition": "GOOD", "count": 280, "totalValueETB": 14500000.00 },
+      { "condition": "FAIR", "count": 15, "totalValueETB": 666331.38 }
+    ],
+
+    "staleInStore": {
+      "thresholdDays": 30,
+      "itemCount": 8,
+      "units": 24,
+      "valueETB": 340000.00
+    },
+
+    "today": {
+      "gc": "2026-11-02",
+      "ec": "2019-02-23"
+    }
+  }
+}</pre>
+      </div>
+    </div>
+
+    <!-- Step 4: Business Rules -->
+    <div class="card">
+      <h2><span class="step-number">4</span> Essential Business Rules for Mobile Devs</h2>
+      
+      <div class="notice">
+        <strong>1. Active Inventory Only:</strong> <code>totalItems</code> and <code>categoryBreakdown</code> count <em>Active On-Record Assets</em> only (<code>AVAILABLE</code> in store + <code>WITH_CUSTODIAN</code> issued). Unapproved receipts in <code>PENDING_STOCK_IN</code> and <code>DISPOSED</code> items are strictly excluded so figures match the official government balance sheet.
+      </div>
+
+      <div class="notice">
+        <strong>2. Fixed vs. Consumables:</strong> The <code>categoryBreakdown</code> donut chart displays <em>Fixed Capital Assets</em>. Operational consumables (screws, paper, fuel) are quantified under <code>consumableCount</code> and <code>consumableValuationETB</code>.
+      </div>
+
+      <div class="notice">
+        <strong>3. Fleet Breakdown:</strong> In <code>categoryBreakdown</code>, motorcycles are separated into their own <code>MOTORCYCLE</code> row alongside <code>VEHICLE</code> for direct fleet visibility on mobile charts.
+      </div>
+    </div>
+
+    <!-- Step 5: Mobile Code Examples -->
+    <div class="card">
+      <h2><span class="step-number">5</span> Mobile Integration Code Snippets</h2>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('flutter')">Flutter / Dart</button>
+        <button class="tab-btn" onclick="switchTab('reactnative')">React Native / JS</button>
+        <button class="tab-btn" onclick="switchTab('swift')">Swift (iOS)</button>
+      </div>
+
+      <!-- Flutter Snippet -->
+      <div id="tab-flutter" class="tab-content">
+        <div class="code-container">
+          <div class="code-header">
+            <span>Dart (http package)</span>
+            <button class="copy-btn" onclick="copyText('code-dart')">Copy</button>
+          </div>
+          <pre id="code-dart">import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+Future&lt;Map&lt;String, dynamic&gt;&gt; fetchExecutiveDashboard(String token) async {
+  final url = Uri.parse('https://&lt;MOA_HOST&gt;/api/items/dashboard/executive');
+  
+  final response = await http.get(
+    url,
+    headers: {
+      'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+    },
+  );
+
+  if (response.statusCode == 200) {
+    final body = jsonDecode(response.body);
+    return body['data']; // Returns dashboard metrics
+  } else {
+    throw Exception('Failed to load dashboard: ${response.statusCode}');
+  }
+}</pre>
+        </div>
+      </div>
+
+      <!-- React Native Snippet -->
+      <div id="tab-reactnative" class="tab-content" style="display:none;">
+        <div class="code-container">
+          <div class="code-header">
+            <span>React Native (Fetch / Axios)</span>
+            <button class="copy-btn" onclick="copyText('code-rn')">Copy</button>
+          </div>
+          <pre id="code-rn">export async function getExecutiveDashboard(token) {
+  const response = await fetch('https://&lt;MOA_HOST&gt;/api/items/dashboard/executive', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    },
+  });
+
+  const json = await response.json();
+  if (!response.ok) throw new Error(json.message || 'API request failed');
+  return json.data;
+}</pre>
+        </div>
+      </div>
+
+      <!-- Swift Snippet -->
+      <div id="tab-swift" class="tab-content" style="display:none;">
+        <div class="code-container">
+          <div class="code-header">
+            <span>Swift (URLSession)</span>
+            <button class="copy-btn" onclick="copyText('code-swift')">Copy</button>
+          </div>
+          <pre id="code-swift">import Foundation
+
+func fetchExecutiveDashboard(token: String) async throws -> [String: Any]? {
+    guard let url = URL(string: "https://&lt;MOA_HOST&gt;/api/items/dashboard/executive") else { return nil }
+    
+    var request = URLRequest(url: url)
+    request.httpMethod = "GET"
+    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    request.setValue("application/json", forHTTPHeaderField: "Accept")
+    
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+        throw URLError(.badServerResponse)
+    }
+    
+    let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+    return json?["data"] as? [String: Any]
+}</pre>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function copyText(elementId) {
+      const text = document.getElementById(elementId).innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Copied to clipboard!');
+      });
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+      
+      if (tab === 'flutter') {
+        document.getElementById('tab-flutter').style.display = 'block';
+        event.target.classList.add('active');
+      } else if (tab === 'reactnative') {
+        document.getElementById('tab-reactnative').style.display = 'block';
+        event.target.classList.add('active');
+      } else if (tab === 'swift') {
+        document.getElementById('tab-swift').style.display = 'block';
+        event.target.classList.add('active');
+      }
+    }
+  </script>
+</body>
+</html>
+
