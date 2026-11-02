@@ -26,6 +26,7 @@
     "db:upgrade:categories": "prisma db execute --file prisma/migrations/202610140002_consumable_categories/migration.sql --schema prisma/schema.prisma && prisma generate",
     "db:upgrade:store-keepers": "prisma db execute --file prisma/migrations/202610130001_store_keepers/migration.sql --schema prisma/schema.prisma && prisma generate",
     "db:upgrade:employee-role": "prisma db execute --file prisma/migrations/202610090002_employee_role/migration.sql --schema prisma/schema.prisma && prisma generate",
+    "db:upgrade:invitations": "prisma db execute --file prisma/migrations/202611020001_user_invitations/migration.sql --schema prisma/schema.prisma && prisma generate",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix"
   },
