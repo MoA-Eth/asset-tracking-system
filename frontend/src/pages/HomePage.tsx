@@ -108,31 +108,31 @@ const ViewHeader: React.FC<{
   roleTitle: string;
   subtitle: string;
 }> = ({ title, roleTitle, subtitle }) => (
-  <div className="relative overflow-hidden rounded-2xl border border-emerald-950/20 bg-gradient-to-r from-[#071e14] via-[#0d3423] to-[#082217] p-5 sm:p-6 text-white shadow-[0_4px_20px_-4px_rgba(15,23,42,0.15)]">
-    <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
-    <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="space-y-1">
+  <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-r from-emerald-50/70 via-white to-slate-50/60 p-5 sm:p-6 shadow-[0_2px_10px_-3px_rgba(15,23,42,0.05),0_1px_3px_rgba(15,23,42,0.03)]">
+    <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-emerald-500/5 blur-3xl" />
+    <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-1.5">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-200 border border-emerald-400/20">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-300/60 shadow-2xs">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
             {roleTitle}
           </span>
-          <span className="text-[11px] text-emerald-100/70 font-medium">
+          <span className="text-[11px] text-slate-500 font-medium">
             · Ministry of Agriculture
           </span>
         </div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
           {title}
         </h1>
-        <p className="text-xs text-emerald-100/70 font-normal leading-relaxed">
+        <p className="text-xs text-slate-600 font-normal leading-relaxed max-w-2xl">
           {subtitle}
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-        <div className="rounded-xl bg-white/10 backdrop-blur-md border border-white/10 px-3.5 py-2 text-left shadow-xs">
-          <p className="text-[10px] uppercase tracking-wider text-emerald-200/80 font-bold">System Status</p>
-          <p className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        <div className="rounded-xl bg-white border border-slate-200/90 px-3.5 py-2 text-left shadow-2xs">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">System Status</p>
+          <p className="text-xs font-bold text-emerald-700 flex items-center gap-1.5 mt-0.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             Operational
           </p>
         </div>
