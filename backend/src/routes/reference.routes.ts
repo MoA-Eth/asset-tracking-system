@@ -28,6 +28,7 @@ router.put('/employees/:id/role', requirePermission('roles.assign'), controller.
 router.put('/employees/:id/access', requirePermission('roles.assign'), controller.grantAccess);
 router.delete('/employees/:id/access', requirePermission('roles.assign'), controller.removeAccess);
 router.post('/employees/:id/password', requirePermission('roles.assign'), controller.resetPassword);
+router.post('/employees/:id/invite', requirePermission('roles.assign'), controller.inviteUser);
 
 // Outside organizations: anyone who issues items may add one from the issue form; changing them is for administrators
 router.get('/organizations', requirePermission('references.read'), controller.getOrganizations);

@@ -25,6 +25,7 @@ const ProgramsPage = lazy(() => import('./pages/settings/ProgramsPage').then(m =
 const ApiKeysPage = lazy(() => import('./pages/settings/ApiKeysPage').then(m => ({ default: m.ApiKeysPage })));
 const ProfilePage = lazy(() => import('./pages/settings/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
+const CreatePasswordPage = lazy(() => import('./pages/CreatePasswordPage').then(m => ({ default: m.CreatePasswordPage })));
 const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage').then(m => ({ default: m.ChangePasswordPage })));
 
 const PageLoadingFallback: React.FC = () => (
@@ -198,6 +199,20 @@ const AuthenticatedPortal: React.FC = () => {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Public user invitation password creation
+  const isCreatePasswordPath = typeof window !== 'undefined' && (
+    window.location.pathname.includes('/create-password') ||
+    new URLSearchParams(window.location.search).has('token')
+  );
+
+  if (isCreatePasswordPath && !isAuthenticated) {
+    return (
+      <Suspense fallback={<AuthLoadingFallback />}>
+        <CreatePasswordPage />
+      </Suspense>
     );
   }
 

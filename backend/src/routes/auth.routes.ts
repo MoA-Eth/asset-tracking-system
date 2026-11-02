@@ -8,6 +8,8 @@ const controller = new AuthController();
 // Public auth endpoints
 router.post('/login', controller.login);
 router.post('/reset-password', controller.resetOrChangePassword);
+router.get('/verify-invitation', controller.verifyInvitation);
+router.post('/create-password', controller.createPassword);
 
 // Protected session check
 router.get('/me', requireAuth, controller.getMe);

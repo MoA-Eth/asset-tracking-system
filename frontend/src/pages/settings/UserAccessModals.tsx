@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Copy, RefreshCw, Wand2 } from 'lucide-react';
+import { CheckCircle2, Copy, RefreshCw, Wand2, Mail, KeyRound } from 'lucide-react';
 import { api } from '../../api/client';
 import { Modal } from '../../components/ui/Modal';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
@@ -108,6 +108,8 @@ export const AddUserModal: React.FC<{
   const [employeeId, setEmployeeId] = useState('');
   const [role, setRole] = useState<UserRole | ''>('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [mode, setMode] = useState<'invite' | 'manual'>('manual');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -133,10 +135,19 @@ export const AddUserModal: React.FC<{
     [candidates, existing],
   );
 
+  const handleEmployeeChange = (id: string) => {
+    setEmployeeId(id);
+    const chosen = candidates.find((c) => c.id === id);
+    if (chosen?.email) {
+      setEmail(chosen.email);
+    }
+  };
+
   const close = () => {
     setEmployeeId('');
     setRole('');
     setPassword('');
+    setEmail('');
     setError(null);
     onClose();
   };
@@ -144,13 +155,27 @@ export const AddUserModal: React.FC<{
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!isAcceptablePassword(password)) return setError(`The temporary password needs: ${PASSWORD_RULE.toLowerCase()}`);
     setSubmitting(true);
     try {
-      const updated = await api.grantAccess(employeeId, role as UserRole, password);
-      toast.success('User added', `${updated.fullNameEn} can sign in as ${ROLE_LABELS[role as UserRole]}.`);
-      onSaved(updated);
-      close();
+      if (mode === 'invite') {
+        if (!email.trim()) {
+          setSubmitting(false);
+          return setError('Please provide a valid email address for the invitation.');
+        }
+        const res = await api.inviteUser(employeeId, role as UserRole, email.trim());
+        toast.success('Invitation Sent', `Official invitation email sent to ${res.employee.email}.`);
+        onSaved(res.employee);
+        close();
+      } else {
+        if (!isAcceptablePassword(password)) {
+          setSubmitting(false);
+          return setError(`The temporary password needs: ${PASSWORD_RULE.toLowerCase()}`);
+        }
+        const updated = await api.grantAccess(employeeId, role as UserRole, password);
+        toast.success('User added', `${updated.fullNameEn} can sign in as ${ROLE_LABELS[role as UserRole]}.`);
+        onSaved(updated);
+        close();
+      }
     } catch (err: any) {
       setError(err.message || 'Sign-in could not be given.');
     } finally {
@@ -159,8 +184,32 @@ export const AddUserModal: React.FC<{
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={close} title="Add user" subtitle="Let an employee sign in. Employees are added under Settings → Employees." size="md">
+    <Modal isOpen={isOpen} onClose={close} title="Add user" subtitle="Grant an employee sign-in access with an assigned system role." size="md">
       <form onSubmit={submit} className="space-y-4">
+        {/* Invitation Mode Toggle */}
+        <div className="flex rounded-lg bg-slate-100 p-1 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setMode('invite')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md transition cursor-pointer ${
+              mode === 'invite' ? 'bg-white text-emerald-800 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Mail className="h-3.5 w-3.5" />
+            Send Email Invite
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('manual')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md transition cursor-pointer ${
+              mode === 'manual' ? 'bg-white text-emerald-800 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            Set Temporary Password
+          </button>
+        </div>
+
         <Field
           label="Employee"
           required
@@ -174,12 +223,13 @@ export const AddUserModal: React.FC<{
           <SearchableSelect
             id="add-user-employee"
             value={employeeId}
-            onChange={setEmployeeId}
+            onChange={handleEmployeeChange}
             groups={employeeGroups}
             placeholder="Select an employee…"
             searchPlaceholder="Type a name or employee ID…"
           />
         </Field>
+
         <Field label="Role" required htmlFor="add-user-role">
           <select id="add-user-role" required value={role} onChange={(e) => setRole(e.target.value as UserRole)} className={inputClass('emerald')}>
             <option value="">Select…</option>
@@ -190,12 +240,40 @@ export const AddUserModal: React.FC<{
             ))}
           </select>
         </Field>
-        <TemporaryPasswordField value={password} onChange={setPassword} />
-        <FormNotice icon={CheckCircle2}>
-          They sign in with their employee ID (or email, if they have one) and this temporary password, then choose their own.
-        </FormNotice>
+
+        {mode === 'invite' ? (
+          <>
+            <Field label="Email address" required htmlFor="invite-email" hint="The secure 48-hour activation link will be sent to this email address.">
+              <input
+                id="invite-email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@moa.gov.et"
+                className={inputClass('emerald')}
+              />
+            </Field>
+            <FormNotice icon={CheckCircle2}>
+              An official MoA invitation email will be sent. The user will click the link, set their permanent password, and activate their account.
+            </FormNotice>
+          </>
+        ) : (
+          <>
+            <TemporaryPasswordField value={password} onChange={setPassword} />
+            <FormNotice icon={CheckCircle2}>
+              They sign in with their employee ID (or email, if they have one) and this temporary password, then choose their own.
+            </FormNotice>
+          </>
+        )}
+
         <FormError message={error} />
-        <Footer submitting={submitting} label="Add user" disabled={!employeeId || !role || !password} onCancel={close} />
+        <Footer
+          submitting={submitting}
+          label={mode === 'invite' ? 'Send Invitation' : 'Add user'}
+          disabled={!employeeId || !role || (mode === 'invite' ? !email.trim() : !password)}
+          onCancel={close}
+        />
       </form>
     </Modal>
   );

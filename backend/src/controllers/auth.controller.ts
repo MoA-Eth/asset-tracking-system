@@ -5,6 +5,7 @@ import { sendSuccess } from '../utils/api-response';
 import { LoginRequest } from '../types/asset-management';
 import { BadRequestError } from '../errors/app-error';
 import { changeOwnPassword, publicChangeOrResetPassword } from '../services/access.service';
+import { acceptInvitationAndSetPassword, verifyInvitationToken } from '../services/invitation.service';
 
 export class AuthController {
   private authService = AuthService.getInstance();
@@ -49,5 +50,25 @@ export class AuthController {
     // A new session for this machine: the password signs every session, so the old ones end
     const token = await changeOwnPassword(req.user!.id, req.body?.currentPassword, req.body?.newPassword);
     return sendSuccess(res, { token }, 'Password changed');
+  });
+
+  /**
+   * GET /api/auth/verify-invitation?token=...
+   * Check if invitation token is valid before showing password form.
+   */
+  public verifyInvitation = asyncHandler(async (req: Request, res: Response) => {
+    const token = typeof req.query.token === 'string' ? req.query.token : '';
+    const result = await verifyInvitationToken(token);
+    return sendSuccess(res, result, 'Invitation verified');
+  });
+
+  /**
+   * POST /api/auth/create-password  { token, password }
+   * Public password creation from invitation link.
+   */
+  public createPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { token, password } = req.body ?? {};
+    const result = await acceptInvitationAndSetPassword(token, password);
+    return sendSuccess(res, result, result.message);
   });
 }

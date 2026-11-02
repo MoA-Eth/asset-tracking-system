@@ -497,6 +497,30 @@ export const api = {
     return request<Employee>(`/reference/employees/${encodeURIComponent(id)}/password`, { method: 'POST', body: JSON.stringify({ password }) });
   },
 
+  /** Send an email invitation for account creation */
+  inviteUser: (id: string, role: UserRole, email?: string) => {
+    return request<{ employee: Employee; invitationLink: string; expiresAt: string }>(
+      `/reference/employees/${encodeURIComponent(id)}/invite`,
+      { method: 'POST', body: JSON.stringify({ role, email }) },
+    );
+  },
+
+  /** Verify an invitation token from the email link */
+  verifyInvitation: (token: string) => {
+    return request<{ valid: boolean; employee: Partial<Employee>; expiresAt: string }>(
+      `/auth/verify-invitation?token=${encodeURIComponent(token)}`,
+      { method: 'GET' },
+    );
+  },
+
+  /** Set password and activate account using an invitation token */
+  createPasswordWithToken: (token: string, password: string) => {
+    return request<{ success: boolean; message: string; employee: Employee }>(
+      '/auth/create-password',
+      { method: 'POST', body: JSON.stringify({ token, password }) },
+    );
+  },
+
   updateEmployeeRole: (id: string, role: UserRole) => {
     return request<Employee>(`/reference/employees/${encodeURIComponent(id)}/role`, {
       method: 'PUT',

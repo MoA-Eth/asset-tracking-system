@@ -10,6 +10,7 @@ import {
   KeyRound,
   UserX,
   UserMinus,
+  Mail,
   X,
 } from 'lucide-react';
 import { api } from '../api/client';
@@ -443,6 +444,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialRoleFilter = 
                               onClick: () => setResetting(emp),
                               disabled: emp.id === user?.id,
                               reason: emp.id === user?.id ? 'Change your own password on your Profile page.' : undefined,
+                            },
+                            {
+                              label: 'Resend invitation',
+                              icon: Mail,
+                              onClick: async () => {
+                                try {
+                                  const res = await api.inviteUser(emp.id, emp.role as UserRole, emp.email || undefined);
+                                  toast.success('Invitation resent', `Invitation email sent to ${res.employee.email}`);
+                                  applyUpdate(res.employee);
+                                } catch (err: any) {
+                                  toast.error('Could not resend invitation', err.message);
+                                }
+                              },
+                              disabled: emp.id === user?.id || !emp.isActive || !emp.email,
+                              reason: !emp.email ? 'Employee has no email address on record.' : undefined,
                             },
                             {
                               label: 'Remove sign-in',

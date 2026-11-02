@@ -24,7 +24,7 @@ export function checkNewPassword(value: unknown, label = 'The password'): string
   return value;
 }
 
-async function audit(tx: any, actor: any, action: string, employeeId: string, details: string, previousState?: object, newState?: object) {
+export async function audit(tx: any, actor: any, action: string, employeeId: string, details: string, previousState?: object, newState?: object) {
   const today = getTodayGcAndEc();
   const time = new Date().toLocaleTimeString('en-US', { hour12: false });
   await tx.auditLog.create({
@@ -62,7 +62,7 @@ async function assertAdminRemains(tx: any, previous: any) {
   if (admins <= 1) throw new ConflictError('This is the last active System Administrator. Give another employee that role first.');
 }
 
-const publicView = (e: any) => ({
+export const publicView = (e: any) => ({
   id: e.id,
   payrollId: e.payrollId,
   fullNameEn: e.fullNameEn,

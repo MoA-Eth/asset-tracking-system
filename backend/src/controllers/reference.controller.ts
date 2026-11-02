@@ -9,6 +9,7 @@ import {
   listLocations, createLocation, updateLocation, setLocationActive, deleteLocation,
 } from '../services/reference.service';
 import { grantAccess, removeAccess, resetPassword } from '../services/access.service';
+import { inviteUser } from '../services/invitation.service';
 import { listOrganizations, createOrganization, updateOrganization, setOrganizationActive } from '../services/organizations.service';
 import { listPrograms, createProgram, updateProgram, setProgramActive, deleteProgram } from '../services/programs.service';
 
@@ -164,6 +165,19 @@ export class ReferenceController {
   public resetPassword = asyncHandler(async (req: Request, res: Response) => {
     const updated = await resetPassword(idParam(req), req.body?.password, req.user!.id);
     return sendSuccess(res, updated, `Password reset for ${updated.fullNameEn}`);
+  });
+
+  /** POST /api/reference/employees/:id/invite  { role, email } — send invitation email */
+  public inviteUser = asyncHandler(async (req: Request, res: Response) => {
+    const origin = req.get('origin') || req.get('referer') || process.env.APP_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+    let baseUrl = origin;
+    try {
+      baseUrl = new URL(origin).origin;
+    } catch {
+      baseUrl = origin;
+    }
+    const result = await inviteUser(idParam(req), req.body ?? {}, req.user!.id, baseUrl);
+    return sendSuccess(res, result, `Invitation email sent to ${result.employee.email}`);
   });
 
   /** GET /api/reference/organizations?includeInactive=true — outside organizations items are issued to */

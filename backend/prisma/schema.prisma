@@ -251,11 +251,26 @@ model Employee {
   returnedApprovals   TransactionApproval[] @relation("ReturnedBy")
   recipientApprovals  TransactionApproval[] @relation("RecipientEmployee")
   auditLogs           AuditLog[]
+  invitationTokens    UserInvitationToken[]
 
   @@index([departmentId])
   @@index([isActive])
   @@index([role])
   @@map("employees")
+}
+
+/// A one-time secure token sent via email for user invitation and password setup
+model UserInvitationToken {
+  id         String   @id @default(uuid())
+  employeeId String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@map("user_invitation_tokens")
 }
 
 // ─── Core Asset Tables ────────────────────────────────────────────────────────
