@@ -24,8 +24,6 @@ import {
   Car,
   Bike,
   Tractor,
-  Lightbulb,
-  CheckCircle2,
   ArrowRight,
   TrendingUp,
   TrendingDown,
@@ -884,8 +882,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
     inStoreMachinery: 0,
   };
 
-  const issuedPct    = totalItems > 0 ? Math.round((issuedCount / totalItems) * 100) : 0;
-  const availablePct = totalItems > 0 ? Math.round((availableCount / totalItems) * 100) : 0;
 
   // What a directorate holds, counted as the cards above: fixed assets one by one, consumables by the different supplies
   // A figure opens the Assets page on the list behind it (with this dashboard's category and type), for whoever has the page
@@ -1701,37 +1697,12 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         </Panel>
       </div>
 
-      {/* ── Row 3: Three Matching Summary Cards (Quick Insights, Recent Activity, In Store > 30 Days) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <Panel title="Quick Insights" icon={Lightbulb} tone="emerald">
-          <div className="space-y-3 py-1">
-            <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span className="text-xs font-medium text-slate-700">
-                Asset utilization is healthy at {issuedPct || 82}%
-              </span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span className="text-xs font-medium text-slate-700">
-                {lowStock.criticalCount > 0
-                  ? `${lowStock.criticalCount} consumable supplies below threshold`
-                  : 'No low-stock alerts at this time'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span className="text-xs font-medium text-slate-700">
-                {fleetStats.totalVehicles > 0
-                  ? `${fleetStats.totalVehicles} operational vehicles in fleet registry`
-                  : `${assetCategoryCount} active fixed asset categories on record`}
-              </span>
-            </div>
-          </div>
-        </Panel>
-
+      {/* ── Row 3: Two Matching Summary Cards (Recent Activity, In Store > 30 Days) aligned with rows above ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         <Panel
+          className="lg:col-span-6 flex flex-col justify-between"
           title="Recent Activity"
+          subtitle="የቅርብ ጊዜ እንቅስቃሴዎች"
           icon={Clock}
           tone="emerald"
           action={
@@ -1766,6 +1737,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         </Panel>
 
         <Panel
+          className="lg:col-span-6 flex flex-col justify-between"
           title="In store > 30 days"
           subtitle="በመጋዘን ውስጥ ከ30 ቀናት በላይ የቆዩ"
           icon={Clock}
