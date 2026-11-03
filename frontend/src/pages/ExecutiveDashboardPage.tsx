@@ -1702,37 +1702,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         </Panel>
       </div>
 
-      {/* ── Monthly Movement Chart: Fixed Assets Received & Issued (Full Width) ── */}
-      <Panel
-        title="Fixed Assets Received and Issued"
-        subtitle="የገቡና የወጡ ቋሚ ንብረቶች እንቅስቃሴ"
-        icon={BarChart3}
-        tone="emerald"
-        action={
-          <div className="flex items-center gap-3 text-xs font-medium">
-            <span className="flex items-center gap-1.5 text-slate-700">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
-              Received
-            </span>
-            <span className="flex items-center gap-1.5 text-slate-700">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
-              Issued
-            </span>
-          </div>
-        }
-      >
-        <PairedColumns
-          label="Fixed assets received and issued by month"
-          unit="units"
-          empty="No fixed assets received or issued in these months."
-          series={[
-            { label: 'Received', color: '#059669' },
-            { label: 'Issued', color: '#6ee7b7' },
-          ]}
-          rows={fixedMovement.map((m) => ({ key: m.month, label: monthLabel(m.month), a: m.received, b: m.issued }))}
-        />
-      </Panel>
-
       {/* ── Row 4: Four Matching Summary Cards (Quick Insights, Top Value Assets, Recent Activity, In Store > 30 Days) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <Panel title="Quick Insights" icon={Lightbulb} tone="emerald">
@@ -2102,6 +2071,37 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           )}
         </Panel>
       </div>
+
+      {/* ── Monthly Movement Chart: Fixed Assets Received & Issued (Full Width) ── */}
+      <Panel
+        title="Fixed Assets Received and Issued"
+        subtitle="የገቡና የወጡ ቋሚ ንብረቶች እንቅስቃሴ"
+        icon={BarChart3}
+        tone="emerald"
+        action={
+          <div className="flex items-center gap-3 text-xs font-medium">
+            <span className="flex items-center gap-1.5 text-slate-700">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
+              Received
+            </span>
+            <span className="flex items-center gap-1.5 text-slate-700">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+              Issued
+            </span>
+          </div>
+        }
+      >
+        <PairedColumns
+          label="Fixed assets received and issued by month"
+          unit="units"
+          empty="No fixed assets received or issued in these months."
+          series={[
+            { label: 'Received', color: '#059669' },
+            { label: 'Issued', color: '#6ee7b7' },
+          ]}
+          rows={fixedMovement.map((m) => ({ key: m.month, label: monthLabel(m.month), a: m.received, b: m.issued }))}
+        />
+      </Panel>
 
       {/* ── Consumable stock by unit: quantities only add up within one unit (litres with litres, reams with reams) ── */}
       {SHOW_STOCK_BY_UNIT && (
