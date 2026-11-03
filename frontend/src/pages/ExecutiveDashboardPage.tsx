@@ -25,7 +25,6 @@ import {
   Bike,
   Tractor,
   Lightbulb,
-  Trophy,
   CheckCircle2,
   ArrowRight,
   TrendingUp,
@@ -1702,8 +1701,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         </Panel>
       </div>
 
-      {/* ── Row 4: Four Matching Summary Cards (Quick Insights, Top Value Assets, Recent Activity, In Store > 30 Days) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* ── Row 3: Three Matching Summary Cards (Quick Insights, Recent Activity, In Store > 30 Days) ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <Panel title="Quick Insights" icon={Lightbulb} tone="emerald">
           <div className="space-y-3 py-1">
             <div className="flex items-center gap-2.5">
@@ -1728,51 +1727,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   : `${assetCategoryCount} active fixed asset categories on record`}
               </span>
             </div>
-          </div>
-        </Panel>
-
-        <Panel
-          title="Top Value Assets"
-          icon={Trophy}
-          tone="amber"
-          action={
-            <button
-              type="button"
-              onClick={() => onNavigate('assets')}
-              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
-            >
-              View All &rarr;
-            </button>
-          }
-        >
-          <div className="divide-y divide-slate-100/90 py-0.5">
-            {(topAssets.length > 0 ? topAssets.slice(0, 3) : [
-              { name: 'Toyota Land Cruiser', purchasePrice: 3500000, category: 'VEHICLE' },
-              { name: 'John Deere Tractor 5075E', purchasePrice: 2800000, category: 'AGRI_MACHINERY' },
-              { name: 'Dell PowerEdge R750 Server', purchasePrice: 950000, category: 'IT_EQUIPMENT' },
-            ]).map((asset: any, idx: number) => {
-              const val = asset.purchasePrice ?? costOf(asset);
-              return (
-                <div key={asset.id || idx} className="flex items-center gap-3 py-2 first:pt-0.5 last:pb-0.5">
-                  <div className="h-7 w-7 rounded-lg bg-amber-50 border border-amber-200/70 flex items-center justify-center shrink-0 text-amber-800 font-bold text-[11px] shadow-2xs">
-                    #{idx + 1}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-slate-900 truncate">
-                      {asset.name}
-                    </p>
-                    <p className="text-[11px] text-slate-500 truncate">
-                      {asset.category ? (CATEGORY_STYLE[asset.category]?.en || asset.category) : 'Asset'}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs font-bold text-slate-900 tabular-nums">
-                      ETB {formatETBShort(val).replace('ETB ', '')}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </Panel>
 
