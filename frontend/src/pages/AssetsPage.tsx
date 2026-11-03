@@ -2159,7 +2159,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <div
             role="group"
             aria-label="Held in the listed assets"
-            title="Counted as on the dashboard: approved records in store or assigned; receipts waiting for approval, rejected and disposed are not counted"
+            title="Counted as on the dashboard: approved records in store or in use; receipts waiting for approval, rejected and disposed are not counted"
             className="grid grid-cols-3 divide-x divide-slate-200/80 rounded-xl border border-slate-200/80 bg-white px-3.5 sm:px-4 py-2.5 shadow-2xs text-xs overflow-x-auto"
           >
             {/* Fixed Assets */}
@@ -2173,7 +2173,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   {' '}{unitsLabel(onRegister.fixed.held)}{' '}
                 </span>
                 <span className="text-slate-400 font-normal truncate">
-                  {' '}({onRegister.fixed.inStore.toLocaleString()} in store · {onRegister.fixed.issued.toLocaleString()} assigned)
+                  {' '}({onRegister.fixed.inStore.toLocaleString()} in store · {onRegister.fixed.issued.toLocaleString()} in use)
                 </span>
               </div>
             </div>
@@ -2189,7 +2189,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   {' '}{itemsLabel(onRegister.supplies.held)}{' '}
                 </span>
                 <span className="text-slate-400 font-normal truncate">
-                  {' '}({onRegister.supplies.inStore.toLocaleString()} in store · {onRegister.supplies.issued.toLocaleString()} assigned)
+                  {' '}({onRegister.supplies.inStore.toLocaleString()} in store · {onRegister.supplies.issued.toLocaleString()} in use)
                 </span>
               </div>
             </div>

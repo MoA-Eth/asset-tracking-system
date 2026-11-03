@@ -2913,8 +2913,8 @@ describe('Assets: the dashboard figures for what is listed', () => {
   it('counts fixed assets in units and consumables in items, never adding litres to pieces', async () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     const line = await figures();
-    expect(line).toHaveTextContent('Fixed assets 10 units (7 in store · 3 assigned)');
-    expect(line).toHaveTextContent('Consumables 2 items (1 in store · 1 assigned)');
+    expect(line).toHaveTextContent('Fixed assets 10 units (7 in store · 3 in use)');
+    expect(line).toHaveTextContent('Consumables 2 items (1 in store · 1 in use)');
     expect(line).toHaveTextContent('ETB 1,030,000.00');
   });
 
@@ -2922,7 +2922,7 @@ describe('Assets: the dashboard figures for what is listed', () => {
     localStorage.setItem('moa_assets_view_enc', JSON.stringify({ filter: 'ALL', department: 'D1', itemType: 'FIXED' }));
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     const line = await figures();
-    expect(line).toHaveTextContent('Fixed assets 3 units (0 in store · 3 assigned)');
+    expect(line).toHaveTextContent('Fixed assets 3 units (0 in store · 3 in use)');
     expect(line).toHaveTextContent('Consumables 0 items');
     expect(screen.getByText('Directorate: Agricultural Extension')).toBeInTheDocument();
     expect(screen.getByText('Type: Fixed asset')).toBeInTheDocument();

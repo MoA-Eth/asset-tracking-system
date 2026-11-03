@@ -1518,6 +1518,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <Panel
           className="lg:col-span-1"
           title="Directorate allocation"
+          subtitle="የዳይሬክቶሬት ንብረት ድልድል"
           icon={BarChart3}
           tone="emerald"
           action={
@@ -1595,7 +1596,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         {/* Col 2: Fixed Asset Categories */}
         <Panel
           className="lg:col-span-1"
-          title="Fixed Asset Categories (In Store & Issued)"
+          title="Fixed Asset Categories (In Store & In Use)"
+          subtitle="የቋሚ ንብረት ምድቦች (በመጋዘንና በስራ ላይ ያሉ)"
           icon={PieChart}
           tone="emerald"
         >
@@ -1626,6 +1628,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <Panel
           className="lg:col-span-1"
           title="Fleet Overview"
+          subtitle="የተሽከርካሪዎችና ማሽነሪዎች አጠቃላይ ሁኔታ"
           icon={Car}
           tone="emerald"
         >
@@ -1698,6 +1701,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         <Panel
           className="lg:col-span-7"
           title="Fixed Assets Received and Issued"
+          subtitle="የገቡና የወጡ ቋሚ ንብረቶች እንቅስቃሴ"
           icon={BarChart3}
           tone="emerald"
           action={
@@ -1727,13 +1731,18 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
 
         <div className="lg:col-span-5 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/50 via-white to-orange-50/30 p-5 sm:p-6 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] flex flex-col justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-xs shrink-0 shadow-2xs">
+            <div className="flex items-start gap-2 mb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-xs shrink-0 shadow-2xs mt-0.5">
                 <Clock className="h-3.5 w-3.5" />
               </span>
-              <h2 className="text-[15px] font-bold text-slate-900">
-                Items in Store Too Long (&gt; 30 Days)
-              </h2>
+              <div className="min-w-0">
+                <h2 className="text-[15px] font-bold text-slate-900 leading-tight">
+                  Items in Store Too Long (&gt; 30 Days)
+                </h2>
+                <p className="mt-0.5 text-[11px] text-amber-800/80 font-normal">
+                  በመጋዘን ውስጥ ከ30 ቀናት በላይ የቆዩ ንብረቶች
+                </p>
+              </div>
             </div>
 
             <div className="flex items-center justify-between gap-4 mt-3">
