@@ -69,6 +69,13 @@ export const Model19ImportModal: React.FC<{
     setFileName(file.name);
     setError(null);
     setSent(new Map());
+
+    if (file.name?.toLowerCase().endsWith('.csv') || file.type === 'text/csv') {
+      setReceipts(null);
+      setError('Please upload an Excel workbook (.xlsx). CSV files are not supported for Model 19 bulk import.');
+      return;
+    }
+
     setBusy('reading');
     try {
       const read = await readModel19File(file, stores);
@@ -76,7 +83,7 @@ export const Model19ImportModal: React.FC<{
       setReceipts(read);
     } catch (e: any) {
       setReceipts(null);
-      setError(e?.message || 'The file could not be read.');
+      setError(e?.message || 'The file could not be read. Please use the official Excel (.xlsx) template.');
     } finally {
       setBusy(null);
     }
@@ -156,12 +163,12 @@ export const Model19ImportModal: React.FC<{
             >
               {busy === 'reading' ? <RefreshCw className="h-7 w-7 animate-spin text-emerald-700" /> : <FileSpreadsheet className="h-7 w-7 text-emerald-700" />}
               <span className="text-sm font-semibold text-slate-900">{busy === 'reading' ? `Reading ${fileName}…` : 'Choose the filled-in template (.xlsx)'}</span>
-              <span className="text-[11px] text-slate-500">The "Model 19 lines" sheet is read.</span>
+              <span className="text-[11px] text-slate-500">Excel format (.xlsx) only. The "Model 19 lines" sheet is read directly.</span>
               <input
                 ref={inputRef}
                 id="model19-import-file"
                 type="file"
-                accept=".xlsx"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 className="sr-only"
                 disabled={busy !== null}
                 onChange={(e) => onFile(e.target.files?.[0])}
@@ -171,7 +178,7 @@ export const Model19ImportModal: React.FC<{
             <div className="flex justify-between">
               <button type="button" onClick={downloadTemplate} className={btn.row}>
                 <Download className={btn.rowIcon} />
-                Download template
+                Download template (.xlsx)
               </button>
             </div>
           </>

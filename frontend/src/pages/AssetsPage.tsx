@@ -1514,12 +1514,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           if (e.key === 'Enter' && e.target === e.currentTarget) openRecord(item.id);
         }}
         className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${
-          item.id === lastTouchedId ? table.rowHighlight : nested ? 'bg-slate-50/70 hover:bg-slate-100/70 transition' : table.row
+          item.id === lastTouchedId ? table.rowHighlight : nested ? 'bg-slate-50/70 hover:bg-slate-100/80 transition-colors' : table.row
         }`}
       >
-        <td className={`py-2.5 pr-4 ${nested ? 'pl-10' : 'pl-5'}`}>
+        <td className={`py-2.5 pr-4 ${nested ? 'pl-9 relative' : 'pl-5'}`}>
+          {nested && <span className="absolute left-5 top-0 bottom-0 w-px bg-slate-200" aria-hidden="true" />}
           <span className="block text-slate-900">
-            {nested && <span className="mr-1 text-slate-400" aria-hidden="true">↳</span>}
+            {nested && <span className="mr-1 text-slate-400 font-mono text-xs select-none" aria-hidden="true">↳</span>}
             {item.name}
           </span>
           {/* The code and the type on one line, so a row is two lines high; the type goes under the code when the column is narrow */}
@@ -1540,7 +1541,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </button>
           )}
         </td>
-        <td className="px-3 py-2.5">
+        <td className="px-3 py-2.5 whitespace-nowrap">
           <AssetStatus row={row} partly={isBatch && issuedUnits > 0 && inStoreUnits > 0} />
         </td>
         <td className="px-3 py-2.5 tabular-nums text-slate-600">
@@ -1612,7 +1613,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         onKeyDown={(e) => {
           if (e.key === 'Enter' && e.target === e.currentTarget) openSlip(key);
         }}
-        className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${touched ? table.rowHighlight : table.row}`}
+        className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${
+          touched
+            ? table.rowHighlight
+            : isOpen
+            ? 'bg-sky-50/40 hover:bg-sky-50/60 transition-colors'
+            : table.row
+        }`}
       >
         <td className="py-2.5 pr-4 pl-5">
           {/* Searching by an item's name puts that item first, so the row shows what was looked for, not "+1" */}
@@ -1640,7 +1647,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             {isOpen ? 'Hide' : 'Show'} {members.length} items
           </button>
         </td>
-        <td className="px-3 py-2.5">
+        <td className="px-3 py-2.5 whitespace-nowrap">
           <SlipStatus rows={rowsOf} partly={partlyIn(members)} isOpen={isOpen} onViewDetails={() => toggleSlip(key)} />
         </td>
         {/* Its units, as a single line's row shows them (9 ea), when every line counts in one unit; otherwise its lines */}
@@ -1870,16 +1877,17 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     (acc, group) => {
       const { row } = group;
       if (row.state === 'REJECTED' || row.state === 'RECEIPT_PENDING' || row.state === 'DISPOSED') return acc;
-      const { isBatch, totalUnits, inStoreUnits } = batchSummary(row, group.children ?? []);
+      const { isBatch, totalUnits, inStoreUnits, issuedUnits } = batchSummary(row, group.children ?? []);
       const units = isBatch ? totalUnits : row.units;
       const lineTotal = valueOf(row.item, units);
       acc.value += lineTotal;
       // The units free in store (a pending issue's units are not), at what a unit cost: a record with 1 of 3 on a
       // pending issue still has 2 in store
       acc.inStore += valueOf(row.item, Math.min(inStoreUnits, units));
+      acc.inUse += valueOf(row.item, isBatch ? issuedUnits : row.state === 'ISSUED' ? units : 0);
       return acc;
     },
-    { value: 0, inStore: 0 }
+    { value: 0, inStore: 0, inUse: 0 }
   );
 
   // What the listed records hold, counted as the dashboard counts it (fixed assets in units, consumables by supply), so
@@ -2567,7 +2575,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-3 py-2 w-32 min-w-[120px]"
+                      thClassName="px-3 py-2 w-40 min-w-[155px]"
                     />
                     <SortableHeader
                       label="Qty"
@@ -2643,7 +2651,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               </table>
             </div>
             <div
-              className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 border-t border-slate-100 bg-slate-50/40 px-3.5 py-1.5 text-xs text-slate-600"
+              className="flex flex-wrap items-center justify-end gap-x-5 gap-y-1 border-t border-slate-100 bg-slate-50/50 px-4 py-2 text-xs text-slate-600"
               title="Approved records only: receipts waiting for approval and rejected receipts are not counted"
               role="group"
               aria-label="Totals of listed assets"
@@ -2651,8 +2659,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               <span>
                 Total value <span className="font-mono font-semibold text-slate-900">{formatETBTotal(totals.value)}</span>
               </span>
+              <span className="text-slate-300">·</span>
               <span>
                 In store <span className="font-mono font-semibold text-slate-900">{formatETBTotal(totals.inStore)}</span>
+              </span>
+              <span className="text-slate-300">·</span>
+              <span>
+                In use <span className="font-mono font-semibold text-slate-900">{formatETBTotal(totals.inUse)}</span>
               </span>
             </div>
             {/* Rows of the list (a Model 19 of several items and a batch are one row each), not assets: the line above the table counts those */}

@@ -94,7 +94,7 @@ describe('the template', () => {
   it('has the lines sheet with every column, an example that is not imported, and lists to choose from', async () => {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(await buildModel19Template(stores));
-    expect(wb.worksheets.map((w) => w.name)).toEqual(['Read me', 'Model 19 lines', 'Lists']);
+    expect(wb.worksheets.map((w) => w.name)).toEqual(['Model 19 lines', 'Lists']);
     const sheet = wb.getWorksheet('Model 19 lines')!;
     expect((sheet.getRow(1).values as unknown[]).slice(1)).toEqual([...TEMPLATE_COLUMNS]);
     expect(String(sheet.getCell('A2').value)).toMatch(/^e\.g\./);

@@ -82,4 +82,11 @@ describe('importing Model 19s from Excel', () => {
     expect(screen.getByText(/A scanned copy of the slip is required/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Receive 1 Model 19' })).toBeDisabled();
   });
+
+  it('rejects csv files and asks for the Excel template', async () => {
+    render(<Model19ImportModal isOpen onClose={vi.fn()} onImported={onImported} stores={stores} />);
+    const csvFile = { name: 'receipts.csv', type: 'text/csv' } as unknown as File;
+    fireEvent.change(screen.getByLabelText(/Choose the filled-in/), { target: { files: [csvFile] } });
+    expect(await screen.findByText(/Please upload an Excel workbook \(\.xlsx\)\. CSV files are not supported/)).toBeInTheDocument();
+  });
 });

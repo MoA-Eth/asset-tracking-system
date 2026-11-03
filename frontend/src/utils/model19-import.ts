@@ -255,9 +255,16 @@ export function stockInRequestFor(receipt: ImportReceipt, registeredById: string
 
 /** Reads an uploaded template (.xlsx) into receipts */
 export async function readModel19File(file: File, stores: StoreOption[]): Promise<ImportReceipt[]> {
+  if (file?.name?.toLowerCase().endsWith('.csv') || file?.type === 'text/csv') {
+    throw new Error('CSV files are not supported for Model 19 bulk import. Please use the Excel (.xlsx) template.');
+  }
   const { default: ExcelJS } = await import('exceljs');
   const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(await file.arrayBuffer());
+  try {
+    await wb.xlsx.load(await file.arrayBuffer());
+  } catch {
+    throw new Error('This file is not a valid Excel workbook (.xlsx). Please use the official Excel template.');
+  }
   const ws = wb.getWorksheet(SHEET) ?? wb.worksheets[0];
   if (!ws) throw new Error('The file has no sheet to read.');
   // Columns found by their header, so a column moved or added in Excel still reads
@@ -265,7 +272,7 @@ export async function readModel19File(file: File, stores: StoreOption[]): Promis
   const at = new Map<string, number>();
   head.eachCell((c, i) => at.set(text(c.value).toLowerCase(), i));
   const missing = ['Model 19 No.', 'Received Date (G.C.)', 'Receiving Store', 'Item Description', 'Quantity', 'Unit Price (ETB)'].filter((c) => !at.has(c.toLowerCase()));
-  if (missing.length) throw new Error(`This is not the Model 19 template: column${missing.length > 1 ? 's' : ''} ${missing.join(', ')} not found. Download the template and use it.`);
+  if (missing.length) throw new Error(`This is not the Model 19 template: column${missing.length > 1 ? 's' : ''} ${missing.join(', ')} not found. Download the Excel template and use it.`);
   const rows: { row: number; get: (c: Column) => unknown }[] = [];
   ws.eachRow((r, n) => {
     if (n === 1) return;
@@ -274,20 +281,27 @@ export async function readModel19File(file: File, stores: StoreOption[]): Promis
   return receiptsFromRows(rows, stores);
 }
 
-/** The template to fill in: the lines sheet (with an example row and lists to choose from) and how to fill it */
+/** The template to fill in: the lines sheet (with an example row and lists to choose from) */
 export async function buildModel19Template(stores: StoreOption[]): Promise<ArrayBuffer> {
   const { default: ExcelJS } = await import('exceljs');
   const wb = new ExcelJS.Workbook();
   const font = { name: 'Arial', size: 10 };
   const headFont = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
   const headFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF0A3F24' } };
-  const inputFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFFF9E6' } };
+  const exampleFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFF1F5F9' } };
+  const exampleFont = { name: 'Arial', size: 10, italic: true, color: { argb: 'FF475569' } };
+  const thinBorder = {
+    top: { style: 'thin' as const, color: { argb: 'FFE2E8F0' } },
+    left: { style: 'thin' as const, color: { argb: 'FFE2E8F0' } },
+    bottom: { style: 'thin' as const, color: { argb: 'FFE2E8F0' } },
+    right: { style: 'thin' as const, color: { argb: 'FFE2E8F0' } },
+  };
 
-  const readme = wb.addWorksheet('Read me');
-  const sheet = wb.addWorksheet(SHEET, { views: [{ state: 'frozen', ySplit: 1, xSplit: 1 }] });
+  const sheet = wb.addWorksheet(SHEET, { views: [{ showGridLines: true, state: 'frozen', ySplit: 1, xSplit: 0 }] });
   const lists = wb.addWorksheet('Lists');
+  lists.state = 'hidden';
 
-  // Lists to choose from (kept on their own sheet)
+  // Lists to choose from (kept on their own hidden sheet)
   const listColumns: [string, string[]][] = [
     ['Transaction Type', TRANSACTION_TYPES],
     ['Receiving Store', stores.map((s) => s.label)],
@@ -313,10 +327,29 @@ export async function buildModel19Template(stores: StoreOption[]): Promise<Array
   const head = sheet.addRow([...TEMPLATE_COLUMNS]);
   head.eachCell((c) => { c.font = headFont; c.fill = headFill; c.alignment = { wrapText: true, vertical: 'middle' }; });
   head.height = 30;
-  const widths: Partial<Record<Column, number>> = { 'Item Description': 34, 'Receiving Store': 30, 'Source / Supplier': 26, 'Program / Project': 26, Category: 30, Remark: 26 };
+  const widths: Partial<Record<Column, number>> = {
+    'Model 19 No.': 18,
+    'PO No.': 14,
+    'Received Date (G.C.)': 22,
+    'Transaction Type': 22,
+    'Source / Supplier': 28,
+    Buyer: 20,
+    'Program / Project': 26,
+    'Receiving Store': 34,
+    'Delivered By': 20,
+    'IFMIS Item Code': 20,
+    'Item Description': 36,
+    UoM: 12,
+    Category: 32,
+    'Item Type': 16,
+    Quantity: 14,
+    'Unit Price (ETB)': 18,
+    'VAT 15%': 12,
+    Remark: 26,
+  };
   TEMPLATE_COLUMNS.forEach((c, i) => { sheet.getColumn(i + 1).width = widths[c] ?? 16; });
 
-  // One example (in grey; starts with "e.g." so it is never imported)
+  // One example (in slate; starts with "e.g." so it is never imported)
   const example: Record<Column, string | number> = {
     'Model 19 No.': `${EXAMPLE_MARK} 0000014`,
     'PO No.': '193',
@@ -338,41 +371,29 @@ export async function buildModel19Template(stores: StoreOption[]): Promise<Array
     Remark: '',
   };
   const ex = sheet.addRow(TEMPLATE_COLUMNS.map((c) => example[c]));
-  ex.font = { ...font, italic: true, color: { argb: 'FF8A94A6' } };
+  ex.height = 24;
+  ex.eachCell((c) => {
+    c.font = exampleFont;
+    c.fill = exampleFill;
+    c.border = thinBorder;
+    c.alignment = { vertical: 'middle' };
+  });
 
-  // Room for 500 lines, the fields to fill in shaded, lists where there is a choice
+  // Room for 500 lines, clean white cells with subtle borders and data validation
   const validation = (name: string) => ({ type: 'list' as const, allowBlank: true, formulae: [listRange(name)], showErrorMessage: true, errorTitle: name, error: `Choose a ${name.toLowerCase()} from the list` });
   for (let r = 3; r <= 502; r++) {
+    const row = sheet.getRow(r);
+    row.height = 22;
     TEMPLATE_COLUMNS.forEach((c, i) => {
       const cell = sheet.getCell(r, i + 1);
-      cell.fill = inputFill;
       cell.font = font;
+      cell.border = thinBorder;
+      cell.alignment = { vertical: 'middle' };
       if (listColumns.some(([n]) => n === c)) cell.dataValidation = validation(c);
       if (c === 'Received Date (G.C.)') cell.numFmt = 'yyyy-mm-dd';
       if (c === 'Quantity' || c === 'Unit Price (ETB)') cell.numFmt = '#,##0.00';
     });
   }
-
-  // How to fill it
-  readme.columns = [{ width: 24 }, { width: 100 }];
-  const notes: [string, string][] = [
-    ['Model 19 import', 'Receive several Model 19s at once. Each becomes a receipt waiting for approval, exactly as if entered on the receive form.'],
-    ['', ''],
-    ['One row per line', 'Enter each line of a Model 19 on its own row, on the "Model 19 lines" sheet, and repeat the Model 19\'s header (No., PO No., date, store…) on every row of it.'],
-    ['One receipt', 'Rows with the same Model 19 No. and PO No. are one receipt. A file can hold many Model 19s.'],
-    ['Fill in', 'Only the shaded cells. Row 2 (grey, starting with "e.g.") is an example and is never imported: leave it or delete it.'],
-    ['Required', 'Model 19 No., Received date (YYYY-MM-DD), Receiving store, Item description, Quantity, Unit price, Category, and Item type (or the IFMIS item code: a code starting with 3 is a fixed asset).'],
-    ['Lists', 'Transaction type, Receiving store, Category, Item type, UoM and VAT are chosen from lists.'],
-    ['Prices', 'Unit price as on the Model 19, before VAT. Write Yes under VAT 15% when VAT applies: the total is worked out with it.'],
-    ['Before sending', 'The import shows every receipt and any problem, by row, before anything is sent. Receipts with a problem are not sent; correct the file and import it again.'],
-  ];
-  notes.forEach(([a, b], i) => {
-    const row = readme.getRow(i + 1);
-    row.values = [a, b];
-    row.font = font;
-    readme.getCell(`A${i + 1}`).font = { ...font, bold: true, ...(i === 0 ? { size: 14, color: { argb: 'FF0A3F24' } } : {}) };
-    readme.getCell(`B${i + 1}`).alignment = { wrapText: true, vertical: 'top' };
-  });
 
   return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
 }
