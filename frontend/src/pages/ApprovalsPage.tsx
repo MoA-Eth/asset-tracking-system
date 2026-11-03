@@ -177,6 +177,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
   // Multi-Selection State for Batch Processing
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [expandedSlips, setExpandedSlips] = useState<Set<string>>(new Set());
   const [batchActionType, setBatchActionType] = useState<'ENDORSE' | 'APPROVE' | 'REJECT' | null>(null);
   const [batchRemarks, setBatchRemarks] = useState('');
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
@@ -415,9 +416,18 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     });
   }, [rows, activeTab, canEndorse, canApprove, isChiefDirector, isDeptHead, typeFilter, valueFilter, matchesSearch]);
 
-  type ApprovalSortColumn = 'type' | 'item' | 'stage' | 'requester';
+  type ApprovalSortColumn = 'type' | 'item' | 'stage' | 'requester' | 'total';
   const [sortColumn, setSortColumn] = useState<ApprovalSortColumn>('type');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const toggleExpandSlip = (id: string) => {
+    setExpandedSlips((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const handleSort = (colKey: string) => {
     const col = colKey as ApprovalSortColumn;
@@ -444,10 +454,25 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         const reqA = a.requestedBy?.fullNameEn || '';
         const reqB = b.requestedBy?.fullNameEn || '';
         diff = reqA.localeCompare(reqB);
+      } else if (sortColumn === 'total') {
+        diff = (a.totalAmount || 0) - (b.totalAmount || 0);
       }
       return sortDirection === 'asc' ? diff : -diff;
     });
   }, [filteredApprovals, sortColumn, sortDirection]);
+
+  const queueStats = useMemo(() => {
+    const totalVal = filteredApprovals.reduce((sum, a) => sum + (a.totalAmount || 0), 0);
+    const s1 = filteredApprovals.filter((a) => a.status === ApprovalStatus.PENDING && (a.currentStage ?? 1) === 1).length;
+    const s2 = filteredApprovals.filter((a) => a.status === ApprovalStatus.PENDING && a.currentStage === 2).length;
+    return { totalVal, s1, s2 };
+  }, [filteredApprovals]);
+
+  const selectedTotalValue = useMemo(() => {
+    return rows
+      .filter((r) => selectedIds.includes(r.id))
+      .reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+  }, [rows, selectedIds]);
 
   const pager = usePagination(sortedApprovals, { resetKey: `${activeTab}|${typeFilter}|${valueFilter}|${searchTerm}|${sortColumn}|${sortDirection}` });
 
@@ -1124,6 +1149,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     onSort={handleSort}
                     thClassName="hidden lg:table-cell py-2 px-3.5 max-w-[220px]"
                   />
+                  <SortableHeader
+                    label="Total (ETB)"
+                    columnKey="total"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-2 px-3.5 text-right w-36 whitespace-nowrap shrink-0"
+                  />
                   <th className="sticky right-0 z-[1] bg-slate-100 py-2 px-3 text-right w-44 whitespace-nowrap shrink-0 font-normal">Review</th>
                 </tr>
               </thead>
@@ -1140,12 +1173,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       (isDeptHead && !isHighValue) ||
                       (!isChiefDirector && !isDeptHead));
                   const isActionableForMe = isPending && ((canEndorse && stage === 1) || canAuthorizeThis);
+                  const isExpanded = expandedSlips.has(appr.id);
+                  const lines = slipLines.get(appr.id);
 
                   return (
+                    <React.Fragment key={appr.id}>
                     <tr
-                      key={appr.id}
                       className={`hover:bg-slate-50/80 transition group ${
-                        isSelected ? 'bg-slate-50' : ''
+                        isSelected ? 'bg-slate-50' : isExpanded ? 'bg-sky-50/30' : ''
                       }`}
                     >
                       {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
@@ -1180,12 +1215,18 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                             {appr.ifmisTagNumber && (
                               <span className="text-xs text-slate-500 font-mono">Tag {appr.ifmisTagNumber}</span>
                             )}
-                            {slipLines.has(appr.id) ? (
+                            {lines ? (
                               <>
-                                <span className="px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
-                                  Batch · {slipLines.get(appr.id)!.length} lines
-                                </span>
-                                {linesUnits(slipLines.get(appr.id)!) && <span className="text-xs text-sky-800">· Qty {linesUnits(slipLines.get(appr.id)!)}</span>}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpandSlip(appr.id)}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition cursor-pointer"
+                                  title="Expand/collapse line items"
+                                >
+                                  <ChevronRight className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                  <span>Batch · {lines.length} lines</span>
+                                </button>
+                                {linesUnits(lines) && <span className="text-xs text-sky-800">· Qty {linesUnits(lines)}</span>}
                               </>
                             ) : approvalUnits(appr) ? (
                               <span className="text-xs text-sky-800">· {approvalUnits(appr)}</span>
@@ -1198,11 +1239,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                                   e.stopPropagation();
                                   setViewingSlipUrl(appr.ifmisSlipAttachmentUrl ?? null);
                                 }}
-                                className="inline-flex items-center gap-0.5 p-0.5 rounded text-emerald-700 hover:bg-emerald-50 transition cursor-pointer"
-                                title="View attached slip"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 transition cursor-pointer"
+                                title="View attached scanned slip"
                                 aria-label={`View attached slip for ${appr.ifmisSlipNumber || appr.itemCode}`}
                               >
-                                <Paperclip className="w-3.5 h-3.5" />
+                                <Paperclip className="w-3 h-3 text-emerald-700" />
+                                <span>Slip</span>
                               </button>
                             )}
                           </span>
@@ -1225,6 +1267,16 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                             {appr.purposeOrRemarks || 'No remarks provided'}
                           </span>
                         </div>
+                      </td>
+
+                      {/* Total Amount / Valuation */}
+                      <td className="py-2.5 px-3.5 text-right tabular-nums whitespace-nowrap">
+                        <span className="font-bold text-slate-900">{formatETB(appr.totalAmount || 0)}</span>
+                        {isHighValue && (
+                          <span className="block text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded px-1.5 py-0.2 mt-0.5 w-fit ml-auto">
+                            &gt; 10M ETB
+                          </span>
+                        )}
                       </td>
 
                       {/* Review & Signing Button: pinned to the right edge so it never needs sideways scrolling */}
@@ -1290,10 +1342,74 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                         </div>
                       </td>
                     </tr>
+
+                    {/* Expandable nested sub-rows for batch voucher lines */}
+                    {isExpanded &&
+                      lines?.map((sub, idx) => (
+                        <tr
+                          key={sub.id}
+                          className="bg-sky-50/20 hover:bg-sky-50/40 text-xs transition border-t border-slate-100"
+                        >
+                          {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
+                            <td className="py-2 px-3 text-center text-slate-300">
+                              <span className="font-mono text-[10px]">↳</span>
+                            </td>
+                          )}
+                          <td className="py-2 px-3.5 text-slate-400 text-[11px] font-medium">
+                            Line {idx + 1}
+                          </td>
+                          <td className="py-2 px-3.5">
+                            <div className="flex flex-col pl-2 border-l-2 border-sky-300">
+                              <span className="font-medium text-slate-800">{sub.itemName}</span>
+                              <span className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-slate-500 font-mono">
+                                <span>{sub.itemCode}</span>
+                                {sub.ifmisItemCode && <span>· IFMIS {sub.ifmisItemCode}</span>}
+                                {approvalUnits(sub) && <span className="text-sky-800 font-sans font-semibold">· {approvalUnits(sub)}</span>}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-3.5 text-slate-400 text-[11px]">
+                            <span className="text-slate-400 italic">Voucher line</span>
+                          </td>
+                          <td className="hidden lg:table-cell py-2 px-3.5 text-slate-400 text-[11px]">
+                            {/* Inherited */}
+                          </td>
+                          <td className="py-2 px-3.5 text-right tabular-nums text-slate-700 whitespace-nowrap font-medium">
+                            {formatETB(sub.totalAmount || 0)}
+                          </td>
+                          <td className="sticky right-0 z-[1] bg-sky-50/20 py-2 px-3 text-right">
+                            {/* Action taken on parent voucher */}
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Queue Summary Strip */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-slate-50/90 border-t border-slate-200 text-xs text-slate-600">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span>Showing <strong>{filteredApprovals.length}</strong> {filteredApprovals.length === 1 ? 'request' : 'requests'}</span>
+              {queueStats.s1 > 0 && (
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-amber-900 bg-amber-50 border border-amber-200/90 px-2 py-0.5 rounded">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <span><strong>{queueStats.s1}</strong> Stage 1 (Endorsement)</span>
+                </span>
+              )}
+              {queueStats.s2 > 0 && (
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-900 bg-emerald-50 border border-emerald-200/90 px-2 py-0.5 rounded">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                  <span><strong>{queueStats.s2}</strong> Stage 2 (Authorization)</span>
+                </span>
+              )}
+            </div>
+            <div className="text-right tabular-nums flex items-center gap-1.5 ml-auto">
+              <span className="text-slate-500">Queue Valuation:</span>
+              <strong className="text-slate-900 font-bold text-xs">{formatETB(queueStats.totalVal)}</strong>
+            </div>
           </div>
         </div>
       )}
@@ -1305,9 +1421,16 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             <span className="min-w-5 h-5 px-1.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs flex items-center justify-center tabular-nums">
               {selectedIds.length}
             </span>
-            <span className="text-xs font-semibold text-slate-700">
-              Selected Requests
-            </span>
+            <div className="flex flex-col">
+              <span className="text-xs font-semibold text-slate-700">
+                Selected Requests
+              </span>
+              {selectedTotalValue > 0 && (
+                <span className="text-[11px] font-bold text-emerald-800 tabular-nums">
+                  Total: {formatETB(selectedTotalValue)}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="h-5 w-px bg-slate-200" />

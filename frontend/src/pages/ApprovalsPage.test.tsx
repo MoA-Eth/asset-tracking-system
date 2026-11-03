@@ -379,3 +379,41 @@ describe('Approvals: correct a small mistake instead of rejecting', () => {
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 });
+
+describe('Approvals: table polish and batch valuation', () => {
+  it('renders Total (ETB) column, queue summary strip, and expands batch lines', async () => {
+    const user = userEvent.setup();
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+
+    // Total column header exists
+    expect(await screen.findByRole('columnheader', { name: /Total \(ETB\)/i })).toBeInTheDocument();
+
+    // Queue summary strip shows valuation
+    expect(screen.getByText(/Queue Valuation:/i)).toBeInTheDocument();
+
+    // Batch lines can be expanded inline
+    const expandBtn = screen.getByRole('button', { name: /Batch · 3 lines/i });
+    expect(screen.queryByText('Line 1')).toBeNull();
+    await user.click(expandBtn);
+    expect(screen.getByText('Line 1')).toBeInTheDocument();
+    expect(screen.getByText('Line 2')).toBeInTheDocument();
+    expect(screen.getByText('Line 3')).toBeInTheDocument();
+
+    // Clicking again collapses the lines
+    await user.click(expandBtn);
+    expect(screen.queryByText('Line 1')).toBeNull();
+  });
+
+  it('shows cumulative valuation in the floating batch action bar when requests are selected', async () => {
+    const user = userEvent.setup();
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
+
+    await screen.findByText('3 lines');
+    const checkboxes = screen.getAllByRole('checkbox');
+    // First checkbox is select-all or row checkbox
+    await user.click(checkboxes[1]);
+
+    expect(screen.getByText(/Selected Requests/i)).toBeInTheDocument();
+    expect(screen.getByText(/Total: ETB/i)).toBeInTheDocument();
+  });
+});
