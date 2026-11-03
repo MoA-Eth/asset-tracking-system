@@ -35,7 +35,7 @@ import { SortableHeader } from '../components/ui/SortableHeader';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
 import { AssetRecord } from '../components/assets/AssetRecord';
-import { SlipRecord, SlipStatus, slipLineTotal } from '../components/assets/SlipRecord';
+import { SlipRecord, SlipStatus, SlipUnitCost, slipLineTotal } from '../components/assets/SlipRecord';
 import { isConsumable, itemsLabel, supplyKey, unitsLabel } from '../utils/counting';
 import { inCategory } from '../components/assets/receipt-options';
 import { assetsViewKey } from '../utils/assets-view';
@@ -1641,7 +1641,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           </button>
         </td>
         <td className="px-3 py-2.5">
-          <SlipStatus rows={rowsOf} partly={partlyIn(members)} />
+          <SlipStatus rows={rowsOf} partly={partlyIn(members)} isOpen={isOpen} onViewDetails={() => toggleSlip(key)} />
         </td>
         {/* Its units, as a single line's row shows them (9 ea), when every line counts in one unit; otherwise its lines */}
         {(() => {
@@ -1683,33 +1683,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           );
         })()}
         <td className="pl-4 pr-3 py-2.5 text-slate-700">{places.length === 1 ? places[0] : 'Several places'}</td>
-        {/* Several items on this slip: show single cost if identical, or 'Varies' with tooltip */}
-        {(() => {
-          const distinctCosts = [...new Set(rowsOf.map((r) => Math.round(costOf(r.item) * 100) / 100))].filter((c) => c > 0);
-          if (distinctCosts.length === 1) {
-            return (
-              <td className="pl-2 pr-2 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
-                {formatETB(distinctCosts[0])}
-              </td>
-            );
-          }
-          if (distinctCosts.length > 1) {
-            const tooltip = rowsOf
-              .map((r) => `${r.item.name}: ${costOf(r.item) > 0 ? formatETB(Math.round(costOf(r.item) * 100) / 100) : '-'}`)
-              .join('\n');
-            return (
-              <td className="pl-2 pr-2 py-2.5 text-right whitespace-nowrap">
-                <span
-                  className="inline-block cursor-help rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-200"
-                  title={`${tooltip}\n\nClick "Show items" to view individual lines`}
-                >
-                  Varies
-                </span>
-              </td>
-            );
-          }
-          return <td className="pl-2 pr-2 py-2.5 text-right text-slate-400 whitespace-nowrap">-</td>;
-        })()}
+        {/* Several items on this slip: show single cost if identical, or 'X types' breakdown */}
+        <td className="pl-2 pr-2 py-2.5 text-right whitespace-nowrap">
+          <SlipUnitCost rows={rowsOf} isOpen={isOpen} onViewDetails={() => toggleSlip(key)} />
+        </td>
         <td className="pl-2 pr-4 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
           {formatETB(total)}
         </td>
