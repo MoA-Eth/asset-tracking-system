@@ -2902,7 +2902,7 @@ describe('Assets: the dashboard figures for what is listed', () => {
     // Waiting for approval: not on the register yet
     item('W1', 'Wheelbarrow', 'PENDING_STOCK_IN', { quantity: 5, itemType: 'FIXED' }),
   ];
-  const figures = () => screen.findByRole('group', { name: 'Held in the listed assets' });
+  const figures = () => screen.findByRole('group', { name: 'Filter by asset type' });
 
   beforeEach(() => {
     vi.mocked(api.getItems).mockResolvedValue(held as any);
@@ -2910,20 +2910,19 @@ describe('Assets: the dashboard figures for what is listed', () => {
     vi.mocked(api.getDepartments).mockResolvedValue([{ id: 'D1', nameEn: 'Agricultural Extension' }, { id: 'D2', nameEn: 'Digital Agriculture' }] as any);
   });
 
-  it('counts fixed assets in units and consumables in items, never adding litres to pieces', async () => {
+  it('renders clean type filter buttons for All Types, Fixed Assets, and Consumables', async () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-    const line = await figures();
-    expect(line).toHaveTextContent('Fixed assets 10 units (7 in store · 3 in use)');
-    expect(line).toHaveTextContent('Consumables 2 items (1 in store · 1 in use)');
-    expect(line).toHaveTextContent('ETB 1,030,000.00');
+    const group = await screen.findByRole('group', { name: 'Filter by asset type' });
+    expect(within(group).getByRole('button', { name: 'All Types' })).toBeInTheDocument();
+    expect(within(group).getByRole('button', { name: 'Fixed Assets' })).toBeInTheDocument();
+    expect(within(group).getByRole('button', { name: 'Consumables' })).toBeInTheDocument();
   });
 
-  it('opens on the directorate a dashboard figure chose, counting only what it holds', async () => {
+  it('opens on the directorate a stored view chose', async () => {
     localStorage.setItem('moa_assets_view_enc', JSON.stringify({ filter: 'ALL', department: 'D1', itemType: 'FIXED' }));
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-    const line = await figures();
-    expect(line).toHaveTextContent('Fixed assets 3 units (0 in store · 3 in use)');
-    expect(line).toHaveTextContent('Consumables 0 items');
+    const group = await screen.findByRole('group', { name: 'Filter by asset type' });
+    expect(within(group).getByRole('button', { name: 'Fixed Assets' })).toHaveClass('bg-white');
     expect(screen.getByText('Directorate: Agricultural Extension')).toBeInTheDocument();
     expect(screen.getByText('Type: Fixed asset')).toBeInTheDocument();
   });

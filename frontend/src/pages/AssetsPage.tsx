@@ -36,7 +36,6 @@ import { Pagination, usePagination } from '../components/ui/Pagination';
 import { RowActionsMenu, RowAction } from '../components/ui/RowActionsMenu';
 import { AssetRecord } from '../components/assets/AssetRecord';
 import { SlipRecord, SlipStatus, SlipUnitCost, slipLineTotal } from '../components/assets/SlipRecord';
-import { isConsumable, itemsLabel, supplyKey, unitsLabel } from '../utils/counting';
 import { inCategory } from '../components/assets/receipt-options';
 import { assetsViewKey } from '../utils/assets-view';
 import { OPEN_CORRECTION_EVENT, OPEN_SLIP_EVENT, slipKey, slipNames, takePendingCorrection, takePendingSlip, voucherSize } from '../components/assets/slip-groups';
@@ -1904,33 +1903,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     { value: 0, inStore: 0, inUse: 0 }
   );
 
-  // What the listed records hold, counted as the dashboard counts it (fixed assets in units, consumables by supply), so
-  // with no filter it reads as the dashboard's cards and with one as that slice of them. Each record by its own status:
-  // a batch and the units issued from it are separate records, one in store and one assigned. A consumable is assigned
-  // once none of it is left in store, as on the dashboard, so it is judged by all its stock, not only the listed records
-  const onRegister = useMemo(() => {
-    const inStore: string[] = [ItemStatus.AVAILABLE, ItemStatus.PENDING_STOCK_OUT, ItemStatus.PENDING_DISPOSAL];
-    const assigned: string[] = [ItemStatus.ISSUED, ItemStatus.UNDER_TRANSFER];
-    const held = (r: AssetRow) => inStore.includes(r.item.status) || assigned.includes(r.item.status);
-    const units = (r: AssetRow) => Number(r.item.quantity) || 1;
-    const all = groups.flatMap((g) => [g.row, ...g.children]).filter(held);
-    const records = all.filter((r) => inFilter(r, filter, locationFilter, categoryFilter) && matchesSearch(r));
-    // Supplies with some stock in store, within the store, category and type chosen (whatever the status shown)
-    const stocked = new Set(
-      all.filter((r) => isConsumable(r.item) && inStore.includes(r.item.status) && inFilter(r, 'ALL', locationFilter, categoryFilter)).map((r) => supplyKey(r.item)),
-    );
-    const fixed = records.filter((r) => !isConsumable(r.item));
-    const fixedInStore = fixed.filter((r) => inStore.includes(r.item.status)).reduce((n, r) => n + units(r), 0);
-    const fixedHeld = fixed.reduce((n, r) => n + units(r), 0);
-    const supplies = [...new Set(records.filter((r) => isConsumable(r.item)).map((r) => supplyKey(r.item)))];
-    const suppliesInStore = supplies.filter((k) => stocked.has(k)).length;
-    return {
-      fixed: { held: fixedHeld, inStore: fixedInStore, issued: fixedHeld - fixedInStore },
-      supplies: { held: supplies.length, inStore: suppliesInStore, issued: supplies.length - suppliesInStore },
-      value: records.reduce((sum, r) => sum + valueOf(r.item, units(r)), 0),
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, shown]);
 
   const issueItem = issue?.edit ? items.find((i) => i.id === issue.edit!.itemId) : undefined;
   // What can go on a Model 22: records in store with nothing waiting, and records whose waiting requests are all issues.
@@ -2153,65 +2125,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         </div>
       ) : (
         /* ── Register ── */
-        <div className="space-y-3.5">
-          {/* Top Unified Stats Bar: compact, lightweight single-row summary */}
-          <div
-            role="group"
-            aria-label="Held in the listed assets"
-            title="Counted as on the dashboard: approved records in store or in use; receipts waiting for approval, rejected and disposed are not counted"
-            className="grid grid-cols-3 divide-x divide-slate-200/80 rounded-xl border border-slate-200/80 bg-white px-3.5 sm:px-4 py-2.5 shadow-2xs text-xs overflow-x-auto"
-          >
-            {/* Fixed Assets */}
-            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 pr-2 sm:pr-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100/80">
-                <Boxes className="h-3.5 w-3.5" />
-              </span>
-              <div className="flex items-baseline gap-1.5 min-w-0">
-                <span className="font-semibold text-slate-700 shrink-0">Fixed assets</span>
-                <span className="font-bold text-slate-900 tabular-nums shrink-0">
-                  {' '}{unitsLabel(onRegister.fixed.held)}{' '}
-                </span>
-                <span className="text-slate-400 font-normal truncate">
-                  {' '}({onRegister.fixed.inStore.toLocaleString()} in store · {onRegister.fixed.issued.toLocaleString()} in use)
-                </span>
-              </div>
-            </div>
-
-            {/* Consumables */}
-            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 px-2 sm:px-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 border border-teal-100/80">
-                <ShoppingCart className="h-3.5 w-3.5" />
-              </span>
-              <div className="flex items-baseline gap-1.5 min-w-0">
-                <span className="font-semibold text-slate-700 shrink-0">Consumables</span>
-                <span className="font-bold text-slate-900 tabular-nums shrink-0">
-                  {' '}{itemsLabel(onRegister.supplies.held)}{' '}
-                </span>
-                <span className="text-slate-400 font-normal truncate">
-                  {' '}({onRegister.supplies.inStore.toLocaleString()} in store · {onRegister.supplies.issued.toLocaleString()} in use)
-                </span>
-              </div>
-            </div>
-
-            {/* Total Value */}
-            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 pl-2 sm:pl-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100/80">
-                <Coins className="h-3.5 w-3.5" />
-              </span>
-              <div className="flex items-baseline gap-1.5 min-w-0">
-                <span className="font-semibold text-slate-700 shrink-0">Total Value</span>
-                <span className="font-bold text-slate-900 tabular-nums truncate" title={formatETBTotal(onRegister.value)}>
-                  {' '}{formatETBTotal(onRegister.value)}{' '}
-                </span>
-                {onRegister.value >= 1_000_000 && (
-                  <span className="text-slate-400 font-normal truncate shrink-0" title={formatETBTotal(onRegister.value)}>
-                    {' '}({formatETBShort(onRegister.value)})
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
+        <div className="space-y-3">
           <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
         {/* Status: Executive Tab Strip with badge counts */}
         <div className="border-b border-slate-200/90 bg-slate-50/70 px-3.5 sm:px-4 py-2">
