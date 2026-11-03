@@ -1512,11 +1512,11 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         </div>
       )}
 
-      {/* ── Middle Row: Directorate Allocation, Asset Categories, Fleet Overview (3 Columns) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Col 1: Directorate Allocation */}
+      {/* ── Middle Row: Directorate Allocation (6), Asset Categories (3), Fleet Overview (3) aligned with top 4 cards ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Col 1: Directorate Allocation (50% width, perfectly aligns with Top Cards 1 & 2) */}
         <Panel
-          className="lg:col-span-1"
+          className="lg:col-span-6"
           title="Directorate allocation"
           subtitle="የዳይሬክቶሬት ንብረት ድልድል"
           icon={BarChart3}
@@ -1593,9 +1593,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           )}
         </Panel>
 
-        {/* Col 2: Fixed Asset Categories */}
+        {/* Col 2: Fixed Asset Categories (25% width, perfectly aligns with Top Card 3) */}
         <Panel
-          className="lg:col-span-1"
+          className="lg:col-span-3"
           title="Fixed Asset Categories (In Store & In Use)"
           subtitle="የቋሚ ንብረት ምድቦች (በመጋዘንና በስራ ላይ ያሉ)"
           icon={PieChart}
@@ -1624,9 +1624,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           )}
         </Panel>
 
-        {/* Col 3: Fleet Overview */}
+        {/* Col 3: Fleet Overview (25% width, perfectly aligns with Top Card 4) */}
         <Panel
-          className="lg:col-span-1"
+          className="lg:col-span-3"
           title="Fleet Overview"
           subtitle="የተሽከርካሪዎችና ማሽነሪዎች አጠቃላይ ሁኔታ"
           icon={Car}
@@ -1696,89 +1696,39 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
         </Panel>
       </div>
 
-      {/* ── Lower Row: Fixed Assets Received & Issued (Left) + Items In Store Too Long (Right) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <Panel
-          className="lg:col-span-7"
-          title="Fixed Assets Received and Issued"
-          subtitle="የገቡና የወጡ ቋሚ ንብረቶች እንቅስቃሴ"
-          icon={BarChart3}
-          tone="emerald"
-          action={
-            <div className="flex items-center gap-3 text-xs font-medium">
-              <span className="flex items-center gap-1.5 text-slate-700">
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
-                Received
-              </span>
-              <span className="flex items-center gap-1.5 text-slate-700">
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
-                Issued
-              </span>
-            </div>
-          }
-        >
-          <PairedColumns
-            label="Fixed assets received and issued by month"
-            unit="units"
-            empty="No fixed assets received or issued in these months."
-            series={[
-              { label: 'Received', color: '#059669' },
-              { label: 'Issued', color: '#6ee7b7' },
-            ]}
-            rows={fixedMovement.map((m) => ({ key: m.month, label: monthLabel(m.month), a: m.received, b: m.issued }))}
-          />
-        </Panel>
-
-        <div className="lg:col-span-5 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/50 via-white to-orange-50/30 p-5 sm:p-6 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] flex flex-col justify-between">
-          <div>
-            <div className="flex items-start gap-2 mb-3">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-xs shrink-0 shadow-2xs mt-0.5">
-                <Clock className="h-3.5 w-3.5" />
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-[15px] font-bold text-slate-900 leading-tight">
-                  Items in Store Too Long (&gt; 30 Days)
-                </h2>
-                <p className="mt-0.5 text-[11px] text-amber-800/80 font-normal">
-                  በመጋዘን ውስጥ ከ30 ቀናት በላይ የቆዩ ንብረቶች
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-4 mt-3">
-              <div className="space-y-2 min-w-0">
-                <div className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight tabular-nums">
-                  {stale.itemCount}
-                </div>
-                <p className="text-xs text-slate-600 font-medium leading-snug">
-                  assets have been in store for more than {stale.thresholdDays} days
-                </p>
-                {stale.itemCount > 0 && (
-                  <div className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-900/80 bg-amber-100/60 border border-amber-200/80 px-2 py-0.5 rounded-md">
-                    <span>Fixed: {staleFixed}</span>
-                    <span className="text-amber-400">•</span>
-                    <span>Supplies: {staleSupplies}</span>
-                  </div>
-                )}
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={showStale}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold shadow-2xs transition cursor-pointer"
-                  >
-                    View Details &rarr;
-                  </button>
-                </div>
-              </div>
-
-              <ClockIllustration />
-            </div>
+      {/* ── Monthly Movement Chart: Fixed Assets Received & Issued (Full Width) ── */}
+      <Panel
+        title="Fixed Assets Received and Issued"
+        subtitle="የገቡና የወጡ ቋሚ ንብረቶች እንቅስቃሴ"
+        icon={BarChart3}
+        tone="emerald"
+        action={
+          <div className="flex items-center gap-3 text-xs font-medium">
+            <span className="flex items-center gap-1.5 text-slate-700">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
+              Received
+            </span>
+            <span className="flex items-center gap-1.5 text-slate-700">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+              Issued
+            </span>
           </div>
-        </div>
-      </div>
+        }
+      >
+        <PairedColumns
+          label="Fixed assets received and issued by month"
+          unit="units"
+          empty="No fixed assets received or issued in these months."
+          series={[
+            { label: 'Received', color: '#059669' },
+            { label: 'Issued', color: '#6ee7b7' },
+          ]}
+          rows={fixedMovement.map((m) => ({ key: m.month, label: monthLabel(m.month), a: m.received, b: m.issued }))}
+        />
+      </Panel>
 
-      {/* ── Row 4: Quick Insights, Top Value Assets, Recent Activity (3 Columns matching mockup) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {/* ── Row 4: Four Matching Summary Cards (Quick Insights, Top Value Assets, Recent Activity, In Store > 30 Days) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <Panel title="Quick Insights" icon={Lightbulb} tone="emerald">
           <div className="space-y-3 py-1">
             <div className="flex items-center gap-2.5">
@@ -1883,6 +1833,43 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+        </Panel>
+
+        <Panel
+          title="In store > 30 days"
+          subtitle="በመጋዘን ውስጥ ከ30 ቀናት በላይ የቆዩ"
+          icon={Clock}
+          tone="amber"
+          action={
+            <button
+              type="button"
+              onClick={showStale}
+              className="text-xs font-semibold text-amber-700 hover:text-amber-800 hover:underline cursor-pointer"
+            >
+              View &rarr;
+            </button>
+          }
+        >
+          <div className="space-y-2 py-0.5 min-w-0">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-slate-900 tracking-tight tabular-nums">
+                {stale.itemCount}
+              </span>
+              <span className="text-xs text-slate-500 font-medium">
+                assets ({stale.thresholdDays}+ days)
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600">
+              Items should be distributed to staff or directorates within a month of arriving.
+            </p>
+            {stale.itemCount > 0 && (
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-900 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md">
+                <span>Fixed: {staleFixed}</span>
+                <span className="text-amber-400">•</span>
+                <span>Supplies: {staleSupplies}</span>
+              </div>
+            )}
           </div>
         </Panel>
       </div>
