@@ -480,7 +480,10 @@ const BreakdownSubtext: React.FC<{
           <span className="text-[10px] text-slate-400 font-normal">ቋሚ ንብረቶች</span>
         </span>
       </span>
-      <span className="font-semibold text-slate-800 tabular-nums ml-2 shrink-0">{fixed.toLocaleString()}</span>
+      <span className="tabular-nums ml-2 shrink-0 inline-flex items-baseline gap-1">
+        <span className="font-semibold text-slate-800">{fixed.toLocaleString()}</span>
+        <span className="text-[10.5px] font-medium text-slate-400">{fixed === 1 ? 'unit' : 'units'}</span>
+      </span>
     </div>
     <div className="flex items-center justify-between text-slate-600">
       <span className="inline-flex items-center gap-1.5 min-w-0">
@@ -490,7 +493,10 @@ const BreakdownSubtext: React.FC<{
           <span className="text-[10px] text-slate-400 font-normal">አላቂ ዕቃዎች</span>
         </span>
       </span>
-      <span className="font-semibold text-slate-800 tabular-nums ml-2 shrink-0">{consumables.toLocaleString()}</span>
+      <span className="tabular-nums ml-2 shrink-0 inline-flex items-baseline gap-1">
+        <span className="font-semibold text-slate-800">{consumables.toLocaleString()}</span>
+        <span className="text-[10.5px] font-medium text-slate-400">{consumables === 1 ? 'item' : 'items'}</span>
+      </span>
     </div>
   </div>
 );
@@ -1247,11 +1253,11 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           }
           subtext={
             <div className="flex flex-col gap-1 text-[11px] sm:text-xs">
-              <div className="text-slate-600 font-medium truncate">Recorded asset value</div>
-              <div className="text-[10px] sm:text-[11px] text-slate-400 truncate">Store stock & custodial inventory</div>
+              <div className="text-slate-700 font-medium truncate">Total asset value</div>
+              <div className="text-[10.5px] text-slate-400 truncate">In store and in use</div>
             </div>
           }
-          footer="Store stock & custodial inventory"
+          footer="In store and in use"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ALL' }) : undefined}
         />
         {SHOW_CATEGORIES_CARD && (
