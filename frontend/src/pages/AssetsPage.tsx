@@ -1514,14 +1514,29 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           if (e.key === 'Enter' && e.target === e.currentTarget) openRecord(item.id);
         }}
         className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${
-          item.id === lastTouchedId ? table.rowHighlight : nested ? 'bg-slate-50/70 hover:bg-slate-100/80 transition-colors' : table.row
+          item.id === lastTouchedId
+            ? table.rowHighlight
+            : nested
+              ? 'bg-slate-50/90 hover:bg-slate-100/90 border-l-4 border-l-emerald-600/70 transition-colors'
+              : table.row
         }`}
       >
-        <td className={`py-2.5 pr-4 ${nested ? 'pl-9 relative' : 'pl-5'}`}>
-          {nested && <span className="absolute left-5 top-0 bottom-0 w-px bg-slate-200" aria-hidden="true" />}
-          <span className="block text-slate-900">
-            {nested && <span className="mr-1 text-slate-400 font-mono text-xs select-none" aria-hidden="true">↳</span>}
+        <td className={`py-2 pr-4 ${nested ? 'pl-9 relative' : 'pl-5'}`}>
+          {nested && <span className="absolute left-4 top-0 bottom-0 w-0.5 bg-emerald-500/40" aria-hidden="true" />}
+          <span className="block text-slate-900 font-medium">
+            {nested && <span className="mr-1.5 text-emerald-700 font-mono text-xs select-none" aria-hidden="true">↳</span>}
             {item.name}
+            {nested && (
+              <span className={`ml-2 inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold ${
+                row.state === 'DISPOSED'
+                  ? 'bg-slate-200/80 text-slate-700'
+                  : row.state === 'ISSUED'
+                    ? 'bg-blue-100 text-blue-800'
+                    : 'bg-emerald-100 text-emerald-800'
+              }`}>
+                {row.state === 'DISPOSED' ? 'Disposed unit' : row.state === 'ISSUED' ? 'Issued unit' : 'In store unit'}
+              </span>
+            )}
           </span>
           {/* The code and the type on one line, so a row is two lines high; the type goes under the code when the column is narrow */}
           <span className="flex flex-wrap items-center gap-x-1.5">
@@ -1534,7 +1549,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               type="button"
               onClick={() => toggleBatch(item.id)}
               aria-expanded={batch!.open}
-              className="mt-1 inline-flex items-center gap-1 rounded-[4px] text-[10px] font-semibold text-emerald-800 hover:text-emerald-950 hover:underline cursor-pointer"
+              className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] border border-emerald-200/80 bg-emerald-50/70 text-[10px] font-semibold text-emerald-900 hover:bg-emerald-100 transition cursor-pointer select-none"
             >
               <ChevronRight className={`h-3 w-3 transition-transform ${batch!.open ? 'rotate-90' : ''}`} />
               {batch!.open ? 'Hide' : 'Show'} {children.length} {recordsKind}{children.length === 1 ? 'record' : 'records'}
@@ -1543,6 +1558,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         </td>
         <td className="px-3 py-2.5 whitespace-nowrap">
           <AssetStatus row={row} partly={isBatch && issuedUnits > 0 && inStoreUnits > 0} />
+          {copyOfApproved(row) && (
+            <span
+              className="mt-1 inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded"
+              title={`Already ${row.request?.transactionType === 'DISPOSAL' ? 'disposed of' : 'issued'} on this ${voucherName(row.request?.transactionType)} No. ${row.request?.ifmisSlipNumber}${copyOfApproved(row)?.reviewedAtGc ? ` (approved ${formatCreatedDate(copyOfApproved(row)?.reviewedAtGc)})` : ''}: reject this copy`}
+            >
+              <AlertTriangle className="h-3 w-3 shrink-0 text-rose-600" /> Duplicate: reject
+            </span>
+          )}
         </td>
         <td className="px-3 py-2.5 tabular-nums text-slate-600">
           {/* One line: the units on the register, and under them only what is unusual. The full breakdown is in the
@@ -1560,15 +1583,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <span className="block" title={whereDetail || undefined}>
             {row.state === 'DISPOSED' || (isBatch && row.state !== 'ISSUED' && inStoreUnits === 0) ? '—' : row.where}
           </span>
-          {/* The one thing an approver must not miss stays in the row */}
-          {copyOfApproved(row) && (
-            <span
-              className="mt-0.5 inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium text-red-700"
-              title={`Already ${row.request?.transactionType === 'DISPOSAL' ? 'disposed of' : 'issued'} on this ${voucherName(row.request?.transactionType)} No. ${row.request?.ifmisSlipNumber}${copyOfApproved(row)?.reviewedAtGc ? ` (approved ${formatCreatedDate(copyOfApproved(row)?.reviewedAtGc)})` : ''}: reject this copy`}
-            >
-              <AlertTriangle className="h-3 w-3" /> Duplicate: reject
-            </span>
-          )}
         </td>
         <td className="pl-2 pr-2 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">{costOf(item) > 0 ? formatETB(Math.round(costOf(item) * 100) / 100) : '—'}</td>
         <td className="pl-2 pr-4 py-2.5 text-right tabular-nums font-medium text-slate-900 whitespace-nowrap">
@@ -2199,21 +2213,50 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           </div>
 
           <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-        <div className="flex flex-col gap-2.5 border-b border-slate-200 px-3.5 py-2.5">
-          {/* Status: always in sight, with how many of each */}
-          <div role="group" aria-label="Status" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
-            {FILTERS.map((f) => (
-              <FilterPill
-                key={f.value}
-                label={f.label}
-                // No number on All: it mixes items on the register with receipts waiting or rejected and items gone
-                count={f.value === 'ALL' ? undefined : groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length}
-                title={FILTER_HINTS[f.value]}
-                active={filter === f.value}
-                onClick={() => setFilter(f.value)}
-              />
-            ))}
+        {/* Status: Executive Tab Strip with badge counts */}
+        <div className="border-b border-slate-200/90 bg-slate-50/70 px-3.5 sm:px-4 py-2">
+          <div role="group" aria-label="Status" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-thin">
+            {FILTERS.map((f) => {
+              const count = f.value === 'ALL' ? undefined : groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length;
+              const isActive = filter === f.value;
+              const isPending = f.value === 'PENDING' && count && count > 0;
+              const isRejected = f.value === 'REJECTED' && count && count > 0;
+              return (
+                <button
+                  key={f.value}
+                  type="button"
+                  title={FILTER_HINTS[f.value]}
+                  onClick={() => setFilter(f.value)}
+                  aria-pressed={isActive}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[5px] text-xs font-semibold transition cursor-pointer select-none whitespace-nowrap ${
+                    isActive
+                      ? 'bg-white text-emerald-950 border border-slate-300 shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/70 border border-transparent'
+                  }`}
+                >
+                  <span>{f.label}</span>
+                  {count !== undefined && ' '}
+                  {count !== undefined && (
+                    <span
+                      className={`inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums min-w-[18px] ${
+                        isActive
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : isPending
+                            ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300/80'
+                            : isRejected
+                              ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300/80'
+                              : 'bg-slate-200/80 text-slate-600'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
+        </div>
+        <div className="flex flex-col gap-2.5 px-3.5 py-2.5">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative flex-1 w-full sm:max-w-md">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -2228,6 +2271,47 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </div>
 
             <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
+              {/* Quick Type Switcher: All | Fixed Assets | Consumables */}
+              <div
+                role="group"
+                aria-label="Filter by asset type"
+                className="inline-flex items-center rounded-[5px] border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-medium text-slate-600 shadow-2xs"
+              >
+                <button
+                  type="button"
+                  onClick={() => setTypeFilter('ALL')}
+                  className={`px-2.5 py-1 rounded-[3px] transition cursor-pointer select-none ${
+                    typeFilter === 'ALL'
+                      ? 'bg-white text-emerald-950 font-bold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  All Types
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTypeFilter('FIXED')}
+                  className={`px-2.5 py-1 rounded-[3px] transition cursor-pointer select-none ${
+                    typeFilter === 'FIXED'
+                      ? 'bg-white text-emerald-950 font-bold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Fixed Assets
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTypeFilter('CONSUMABLE')}
+                  className={`px-2.5 py-1 rounded-[3px] transition cursor-pointer select-none ${
+                    typeFilter === 'CONSUMABLE'
+                      ? 'bg-white text-emerald-950 font-bold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Consumables
+                </button>
+              </div>
+
               {/* Reusable Filter Popover */}
               <FilterPopover
                 label="Filter"
