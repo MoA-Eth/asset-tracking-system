@@ -359,15 +359,22 @@ const StatTile: React.FC<{
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <h3 className="text-xs font-semibold text-slate-500 tracking-wide capitalize truncate flex items-center justify-between">
-              <span>{label}</span>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold text-slate-600 tracking-wide truncate">
+                {label}
+              </h3>
               {onClick && (
-                <span className="text-[10px] font-semibold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                <span className="text-[10px] font-semibold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 ml-1">
                   View <ArrowRight className="w-2.5 h-2.5" />
                 </span>
               )}
-            </h3>
-            <div className="mt-0.5 text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums whitespace-nowrap">
+            </div>
+            {labelAm && (
+              <p className="text-[10.5px] text-slate-400 font-normal leading-tight truncate mt-0.5" title={labelAm}>
+                {labelAm}
+              </p>
+            )}
+            <div className="mt-1 text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums whitespace-nowrap">
               {displayHeadline}
             </div>
           </div>
@@ -1196,12 +1203,12 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           headline={fixedAssets.units.toLocaleString()}
           subtext={<BreakdownSubtext fixed={fixedAssets.units} consumables={consumableStockItems} />}
           tableData={<TypeRows fixed={fixedAssets.units} consumables={consumableStockItems} />}
-          footer="In store and assigned"
+          footer="In store and in use"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ALL' }) : undefined}
         />
         <StatTile
-          label="Assigned assets"
-          labelAm="የተመደቡ ንብረቶች"
+          label="Assets in Use"
+          labelAm="በአገልግሎት ላይ ያሉ ንብረቶች"
           icon={UserCheck}
           tone="sky"
           trendBadge={assignedAssetsTrend?.label ?? '0%'}
@@ -1209,7 +1216,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           headline={fixedAssets.issuedUnits.toLocaleString()}
           subtext={<BreakdownSubtext fixed={fixedAssets.issuedUnits} consumables={consumableStockItemsIssued} />}
           tableData={<TypeRows fixed={fixedAssets.issuedUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsIssued} />}
-          footer="Assigned"
+          footer="In use"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ISSUED' }) : undefined}
         />
         <StatTile

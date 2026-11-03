@@ -187,17 +187,17 @@ describe('Total assets', () => {
     const total = await card('Total assets');
     expect(within(total).getByRole('row', { name: /Fixed assets/ })).toHaveTextContent('Fixed assets(ቋሚ ንብረቶች)893units');
     expect(within(total).getByRole('row', { name: /Consumables/ })).toHaveTextContent('Consumables(አላቂ ዕቃዎች)312items');
-    // Assigned and available, each by type: fixed assets add up (93 + 800 = 893); a partly issued supply is in both
+    // Assigned/in use and available, each by type: fixed assets add up (93 + 800 = 893); a partly issued supply is in both
     const row = async (label: string, type: RegExp) => within(await card(label)).getByRole('row', { name: type });
-    expect(await row('Assigned assets', /Fixed assets/)).toHaveTextContent('Fixed assets(ቋሚ ንብረቶች)10% of all93units');
-    expect(await row('Assigned assets', /Consumables/)).toHaveTextContent('Consumables(አላቂ ዕቃዎች)200items');
+    expect(await row('Assets in Use', /Fixed assets/)).toHaveTextContent('Fixed assets(ቋሚ ንብረቶች)10% of all93units');
+    expect(await row('Assets in Use', /Consumables/)).toHaveTextContent('Consumables(አላቂ ዕቃዎች)200items');
     expect(await row('Available assets', /Fixed assets/)).toHaveTextContent('Fixed assets(ቋሚ ንብረቶች)90% of all800units');
     expect(await row('Available assets', /Consumables/)).toHaveTextContent('Consumables(አላቂ ዕቃዎች)140items');
     // Total valuation is one figure, not split by type
     expect(within(await card('Total valuation')).queryByText('All held, VAT included')).not.toBeInTheDocument();
     // One short line under each card
-    expect(await card('Total assets')).toHaveTextContent('In store and assigned');
-    expect(await card('Assigned assets')).toHaveTextContent('Assigned');
+    expect(await card('Total assets')).toHaveTextContent('In store and in use');
+    expect(await card('Assets in Use')).toHaveTextContent('In use');
     expect(await card('Available assets')).toHaveTextContent('In store');
     expect(within(await card('Total valuation')).queryByText(/of value/)).not.toBeInTheDocument();
     // Categories are in the chart further down, not a card
