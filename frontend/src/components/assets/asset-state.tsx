@@ -277,16 +277,22 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
     asked < row.units
   ) {
     const pending = requestLabel(row.request.transactionType, row.request.requestDetails).pending;
-    // One pill: where the units are, with a clock for the request; the request itself on hover and in the record
+    const stage = stageLabel(row.request);
     return (
-      <span
-        className={`${pill} ${partly ? statusTone.partly : statusTone.inStore}`}
-        title={`${pending}: ${asked.toLocaleString()} of ${row.units.toLocaleString()} · ${stageLabel(row.request)}`}
-        aria-label={`${partly ? 'Partly issued' : 'In store'}, ${pending.toLowerCase()} for ${asked} of ${row.units}`}
-      >
-        {partly ? 'Partly issued' : 'In store'}
-        <Clock className="h-3 w-3 text-amber-700" aria-hidden />
-      </span>
+      <div className="flex flex-col items-start gap-0.5">
+        <span
+          className={`${pill} ${partly ? statusTone.partly : statusTone.inStore}`}
+          title={`${pending}: ${asked.toLocaleString()} of ${row.units.toLocaleString()} · ${stage}`}
+          aria-label={`${partly ? 'Partly issued' : 'In store'}, ${pending.toLowerCase()} for ${asked} of ${row.units}`}
+        >
+          {partly ? 'Partly issued' : 'In store'}
+          <Clock className="h-3 w-3 text-amber-700" aria-hidden />
+        </span>
+        <span className="text-[11px] font-medium leading-tight text-amber-700 whitespace-nowrap">
+          {pending}: {asked.toLocaleString()} of {row.units.toLocaleString()}
+          {stage ? <span className="text-[10px] text-amber-600/80 font-normal ml-1">({stage})</span> : null}
+        </span>
+      </div>
     );
   }
   if (open.length > 1) {

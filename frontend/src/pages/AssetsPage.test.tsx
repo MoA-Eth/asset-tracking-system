@@ -273,11 +273,11 @@ describe('Assets page', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-L1');
 
-    // 6 of the 17 are asked for: one pill saying the record is in store, with the request on hover
+    // 6 of the 17 are asked for: one pill saying the record is in store, with the request visible underneath
     const batch = rowOf('MOA-L1');
     expect(within(batch).getByText('In store')).toBeInTheDocument();
     expect(within(batch).getByTitle(/^Disposal pending: 6 of 17/)).toBeInTheDocument();
-    expect(batch).not.toHaveTextContent('Disposal pending');
+    expect(batch).toHaveTextContent('Disposal pending: 6 of 17');
     // A request for every unit still reads as a whole: the filing cabinet's disposal is for its 1 unit
     expect(rowOf('MOA-Q1')).toHaveTextContent('Disposal pending');
     expect(rowOf('MOA-Q1')).not.toHaveTextContent('In store');
