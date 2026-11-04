@@ -200,24 +200,15 @@ describe('Approvals: the Chief Director signs a voucher by its grand total', () 
 });
 
 describe('Approvals: rejecting', () => {
-  it('needs a reason, then sends the whole Model 19 back to its requester; there is no separate Return', async () => {
+  it('focuses the Stage 1 modal on endorsement actions while rejecting is handled directly from the row', async () => {
     const user = userEvent.setup();
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('3 lines')).closest('tr')!;
     await user.click(within(row).getByRole('button', { name: /Endorse/ }));
-    // The decision window's own Reject (the row has one too); wider than before, to read the voucher's lines
-    const modalReject = () => screen.getAllByRole('button', { name: /^Reject$/ }).find((b) => b.closest('.max-w-2xl'))!;
-    expect(modalReject()).toBeDefined();
-    expect(screen.queryByRole('button', { name: /Return for correction/ })).toBeNull();
-    expect(screen.getByText(/goes back to its requester, who corrects and resubmits it, or cancels it/)).toBeInTheDocument();
-
-    await user.click(modalReject());
-    expect(api.handleSlipApproval).not.toHaveBeenCalled();
-
-    await user.type(screen.getByPlaceholderText(/Verified asset specifications/), 'Price is entered as USD.');
-    await user.click(modalReject());
-    expect(api.handleSlipApproval).toHaveBeenCalledWith(expect.objectContaining({ approvalIds: ['A', 'B', 'C'], action: 'REJECT', reviewRemarks: 'Price is entered as USD.' }));
-    expect(toast.warning).toHaveBeenCalledWith('Transaction Rejected', expect.stringContaining('went back to Encoder with your reason, to correct and resubmit, or cancel'));
+    const modal = screen.getByText(/Stage 1: Team Leader Endorsement/).closest('.max-w-2xl')!;
+    expect(within(modal).getByRole('button', { name: /Endorse \(Stage 1\)/ })).toBeInTheDocument();
+    expect(within(modal).queryByRole('button', { name: /^Reject$/ })).toBeNull();
+    expect(within(modal).getByText(/Optional endorsement remarks recorded in the official audit trail/)).toBeInTheDocument();
   });
 
   it('rejects straight from the row: only the reason is asked, and the whole Model 19 goes back', async () => {

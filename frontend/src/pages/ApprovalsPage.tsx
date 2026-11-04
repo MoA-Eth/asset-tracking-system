@@ -1874,7 +1874,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   className="w-full px-3 py-2 bg-white border border-slate-300 rounded-[4px] text-slate-900 focus:outline-none focus:border-emerald-700 text-xs"
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
-                  Needed to reject. A rejected request goes back to its requester, who corrects and resubmits it, or cancels it.
+                  {selectedApproval.currentStage === 1
+                    ? 'Optional endorsement remarks recorded in the official audit trail.'
+                    : 'Needed to reject. A rejected request goes back to its requester, who corrects and resubmits it, or cancels it.'}
                 </p>
               </div>
             </div>
@@ -1891,14 +1893,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               {selectedApproval.status === ApprovalStatus.PENDING && selectedApproval.currentStage === 1 && canEndorse && (
                 <>
                   {correctButton(selectedApproval)}
-                  <button
-                    type="button"
-                    disabled={actionLoading}
-                    onClick={() => handleAction(selectedApproval.id, 'REJECT')}
-                    className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                  >
-                    <XCircle className="w-4 h-4" /> Reject
-                  </button>
                   <button
                     type="button"
                     disabled={actionLoading}
