@@ -63,8 +63,8 @@ describe('SlipUnitCost', () => {
 
     render(<SlipUnitCost rows={[item1, item2, item3, item4]} onViewDetails={onViewDetails} />);
 
-    // Compact badge
-    expect(screen.getByText('2 types')).toBeInTheDocument();
+    // Compact Multi-rate badge
+    expect(screen.getByText('Multi-rate')).toBeInTheDocument();
 
     // Trigger button
     const btn = screen.getByLabelText('View unit cost details');

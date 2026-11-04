@@ -1536,38 +1536,64 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       >
         <td className={`py-2 pr-4 ${nested ? 'pl-9 relative' : 'pl-5'}`}>
           {nested && <span className="absolute left-4 top-0 bottom-0 w-0.5 bg-emerald-500/40" aria-hidden="true" />}
-          <span className="block text-slate-900 font-medium" title={row.where ? `Location / Custodian: ${row.where}` : undefined}>
-            {nested && <span className="mr-1.5 text-emerald-700 font-mono text-xs select-none" aria-hidden="true">↳</span>}
-            {item.name}
-            {nested && (
-              <span className={`ml-2 inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold ${
-                row.state === 'DISPOSED'
-                  ? 'bg-slate-200/80 text-slate-700'
-                  : row.state === 'ISSUED'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-emerald-100 text-emerald-800'
-              }`}>
-                {row.state === 'DISPOSED' ? 'Disposed unit' : row.state === 'ISSUED' ? 'Issued unit' : 'In store unit'}
-              </span>
+          <div className="flex items-start gap-2">
+            {isBatch && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleBatch(item.id);
+                }}
+                aria-expanded={batch!.open}
+                aria-label={batch!.open ? `Hide ${children.length} ${recordsKind}${children.length === 1 ? 'record' : 'records'}` : `Show ${children.length} ${recordsKind}${children.length === 1 ? 'record' : 'records'}`}
+                className="mt-0.5 -ml-1 text-slate-400 hover:text-slate-800 transition cursor-pointer p-0.5 rounded hover:bg-slate-200/60"
+              >
+                <ChevronRight className={`h-4 w-4 transition-transform duration-150 ${batch!.open ? 'rotate-90 text-slate-700' : ''}`} />
+              </button>
             )}
-          </span>
-          {/* The code and the type on one line, so a row is two lines high; the type goes under the code when the column is narrow */}
-          <span className="flex flex-wrap items-center gap-x-1.5">
-            <span className={`${table.code} whitespace-nowrap`}>{item.itemCode}</span>
-            <ItemTypeBadge type={item.itemType} />
-          </span>
-          {orphanParent && <span className="block text-[10px] text-slate-500">Part of {orphanParent.itemCode}</span>}
-          {isBatch && (
-            <button
-              type="button"
-              onClick={() => toggleBatch(item.id)}
-              aria-expanded={batch!.open}
-              className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] border border-emerald-200/80 bg-emerald-50/70 text-[10px] font-semibold text-emerald-900 hover:bg-emerald-100 transition cursor-pointer select-none"
-            >
-              <ChevronRight className={`h-3 w-3 transition-transform ${batch!.open ? 'rotate-90' : ''}`} />
-              {batch!.open ? 'Hide' : 'Show'} {children.length} {recordsKind}{children.length === 1 ? 'record' : 'records'}
-            </button>
-          )}
+            <div className="min-w-0 flex-1">
+              <span className="block text-slate-900 font-medium" title={row.where ? `Location / Custodian: ${row.where}` : undefined}>
+                {nested && <span className="mr-1.5 text-emerald-700 font-mono text-xs select-none" aria-hidden="true">↳</span>}
+                {item.name}
+                {nested && (
+                  <span className={`ml-2 inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold ${
+                    row.state === 'DISPOSED'
+                      ? 'bg-slate-200/80 text-slate-700'
+                      : row.state === 'ISSUED'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    {row.state === 'DISPOSED' ? 'Disposed unit' : row.state === 'ISSUED' ? 'Issued unit' : 'In store unit'}
+                  </span>
+                )}
+              </span>
+              <span className="flex flex-wrap items-center gap-x-1.5 mt-0.5">
+                <span className={`${table.code} whitespace-nowrap`}>{item.itemCode}</span>
+                <ItemTypeBadge type={item.itemType} />
+              </span>
+              {orphanParent && <span className="block text-[10px] text-slate-500">Part of {orphanParent.itemCode}</span>}
+
+              {/* Inline custody subline when expanded */}
+              {isBatch && batch?.open && children.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {children.map((child) => (
+                    <div key={child.item.id} className="text-xs text-slate-600 flex items-center gap-1.5 font-normal">
+                      <span className="text-slate-400 select-none">└</span>
+                      <span>
+                        {child.state === 'DISPOSED' ? 'Disposed of' : 'Issued to:'}{' '}
+                        <span className="font-medium text-slate-800">{child.where || 'Staff'}</span>
+                        {' — '}
+                        <span className="tabular-nums font-semibold text-slate-900">{child.units} {uom.toLowerCase()}</span>
+                        {(child.request?.ifmisSlipNumber || child.item.ifmisSlipNumber) && (
+                          <span className="text-slate-500"> on {child.request?.ifmisSlipNumber || child.item.ifmisSlipNumber}</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </td>
         <td className="px-3 py-2.5 whitespace-nowrap">
           {copyOfApproved(row) ? (
@@ -1670,30 +1696,34 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         }`}
       >
         <td className="py-2.5 pr-4 pl-5">
-          {/* Searching by an item's name puts that item first, so the row shows what was looked for, not "+1" */}
-          <span className="block text-slate-900">
-            {slipNames([
-              ...rowsOf.filter((r) => q && matchesSearch(r)),
-              ...rowsOf.filter((r) => !(q && matchesSearch(r))),
-            ].map((r) => r.item.name))}
-          </span>
-          <span className="flex items-center gap-x-1.5 whitespace-nowrap text-xs text-slate-600">
-            <span className="rounded-[4px] border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-semibold text-slate-700">Model 19</span>
-            {lead.ifmisSlipNumber && <span className="font-mono text-[11px] text-slate-500">· {lead.ifmisSlipNumber}</span>}
-            {lead.poNumber && <span className="text-[11px] text-slate-500">PO {lead.poNumber}</span>}
-          </span>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleSlip(key);
-            }}
-            aria-expanded={isOpen}
-            className="mt-1 inline-flex items-center gap-1 rounded-[4px] text-[10px] font-semibold text-emerald-800 hover:text-emerald-950 hover:underline cursor-pointer"
-          >
-            <ChevronRight className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-            {isOpen ? 'Hide' : 'Show'} {members.length} items
-          </button>
+          <div className="flex items-start gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSlip(key);
+              }}
+              aria-expanded={isOpen}
+              aria-label={isOpen ? `Hide ${members.length} items` : `Show ${members.length} items`}
+              className="mt-0.5 -ml-1 text-slate-400 hover:text-slate-800 transition cursor-pointer p-0.5 rounded hover:bg-slate-200/60"
+            >
+              <ChevronRight className={`h-4 w-4 transition-transform duration-150 ${isOpen ? 'rotate-90 text-slate-700' : ''}`} />
+            </button>
+            <div className="min-w-0 flex-1">
+              {/* Searching by an item's name puts that item first, so the row shows what was looked for, not "+1" */}
+              <span className="block text-slate-900 font-medium">
+                {slipNames([
+                  ...rowsOf.filter((r) => q && matchesSearch(r)),
+                  ...rowsOf.filter((r) => !(q && matchesSearch(r))),
+                ].map((r) => r.item.name))}
+              </span>
+              <span className="flex items-center gap-x-1.5 whitespace-nowrap text-xs text-slate-600 mt-0.5">
+                <span className="rounded-[4px] border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-semibold text-slate-700">Model 19</span>
+                {lead.ifmisSlipNumber && <span className="font-mono text-[11px] text-slate-500">· {lead.ifmisSlipNumber}</span>}
+                {lead.poNumber && <span className="text-[11px] text-slate-500">PO {lead.poNumber}</span>}
+              </span>
+            </div>
+          </div>
         </td>
         <td className="px-3 py-2.5 whitespace-nowrap">
           <SlipStatus rows={rowsOf} partly={partlyIn(members)} isOpen={isOpen} onViewDetails={() => toggleSlip(key)} />

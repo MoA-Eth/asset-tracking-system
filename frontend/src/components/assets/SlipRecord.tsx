@@ -263,9 +263,6 @@ export const SlipUnitCost: React.FC<SlipUnitCostProps> = ({ rows, isOpen, onView
 
   return (
     <div className="inline-flex items-center gap-1.5 justify-end whitespace-nowrap">
-      <span className="rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 border border-sky-200/80">
-        {costGroups.length} types
-      </span>
       <button
         ref={triggerRef}
         type="button"
@@ -277,13 +274,14 @@ export const SlipUnitCost: React.FC<SlipUnitCostProps> = ({ rows, isOpen, onView
         aria-haspopup="true"
         aria-label="View unit cost details"
         title="View unit cost details"
-        className={`h-5 w-5 rounded-full border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border cursor-pointer transition-colors ${
           open
-            ? 'bg-sky-100 text-sky-800 border-sky-300 ring-2 ring-sky-200/50'
-            : 'bg-sky-50 text-sky-700 border-sky-200/80 hover:bg-sky-100 hover:border-sky-300'
+            ? 'bg-slate-200 text-slate-900 border-slate-400'
+            : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700 border-slate-200/90'
         }`}
       >
-        <ChevronDown className={`h-3 w-3 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+        <span>Multi-rate</span>
+        <ChevronDown className={`h-3 w-3 text-slate-500 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open &&
