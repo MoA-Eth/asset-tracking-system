@@ -13,6 +13,7 @@ export interface SortableHeaderProps {
   className?: string;
   thClassName?: string;
   title?: string;
+  ariaLabel?: string;
 }
 
 export const SortableHeader: React.FC<SortableHeaderProps> = ({
@@ -25,12 +26,13 @@ export const SortableHeader: React.FC<SortableHeaderProps> = ({
   className = '',
   thClassName = '',
   title,
+  ariaLabel,
 }) => {
   const isSorted = currentSortColumn === columnKey;
   const ariaSort = isSorted ? (currentSortDirection === 'asc' ? 'ascending' : 'descending') : 'none';
 
   return (
-    <th className={thClassName} aria-sort={ariaSort}>
+    <th className={thClassName} aria-sort={ariaSort} aria-label={ariaLabel}>
       <button
         type="button"
         onClick={() => onSort(columnKey)}

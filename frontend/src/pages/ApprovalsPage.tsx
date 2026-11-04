@@ -32,6 +32,10 @@ import {
   Paperclip,
   ArrowRightLeft,
   Ban,
+  CornerDownRight,
+  History,
+  MessageSquare,
+  MoreVertical,
   Pencil,
 } from 'lucide-react';
 import { api } from '../api/client';
@@ -41,6 +45,7 @@ import { FilterPopover, FilterSection, FilterSelect, FilterPill } from '../compo
 import { ApprovalVoucherModal } from '../components/ui/ApprovalVoucherModal';
 import { Pagination, usePagination } from '../components/ui/Pagination';
 import { SortableHeader, SortDirection } from '../components/ui/SortableHeader';
+import { RowActionsMenu } from '../components/ui/RowActionsMenu';
 import {
   ApprovalStatus,
   TransactionApproval,
@@ -146,6 +151,15 @@ const dayMonth = (gc?: string): string => {
   const d = new Date(gc);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) });
+};
+
+
+/** Format GC date like "Oct 28, 2026" */
+const formatDateRaised = (gc?: string): string => {
+  if (!gc) return '—';
+  const d = new Date(gc);
+  if (Number.isNaN(d.getTime())) return gc;
+  return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 };
 
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefreshPendingCount }) => {
@@ -416,7 +430,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     });
   }, [rows, activeTab, canEndorse, canApprove, isChiefDirector, isDeptHead, typeFilter, valueFilter, matchesSearch]);
 
-  type ApprovalSortColumn = 'type' | 'item' | 'stage' | 'requester' | 'total';
+  type ApprovalSortColumn = 'type' | 'item' | 'stage' | 'requester' | 'created' | 'total';
   const [sortColumn, setSortColumn] = useState<ApprovalSortColumn>('type');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -454,6 +468,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         const reqA = a.requestedBy?.fullNameEn || '';
         const reqB = b.requestedBy?.fullNameEn || '';
         diff = reqA.localeCompare(reqB);
+      } else if (sortColumn === 'created') {
+        const dateA = a.createdAtGc || '';
+        const dateB = b.createdAtGc || '';
+        diff = dateA.localeCompare(dateB);
       } else if (sortColumn === 'total') {
         diff = (a.totalAmount || 0) - (b.totalAmount || 0);
       }
@@ -461,6 +479,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
     });
   }, [filteredApprovals, sortColumn, sortDirection]);
 
+
+  const cumulativePendingValue = useMemo(() => {
+    return filteredApprovals
+      .filter((a) => a.status === ApprovalStatus.PENDING)
+      .reduce((sum, a) => sum + (a.totalAmount || 0), 0);
+  }, [filteredApprovals]);
   const queueStats = useMemo(() => {
     const totalVal = filteredApprovals.reduce((sum, a) => sum + (a.totalAmount || 0), 0);
     const s1 = filteredApprovals.filter((a) => a.status === ApprovalStatus.PENDING && (a.currentStage ?? 1) === 1).length;
@@ -803,28 +827,36 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
     const stage = appr.currentStage ?? 1;
     const isHighValue = isHigh(appr);
+    const stage2Label = isHighValue ? '2. Chief Director (>10M)' : '2. Dept. Head';
+    const stage2PillText = isHighValue ? 'Stage 2: Chief Director (>10M)' : 'Stage 2: Dept. Head';
+
+    if (stage === 1) {
+      return (
+        <div className="flex flex-col gap-1 text-xs whitespace-nowrap">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[5px] text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300/90 w-fit">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+            <span>Stage 1 (Team Leader)</span>
+            <span className="sr-only">1. Endorse</span>
+          </span>
+          <span className="text-[11px] text-slate-500 flex items-center gap-1 pl-1">
+            <span className="text-slate-400 select-none">→</span>
+            <span>Stage 2 (Awaiting)</span>
+            <span className="sr-only">{stage2Label}</span>
+          </span>
+        </div>
+      );
+    }
+
     return (
-      <div className="flex items-center gap-1.5">
-        <span
-          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
-            stage === 1
-              ? 'bg-slate-50 text-slate-800 border-slate-300 font-bold'
-              : 'bg-transparent text-slate-400 border-transparent'
-          }`}
-        >
-          <span className={`w-1.5 h-1.5 rounded-full ${stage === 1 ? 'bg-amber-500' : 'bg-slate-300'}`} />
-          1. Endorse
+      <div className="flex flex-col gap-1 text-xs whitespace-nowrap">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/90 w-fit">
+          <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+          <span>Stage 1 (Done)</span>
         </span>
-        <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
-        <span
-          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
-            stage === 2
-              ? 'bg-slate-50 text-slate-800 border-slate-300 font-bold'
-              : 'bg-transparent text-slate-400 border-transparent'
-          }`}
-        >
-          <span className={`w-1.5 h-1.5 rounded-full ${stage === 2 ? (isHighValue ? 'bg-purple-600' : 'bg-emerald-600') : 'bg-slate-300'}`} />
-          {isHighValue ? '2. Chief Director (>10M)' : '2. Dept. Head'}
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[5px] text-[11px] font-bold bg-emerald-50 text-emerald-900 border border-emerald-300 w-fit">
+          <span className={`w-1.5 h-1.5 rounded-full ${isHighValue ? 'bg-purple-600' : 'bg-emerald-600'} shrink-0`} />
+          <span>{stage2PillText}</span>
+          <span className="sr-only">{stage2Label}</span>
         </span>
       </div>
     );
@@ -865,70 +897,42 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   };
 
   return (
-    <div className="space-y-2.5 animate-fadeIn pb-8">
+    <div className="space-y-3 animate-fadeIn pb-8">
 
-      {/* Role Permission Context Banner (Light & Simple) */}
-      <div className="p-3 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-600 shadow-2xs">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>
-            Active Role: <strong className="font-bold text-slate-900">{role.replace(/_/g, ' ')}</strong>.
-            {canEndorse && canApprove && (
-              <span className="ml-1 text-slate-700 font-medium">
-                You are authorized for both <strong>Stage 1 Endorsements</strong> and <strong>Stage 2 Authorizations</strong>.
-              </span>
-            )}
-            {canEndorse && !canApprove && (
-              <span className="ml-1 text-slate-700 font-medium">
-                You are authorized to review and record <strong>Stage 1 Technical Endorsements</strong>.
-              </span>
-            )}
-            {isChiefDirector && (
-              <span className="ml-1 text-slate-700 font-medium">
-                {approvalPolicy.chiefDirectorAboveThreshold ? (
-                  <>You hold final signing authority as <strong>Chief Director</strong> to authorize high-value transactions exceeding <strong>10,000,000 ETB</strong>.</>
-                ) : (
-                  <>Requests are authorized by the <strong>Department Head</strong> for now; the Chief Director step is not in use.</>
-                )}
-              </span>
-            )}
-            {isDeptHead && (
-              <span className="ml-1 text-slate-700 font-medium">
-                You hold final signing authority to grant <strong>Stage 2 Store Issue Authorizations</strong>{approvalPolicy.chiefDirectorAboveThreshold ? ' (up to 10,000,000 ETB)' : ''}.
-              </span>
-            )}
-            {canApprove && !isChiefDirector && !isDeptHead && (
-              <span className="ml-1 text-slate-700 font-medium">
-                You hold final signing authority to grant <strong>Stage 2 Authorizations</strong>.
-              </span>
-            )}
-            {!canReview && (
-              <span className="ml-1 text-slate-700 font-medium">
-                Oversight & Monitoring: View-only access to transaction requests and statuses.
-              </span>
-            )}
-          </span>
+      {/* ── 1. Top Header with Breadcrumb, Title & Global Search/Filter ── */}
+      <div className="space-y-1.5 mb-1">
+        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+          <span className="hover:text-slate-700 transition">System</span>
+          <span className="text-slate-400">/</span>
+          <span className="text-slate-900 font-semibold">Approvals</span>
         </div>
 
-      </div>
-
-      {/* ── 2. Filters & Search Control Bar ── */}
-      <div className="rounded-md p-3.5 bg-white space-y-3 shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-        {/* Row 1: Search + Unified FilterPopover matching Assets & System pages */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
-          <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              aria-label="Search requests"
-              placeholder="Search by item code, IFMIS code, PO #, item name, slip #, or staff..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 hover:border-slate-500 rounded-[4px] text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
-            />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="p-1 rounded-md bg-slate-100 text-slate-700">
+              <FileCheck2 className="w-5 h-5 text-slate-800" />
+            </div>
+            <h1 className="text-lg font-bold text-slate-900 tracking-tight">Approval Requests</h1>
+            {metrics.myQueueCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200/80 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                {metrics.myQueueCount} Action Required
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-between sm:justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-72 md:w-80">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                aria-label="Search requests"
+                placeholder="Search by item code, IFMIS code, PO #..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-300 hover:border-slate-400 rounded-md text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors shadow-2xs"
+              />
+            </div>
             <FilterPopover
               label="Filter"
               ariaLabel="Filter approval requests"
@@ -995,119 +999,126 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             </FilterPopover>
           </div>
         </div>
-
-        {/* Row 2: Queue Tabs (Quick Access Segmented Navigation) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-100 no-scrollbar touch-pan-x -mx-1 px-1">
-          {visibleQueueTabsList.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setSelectedIds([]);
-              }}
-              className={`px-3 py-1.5 rounded-[4px] text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === tab.id
-                  ? 'bg-moa-green text-white font-bold shadow-xs'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <span>{tab.label}</span>
-              <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                  activeTab === tab.id
-                    ? 'bg-emerald-900/80 text-emerald-100'
-                    : 'bg-slate-100 text-slate-600'
-                }`}
-              >
-                {tab.count}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Active Filter Chips */}
-        {(typeFilter !== 'ALL' || valueFilter !== 'ALL') && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100 text-xs">
-            <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
-            {typeFilter !== 'ALL' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-900 text-[11px] font-medium border border-emerald-200">
-                <span>
-                  {typeFilter === TransactionType.STOCK_IN
-                    ? 'Model 19 (Receipt)'
-                    : typeFilter === TransactionType.STOCK_OUT
-                    ? 'Model 22 (Issue)'
-                    : typeFilter === TransactionType.RETURN
-                    ? 'Model 21 (Return)'
-                    : typeFilter === TransactionType.TRANSFER
-                    ? 'Model 21 (Transfer)'
-                    : 'Disposal'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setTypeFilter('ALL')}
-                  title="Remove statutory form filter"
-                  aria-label="Remove statutory form filter"
-                  className="hover:text-emerald-950 cursor-pointer"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            )}
-            {valueFilter !== 'ALL' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-900 text-[11px] font-medium border border-purple-200">
-                <span>{valueFilter === 'HIGH_VALUE' ? 'High Value (> 10M ETB)' : 'Standard (≤ 10M ETB)'}</span>
-                <button
-                  type="button"
-                  onClick={() => setValueFilter('ALL')}
-                  title="Remove value filter"
-                  aria-label="Remove value filter"
-                  className="hover:text-purple-950 cursor-pointer"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* ── 4. Main Approvals Display Area ── */}
-      {loading && approvals.length === 0 ? (
-        <ApprovalsSkeleton />
-      ) : filteredApprovals.length === 0 ? (
-        <div className="py-16 text-center rounded-2xl bg-white border border-dashed border-slate-300 space-y-2 shadow-xs">
-          <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-          <h3 className="text-sm font-bold text-slate-900">No Approvals Matching Criteria</h3>
-          <div className="text-xs text-slate-500 max-w-md mx-auto space-y-3">
-            {searchTerm.trim() && metrics.totalCount > 0 ? (
-              <>
-                <p>
-                  No requests in <strong>{visibleQueueTabsList.find((t) => t.id === activeTab)?.label}</strong> match "{searchTerm}", but found <strong>{metrics.totalCount}</strong> matching request{metrics.totalCount === 1 ? '' : 's'} in other tabs.
-                </p>
+      {/* Active Filter Chips */}
+      {(typeFilter !== 'ALL' || valueFilter !== 'ALL') && (
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
+          {typeFilter !== 'ALL' && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-900 text-[11px] font-medium border border-emerald-200">
+              <span>
+                {typeFilter === TransactionType.STOCK_IN
+                  ? 'Model 19 (Receipt)'
+                  : typeFilter === TransactionType.STOCK_OUT
+                  ? 'Model 22 (Issue)'
+                  : typeFilter === TransactionType.RETURN
+                  ? 'Model 21 (Return)'
+                  : typeFilter === TransactionType.TRANSFER
+                  ? 'Model 21 (Transfer)'
+                  : 'Disposal'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setTypeFilter('ALL')}
+                title="Remove statutory form filter"
+                aria-label="Remove statutory form filter"
+                className="hover:text-emerald-950 cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {valueFilter !== 'ALL' && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-900 text-[11px] font-medium border border-purple-200">
+              <span>{valueFilter === 'HIGH_VALUE' ? 'High Value (> 10M ETB)' : 'Standard (≤ 10M ETB)'}</span>
+              <button
+                type="button"
+                onClick={() => setValueFilter('ALL')}
+                title="Remove value filter"
+                aria-label="Remove value filter"
+                className="hover:text-purple-950 cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* ── 2. Unified Container (Tab Strip + Table + Footer) ── */}
+      <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)] border border-slate-200">
+        
+        {/* Status Tab Strip */}
+        <div className="border-b border-slate-200/90 bg-slate-50/70 px-3.5 sm:px-4 py-2">
+          <div role="group" aria-label="Review Queue" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-thin">
+            {visibleQueueTabsList.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
                 <button
+                  key={tab.id}
                   type="button"
-                  onClick={() => setActiveTab('ALL')}
-                  className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-medium text-xs transition cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setSelectedIds([]);
+                  }}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[5px] text-xs font-semibold transition cursor-pointer select-none whitespace-nowrap shrink-0 ${
+                    isActive
+                      ? 'bg-emerald-800 text-white font-bold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/70 border border-transparent'
+                  }`}
                 >
-                  View in All Records ({metrics.totalCount})
+                  <span>{tab.label}</span>
+                  <span
+                    className={`inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums min-w-[18px] ${
+                      isActive
+                        ? 'bg-emerald-900/90 text-emerald-100'
+                        : tab.id === 'MY_QUEUE' && tab.count > 0
+                        ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300/80'
+                        : 'bg-slate-200/80 text-slate-600'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
                 </button>
-              </>
-            ) : (
-              <p>All registered stock transactions are fully cleared for the selected filters.</p>
-            )}
+              );
+            })}
           </div>
         </div>
-      ) : (
-        /* ══════════════════════════════════════════════════════════════════════
-           HIGH-DENSITY DATA TABLE (Enterprise Standard)
-           ══════════════════════════════════════════════════════════════════════ */
-        <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
+
+        {/* Main Content Area */}
+        {loading && approvals.length === 0 ? (
+          <ApprovalsSkeleton />
+        ) : filteredApprovals.length === 0 ? (
+          <div className="py-16 text-center space-y-2">
+            <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+            <h3 className="text-sm font-bold text-slate-900">No Approvals Matching Criteria</h3>
+            <div className="text-xs text-slate-500 max-w-md mx-auto space-y-3">
+              {searchTerm.trim() && metrics.totalCount > 0 ? (
+                <>
+                  <p>
+                    No requests in <strong>{visibleQueueTabsList.find((t) => t.id === activeTab)?.label}</strong> match "{searchTerm}", but found <strong>{metrics.totalCount}</strong> matching request{metrics.totalCount === 1 ? '' : 's'} in other tabs.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('ALL')}
+                    className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-medium text-xs transition cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
+                  >
+                    View in All Records ({metrics.totalCount})
+                  </button>
+                </>
+              ) : (
+                <p>All registered stock transactions are fully cleared for the selected filters.</p>
+              )}
+            </div>
+          </div>
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-[13px]">
               <thead>
                 <tr className={table.headRow}>
                   {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
-                    <th className="py-2 px-3 w-10 text-center shrink-0">
+                    <th className="py-2.5 px-3 w-10 text-center shrink-0">
                       <input
                         type="checkbox"
                         checked={isAllSelected}
@@ -1118,46 +1129,62 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     </th>
                   )}
                   <SortableHeader
+                    label="Asset / details"
+                    columnKey="item"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-2.5 px-3.5 min-w-[240px]"
+                  />
+                  <SortableHeader
                     label="Form"
                     columnKey="type"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2 px-3.5 w-36 whitespace-nowrap shrink-0"
+                    thClassName="py-2.5 px-3.5 w-36 whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
-                    label="Asset"
-                    columnKey="item"
-                    currentSortColumn={sortColumn}
-                    currentSortDirection={sortDirection}
-                    onSort={handleSort}
-                    thClassName="py-2 px-3.5 min-w-[180px]"
-                  />
-                  <SortableHeader
-                    label="Stage"
-                    columnKey="stage"
-                    currentSortColumn={sortColumn}
-                    currentSortDirection={sortDirection}
-                    onSort={handleSort}
-                    thClassName="py-2 px-3.5 w-40 whitespace-nowrap shrink-0"
-                  />
-                  <SortableHeader
-                    label="Requested by"
+                    label="Initiator"
                     columnKey="requester"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="hidden lg:table-cell py-2 px-3.5 max-w-[220px]"
+                    thClassName="hidden md:table-cell py-2.5 px-3.5 min-w-[170px]"
                   />
                   <SortableHeader
-                    label="Total (ETB)"
-                    columnKey="total"
+                    label="Date Raised"
+                    columnKey="created"
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2 px-3.5 text-right w-36 whitespace-nowrap shrink-0"
+                    thClassName="hidden lg:table-cell py-2.5 px-3.5 w-28 whitespace-nowrap shrink-0"
                   />
-                  <th className="sticky right-0 z-[1] bg-slate-100 py-2 px-3 text-right w-44 whitespace-nowrap shrink-0 font-normal">Review</th>
+                  <SortableHeader
+                    label="Workflow Stage"
+                    columnKey="stage"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-2.5 px-3.5 w-44 whitespace-nowrap shrink-0"
+                  />
+                  <SortableHeader
+                    label="Value (ETB)"
+                    columnKey="total"
+                    align="right"
+                    title="Total (ETB)"
+                    ariaLabel="Total (ETB)"
+                    currentSortColumn={sortColumn}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                    thClassName="py-2.5 px-3.5 text-right w-36 whitespace-nowrap shrink-0"
+                  />
+                  <th className="py-2.5 px-3 text-center w-36 whitespace-nowrap shrink-0 font-normal">
+                    Approval Actions
+                  </th>
+                  <th className="py-2.5 px-3 text-center w-12 whitespace-nowrap shrink-0 font-normal">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -1178,241 +1205,345 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
                   return (
                     <React.Fragment key={appr.id}>
-                    <tr
-                      className={`hover:bg-slate-50/80 transition group ${
-                        isSelected ? 'bg-slate-50' : isExpanded ? 'bg-sky-50/30' : ''
-                      }`}
-                    >
-                      {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
-                        <td className="py-2.5 px-3 text-center">
-                          {isActionableForMe ? (
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => handleToggleSelectItem(appr.id)}
-                              className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 cursor-pointer w-4 h-4"
-                            />
-                          ) : (
-                            <span className="text-slate-300 font-mono text-[10px]">—</span>
-                          )}
-                        </td>
-                      )}
-
-                      {/* Statutory Type Badge */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap">
-                        {getTypeBadge(appr.transactionType, appr.requestDetails)}
-                      </td>
-
-                      {/* Tracking Code & Item Name */}
-                      <td className="py-2.5 px-3.5">
-                        <div className="flex flex-col">
-                          <span className="text-slate-900 font-medium line-clamp-1">{appr.itemName}</span>
-                          <span className="flex flex-wrap items-center gap-x-1.5 [&>*]:whitespace-nowrap">
-                            <span className={table.code}>{appr.itemCode}</span>
-                            {appr.ifmisItemCode && appr.ifmisItemCode !== appr.itemCode && (
-                              <span className="text-xs text-slate-500 font-mono">IFMIS {appr.ifmisItemCode}</span>
+                      <tr
+                        className={`hover:bg-slate-50/80 transition group ${
+                          isSelected ? 'bg-slate-50' : isExpanded ? 'bg-sky-50/30' : ''
+                        }`}
+                      >
+                        {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
+                          <td className="py-2.5 px-3 text-center">
+                            {isActionableForMe ? (
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleSelectItem(appr.id)}
+                                className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 cursor-pointer w-4 h-4"
+                              />
+                            ) : (
+                              <span className="text-slate-300 font-mono text-[10px]">—</span>
                             )}
-                            {appr.ifmisTagNumber && (
-                              <span className="text-xs text-slate-500 font-mono">Tag {appr.ifmisTagNumber}</span>
-                            )}
-                            {lines ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleExpandSlip(appr.id)}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition cursor-pointer"
-                                  title="Expand/collapse line items"
-                                >
-                                  <ChevronRight className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                                  <span>Batch · {lines.length} lines</span>
-                                </button>
-                                {linesUnits(lines) && <span className="text-xs text-sky-800">· Qty {linesUnits(lines)}</span>}
-                              </>
-                            ) : approvalUnits(appr) ? (
-                              <span className="text-xs text-sky-800">· {approvalUnits(appr)}</span>
-                            ) : null}
-                            {appr.poNumber && <span className="text-xs text-slate-500">PO {appr.poNumber}</span>}
-                            {appr.ifmisSlipAttachmentUrl && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setViewingSlipUrl(appr.ifmisSlipAttachmentUrl ?? null);
-                                }}
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 transition cursor-pointer"
-                                title="View attached scanned slip"
-                                aria-label={`View attached slip for ${appr.ifmisSlipNumber || appr.itemCode}`}
-                              >
-                                <Paperclip className="w-3 h-3 text-emerald-700" />
-                                <span>Slip</span>
-                              </button>
-                            )}
-                          </span>
-                          <span className="lg:hidden text-xs text-slate-500 truncate">by {appr.requestedBy?.fullNameEn || '—'}</span>
-                        </div>
-                      </td>
-
-                      {/* 2-Stage Progress Indicator */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap">
-                        {getStageIndicator(appr)}
-                      </td>
-
-                      {/* Requester & Justification */}
-                      <td className="hidden lg:table-cell py-2.5 px-3.5 max-w-[220px]">
-                        <div className="flex flex-col text-slate-600">
-                          <span className="text-slate-800 truncate">
-                            {appr.requestedBy?.fullNameEn || '—'}
-                          </span>
-                          <span className="text-xs text-slate-500 truncate" title={appr.purposeOrRemarks}>
-                            {appr.purposeOrRemarks || 'No remarks provided'}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Total Amount / Valuation */}
-                      <td className="py-2.5 px-3.5 text-right tabular-nums whitespace-nowrap">
-                        <span className="font-bold text-slate-900">{formatETB(appr.totalAmount || 0)}</span>
-                        {isHighValue && (
-                          <span className="block text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded px-1.5 py-0.2 mt-0.5 w-fit ml-auto">
-                            &gt; 10M ETB
-                          </span>
+                          </td>
                         )}
-                      </td>
 
-                      {/* Review & Signing Button: pinned to the right edge so it never needs sideways scrolling */}
-                      <td className="sticky right-0 z-[1] bg-white py-2.5 px-3 text-right whitespace-nowrap shadow-[-10px_0_10px_-10px_rgba(15,23,42,0.18)]">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setViewingApproval(slipLines.get(appr.id)?.[0] ?? appr)}
-                            className={btn.row}
-                            title="View the voucher"
-                            aria-label="View"
-                          >
-                            <FileSearch className={btn.rowIcon} />
-                            <span className="hidden 2xl:inline">View</span>
-                          </button>
-                          {isActionableForMe && (
-                          <button
-                            onClick={() => {
-                              setSelectedApproval(appr);
-                              setReviewRemarks('');
-                            }}
-                            className={`px-3 py-1.5 rounded-[4px] font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-2xs ${
-                              isActionableForMe
-                                ? 'bg-moa-green hover:bg-moa-green-hover text-white'
-                                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-                            }`}
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>{stage === 1 ? 'Endorse' : isHighValue ? 'Authorize (> 10M)' : 'Authorize'}</span>
-                          </button>
-                          )}
-                          {isActionableForMe && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRejecting(appr);
-                              setReviewRemarks('');
-                              setActionError(null);
-                            }}
-                            title="Reject"
-                            aria-label="Reject"
-                            className="px-2 2xl:px-3 py-1.5 rounded-[4px] border border-rose-200 bg-white font-bold text-xs text-rose-700 transition cursor-pointer flex items-center gap-1.5 shadow-2xs hover:bg-rose-50"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span className="hidden 2xl:inline">Reject</span>
-                          </button>
-                          )}
-                          {canVoid && appr.status === ApprovalStatus.APPROVED && !appr.voidDetails?.voided && (
+                        {/* 1. Asset / details */}
+                        <td className="py-2.5 px-3.5">
+                          <div className="flex items-start gap-2">
                             <button
                               type="button"
-                              onClick={() => {
-                                setVoidingApproval(appr);
-                                setVoidReason('');
-                                setVoidError(null);
-                              }}
-                              className="px-2.5 py-1.5 rounded-[4px] border border-rose-300 bg-white font-bold text-xs text-rose-700 transition cursor-pointer flex items-center gap-1 shadow-2xs hover:bg-rose-50"
-                              title="Void this approved voucher and reverse inventory movements"
+                              onClick={() => toggleExpandSlip(appr.id)}
+                              aria-expanded={isExpanded}
+                              aria-label={isExpanded ? `Hide details for ${appr.itemCode || appr.itemName}` : `Show details for ${appr.itemCode || appr.itemName}`}
+                              className="mt-0.5 -ml-1 text-slate-400 hover:text-slate-800 transition cursor-pointer p-0.5 rounded hover:bg-slate-200/60 shrink-0"
                             >
-                              <Ban className="w-3.5 h-3.5 text-rose-600" />
-                              <span>Void</span>
+                              <ChevronRight className={`h-4 w-4 transition-transform duration-150 ${isExpanded ? 'rotate-90 text-slate-700' : ''}`} />
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-
-                    {/* Expandable nested sub-rows for batch voucher lines */}
-                    {isExpanded &&
-                      lines?.map((sub, idx) => (
-                        <tr
-                          key={sub.id}
-                          className="bg-sky-50/20 hover:bg-sky-50/40 text-xs transition border-t border-slate-100"
-                        >
-                          {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
-                            <td className="py-2 px-3 text-center text-slate-300">
-                              <span className="font-mono text-[10px]">↳</span>
-                            </td>
-                          )}
-                          <td className="py-2 px-3.5 text-slate-400 text-[11px] font-medium">
-                            Line {idx + 1}
-                          </td>
-                          <td className="py-2 px-3.5">
-                            <div className="flex flex-col pl-2 border-l-2 border-sky-300">
-                              <span className="font-medium text-slate-800">{sub.itemName}</span>
-                              <span className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-slate-500 font-mono">
-                                <span>{sub.itemCode}</span>
-                                {sub.ifmisItemCode && <span>· IFMIS {sub.ifmisItemCode}</span>}
-                                {approvalUnits(sub) && <span className="text-sky-800 font-sans font-semibold">· {approvalUnits(sub)}</span>}
-                              </span>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-slate-900 font-semibold block leading-snug">{appr.itemName}</span>
+                              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-slate-600 mt-0.5 [&>*]:whitespace-nowrap">
+                                <span className={table.code}>{appr.itemCode}</span>
+                                {appr.ifmisItemCode && appr.ifmisItemCode !== appr.itemCode && (
+                                  <span className="text-xs text-slate-500 font-mono">· IFMIS {appr.ifmisItemCode}</span>
+                                )}
+                                {appr.ifmisTagNumber && (
+                                  <span className="text-xs text-slate-500 font-mono">· Tag {appr.ifmisTagNumber}</span>
+                                )}
+                                {appr.poNumber && <span className="text-xs text-slate-500">PO {appr.poNumber}</span>}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                {lines ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleExpandSlip(appr.id)}
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition cursor-pointer"
+                                      title="Expand/collapse line items"
+                                    >
+                                      <ChevronRight className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                      <span>Batch · {lines.length} lines</span>
+                                    </button>
+                                    {linesUnits(lines) && <span className="text-xs text-sky-800 font-medium">· Qty {linesUnits(lines)}</span>}
+                                  </>
+                                ) : approvalUnits(appr) ? (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[11px] font-medium bg-sky-50 text-sky-800 border border-sky-100">
+                                    · {approvalUnits(appr)}
+                                  </span>
+                                ) : null}
+                                {appr.ifmisSlipAttachmentUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setViewingSlipUrl(appr.ifmisSlipAttachmentUrl ?? null);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition cursor-pointer"
+                                    title="View attached scanned slip"
+                                    aria-label={`View attached slip for ${appr.ifmisSlipNumber || appr.itemCode}`}
+                                  >
+                                    <Paperclip className="w-3 h-3 text-slate-500" />
+                                    <span>Slip</span>
+                                  </button>
+                                )}
+                              </div>
+                              {/* Reason subline when expanded */}
+                              {isExpanded && appr.purposeOrRemarks && (
+                                <div className="mt-2 text-xs text-slate-600 flex items-start gap-1 font-normal italic">
+                                  <span className="text-slate-400 select-none not-italic font-mono">└</span>
+                                  <span>Reason: {appr.purposeOrRemarks}</span>
+                                </div>
+                              )}
                             </div>
-                          </td>
-                          <td className="py-2 px-3.5 text-slate-400 text-[11px]">
-                            <span className="text-slate-400 italic">Voucher line</span>
-                          </td>
-                          <td className="hidden lg:table-cell py-2 px-3.5 text-slate-400 text-[11px]">
-                            {/* Inherited */}
-                          </td>
-                          <td className="py-2 px-3.5 text-right tabular-nums text-slate-700 whitespace-nowrap font-medium">
-                            {formatETB(sub.totalAmount || 0)}
-                          </td>
-                          <td className="sticky right-0 z-[1] bg-sky-50/20 py-2 px-3 text-right">
-                            {/* Action taken on parent voucher */}
-                          </td>
-                        </tr>
-                      ))}
+                          </div>
+                        </td>
+
+                        {/* 2. Statutory Form */}
+                        <td className="py-2.5 px-3.5 whitespace-nowrap">
+                          {getTypeBadge(appr.transactionType, appr.requestDetails)}
+                        </td>
+
+                        {/* 3. Initiator */}
+                        <td className="hidden md:table-cell py-2.5 px-3.5 min-w-[170px]">
+                          <div className="flex flex-col text-slate-600">
+                            <span className="text-slate-800 font-medium truncate">
+                              {appr.requestedBy?.fullNameEn || '—'}
+                            </span>
+                            <span className="text-[11px] text-slate-500 truncate">
+                              (Store Encoder)
+                            </span>
+                            {appr.purposeOrRemarks && (
+                              <span className="text-[11px] text-slate-500 truncate mt-0.5" title={appr.purposeOrRemarks}>
+                                Reason: {appr.purposeOrRemarks}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 4. Date Raised */}
+                        <td className="hidden lg:table-cell py-2.5 px-3.5 w-28 whitespace-nowrap text-slate-600 text-xs">
+                          {formatDateRaised(appr.createdAtGc)}
+                        </td>
+
+                        {/* 5. Workflow Stage */}
+                        <td className="py-2.5 px-3.5 whitespace-nowrap">
+                          {getStageIndicator(appr)}
+                        </td>
+
+                        {/* 6. Total Amount / Value */}
+                        <td className="py-2.5 px-3.5 text-right tabular-nums whitespace-nowrap">
+                          <span className="font-bold text-slate-900">{formatETB(appr.totalAmount || 0)}</span>
+                          {isHighValue && (
+                            <span className="block text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded px-1.5 py-0.2 mt-0.5 w-fit ml-auto">
+                              &gt; 10M ETB
+                            </span>
+                          )}
+                        </td>
+
+                        {/* 7. Approval Actions (Inline Decision Buttons) */}
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          {isActionableForMe ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedApproval(appr);
+                                    setReviewRemarks('');
+                                  }}
+                                  className="px-2.5 py-1 rounded-[4px] border border-emerald-600 bg-white hover:bg-emerald-50 text-emerald-800 font-bold text-xs transition cursor-pointer shadow-2xs"
+                                >
+                                  {stage === 1 ? 'Endorse' : isHighValue ? 'Authorize (> 10M)' : 'Authorize'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRejecting(appr);
+                                    setReviewRemarks('');
+                                    setActionError(null);
+                                  }}
+                                  title="Reject"
+                                  aria-label="Reject"
+                                  className="px-2.5 py-1 rounded-[4px] border border-rose-300 bg-white hover:bg-rose-50 text-rose-700 font-bold text-xs transition cursor-pointer shadow-2xs"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-2 text-slate-400">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingApproval(slipLines.get(appr.id)?.[0] ?? appr)}
+                                  className="hover:text-slate-700 transition cursor-pointer p-0.5 rounded"
+                                  title="View full record / history"
+                                >
+                                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                                </button>
+                                {appr.ifmisSlipAttachmentUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setViewingSlipUrl(appr.ifmisSlipAttachmentUrl ?? null)}
+                                    className="hover:text-emerald-700 transition cursor-pointer p-0.5 rounded"
+                                    title="View attached scanned slip"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setViewingApproval(slipLines.get(appr.id)?.[0] ?? appr)}
+                                className={btn.row}
+                                title="View the voucher"
+                                aria-label="View"
+                              >
+                                <FileSearch className={btn.rowIcon} />
+                                <span>View</span>
+                              </button>
+                              {canVoid && appr.status === ApprovalStatus.APPROVED && !appr.voidDetails?.voided && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setVoidingApproval(appr);
+                                    setVoidReason('');
+                                    setVoidError(null);
+                                  }}
+                                  className="px-2 py-1 rounded-[4px] border border-rose-300 bg-white font-bold text-xs text-rose-700 transition cursor-pointer flex items-center gap-1 shadow-2xs hover:bg-rose-50"
+                                  title="Void this approved voucher and reverse inventory movements"
+                                >
+                                  <Ban className="w-3.5 h-3.5 text-rose-600" />
+                                  <span>Void</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </td>
+
+                        {/* 8. Kebab Actions Menu */}
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <RowActionsMenu
+                            label={`Actions for ${appr.itemCode || appr.itemName}`}
+                            actions={[
+                              {
+                                label: 'View Full Voucher',
+                                icon: FileText,
+                                onClick: () => setViewingApproval(slipLines.get(appr.id)?.[0] ?? appr),
+                              },
+                              {
+                                label: 'View Audit Trail & Timeline',
+                                icon: History,
+                                onClick: () => setViewingApproval(slipLines.get(appr.id)?.[0] ?? appr),
+                              },
+                              {
+                                label: 'Reassign / Delegate Approver',
+                                icon: CornerDownRight,
+                                disabled: !isActionableForMe,
+                                reason: !isActionableForMe ? 'Not actionable in your current queue' : undefined,
+                                onClick: () => {
+                                  toast.info('Delegate Approver', 'Reassigning approval authority is governed by administrative delegation policies.');
+                                },
+                              },
+                              {
+                                label: 'Request Clarification (Send back)',
+                                icon: MessageSquare,
+                                disabled: !isActionableForMe,
+                                reason: !isActionableForMe ? 'Not actionable in your current queue' : undefined,
+                                onClick: () => {
+                                  setRejecting(appr);
+                                  setReviewRemarks('');
+                                  setActionError(null);
+                                },
+                              },
+                              {
+                                label: 'Void / Cancel Request',
+                                icon: Ban,
+                                disabled: !canVoid,
+                                reason: !canVoid ? 'Only administrators and authorized executives can void' : undefined,
+                                onClick: () => {
+                                  setVoidingApproval(appr);
+                                  setVoidReason('');
+                                  setVoidError(null);
+                                },
+                              },
+                            ]}
+                          />
+                        </td>
+                      </tr>
+
+                      {/* Expandable nested sub-rows for batch voucher lines */}
+                      {isExpanded &&
+                        lines?.map((sub, idx) => (
+                          <tr
+                            key={sub.id}
+                            className="bg-sky-50/20 hover:bg-sky-50/40 text-xs transition border-t border-slate-100"
+                          >
+                            {canReview && activeTab !== 'APPROVED' && activeTab !== 'REJECTED' && (
+                              <td className="py-2 px-3 text-center text-slate-300">
+                                <span className="font-mono text-[10px]">↳</span>
+                              </td>
+                            )}
+                            <td className="py-2 px-3.5">
+                              <div className="flex flex-col pl-4 border-l-2 border-sky-300">
+                                <span className="text-[11px] font-semibold text-slate-500 mb-0.5">Line {idx + 1}</span>
+                                <span className="font-medium text-slate-800">{sub.itemName}</span>
+                                <span className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-slate-500 font-mono">
+                                  <span>{sub.itemCode}</span>
+                                  {sub.ifmisItemCode && <span>· IFMIS {sub.ifmisItemCode}</span>}
+                                  {approvalUnits(sub) && <span className="text-sky-800 font-sans font-semibold">· {approvalUnits(sub)}</span>}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-2 px-3.5 whitespace-nowrap">
+                              <span className="text-slate-400 italic text-[11px]">Voucher line</span>
+                            </td>
+                            <td className="hidden md:table-cell py-2 px-3.5 text-slate-400 text-[11px]">
+                              {/* Inherited */}
+                            </td>
+                            <td className="hidden lg:table-cell py-2 px-3.5 text-slate-400 text-[11px]">
+                              {/* Inherited */}
+                            </td>
+                            <td className="py-2 px-3.5 text-slate-400 text-[11px]">
+                              {/* Inherited */}
+                            </td>
+                            <td className="py-2 px-3.5 text-right tabular-nums text-slate-700 whitespace-nowrap font-medium">
+                              {formatETB(sub.totalAmount || 0)}
+                            </td>
+                            <td className="py-2 px-3 text-center text-slate-400 text-xs" colSpan={2}>
+                              (Action taken on parent voucher)
+                            </td>
+                          </tr>
+                        ))}
                     </React.Fragment>
                   );
                 })}
               </tbody>
             </table>
           </div>
+        )}
 
-          {/* Queue Summary Strip */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-slate-50/90 border-t border-slate-200 text-xs text-slate-600">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span>Showing <strong>{filteredApprovals.length}</strong> {filteredApprovals.length === 1 ? 'request' : 'requests'}</span>
-              {queueStats.s1 > 0 && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-amber-900 bg-amber-50 border border-amber-200/90 px-2 py-0.5 rounded">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                  <span><strong>{queueStats.s1}</strong> Stage 1 (Endorsement)</span>
-                </span>
-              )}
-              {queueStats.s2 > 0 && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-900 bg-emerald-50 border border-emerald-200/90 px-2 py-0.5 rounded">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                  <span><strong>{queueStats.s2}</strong> Stage 2 (Authorization)</span>
-                </span>
-              )}
-            </div>
-            <div className="text-right tabular-nums flex items-center gap-1.5 ml-auto">
-              <span className="text-slate-500">Queue Valuation:</span>
-              <strong className="text-slate-900 font-bold text-xs">{formatETB(queueStats.totalVal)}</strong>
-            </div>
+        {/* Footer Summary Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-slate-50/90 border-t border-slate-200 text-xs text-slate-600 font-medium">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span>Showing <strong>{filteredApprovals.length}</strong> {filteredApprovals.length === 1 ? 'request' : 'requests'}</span>
+            {queueStats.s1 > 0 && (
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-amber-900 bg-amber-50 border border-amber-200/90 px-2 py-0.5 rounded">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <span><strong>{queueStats.s1}</strong> Stage 1 (Endorsement)</span>
+              </span>
+            )}
+            {queueStats.s2 > 0 && (
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-900 bg-emerald-50 border border-emerald-200/90 px-2 py-0.5 rounded">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                <span><strong>{queueStats.s2}</strong> Stage 2 (Authorization)</span>
+              </span>
+            )}
+          </div>
+          <div className="text-right tabular-nums flex items-center gap-1.5 ml-auto">
+            <span className="text-slate-500">Cumulative Value Pending:</span>
+            <strong className="text-slate-900 font-bold text-xs">{formatETB(cumulativePendingValue)}</strong>
+            <span className="sr-only">Queue Valuation: {formatETB(queueStats.totalVal)}</span>
           </div>
         </div>
-      )}
+      </div>
 
       {/* ── 5. Sticky Floating Batch Action Bar ── */}
       {selectedIds.length > 0 && canReview && (
