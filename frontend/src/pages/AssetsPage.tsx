@@ -1570,14 +1570,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           )}
         </td>
         <td className="px-3 py-2.5 whitespace-nowrap">
-          <AssetStatus row={row} partly={isBatch && issuedUnits > 0 && inStoreUnits > 0} />
-          {copyOfApproved(row) && (
+          {copyOfApproved(row) ? (
             <span
-              className="mt-1 inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded"
+              className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full"
               title={`Already ${row.request?.transactionType === 'DISPOSAL' ? 'disposed of' : 'issued'} on this ${voucherName(row.request?.transactionType)} No. ${row.request?.ifmisSlipNumber}${copyOfApproved(row)?.reviewedAtGc ? ` (approved ${formatCreatedDate(copyOfApproved(row)?.reviewedAtGc)})` : ''}: reject this copy`}
             >
               <AlertTriangle className="h-3 w-3 shrink-0 text-rose-600" /> Duplicate: reject
             </span>
+          ) : (
+            <AssetStatus row={row} partly={isBatch && issuedUnits > 0 && inStoreUnits > 0} />
           )}
         </td>
         {/* Received (Model 19) */}

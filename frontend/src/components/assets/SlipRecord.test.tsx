@@ -29,33 +29,19 @@ describe('where the items of a Model 19 stand', () => {
     expect(screen.queryByLabelText('View status breakdown')).not.toBeInTheDocument();
   });
 
-  it('renders compact status chips and opens the Status Breakdown popover on button click', () => {
+  it('renders a single primary status chip for mixed items with full breakdown in tooltip', () => {
     const item1 = row('1', 'IN_STORE');
     const item2 = row('2', 'IN_STORE');
     const item3 = row('3', 'REQUEST_PENDING', { transactionType: 'DISPOSAL', status: 'PENDING' });
     const item4 = row('4', 'REQUEST_PENDING', { transactionType: 'STOCK_OUT', status: 'PENDING' });
-    const onViewDetails = vi.fn();
 
-    render(<SlipStatus rows={[item1, item2, item3, item4]} onViewDetails={onViewDetails} />);
+    render(<SlipStatus rows={[item1, item2, item3, item4]} />);
 
-    // Compact summary row chips
-    expect(screen.getByText('2 In store')).toBeInTheDocument();
-    expect(screen.getByText('2 Pending')).toBeInTheDocument();
-
-    // Trigger button
-    const btn = screen.getByLabelText('View status breakdown');
-    expect(btn).toBeInTheDocument();
-
-    // Click to open Status Breakdown popover
-    fireEvent.click(btn);
-    expect(screen.getByText('Status Breakdown')).toBeInTheDocument();
-    expect(screen.getByText('Disposal pending')).toBeInTheDocument();
-    expect(screen.getByText('Issue pending')).toBeInTheDocument();
-
-    // Click View all details
-    const viewBtn = screen.getByText('View all details');
-    fireEvent.click(viewBtn);
-    expect(onViewDetails).toHaveBeenCalledTimes(1);
+    // Single primary status chip (priority: pending over in-store)
+    const chip = screen.getByText('2 Pending');
+    expect(chip).toBeInTheDocument();
+    expect(screen.queryByText('2 In store')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('View status breakdown')).not.toBeInTheDocument();
   });
 });
 

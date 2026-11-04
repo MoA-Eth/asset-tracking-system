@@ -78,64 +78,10 @@ export interface SlipStatusProps {
 }
 
 /**
- * The status of a Model 19 of several items: compact summary on the table row with an expandable
- * breakdown popover detailing counts for each status.
+ * The status of a Model 19 of several items: single clean status badge for the table row.
  */
-export const SlipStatus: React.FC<SlipStatusProps> = ({ rows, partly, isOpen, onViewDetails }) => {
+export const SlipStatus: React.FC<SlipStatusProps> = ({ rows, partly }) => {
   const list = standings(rows, partly);
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number; arrowOffset: number; up: boolean }>({
-    top: 0,
-    left: 0,
-    arrowOffset: 24,
-    up: false,
-  });
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  // Place the popover under the button, aligning the arrow with the button center
-  useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    const popoverW = 256;
-    const popoverH = popoverRef.current?.offsetHeight ?? 180;
-    const up = r.bottom + 8 + popoverH > window.innerHeight - 8 && r.top - 8 - popoverH > 8;
-    const triggerCenter = r.left + r.width / 2;
-    let left = triggerCenter - 32;
-    if (left + popoverW > window.innerWidth - 8) left = window.innerWidth - popoverW - 8;
-    if (left < 8) left = 8;
-    const arrowOffset = Math.max(12, Math.min(triggerCenter - left - 6, popoverW - 20));
-    setPos({
-      top: up ? r.top - 8 - popoverH : r.bottom + 8,
-      left,
-      arrowOffset,
-      up,
-    });
-  }, [open]);
-
-  // Close on outside click, Escape, scroll or resize
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (!popoverRef.current?.contains(e.target as Node) && !triggerRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    const onMove = () => setOpen(false);
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', onMove, true);
-    window.addEventListener('resize', onMove);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', onMove, true);
-      window.removeEventListener('resize', onMove);
-    };
-  }, [open]);
 
   // All the same: the badge of one item; a rejected receipt keeps its reason
   if (list.length === 1) {
@@ -171,125 +117,50 @@ export const SlipStatus: React.FC<SlipStatusProps> = ({ rows, partly, isOpen, on
       : []),
   ];
 
+  // Single primary chip for the parent row (priority: rejected -> pending -> partly -> issued -> in store)
+  const primaryChip = (() => {
+    const rej = summaryChips.find((c) => c.kind === 'rejected');
+    if (rej) return rej;
+    const pend = summaryChips.find((c) => c.kind === 'pending');
+    if (pend) return pend;
+    const partlyChip = summaryChips.find((c) => c.kind === 'partly');
+    if (partlyChip) return partlyChip;
+    const issued = summaryChips.find((c) => c.kind === 'issued');
+    const inStore = summaryChips.find((c) => c.kind === 'inStore');
+    if (issued && inStore) {
+      return {
+        key: 'PARTLY_MIX',
+        label: 'Partly issued',
+        kind: 'partly',
+        tone: statusTone.partly,
+      };
+    }
+    if (issued) return issued;
+    if (inStore) return inStore;
+    return summaryChips[0];
+  })();
+
+  if (!primaryChip) return null;
+
+  const isStore = primaryChip.kind === 'inStore';
+  const isPend = primaryChip.kind === 'pending';
   return (
     <div className="inline-flex items-center gap-1.5 whitespace-nowrap" aria-label={slipStatusSummary(rows, partly)}>
-      {summaryChips.length <= 2 ? (
-        summaryChips.map((chip) => {
-          const isStore = chip.kind === 'inStore';
-          const isPend = chip.kind === 'pending';
-          return (
-            <span
-              key={chip.key}
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold border ${
-                isStore
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200/90'
-                  : isPend
-                  ? 'bg-amber-50 text-amber-800 border-amber-200/90'
-                  : `${pill} ${chip.tone}`
-              }`}
-            >
-              {isStore && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />}
-              {isPend && <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />}
-              <span>{chip.label}</span>
-            </span>
-          );
-        })
-      ) : (
-        <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 border border-sky-200/80">
-          {list.length} statuses
-        </span>
-      )}
-
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-        aria-expanded={open}
-        aria-haspopup="true"
-        aria-label="View status breakdown"
-        title="View status breakdown"
-        className={`h-5 w-5 rounded-full border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
-          open
-            ? 'bg-sky-100 text-sky-800 border-sky-300 ring-2 ring-sky-200/50'
-            : 'bg-sky-50 text-sky-700 border-sky-200/80 hover:bg-sky-100 hover:border-sky-300'
+      <span
+        key={primaryChip.key}
+        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
+          isStore
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-200/90'
+            : isPend
+            ? 'bg-amber-50 text-amber-800 border-amber-200/90'
+            : `${pill} ${primaryChip.tone}`
         }`}
+        title={slipStatusSummary(rows, partly)}
       >
-        <ChevronDown className={`h-3 w-3 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            ref={popoverRef}
-            style={{
-              position: 'fixed',
-              top: `${pos.top}px`,
-              left: `${pos.left}px`,
-              zIndex: 9999,
-            }}
-            className="w-64 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-150"
-          >
-            <div
-              className={`absolute h-2.5 w-2.5 rotate-45 border-slate-200 bg-white ${
-                pos.up ? '-bottom-1.5 border-b border-r' : '-top-1.5 border-t border-l'
-              }`}
-              style={{ left: `${pos.arrowOffset}px` }}
-            />
-            <h4 className="text-xs font-bold text-slate-800 tracking-tight">Status Breakdown</h4>
-            <div className="space-y-2 mt-2.5 mb-3">
-              {list.map(({ key, label, n }) => {
-                const isPend = key === 'RECEIPT_PENDING' || key === 'REQUEST_PENDING' || key.startsWith('REQUEST:');
-                const isStore = key === 'IN_STORE';
-                return (
-                  <div key={key} className="flex items-center justify-between text-xs">
-                    <span className="inline-flex items-center gap-2 text-slate-700 font-medium">
-                      {isStore ? (
-                        <span className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-emerald-100 shrink-0" />
-                      ) : isPend ? (
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                      ) : (
-                        <span className="h-2 w-2 rounded-full bg-slate-400 ring-2 ring-slate-100 shrink-0" />
-                      )}
-                      <span>{label}</span>
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums ${
-                        isStore
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
-                          : isPend
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
-                          : 'bg-slate-100 text-slate-700 border border-slate-200/60'
-                      }`}
-                    >
-                      {n}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            {onViewDetails && (
-              <div className="border-t border-slate-100 pt-2.5">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpen(false);
-                    onViewDetails();
-                  }}
-                  className="text-xs font-semibold text-sky-700 hover:text-sky-900 inline-flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  <span>{isOpen ? 'Hide item details' : 'View all details'}</span>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-          </div>,
-          document.body
-        )}
+        {isStore && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />}
+        {isPend && <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />}
+        <span>{primaryChip.label}</span>
+      </span>
     </div>
   );
 };
