@@ -1139,7 +1139,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2.5 px-3.5 min-w-[240px]"
+                    thClassName="py-2.5 px-3 min-w-[200px]"
                   />
                   <SortableHeader
                     label="Form"
@@ -1147,7 +1147,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2.5 px-3.5 w-36 whitespace-nowrap shrink-0"
+                    thClassName="py-2.5 px-2.5 w-32 whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
                     label="Initiator"
@@ -1155,7 +1155,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="hidden md:table-cell py-2.5 px-3.5 min-w-[170px]"
+                    thClassName="hidden md:table-cell py-2.5 px-2.5 w-36 max-w-[140px] whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
                     label="Date Raised"
@@ -1163,7 +1163,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="hidden lg:table-cell py-2.5 px-3.5 w-28 whitespace-nowrap shrink-0"
+                    thClassName="hidden lg:table-cell py-2.5 px-2 w-24 whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
                     label="Workflow Stage"
@@ -1171,7 +1171,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2.5 px-3.5 w-44 whitespace-nowrap shrink-0"
+                    thClassName="py-2.5 px-2.5 w-40 whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
                     label="Value (ETB)"
@@ -1182,12 +1182,12 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     currentSortColumn={sortColumn}
                     currentSortDirection={sortDirection}
                     onSort={handleSort}
-                    thClassName="py-2.5 px-3.5 text-right w-36 whitespace-nowrap shrink-0"
+                    thClassName="py-2.5 px-2.5 text-right w-28 whitespace-nowrap shrink-0"
                   />
-                  <th className="py-2.5 px-3 text-center w-36 whitespace-nowrap shrink-0 font-normal">
+                  <th className="py-2.5 px-2 text-center w-36 whitespace-nowrap shrink-0 font-normal">
                     Approval Actions
                   </th>
-                  <th className="py-2.5 px-3 text-center w-12 whitespace-nowrap shrink-0 font-normal">
+                  <th className="py-2.5 px-2 text-center w-12 whitespace-nowrap shrink-0 font-normal">
                     Actions
                   </th>
                 </tr>
@@ -1231,7 +1231,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                         )}
 
                         {/* 1. Asset / details */}
-                        <td className="py-2.5 px-3.5">
+                        <td className="py-2.5 px-3">
                           <div className="flex items-start gap-2">
                             <button
                               type="button"
@@ -1301,39 +1301,39 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                         </td>
 
                         {/* 2. Statutory Form */}
-                        <td className="py-2.5 px-3.5 whitespace-nowrap">
+                        <td className="py-2.5 px-2.5 whitespace-nowrap">
                           {getTypeBadge(appr.transactionType, appr.requestDetails)}
                         </td>
 
                         {/* 3. Initiator */}
-                        <td className="hidden md:table-cell py-2.5 px-3.5 min-w-[170px]">
-                          <div className="flex flex-col text-slate-600">
-                            <span className="text-slate-800 font-medium truncate">
+                        <td className="hidden md:table-cell py-2.5 px-2.5 w-36 max-w-[140px] whitespace-nowrap">
+                          <div className="flex flex-col text-slate-600 max-w-[140px] overflow-hidden">
+                            <span className="text-slate-800 font-medium truncate" title={appr.requestedBy?.fullNameEn}>
                               {appr.requestedBy?.fullNameEn || '—'}
                             </span>
-                            <span className="text-[11px] text-slate-500 truncate">
-                              (Store Encoder)
+                            <span className="text-[11px] text-slate-400 truncate">
+                              {appr.requestedBy?.role ? deciderRole(appr.requestedBy.role, 1) : 'Store Encoder'}
                             </span>
                             {appr.purposeOrRemarks && (
-                              <span className="text-[11px] text-slate-500 truncate mt-0.5" title={appr.purposeOrRemarks}>
-                                Reason: {appr.purposeOrRemarks}
+                              <span className="text-[10px] text-slate-400 truncate mt-0.5" title={appr.purposeOrRemarks}>
+                                {appr.purposeOrRemarks}
                               </span>
                             )}
                           </div>
                         </td>
 
                         {/* 4. Date Raised */}
-                        <td className="hidden lg:table-cell py-2.5 px-3.5 w-28 whitespace-nowrap text-slate-600 text-xs">
+                        <td className="hidden lg:table-cell py-2.5 px-2 w-24 whitespace-nowrap text-slate-600 text-xs">
                           {formatDateRaised(appr.createdAtGc)}
                         </td>
 
                         {/* 5. Workflow Stage */}
-                        <td className="py-2.5 px-3.5 whitespace-nowrap">
+                        <td className="py-2.5 px-2.5 whitespace-nowrap">
                           {getStageIndicator(appr)}
                         </td>
 
                         {/* 6. Total Amount / Value */}
-                        <td className="py-2.5 px-3.5 text-right tabular-nums whitespace-nowrap">
+                        <td className="py-2.5 px-2.5 text-right tabular-nums whitespace-nowrap">
                           <span className="font-bold text-slate-900">{formatETB(appr.totalAmount || 0)}</span>
                           {isHighValue && (
                             <span className="block text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded px-1.5 py-0.2 mt-0.5 w-fit ml-auto">
@@ -1343,7 +1343,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                         </td>
 
                         {/* 7. Approval Actions (Inline Decision Buttons) */}
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        <td className="py-2.5 px-2 text-center whitespace-nowrap">
                           {isActionableForMe ? (
                             <div className="flex flex-col items-center gap-1">
                               <div className="flex items-center gap-1.5">
@@ -1428,7 +1428,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                         </td>
 
                         {/* 8. Kebab Actions Menu */}
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        <td className="py-2.5 px-2 text-center whitespace-nowrap">
                           <RowActionsMenu
                             label={`Actions for ${appr.itemCode || appr.itemName}`}
                             actions={[
