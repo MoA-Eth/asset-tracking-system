@@ -32,8 +32,6 @@ import {
   Paperclip,
   ArrowRightLeft,
   Ban,
-  CornerDownRight,
-  History,
   MessageSquare,
   MoreVertical,
   Pencil,
@@ -899,27 +897,20 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   return (
     <div className="space-y-3 animate-fadeIn pb-8">
 
-      {/* ── 1. Top Header with Breadcrumb, Title & Global Search/Filter ── */}
-      <div className="space-y-1.5 mb-1">
-        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-          <span className="hover:text-slate-700 transition">System</span>
-          <span className="text-slate-400">/</span>
-          <span className="text-slate-900 font-semibold">Approvals</span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <div className="p-1 rounded-md bg-slate-100 text-slate-700">
-              <FileCheck2 className="w-5 h-5 text-slate-800" />
-            </div>
-            <h1 className="text-lg font-bold text-slate-900 tracking-tight">Approval Requests</h1>
-            {metrics.myQueueCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200/90 shadow-2xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                {metrics.myQueueCount} Action Required
-              </span>
-            )}
+      {/* ── 1. Top Header with Title & Global Search/Filter ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-1">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="p-1 rounded-md bg-slate-100 text-slate-700">
+            <FileCheck2 className="w-5 h-5 text-slate-800" />
           </div>
+          <h1 className="text-lg font-bold text-slate-900 tracking-tight">Approval Requests</h1>
+          {metrics.myQueueCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200/90 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              {metrics.myQueueCount} Action Required
+            </span>
+          )}
+        </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <div className="relative flex-1 sm:w-72 md:w-80">
@@ -999,7 +990,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
             </FilterPopover>
           </div>
         </div>
-      </div>
 
       {/* Active Filter Chips */}
       {(typeFilter !== 'ALL' || valueFilter !== 'ALL') && (
@@ -1436,20 +1426,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                                 label: 'View Full Voucher',
                                 icon: FileText,
                                 onClick: () => setViewingApproval(slipLines.get(appr.id)?.[0] ?? appr),
-                              },
-                              {
-                                label: 'View Audit Trail & Timeline',
-                                icon: History,
-                                onClick: () => setViewingApproval(slipLines.get(appr.id)?.[0] ?? appr),
-                              },
-                              {
-                                label: 'Reassign / Delegate Approver',
-                                icon: CornerDownRight,
-                                disabled: !isActionableForMe,
-                                reason: !isActionableForMe ? 'Not actionable in your current queue' : undefined,
-                                onClick: () => {
-                                  toast.info('Delegate Approver', 'Reassigning approval authority is governed by administrative delegation policies.');
-                                },
                               },
                               {
                                 label: 'Request Clarification (Send back)',
