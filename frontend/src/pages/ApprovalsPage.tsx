@@ -152,13 +152,6 @@ const dayMonth = (gc?: string): string => {
 };
 
 
-/** Format GC date like "Oct 28, 2026" */
-const formatDateRaised = (gc?: string): string => {
-  if (!gc) return '—';
-  const d = new Date(gc);
-  if (Number.isNaN(d.getTime())) return gc;
-  return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-};
 
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefreshPendingCount }) => {
   const { user, role } = useAuth();
@@ -1140,14 +1133,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     thClassName="hidden md:table-cell py-2.5 px-2.5 w-36 max-w-[140px] whitespace-nowrap shrink-0"
                   />
                   <SortableHeader
-                    label="Date Raised"
-                    columnKey="created"
-                    currentSortColumn={sortColumn}
-                    currentSortDirection={sortDirection}
-                    onSort={handleSort}
-                    thClassName="hidden lg:table-cell py-2.5 px-2 w-24 whitespace-nowrap shrink-0"
-                  />
-                  <SortableHeader
                     label="Workflow Stage"
                     columnKey="stage"
                     currentSortColumn={sortColumn}
@@ -1300,10 +1285,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                           </div>
                         </td>
 
-                        {/* 4. Date Raised */}
-                        <td className="hidden lg:table-cell py-2.5 px-2 w-24 whitespace-nowrap text-slate-600 text-xs">
-                          {formatDateRaised(appr.createdAtGc)}
-                        </td>
 
                         {/* 5. Workflow Stage */}
                         <td className="py-2.5 px-2.5 whitespace-nowrap">
@@ -1451,9 +1432,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                               </div>
                             </td>
                             <td className="hidden md:table-cell py-2 px-3.5 text-slate-400 text-[11px]">
-                              {/* Inherited */}
-                            </td>
-                            <td className="hidden lg:table-cell py-2 px-3.5 text-slate-400 text-[11px]">
                               {/* Inherited */}
                             </td>
                             <td className="py-2 px-3.5 text-slate-400 text-[11px]">
