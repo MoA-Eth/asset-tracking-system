@@ -1552,7 +1552,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               </button>
             )}
             <div className="min-w-0 flex-1">
-              <span className="block text-slate-900 font-medium" title={row.where ? `Location / Custodian: ${row.where}` : undefined}>
+              <span className="block text-slate-900 font-medium" title={whereDetail || (row.where ? `Location / Custodian: ${row.where}` : undefined)}>
                 {nested && <span className="mr-1.5 text-emerald-700 font-mono text-xs select-none" aria-hidden="true">↳</span>}
                 {item.name}
                 {nested && (
@@ -1570,6 +1570,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               <span className="flex flex-wrap items-center gap-x-1.5 mt-0.5">
                 <span className={`${table.code} whitespace-nowrap`}>{item.itemCode}</span>
                 <ItemTypeBadge type={item.itemType} />
+                {row.where && !isBatch && (
+                  <span className="text-xs text-slate-500 font-normal truncate max-w-xs">
+                    · {row.where}
+                  </span>
+                )}
               </span>
               {orphanParent && <span className="block text-[10px] text-slate-500">Part of {orphanParent.itemCode}</span>}
 
@@ -1610,7 +1615,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         {/* Received (Model 19) */}
         <td className="px-3 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
           <span className="font-bold text-slate-900" title={breakdown ? qtyBreakdown : undefined}>
-            {received.toLocaleString()}{' '}
+            {disposedUnits > 0 && !allDisposed ? `${totalUnits} of ${received}` : received.toLocaleString()}{' '}
             <span className="text-[11px] font-normal text-slate-500">{uom.toLowerCase()}</span>
           </span>
           {disposedUnits > 0 && (
@@ -1758,8 +1763,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               {/* Received */}
               <td className="px-3 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap" title={title}>
                 {sameUom ? (
-                  <span className="font-bold text-slate-900">
-                    {totalAll.toLocaleString()} <span className="text-[11px] font-normal text-slate-500">{uom}</span>
+                  <span className="font-bold text-slate-900" title={title}>
+                    {`${totalAll.toLocaleString()} ${uom}`}
                   </span>
                 ) : (
                   <span className="font-medium text-slate-700">{members.length} lines</span>

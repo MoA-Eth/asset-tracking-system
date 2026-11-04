@@ -266,7 +266,8 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
   // Several issues waiting on one record: how many, and where each one is
   const open = row.requests ?? [];
 
-  // A waiting issue or disposal for only part of the units: show clean pending pill, details in tooltip
+  // A waiting issue or disposal for only part of the units: they are still where they were, so the status says that,
+  // and the request goes underneath ("Disposal pending: 6 of 17")
   const asked = Number(row.request?.requestDetails?.quantity);
   if (
     row.request?.status === 'PENDING' &&
@@ -278,14 +279,20 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
     const pending = requestLabel(row.request.transactionType, row.request.requestDetails).pending;
     const stage = stageLabel(row.request);
     return (
-      <span
-        className={`${pill} ${statusTone.pending}`}
-        title={`${pending}: ${asked.toLocaleString()} of ${row.units.toLocaleString()}${stage ? ` · ${stage}` : ''}`}
-        aria-label={`${pending} for ${asked} of ${row.units}`}
-      >
-        <Clock className="h-3 w-3 text-amber-700" />
-        {pending}
-      </span>
+      <div className="flex flex-col items-start gap-0.5">
+        <span
+          className={`${pill} ${partly ? statusTone.partly : statusTone.inStore}`}
+          title={`${pending}: ${asked.toLocaleString()} of ${row.units.toLocaleString()} · ${stage}`}
+          aria-label={`${partly ? 'Partly issued' : 'In store'}, ${pending.toLowerCase()} for ${asked} of ${row.units}`}
+        >
+          {partly ? 'Partly issued' : 'In store'}
+          <Clock className="h-3 w-3 text-amber-700" aria-hidden />
+        </span>
+        <span className="text-[11px] font-medium leading-tight text-amber-700 whitespace-nowrap">
+          {pending}: {asked.toLocaleString()} of {row.units.toLocaleString()}
+          {stage ? <span className="text-[10px] text-amber-600/80 font-normal ml-1">({stage})</span> : null}
+        </span>
+      </div>
     );
   }
   if (open.length > 1) {

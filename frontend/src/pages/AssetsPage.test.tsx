@@ -196,7 +196,7 @@ describe('Assets page', () => {
     // The status tabs are in sight without opening the filters
     expect(within(screen.getByRole('group', { name: 'Status' })).getByRole('button', { name: /^Pending 4$/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true');
-    await user.click(screen.getByRole('button', { name: /^Issued/ }));
+    await user.click(within(screen.getByRole('group', { name: 'Status' })).getByRole('button', { name: /^Issued/ }));
     // The batch shows with only its issued unit unfolded
     expect(screen.getAllByRole('row').slice(1).map((r) => within(r).getAllByText(/^MOA-/)[0].textContent)).toEqual(['MOA-I1', 'MOA-S1', 'MOA-S1-1']);
     // Rejected: the rejected receipt, and the record whose issue was turned down
@@ -338,7 +338,7 @@ describe('Assets page', () => {
     // The returned camera is in store, and says which Model 21 brought it back
     expect(within(rowOf('MOA-B1')).getByTitle(/Returned on Model 21 No\. REQ-BACK/)).toBeInTheDocument();
     // Issued shows both chairs (the one split off unfolds under its record), each with its own Model 21 on hover
-    await user.click(screen.getByRole('button', { name: /^Issued/ }));
+    await user.click(within(screen.getByRole('group', { name: 'Status' })).getByRole('button', { name: /^Issued/ }));
     expect(rowOf('MOA-C1')).toHaveTextContent('Issued');
     expect(within(rowOf('MOA-C1')).getByTitle(/Transferred on Model 21 No\. 0004208/)).toBeInTheDocument();
     expect(within(rowOf('MOA-C1-1')).getByTitle(/Transferred on Model 21 No\. 0004207/)).toBeInTheDocument();
@@ -2591,9 +2591,9 @@ describe('One row per Model 19', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     const slipRow = await screen.findByRole('row', { name: 'Open Model 19 0000051' });
     expect(within(slipRow).getByText('Dell Latitude, HP Printer +1')).toBeInTheDocument();
-    // A badge per state, with how many items are in it
-    expect(within(slipRow).getByText('2 In store')).toBeInTheDocument();
-    expect(within(slipRow).getByText('1 Issued')).toBeInTheDocument();
+    // Single primary status badge for the parent row, with breakdown in tooltip
+    expect(within(slipRow).getByText('Partly issued')).toBeInTheDocument();
+    expect(within(slipRow).getByTitle(/2 in store · 1 issued/)).toBeInTheDocument();
     expect(within(slipRow).getByText('PO PO-14')).toBeInTheDocument();
     // Its items are not rows of their own; the other PO is
     expect(screen.queryByText('MOA-L1')).toBeNull();

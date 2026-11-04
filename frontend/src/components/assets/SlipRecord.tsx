@@ -75,12 +75,14 @@ export interface SlipStatusProps {
   partly?: Set<string>;
   isOpen?: boolean;
   onViewDetails?: () => void;
+  /** When true, renders all status chips (for the full voucher record view) */
+  detailMode?: boolean;
 }
 
 /**
  * The status of a Model 19 of several items: single clean status badge for the table row.
  */
-export const SlipStatus: React.FC<SlipStatusProps> = ({ rows, partly }) => {
+export const SlipStatus: React.FC<SlipStatusProps> = ({ rows, partly, detailMode }) => {
   const list = standings(rows, partly);
 
   // All the same: the badge of one item; a rejected receipt keeps its reason
@@ -116,6 +118,18 @@ export const SlipStatus: React.FC<SlipStatusProps> = ({ rows, partly }) => {
         ]
       : []),
   ];
+
+  if (detailMode) {
+    return (
+      <div className="flex flex-wrap items-center gap-1.5" aria-label={slipStatusSummary(rows, partly)}>
+        {summaryChips.map((s) => (
+          <span key={s.key} className={`${pill} ${s.tone}`}>
+            {s.label}
+          </span>
+        ))}
+      </div>
+    );
+  }
 
   // Single primary chip for the parent row (priority: rejected -> pending -> partly -> issued -> in store)
   const primaryChip = (() => {
@@ -414,7 +428,7 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, partly, onOpenItem
                   {voucherSize(rows.map((r) => ({ units: r.item.balance?.total ?? r.units, uom: r.item.uom })))}
                   {lead.poNumber ? ` · PO ${lead.poNumber}` : ''}
                 </span>
-                <SlipStatus rows={rows} partly={partly} />
+                <SlipStatus rows={rows} partly={partly} detailMode />
               </div>
             </div>
           </div>
