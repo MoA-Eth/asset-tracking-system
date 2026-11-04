@@ -205,7 +205,7 @@ describe('Approvals: rejecting', () => {
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('3 lines')).closest('tr')!;
     await user.click(within(row).getByRole('button', { name: /Endorse/ }));
-    const modal = screen.getByText(/Stage 1: Team Leader Endorsement/).closest('.max-w-2xl')!;
+    const modal = screen.getByText(/Stage 1: Team Leader Endorsement/).closest<HTMLElement>('.max-w-2xl')!;
     expect(within(modal).getByRole('button', { name: /Endorse \(Stage 1\)/ })).toBeInTheDocument();
     expect(within(modal).queryByRole('button', { name: /^Reject$/ })).toBeNull();
     expect(within(modal).getByText(/Optional endorsement remarks recorded in the official audit trail/)).toBeInTheDocument();
