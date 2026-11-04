@@ -1401,7 +1401,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                                   ]
                                 : []),
                               {
-                                label: 'Request Clarification (Send back)',
+                                label: 'Send Back',
                                 icon: MessageSquare,
                                 disabled: !isActionableForMe,
                                 reason: !isActionableForMe ? 'Not actionable in your current queue' : undefined,
