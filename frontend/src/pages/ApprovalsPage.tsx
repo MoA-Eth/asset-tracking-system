@@ -1335,56 +1335,32 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                         {/* 7. Approval Actions (Inline Decision Buttons) */}
                         <td className="py-2.5 px-2 text-center whitespace-nowrap">
                           {isActionableForMe ? (
-                            <div className="flex flex-col items-center gap-1">
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedApproval(appr);
-                                    setReviewRemarks('');
-                                  }}
-                                  className="px-3 py-1 rounded-[4px] bg-moa-green hover:bg-moa-green-hover text-white font-semibold text-xs transition cursor-pointer shadow-2xs flex items-center gap-1"
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>{stage === 1 ? 'Endorse' : isHighValue ? 'Authorize (> 10M)' : 'Authorize'}</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setRejecting(appr);
-                                    setReviewRemarks('');
-                                    setActionError(null);
-                                  }}
-                                  title="Reject"
-                                  aria-label="Reject"
-                                  className="px-2.5 py-1 rounded-[4px] border border-rose-300 bg-white hover:bg-rose-50 text-rose-700 font-semibold text-xs transition cursor-pointer shadow-2xs flex items-center gap-1"
-                                >
-                                  <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                                  <span>Reject</span>
-                                </button>
-                              </div>
-                              <div className="flex items-center gap-1.5 text-slate-400">
-                                <button
-                                  type="button"
-                                  onClick={() => setViewingApproval(slipLines.get(appr.id)?.[0] ?? appr)}
-                                  className="hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer p-1 rounded"
-                                  title="View full record / history"
-                                  aria-label={`View history for ${appr.itemCode || appr.itemName}`}
-                                >
-                                  <ArrowRightLeft className="w-3.5 h-3.5 text-slate-500" />
-                                </button>
-                                {appr.ifmisSlipAttachmentUrl && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setViewingSlipUrl(appr.ifmisSlipAttachmentUrl ?? null)}
-                                    className="hover:text-emerald-700 hover:bg-emerald-50 transition cursor-pointer p-1 rounded"
-                                    title="View attached scanned slip"
-                                    aria-label={`View slip for ${appr.itemCode || appr.itemName}`}
-                                  >
-                                    <FileText className="w-3.5 h-3.5 text-emerald-700" />
-                                  </button>
-                                )}
-                              </div>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedApproval(appr);
+                                  setReviewRemarks('');
+                                }}
+                                className="px-3 py-1 rounded-[4px] bg-moa-green hover:bg-moa-green-hover text-white font-semibold text-xs transition cursor-pointer shadow-2xs flex items-center gap-1"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>{stage === 1 ? 'Endorse' : isHighValue ? 'Authorize (> 10M)' : 'Authorize'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRejecting(appr);
+                                  setReviewRemarks('');
+                                  setActionError(null);
+                                }}
+                                title="Reject"
+                                aria-label="Reject"
+                                className="px-2.5 py-1 rounded-[4px] border border-rose-300 bg-white hover:bg-rose-50 text-rose-700 font-semibold text-xs transition cursor-pointer shadow-2xs flex items-center gap-1"
+                              >
+                                <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                                <span>Reject</span>
+                              </button>
                             </div>
                           ) : (
                             <div className="flex items-center justify-center gap-1.5">
@@ -1427,6 +1403,15 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                                 icon: FileText,
                                 onClick: () => setViewingApproval(slipLines.get(appr.id)?.[0] ?? appr),
                               },
+                              ...(appr.ifmisSlipAttachmentUrl
+                                ? [
+                                    {
+                                      label: 'View Attached Slip',
+                                      icon: Eye,
+                                      onClick: () => setViewingSlipUrl(appr.ifmisSlipAttachmentUrl ?? null),
+                                    },
+                                  ]
+                                : []),
                               {
                                 label: 'Request Clarification (Send back)',
                                 icon: MessageSquare,
