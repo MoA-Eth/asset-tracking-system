@@ -429,8 +429,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   }, [rows, activeTab, canEndorse, canApprove, isChiefDirector, isDeptHead, typeFilter, valueFilter, matchesSearch]);
 
   type ApprovalSortColumn = 'type' | 'item' | 'stage' | 'requester' | 'created' | 'total';
-  const [sortColumn, setSortColumn] = useState<ApprovalSortColumn>('type');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [sortColumn, setSortColumn] = useState<ApprovalSortColumn>('created');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const toggleExpandSlip = (id: string) => {
     setExpandedSlips((prev) => {
@@ -1132,14 +1132,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                     thClassName="py-2.5 px-3 min-w-[200px]"
                   />
                   <SortableHeader
-                    label="Form"
-                    columnKey="type"
-                    currentSortColumn={sortColumn}
-                    currentSortDirection={sortDirection}
-                    onSort={handleSort}
-                    thClassName="py-2.5 px-2.5 w-32 whitespace-nowrap shrink-0"
-                  />
-                  <SortableHeader
                     label="Initiator"
                     columnKey="requester"
                     currentSortColumn={sortColumn}
@@ -1235,6 +1227,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                             <div className="min-w-0 flex-1">
                               <span className="text-slate-900 font-semibold block leading-snug">{appr.itemName}</span>
                               <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-slate-600 mt-0.5 [&>*]:whitespace-nowrap">
+                                {getTypeBadge(appr.transactionType, appr.requestDetails)}
                                 <span className={table.code}>{appr.itemCode}</span>
                                 {appr.ifmisItemCode && appr.ifmisItemCode !== appr.itemCode && (
                                   <span className="text-xs text-slate-500 font-mono">· IFMIS {appr.ifmisItemCode}</span>
@@ -1290,12 +1283,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                           </div>
                         </td>
 
-                        {/* 2. Statutory Form */}
-                        <td className="py-2.5 px-2.5 whitespace-nowrap">
-                          {getTypeBadge(appr.transactionType, appr.requestDetails)}
-                        </td>
-
-                        {/* 3. Initiator */}
+                        {/* 2. Initiator */}
                         <td className="hidden md:table-cell py-2.5 px-2.5 w-36 max-w-[140px] whitespace-nowrap">
                           <div className="flex flex-col text-slate-600 max-w-[140px] overflow-hidden">
                             <span className="text-slate-800 font-medium truncate" title={appr.requestedBy?.fullNameEn}>
@@ -1461,9 +1449,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                                   {approvalUnits(sub) && <span className="text-sky-800 font-sans font-semibold">· {approvalUnits(sub)}</span>}
                                 </span>
                               </div>
-                            </td>
-                            <td className="py-2 px-3.5 whitespace-nowrap">
-                              <span className="text-slate-400 italic text-[11px]">Voucher line</span>
                             </td>
                             <td className="hidden md:table-cell py-2 px-3.5 text-slate-400 text-[11px]">
                               {/* Inherited */}
