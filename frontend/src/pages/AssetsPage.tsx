@@ -129,19 +129,21 @@ function formatCreatedDate(raw?: string): string {
   return `${mm}/${dd}/${yyyy}`;
 }
 
-export type SortColumn = 'activity' | 'name' | 'status' | 'units' | 'where' | 'created' | 'cost' | 'total';
+export type SortColumn = 'activity' | 'name' | 'status' | 'units' | 'issued' | 'available' | 'where' | 'created' | 'cost' | 'total';
 const SORT_LABELS: Record<SortColumn, string> = {
   activity: 'latest activity',
   name: 'asset',
   status: 'status',
-  units: 'quantity',
+  units: 'quantity received',
+  issued: 'issued in use',
+  available: 'available in store',
   where: 'held by / where',
   created: 'date created',
   cost: 'unit cost',
-  total: 'total',
+  total: 'total value',
 };
 export type SortDirection = 'asc' | 'desc';
-const SORT_COLUMNS: SortColumn[] = ['activity', 'name', 'status', 'units', 'where', 'cost', 'total'];
+const SORT_COLUMNS: SortColumn[] = ['activity', 'name', 'status', 'units', 'issued', 'available', 'where', 'cost', 'total'];
 
 /** Filters and sort, remembered per person in this browser so a refresh keeps the view */
 interface SavedView {
@@ -731,6 +733,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           const aVal = a.row.state || '';
           const bVal = b.row.state || '';
           res = aVal.localeCompare(bVal);
+          break;
+        }
+        case 'available': {
+          const aVal = batchSummary(a.row, a.children ?? []).inStoreUnits;
+          const bVal = batchSummary(b.row, b.children ?? []).inStoreUnits;
+          res = aVal - bVal;
+          break;
+        }
+        case 'issued': {
+          const aVal = batchSummary(a.row, a.children ?? []).issuedUnits;
+          const bVal = batchSummary(b.row, b.children ?? []).issuedUnits;
+          res = aVal - bVal;
           break;
         }
         case 'units': {
@@ -1522,7 +1536,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       >
         <td className={`py-2 pr-4 ${nested ? 'pl-9 relative' : 'pl-5'}`}>
           {nested && <span className="absolute left-4 top-0 bottom-0 w-0.5 bg-emerald-500/40" aria-hidden="true" />}
-          <span className="block text-slate-900 font-medium">
+          <span className="block text-slate-900 font-medium" title={row.where ? `Location / Custodian: ${row.where}` : undefined}>
             {nested && <span className="mr-1.5 text-emerald-700 font-mono text-xs select-none" aria-hidden="true">↳</span>}
             {item.name}
             {nested && (
@@ -1566,22 +1580,42 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </span>
           )}
         </td>
-        <td className="px-3 py-2.5 tabular-nums text-slate-600">
-          {/* One line: the units on the register, and under them only what is unusual. The full breakdown is in the
-              hover text and in the record */}
-          <span className="whitespace-nowrap" title={breakdown ? qtyBreakdown : undefined}>
-            {allDisposed ? received : isBatch || requestedUnits > 0 ? totalUnits : row.units}
-            {/* With some disposed of, also what the Model 19 brought in: "17 of 32 ea" */}
-            {disposedUnits > 0 && !allDisposed && ` of ${received}`} {uom.toLowerCase()}
+        {/* Received (Model 19) */}
+        <td className="px-3 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
+          <span className="font-bold text-slate-900" title={breakdown ? qtyBreakdown : undefined}>
+            {received.toLocaleString()}{' '}
+            <span className="text-[11px] font-normal text-slate-500">{uom.toLowerCase()}</span>
           </span>
-          {qtyNote && <span className="mt-0.5 block whitespace-nowrap font-sans text-[10px] font-normal leading-tight text-slate-500">{qtyNote}</span>}
+          {disposedUnits > 0 && (
+            <span className="mt-0.5 block whitespace-nowrap font-sans text-[10px] font-normal leading-tight text-slate-500">
+              {allDisposed ? 'all disposed' : `${disposedUnits.toLocaleString()} disposed`}
+            </span>
+          )}
+          {!disposedUnits && qtyNote && (
+            <span className="mt-0.5 block whitespace-nowrap font-sans text-[10px] font-normal leading-tight text-slate-500">
+              {qtyNote}
+            </span>
+          )}
         </td>
-        <td className="pl-4 pr-3 py-2.5 text-slate-700">
-          {/* The store or the person; where a request would send it, the Model 21 that moved it and who holds the
-              issued units are in the hover text and the record */}
-          <span className="block" title={whereDetail || undefined}>
-            {row.state === 'DISPOSED' || (isBatch && row.state !== 'ISSUED' && inStoreUnits === 0) ? '—' : row.where}
-          </span>
+        {/* Issued in Use */}
+        <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
+          {issuedUnits > 0 ? (
+            <span className="font-semibold text-blue-950">
+              {issuedUnits.toLocaleString()} <span className="text-[11px] font-normal text-slate-500">{uom.toLowerCase()}</span>
+            </span>
+          ) : (
+            <span className="text-slate-300 font-normal select-none">—</span>
+          )}
+        </td>
+        {/* Available in Store */}
+        <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
+          {inStoreUnits > 0 ? (
+            <span className="font-semibold text-emerald-950">
+              {inStoreUnits.toLocaleString()} <span className="text-[11px] font-normal text-slate-500">{uom.toLowerCase()}</span>
+            </span>
+          ) : (
+            <span className="text-slate-300 font-normal select-none">—</span>
+          )}
         </td>
         <td className="pl-2 pr-2 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">{costOf(item) > 0 ? formatETB(Math.round(costOf(item) * 100) / 100) : '—'}</td>
         <td className="pl-2 pr-4 py-2.5 text-right tabular-nums font-medium text-slate-900 whitespace-nowrap">
@@ -1663,14 +1697,16 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         <td className="px-3 py-2.5 whitespace-nowrap">
           <SlipStatus rows={rowsOf} partly={partlyIn(members)} isOpen={isOpen} onViewDetails={() => toggleSlip(key)} />
         </td>
-        {/* Its units, as a single line's row shows them (9 ea), when every line counts in one unit; otherwise its lines */}
+        {/* Its units, as a single line's row shows them, across Available, Issued, and Total Qty */}
         {(() => {
           const lines = members.map((g) => {
-            const { isBatch, totalUnits } = batchSummary(g.row, g.children);
+            const { isBatch, totalUnits, inStoreUnits, issuedUnits } = batchSummary(g.row, g.children);
             const isRej = g.row.state === 'REJECTED' || g.row.item.status === ItemStatus.REJECTED;
             return {
               name: g.row.item.name,
-              units: isBatch ? totalUnits : g.row.units,
+              available: isRej ? 0 : inStoreUnits,
+              issued: isRej ? 0 : issuedUnits,
+              total: isBatch ? totalUnits : g.row.units,
               uom: (g.row.item.uom || 'EA').toLowerCase(),
               rejected: isRej,
             };
@@ -1679,30 +1715,53 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           const uoms = [...new Set(lines.map((l) => l.uom))];
           const sameUom = uoms.length === 1;
           const uom = sameUom ? uoms[0] : '';
-          const totalUnits = lines.reduce((sum, l) => sum + (Number(l.units) || 0), 0);
-          const activeUnits = lines.filter((l) => !l.rejected).reduce((sum, l) => sum + (Number(l.units) || 0), 0);
-          const rejectedUnits = lines.filter((l) => l.rejected).reduce((sum, l) => sum + (Number(l.units) || 0), 0);
+          const totalAvail = lines.reduce((sum, l) => sum + (Number(l.available) || 0), 0);
+          const totalIssued = lines.reduce((sum, l) => sum + (Number(l.issued) || 0), 0);
+          const totalAll = lines.reduce((sum, l) => sum + (Number(l.total) || 0), 0);
+          const totalRej = lines.filter((l) => l.rejected).reduce((sum, l) => sum + (Number(l.total) || 0), 0);
 
-          const title = lines.map((l) => `${l.name}: ${l.units.toLocaleString()} ${l.uom}${l.rejected ? ' (rejected)' : ''}`).join('\n');
+          const title = lines.map((l) => `${l.name}: ${l.total.toLocaleString()} ${l.uom}${l.rejected ? ' (rejected)' : ''}`).join('\n');
 
           return (
-            <td className="px-3 py-2.5 tabular-nums text-slate-600 whitespace-nowrap" title={title}>
-              {rejectedUnits > 0 && sameUom ? (
-                <>
-                  <span className="whitespace-nowrap">
-                    {activeUnits > 0 ? `${activeUnits.toLocaleString()} of ${totalUnits.toLocaleString()} ${uom}` : `${totalUnits.toLocaleString()} ${uom}`}
+            <>
+              {/* Received */}
+              <td className="px-3 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap" title={title}>
+                {sameUom ? (
+                  <span className="font-bold text-slate-900">
+                    {totalAll.toLocaleString()} <span className="text-[11px] font-normal text-slate-500">{uom}</span>
                   </span>
+                ) : (
+                  <span className="font-medium text-slate-700">{members.length} lines</span>
+                )}
+                {totalRej > 0 && (
                   <span className="mt-0.5 block whitespace-nowrap font-sans text-[10px] font-medium leading-tight text-rose-600">
-                    {rejectedUnits === totalUnits ? 'all rejected' : `${rejectedUnits.toLocaleString()} rejected`}
+                    {totalRej === totalAll ? 'all rejected' : `${totalRej.toLocaleString()} rejected`}
                   </span>
-                </>
-              ) : (
-                voucherSize(lines)
-              )}
-            </td>
+                )}
+              </td>
+              {/* Issued */}
+              <td className="px-3 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
+                {totalIssued > 0 ? (
+                  <span className="font-semibold text-blue-950">
+                    {totalIssued.toLocaleString()} {sameUom && <span className="text-[11px] font-normal text-slate-500">{uom}</span>}
+                  </span>
+                ) : (
+                  <span className="text-slate-300 font-normal select-none">—</span>
+                )}
+              </td>
+              {/* Available */}
+              <td className="px-3 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
+                {totalAvail > 0 ? (
+                  <span className="font-semibold text-emerald-950">
+                    {totalAvail.toLocaleString()} {sameUom && <span className="text-[11px] font-normal text-slate-500">{uom}</span>}
+                  </span>
+                ) : (
+                  <span className="text-slate-300 font-normal select-none">—</span>
+                )}
+              </td>
+            </>
           );
         })()}
-        <td className="pl-4 pr-3 py-2.5 text-slate-700">{places.length === 1 ? places[0] : 'Several places'}</td>
         {/* Several items on this slip: show single cost if identical, or 'X types' breakdown */}
         <td className="pl-2 pr-2 py-2.5 text-right whitespace-nowrap">
           <SlipUnitCost rows={rowsOf} isOpen={isOpen} onViewDetails={() => toggleSlip(key)} />
@@ -2576,21 +2635,34 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       thClassName="px-3 py-2 w-40 min-w-[155px]"
                     />
                     <SortableHeader
-                      label="Qty"
+                      label="Received"
                       columnKey="units"
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      title="Units held now; with some disposed of, out of those received (17 of 32)"
-                      thClassName="px-3 py-2 w-24 min-w-[80px]"
+                      align="right"
+                      title="Total units received on the Model 19 delivery voucher"
+                      thClassName="px-3 py-2 w-28 min-w-[95px] text-right whitespace-nowrap"
                     />
                     <SortableHeader
-                      label="Held by / where"
-                      columnKey="where"
+                      label="Issued"
+                      columnKey="issued"
                       currentSortColumn={sortColumn}
                       currentSortDirection={sortDirection}
                       onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="pl-4 pr-3 py-2 min-w-[180px]"
+                      align="right"
+                      title="Units currently in use by staff or directorates"
+                      thClassName="px-3 py-2 w-24 min-w-[85px] text-right whitespace-nowrap"
+                    />
+                    <SortableHeader
+                      label="Available"
+                      columnKey="available"
+                      currentSortColumn={sortColumn}
+                      currentSortDirection={sortDirection}
+                      onSort={(key) => handleSort(key as SortColumn)}
+                      align="right"
+                      title="Units currently in store ready to be issued or transferred"
+                      thClassName="px-3 py-2 w-28 min-w-[95px] text-right whitespace-nowrap"
                     />
                     <SortableHeader
                       label="Unit cost"
