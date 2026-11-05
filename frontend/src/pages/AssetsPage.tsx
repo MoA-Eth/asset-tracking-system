@@ -1530,7 +1530,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           item.id === lastTouchedId
             ? table.rowHighlight
             : nested
-              ? 'bg-slate-50/90 hover:bg-slate-100/90 border-l-4 border-l-emerald-600/70 transition-colors'
+              ? 'bg-slate-50/90 hover:bg-slate-100/90 transition-colors'
               : table.row
         }`}
       >
