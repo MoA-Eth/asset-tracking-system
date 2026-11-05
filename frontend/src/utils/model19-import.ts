@@ -146,7 +146,12 @@ export function receiptsFromRows(
     const key = `${no.toLowerCase()}|${po.toLowerCase()}`;
     const date = toIsoDate(r.get('Received Date (G.C.)'));
     const storeLabel = text(r.get('Receiving Store'));
-    const store = stores.find((s) => s.label.trim().toLowerCase() === storeLabel.toLowerCase());
+    const normalizeStore = (s: string) => s.replace(/[\s\-_·\.\/]+/g, ' ').trim().toLowerCase();
+    const normStoreLabel = normalizeStore(storeLabel);
+    const store = stores.find((s) => {
+      const normS = normalizeStore(s.label);
+      return normS === normStoreLabel || s.id.toLowerCase() === storeLabel.trim().toLowerCase();
+    });
     const header = {
       receivedDate: date ?? '',
       transactionType: text(r.get('Transaction Type')) || (po ? 'PO Receipt' : 'Donation / Grant Receipt'),
