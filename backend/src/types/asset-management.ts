@@ -501,6 +501,14 @@ export interface CreateStockInRequest {
   receivedBy?: string;
   remark?: string;
 
+  /**
+   * When `true`, bypasses the cross-voucher duplicate warning and registers the
+   * item even if a similarly-named item at the same price already exists in the
+   * store.  The user must explicitly confirm the warning before the client sets
+   * this flag.
+   */
+  allowDuplicate?: boolean;
+
   // Multi-item batch registration support
   items?: Array<{
     ifmisItemCode?: string;

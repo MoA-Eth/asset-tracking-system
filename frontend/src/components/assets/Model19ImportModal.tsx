@@ -99,7 +99,10 @@ export const Model19ImportModal: React.FC<{
     // One by one: a receipt the server refuses (e.g. already received) does not stop the others
     for (const r of ready) {
       try {
-        await api.registerStockIn(stockInRequestFor(r, user.id));
+        // allowDuplicate: true — bulk import is an intentional batch operation; cross-voucher
+        // duplicate warnings are suppressed so the import continues uninterrupted. The storeman
+        // is responsible for reviewing duplicates afterwards via the ⚠️ Suspected Duplicates filter.
+        await api.registerStockIn({ ...stockInRequestFor(r, user.id), allowDuplicate: true });
         results.set(keyOf(r), { ok: true });
       } catch (e: any) {
         results.set(keyOf(r), { ok: false, reason: e?.message || 'Refused by the server' });

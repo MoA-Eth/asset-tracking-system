@@ -83,14 +83,17 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
         if (response.status === 403) window.dispatchEvent(new Event('moa_access_changed'));
       }
       let errorMsg = `ATS server returned HTTP ${response.status}.`;
+      let errorDetails: unknown;
       try {
         const errorJson = await response.json();
         errorMsg = errorJson.message || errorJson.error?.message || errorMsg;
+        errorDetails = errorJson.details ?? undefined;
       } catch {
         // A disconnected development proxy or gateway may return non-JSON errors
       }
       const error = new Error(errorMsg) as any;
       error.status = response.status;
+      error.details = errorDetails;
       throw error;
     }
 

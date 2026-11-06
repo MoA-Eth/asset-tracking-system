@@ -32,7 +32,7 @@ import {
 } from '../types/asset-management';
 import { prisma } from '../lib/prisma';
 import { getTodayGcAndEc, formatGcToEc } from '../utils/eth-date';
-import { BadRequestError, ConflictError, NotFoundError, ForbiddenError } from '../errors/app-error';
+import { BadRequestError, ConflictError, NotFoundError, ForbiddenError, DuplicateWarningError, DuplicateWarningDetails } from '../errors/app-error';
 
 import { assignEmployeeRole } from './roles.service';
 import { hasPermission, ROLE_POLICY } from '../security/role-policy';
@@ -1361,6 +1361,50 @@ export class StoreService {
             );
           }
         }
+      }
+    }
+
+    // Cross-voucher duplicate check: warn when a similarly-named item at the same non-zero price
+    // already exists (AVAILABLE or PENDING_STOCK_IN) in the same store under a DIFFERENT voucher.
+    // This is a soft warning: re-submitting with allowDuplicate=true bypasses it.
+    if (!payload.allowDuplicate) {
+      const conflicts: DuplicateWarningDetails['conflicts'] = [];
+      for (const line of rawItems) {
+        const lineName = String(line.name || payload.name || '').trim().toLowerCase();
+        const linePrice = Number(line.unitCostETB ?? payload.unitCostETB);
+        // Only warn when we have a name and a non-zero price (zero-cost items are too ambiguous)
+        if (!lineName || !linePrice) continue;
+        const existing = await prisma.item.findFirst({
+          where: {
+            storeLocationId: payload.storeLocationId,
+            parentItemId: null,
+            status: { in: ['AVAILABLE', 'PENDING_STOCK_IN'] as any[] },
+            name: { equals: lineName, mode: 'insensitive' },
+            unitCostETB: { gte: linePrice - 0.005, lte: linePrice + 0.005 },
+            // Exclude items on the same slip (already caught by the within-voucher check above)
+            NOT: payload.ifmisSlipNumber && !payload.ifmisSlipNumber.startsWith('PENDING-')
+              ? { ifmisSlipNumber: { equals: payload.ifmisSlipNumber, mode: 'insensitive' } }
+              : undefined,
+          },
+          select: { id: true, itemCode: true, name: true, ifmisSlipNumber: true, status: true },
+        });
+        if (existing) {
+          conflicts.push({
+            newItemName: String(line.name || payload.name || '').trim(),
+            existingItemCode: existing.itemCode,
+            existingItemName: existing.name,
+            existingSlipNumber: existing.ifmisSlipNumber,
+            existingStatus: existing.status,
+          });
+        }
+      }
+      if (conflicts.length > 0) {
+        const names = conflicts.map((c) => `"${c.newItemName}"`).join(', ');
+        throw new DuplicateWarningError(
+          `${names} ${conflicts.length === 1 ? 'appears' : 'appear'} to already exist in this store under a different voucher. ` +
+          `Review the existing record(s) or confirm to register anyway.`,
+          { code: 'POSSIBLE_DUPLICATE', conflicts },
+        );
       }
     }
 

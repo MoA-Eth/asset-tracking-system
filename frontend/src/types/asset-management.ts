@@ -685,6 +685,9 @@ export interface CreateStockInRequest {
   receivedBy?: string;
   remark?: string;
 
+  /** When true, registers the item even if a similarly-named item at the same price exists in the store */
+  allowDuplicate?: boolean;
+
   // Multi-item batch registration support
   items?: Array<{
     ifmisItemCode?: string;

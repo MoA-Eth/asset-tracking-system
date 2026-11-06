@@ -1,7 +1,7 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import { displaySerialNumber } from '../../utils/asset-tag';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, AlertTriangle } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers } from '../../hooks/useStoreKeepers';
@@ -255,6 +255,20 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const [signedFile, setSignedFile] = useState<File | null>(null);
   const copyFile = signedFile ?? ifmisFile;
   const [formError, setFormError] = useState<string | null>(null);
+
+  /** Set when the server returns a POSSIBLE_DUPLICATE warning; cleared on dismiss or confirm */
+  const [duplicateWarning, setDuplicateWarning] = useState<{
+    message: string;
+    conflicts: Array<{
+      newItemName: string;
+      existingItemCode: string;
+      existingItemName: string;
+      existingSlipNumber: string;
+      existingStatus: string;
+    }>;
+    /** The full payload to retry with allowDuplicate=true once the user confirms */
+    retryPayload: Parameters<typeof api.registerStockIn>[0];
+  } | null>(null);
 
   const { slipAttachmentPolicy, showScannedSlipField } = useSystemSettings();
   const isAttachmentRequired = slipAttachmentPolicy === 'REQUIRED';
@@ -984,6 +998,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       return;
     }
 
+    let stockInPayload: Parameters<typeof api.registerStockIn>[0] | undefined;
+
     try {
       const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
       const itemsPayload = [{
@@ -1013,7 +1029,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
       const slipUrl = copyFile ? (await api.uploadSlip(copyFile)).url : undefined;
 
-      const res = await api.registerStockIn({
+      stockInPayload = {
         name: name.trim(),
         category: category as AssetCategory,
         itemType: (itemType || effectiveType) as ItemType,
@@ -1039,7 +1055,9 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         deliveredBy: deliveredBy.trim() || undefined,
         receivedByEmployeeId: receiverId || undefined,
         items: itemsPayload,
-      });
+      };
+
+      const res = await api.registerStockIn(stockInPayload);
 
       // Construct printable Model 19 voucher
       const targetStore = locations.find((l) => l.id === storeLocationId);
@@ -1116,6 +1134,16 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       onSuccess(res, generatedVoucher);
     } catch (err: any) {
       const errMsg = err.message || 'Server error';
+      // Soft duplicate warning: show a confirmation dialog instead of a hard error
+      if (err.status === 409 && err.details?.code === 'POSSIBLE_DUPLICATE' && stockInPayload) {
+        setDuplicateWarning({
+          message: errMsg,
+          conflicts: err.details.conflicts ?? [],
+          retryPayload: stockInPayload,
+        });
+        setSubmitting(false);
+        return;
+      }
       setFormError(`The receipt could not be saved: ${errMsg}`);
     } finally {
       setSubmitting(false);
@@ -1257,6 +1285,65 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   return (
     <form id="stock-in-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(!submitting)} className="space-y-6">
       <FormError message={formError} />
+
+      {/* Cross-voucher duplicate warning confirmation dialog */}
+      {duplicateWarning && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-amber-900">Possible Duplicate Item</h3>
+              <p className="text-xs text-amber-800 mt-1 leading-relaxed">{duplicateWarning.message}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {duplicateWarning.conflicts.map((c, i) => (
+              <div key={i} className="rounded border border-amber-200 bg-white px-3 py-2 text-xs">
+                <div className="font-semibold text-slate-800">{c.newItemName}</div>
+                <div className="text-slate-500 mt-0.5">
+                  Already registered as{' '}
+                  <span className="font-mono font-bold text-slate-700">{c.existingItemCode}</span>{' '}
+                  ({c.existingItemName}) on Model 19{' '}
+                  <span className="font-mono font-bold text-slate-700">#{c.existingSlipNumber}</span>{' '}
+                  <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${c.existingStatus === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                    {c.existingStatus.replace(/_/g, ' ')}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 justify-end pt-1">
+            <button
+              type="button"
+              onClick={() => setDuplicateWarning(null)}
+              className="rounded px-3 py-1.5 text-xs font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            >
+              Cancel — go back and review
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={async () => {
+                setSubmitting(true);
+                try {
+                  const res = await api.registerStockIn({ ...duplicateWarning.retryPayload, allowDuplicate: true });
+                  setDuplicateWarning(null);
+                  toast.success('Receipt registered', `Item registered despite existing similar asset.`);
+                  onSuccess(res);
+                } catch (err: any) {
+                  setDuplicateWarning(null);
+                  setFormError(`The receipt could not be saved: ${err.message || 'Server error'}`);
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+              className="rounded px-3 py-1.5 text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              {submitting ? 'Registering…' : 'Register anyway — this is a different physical asset'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* The Model 19 PDF first: it fills in most of what follows */}
       <div className="space-y-2">

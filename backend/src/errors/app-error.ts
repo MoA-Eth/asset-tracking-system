@@ -44,6 +44,37 @@ export class ConflictError extends AppError {
   }
 }
 
+/**
+ * Soft duplicate warning (HTTP 409) raised when a new stock-in item appears to
+ * already exist in the same store under a different Model 19 voucher.
+ *
+ * Unlike a hard ConflictError, the client may override this by re-submitting
+ * with `allowDuplicate: true` on the request payload.  The `details` object
+ * carries structured information so the UI can render a helpful confirmation.
+ */
+export interface DuplicateWarningDetails {
+  /** Machine-readable discriminator so the client can tell this apart from a hard conflict */
+  code: 'POSSIBLE_DUPLICATE';
+  conflicts: Array<{
+    /** Name of the item being registered */
+    newItemName: string;
+    /** Asset code of the existing item (e.g. MOA-01234) */
+    existingItemCode: string;
+    /** Human-readable name of the existing item */
+    existingItemName: string;
+    /** Model 19 / slip number the existing item was registered on */
+    existingSlipNumber: string;
+    /** Current status of the existing item */
+    existingStatus: string;
+  }>;
+}
+
+export class DuplicateWarningError extends AppError {
+  constructor(message: string, details: DuplicateWarningDetails) {
+    super(message, 409, details);
+  }
+}
+
 export class ServiceUnavailableError extends AppError {
   constructor(message = 'Service temporarily unavailable') {
     super(message, 503);

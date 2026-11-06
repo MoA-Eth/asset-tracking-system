@@ -392,4 +392,59 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(call2Meta.additionalCharges).toBe(350);
     expect(call2Meta.totalAmount).toBe(10350); // (5000 * 2) + 350
   });
+
+  // ── Cross-voucher duplicate prevention ────────────────────────────────────
+
+  it('raises a soft POSSIBLE_DUPLICATE warning when the same name+price already exists in the store under a different voucher', async () => {
+    // Existing item is on a different slip (M19-999) but same store, same name, same price
+    db.item.findFirst.mockImplementation(async ({ where }: any) => {
+      // The cross-voucher check uses findFirst with storeLocationId + name + price
+      if (where?.storeLocationId && where?.name) {
+        return { id: 'item-old', itemCode: 'MOA-9999', name: 'Legacy Laptop', ifmisSlipNumber: 'M19-999', status: 'AVAILABLE' };
+      }
+      return null;
+    });
+    await expect(
+      StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any)
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      details: { code: 'POSSIBLE_DUPLICATE' },
+    });
+    expect(db.item.create).not.toHaveBeenCalled();
+  });
+
+  it('allows registration when allowDuplicate=true is set, bypassing the cross-voucher warning', async () => {
+    db.item.findFirst.mockImplementation(async ({ where }: any) => {
+      if (where?.storeLocationId && where?.name) {
+        return { id: 'item-old', itemCode: 'MOA-9999', name: 'Legacy Laptop', ifmisSlipNumber: 'M19-999', status: 'AVAILABLE' };
+      }
+      return null;
+    });
+    await expect(
+      StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true, allowDuplicate: true } as any)
+    ).resolves.toBeTruthy();
+    expect(db.item.create).toHaveBeenCalled();
+  });
+
+  it('does NOT warn for items with zero unit cost (ambiguous — physical count without invoice)', async () => {
+    db.item.findFirst.mockImplementation(async ({ where }: any) => {
+      if (where?.storeLocationId && where?.name) {
+        return { id: 'item-old', itemCode: 'MOA-9999', name: 'Legacy Laptop', ifmisSlipNumber: 'M19-999', status: 'AVAILABLE' };
+      }
+      return null;
+    });
+    // Zero-price: the cross-voucher check is intentionally skipped
+    await expect(
+      StoreService.getInstance().registerStockIn({ ...basePayload, unitCostETB: 0, isHistoricalData: true } as any)
+    ).resolves.toBeTruthy();
+  });
+
+  it('does NOT warn when allowDuplicate is false but nothing exists in the store (happy path)', async () => {
+    // findFirst returns null — no existing item
+    db.item.findFirst.mockResolvedValue(null);
+    await expect(
+      StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any)
+    ).resolves.toBeTruthy();
+    expect(db.item.create).toHaveBeenCalled();
+  });
 });
