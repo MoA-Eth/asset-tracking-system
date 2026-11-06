@@ -221,7 +221,14 @@ export const Model19ImportModal: React.FC<{
                     const problems = [...r.problems, ...r.lines.flatMap((l) => l.problems.map((p) => `Row ${l.row}: ${p}`))];
                     return (
                       <tr key={keyOf(r)} className="align-top">
-                        <td className="px-3 py-2 font-mono">{r.model19No || '—'}</td>
+                        <td className="px-3 py-2 font-mono">
+                          <div>{r.model19No || '—'}</div>
+                          {r.isHistoricalData && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800 border border-purple-200 mt-0.5 whitespace-nowrap">
+                              ቆጠራ · Count
+                            </span>
+                          )}
+                        </td>
                         <td className="px-3 py-2 font-mono">{r.poNumber || '—'}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{r.receivedDate || '—'}</td>
                         <td className="px-3 py-2">{r.storeLabel || '—'}</td>

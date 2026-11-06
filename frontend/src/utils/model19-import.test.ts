@@ -88,6 +88,18 @@ describe('reading Model 19 rows', () => {
     expect(req.items).toHaveLength(2);
     expect(req.items![1]).toMatchObject({ name: 'Mouse', itemType: ItemType.CONSUMABLE, quantity: 2, unitCostETB: 500, totalAmount: 1000, vatApplicable: false });
   });
+
+  it('recognizes count records when "Is Count Data?" is Yes or when Model 19 No. starts with COUNT-', () => {
+    const [receipt1] = read([line({ 'Is Count Data?': 'Yes' })]);
+    expect(receipt1.isHistoricalData).toBe(true);
+    const req1 = stockInRequestFor(receipt1, 'EMP-1');
+    expect(req1.isHistoricalData).toBe(true);
+
+    const [receipt2] = read([line({ 'Model 19 No.': 'COUNT-2018-01' })]);
+    expect(receipt2.isHistoricalData).toBe(true);
+    const req2 = stockInRequestFor(receipt2, 'EMP-1');
+    expect(req2.isHistoricalData).toBe(true);
+  });
 });
 
 describe('the template', () => {

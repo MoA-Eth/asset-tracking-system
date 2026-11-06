@@ -28,6 +28,7 @@ export const TEMPLATE_COLUMNS = [
   'Unit Price (ETB)',
   'VAT 15%',
   'Remark',
+  'Is Count Data?',
 ] as const;
 type Column = (typeof TEMPLATE_COLUMNS)[number];
 
@@ -55,6 +56,7 @@ export interface ImportLine {
   remark: string;
   /** Quantity × unit price, VAT added when it applies */
   total: number;
+  isHistoricalData?: boolean;
   problems: string[];
 }
 
@@ -70,6 +72,7 @@ export interface ImportReceipt {
   storeLabel: string;
   deliveredBy: string;
   lines: ImportLine[];
+  isHistoricalData?: boolean;
   /** Problems with the receipt as a whole (its header), each naming its row */
   problems: string[];
 }
@@ -148,6 +151,8 @@ export function receiptsFromRows(
     const storeLabel = text(r.get('Receiving Store'));
     const normalizeStore = (s: string) => s.replace(/[\s\-_·\.\/]+/g, ' ').trim().toLowerCase();
     const normStoreLabel = normalizeStore(storeLabel);
+    const countVal = text(r.get('Is Count Data?' as Column)) || text(r.get('Physical Count?' as any)) || text(r.get('Physical Count (ቆጠራ)' as any)) || text(r.get('Count Data?' as any));
+    const isCount = /^(y|yes|true|1|✓|አዎ)$/i.test(countVal) || no.toLowerCase().startsWith('count-') || no.toLowerCase().startsWith('ቆጠራ');
     const store = stores.find((s) => {
       const normS = normalizeStore(s.label);
       return normS === normStoreLabel || s.id.toLowerCase() === storeLabel.trim().toLowerCase();
@@ -164,7 +169,7 @@ export function receiptsFromRows(
 
     let receipt = byKey.get(key);
     if (!receipt) {
-      receipt = { model19No: no, poNumber: po, ...header, storeLocationId: store?.id, lines: [], problems: [] };
+      receipt = { model19No: no, poNumber: po, ...header, storeLocationId: store?.id, isHistoricalData: isCount, lines: [], problems: [] };
       const p = receipt.problems;
       if (!no) p.push(`Row ${r.row}: Model 19 No. is missing.`);
       if (!date) p.push(`Row ${r.row}: Received date is missing or not a date (use YYYY-MM-DD).`);
@@ -208,6 +213,7 @@ export function receiptsFromRows(
       unitPrice,
       vat,
       remark: text(r.get('Remark')),
+      isHistoricalData: isCount,
       total: round2(base + (vat ? round2(base * 0.15) : 0)),
       problems,
     });
@@ -243,7 +249,7 @@ export function stockInRequestFor(receipt: ImportReceipt, registeredById: string
     storeLocationId: receipt.storeLocationId!,
     ifmisSlipNumber: receipt.model19No,
     ifmisSlipDateGc: receipt.receivedDate,
-    isHistoricalData: false,
+    isHistoricalData: Boolean(receipt.isHistoricalData),
     registeredById,
     notes: first.remark,
     provisionType,
@@ -314,6 +320,7 @@ export async function buildModel19Template(stores: StoreOption[]): Promise<Array
     ['Item Type', ['Fixed asset', 'Consumable']],
     ['UoM', COMMON_UOMS.map((u: { value: string } | string) => (typeof u === 'string' ? u : u.value))],
     ['VAT 15%', ['Yes', 'No']],
+    ['Is Count Data?', ['Yes', 'No']],
   ];
   listColumns.forEach(([name, values], i) => {
     const c = i + 1;
@@ -351,6 +358,7 @@ export async function buildModel19Template(stores: StoreOption[]): Promise<Array
     'Unit Price (ETB)': 18,
     'VAT 15%': 12,
     Remark: 26,
+    'Is Count Data?': 18,
   };
   TEMPLATE_COLUMNS.forEach((c, i) => { sheet.getColumn(i + 1).width = widths[c] ?? 16; });
 
@@ -374,6 +382,7 @@ export async function buildModel19Template(stores: StoreOption[]): Promise<Array
     'Unit Price (ETB)': 204158.79,
     'VAT 15%': 'Yes',
     Remark: '',
+    'Is Count Data?': 'No',
   };
   const ex = sheet.addRow(TEMPLATE_COLUMNS.map((c) => example[c]));
   ex.height = 24;

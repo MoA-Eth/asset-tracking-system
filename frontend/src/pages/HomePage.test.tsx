@@ -162,4 +162,26 @@ describe('Data Encoder', () => {
     await userEvent.click(screen.getByRole('button', { name: /Correct/ }));
     expect(onNavigate).toHaveBeenCalledWith('assets');
   });
+      it('shows physical counts (ቆጠራ) KPI and navigates with count filter', async () => {
+    vi.mocked(api.getApprovals).mockResolvedValue([]);
+    vi.mocked(api.getItems).mockResolvedValue([
+      item('C1', { isHistoricalData: true, itemType: 'FIXED', quantity: 3 }),
+      item('C2', { ifmisSlipNumber: 'COUNT-2018-01', itemType: 'CONSUMABLE', quantity: 50 }),
+      item('REG', { ifmisSlipNumber: 'M19-001' }),
+    ] as any);
+    const onNavigate = renderAs(UserRole.DATA_ENCODER, ['stock-in.write']);
+
+    expect(await screen.findByText('Physical Counts (ቆጠራ)')).toBeInTheDocument();
+    expect(cardOf('Physical Counts (ቆጠራ)')).toHaveTextContent('2');
+    expect(cardOf('Physical Counts (ቆጠራ)')).toHaveTextContent('items');
+    expect(cardOf('Physical Counts (ቆጠራ)')).toHaveTextContent('53 total units');
+    expect(cardOf('Physical Counts (ቆጠራ)')).toHaveTextContent('Fixed');
+    expect(cardOf('Physical Counts (ቆጠራ)')).toHaveTextContent('1 items');
+    expect(cardOf('Physical Counts (ቆጠራ)')).toHaveTextContent('3 units');
+    expect(cardOf('Physical Counts (ቆጠራ)')).toHaveTextContent('Consumable');
+    expect(cardOf('Physical Counts (ቆጠራ)')).toHaveTextContent('50 units');
+
+    await userEvent.click(within(cardOf('Physical Counts (ቆጠራ)')).getByRole('button', { name: /See count items/ }));
+    expect(onNavigate).toHaveBeenCalledWith('assets');
+  });
 });

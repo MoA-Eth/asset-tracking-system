@@ -183,6 +183,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
 }) => {
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
   const { item } = row;
+  const isCount = Boolean(item.isHistoricalData || /^(count-|ቆጠራ)/i.test(item.ifmisSlipNumber || ''));
   const uom = (item.uom || 'EA').toLowerCase();
   const editing = !!editForm;
   // What the requested units are waiting for: an issue, a disposal, or both. Named only when the waiting requests on
@@ -307,6 +308,11 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               </span>
               {/* Quick Action Badges */}
               <AssetStatus row={{ ...row, rejected: undefined }} partly={partly} />
+              {isCount && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-900 border border-purple-300" title="Physical Inventory Count Record (የቆጠራ ውጤት)">
+                  ቆጠራ · Count Record
+                </span>
+              )}
               {!editing && locked && (
                 <span className="inline-flex items-center text-slate-400" title="Approved record: its fields are locked" aria-label="Approved record, fields locked">
                   <Lock className="h-3.5 w-3.5" />
@@ -475,7 +481,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
             accent="emerald"
           >
             <FieldGrid>
-              <FormKitField label="Model 19 No." optional>
+              <FormKitField label={isCount ? "Count Sheet / Ref No. (የቆጠራ ሰነድ)" : "Model 19 No."} optional>
                 <div className="relative flex items-center w-full">
                   <ReadOnlyValue mono className={item.ifmisSlipNumber ? (item.ifmisSlipAttachmentUrl ? 'pr-16' : 'pr-9') : ''}>
                     {item.ifmisSlipNumber || '—'}

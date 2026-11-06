@@ -157,6 +157,8 @@ interface SavedView {
   sortDirection: SortDirection;
   /** Fixed asset or consumable, only when a dashboard figure opened the page (not remembered after) */
   itemType?: string;
+  sourceFilter?: 'ALL' | 'REGULAR' | 'COUNT';
+  search?: string;
 }
 const DEFAULT_VIEW: SavedView = { filter: 'ALL', location: 'ALL', category: 'ALL', department: 'ALL', staleOnly: false, sortColumn: 'activity', sortDirection: 'desc' };
 const viewKey = assetsViewKey;
@@ -170,6 +172,8 @@ function loadView(userId?: string): SavedView {
       category: typeof saved.category === 'string' && saved.category ? saved.category : DEFAULT_VIEW.category,
       department: typeof saved.department === 'string' && saved.department ? saved.department : DEFAULT_VIEW.department,
       itemType: saved.itemType === 'FIXED' || saved.itemType === 'CONSUMABLE' ? saved.itemType : undefined,
+      sourceFilter: saved.sourceFilter === 'COUNT' || saved.sourceFilter === 'REGULAR' ? saved.sourceFilter : 'ALL',
+      search: typeof saved.search === 'string' ? saved.search : '',
       staleOnly: saved.staleOnly === true,
       sortColumn: SORT_COLUMNS.includes(saved.sortColumn) ? saved.sortColumn : DEFAULT_VIEW.sortColumn,
       sortDirection: saved.sortDirection === 'asc' ? 'asc' : DEFAULT_VIEW.sortDirection,
@@ -215,9 +219,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   // Fixed asset or consumable item (not remembered between visits, unless a dashboard figure opened the page on it)
   const [typeFilter, setTypeFilter] = useState<string>(savedView.itemType ?? 'ALL');
   const [programFilter, setProgramFilter] = useState<string>('ALL');
+  const [sourceFilter, setSourceFilter] = useState<'ALL' | 'REGULAR' | 'COUNT'>(savedView.sourceFilter ?? 'ALL');
   const [dbPrograms, setDbPrograms] = useState<string[]>([]);
   const [staleOnly, setStaleOnly] = useState<boolean>(savedView.staleOnly);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState<string>(savedView.search ?? '');
   const [sortColumn, setSortColumn] = useState<SortColumn>(savedView.sortColumn);
   const [sortDirection, setSortDirection] = useState<SortDirection>(savedView.sortDirection);
 
@@ -568,6 +573,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       return false;
     }
 
+    const isCount = Boolean(row.item.isHistoricalData || /^(count-|ቆጠራ)/i.test(row.item.ifmisSlipNumber || ''));
+    if (sourceFilter === 'REGULAR' && isCount) {
+      return false;
+    }
+    if (sourceFilter === 'COUNT' && !isCount) {
+      return false;
+    }
+
     return true;
   };
 
@@ -665,6 +678,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       item.ifmisTagNumber,
       item.ifmisItemCode,
       ...codeVariations,
+      ...((item.isHistoricalData || /^(count-|ቆጠራ)/i.test(item.ifmisSlipNumber || '')) ? ['ቆጠራ', 'count', 'kotera', 'yekotera', 'physical count', 'inventory count', 'ቆጠራ እቃዎች', 'count data'] : []),
       ...poVariations,
       item.serialNumber,
       item.itemCategoryDisplay,
@@ -705,7 +719,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const shown = useMemo(
     () => groups.map((g) => visibleGroup(g, filter, locationFilter, categoryFilter)).filter((g): g is ShownGroup => !!g),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [groups, filter, locationFilter, categoryFilter, typeFilter, departmentFilter, programFilter, staleOnly, search],
+    [groups, filter, locationFilter, categoryFilter, typeFilter, departmentFilter, programFilter, sourceFilter, staleOnly, search],
   );
 
   const sortedShown = useMemo(() => {
@@ -820,7 +834,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return out;
   }, [sortedShown, slips, slipOfItem]);
 
-  const pager = usePagination(listed, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${departmentFilter}|${programFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}|${lastTouchedId}` });
+  const pager = usePagination(listed, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${departmentFilter}|${programFilter}|${sourceFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}|${lastTouchedId}` });
   const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
   const [openSlips, setOpenSlips] = useState<Set<string>>(new Set());
   const toggleBatch = (id: string) =>
@@ -1570,6 +1584,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               <span className="flex flex-wrap items-center gap-x-1.5 mt-0.5">
                 <span className={`${table.code} whitespace-nowrap`}>{item.itemCode}</span>
                 <ItemTypeBadge type={item.itemType} />
+                {(item.isHistoricalData || /^(count-|ቆጠራ)/i.test(item.ifmisSlipNumber || '')) && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                    ቆጠራ · Count
+                  </span>
+                )}
                 {row.where && !isBatch && (
                   <span className="text-xs text-slate-500 font-normal truncate max-w-xs">
                     · {row.where}
@@ -1678,6 +1697,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const renderSlipRow = (key: string, members: AssetGroup[], isOpen = false) => {
     const rowsOf = members.map((g) => g.row);
     const lead = rowsOf[0].item;
+    const isCountSlip = Boolean(lead.isHistoricalData || rowsOf.some((r) => r.item.isHistoricalData) || /^(count-|ቆጠራ)/i.test(lead.ifmisSlipNumber || '') || rowsOf.some((r) => /^(count-|ቆጠራ)/i.test(r.item.ifmisSlipNumber || '')));
     const places = [...new Set(rowsOf.map((r) => r.where))];
     const total = rowsOf.reduce((sum, r) => sum + slipLineTotal(r.item), 0);
     const touched = rowsOf.some((r) => r.item.id === lastTouchedId);
@@ -1723,7 +1743,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 ].map((r) => r.item.name))}
               </span>
               <span className="flex items-center gap-x-1.5 whitespace-nowrap text-xs text-slate-600 mt-0.5">
-                <span className="rounded-[4px] border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-semibold text-slate-700">Model 19</span>
+                {isCountSlip ? (
+                  <span className="rounded-[4px] border border-purple-200 bg-purple-100 px-1.5 text-[10px] font-semibold text-purple-800">
+                    ቆጠራ · Count
+                  </span>
+                ) : (
+                  <span className="rounded-[4px] border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-semibold text-slate-700">
+                    Model 19
+                  </span>
+                )}
                 {lead.ifmisSlipNumber && <span className="font-mono text-[11px] text-slate-500">· {lead.ifmisSlipNumber}</span>}
                 {lead.poNumber && <span className="text-[11px] text-slate-500">PO {lead.poNumber}</span>}
               </span>
@@ -1958,7 +1986,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     (typeFilter !== 'ALL' ? 1 : 0) +
     (departmentFilter !== 'ALL' ? 1 : 0) +
     (programFilter !== 'ALL' ? 1 : 0) +
-    (staleOnly ? 1 : 0);
+    (staleOnly ? 1 : 0) +
+    (sourceFilter !== 'ALL' ? 1 : 0);
   // Anything that narrows or reorders the list: filters, search or a non-default sort
   const viewChanged = activeFilterCount > 0 || !!search || sortColumn !== 'activity' || sortDirection !== 'desc';
   const resetFilters = () => {
@@ -1969,6 +1998,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setDepartmentFilter('ALL');
     setProgramFilter('ALL');
     setStaleOnly(false);
+    setSourceFilter('ALL');
   };
   const resetView = () => {
     resetFilters();
@@ -2398,6 +2428,29 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   </FilterSection>
                 )}
 
+                
+                {/* Source or origin: Regular vs Physical Count */}
+                <FilterSection label="Source or origin">
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    <FilterPill
+                      label="All sources"
+                      active={sourceFilter === 'ALL'}
+                      onClick={() => setSourceFilter('ALL')}
+                    />
+                    <FilterPill
+                      label="Physical Counts (ቆጠራ)"
+                      count={items.filter((i) => i.isHistoricalData || /^(count-|ቆጠራ)/i.test(i.ifmisSlipNumber || '')).length}
+                      active={sourceFilter === 'COUNT'}
+                      onClick={() => setSourceFilter((prev) => (prev === 'COUNT' ? 'ALL' : 'COUNT'))}
+                    />
+                    <FilterPill
+                      label="Regular Receipts"
+                      active={sourceFilter === 'REGULAR'}
+                      onClick={() => setSourceFilter((prev) => (prev === 'REGULAR' ? 'ALL' : 'REGULAR'))}
+                    />
+                  </div>
+                </FilterSection>
+
                 {/* Stock waiting too long to be issued */}
                 <FilterSection label="Time in store">
                   <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -2496,6 +2549,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           {viewChanged && (
             <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100 text-xs">
               <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
+              {sourceFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 text-[11px] font-medium border border-purple-200">
+                  <span>Source: {sourceFilter === 'COUNT' ? 'Physical Count (ቆጠራ)' : 'Regular Receipts'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSourceFilter('ALL')}
+                    title="Remove source filter"
+                    aria-label="Remove source filter"
+                    className="hover:text-purple-950 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
               {staleOnly && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 text-[11px] font-medium border border-amber-200">
                   <span>In store over {STALE_IN_STORE_DAYS} days</span>

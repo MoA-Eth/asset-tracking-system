@@ -8,6 +8,7 @@ import { approvalRows, needsChiefDirector, voucherName } from '../components/ass
 import { daysInStore, requestLabel, shortDate, STALE_IN_STORE_DAYS } from '../components/assets/asset-state';
 import { roleName } from '../utils/roles';
 import { isConsumable, supplyKey } from '../utils/counting';
+import { presetAssetsView } from '../utils/assets-view';
 import { ApprovalStatus, AuditLogEntry, Employee, ItemStatus, ItemWithRelations, TransactionApproval, UserRole } from '../types/asset-management';
 
 /**
@@ -45,16 +46,16 @@ const unitsOfFixed = (records: ItemWithRelations[]) =>
 /** Consumables by the different supplies: the same IFMIS item code (a stray space ignored) is one; no code, name and unit */
 const supplies = (records: ItemWithRelations[]) => new Set(records.filter(isConsumable).map(supplyKey)).size;
 
-const Card: React.FC<{ label: string; value: React.ReactNode; note?: React.ReactNode; tone?: 'neutral' | 'warning'; onClick?: () => void; action?: string }> = ({
+const Card: React.FC<{ label: string; value: React.ReactNode; note?: React.ReactNode; tone?: 'neutral' | 'warning' | 'purple'; onClick?: () => void; action?: string }> = ({
   label, value, note, tone = 'neutral', onClick, action,
 }) => (
-  <div className={`group relative overflow-hidden flex flex-col rounded-2xl border bg-white p-5 shadow-[0_2px_10px_-3px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_12px_24px_-8px_rgba(15,23,42,0.12),0_4px_8px_-2px_rgba(15,23,42,0.04)] transition-all duration-300 motion-safe:hover:-translate-y-0.5 ${tone === 'warning' ? 'border-amber-200/90 bg-gradient-to-b from-amber-50/50 via-white to-white hover:border-amber-300' : 'border-slate-200/85 hover:border-slate-300'}`}>
-    <span className={`absolute inset-x-0 top-0 h-1 ${tone === 'warning' ? 'bg-gradient-to-r from-amber-400 to-amber-600' : 'bg-gradient-to-r from-emerald-500 to-teal-600'}`} aria-hidden />
-    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
-    <p className={`mt-3 text-3xl font-extrabold tracking-tight tabular-nums ${tone === 'warning' ? 'text-amber-800' : 'text-slate-900'}`}>{value}</p>
-    {note && <p className="mt-1 text-xs text-slate-500 font-normal leading-relaxed">{note}</p>}
+  <div className={`group relative overflow-hidden flex flex-col rounded-2xl border bg-white p-5 shadow-[0_2px_10px_-3px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_12px_24px_-8px_rgba(15,23,42,0.12),0_4px_8px_-2px_rgba(15,23,42,0.04)] transition-all duration-300 motion-safe:hover:-translate-y-0.5 ${tone === 'warning' ? 'border-amber-200/90 bg-gradient-to-b from-amber-50/50 via-white to-white hover:border-amber-300' : tone === 'purple' ? 'border-purple-200/90 bg-gradient-to-b from-purple-50/40 via-white to-white hover:border-purple-300' : 'border-slate-200/85 hover:border-slate-300'}`}>
+    <span className={`absolute inset-x-0 top-0 h-1 ${tone === 'warning' ? 'bg-gradient-to-r from-amber-400 to-amber-600' : tone === 'purple' ? 'bg-gradient-to-r from-purple-500 to-indigo-600' : 'bg-gradient-to-r from-emerald-500 to-teal-600'}`} aria-hidden />
+    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 min-h-[2.25rem] flex items-center leading-snug">{label}</p>
+    <div className={`mt-3 text-3xl font-extrabold tracking-tight tabular-nums ${tone === 'warning' ? 'text-amber-800' : tone === 'purple' ? 'text-purple-900' : 'text-slate-900'}`}>{value}</div>
+    {note && <div className="mt-1 text-xs text-slate-500 font-normal leading-relaxed">{note}</div>}
     {onClick && action && (
-      <button type="button" onClick={onClick} className="mt-auto inline-flex items-center gap-1.5 self-start pt-4 text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer transition-colors">
+      <button type="button" onClick={onClick} className={`mt-auto inline-flex items-center gap-1.5 self-start pt-4 text-xs font-semibold ${tone === 'purple' ? 'text-purple-700 hover:text-purple-900' : 'text-emerald-700 hover:text-emerald-900'} hover:underline cursor-pointer transition-colors`}>
         {action} <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
       </button>
     )}
@@ -168,12 +169,61 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
     const staleFixedUnits = unitsOfFixed(stale);
     const staleConsumables = supplies(stale);
 
+        // Physical Inventory Counts (ቆጠራ)
+    const countRecords = items.filter((i) => i.isHistoricalData || /^(count-|ቆጠራ)/i.test(i.ifmisSlipNumber || ''));
+    let countFixedUnits = 0;
+    let countFixedItems = 0;
+    let countConsumableUnits = 0;
+    let countConsumableItems = 0;
+
+    for (const i of countRecords) {
+      let qty = Number(i.balance?.total ?? i.quantity) || 1;
+      if (!i.quantity && !i.balance && i.notes) {
+        try {
+          const meta = JSON.parse(i.notes);
+          if (meta.quantity) qty = Number(meta.quantity) || 1;
+        } catch {}
+      }
+
+      if ((i.itemType ?? 'FIXED') === 'CONSUMABLE') {
+        countConsumableItems++;
+        countConsumableUnits += qty;
+      } else {
+        countFixedItems++;
+        countFixedUnits += qty;
+      }
+    }
+
+    const countTotalItems = countRecords.length;
+    const countTotalUnits = countFixedUnits + countConsumableUnits;
+
     // The Department Head's directorate: what is issued to it, as items and fixed-asset units
     const held = items.filter((i) => i.assignedDepartmentId && i.assignedDepartmentId === user?.departmentId && (i.status === ItemStatus.ISSUED || i.status === ItemStatus.UNDER_TRANSFER));
     const heldUnits = unitsOfFixed(held);
     const heldConsumables = supplies(held);
 
-    return { atStage1, forHead, forChief, oldestDays, sentBackByMe, endorsedByMe, approvedByMe, myWaiting, mySentBack, myThisWeek, staleFixedUnits, staleConsumables, heldUnits, heldConsumables };
+    return {
+      atStage1,
+      forHead,
+      forChief,
+      oldestDays,
+      sentBackByMe,
+      endorsedByMe,
+      approvedByMe,
+      myWaiting,
+      mySentBack,
+      myThisWeek,
+      staleFixedUnits,
+      staleConsumables,
+      heldUnits,
+      heldConsumables,
+      countTotalItems,
+      countTotalUnits,
+      countFixedItems,
+      countFixedUnits,
+      countConsumableItems,
+      countConsumableUnits,
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approvals, items, me, user?.departmentId, today]);
 
@@ -190,6 +240,10 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
 
   const toApprovals = () => onNavigate('approvals');
   const toAssets = () => onNavigate('assets');
+  const toCountAssets = (itemType?: 'FIXED' | 'CONSUMABLE') => {
+    presetAssetsView(user?.id, { sourceFilter: 'COUNT', itemType });
+    onNavigate('assets');
+  };
   const f = figures;
   const waitingNote = (rows: { lead: TransactionApproval }[]) => {
     const d = f.oldestDays(rows);
@@ -218,7 +272,7 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
     const toUsers = () => onNavigate('settings-users');
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Card label="Can sign in" value={plural(canSignIn.length, 'person', 'people')} note={`Of ${plural(people.length, 'employee')} on record`} onClick={toUsers} action="Manage users" />
           <Card
             label="Temporary password"
@@ -289,9 +343,9 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <Card label="Sent back to me" value={f.mySentBack.length} note="To correct and resubmit, or cancel" tone={f.mySentBack.length ? 'warning' : 'neutral'} onClick={toAssets} action="Correct" />
-        <Card label="My requests waiting" value={f.myWaiting.length} note={waitingNote(f.myWaiting)} />
+        <Card label="My requests waiting" value={f.myWaiting.length} note={waitingNote(f.myWaiting)} onClick={toAssets} action="View requests" />
         <Card
           label="In store over 30 days"
           value={plural(f.staleFixedUnits, 'fixed asset')}
@@ -301,6 +355,67 @@ export const HomePage: React.FC<{ onNavigate: (tab: string) => void; currentRole
           action="See them"
         />
         <Card label="Entered this week" value={plural(f.myThisWeek, 'request')} note="Receipts, issues, transfers and disposals" onClick={toAssets} action="Receive or issue" />
+        <Card
+          label="Physical Counts (ቆጠራ)"
+          value={
+            <div className="flex flex-col">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-3xl font-extrabold tracking-tight">{f.countTotalItems}</span>
+                <span className="text-base font-bold text-slate-700">items</span>
+              </div>
+              <div className="mt-0.5 text-xs font-bold text-purple-700 tabular-nums">
+                ({f.countTotalUnits.toLocaleString()} total units)
+              </div>
+            </div>
+          }
+          note={
+            <div className="mt-2.5 pt-2 border-t border-purple-100/90">
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toCountAssets('FIXED');
+                  }}
+                  className="rounded-lg bg-purple-50/70 p-2 border border-purple-100/80 text-left hover:bg-purple-100/80 transition-colors cursor-pointer group/tile"
+                  title="Filter to Fixed Assets count items"
+                >
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-purple-900/70 group-hover/tile:text-purple-900">
+                    Fixed
+                  </span>
+                  <span className="block text-xs font-extrabold text-slate-900 tabular-nums">
+                    {f.countFixedItems} <span className="font-normal text-[10px] text-slate-500">items</span>
+                  </span>
+                  <span className="block text-[11px] font-semibold text-purple-900 tabular-nums">
+                    {f.countFixedUnits.toLocaleString()} <span className="font-normal text-[10px] text-slate-500">units</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toCountAssets('CONSUMABLE');
+                  }}
+                  className="rounded-lg bg-purple-50/70 p-2 border border-purple-100/80 text-left hover:bg-purple-100/80 transition-colors cursor-pointer group/tile"
+                  title="Filter to Consumables count items"
+                >
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-purple-900/70 group-hover/tile:text-purple-900">
+                    Consumable
+                  </span>
+                  <span className="block text-xs font-extrabold text-slate-900 tabular-nums">
+                    {f.countConsumableItems} <span className="font-normal text-[10px] text-slate-500">items</span>
+                  </span>
+                  <span className="block text-[11px] font-semibold text-purple-900 tabular-nums">
+                    {f.countConsumableUnits.toLocaleString()} <span className="font-normal text-[10px] text-slate-500">units</span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          }
+          tone={f.countTotalItems ? 'purple' : 'neutral'}
+          onClick={() => toCountAssets()}
+          action="See count items"
+        />
       </div>
       <ListPanel title="Sent back to me" count={f.mySentBack.length} empty="Nothing was sent back to you." action={{ label: 'Open assets', onClick: toAssets }}>
         {f.mySentBack.slice(0, 6).map((r) => (

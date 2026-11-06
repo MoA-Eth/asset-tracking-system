@@ -1,7 +1,7 @@
 import { AssetCategory, ItemType, ProvisionType } from '../../types/asset-management';
 
 /** The transaction types the receipt offers */
-export const TRANSACTION_TYPES = ['PO Receipt', 'Petty Cash Purchase Receipt', 'Direct Delivery', 'Donation / Grant Receipt', 'Transfer Receipt', 'Internal Production'];
+export const TRANSACTION_TYPES = ['PO Receipt', 'Petty Cash Purchase Receipt', 'Direct Delivery', 'Donation / Grant Receipt', 'Transfer Receipt', 'Internal Production', 'Inventory Count (ቆጠራ)'];
 
 /**
  * Vehicle parts & accessories as a category of their own is off for now: they stay with the vehicles, in Vehicles with

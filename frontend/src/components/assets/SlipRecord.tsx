@@ -390,6 +390,7 @@ export interface SlipRecordProps {
 export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, partly, onOpenItem, onPrint, onDuplicate, onIssue, onTransfer, onEdit, onResubmit, onCancelRequest, form, onClose }) => {
   const [viewingSlip, setViewingSlip] = useState(false);
   const lead = rows[0].item;
+    const isCount = Boolean(lead.isHistoricalData || rows.some((r) => r.item.isHistoricalData) || /^(count-|ቆጠራ)/i.test(lead.ifmisSlipNumber || '') || rows.some((r) => /^(count-|ቆጠራ)/i.test(r.item.ifmisSlipNumber || '')));
   const total = rows.reduce((sum, r) => sum + slipLineTotal(r.item), 0);
   const slipUrl = rows.find((r) => r.item.ifmisSlipAttachmentUrl)?.item.ifmisSlipAttachmentUrl;
   const value = (v?: string | null) => v?.trim() || '—';
@@ -418,10 +419,12 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, partly, onOpenItem
                 </button>
                 <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" aria-hidden="true" />
                 <span className="font-bold text-slate-900">
-                  Model 19 #{lead.ifmisSlipNumber}
+                  {isCount ? `ቆጠራ · Count #${lead.ifmisSlipNumber}` : `Model 19 #${lead.ifmisSlipNumber}`}
                 </span>
               </nav>
-              <h3 className="truncate text-base font-extrabold text-slate-900">Model 19 #{lead.ifmisSlipNumber}</h3>
+              <h3 className="truncate text-base font-extrabold text-slate-900">
+                {isCount ? `ቆጠራ · Count #${lead.ifmisSlipNumber}` : `Model 19 #${lead.ifmisSlipNumber}`}
+              </h3>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                 <span>
                   {/* Received on the slip (the units issued since included), as its row in the list counts them */}
@@ -466,7 +469,7 @@ export const SlipRecord: React.FC<SlipRecordProps> = ({ rows, partly, onOpenItem
               </button>
             )}
             <button type="button" onClick={onPrint} className={btn.secondary}>
-              <Printer className="h-3.5 w-3.5" /> Print Model 19
+              <Printer className="h-3.5 w-3.5" /> {isCount ? 'Print Count Sheet' : 'Print Model 19'}
             </button>
             {slipUrl && (
               <button type="button" onClick={() => setViewingSlip(true)} className={btn.secondary} title={getSlipDisplayName(slipUrl)}>

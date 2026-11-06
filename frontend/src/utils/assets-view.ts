@@ -13,6 +13,8 @@ export interface AssetsPreset {
   /** Fixed assets or consumables (for this visit only) */
   itemType?: 'FIXED' | 'CONSUMABLE';
   staleOnly?: boolean;
+  sourceFilter?: 'ALL' | 'REGULAR' | 'COUNT';
+  search?: string;
 }
 
 export function presetAssetsView(userId: string | undefined, preset: AssetsPreset): void {
@@ -28,6 +30,8 @@ export function presetAssetsView(userId: string | undefined, preset: AssetsPrese
         department: preset.department ?? 'ALL',
         staleOnly: preset.staleOnly ?? false,
         itemType: preset.itemType,
+        sourceFilter: preset.sourceFilter ?? 'ALL',
+        search: preset.search ?? '',
       }),
     );
   } catch {
