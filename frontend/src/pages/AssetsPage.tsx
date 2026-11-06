@@ -11,7 +11,6 @@ import {
   Pencil,
   ChevronRight,
   X,
-  Filter,
   Download,
   Trash2,
   Copy,
@@ -21,12 +20,10 @@ import {
   XCircle,
   AlertTriangle,
   Upload,
-  ShoppingCart,
-  Coins,
   Check,
 } from 'lucide-react';
 import { api } from '../api/client';
-import { btn, table, statusTone, pill } from '../components/ui/theme';
+import { btn, table } from '../components/ui/theme';
 import { CloseButton } from '../components/ui/CloseButton';
 import { BackButton } from '../components/ui/BackButton';
 import { AssetsTableSkeleton } from '../components/ui/Skeleton';
@@ -224,7 +221,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [sourceFilter, setSourceFilter] = useState<'ALL' | 'REGULAR' | 'COUNT'>(savedView.sourceFilter ?? 'ALL');
   const [duplicateOnly, setDuplicateOnly] = useState<boolean>(false);
   const [itemToDelete, setItemToDelete] = useState<ItemWithRelations | null>(null);
-  const [slipToDelete, setSlipToDelete] = useState<{ slip: string; count: number } | null>(null);
+  const [slipToDelete, setSlipToDelete] = useState<{
+    slip: string;
+    count: number;
+    items?: ItemWithRelations[];
+  } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [dbPrograms, setDbPrograms] = useState<string[]>([]);
   const [staleOnly, setStaleOnly] = useState<boolean>(savedView.staleOnly);
@@ -518,8 +519,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           // (an issued record doesn't show an issue that lost to the one that issued it)
           rejected:
             !request &&
-            (lastRaised?.status === ApprovalStatus.REJECTED || lastRaised?.status === ApprovalStatus.CANCELLED) &&
-            !(state === 'ISSUED' && lastRaised.transactionType === 'STOCK_OUT')
+              (lastRaised?.status === ApprovalStatus.REJECTED || lastRaised?.status === ApprovalStatus.CANCELLED) &&
+              !(state === 'ISSUED' && lastRaised.transactionType === 'STOCK_OUT')
               ? lastRaised
               : undefined,
           // Units on a waiting issue or disposal are still on the shelf, so they keep counting their days in store
@@ -1159,9 +1160,16 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   const actionsFor = (row: AssetRow): RowAction[] => {
     const { item, request } = row;
+    const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN;
+    const adminDeleteAction: RowAction[] = isSuperAdmin
+      ? [{ label: 'Delete asset record', icon: Trash2, onClick: () => setItemToDelete(item) }]
+      : [];
+
+    let actions: RowAction[] = [];
+
     // A rejected or cancelled record: the one thing left to do is receive it again
     if (row.state === 'REJECTED' || item.status === ItemStatus.REJECTED) {
-      return [
+      actions = [
         {
           label: 'Duplicate as new receipt',
           icon: Copy,
@@ -1169,161 +1177,172 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           hidden: !canReceive || !!item.parentItemId,
         },
       ];
-    }
-    // Viewing is clicking the row; printing is from the record's list of requests
-    const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN;
-    const adminDeleteAction: RowAction[] = isSuperAdmin
-      ? [{ label: 'Delete asset record', icon: Trash2, onClick: () => setItemToDelete(item) }]
-      : [];
-
-    switch (row.state) {
-      case 'RECEIPT_PENDING':
-        return [
-          {
-            label: 'Edit receipt',
-            icon: Pencil,
-            // Corrected in place, in the asset's record
-            onClick: () => editInRecord(item.id),
-            hidden: !request || !(canReceive || approverCorrects(request)),
-            disabled: request?.currentStage === 2 && !approverCorrects(request),
-            reason: request?.currentStage === 2 && !approverCorrects(request) ? ENDORSED_REASON : undefined,
-          },
-          resubmitAction(request),
-          cancelAction(request),
-        ];
-      case 'IN_STORE':
-        return [
-          {
-            label: 'Issue (Model 22)',
-            icon: PackageMinus,
-            onClick: () => {
-              setSelectedId(item.id);
-              setIssue({ itemId: item.id });
-              setTransfer(null);
-              setDisposing(null);
+    } else {
+      switch (row.state) {
+        case 'RECEIPT_PENDING':
+          actions = [
+            {
+              label: 'Edit receipt',
+              icon: Pencil,
+              // Corrected in place, in the asset's record
+              onClick: () => editInRecord(item.id),
+              hidden: !request || !(canReceive || approverCorrects(request)),
+              disabled: request?.currentStage === 2 && !approverCorrects(request),
+              reason: request?.currentStage === 2 && !approverCorrects(request) ? ENDORSED_REASON : undefined,
             },
-            hidden: !canIssue,
-          },
-          {
-            // A fixed asset or consumable in store can be transferred (Model 21)
-            label: 'Transfer (Model 21)',
-            icon: ArrowRightLeft,
-            onClick: () => {
-              setSelectedId(item.id);
-              setTransfer({ itemId: item.id });
-              setIssue(null);
-              setDisposing(null);
+            resubmitAction(request),
+            cancelAction(request),
+          ];
+          break;
+        case 'IN_STORE':
+          actions = [
+            {
+              label: 'Issue (Model 22)',
+              icon: PackageMinus,
+              onClick: () => {
+                setSelectedId(item.id);
+                setIssue({ itemId: item.id });
+                setTransfer(null);
+                setDisposing(null);
+              },
+              hidden: !canIssue,
             },
-            hidden: !canTransfer,
-          },
-          {
-            label: 'Dispose',
-            icon: Trash2,
-            onClick: () => {
-              setSelectedId(item.id);
-              setDisposing({ itemId: item.id });
-              setIssue(null);
-              setTransfer(null);
+            {
+              // A fixed asset or consumable in store can be transferred (Model 21)
+              label: 'Transfer (Model 21)',
+              icon: ArrowRightLeft,
+              onClick: () => {
+                setSelectedId(item.id);
+                setTransfer({ itemId: item.id });
+                setIssue(null);
+                setDisposing(null);
+              },
+              hidden: !canTransfer,
             },
-            hidden: !canDispose,
-          },
-        ];
-      case 'ISSUED':
-        return [
-          {
-            label: 'Transfer (Model 21)',
-            icon: ArrowRightLeft,
-            onClick: () => {
-              setSelectedId(item.id);
-              setTransfer({ itemId: item.id });
-              setIssue(null);
+            {
+              label: 'Dispose',
+              icon: Trash2,
+              onClick: () => {
+                setSelectedId(item.id);
+                setDisposing({ itemId: item.id });
+                setIssue(null);
+                setTransfer(null);
+              },
+              hidden: !canDispose,
             },
-            // Consumables are issued (Model 22) and used up; only a fixed asset moves on
-            hidden: !canTransfer || !!item.heldByOrganization || item.itemType === 'CONSUMABLE',
-          },
-          {
-            label: 'Return to store (Model 21)',
-            icon: Undo2,
-            onClick: () => {
-              setSelectedId(item.id);
-              setTransfer({ itemId: item.id, asReturn: true });
-              setIssue(null);
+          ];
+          break;
+        case 'ISSUED':
+          actions = [
+            {
+              label: 'Transfer (Model 21)',
+              icon: ArrowRightLeft,
+              onClick: () => {
+                setSelectedId(item.id);
+                setTransfer({ itemId: item.id });
+                setIssue(null);
+              },
+              // Consumables are issued (Model 22) and used up; only a fixed asset moves on
+              hidden: !canTransfer || !!item.heldByOrganization || item.itemType === 'CONSUMABLE',
             },
-            hidden: !canTransfer || !!item.heldByOrganization,
-          },
-        ];
-      case 'REQUEST_PENDING': {
-        const editPermission: Record<string, boolean> = { STOCK_OUT: canIssue, DISPOSAL: canDispose, TRANSFER: canTransfer, RETURN: canTransfer };
-        const open = row.requests?.length ? row.requests : [request!];
-        // Several issues: one Edit each, named by its Model 22 No.; a rejected one is resubmitted or cancelled
-        const returned = open.find((r) => r.status === ApprovalStatus.REJECTED);
-        return [
-          ...open.map((r): RowAction => ({
-            label: `Edit ${requestLabel(r.transactionType, r.requestDetails).noun}${open.length > 1 ? ` ${r.ifmisSlipNumber}` : ''}`,
-            icon: Pencil,
-            onClick: () => editInRecord(item.id, r.id),
-            hidden: !(editPermission[r.transactionType] || approverCorrects(r)),
-            disabled: r.currentStage === 2 && !approverCorrects(r),
-            reason: r.currentStage === 2 && !approverCorrects(r) ? (open.length > 1 ? `Model 22 ${r.ifmisSlipNumber}: ${ENDORSED_REASON}` : ENDORSED_REASON) : undefined,
-          })),
-          resubmitAction(returned ?? request),
-          cancelAction(returned ?? request),
-          {
-            // Units on issues still waiting stay in store, so another Model 22 can ask for them
-            label: 'Issue (Model 22)',
-            icon: PackageMinus,
-            onClick: () => {
-              setSelectedId(item.id);
-              setIssue({ itemId: item.id });
-              setTransfer(null);
-              setDisposing(null);
+            {
+              label: 'Return to store (Model 21)',
+              icon: Undo2,
+              onClick: () => {
+                setSelectedId(item.id);
+                setTransfer({ itemId: item.id, asReturn: true });
+                setIssue(null);
+              },
+              hidden: !canTransfer || !!item.heldByOrganization,
             },
-            hidden: !canIssue || !availableItems.some((i) => i.id === item.id),
-          },
-          {
-            // Remaining units on transfers/returns still waiting can be transferred on another Model 21
-            label: 'Transfer (Model 21)',
-            icon: ArrowRightLeft,
-            onClick: () => {
-              setSelectedId(item.id);
-              setTransfer({ itemId: item.id });
-              setIssue(null);
-              setDisposing(null);
+          ];
+          break;
+        case 'REQUEST_PENDING': {
+          const editPermission: Record<string, boolean> = { STOCK_OUT: canIssue, DISPOSAL: canDispose, TRANSFER: canTransfer, RETURN: canTransfer };
+          const open = row.requests?.length ? row.requests : [request!];
+          // Several issues: one Edit each, named by its Model 22 No.; a rejected one is resubmitted or cancelled
+          const returned = open.find((r) => r.status === ApprovalStatus.REJECTED);
+          actions = [
+            ...open.map((r): RowAction => ({
+              label: `Edit ${requestLabel(r.transactionType, r.requestDetails).noun}${open.length > 1 ? ` ${r.ifmisSlipNumber}` : ''}`,
+              icon: Pencil,
+              onClick: () => editInRecord(item.id, r.id),
+              hidden: !(editPermission[r.transactionType] || approverCorrects(r)),
+              disabled: r.currentStage === 2 && !approverCorrects(r),
+              reason: r.currentStage === 2 && !approverCorrects(r) ? (open.length > 1 ? `Model 22 ${r.ifmisSlipNumber}: ${ENDORSED_REASON}` : ENDORSED_REASON) : undefined,
+            })),
+            resubmitAction(returned ?? request),
+            cancelAction(returned ?? request),
+            {
+              // Units on issues still waiting stay in store, so another Model 22 can ask for them
+              label: 'Issue (Model 22)',
+              icon: PackageMinus,
+              onClick: () => {
+                setSelectedId(item.id);
+                setIssue({ itemId: item.id });
+                setTransfer(null);
+                setDisposing(null);
+              },
+              hidden: !canIssue || !availableItems.some((i) => i.id === item.id),
             },
-            hidden: !canTransfer || !transferableItems.some((i) => i.id === item.id),
-          },
-          {
-            label: 'Return to store (Model 21)',
-            icon: Undo2,
-            onClick: () => {
-              setSelectedId(item.id);
-              setTransfer({ itemId: item.id, asReturn: true });
-              setIssue(null);
-              setDisposing(null);
+            {
+              // Remaining units on transfers/returns still waiting can be transferred on another Model 21
+              label: 'Transfer (Model 21)',
+              icon: ArrowRightLeft,
+              onClick: () => {
+                setSelectedId(item.id);
+                setTransfer({ itemId: item.id });
+                setIssue(null);
+                setDisposing(null);
+              },
+              hidden: !canTransfer || !transferableItems.some((i) => i.id === item.id),
             },
-            hidden:
-              !canTransfer ||
-              (item.status !== ItemStatus.ISSUED && item.status !== ItemStatus.UNDER_TRANSFER) ||
-              !transferableItems.some((i) => i.id === item.id),
-          },
-        ];
+            {
+              label: 'Return to store (Model 21)',
+              icon: Undo2,
+              onClick: () => {
+                setSelectedId(item.id);
+                setTransfer({ itemId: item.id, asReturn: true });
+                setIssue(null);
+                setDisposing(null);
+              },
+              hidden:
+                !canTransfer ||
+                (item.status !== ItemStatus.ISSUED && item.status !== ItemStatus.UNDER_TRANSFER) ||
+                !transferableItems.some((i) => i.id === item.id),
+            },
+          ];
+          break;
+        }
+        default:
+          actions = [];
+          break;
       }
-      default:
-        return [];
     }
+
+    return [...actions, ...adminDeleteAction];
   };
 
-  const handleConfirmDeleteItem = async () => {
-    if (!itemToDelete) return;
+  const handleConfirmDeleteItem = async (itemToDel?: ItemWithRelations) => {
+    const target = itemToDel || itemToDelete;
+    if (!target) return;
     setDeleting(true);
     try {
-      await api.deleteItem(itemToDelete.id);
-      toast.success('Asset Deleted', `Item ${itemToDelete.itemCode} was permanently deleted.`);
-      setItems((prev) => prev.filter((i) => i.id !== itemToDelete.id && i.parentItemId !== itemToDelete.id));
-      if (selectedId === itemToDelete.id) {
+      await api.deleteItem(target.id);
+      toast.success('Asset Deleted', `Item ${target.itemCode} was permanently deleted.`);
+      setItems((prev) => prev.filter((i) => i.id !== target.id && i.parentItemId !== target.id));
+      if (selectedId === target.id) {
         closeRecord();
       }
       setItemToDelete(null);
+      if (slipToDelete) {
+        const remaining = (slipToDelete.items || []).filter((i) => i.id !== target.id);
+        if (remaining.length === 0) {
+          setSlipToDelete(null);
+        } else {
+          setSlipToDelete({ ...slipToDelete, count: remaining.length, items: remaining });
+        }
+      }
     } catch (err: any) {
       toast.error('Delete Failed', err?.message || 'Could not delete item.');
     } finally {
@@ -1386,7 +1405,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     );
   };
 
-// Note: error UI is rendered before main return below to keep hook execution order unconditional
+  // Note: error UI is rendered before main return below to keep hook execution order unconditional
 
   /** Units of a whole batch, from the registration's balance (it covers the records issued from it) */
   // What a row's units cost, VAT and charges in: a batch by all its units (the pieces issued from it included), as the
@@ -1425,86 +1444,86 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
 
   /** The listed rows, as both exports write them */
   const exportTable = () => {
-      const headers = [
-        '#',
-        'Asset Code',
-        'Asset Name',
-        'Category',
-        'Item Type',
-        'Status',
-        'UoM',
-        'Total Quantity',
-        'In Store Quantity',
-        'Issued Quantity',
-        'Held By / Where',
-        'IFMIS Slip #',
-        'Slip Date (G.C.)',
-        'Unit Cost (ETB)',
-        'Total Value (ETB)',
-        // To check the dashboard: count different consumables by their code, and keep only what is on the register
-        'IFMIS Item Code',
-        'On Register',
-        'Days In Store',
+    const headers = [
+      '#',
+      'Asset Code',
+      'Asset Name',
+      'Category',
+      'Item Type',
+      'Status',
+      'UoM',
+      'Total Quantity',
+      'In Store Quantity',
+      'Issued Quantity',
+      'Held By / Where',
+      'IFMIS Slip #',
+      'Slip Date (G.C.)',
+      'Unit Cost (ETB)',
+      'Total Value (ETB)',
+      // To check the dashboard: count different consumables by their code, and keep only what is on the register
+      'IFMIS Item Code',
+      'On Register',
+      'Days In Store',
+    ];
+
+    const csvRows = sortedShown.map((group, index) => {
+      const { item } = group.row;
+      const children = group.children ?? [];
+      const { isBatch, totalUnits, inStoreUnits, issuedUnits, holders } = batchSummary(group.row, children);
+      const uom = item.uom || 'EA';
+      // On the register as the dashboard counts it: approved and still held (not waiting for its receipt, rejected or
+      // disposed of). Its units are those in store (a waiting issue or disposal still on the shelf) and those issued,
+      // so the columns add up to the dashboard's Total, Available and Assigned
+      const onRegister = !['RECEIPT_PENDING', 'REJECTED', 'DISPOSED'].includes(group.row.state) && inStoreUnits + issuedUnits > 0;
+      const units = onRegister ? inStoreUnits + issuedUnits : isBatch ? totalUnits : group.row.units;
+      // Every unit at what it cost, VAT and charges in (a batch's charges counted once, shared over its units)
+      const totalValue = valueOf(item, units);
+      const whereText = isBatch && group.row.state !== 'ISSUED' && inStoreUnits === 0
+        ? '—'
+        : group.row.where || '';
+      const custodySummary = isBatch && issuedUnits > 0
+        ? `${whereText} (${issuedUnits} with ${holders.join('; ')})`
+        : whereText;
+
+      return [
+        index + 1,
+        item.itemCode,
+        item.name,
+        // The category as people read it (the Summary groups fixed assets by it)
+        categoryLabel(item),
+        (item.itemType ?? 'FIXED') === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset',
+        group.row.state,
+        uom,
+        units,
+        onRegister ? inStoreUnits : 0,
+        onRegister ? issuedUnits : 0,
+        custodySummary,
+        item.ifmisSlipNumber || '',
+        item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10),
+        Math.round(costOf(item) * 100) / 100,
+        totalValue,
+        item.ifmisItemCode || '',
+        onRegister ? 'Yes' : 'No',
+        // How long its units have been on the shelf (the longest of the batch), as the dashboard counts it
+        onRegister && inStoreUnits > 0 ? Math.max(0, ...[group.row, ...children].map((r) => r.daysInStore ?? 0)) : '',
       ];
+    });
 
-      const csvRows = sortedShown.map((group, index) => {
-        const { item } = group.row;
-        const children = group.children ?? [];
-        const { isBatch, totalUnits, inStoreUnits, issuedUnits, holders } = batchSummary(group.row, children);
-        const uom = item.uom || 'EA';
-        // On the register as the dashboard counts it: approved and still held (not waiting for its receipt, rejected or
-        // disposed of). Its units are those in store (a waiting issue or disposal still on the shelf) and those issued,
-        // so the columns add up to the dashboard's Total, Available and Assigned
-        const onRegister = !['RECEIPT_PENDING', 'REJECTED', 'DISPOSED'].includes(group.row.state) && inStoreUnits + issuedUnits > 0;
-        const units = onRegister ? inStoreUnits + issuedUnits : isBatch ? totalUnits : group.row.units;
-        // Every unit at what it cost, VAT and charges in (a batch's charges counted once, shared over its units)
-        const totalValue = valueOf(item, units);
-        const whereText = isBatch && group.row.state !== 'ISSUED' && inStoreUnits === 0
-          ? '—'
-          : group.row.where || '';
-        const custodySummary = isBatch && issuedUnits > 0
-          ? `${whereText} (${issuedUnits} with ${holders.join('; ')})`
-          : whereText;
-
-        return [
-          index + 1,
-          item.itemCode,
-          item.name,
-          // The category as people read it (the Summary groups fixed assets by it)
-          categoryLabel(item),
-          (item.itemType ?? 'FIXED') === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset',
-          group.row.state,
-          uom,
-          units,
-          onRegister ? inStoreUnits : 0,
-          onRegister ? issuedUnits : 0,
-          custodySummary,
-          item.ifmisSlipNumber || '',
-          item.ifmisSlipDateGc || String(item.createdAtGc || '').slice(0, 10),
-          Math.round(costOf(item) * 100) / 100,
-          totalValue,
-          item.ifmisItemCode || '',
-          onRegister ? 'Yes' : 'No',
-          // How long its units have been on the shelf (the longest of the batch), as the dashboard counts it
-          onRegister && inStoreUnits > 0 ? Math.max(0, ...[group.row, ...children].map((r) => r.daysInStore ?? 0)) : '',
-        ];
-      });
-
-      // Each issued piece, with the directorate holding it: a batch can be issued to several (the Excel Summary reads these)
-      const issued = sortedShown.flatMap((group) =>
-        [group.row, ...(group.children ?? [])]
-          .filter((r) => r.item.status === ItemStatus.ISSUED || r.item.status === ItemStatus.UNDER_TRANSFER)
-          .map((r) => [
-            r.item.itemCode,
-            r.item.name,
-            (r.item.itemType ?? 'FIXED') === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset',
-            r.item.assignedDepartment ? departmentLabel(r.item.assignedDepartment) : '',
-            r.units,
-            r.item.uom || 'EA',
-            r.item.ifmisItemCode || '',
-          ]),
-      );
-      return { headers, rows: csvRows, issued };
+    // Each issued piece, with the directorate holding it: a batch can be issued to several (the Excel Summary reads these)
+    const issued = sortedShown.flatMap((group) =>
+      [group.row, ...(group.children ?? [])]
+        .filter((r) => r.item.status === ItemStatus.ISSUED || r.item.status === ItemStatus.UNDER_TRANSFER)
+        .map((r) => [
+          r.item.itemCode,
+          r.item.name,
+          (r.item.itemType ?? 'FIXED') === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset',
+          r.item.assignedDepartment ? departmentLabel(r.item.assignedDepartment) : '',
+          r.units,
+          r.item.uom || 'EA',
+          r.item.ifmisItemCode || '',
+        ]),
+    );
+    return { headers, rows: csvRows, issued };
   };
 
   const handleExportCSV = () => {
@@ -1527,9 +1546,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       filter !== 'ALL' ? `Status: ${FILTERS.find((f) => f.value === filter)?.label ?? filter}` : '',
       locationFilter !== 'ALL'
         ? `Store: ${(() => {
-            const l = locations.find((x) => x.id === locationFilter);
-            return l ? storeLocationLabel(l) : locationFilter;
-          })()}`
+          const l = locations.find((x) => x.id === locationFilter);
+          return l ? storeLocationLabel(l) : locationFilter;
+        })()}`
         : '',
       categoryFilter !== 'ALL' ? `Category: ${CATEGORY_OPTIONS.find((c) => c.value === categoryFilter)?.label ?? categoryFilter}` : '',
       typeFilter !== 'ALL' ? `Item type: ${typeFilter === 'CONSUMABLE' ? 'Consumable' : 'Fixed asset'}` : '',
@@ -1604,13 +1623,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         onKeyDown={(e) => {
           if (e.key === 'Enter' && e.target === e.currentTarget) openRecord(item.id);
         }}
-        className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${
-          item.id === lastTouchedId
-            ? table.rowHighlight
-            : nested
-              ? 'bg-slate-50/90 hover:bg-slate-100/90 transition-colors'
-              : table.row
-        }`}
+        className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${item.id === lastTouchedId
+          ? table.rowHighlight
+          : nested
+            ? 'bg-slate-50/90 hover:bg-slate-100/90 transition-colors'
+            : table.row
+          }`}
       >
         <td className={`py-2 pr-4 ${nested ? 'pl-9 relative' : 'pl-5'}`}>
           {nested && <span className="absolute left-4 top-0 bottom-0 w-0.5 bg-emerald-500/40" aria-hidden="true" />}
@@ -1634,13 +1652,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 {nested && <span className="mr-1.5 text-emerald-700 font-mono text-xs select-none" aria-hidden="true">↳</span>}
                 {item.name}
                 {nested && (
-                  <span className={`ml-2 inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold ${
-                    row.state === 'DISPOSED'
-                      ? 'bg-slate-200/80 text-slate-700'
-                      : row.state === 'ISSUED'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-emerald-100 text-emerald-800'
-                  }`}>
+                  <span className={`ml-2 inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold ${row.state === 'DISPOSED'
+                    ? 'bg-slate-200/80 text-slate-700'
+                    : row.state === 'ISSUED'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-emerald-100 text-emerald-800'
+                    }`}>
                     {row.state === 'DISPOSED' ? 'Disposed unit' : row.state === 'ISSUED' ? 'Issued unit' : 'In store unit'}
                   </span>
                 )}
@@ -1679,11 +1696,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 )}
               </span>
               {duplicateSuspectMap.has(item.id) && (
-                <div className={`mt-1 text-[11px] rounded border px-2 py-0.5 inline-flex items-center gap-1.5 flex-wrap ${
-                  duplicateSuspectMap.get(item.id)?.isOriginal
-                    ? 'text-blue-950 bg-blue-50/90 border-blue-200/90'
-                    : 'text-amber-950 bg-amber-50/90 border-amber-200/90'
-                }`}>
+                <div className={`mt-1 text-[11px] rounded border px-2 py-0.5 inline-flex items-center gap-1.5 flex-wrap ${duplicateSuspectMap.get(item.id)?.isOriginal
+                  ? 'text-blue-950 bg-blue-50/90 border-blue-200/90'
+                  : 'text-amber-950 bg-amber-50/90 border-amber-200/90'
+                  }`}>
                   <span className={`font-semibold ${duplicateSuspectMap.get(item.id)?.isOriginal ? 'text-blue-900' : 'text-amber-900'}`}>
                     {duplicateSuspectMap.get(item.id)?.isOriginal ? '↳ Duplicated by:' : '↳ Matches original:'}
                   </span>
@@ -1820,13 +1836,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         onKeyDown={(e) => {
           if (e.key === 'Enter' && e.target === e.currentTarget) openSlip(key);
         }}
-        className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${
-          touched
-            ? table.rowHighlight
-            : isOpen
+        className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${touched
+          ? table.rowHighlight
+          : isOpen
             ? 'bg-sky-50/40 hover:bg-sky-50/60 transition-colors'
             : table.row
-        }`}
+          }`}
       >
         <td className="py-2.5 pr-4 pl-5">
           <div className="flex items-start gap-2">
@@ -1959,7 +1974,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               {
                 label: `Delete Model 19 & all ${members.length} item(s)`,
                 icon: Trash2,
-                onClick: () => setSlipToDelete({ slip: lead.ifmisSlipNumber, count: members.length }),
+                onClick: () =>
+                  setSlipToDelete({
+                    slip: lead.ifmisSlipNumber,
+                    count: members.length,
+                    items: members.map((m) => m.row.item),
+                  }),
                 hidden: user?.role !== UserRole.SUPER_ADMIN,
               },
             ]}
@@ -2014,9 +2034,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   // Requests made on this record, and the issue that created it when it is a unit split off a batch
   const selectedRequests = selectedRow
     ? approvals
-        // Its own requests, and those that split it off a batch (a partial issue or disposal)
-        .filter((a) => a.itemId === selectedRow.item.id || [a.requestDetails?.issuedItemCode, a.requestDetails?.disposedItemCode].includes(selectedRow.item.itemCode))
-        .sort((a, b) => String(b.createdAtGc).localeCompare(String(a.createdAtGc)))
+      // Its own requests, and those that split it off a batch (a partial issue or disposal)
+      .filter((a) => a.itemId === selectedRow.item.id || [a.requestDetails?.issuedItemCode, a.requestDetails?.disposedItemCode].includes(selectedRow.item.itemCode))
+      .sort((a, b) => String(b.createdAtGc).localeCompare(String(a.createdAtGc)))
     : [];
 
   // ── Keyboard: ↑/↓ or j/k open the previous or next asset, Esc goes back to the list ──
@@ -2213,11 +2233,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                         {receipt.editBatch && receipt.editBatch.length > 1
                           ? `Edit receipt · Model 19 #${receipt.edit?.ifmisSlipNumber || ''} (${receipt.editBatch.length} items)`
                           : receipt.edit
-                          ? `Edit receipt · ${receipt.edit.itemCode}`
-                          // A copy keeps the item's real name; the title says which record it was copied from
-                          : receipt.copyOf
-                          ? `Duplicate of ${receipt.copyOf}`
-                          : 'Receive items · Model 19'}
+                            ? `Edit receipt · ${receipt.edit.itemCode}`
+                            // A copy keeps the item's real name; the title says which record it was copied from
+                            : receipt.copyOf
+                              ? `Duplicate of ${receipt.copyOf}`
+                              : 'Receive items · Model 19'}
                       </h3>
                       <span className="px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         {receipt.edit ? 'Correction' : 'New Delivery'}
@@ -2329,12 +2349,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               totals={
                 selectedSummary?.isBatch || (selectedSummary?.requestedUnits ?? 0) > 0
                   ? {
-                      total: selectedSummary.totalUnits,
-                      issued: selectedSummary.issuedUnits,
-                      inStore: selectedSummary.inStoreUnits,
-                      requested: selectedSummary.requestedUnits,
-                      disposed: selectedSummary.disposedUnits,
-                    }
+                    total: selectedSummary.totalUnits,
+                    issued: selectedSummary.issuedUnits,
+                    inStore: selectedSummary.inStoreUnits,
+                    requested: selectedSummary.requestedUnits,
+                    disposed: selectedSummary.disposedUnits,
+                  }
                   : undefined
               }
               requests={selectedRequests}
@@ -2357,9 +2377,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               onNext={nextId ? () => openRecord(nextId) : undefined}
               onSaveIfmisTag={
                 selectedRow.item.itemType !== 'CONSUMABLE' &&
-                selectedRow.state !== 'REJECTED' &&
-                selectedRow.item.status !== ItemStatus.REJECTED &&
-                (canReceive || canTransfer || canDispose)
+                  selectedRow.state !== 'REJECTED' &&
+                  selectedRow.item.status !== ItemStatus.REJECTED &&
+                  (canReceive || canTransfer || canDispose)
                   ? (tag) => saveIfmisTag(selectedRow.item, tag)
                   : undefined
               }
@@ -2370,623 +2390,615 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         /* ── Register ── */
         <div className="space-y-3">
           <div className="rounded-md bg-white overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,0.10),0_1px_2px_rgba(16,24,40,0.06)]">
-        {/* Status: Executive Tab Strip with badge counts */}
-        <div className="border-b border-slate-200/90 bg-slate-50/70 px-3.5 sm:px-4 py-2">
-          <div role="group" aria-label="Status" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-thin">
-            {FILTERS.map((f) => {
-              const count = f.value === 'ALL' ? undefined : groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length;
-              const isActive = filter === f.value;
-              const isPending = f.value === 'PENDING' && count && count > 0;
-              const isRejected = f.value === 'REJECTED' && count && count > 0;
-              return (
-                <button
-                  key={f.value}
-                  type="button"
-                  title={FILTER_HINTS[f.value]}
-                  onClick={() => setFilter(f.value)}
-                  aria-pressed={isActive}
-                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[5px] text-xs font-semibold transition cursor-pointer select-none whitespace-nowrap ${
-                    isActive
-                      ? 'bg-white text-emerald-950 border border-slate-300 shadow-2xs font-bold'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/70 border border-transparent'
-                  }`}
-                >
-                  <span>{f.label}</span>
-                  {count !== undefined && ' '}
-                  {count !== undefined && (
-                    <span
-                      className={`inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums min-w-[18px] ${
-                        isActive
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : isPending
-                            ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300/80'
-                            : isRejected
-                              ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300/80'
-                              : 'bg-slate-200/80 text-slate-600'
-                      }`}
+            {/* Status: Executive Tab Strip with badge counts */}
+            <div className="border-b border-slate-200/90 bg-slate-50/70 px-3.5 sm:px-4 py-2">
+              <div role="group" aria-label="Status" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-thin">
+                {FILTERS.map((f) => {
+                  const count = f.value === 'ALL' ? undefined : groups.filter((g) => visibleGroup(g, f.value, locationFilter, categoryFilter)).length;
+                  const isActive = filter === f.value;
+                  const isPending = f.value === 'PENDING' && count && count > 0;
+                  const isRejected = f.value === 'REJECTED' && count && count > 0;
+                  return (
+                    <button
+                      key={f.value}
+                      type="button"
+                      title={FILTER_HINTS[f.value]}
+                      onClick={() => setFilter(f.value)}
+                      aria-pressed={isActive}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[5px] text-xs font-semibold transition cursor-pointer select-none whitespace-nowrap ${isActive
+                        ? 'bg-white text-emerald-950 border border-slate-300 shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/70 border border-transparent'
+                        }`}
                     >
-                      {count}
+                      <span>{f.label}</span>
+                      {count !== undefined && ' '}
+                      {count !== undefined && (
+                        <span
+                          className={`inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums min-w-[18px] ${isActive
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : isPending
+                              ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300/80'
+                              : isRejected
+                                ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300/80'
+                                : 'bg-slate-200/80 text-slate-600'
+                            }`}
+                        >
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                {suspectDuplicatesCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setDuplicateOnly((prev) => !prev)}
+                    aria-pressed={duplicateOnly}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] text-xs font-semibold transition cursor-pointer select-none whitespace-nowrap sm:ml-auto ${duplicateOnly
+                      ? 'bg-amber-600 text-white shadow-xs font-bold ring-2 ring-amber-400'
+                      : 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100/80'
+                      }`}
+                    title="Filter records that potentially duplicate pre-existing assets in the same store"
+                  >
+                    <AlertTriangle className={`h-3.5 w-3.5 ${duplicateOnly ? 'text-white' : 'text-amber-600'}`} />
+                    <span>Suspected Duplicates</span>
+                    <span className={`inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums min-w-[18px] ${duplicateOnly ? 'bg-amber-800 text-white' : 'bg-amber-200 text-amber-950'
+                      }`}>
+                      {suspectDuplicatesCount}
                     </span>
-                  )}
-                </button>
-              );
-            })}
-            {suspectDuplicatesCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setDuplicateOnly((prev) => !prev)}
-                aria-pressed={duplicateOnly}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] text-xs font-semibold transition cursor-pointer select-none whitespace-nowrap sm:ml-auto ${
-                  duplicateOnly
-                    ? 'bg-amber-600 text-white shadow-xs font-bold ring-2 ring-amber-400'
-                    : 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100/80'
-                }`}
-                title="Filter records that potentially duplicate pre-existing assets in the same store"
-              >
-                <AlertTriangle className={`h-3.5 w-3.5 ${duplicateOnly ? 'text-white' : 'text-amber-600'}`} />
-                <span>Suspected Duplicates</span>
-                <span className={`inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums min-w-[18px] ${
-                  duplicateOnly ? 'bg-amber-800 text-white' : 'bg-amber-200 text-amber-950'
-                }`}>
-                  {suspectDuplicatesCount}
-                </span>
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-col gap-2.5 px-3.5 py-2.5">
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1 w-full sm:max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                aria-label="Search assets"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, code, serial, slip or person…"
-                className={table.search.replace('pr-8', 'pr-3')}
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
-              {/* Quick Type Switcher: All | Fixed Assets | Consumables */}
-              <div
-                role="group"
-                aria-label="Filter by asset type"
-                className="inline-flex items-center rounded-[5px] border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-medium text-slate-600 shadow-2xs"
-              >
-                <button
-                  type="button"
-                  onClick={() => setTypeFilter('ALL')}
-                  className={`px-2.5 py-1 rounded-[3px] transition cursor-pointer select-none ${
-                    typeFilter === 'ALL'
-                      ? 'bg-white text-emerald-950 font-bold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  All Types
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTypeFilter('FIXED')}
-                  className={`px-2.5 py-1 rounded-[3px] transition cursor-pointer select-none ${
-                    typeFilter === 'FIXED'
-                      ? 'bg-white text-emerald-950 font-bold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Fixed Assets
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTypeFilter('CONSUMABLE')}
-                  className={`px-2.5 py-1 rounded-[3px] transition cursor-pointer select-none ${
-                    typeFilter === 'CONSUMABLE'
-                      ? 'bg-white text-emerald-950 font-bold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Consumables
-                </button>
-              </div>
-
-              {/* Reusable Filter Popover */}
-              <FilterPopover
-                label="Filter"
-                ariaLabel="Filter assets"
-                title="Filters"
-                resetLabel="Reset"
-                activeCount={activeFilterCount}
-                onReset={resetFilters}
-                onClear={resetView}
-                showClear={viewChanged}
-                resultCountText={`${sortedShown.length} ${sortedShown.length === 1 ? 'group' : 'groups'}`}
-              >
-                {/* Store & Location */}
-                <FilterSection label="Store or location" htmlFor="filter-store-location">
-                  <FilterSelect
-                    id="filter-store-location"
-                    ariaLabel="Filter by store location"
-                    placeholder="All stores and locations"
-                    value={locationFilter}
-                    onChange={setLocationFilter}
-                    options={locations.map((loc) => ({
-                      value: loc.id,
-                      label: storeLocationLabel(loc),
-                    }))}
-                  />
-                </FilterSection>
-
-                {/* Asset Category */}
-                <FilterSection label="Category" htmlFor="filter-asset-category">
-                  <FilterSelect
-                    id="filter-asset-category"
-                    ariaLabel="Filter by asset category"
-                    placeholder="All categories"
-                    value={categoryFilter}
-                    onChange={setCategoryFilter}
-                    options={CATEGORY_OPTIONS}
-                  />
-                </FilterSection>
-
-                {/* Fixed asset or consumable item */}
-                <FilterSection label="Item type" htmlFor="filter-item-type">
-                  <FilterSelect
-                    id="filter-item-type"
-                    ariaLabel="Filter by item type"
-                    placeholder="All types"
-                    value={typeFilter}
-                    onChange={setTypeFilter}
-                    options={ITEM_TYPE_OPTIONS.map((t) => ({ value: t.value, label: `${t.label} (${t.amharic})` }))}
-                  />
-                </FilterSection>
-
-                {/* The directorate holding them, as the dashboard's directorate allocation */}
-                <FilterSection label="Directorate" htmlFor="filter-directorate">
-                  <FilterSelect
-                    id="filter-directorate"
-                    ariaLabel="Filter by directorate"
-                    placeholder="All directorates"
-                    value={departmentFilter}
-                    onChange={setDepartmentFilter}
-                    options={[...departments].sort((a, b) => a.nameEn.localeCompare(b.nameEn)).map((d) => ({ value: d.id, label: d.nameEn }))}
-                  />
-                </FilterSection>
-
-                {/* Program or donor project */}
-                {programOptions.length > 0 && (
-                  <FilterSection label="Program or project" htmlFor="filter-program-project">
-                    <FilterSelect
-                      id="filter-program-project"
-                      ariaLabel="Filter by program or project"
-                      placeholder="All programs and projects"
-                      value={programFilter}
-                      onChange={setProgramFilter}
-                      options={programOptions}
-                    />
-                  </FilterSection>
+                  </button>
                 )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2.5 px-3.5 py-2.5">
+              <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="relative flex-1 w-full sm:max-w-md">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    aria-label="Search assets"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by name, code, serial, slip or person…"
+                    className={table.search.replace('pr-8', 'pr-3')}
+                  />
+                </div>
 
-                
-                {/* Source or origin: Regular vs Physical Count */}
-                <FilterSection label="Source or origin">
-                  <div className="flex flex-wrap gap-1.5 pt-0.5">
-                    <FilterPill
-                      label="All sources"
-                      active={sourceFilter === 'ALL'}
-                      onClick={() => setSourceFilter('ALL')}
-                    />
-                    <FilterPill
-                      label="Physical Counts (ቆጠራ)"
-                      count={items.filter((i) => i.isHistoricalData || /^(count-|ቆጠራ)/i.test(i.ifmisSlipNumber || '')).length}
-                      active={sourceFilter === 'COUNT'}
-                      onClick={() => setSourceFilter((prev) => (prev === 'COUNT' ? 'ALL' : 'COUNT'))}
-                    />
-                    <FilterPill
-                      label="Regular Receipts"
-                      active={sourceFilter === 'REGULAR'}
-                      onClick={() => setSourceFilter((prev) => (prev === 'REGULAR' ? 'ALL' : 'REGULAR'))}
-                    />
-                  </div>
-                </FilterSection>
-
-                {/* Stock waiting too long to be issued */}
-                <FilterSection label="Time in store">
-                  <div className="flex flex-wrap gap-1.5 pt-0.5">
-                    <FilterPill
-                      label={`Over ${STALE_IN_STORE_DAYS} days`}
-                      count={staleCount}
-                      active={staleOnly}
-                      onClick={() => setStaleOnly((v) => !v)}
-                    />
-                  </div>
-                </FilterSection>
-              </FilterPopover>
-
-              {canReceive && (
-                <button
-                  type="button"
-                  onClick={() => openReceipt()}
-                  className={`${btn.primary} shrink-0`}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Receive items (Model 19)</span>
-                </button>
-              )}
-
-              {/* 3-Dot Actions Menu for Export & Print (at the right end) */}
-              <div className="relative inline-flex" ref={actionsMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsActionsMenuOpen((prev) => !prev)}
-                  aria-haspopup="menu"
-                  aria-expanded={isActionsMenuOpen}
-                  aria-label="Asset export and print actions"
-                  title="Export and print options"
-                  className={`inline-flex items-center justify-center h-8 w-8 rounded-[4px] border transition cursor-pointer select-none shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-                    isActionsMenuOpen
-                      ? 'border-emerald-700/60 bg-emerald-50/80 text-emerald-950 shadow-xs'
-                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900'
-                  }`}
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </button>
-
-                {isActionsMenuOpen && (
+                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
+                  {/* Quick Type Switcher: All | Fixed Assets | Consumables */}
                   <div
-                    role="menu"
-                    aria-label="Asset export options"
-                    className="absolute right-0 top-full mt-1.5 w-60 z-50 rounded-md border border-slate-200 bg-white p-1 shadow-lg animate-fadeIn text-xs"
+                    role="group"
+                    aria-label="Filter by asset type"
+                    className="inline-flex items-center rounded-[5px] border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-medium text-slate-600 shadow-2xs"
                   >
                     <button
                       type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsActionsMenuOpen(false);
-                        handleExportCSV();
-                      }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                      onClick={() => setTypeFilter('ALL')}
+                      className={`px-2.5 py-1 rounded-[3px] transition cursor-pointer select-none ${typeFilter === 'ALL'
+                        ? 'bg-white text-emerald-950 font-bold shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                        }`}
                     >
-                      <Download className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Export CSV</span>
+                      All Types
                     </button>
-                    {/* The same rows, with a Summary sheet that works out the dashboard's figures from them */}
                     <button
                       type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsActionsMenuOpen(false);
-                        void handleExportExcel();
-                      }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                      onClick={() => setTypeFilter('FIXED')}
+                      className={`px-2.5 py-1 rounded-[3px] transition cursor-pointer select-none ${typeFilter === 'FIXED'
+                        ? 'bg-white text-emerald-950 font-bold shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                        }`}
                     >
-                      <Download className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Export Excel (with summary)</span>
+                      Fixed Assets
                     </button>
-                    {/* Several Model 19s at once, from the Excel template: each waits for approval as from the receive form */}
-                    {canReceive && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setIsActionsMenuOpen(false);
-                          setIsModel19ImportOpen(true);
-                        }}
-                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                    <button
+                      type="button"
+                      onClick={() => setTypeFilter('CONSUMABLE')}
+                      className={`px-2.5 py-1 rounded-[3px] transition cursor-pointer select-none ${typeFilter === 'CONSUMABLE'
+                        ? 'bg-white text-emerald-950 font-bold shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                    >
+                      Consumables
+                    </button>
+                  </div>
+
+                  {/* Reusable Filter Popover */}
+                  <FilterPopover
+                    label="Filter"
+                    ariaLabel="Filter assets"
+                    title="Filters"
+                    resetLabel="Reset"
+                    activeCount={activeFilterCount}
+                    onReset={resetFilters}
+                    onClear={resetView}
+                    showClear={viewChanged}
+                    resultCountText={`${sortedShown.length} ${sortedShown.length === 1 ? 'group' : 'groups'}`}
+                  >
+                    {/* Store & Location */}
+                    <FilterSection label="Store or location" htmlFor="filter-store-location">
+                      <FilterSelect
+                        id="filter-store-location"
+                        ariaLabel="Filter by store location"
+                        placeholder="All stores and locations"
+                        value={locationFilter}
+                        onChange={setLocationFilter}
+                        options={locations.map((loc) => ({
+                          value: loc.id,
+                          label: storeLocationLabel(loc),
+                        }))}
+                      />
+                    </FilterSection>
+
+                    {/* Asset Category */}
+                    <FilterSection label="Category" htmlFor="filter-asset-category">
+                      <FilterSelect
+                        id="filter-asset-category"
+                        ariaLabel="Filter by asset category"
+                        placeholder="All categories"
+                        value={categoryFilter}
+                        onChange={setCategoryFilter}
+                        options={CATEGORY_OPTIONS}
+                      />
+                    </FilterSection>
+
+                    {/* Fixed asset or consumable item */}
+                    <FilterSection label="Item type" htmlFor="filter-item-type">
+                      <FilterSelect
+                        id="filter-item-type"
+                        ariaLabel="Filter by item type"
+                        placeholder="All types"
+                        value={typeFilter}
+                        onChange={setTypeFilter}
+                        options={ITEM_TYPE_OPTIONS.map((t) => ({ value: t.value, label: `${t.label} (${t.amharic})` }))}
+                      />
+                    </FilterSection>
+
+                    {/* The directorate holding them, as the dashboard's directorate allocation */}
+                    <FilterSection label="Directorate" htmlFor="filter-directorate">
+                      <FilterSelect
+                        id="filter-directorate"
+                        ariaLabel="Filter by directorate"
+                        placeholder="All directorates"
+                        value={departmentFilter}
+                        onChange={setDepartmentFilter}
+                        options={[...departments].sort((a, b) => a.nameEn.localeCompare(b.nameEn)).map((d) => ({ value: d.id, label: d.nameEn }))}
+                      />
+                    </FilterSection>
+
+                    {/* Program or donor project */}
+                    {programOptions.length > 0 && (
+                      <FilterSection label="Program or project" htmlFor="filter-program-project">
+                        <FilterSelect
+                          id="filter-program-project"
+                          ariaLabel="Filter by program or project"
+                          placeholder="All programs and projects"
+                          value={programFilter}
+                          onChange={setProgramFilter}
+                          options={programOptions}
+                        />
+                      </FilterSection>
+                    )}
+
+
+                    {/* Source or origin: Regular vs Physical Count */}
+                    <FilterSection label="Source or origin">
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        <FilterPill
+                          label="All sources"
+                          active={sourceFilter === 'ALL'}
+                          onClick={() => setSourceFilter('ALL')}
+                        />
+                        <FilterPill
+                          label="Physical Counts (ቆጠራ)"
+                          count={items.filter((i) => i.isHistoricalData || /^(count-|ቆጠራ)/i.test(i.ifmisSlipNumber || '')).length}
+                          active={sourceFilter === 'COUNT'}
+                          onClick={() => setSourceFilter((prev) => (prev === 'COUNT' ? 'ALL' : 'COUNT'))}
+                        />
+                        <FilterPill
+                          label="Regular Receipts"
+                          active={sourceFilter === 'REGULAR'}
+                          onClick={() => setSourceFilter((prev) => (prev === 'REGULAR' ? 'ALL' : 'REGULAR'))}
+                        />
+                      </div>
+                    </FilterSection>
+
+                    {/* Stock waiting too long to be issued */}
+                    <FilterSection label="Time in store">
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        <FilterPill
+                          label={`Over ${STALE_IN_STORE_DAYS} days`}
+                          count={staleCount}
+                          active={staleOnly}
+                          onClick={() => setStaleOnly((v) => !v)}
+                        />
+                      </div>
+                    </FilterSection>
+                  </FilterPopover>
+
+                  {canReceive && (
+                    <button
+                      type="button"
+                      onClick={() => openReceipt()}
+                      className={`${btn.primary} shrink-0`}
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Receive items (Model 19)</span>
+                    </button>
+                  )}
+
+                  {/* 3-Dot Actions Menu for Export & Print (at the right end) */}
+                  <div className="relative inline-flex" ref={actionsMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsActionsMenuOpen((prev) => !prev)}
+                      aria-haspopup="menu"
+                      aria-expanded={isActionsMenuOpen}
+                      aria-label="Asset export and print actions"
+                      title="Export and print options"
+                      className={`inline-flex items-center justify-center h-8 w-8 rounded-[4px] border transition cursor-pointer select-none shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${isActionsMenuOpen
+                        ? 'border-emerald-700/60 bg-emerald-50/80 text-emerald-950 shadow-xs'
+                        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900'
+                        }`}
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+
+                    {isActionsMenuOpen && (
+                      <div
+                        role="menu"
+                        aria-label="Asset export options"
+                        className="absolute right-0 top-full mt-1.5 w-60 z-50 rounded-md border border-slate-200 bg-white p-1 shadow-lg animate-fadeIn text-xs"
                       >
-                        <Upload className="w-3.5 h-3.5 text-slate-500" />
-                        <span>Import Model 19s (Excel)</span>
-                      </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setIsActionsMenuOpen(false);
+                            handleExportCSV();
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                        >
+                          <Download className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Export CSV</span>
+                        </button>
+                        {/* The same rows, with a Summary sheet that works out the dashboard's figures from them */}
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setIsActionsMenuOpen(false);
+                            void handleExportExcel();
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                        >
+                          <Download className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Export Excel (with summary)</span>
+                        </button>
+                        {/* Several Model 19s at once, from the Excel template: each waits for approval as from the receive form */}
+                        {canReceive && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setIsActionsMenuOpen(false);
+                              setIsModel19ImportOpen(true);
+                            }}
+                            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                          >
+                            <Upload className="w-3.5 h-3.5 text-slate-500" />
+                            <span>Import Model 19s (Excel)</span>
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Active Filter Chips (if any filter, search, or sort is active) */}
-          {viewChanged && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100 text-xs">
-              <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
-              {sourceFilter !== 'ALL' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 text-[11px] font-medium border border-purple-200">
-                  <span>Source: {sourceFilter === 'COUNT' ? 'Physical Count (ቆጠራ)' : 'Regular Receipts'}</span>
-                  <button
-                    type="button"
-                    onClick={() => setSourceFilter('ALL')}
-                    title="Remove source filter"
-                    aria-label="Remove source filter"
-                    className="hover:text-purple-950 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
+              {/* Active Filter Chips (if any filter, search, or sort is active) */}
+              {viewChanged && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100 text-xs">
+                  <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
+                  {sourceFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 text-[11px] font-medium border border-purple-200">
+                      <span>Source: {sourceFilter === 'COUNT' ? 'Physical Count (ቆጠራ)' : 'Regular Receipts'}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSourceFilter('ALL')}
+                        title="Remove source filter"
+                        aria-label="Remove source filter"
+                        className="hover:text-purple-950 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {staleOnly && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 text-[11px] font-medium border border-amber-200">
+                      <span>In store over {STALE_IN_STORE_DAYS} days</span>
+                      <button
+                        type="button"
+                        onClick={() => setStaleOnly(false)}
+                        title="Remove time-in-store filter"
+                        aria-label="Remove time-in-store filter"
+                        className="hover:text-amber-950 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {locationFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                      <span>Store: {storeLocationLabel(locations.find((l) => l.id === locationFilter) || ({ nameEn: locationFilter } as any))}</span>
+                      <button
+                        type="button"
+                        onClick={() => setLocationFilter('ALL')}
+                        title="Remove store filter"
+                        aria-label="Remove store filter"
+                        className="hover:text-emerald-950 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {categoryFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                      <span>Category: {CATEGORY_OPTIONS.find((c) => c.value === categoryFilter)?.label || categoryFilter}</span>
+                      <button
+                        type="button"
+                        onClick={() => setCategoryFilter('ALL')}
+                        title="Remove category filter"
+                        aria-label="Remove category filter"
+                        className="hover:text-emerald-950 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {typeFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                      <span>Type: {ITEM_TYPE_OPTIONS.find((t) => t.value === typeFilter)?.label || typeFilter}</span>
+                      <button
+                        type="button"
+                        onClick={() => setTypeFilter('ALL')}
+                        title="Remove item type filter"
+                        aria-label="Remove item type filter"
+                        className="hover:text-emerald-950 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {departmentFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                      <span>Directorate: {departments.find((d) => d.id === departmentFilter)?.nameEn || departmentFilter}</span>
+                      <button
+                        type="button"
+                        onClick={() => setDepartmentFilter('ALL')}
+                        title="Remove directorate filter"
+                        aria-label="Remove directorate filter"
+                        className="hover:text-emerald-950 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {programFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                      <span>Project: {programFilter}</span>
+                      <button
+                        type="button"
+                        onClick={() => setProgramFilter('ALL')}
+                        title="Remove program filter"
+                        aria-label="Remove program filter"
+                        className="hover:text-emerald-950 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {search && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                      <span>Search: "{search}"</span>
+                      <button
+                        type="button"
+                        onClick={() => setSearch('')}
+                        title="Clear search"
+                        aria-label="Clear search"
+                        className="hover:text-emerald-950 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {(sortColumn !== 'activity' || sortDirection !== 'desc') && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                      <span>Sorted by {SORT_LABELS[sortColumn]} ({sortDirection === 'asc' ? 'ascending' : 'descending'})</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSortColumn('activity');
+                          setSortDirection('desc');
+                        }}
+                        title="Reset sort"
+                        aria-label="Reset sort"
+                        className="hover:text-emerald-950 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                </div>
               )}
-              {staleOnly && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 text-[11px] font-medium border border-amber-200">
-                  <span>In store over {STALE_IN_STORE_DAYS} days</span>
-                  <button
-                    type="button"
-                    onClick={() => setStaleOnly(false)}
-                    title="Remove time-in-store filter"
-                    aria-label="Remove time-in-store filter"
-                    className="hover:text-amber-950 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {locationFilter !== 'ALL' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
-                  <span>Store: {storeLocationLabel(locations.find((l) => l.id === locationFilter) || ({ nameEn: locationFilter } as any))}</span>
-                  <button
-                    type="button"
-                    onClick={() => setLocationFilter('ALL')}
-                    title="Remove store filter"
-                    aria-label="Remove store filter"
-                    className="hover:text-emerald-950 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {categoryFilter !== 'ALL' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
-                  <span>Category: {CATEGORY_OPTIONS.find((c) => c.value === categoryFilter)?.label || categoryFilter}</span>
-                  <button
-                    type="button"
-                    onClick={() => setCategoryFilter('ALL')}
-                    title="Remove category filter"
-                    aria-label="Remove category filter"
-                    className="hover:text-emerald-950 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {typeFilter !== 'ALL' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
-                  <span>Type: {ITEM_TYPE_OPTIONS.find((t) => t.value === typeFilter)?.label || typeFilter}</span>
-                  <button
-                    type="button"
-                    onClick={() => setTypeFilter('ALL')}
-                    title="Remove item type filter"
-                    aria-label="Remove item type filter"
-                    className="hover:text-emerald-950 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {departmentFilter !== 'ALL' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
-                  <span>Directorate: {departments.find((d) => d.id === departmentFilter)?.nameEn || departmentFilter}</span>
-                  <button
-                    type="button"
-                    onClick={() => setDepartmentFilter('ALL')}
-                    title="Remove directorate filter"
-                    aria-label="Remove directorate filter"
-                    className="hover:text-emerald-950 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {programFilter !== 'ALL' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
-                  <span>Project: {programFilter}</span>
-                  <button
-                    type="button"
-                    onClick={() => setProgramFilter('ALL')}
-                    title="Remove program filter"
-                    aria-label="Remove program filter"
-                    className="hover:text-emerald-950 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {search && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
-                  <span>Search: "{search}"</span>
-                  <button
-                    type="button"
-                    onClick={() => setSearch('')}
-                    title="Clear search"
-                    aria-label="Clear search"
-                    className="hover:text-emerald-950 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {(sortColumn !== 'activity' || sortDirection !== 'desc') && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
-                  <span>Sorted by {SORT_LABELS[sortColumn]} ({sortDirection === 'asc' ? 'ascending' : 'descending'})</span>
+            </div>
+
+            {loading && rows.length === 0 ? (
+              <AssetsTableSkeleton />
+            ) : sortedShown.length === 0 ? (
+              <div className="py-16 text-center space-y-1">
+                <Boxes className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="text-sm font-bold text-slate-800">{rows.length === 0 ? 'No assets yet' : 'No assets match'}</p>
+                <p className="text-xs text-slate-500">
+                  {rows.length === 0
+                    ? canReceive
+                      ? 'Use "Receive items" to record the first delivery on Model 19.'
+                      : 'Assets appear here once they are received into store.'
+                    : 'Try a different filter or search.'}
+                </p>
+                {rows.length > 0 && (
                   <button
                     type="button"
                     onClick={() => {
+                      setFilter('ALL');
+                      setLocationFilter('ALL');
+                      setCategoryFilter('ALL');
+                      setTypeFilter('ALL');
+                      setDepartmentFilter('ALL');
+                      setSearch('');
                       setSortColumn('activity');
                       setSortDirection('desc');
                     }}
-                    title="Reset sort"
-                    aria-label="Reset sort"
-                    className="hover:text-emerald-950 cursor-pointer"
+                    className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3.5 h-3.5 text-slate-400" />
+                    Clear all filters
                   </button>
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {loading && rows.length === 0 ? (
-          <AssetsTableSkeleton />
-        ) : sortedShown.length === 0 ? (
-          <div className="py-16 text-center space-y-1">
-            <Boxes className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="text-sm font-bold text-slate-800">{rows.length === 0 ? 'No assets yet' : 'No assets match'}</p>
-            <p className="text-xs text-slate-500">
-              {rows.length === 0
-                ? canReceive
-                  ? 'Use "Receive items" to record the first delivery on Model 19.'
-                  : 'Assets appear here once they are received into store.'
-                : 'Try a different filter or search.'}
-            </p>
-            {rows.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setFilter('ALL');
-                  setLocationFilter('ALL');
-                  setCategoryFilter('ALL');
-                  setTypeFilter('ALL');
-                  setDepartmentFilter('ALL');
-                  setSearch('');
-                  setSortColumn('activity');
-                  setSortDirection('desc');
-                }}
-                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs"
-              >
-                <X className="w-3.5 h-3.5 text-slate-400" />
-                Clear all filters
-              </button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[820px] text-left text-[13px]">
+                    <thead className={table.headRow}>
+                      <tr>
+                        <SortableHeader
+                          label="Asset"
+                          columnKey="name"
+                          currentSortColumn={sortColumn}
+                          currentSortDirection={sortDirection}
+                          onSort={(key) => handleSort(key as SortColumn)}
+                          thClassName="pl-5 pr-4 py-2 min-w-[240px]"
+                        />
+                        <SortableHeader
+                          label="Status"
+                          columnKey="status"
+                          currentSortColumn={sortColumn}
+                          currentSortDirection={sortDirection}
+                          onSort={(key) => handleSort(key as SortColumn)}
+                          thClassName="px-3 py-2 w-40 min-w-[155px]"
+                        />
+                        <SortableHeader
+                          label="Received"
+                          columnKey="units"
+                          currentSortColumn={sortColumn}
+                          currentSortDirection={sortDirection}
+                          onSort={(key) => handleSort(key as SortColumn)}
+                          align="right"
+                          title="Total units received on the Model 19 delivery voucher"
+                          thClassName="px-3 py-2 w-28 min-w-[95px] text-right whitespace-nowrap"
+                        />
+                        <SortableHeader
+                          label="Issued"
+                          columnKey="issued"
+                          currentSortColumn={sortColumn}
+                          currentSortDirection={sortDirection}
+                          onSort={(key) => handleSort(key as SortColumn)}
+                          align="right"
+                          title="Units currently in use by staff or directorates"
+                          thClassName="px-3 py-2 w-24 min-w-[85px] text-right whitespace-nowrap"
+                        />
+                        <SortableHeader
+                          label="Available"
+                          columnKey="available"
+                          currentSortColumn={sortColumn}
+                          currentSortDirection={sortDirection}
+                          onSort={(key) => handleSort(key as SortColumn)}
+                          align="right"
+                          title="Units currently in store ready to be issued or transferred"
+                          thClassName="px-3 py-2 w-28 min-w-[95px] text-right whitespace-nowrap"
+                        />
+                        <SortableHeader
+                          label="Unit cost"
+                          columnKey="cost"
+                          currentSortColumn={sortColumn}
+                          currentSortDirection={sortDirection}
+                          onSort={(key) => handleSort(key as SortColumn)}
+                          align="right"
+                          title="What one unit cost, VAT and additional charges included (the Model 19 line total ÷ its quantity)"
+                          thClassName="pl-2 pr-2 py-2 w-28 min-w-[110px] text-right whitespace-nowrap"
+                        />
+                        <SortableHeader
+                          label="Total"
+                          columnKey="total"
+                          currentSortColumn={sortColumn}
+                          currentSortDirection={sortDirection}
+                          onSort={(key) => handleSort(key as SortColumn)}
+                          align="right"
+                          title="Unit cost × quantity: what the units on this row cost, VAT and charges included"
+                          thClassName="pl-2 pr-4 py-2 w-32 min-w-[120px] text-right whitespace-nowrap"
+                        />
+                        <th className={`py-2 pl-1 pr-3 ${table.actionsHead}`}>
+                          <span className="sr-only">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {pager.pageItems.map((entry) => {
+                        if ('members' in entry && entry.members) {
+                          const isSearched = !!q && entry.members.some((m) => matchesSearch(m.row));
+                          const isSelected = !!selectedId && entry.members.some((m) => m.row.item.id === selectedId || m.children.some((c) => c.item.id === selectedId));
+                          const isOpen = openSlips.has(entry.slip) || isSearched || isSelected;
+                          return (
+                            <React.Fragment key={`slip-${entry.slip}`}>
+                              {renderSlipRow(entry.slip, entry.members, isOpen)}
+                              {isOpen &&
+                                entry.members.map((member) => (
+                                  <React.Fragment key={member.row.item.id}>
+                                    {renderRow(member.row, { group: member, open: openBatches.has(member.row.item.id) }, true)}
+                                    {openBatches.has(member.row.item.id) && member.children.map((child) => renderRow(child, undefined, true))}
+                                  </React.Fragment>
+                                ))}
+                            </React.Fragment>
+                          );
+                        }
+                        const { group } = entry;
+                        const open = group.forceOpen || openBatches.has(group.row.item.id);
+                        return (
+                          <React.Fragment key={group.row.item.id}>
+                            {renderRow(group.row, { group, open })}
+                            {open && group.units.map((unit) => renderRow(unit))}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div
+                  className="flex flex-wrap items-center justify-end gap-x-5 gap-y-1 border-t border-slate-100 bg-slate-50/50 px-4 py-2 text-xs text-slate-600"
+                  title="Approved records only: receipts waiting for approval and rejected receipts are not counted"
+                  role="group"
+                  aria-label="Totals of listed assets"
+                >
+                  <span>
+                    Total value <span className="font-mono font-semibold text-slate-900">{formatETBTotal(totals.value)}</span>
+                  </span>
+                  <span className="text-slate-300">·</span>
+                  <span>
+                    In store <span className="font-mono font-semibold text-slate-900">{formatETBTotal(totals.inStore)}</span>
+                  </span>
+                  <span className="text-slate-300">·</span>
+                  <span>
+                    In use <span className="font-mono font-semibold text-slate-900">{formatETBTotal(totals.inUse)}</span>
+                  </span>
+                </div>
+                {/* Rows of the list (a Model 19 of several items and a batch are one row each), not assets: the line above the table counts those */}
+                <Pagination pager={pager} label="rows" />
+              </>
             )}
           </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px] text-left text-[13px]">
-                <thead className={table.headRow}>
-                  <tr>
-                    <SortableHeader
-                      label="Asset"
-                      columnKey="name"
-                      currentSortColumn={sortColumn}
-                      currentSortDirection={sortDirection}
-                      onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="pl-5 pr-4 py-2 min-w-[240px]"
-                    />
-                    <SortableHeader
-                      label="Status"
-                      columnKey="status"
-                      currentSortColumn={sortColumn}
-                      currentSortDirection={sortDirection}
-                      onSort={(key) => handleSort(key as SortColumn)}
-                      thClassName="px-3 py-2 w-40 min-w-[155px]"
-                    />
-                    <SortableHeader
-                      label="Received"
-                      columnKey="units"
-                      currentSortColumn={sortColumn}
-                      currentSortDirection={sortDirection}
-                      onSort={(key) => handleSort(key as SortColumn)}
-                      align="right"
-                      title="Total units received on the Model 19 delivery voucher"
-                      thClassName="px-3 py-2 w-28 min-w-[95px] text-right whitespace-nowrap"
-                    />
-                    <SortableHeader
-                      label="Issued"
-                      columnKey="issued"
-                      currentSortColumn={sortColumn}
-                      currentSortDirection={sortDirection}
-                      onSort={(key) => handleSort(key as SortColumn)}
-                      align="right"
-                      title="Units currently in use by staff or directorates"
-                      thClassName="px-3 py-2 w-24 min-w-[85px] text-right whitespace-nowrap"
-                    />
-                    <SortableHeader
-                      label="Available"
-                      columnKey="available"
-                      currentSortColumn={sortColumn}
-                      currentSortDirection={sortDirection}
-                      onSort={(key) => handleSort(key as SortColumn)}
-                      align="right"
-                      title="Units currently in store ready to be issued or transferred"
-                      thClassName="px-3 py-2 w-28 min-w-[95px] text-right whitespace-nowrap"
-                    />
-                    <SortableHeader
-                      label="Unit cost"
-                      columnKey="cost"
-                      currentSortColumn={sortColumn}
-                      currentSortDirection={sortDirection}
-                      onSort={(key) => handleSort(key as SortColumn)}
-                      align="right"
-                      title="What one unit cost, VAT and additional charges included (the Model 19 line total ÷ its quantity)"
-                      thClassName="pl-2 pr-2 py-2 w-28 min-w-[110px] text-right whitespace-nowrap"
-                    />
-                    <SortableHeader
-                      label="Total"
-                      columnKey="total"
-                      currentSortColumn={sortColumn}
-                      currentSortDirection={sortDirection}
-                      onSort={(key) => handleSort(key as SortColumn)}
-                      align="right"
-                      title="Unit cost × quantity: what the units on this row cost, VAT and charges included"
-                      thClassName="pl-2 pr-4 py-2 w-32 min-w-[120px] text-right whitespace-nowrap"
-                    />
-                    <th className={`py-2 pl-1 pr-3 ${table.actionsHead}`}>
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {pager.pageItems.map((entry) => {
-                    if ('members' in entry && entry.members) {
-                      const isSearched = !!q && entry.members.some((m) => matchesSearch(m.row));
-                      const isSelected = !!selectedId && entry.members.some((m) => m.row.item.id === selectedId || m.children.some((c) => c.item.id === selectedId));
-                      const isOpen = openSlips.has(entry.slip) || isSearched || isSelected;
-                      return (
-                        <React.Fragment key={`slip-${entry.slip}`}>
-                          {renderSlipRow(entry.slip, entry.members, isOpen)}
-                          {isOpen &&
-                            entry.members.map((member) => (
-                              <React.Fragment key={member.row.item.id}>
-                                {renderRow(member.row, { group: member, open: openBatches.has(member.row.item.id) }, true)}
-                                {openBatches.has(member.row.item.id) && member.children.map((child) => renderRow(child, undefined, true))}
-                              </React.Fragment>
-                            ))}
-                        </React.Fragment>
-                      );
-                    }
-                    const { group } = entry;
-                    const open = group.forceOpen || openBatches.has(group.row.item.id);
-                    return (
-                      <React.Fragment key={group.row.item.id}>
-                        {renderRow(group.row, { group, open })}
-                        {open && group.units.map((unit) => renderRow(unit))}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div
-              className="flex flex-wrap items-center justify-end gap-x-5 gap-y-1 border-t border-slate-100 bg-slate-50/50 px-4 py-2 text-xs text-slate-600"
-              title="Approved records only: receipts waiting for approval and rejected receipts are not counted"
-              role="group"
-              aria-label="Totals of listed assets"
-            >
-              <span>
-                Total value <span className="font-mono font-semibold text-slate-900">{formatETBTotal(totals.value)}</span>
-              </span>
-              <span className="text-slate-300">·</span>
-              <span>
-                In store <span className="font-mono font-semibold text-slate-900">{formatETBTotal(totals.inStore)}</span>
-              </span>
-              <span className="text-slate-300">·</span>
-              <span>
-                In use <span className="font-mono font-semibold text-slate-900">{formatETBTotal(totals.inUse)}</span>
-              </span>
-            </div>
-            {/* Rows of the list (a Model 19 of several items and a batch are one row each), not assets: the line above the table counts those */}
-            <Pagination pager={pager} label="rows" />
-          </>
-        )}
-      </div>
-    </div>
-  )}
+        </div>
+      )}
 
       <Model19PrintModal isOpen={!!voucher19} voucher={voucher19} onClose={() => setVoucher19(null)} />
       {canReceive && (
@@ -3030,6 +3042,147 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 {cancelling.busy ? 'Cancelling…' : 'Cancel request'}
               </button>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {itemToDelete && (
+        <Modal
+          isOpen
+          onClose={() => !deleting && setItemToDelete(null)}
+          title={`Permanently delete item ${itemToDelete.itemCode}?`}
+          subtitle={`This will delete "${itemToDelete.name}" from Model 19 #${itemToDelete.ifmisSlipNumber || '—'}. Other items on this voucher will NOT be affected.`}
+          size="sm"
+        >
+          <div className="space-y-3 text-xs">
+            <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-amber-800">
+              <p className="font-semibold">Individual line item deletion</p>
+              <p className="mt-1">
+                You are deleting only this individual line item. If this was a duplicate entry, the original or other lines on the same receipt remain intact.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setItemToDelete(null)}
+                disabled={deleting}
+                className={btn.secondary}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmDeleteItem()}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 rounded-md bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-800 disabled:opacity-60 cursor-pointer"
+              >
+                {deleting ? 'Deleting…' : 'Delete item only'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {slipToDelete && (
+        <Modal
+          isOpen
+          onClose={() => !deleting && setSlipToDelete(null)}
+          title={`Delete Model 19 #${slipToDelete.slip}${slipToDelete.count > 1 ? ` (${slipToDelete.count} items)` : ''}`}
+          subtitle="Choose whether to delete only a specific duplicate line item, or delete the entire voucher."
+          size={slipToDelete.count > 1 ? 'md' : 'sm'}
+        >
+          <div className="space-y-4 text-xs">
+            {slipToDelete.count > 1 && slipToDelete.items && slipToDelete.items.length > 1 ? (
+              <>
+                <div className="rounded-md border border-amber-200 bg-amber-50/80 p-3 text-amber-900">
+                  <p className="font-semibold text-amber-800">Delete specific line item (duplicate removal)</p>
+                  <p className="mt-0.5 text-slate-600">
+                    If one of the items below was entered by mistake or is a duplicate, click its delete button to remove only that line. The rest of the voucher will stay intact:
+                  </p>
+                  <div className="mt-2.5 space-y-2">
+                    {slipToDelete.items.map((it) => (
+                      <div
+                        key={it.id}
+                        className="flex items-center justify-between gap-3 rounded border border-amber-200/80 bg-white px-3 py-2 text-slate-800 shadow-2xs"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-semibold truncate text-slate-900">{it.name}</p>
+                          <p className="text-[11px] font-mono text-slate-500">
+                            {it.itemCode} · Qty: {it.quantity || 1} · {costOf(it) > 0 ? formatETB(costOf(it)) : '—'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleConfirmDeleteItem(it)}
+                          disabled={deleting}
+                          className="shrink-0 inline-flex items-center gap-1 rounded bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 disabled:opacity-60 cursor-pointer"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          {deleting ? 'Deleting…' : 'Delete this item'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <p className="font-semibold text-slate-800">Or delete the entire voucher</p>
+                  <p className="mt-0.5 text-slate-500">
+                    Permanently delete Model 19 #{slipToDelete.slip} and all {slipToDelete.count} items recorded under it.
+                  </p>
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => void handleConfirmDeleteSlip()}
+                      disabled={deleting}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-800 disabled:opacity-60 cursor-pointer"
+                    >
+                      {deleting ? 'Deleting…' : `Delete all ${slipToDelete.count} items & voucher`}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="rounded-md bg-rose-50 border border-rose-200 p-3 text-rose-800">
+                  <p className="font-semibold">Voucher-wide deletion</p>
+                  <p className="mt-1">
+                    This will permanently delete Model 19 #{slipToDelete.slip} and all records associated with it. This cannot be undone.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setSlipToDelete(null)}
+                    disabled={deleting}
+                    className={btn.secondary}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleConfirmDeleteSlip()}
+                    disabled={deleting}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-800 disabled:opacity-60 cursor-pointer"
+                  >
+                    {deleting ? 'Deleting…' : 'Delete entire voucher'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {slipToDelete.count > 1 && (
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => setSlipToDelete(null)}
+                  disabled={deleting}
+                  className={btn.secondary}
+                >
+                  Cancel / Close
+                </button>
+              </div>
+            )}
           </div>
         </Modal>
       )}
