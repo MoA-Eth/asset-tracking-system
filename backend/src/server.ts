@@ -78,7 +78,7 @@ if (allowedOrigins.length > 0) {
 }
 
 // The staff import parses its own larger body (see reference.routes.ts)
-const jsonBody = express.json();
+const jsonBody = express.json({ limit: '10mb' });
 app.use((req, res, next) => (req.path === '/api/reference/employees/import' ? next() : jsonBody(req, res, next)));
 
 // Structured HTTP request and latency logging
