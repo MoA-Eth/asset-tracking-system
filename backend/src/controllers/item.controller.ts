@@ -374,4 +374,26 @@ export class ItemController {
     const logs = await this.store.getAuditLogs();
     return sendSuccess(res, logs, 'Audit logs retrieved');
   });
+
+  /**
+   * DELETE /api/items/slip/:slipNumber
+   * Super Admin only: permanently delete a Model 19 / count voucher and all its items.
+   */
+  public deleteSlip = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) throw new UnauthorizedError('Authentication is required.');
+    const slipNumber = String(req.params.slipNumber);
+    const count = await this.store.deleteSlip(slipNumber, req.user.id);
+    return sendSuccess(res, { count }, `Voucher ${slipNumber} and its ${count} item(s) permanently deleted.`);
+  });
+
+  /**
+   * DELETE /api/items/:id
+   * Super Admin only: permanently delete an item.
+   */
+  public deleteItem = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) throw new UnauthorizedError('Authentication is required.');
+    const id = String(req.params.id);
+    await this.store.deleteItem(id, req.user.id);
+    return sendSuccess(res, null, 'Item permanently deleted.');
+  });
 }

@@ -222,6 +222,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [programFilter, setProgramFilter] = useState<string>('ALL');
   const [sourceFilter, setSourceFilter] = useState<'ALL' | 'REGULAR' | 'COUNT'>(savedView.sourceFilter ?? 'ALL');
   const [duplicateOnly, setDuplicateOnly] = useState<boolean>(false);
+  const [itemToDelete, setItemToDelete] = useState<ItemWithRelations | null>(null);
+  const [slipToDelete, setSlipToDelete] = useState<{ slip: string; count: number } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [dbPrograms, setDbPrograms] = useState<string[]>([]);
   const [staleOnly, setStaleOnly] = useState<boolean>(savedView.staleOnly);
   const [search, setSearch] = useState<string>(savedView.search ?? '');
@@ -1159,6 +1162,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       ];
     }
     // Viewing is clicking the row; printing is from the record's list of requests
+    const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN;
+    const adminDeleteAction: RowAction[] = isSuperAdmin
+      ? [{ label: 'Delete asset record', icon: Trash2, onClick: () => setItemToDelete(item) }]
+      : [];
+
     switch (row.state) {
       case 'RECEIPT_PENDING':
         return [
@@ -1295,6 +1303,43 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         return [];
     }
   };
+
+  const handleConfirmDeleteItem = async () => {
+    if (!itemToDelete) return;
+    setDeleting(true);
+    try {
+      await api.deleteItem(itemToDelete.id);
+      toast.success('Asset Deleted', `Item ${itemToDelete.itemCode} was permanently deleted.`);
+      setItems((prev) => prev.filter((i) => i.id !== itemToDelete.id && i.parentItemId !== itemToDelete.id));
+      if (selectedId === itemToDelete.id) {
+        closeRecord();
+      }
+      setItemToDelete(null);
+    } catch (err: any) {
+      toast.error('Delete Failed', err?.message || 'Could not delete item.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleConfirmDeleteSlip = async () => {
+    if (!slipToDelete) return;
+    setDeleting(true);
+    try {
+      const res = await api.deleteSlip(slipToDelete.slip);
+      toast.success('Voucher Deleted', res.message || `Deleted Model 19 #${slipToDelete.slip}.`);
+      setItems((prev) => prev.filter((i) => i.ifmisSlipNumber !== slipToDelete.slip));
+      if (selectedSlip === slipToDelete.slip) {
+        setSelectedSlip(null);
+      }
+      setSlipToDelete(null);
+    } catch (err: any) {
+      toast.error('Delete Failed', err?.message || 'Could not delete voucher.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const duplicateItem = (item: ItemWithRelations) =>
     openReceipt(undefined, templateFromItem(item), `copy-${item.id}-${Date.now()}`, `${item.itemCode} · ${item.name}`);
   /** The items of a Model 19 that can be issued now: in store, approved, with nothing pending on them */
@@ -1867,6 +1912,12 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               { label: 'Issue (Model 22)', icon: PackageMinus, onClick: () => issueSlip(key, members), hidden: !canIssue || issuableOf(members).length === 0 },
               { label: 'Transfer (Model 21)', icon: ArrowRightLeft, onClick: () => transferSlip(key, members), hidden: !canTransfer || transferableOf(members).length === 0 },
               { label: 'Duplicate as new receipt', icon: Copy, onClick: () => duplicateSlip(members), hidden: !canReceive },
+              {
+                label: `Delete Model 19 & all ${members.length} item(s)`,
+                icon: Trash2,
+                onClick: () => setSlipToDelete({ slip: lead.ifmisSlipNumber, count: members.length }),
+                hidden: user?.role !== UserRole.SUPER_ADMIN,
+              },
             ]}
           />
         </td>

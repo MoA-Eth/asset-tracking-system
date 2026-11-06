@@ -4983,4 +4983,78 @@ export class StoreService {
       today: getTodayGcAndEc(),
     };
   }
+
+  /**
+   * Super Admin only: permanently delete an item and its associated approvals, history, and split records.
+   */
+  public async deleteItem(id: string, actorId: string): Promise<void> {
+    const item = await prisma.item.findUnique({
+      where: { id },
+      include: { splitItems: true },
+    });
+    if (!item) {
+      throw new NotFoundError('Item not found.');
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const allIds = [id, ...(item.splitItems?.map((s) => s.id) || [])];
+      await tx.transactionApproval.deleteMany({ where: { itemId: { in: allIds } } });
+      await tx.itemHistory.deleteMany({ where: { itemId: { in: allIds } } });
+      await tx.item.deleteMany({ where: { id: { in: allIds } } });
+
+      await addAuditLog(
+        actorId,
+        'SUPER_ADMIN_DELETE_ITEM',
+        'ITEM',
+        id,
+        `Permanently deleted item ${item.itemCode} (${item.name}) on voucher ${item.ifmisSlipNumber}`,
+        item.ifmisSlipNumber,
+        item,
+        null,
+        tx
+      );
+    });
+  }
+
+  /**
+   * Super Admin only: permanently delete all items under a Model 19 / count slip number.
+   */
+  public async deleteSlip(slipNumber: string, actorId: string): Promise<number> {
+    const items = await prisma.item.findMany({
+      where: { ifmisSlipNumber: slipNumber },
+      include: { splitItems: true },
+    });
+    if (!items.length) {
+      throw new NotFoundError('No items found for this slip number.');
+    }
+
+    const allIds = new Set<string>();
+    for (const item of items) {
+      allIds.add(item.id);
+      for (const child of item.splitItems || []) {
+        allIds.add(child.id);
+      }
+    }
+    const ids = Array.from(allIds);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.transactionApproval.deleteMany({ where: { itemId: { in: ids } } });
+      await tx.itemHistory.deleteMany({ where: { itemId: { in: ids } } });
+      await tx.item.deleteMany({ where: { id: { in: ids } } });
+
+      await addAuditLog(
+        actorId,
+        'SUPER_ADMIN_DELETE_SLIP',
+        'ITEM',
+        slipNumber,
+        `Permanently deleted voucher ${slipNumber} and its ${ids.length} item(s)`,
+        slipNumber,
+        { itemCount: ids.length, items: items.map((i) => i.itemCode) },
+        null,
+        tx
+      );
+    });
+
+    return ids.length;
+  }
 }

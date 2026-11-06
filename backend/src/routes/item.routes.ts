@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ItemController } from '../controllers/item.controller';
-import { requireAuth, requireAuthOrApiKey, requirePermission } from '../middleware/auth.middleware';
+import { requireAuth, requireAuthOrApiKey, requirePermission, requireRole } from '../middleware/auth.middleware';
+import { UserRole } from '../types/asset-management';
 
 const router = Router();
 const controller = new ItemController();
@@ -39,5 +40,10 @@ router.post('/approvals/slip-action', requirePermission('approvals.endorse', 'ap
 router.post('/approvals/resubmit', requirePermission('stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write'), controller.resubmitReturned);
 router.post('/approvals/cancel', requirePermission('stock-in.write', 'stock-out.write', 'transfers.write', 'disposals.write'), controller.cancelRejected);
 router.post('/approvals/void', requirePermission('approvals.void'), controller.voidApproved);
+
+
+// Super Admin only: administrative deletions
+router.delete('/slip/:slipNumber', requireRole(UserRole.SUPER_ADMIN), controller.deleteSlip);
+router.delete('/:id', requireRole(UserRole.SUPER_ADMIN), controller.deleteItem);
 
 export default router;
