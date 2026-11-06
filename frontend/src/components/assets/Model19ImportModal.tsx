@@ -39,6 +39,7 @@ export const Model19ImportModal: React.FC<{
   const [busy, setBusy] = useState<'reading' | 'sending' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<Map<string, Sent>>(new Map());
+  const [allowDuplicates, setAllowDuplicates] = useState(false);
   // An Excel file carries no scanned slip: with scans required, nothing can be received from it
   const scanRequired = getSystemSettings().slipAttachmentPolicy === 'REQUIRED';
 
@@ -48,6 +49,7 @@ export const Model19ImportModal: React.FC<{
     setReceipts(null);
     setError(null);
     setSent(new Map());
+    setAllowDuplicates(false);
     if (inputRef.current) inputRef.current.value = '';
   };
   const close = () => {
@@ -99,10 +101,7 @@ export const Model19ImportModal: React.FC<{
     // One by one: a receipt the server refuses (e.g. already received) does not stop the others
     for (const r of ready) {
       try {
-        // allowDuplicate: true — bulk import is an intentional batch operation; cross-voucher
-        // duplicate warnings are suppressed so the import continues uninterrupted. The storeman
-        // is responsible for reviewing duplicates afterwards via the ⚠️ Suspected Duplicates filter.
-        await api.registerStockIn({ ...stockInRequestFor(r, user.id), allowDuplicate: true });
+        await api.registerStockIn({ ...stockInRequestFor(r, user.id), allowDuplicate: allowDuplicates });
         results.set(keyOf(r), { ok: true });
       } catch (e: any) {
         results.set(keyOf(r), { ok: false, reason: e?.message || 'Refused by the server' });
@@ -264,6 +263,16 @@ export const Model19ImportModal: React.FC<{
                 </>
               ) : (
                 <>
+                  <label className="mr-auto inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={allowDuplicates}
+                      onChange={(e) => setAllowDuplicates(e.target.checked)}
+                      disabled={busy !== null}
+                      className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
+                    />
+                    <span>Allow registration if items match existing assets in store</span>
+                  </label>
                   <button type="button" onClick={close} disabled={busy !== null} className={btn.secondary}>Cancel</button>
                   <button type="button" onClick={send} disabled={busy !== null || ready.length === 0 || scanRequired} className={btn.primary}>
                     {busy === 'sending' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
