@@ -1659,6 +1659,25 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   </span>
                 )}
               </span>
+              {duplicateSuspectMap.has(item.id) && (
+                <div className="mt-1 text-[11px] text-amber-950 bg-amber-50/90 rounded border border-amber-200/90 px-2 py-0.5 inline-flex items-center gap-1.5 flex-wrap">
+                  <span className="font-semibold text-amber-900">Matches:</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openRecord(duplicateSuspectMap.get(item.id).matchedItemId);
+                    }}
+                    className="font-mono font-bold text-blue-700 hover:underline hover:text-blue-900 cursor-pointer"
+                    title="Click to inspect pre-existing asset record"
+                  >
+                    {duplicateSuspectMap.get(item.id).matchedItemCode}
+                  </button>
+                  <span className="text-slate-700">({duplicateSuspectMap.get(item.id).matchedItemName})</span>
+                  <span className="text-slate-500">on Model 19 #{duplicateSuspectMap.get(item.id).matchedSlipNumber}</span>
+                  <span className="font-semibold text-emerald-800">[{duplicateSuspectMap.get(item.id).matchedStatus}]</span>
+                </div>
+              )}
               {orphanParent && <span className="block text-[10px] text-slate-500">Part of {orphanParent.itemCode}</span>}
 
               {/* Inline custody subline when expanded */}
