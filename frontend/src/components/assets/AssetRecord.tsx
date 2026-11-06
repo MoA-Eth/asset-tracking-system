@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload, AlertCircle, AlertTriangle, Eye } from 'lucide-react';
 import { btn, statusTone, pill } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { BackButton } from '../ui/BackButton';
@@ -14,6 +14,7 @@ import { costOf, valueOf } from '../../utils/item-cost';
 import { isGeneratedSerialNumber, displaySerialNumber } from '../../utils/asset-tag';
 import { storeLocationLabel } from '../../utils/location';
 import { departmentLabel, isUnassignedDepartment } from '../../utils/department';
+import { DuplicateSuspect } from '../../utils/duplicate-detection';
 import { AssetRow, AssetStatus, categoryLabel, requestLabel, RejectionNote, stageLabel, shortDate, recipientOf } from './asset-state';
 
 export interface AssetRecordProps {
@@ -47,6 +48,10 @@ export interface AssetRecordProps {
   backTo?: { label: string; onClick: () => void };
   /** Records the fixed asset's IFMIS tag number; absent when this person can't */
   onSaveIfmisTag?: (tag: string) => Promise<void>;
+  /** Pre-existing asset this record potentially duplicates */
+  duplicateSuspect?: DuplicateSuspect;
+  /** Navigate directly to inspect the matched pre-existing asset */
+  onSelectDuplicateItem?: (itemId: string) => void;
 }
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -180,6 +185,8 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
   onNext,
   onSaveIfmisTag,
   backTo,
+  duplicateSuspect,
+  onSelectDuplicateItem,
 }) => {
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
   const { item } = row;
@@ -471,6 +478,105 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
             // An approved record says so with the lock by its status
             return null;
           })()}
+
+          {/* Duplicate Comparison Notice for Count/Pending Items */}
+          {duplicateSuspect && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-4 shadow-sm text-slate-800">
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-amber-100 p-2 text-amber-800 border border-amber-200 shrink-0 mt-0.5">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-sm font-bold text-amber-950">
+                      Possible Duplicate with Pre-Existing Inventory Asset
+                    </h4>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      duplicateSuspect.severity === 'HIGH' ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-amber-200 text-amber-900'
+                    }`}>
+                      {duplicateSuspect.severity === 'HIGH' ? 'High Confidence Duplicate' : 'Similar Description'}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-amber-900 leading-relaxed font-medium">
+                    {duplicateSuspect.reason}
+                  </p>
+
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    {/* Current Record */}
+                    <div className="rounded-lg border border-amber-200 bg-white p-3 space-y-1.5 shadow-2xs">
+                      <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                        <span className="font-bold text-[11px] text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-amber-500"></span> Current Record (Pending Count)
+                        </span>
+                        <span className="font-mono text-[10px] text-slate-500">{item.itemCode}</span>
+                      </div>
+                      <div className="font-semibold text-slate-900 text-sm">{item.name}</div>
+                      <div className="text-slate-600 flex justify-between">
+                        <span>Voucher / Slip:</span>
+                        <span className="font-mono font-medium text-slate-900">{item.ifmisSlipNumber || '—'}</span>
+                      </div>
+                      <div className="text-slate-600 flex justify-between">
+                        <span>Unit Cost:</span>
+                        <span className="font-bold text-slate-900">{formatETB(item.unitCostETB)}</span>
+                      </div>
+                      <div className="text-slate-600 flex justify-between">
+                        <span>Store Location:</span>
+                        <span className="font-medium text-slate-800">{duplicateSuspect.storeName}</span>
+                      </div>
+                      <div className="text-slate-600 flex justify-between">
+                        <span>Status:</span>
+                        <span className="inline-flex px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
+                          {item.status || 'PENDING_STOCK_IN'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Matched Pre-Existing Record */}
+                    <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-1.5 shadow-2xs">
+                      <div className="flex items-center justify-between pb-1 border-b border-blue-100">
+                        <span className="font-bold text-[11px] text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-blue-600"></span> Pre-Existing Active Asset
+                        </span>
+                        <span className="font-mono text-[10px] text-blue-700 font-bold">{duplicateSuspect.matchedItemCode}</span>
+                      </div>
+                      <div className="font-semibold text-blue-950 text-sm">{duplicateSuspect.matchedItemName}</div>
+                      <div className="text-slate-600 flex justify-between">
+                        <span>Original Model 19:</span>
+                        <span className="font-mono font-medium text-blue-950">{duplicateSuspect.matchedSlipNumber || '—'}</span>
+                      </div>
+                      <div className="text-slate-600 flex justify-between">
+                        <span>Unit Cost:</span>
+                        <span className="font-bold text-blue-950">{formatETB(duplicateSuspect.matchedUnitPrice)}</span>
+                      </div>
+                      <div className="text-slate-600 flex justify-between">
+                        <span>Store Location:</span>
+                        <span className="font-medium text-slate-800">{duplicateSuspect.storeName}</span>
+                      </div>
+                      <div className="text-slate-600 flex justify-between">
+                        <span>Current Status:</span>
+                        <span className="inline-flex px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+                          {duplicateSuspect.matchedStatus}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {onSelectDuplicateItem && (
+                    <div className="mt-3 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onSelectDuplicateItem(duplicateSuspect.matchedItemId)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition shadow-xs cursor-pointer"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        <span>Inspect Pre-Existing Asset ({duplicateSuspect.matchedItemCode})</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Section 1: Voucher & procurement */}
           <FormSection

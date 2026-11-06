@@ -72,6 +72,7 @@ import { Model19ImportModal } from '../components/assets/Model19ImportModal';
 import { departmentLabel } from '../utils/department';
 import { downloadCsv } from '../utils/csv';
 import { downloadAssetsWorkbook } from '../utils/assets-workbook';
+import { findDuplicateSuspects, DuplicateSuspect, ENABLE_DUPLICATE_DETECTION } from '../utils/duplicate-detection';
 import {
   AssetGroup,
   AssetRow,
@@ -220,6 +221,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [typeFilter, setTypeFilter] = useState<string>(savedView.itemType ?? 'ALL');
   const [programFilter, setProgramFilter] = useState<string>('ALL');
   const [sourceFilter, setSourceFilter] = useState<'ALL' | 'REGULAR' | 'COUNT'>(savedView.sourceFilter ?? 'ALL');
+  const [duplicateOnly, setDuplicateOnly] = useState<boolean>(false);
   const [dbPrograms, setDbPrograms] = useState<string[]>([]);
   const [staleOnly, setStaleOnly] = useState<boolean>(savedView.staleOnly);
   const [search, setSearch] = useState<string>(savedView.search ?? '');
@@ -445,6 +447,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     });
   }, [items, approvals]);
 
+  const duplicateSuspectMap = useMemo(() => {
+    return findDuplicateSuspects(items, locations);
+  }, [items, locations]);
+
   const rows = useMemo<AssetRow[]>(() => {
     const employeeName = (id?: string | null) => employees.find((e) => e.id === id)?.fullNameEn;
     const today = new Date();
@@ -577,6 +583,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     if (sourceFilter === 'REGULAR' && isCount) {
       return false;
     }
+    if (duplicateOnly && !duplicateSuspectMap.has(row.item.id)) {
+      return false;
+    }
+
     if (sourceFilter === 'COUNT' && !isCount) {
       return false;
     }
@@ -719,7 +729,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const shown = useMemo(
     () => groups.map((g) => visibleGroup(g, filter, locationFilter, categoryFilter)).filter((g): g is ShownGroup => !!g),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [groups, filter, locationFilter, categoryFilter, typeFilter, departmentFilter, programFilter, sourceFilter, staleOnly, search],
+    [groups, filter, locationFilter, categoryFilter, typeFilter, departmentFilter, programFilter, sourceFilter, duplicateOnly, duplicateSuspectMap, staleOnly, search],
   );
 
   const sortedShown = useMemo(() => {
@@ -834,7 +844,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     return out;
   }, [sortedShown, slips, slipOfItem]);
 
-  const pager = usePagination(listed, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${departmentFilter}|${programFilter}|${sourceFilter}|${staleOnly}|${search}|${sortColumn}|${sortDirection}|${lastTouchedId}` });
+  const pager = usePagination(listed, { resetKey: `${filter}|${locationFilter}|${categoryFilter}|${typeFilter}|${departmentFilter}|${programFilter}|${sourceFilter}|${duplicateOnly}|${staleOnly}|${search}|${sortColumn}|${sortDirection}|${lastTouchedId}` });
   const [openBatches, setOpenBatches] = useState<Set<string>>(new Set());
   const [openSlips, setOpenSlips] = useState<Set<string>>(new Set());
   const toggleBatch = (id: string) =>
@@ -1589,6 +1599,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     ቆጠራ · Count
                   </span>
                 )}
+                {duplicateSuspectMap.has(item.id) && (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs"
+                    title={`Suspected duplicate: matches ${duplicateSuspectMap.get(item.id).matchedItemCode} (${duplicateSuspectMap.get(item.id).matchedItemName}) on ${duplicateSuspectMap.get(item.id).matchedSlipNumber}`}
+                  >
+                    <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
+                    Possible Duplicate
+                  </span>
+                )}
                 {row.where && !isBatch && (
                   <span className="text-xs text-slate-500 font-normal truncate max-w-xs">
                     · {row.where}
@@ -1987,7 +2006,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     (departmentFilter !== 'ALL' ? 1 : 0) +
     (programFilter !== 'ALL' ? 1 : 0) +
     (staleOnly ? 1 : 0) +
-    (sourceFilter !== 'ALL' ? 1 : 0);
+    (sourceFilter !== 'ALL' ? 1 : 0) +
+    (duplicateOnly ? 1 : 0);
   // Anything that narrows or reorders the list: filters, search or a non-default sort
   const viewChanged = activeFilterCount > 0 || !!search || sortColumn !== 'activity' || sortDirection !== 'desc';
   const resetFilters = () => {
@@ -1999,6 +2019,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     setProgramFilter('ALL');
     setStaleOnly(false);
     setSourceFilter('ALL');
+    setDuplicateOnly(false);
   };
   const resetView = () => {
     resetFilters();
@@ -2227,6 +2248,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               formActions={formOpenFor(selectedRow.item.id) ? editFormFor(selectedRow)?.actions : undefined}
               onPrintRequest={(r) => printRequest(r, selectedRow.item)}
               onSelect={openRecord}
+              duplicateSuspect={duplicateSuspectMap.get(selectedRow.item.id)}
+              onSelectDuplicateItem={(matchedId) => openRecord(matchedId)}
               onClose={closeRecord}
               onCancelForm={() => {
                 setIssue(null);
@@ -2293,6 +2316,27 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 </button>
               );
             })}
+            {duplicateSuspectMap.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setDuplicateOnly((prev) => !prev)}
+                aria-pressed={duplicateOnly}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] text-xs font-semibold transition cursor-pointer select-none whitespace-nowrap sm:ml-auto ${
+                  duplicateOnly
+                    ? 'bg-amber-600 text-white shadow-xs font-bold ring-2 ring-amber-400'
+                    : 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100/80'
+                }`}
+                title="Filter records that potentially duplicate pre-existing assets in the same store"
+              >
+                <AlertTriangle className={`h-3.5 w-3.5 ${duplicateOnly ? 'text-white' : 'text-amber-600'}`} />
+                <span>Suspected Duplicates</span>
+                <span className={`inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums min-w-[18px] ${
+                  duplicateOnly ? 'bg-amber-800 text-white' : 'bg-amber-200 text-amber-950'
+                }`}>
+                  {duplicateSuspectMap.size}
+                </span>
+              </button>
+            )}
           </div>
         </div>
         <div className="flex flex-col gap-2.5 px-3.5 py-2.5">
