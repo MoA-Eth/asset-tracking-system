@@ -23,6 +23,7 @@ import {
   Upload,
   ShoppingCart,
   Coins,
+  Check,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table, statusTone, pill } from '../components/ui/theme';
@@ -453,6 +454,14 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const duplicateSuspectMap = useMemo(() => {
     return findDuplicateSuspects(items, locations);
   }, [items, locations]);
+
+  const suspectDuplicatesCount = useMemo(() => {
+    let count = 0;
+    for (const suspect of duplicateSuspectMap.values()) {
+      if (!suspect.isOriginal) count++;
+    }
+    return count;
+  }, [duplicateSuspectMap]);
 
   const rows = useMemo<AssetRow[]>(() => {
     const employeeName = (id?: string | null) => employees.find((e) => e.id === id)?.fullNameEn;
@@ -1645,13 +1654,23 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   </span>
                 )}
                 {duplicateSuspectMap.has(item.id) && (
-                  <span
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs"
-                    title={`Suspected duplicate: matches ${duplicateSuspectMap.get(item.id).matchedItemCode} (${duplicateSuspectMap.get(item.id).matchedItemName}) on ${duplicateSuspectMap.get(item.id).matchedSlipNumber}`}
-                  >
-                    <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
-                    Possible Duplicate
-                  </span>
+                  duplicateSuspectMap.get(item.id)?.isOriginal ? (
+                    <span
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-900 border border-blue-300 shadow-2xs"
+                      title={`Original pre-existing asset: duplicated by ${duplicateSuspectMap.get(item.id)?.matchedItemCode}`}
+                    >
+                      <Check className="h-3 w-3 text-blue-600 shrink-0" />
+                      Original Asset
+                    </span>
+                  ) : (
+                    <span
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs"
+                      title={`Suspected duplicate: matches ${duplicateSuspectMap.get(item.id)?.matchedItemCode} (${duplicateSuspectMap.get(item.id)?.matchedItemName}) on ${duplicateSuspectMap.get(item.id)?.matchedSlipNumber}`}
+                    >
+                      <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
+                      Possible Duplicate
+                    </span>
+                  )
                 )}
                 {row.where && !isBatch && (
                   <span className="text-xs text-slate-500 font-normal truncate max-w-xs">
@@ -1660,22 +1679,28 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 )}
               </span>
               {duplicateSuspectMap.has(item.id) && (
-                <div className="mt-1 text-[11px] text-amber-950 bg-amber-50/90 rounded border border-amber-200/90 px-2 py-0.5 inline-flex items-center gap-1.5 flex-wrap">
-                  <span className="font-semibold text-amber-900">Matches:</span>
+                <div className={`mt-1 text-[11px] rounded border px-2 py-0.5 inline-flex items-center gap-1.5 flex-wrap ${
+                  duplicateSuspectMap.get(item.id)?.isOriginal
+                    ? 'text-blue-950 bg-blue-50/90 border-blue-200/90'
+                    : 'text-amber-950 bg-amber-50/90 border-amber-200/90'
+                }`}>
+                  <span className={`font-semibold ${duplicateSuspectMap.get(item.id)?.isOriginal ? 'text-blue-900' : 'text-amber-900'}`}>
+                    {duplicateSuspectMap.get(item.id)?.isOriginal ? '↳ Duplicated by:' : '↳ Matches original:'}
+                  </span>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      openRecord(duplicateSuspectMap.get(item.id).matchedItemId);
+                      openRecord(duplicateSuspectMap.get(item.id)!.matchedItemId);
                     }}
                     className="font-mono font-bold text-blue-700 hover:underline hover:text-blue-900 cursor-pointer"
-                    title="Click to inspect pre-existing asset record"
+                    title={duplicateSuspectMap.get(item.id)?.isOriginal ? 'Click to inspect newer duplicate record' : 'Click to inspect pre-existing original asset'}
                   >
-                    {duplicateSuspectMap.get(item.id).matchedItemCode}
+                    [{duplicateSuspectMap.get(item.id)?.matchedItemCode}]
                   </button>
-                  <span className="text-slate-700">({duplicateSuspectMap.get(item.id).matchedItemName})</span>
-                  <span className="text-slate-500">on Model 19 #{duplicateSuspectMap.get(item.id).matchedSlipNumber}</span>
-                  <span className="font-semibold text-emerald-800">[{duplicateSuspectMap.get(item.id).matchedStatus}]</span>
+                  <span className="text-slate-700">({duplicateSuspectMap.get(item.id)?.matchedItemName})</span>
+                  <span className="text-slate-500">on Model 19 #{duplicateSuspectMap.get(item.id)?.matchedSlipNumber}</span>
+                  <span className="font-semibold text-emerald-800">[{duplicateSuspectMap.get(item.id)?.matchedStatus}]</span>
                 </div>
               )}
               {orphanParent && <span className="block text-[10px] text-slate-500">Part of {orphanParent.itemCode}</span>}
@@ -2386,7 +2411,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 </button>
               );
             })}
-            {duplicateSuspectMap.size > 0 && (
+            {suspectDuplicatesCount > 0 && (
               <button
                 type="button"
                 onClick={() => setDuplicateOnly((prev) => !prev)}
@@ -2403,7 +2428,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 <span className={`inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums min-w-[18px] ${
                   duplicateOnly ? 'bg-amber-800 text-white' : 'bg-amber-200 text-amber-950'
                 }`}>
-                  {duplicateSuspectMap.size}
+                  {suspectDuplicatesCount}
                 </span>
               </button>
             )}

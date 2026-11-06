@@ -22,6 +22,8 @@ export interface DuplicateSuspect {
   isSamePrice: boolean;
   severity: 'HIGH' | 'MEDIUM';
   reason: string;
+  /** True if this entry represents the pre-existing original asset pointing to its newer duplicate */
+  isOriginal?: boolean;
 }
 
 const STOP_WORDS = new Set([
@@ -48,12 +50,24 @@ export function computeWordSimilarity(words1: string[], words2: string[]): numbe
   return minSize > 0 ? intersection / minSize : 0;
 }
 
+const PLACEHOLDERS = new Set(['n/a', 'na', 'none', '-', '--', 'null', 'nil', '0', 'undefined']);
+
+function cleanIdentifier(val?: string | null): string | null {
+  if (!val) return null;
+  const s = val.trim().toLowerCase();
+  return PLACEHOLDERS.has(s) || s.length < 2 ? null : s;
+}
+
 /**
- * Detects if a pending/count item likely duplicates a pre-existing inventory asset.
- * Checks within the same store location:
- * 1. Exact or near-exact name match + exact or near-identical unit price => HIGH confidence duplicate
- * 2. High token similarity (>= 80%) + exact or near-identical unit price => HIGH confidence duplicate
- * 3. High token similarity (>= 85%) with different price => MEDIUM confidence suspect
+ * Detects duplicate items across the inventory:
+ * 1. Matching physical Serial Number (HIGH confidence, 100%)
+ * 2. Matching physical IFMIS Tag Number (HIGH confidence, 100%)
+ * 3. Matching Item Name + Identical Unit Price across different vouchers in the same store (HIGH confidence)
+ * 4. High word similarity (>= 80%) + Identical Unit Price in the same store (HIGH confidence)
+ *
+ * Returns a Map where:
+ * - Each suspect duplicate item points to the pre-existing original item (`isOriginal: false`).
+ * - Each pre-existing original item points to the newer suspect duplicate (`isOriginal: true`).
  */
 export function findDuplicateSuspects(
   items: ItemWithRelations[],
@@ -71,93 +85,123 @@ export function findDuplicateSuspects(
     }
   }
 
-  // Count / newly imported items in PENDING_STOCK_IN
-  const isCount = (i: ItemWithRelations) =>
-    Boolean(i.isHistoricalData || /^(count-|drive-|ቆጠራ)/i.test(i.ifmisSlipNumber || ''));
-
-  const pendingCountItems = items.filter(
-    (i) => isCount(i) && (i.status === 'PENDING_STOCK_IN' || !i.status)
+  // Active items only (skip disposed / rejected)
+  const activeItems = items.filter(
+    (i) => i.status !== 'REJECTED' && i.status !== 'DISPOSED'
   );
 
-  // Pre-existing active items in system (not disposed or rejected)
-  const activeExistingItems = items.filter(
-    (i) => !isCount(i) && i.status !== 'REJECTED' && i.status !== 'DISPOSED'
-  );
+  if (activeItems.length < 2) return suspectMap;
 
-  if (pendingCountItems.length === 0 || activeExistingItems.length === 0) {
-    return suspectMap;
-  }
+  // Sort chronologically so older items are treated as originals, and newer items are suspects
+  const sorted = [...activeItems].sort((a, b) => {
+    const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return da - db;
+  });
 
-  for (const c of pendingCountItems) {
-    const cTokens = tokenizeItemName(c.name);
-    if (!cTokens.length) continue;
+  for (let i = 0; i < sorted.length; i++) {
+    const cur = sorted[i];
+    const curSerial = cleanIdentifier(cur.serialNumber);
+    const curTag = cleanIdentifier(cur.ifmisTagNumber);
+    const curTokens = tokenizeItemName(cur.name);
+    const curPrice = Number(cur.unitCostETB ?? (cur as any).unitPrice ?? 0) || 0;
 
-    let bestMatch: DuplicateSuspect | null = null;
-
-    for (const p of activeExistingItems) {
-      // Must be same store location (or both without location)
-      if (c.storeLocationId && p.storeLocationId && c.storeLocationId !== p.storeLocationId) {
-        continue;
-      }
-
-      const pTokens = tokenizeItemName(p.name);
-      if (!pTokens.length) continue;
-
-      const sim = computeWordSimilarity(cTokens, pTokens);
-      const isExactName = c.name.trim().toLowerCase() === p.name.trim().toLowerCase();
-
-      // Check price proximity (equal or within 0.5%)
-      const cPrice = Number(c.unitCostETB) || 0;
-      const pPrice = Number(p.unitCostETB) || 0;
-      const priceDiff = Math.abs(cPrice - pPrice);
-      const isSamePrice = (cPrice > 0 && pPrice > 0 && (priceDiff === 0 || priceDiff / Math.max(cPrice, pPrice) < 0.005));
+    for (let j = 0; j < i; j++) {
+      const prev = sorted[j];
+      const prevSerial = cleanIdentifier(prev.serialNumber);
+      const prevTag = cleanIdentifier(prev.ifmisTagNumber);
+      const prevPrice = Number(prev.unitCostETB ?? (prev as any).unitPrice ?? 0) || 0;
 
       let severity: 'HIGH' | 'MEDIUM' | null = null;
       let reason = '';
+      let isSamePrice = false;
+      let sim = 0;
 
-      if (isExactName && isSamePrice) {
+      // 1. Serial Number Match (100% physically identical)
+      if (curSerial && prevSerial && curSerial === prevSerial) {
         severity = 'HIGH';
-        reason = `Exact item name match and identical unit price (${cPrice.toLocaleString()} ETB) in ${storeMap.get(c.storeLocationId) || 'the same store'}`;
-      } else if (sim >= 0.75 && isSamePrice) {
+        reason = `Identical Serial Number "${cur.serialNumber?.trim()}" already registered on ${prev.itemCode}`;
+      }
+      // 2. IFMIS Tag Match (100% physically identical)
+      else if (curTag && prevTag && curTag === prevTag) {
         severity = 'HIGH';
-        reason = `${Math.round(sim * 100)}% name match and identical unit price (${cPrice.toLocaleString()} ETB) in ${storeMap.get(c.storeLocationId) || 'the same store'}`;
-      } else if (isExactName && !isSamePrice && cPrice > 0 && pPrice > 0) {
-        severity = 'MEDIUM';
-        reason = `Exact item name match with different unit price (Pending: ${cPrice.toLocaleString()} ETB vs Existing: ${pPrice.toLocaleString()} ETB)`;
-      } else if (sim >= 0.85 && cTokens.length >= 2 && pTokens.length >= 2) {
-        severity = 'MEDIUM';
-        reason = `${Math.round(sim * 100)}% similar description in ${storeMap.get(c.storeLocationId) || 'the same store'}`;
+        reason = `Identical IFMIS Tag Number "${cur.ifmisTagNumber?.trim()}" already registered on ${prev.itemCode}`;
+      }
+      // 3. Name & Price Match across different slips in the same store
+      else {
+        // Skip if same slip (that's multiple line items on the same voucher)
+        if (cur.ifmisSlipNumber && prev.ifmisSlipNumber && cur.ifmisSlipNumber === prev.ifmisSlipNumber) {
+          continue;
+        }
+
+        // Store location check: if both have location assigned and they differ, they're in different stores
+        if (cur.storeLocationId && prev.storeLocationId && cur.storeLocationId !== prev.storeLocationId) {
+          continue;
+        }
+
+        const prevTokens = tokenizeItemName(prev.name);
+        sim = computeWordSimilarity(curTokens, prevTokens);
+        const isExactName = cur.name.trim().toLowerCase() === prev.name.trim().toLowerCase();
+
+        const priceDiff = Math.abs(curPrice - prevPrice);
+        isSamePrice = curPrice > 0 && prevPrice > 0 && (priceDiff === 0 || priceDiff / Math.max(curPrice, prevPrice) < 0.005);
+
+        const storeName = storeMap.get(cur.storeLocationId || '') || cur.storeLocation?.name || prev.storeLocation?.name || 'the same store';
+
+        if (isExactName && isSamePrice) {
+          severity = 'HIGH';
+          reason = `Exact item name match and identical unit price (${curPrice.toLocaleString()} ETB) across slip ${prev.ifmisSlipNumber || '—'} and ${cur.ifmisSlipNumber || '—'} in ${storeName}`;
+        } else if (sim >= 0.8 && isSamePrice) {
+          severity = 'HIGH';
+          reason = `${Math.round(sim * 100)}% name match and identical unit price (${curPrice.toLocaleString()} ETB) in ${storeName}`;
+        }
       }
 
       if (severity) {
-        // Prioritize HIGH severity over MEDIUM, and higher similarity
-        if (
-          !bestMatch ||
-          (severity === 'HIGH' && bestMatch.severity === 'MEDIUM') ||
-          (severity === bestMatch.severity && sim > bestMatch.similarity)
-        ) {
-          bestMatch = {
-            suspectItemId: c.id,
-            matchedItemId: p.id,
-            matchedItemCode: p.itemCode,
-            matchedItemName: p.name,
-            matchedSlipNumber: p.ifmisSlipNumber,
-            matchedUnitPrice: pPrice,
-            matchedQuantity: p.balance?.available ?? p.balance?.total ?? 1,
-            matchedStatus: p.status,
-            matchedCreatedDate: p.createdAt,
-            storeName: storeMap.get(c.storeLocationId) || c.storeLocation?.name || 'Same Store',
-            similarity: Math.round(sim * 100),
+        const storeName = storeMap.get(cur.storeLocationId || '') || cur.storeLocation?.name || prev.storeLocation?.name || 'Same Store';
+
+        // Add suspect entry (newer item -> points to original)
+        suspectMap.set(cur.id, {
+          suspectItemId: cur.id,
+          matchedItemId: prev.id,
+          matchedItemCode: prev.itemCode,
+          matchedItemName: prev.name,
+          matchedSlipNumber: prev.ifmisSlipNumber || '—',
+          matchedUnitPrice: prevPrice,
+          matchedQuantity: prev.balance?.available ?? prev.balance?.total ?? 1,
+          matchedStatus: prev.status,
+          matchedCreatedDate: prev.createdAt,
+          storeName,
+          similarity: sim ? Math.round(sim * 100) : 100,
+          isSamePrice,
+          severity,
+          reason,
+          isOriginal: false,
+        });
+
+        // Add original entry (original item -> points to newer suspect) if not already pointing to one
+        if (!suspectMap.has(prev.id)) {
+          suspectMap.set(prev.id, {
+            suspectItemId: cur.id,
+            matchedItemId: cur.id,
+            matchedItemCode: cur.itemCode,
+            matchedItemName: cur.name,
+            matchedSlipNumber: cur.ifmisSlipNumber || '—',
+            matchedUnitPrice: curPrice,
+            matchedQuantity: cur.balance?.available ?? cur.balance?.total ?? 1,
+            matchedStatus: cur.status,
+            matchedCreatedDate: cur.createdAt,
+            storeName,
+            similarity: sim ? Math.round(sim * 100) : 100,
             isSamePrice,
             severity,
-            reason,
-          };
+            reason: `This original asset is duplicated by newer record ${cur.itemCode} on Model 19 #${cur.ifmisSlipNumber || '—'}`,
+            isOriginal: true,
+          });
         }
-      }
-    }
 
-    if (bestMatch) {
-      suspectMap.set(c.id, bestMatch);
+        break;
+      }
     }
   }
 
