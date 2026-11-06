@@ -108,5 +108,44 @@ describe('duplicate-detection', () => {
       const map = findDuplicateSuspects([existingItem, countItem]);
       expect(map.has('item-count-1')).toBe(false);
     });
+
+    it('does not flag split child units as duplicates of their parent batch or siblings', () => {
+      const parentBatch = {
+        id: 'S1',
+        itemCode: 'MOA-S1',
+        name: 'Desk',
+        category: AssetCategory.OFFICE_EQUIPMENT,
+        unitCostETB: 12000,
+        status: ItemStatus.AVAILABLE,
+        storeLocationId: mockStoreLocationId,
+      } as unknown as ItemWithRelations;
+
+      const splitUnit1 = {
+        id: 'S1-1',
+        parentItemId: 'S1',
+        itemCode: 'MOA-S1-1',
+        name: 'Desk',
+        category: AssetCategory.OFFICE_EQUIPMENT,
+        unitCostETB: 12000,
+        status: ItemStatus.ISSUED,
+        storeLocationId: mockStoreLocationId,
+      } as unknown as ItemWithRelations;
+
+      const splitUnit2 = {
+        id: 'S1-2',
+        parentItemId: 'S1',
+        itemCode: 'MOA-S1-2',
+        name: 'Desk',
+        category: AssetCategory.OFFICE_EQUIPMENT,
+        unitCostETB: 12000,
+        status: ItemStatus.ISSUED,
+        storeLocationId: mockStoreLocationId,
+      } as unknown as ItemWithRelations;
+
+      const map = findDuplicateSuspects([parentBatch, splitUnit1, splitUnit2]);
+      expect(map.has('S1')).toBe(false);
+      expect(map.has('S1-1')).toBe(false);
+      expect(map.has('S1-2')).toBe(false);
+    });
   });
 });

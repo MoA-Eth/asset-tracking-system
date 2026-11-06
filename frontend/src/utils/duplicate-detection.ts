@@ -108,6 +108,20 @@ export function findDuplicateSuspects(
 
     for (let j = 0; j < i; j++) {
       const prev = sorted[j];
+
+      // A split child unit is NEVER a duplicate of its parent batch or sibling units
+      if (
+        (cur.parentItemId && cur.parentItemId === prev.id) ||
+        (prev.parentItemId && prev.parentItemId === cur.id) ||
+        (cur.parentItemId && prev.parentItemId && cur.parentItemId === prev.parentItemId) ||
+        (cur.itemCode && prev.itemCode && (
+          cur.itemCode.startsWith(prev.itemCode + '-') ||
+          prev.itemCode.startsWith(cur.itemCode + '-')
+        ))
+      ) {
+        continue;
+      }
+
       const prevSerial = cleanIdentifier(prev.serialNumber);
       const prevTag = cleanIdentifier(prev.ifmisTagNumber);
       const prevPrice = Number(prev.unitCostETB ?? (prev as any).unitPrice ?? 0) || 0;

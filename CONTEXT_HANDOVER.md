@@ -70,7 +70,13 @@ All files are saved in the project repository at `exports/` and backed up on the
 
 ---
 
-### **5. How to Continue on a New Machine**
+### **5. CI/CD & Pipeline Status**
+- **Test suite**: `AssetsPage.test.tsx` (128/128 tests passing) and `duplicate-detection.test.ts` (6/6 tests passing).
+- **Split Units Fix**: Excluded parent-child batches (`parentItemId` / `itemCode` prefix) and sibling split units from duplicate suspect matching.
+
+---
+
+### **6. How to Continue on a New Machine**
 
 1. **Clone or Pull the Repository**:
    ```bash
@@ -81,3 +87,4 @@ All files are saved in the project repository at `exports/` and backed up on the
 2. **Open the Project in Antigravity** on the new machine.
 3. **Resume Prompt to Give to Antigravity**:
    > *"I am continuing the inventory duplicate detection and audit task. Please read `CONTEXT_HANDOVER.md` to see the complete project status, deployed commits, and audit findings, and let me know our next steps."*
+
