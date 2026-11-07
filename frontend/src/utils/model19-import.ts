@@ -200,6 +200,23 @@ export function receiptsFromRows(
     if (!Number.isFinite(unitPrice) || unitPrice < 0) problems.push('Unit price must be a number (0 or more).');
     if (!category) problems.push(categoryLabel ? `Category "${categoryLabel}" is not one of the list.` : 'Category is missing.');
     if (!itemType) problems.push('Item type is missing: write Fixed asset or Consumable, or give the IFMIS item code.');
+
+    // Intra-receipt duplicate row check: detect when this line duplicates an earlier row on the same Model 19
+    const normName = line.name.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+    const prevMatch = receipt.lines.find((prev) => {
+      const prevNorm = prev.name.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+      const sameName = Boolean(normName && prevNorm && normName === prevNorm);
+      const sameCodeAndPrice = Boolean(
+        line.code && prev.ifmisItemCode &&
+        line.code.trim().toLowerCase() === prev.ifmisItemCode.trim().toLowerCase() &&
+        Number.isFinite(unitPrice) && Number.isFinite(prev.unitPrice) &&
+        unitPrice > 0 && Math.abs(unitPrice - prev.unitPrice) < 0.005
+      );
+      return sameName || sameCodeAndPrice;
+    });
+    if (prevMatch) {
+      problems.push(`Duplicates item on Row ${prevMatch.row} ("${prevMatch.name}"). Increase quantity on Row ${prevMatch.row} instead of adding a duplicate row.`);
+    }
     const base = Number.isFinite(quantity) && Number.isFinite(unitPrice) ? quantity * unitPrice : 0;
     receipt.lines.push({
       row: r.row,

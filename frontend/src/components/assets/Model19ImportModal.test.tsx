@@ -89,4 +89,26 @@ describe('importing Model 19s from Excel', () => {
     fireEvent.change(screen.getByLabelText(/Choose the filled-in/), { target: { files: [csvFile] } });
     expect(await screen.findByText(/Please upload an Excel workbook \(\.xlsx\)\. CSV files are not supported/)).toBeInTheDocument();
   });
+
+  it('detects duplicate lines within the same Model 19 in the spreadsheet', async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Model 19 lines');
+    ws.addRow([...TEMPLATE_COLUMNS]);
+    const row = (name: string, qty: number, price: number) => {
+      const r: Record<string, unknown> = {
+        'Model 19 No.': '0000202', 'PO No.': 'PO-99', 'Received Date (G.C.)': '2026-03-26', 'Transaction Type': 'PO Receipt', 'Receiving Store': stores[0].label,
+        'IFMIS Item Code': '107101102.0001', 'Item Description': name, UoM: 'EA', Category: 'Office Supplies & Stationery', Quantity: qty, 'Unit Price (ETB)': price, 'VAT 15%': 'No',
+      };
+      ws.addRow(TEMPLATE_COLUMNS.map((c) => r[c] ?? ''));
+    };
+    row('Photocopy Paper A4', 5, 500);
+    row('Photocopy  Paper - A4', 10, 500);
+    const buffer = await wb.xlsx.writeBuffer();
+    const dupFile = { name: 'dup-receipts.xlsx', arrayBuffer: async () => buffer } as unknown as File;
+
+    render(<Model19ImportModal isOpen onClose={vi.fn()} onImported={onImported} stores={stores} />);
+    fireEvent.change(screen.getByLabelText(/Choose the filled-in template/), { target: { files: [dupFile] } });
+    const preview = await screen.findByRole('table', { name: 'Model 19s in the file' });
+    expect(preview).toHaveTextContent(/Duplicates item on Row 2/);
+  });
 });

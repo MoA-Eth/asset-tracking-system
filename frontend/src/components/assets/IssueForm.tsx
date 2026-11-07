@@ -5,7 +5,7 @@ import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers, nameKey } from '../../hooks/useStoreKeepers';
 import { recallForm, rememberForm } from '../../utils/form-memory';
-import { useSlipRegister, usedMessage } from '../../hooks/useSlipRegister';
+import { useSlipRegister, usedMessage, isSameAsset } from '../../hooks/useSlipRegister';
 import { FieldGrid, Field, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, MoneyInput, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -98,6 +98,11 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const setSubmittingLock = (val: boolean) => {
+    isSubmittingRef.current = val;
+    setSubmitting(val);
+  };
   const isEdit = !!editApproval;
   const editNotes = splitPurposeAndRemark(editApproval?.purposeOrRemarks ?? '');
 
@@ -298,6 +303,9 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     ...(isDisposal && !purpose.trim() ? [{ text: 'the reason for disposal', field: 'stock-out-purpose' }] : []),
     ...(isAttachmentReq && (showScannedSlipField ? !signedFileName : !(ifmisFile || signedFileName || editApproval?.ifmisSlipAttachmentUrl))
       ? [{ text: showScannedSlipField ? 'the signed copy' : 'the IFMIS Model 22 PDF', field: '' }]
+      : []),
+    ...(usedNo && isSameAsset(usedNo, formItemIds)
+      ? [{ text: `Model 22 No. ${model22No.trim()} is already used for ${usedNo.itemCode}`, field: 'stock-out-model22' }]
       : []),
   ];
   // Shown after a Submit that couldn't go through, until everything is there
@@ -586,6 +594,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     setFormError(null);
     // Stopped here rather than by the server: said once by the button, and the first field to fix is opened
     if (blockers.length > 0) {
@@ -620,7 +629,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         quantity: Number.isFinite(q) && q > 0 ? q : 1,
       };
     });
-    setSubmitting(true);
+    setSubmittingLock(true);
 
     if (editApproval) {
       try {
@@ -640,7 +649,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
       } catch (err: any) {
         setFormError(`Update failed: ${err.message || 'Server error'}`);
       } finally {
-        setSubmitting(false);
+        setSubmittingLock(false);
       }
       return;
     }
@@ -739,7 +748,7 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     } catch (err: any) {
       setFormError(`The issue request could not be saved: ${err.message || 'Server error'}`);
     } finally {
-      setSubmitting(false);
+      setSubmittingLock(false);
     }
   };
 

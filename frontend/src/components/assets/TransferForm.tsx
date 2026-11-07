@@ -229,6 +229,11 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [tireSerials, setTireSerials] = useState(details.tireNos?.join(', ') ?? '');
   const [defectRemark, setDefectRemark] = useState(formatVoucherRemark(details.remark) ?? '');
   const [submitting, setSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const setSubmittingLock = (val: boolean) => {
+    isSubmittingRef.current = val;
+    setSubmitting(val);
+  };
 
   // "Return to store": the store the asset goes back to. Empty means an ordinary transfer to an employee.
   const isReturnEdit = editTransfer?.transactionType === 'RETURN';
@@ -596,6 +601,13 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
+    if (usedNo && isSameAsset(usedNo, formItemIds)) {
+      return void toast.warning(
+        'Voucher already in use',
+        usedMessage(model21No, usedNo, formItemIds)
+      );
+    }
     if (!selectedItemId) return void toast.warning('Asset required', 'Choose the asset to transfer.');
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
@@ -618,7 +630,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
 
     const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty, reserveTyreQty);
     const tireList = tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
-    setSubmitting(true);
+    setSubmittingLock(true);
     try {
       // The signed copy, or else the IFMIS PDF the form was read from
       const copy = attachmentFile ?? readFile;
@@ -1003,7 +1015,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       toast.error(editTransfer ? "The transfer couldn't be updated" : 'Transfer failed', err.message || 'Try again.');
       // a failed return leaves the form as it is, so the slip and the other fields are kept
     } finally {
-      setSubmitting(false);
+      setSubmittingLock(false);
     }
   };
 
