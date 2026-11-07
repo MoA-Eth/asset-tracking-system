@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { lineMissing, ReceiptItems, SlipLine } from './SlipLines';
+import { normalizeItemDescription } from './ReceiptForm';
 import { AssetCategory, ItemCondition, ItemType } from '../../types/asset-management';
 
 const TestReceiptTable: React.FC = () => {
@@ -185,5 +186,13 @@ describe('Model 19 ReceiptItems: VAT and Additional Charges Scenarios', () => {
     );
 
     expect(screen.queryByLabelText('Item 2 item type')).toBeNull();
+  });
+
+  it('normalizes item description correctly ignoring punctuation and whitespace variations', () => {
+    expect(normalizeItemDescription('Dell  Latitude - 5440 (Laptop)')).toBe('dell latitude 5440 laptop');
+    expect(normalizeItemDescription('Dell Latitude 5440 Laptop')).toBe('dell latitude 5440 laptop');
+    expect(normalizeItemDescription('   Samsung   Galaxy-Tab S8+  ')).toBe('samsung galaxy tab s8');
+    expect(normalizeItemDescription('')).toBe('');
+    expect(normalizeItemDescription(null)).toBe('');
   });
 });

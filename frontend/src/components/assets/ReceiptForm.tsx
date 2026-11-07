@@ -133,6 +133,20 @@ export const templateFromSlip = (items: ItemWithRelations[]): ReceiptTemplate =>
   };
 };
 
+/**
+ * Normalizes an item description for comparison:
+ * lowercase, stripped of punctuation, and collapsed whitespace.
+ * e.g. "Dell  Latitude - 5440" -> "dell latitude 5440"
+ */
+export function normalizeItemDescription(name?: string | null): string {
+  if (!name) return '';
+  return String(name)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, onCancel, onSuccess, editItem: rawEditItem, editBatch, template, initialSlip, registered, returned }) => {
   const { user } = useAuth();
   const toast = useToast();
@@ -364,6 +378,46 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     return dbPoInfo.slips.some((s) => s.slipNumber.trim().toLowerCase() === slip);
   }, [isEdit, dbPoInfo, ifmisSlipNumber]);
 
+  // Pre-flight check for existing inventory with similar item description
+  const [descInfo, setDescInfo] = useState<{
+    checkedName?: string;
+    count: number;
+    matches: Array<{
+      id: string;
+      itemCode: string;
+      name: string;
+      status: string;
+      unitCostETB?: number;
+      ifmisSlipNumber?: string;
+      storeName?: string;
+    }>;
+  }>({ count: 0, matches: [] });
+  const [checkingDesc, setCheckingDesc] = useState(false);
+
+  useEffect(() => {
+    const n = name.trim();
+    if (!n || n.length < 3 || isEdit) {
+      setDescInfo({ count: 0, matches: [] });
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setCheckingDesc(true);
+      try {
+        const res = await api.checkDescription(n, storeLocationId || undefined);
+        setDescInfo({
+          checkedName: n,
+          count: res.count || 0,
+          matches: res.matches || [],
+        });
+      } catch {
+        // network or auth error on check is ignored
+      } finally {
+        setCheckingDesc(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [name, storeLocationId, isEdit]);
+
   const { slipAttachmentPolicy, showScannedSlipField } = useSystemSettings();
   const isAttachmentRequired = slipAttachmentPolicy === 'REQUIRED';
 
@@ -434,7 +488,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   // (as the server checks it: the same description, or the same IFMIS item code at the same unit price)
   const findDuplicateRegistered = (slipNo?: string, itemName?: string, code?: string, price?: number) => {
     const s = slipNo?.trim().toLowerCase();
-    const n = itemName?.trim().toLowerCase();
+    const n = normalizeItemDescription(itemName);
     const c = code?.trim().toLowerCase();
     if (!s || (!n && !c)) return undefined;
 
@@ -442,7 +496,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const memMatch = registered?.find(
       (r) =>
         r.slipNumber?.trim().toLowerCase() === s &&
-        ((!!n && r.name.trim().toLowerCase() === n) ||
+        ((!!n && normalizeItemDescription(r.name) === n) ||
           (!!c && r.ifmisItemCode?.trim().toLowerCase() === c && Number(price) > 0 && Math.abs(Number(r.unitCostETB) - Number(price)) < 0.005)),
     )?.itemCode;
     if (memMatch) return memMatch;
@@ -451,7 +505,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     if (dbSlipInfo.exists && dbSlipInfo.checkedSlip?.toLowerCase() === s) {
       const dbMatch = dbSlipInfo.items.find(
         (it) =>
-          (!!n && it.name.trim().toLowerCase() === n) ||
+          (!!n && normalizeItemDescription(it.name) === n) ||
           (!!c && it.ifmisItemCode?.trim().toLowerCase() === c && Number(price) > 0 && Math.abs(Number(it.unitCostETB) - Number(price)) < 0.005),
       )?.itemCode;
       if (dbMatch) return dbMatch;
@@ -464,10 +518,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const intraFormDuplicates = useMemo(() => {
     if (isEdit) return new Map<number, number>();
     const allRows = [
-      { rowNum: 1, name: name.trim().toLowerCase(), code: ifmisItemCode.trim().toLowerCase(), price: Number(unitCostETB) || 0 },
+      { rowNum: 1, name: normalizeItemDescription(name), code: ifmisItemCode.trim().toLowerCase(), price: Number(unitCostETB) || 0 },
       ...extraLines.map((l, idx) => ({
         rowNum: idx + 2,
-        name: (l.name || '').trim().toLowerCase(),
+        name: normalizeItemDescription(l.name),
         code: (l.ifmisCode || '').trim().toLowerCase(),
         price: Number(l.unitPrice) || 0,
       })),
@@ -1335,6 +1389,18 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             <p role="status" className="mt-0.5 text-[10px] font-semibold text-rose-600">
               Already received as {primaryDuplicateAs} (Model 19 No. {ifmisSlipNumber.trim()}). Duplicate entrance is not permitted.
             </p>
+          )}
+          {!primaryDuplicateAs && descInfo.count > 0 && (
+            <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+              <span className="font-medium">
+                Inventory note: {descInfo.count} item{descInfo.count > 1 ? 's' : ''} with similar description already in store
+              </span>
+              {descInfo.matches[0]?.storeName && (
+                <span className="text-gray-500 dark:text-gray-400">
+                  ({descInfo.matches[0].storeName})
+                </span>
+              )}
+            </div>
           )}
         </div>
       </td>

@@ -120,6 +120,18 @@ export class ItemController {
   });
 
   /**
+   * GET /api/items/check-description?name=...&storeLocationId=...
+   * Pre-flight check for similar existing item descriptions in store.
+   */
+  public checkDescription = asyncHandler(async (req: Request, res: Response) => {
+    assertPermission(req, 'stock-in.write', 'inventory.read');
+    const name = String(req.query.name ?? '');
+    const storeLocationId = req.query.storeLocationId ? String(req.query.storeLocationId) : undefined;
+    const result = await this.store.checkDescription(name, storeLocationId);
+    return sendSuccess(res, result, 'Description check completed');
+  });
+
+  /**
    * GET /api/items/:id
    * Retrieves detailed single item record with relations and movement timeline.
    */

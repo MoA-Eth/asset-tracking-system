@@ -951,6 +951,20 @@ async function assertNotAlreadyOnVoucher(
 }
 
 /**
+ * Normalizes an item description for comparison:
+ * lowercase, stripped of punctuation, and collapsed whitespace.
+ * e.g. "Dell  Latitude - 5440" -> "dell latitude 5440"
+ */
+export function normalizeDescription(name?: string | null): string {
+  if (!name) return '';
+  return String(name)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * A line of a Model 19 already received (or waiting): the same description, or the same IFMIS item code at the same
  * unit price, on the same Model 19 No. Lines that share a code but differ in price are different lines.
  * Rejected receipts and pieces split off a record don't count; `exceptItemIds` leaves out the records being corrected.
@@ -973,11 +987,11 @@ async function findReceivedLine(
     select: { id: true, itemCode: true, name: true, ifmisSlipNumber: true, status: true, notes: true, unitCostETB: true },
   });
   if (!Array.isArray(onSlip)) return undefined;
-  const name = String(line.name ?? '').trim().toLowerCase();
+  const normName = normalizeDescription(line.name);
   const code = String(line.ifmisItemCode ?? '').trim().toLowerCase();
   const price = Number(line.unitCostETB);
   return onSlip.find((other) => {
-    if (name && String(other.name ?? '').trim().toLowerCase() === name) return true;
+    if (normName && normalizeDescription(other.name) === normName) return true;
     const otherCode = String(readItemMeta(other.notes).ifmisItemCode ?? '').trim().toLowerCase();
     return !!code && otherCode === code && Number.isFinite(price) && Math.abs(Number(other.unitCostETB) - price) < 0.005;
   });
@@ -1379,6 +1393,59 @@ export class StoreService {
     };
   }
 
+  public async checkDescription(name: string, storeLocationId?: string) {
+    if (!name || !name.trim()) return { matches: [], count: 0 };
+    const norm = normalizeDescription(name);
+    if (!norm || norm.length < 2) return { matches: [], count: 0 };
+
+    const tokens = norm.split(' ').filter((t) => t.length > 1);
+    const whereConditions: any = {
+      status: { in: ['AVAILABLE', 'PENDING_STOCK_IN'] as any[] },
+      parentItemId: null,
+    };
+    if (storeLocationId) {
+      whereConditions.storeLocationId = storeLocationId;
+    }
+    if (tokens.length > 0) {
+      whereConditions.OR = tokens.slice(0, 3).map((token) => ({
+        name: { contains: token, mode: 'insensitive' },
+      }));
+    }
+
+    const items = await prisma.item.findMany({
+      where: whereConditions,
+      select: {
+        id: true,
+        itemCode: true,
+        name: true,
+        status: true,
+        unitCostETB: true,
+        ifmisSlipNumber: true,
+        createdAtGc: true,
+        storeLocation: { select: { name: true } },
+      },
+      take: 25,
+    });
+
+    const matches = items.filter((it) => {
+      const itNorm = normalizeDescription(it.name);
+      return itNorm === norm || (tokens.length >= 2 && tokens.every((t) => itNorm.includes(t)));
+    });
+
+    return {
+      count: matches.length,
+      matches: matches.slice(0, 5).map((m) => ({
+        id: m.id,
+        itemCode: m.itemCode,
+        name: m.name,
+        status: m.status,
+        unitCostETB: m.unitCostETB,
+        ifmisSlipNumber: m.ifmisSlipNumber,
+        storeName: m.storeLocation?.name,
+      })),
+    };
+  }
+
   // ── Stock-In Registration ───────────────────────────────────────────────
 
   public async registerStockIn(
@@ -1516,27 +1583,44 @@ export class StoreService {
     if (!payload.allowDuplicate) {
       const conflicts: DuplicateWarningDetails['conflicts'] = [];
       for (const line of rawItems) {
-        const lineName = String(line.name || payload.name || '').trim().toLowerCase();
+        const lineName = String(line.name || payload.name || '').trim();
+        const normLineName = normalizeDescription(lineName);
         const linePrice = Number(line.unitCostETB ?? payload.unitCostETB);
         // Only warn when we have a name and a non-zero price (zero-cost items are too ambiguous)
-        if (!lineName || !linePrice) continue;
-        const existing = await prisma.item.findFirst({
+        if (!normLineName || !linePrice) continue;
+        let existing = await prisma.item.findFirst({
           where: {
             storeLocationId: payload.storeLocationId,
             parentItemId: null,
             status: { in: ['AVAILABLE', 'PENDING_STOCK_IN'] as any[] },
             name: { equals: lineName, mode: 'insensitive' },
             unitCostETB: { gte: linePrice - 0.005, lte: linePrice + 0.005 },
-            // Exclude items on the same slip (already caught by the within-voucher check above)
             NOT: payload.ifmisSlipNumber && !payload.ifmisSlipNumber.startsWith('PENDING-')
               ? { ifmisSlipNumber: { equals: payload.ifmisSlipNumber, mode: 'insensitive' } }
               : undefined,
           },
           select: { id: true, itemCode: true, name: true, ifmisSlipNumber: true, status: true },
         });
+
+        if (!existing) {
+          const candidates = await prisma.item.findMany({
+            where: {
+              storeLocationId: payload.storeLocationId,
+              parentItemId: null,
+              status: { in: ['AVAILABLE', 'PENDING_STOCK_IN'] as any[] },
+              unitCostETB: { gte: linePrice - 0.005, lte: linePrice + 0.005 },
+              NOT: payload.ifmisSlipNumber && !payload.ifmisSlipNumber.startsWith('PENDING-')
+                ? { ifmisSlipNumber: { equals: payload.ifmisSlipNumber, mode: 'insensitive' } }
+                : undefined,
+            },
+            select: { id: true, itemCode: true, name: true, ifmisSlipNumber: true, status: true },
+            take: 20,
+          });
+          existing = candidates?.find?.((c) => normalizeDescription(c.name) === normLineName) ?? null;
+        }
         if (existing) {
           conflicts.push({
-            newItemName: String(line.name || payload.name || '').trim(),
+            newItemName: lineName,
             existingItemCode: existing.itemCode,
             existingItemName: existing.name,
             existingSlipNumber: existing.ifmisSlipNumber,

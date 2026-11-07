@@ -311,5 +311,21 @@ describe('ItemController - Authenticated User Activity Claiming', () => {
       expect(checkPoSpy).toHaveBeenCalledWith('PO-2024-001');
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: { exists: false, count: 0, slips: [] } }));
     });
+
+    it('calls store.checkDescription with query params', async () => {
+      const checkDescSpy = vi.spyOn(mockStore, 'checkDescription').mockResolvedValue({ matches: [], count: 0 });
+      const req: any = {
+        user: { id: 'EMP-ENC-01', role: UserRole.DATA_ENCODER },
+        query: { name: 'Dell Latitude 5440', storeLocationId: 'loc-1' },
+      };
+      const res: any = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      };
+
+      await controller.checkDescription(req, res, () => {});
+      expect(checkDescSpy).toHaveBeenCalledWith('Dell Latitude 5440', 'loc-1');
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: { matches: [], count: 0 } }));
+    });
   });
 });

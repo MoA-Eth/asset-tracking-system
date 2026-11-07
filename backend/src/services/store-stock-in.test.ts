@@ -546,5 +546,23 @@ describe('StoreService.registerStockIn approval gate', () => {
       expect(result.totalItems).toBe(1);
       expect(result.slips[0].slipNumber).toBe('M19-100');
     });
+
+    it('checkDescription finds items with similar or normalized description', async () => {
+      db.item.findMany.mockResolvedValue([
+        {
+          id: 'it-d1',
+          itemCode: 'MOA-IT-2026-0005',
+          name: 'Dell  Latitude - 5440 (Laptop)',
+          status: 'AVAILABLE',
+          unitCostETB: 85000,
+          ifmisSlipNumber: 'M19-020',
+          createdAtGc: '2026-11-02',
+          storeLocation: { name: 'IT Store' },
+        },
+      ]);
+      const result = await StoreService.getInstance().checkDescription('Dell Latitude 5440', 'loc-it');
+      expect(result.count).toBe(1);
+      expect(result.matches[0].itemCode).toBe('MOA-IT-2026-0005');
+    });
   });
 });

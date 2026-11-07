@@ -315,6 +315,24 @@ export const api = {
     }>(`/items/check-po?${q.toString()}`);
   },
 
+  /** Pre-flight check for existing items with identical or similar descriptions in inventory */
+  checkDescription: (name: string, storeLocationId?: string) => {
+    const q = new URLSearchParams({ name });
+    if (storeLocationId) q.set('storeLocationId', storeLocationId);
+    return request<{
+      count: number;
+      matches: Array<{
+        id: string;
+        itemCode: string;
+        name: string;
+        status: string;
+        unitCostETB?: number;
+        ifmisSlipNumber?: string;
+        storeName?: string;
+      }>;
+    }>(`/items/check-description?${q.toString()}`);
+  },
+
   /** Super Admin only: permanently delete an entire Model 19 / count slip and all its items */
   deleteSlip: (slipNumber: string) => {
     return request<{ success: boolean; message: string; count: number }>(`/items/slip/${encodeURIComponent(slipNumber)}`, {
