@@ -137,6 +137,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const { user } = useAuth();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const setSubmittingLock = (val: boolean) => {
+    isSubmittingRef.current = val;
+    setSubmitting(val);
+  };
   const editItem = rawEditItem ?? (editBatch && editBatch.length > 0 ? editBatch[0] : undefined);
   const isEdit = !!editItem;
   // A new receipt starts from the last one this person made: the same store, transaction type and the number to continue from
@@ -351,11 +356,55 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     )?.itemCode;
   };
 
+  // Intra-form duplicate check: detect when two rows on the same new receipt have the same description or code/price
+  const intraFormDuplicates = useMemo(() => {
+    if (isEdit) return new Map<number, number>();
+    const allRows = [
+      { rowNum: 1, name: name.trim().toLowerCase(), code: ifmisItemCode.trim().toLowerCase(), price: Number(unitCostETB) || 0 },
+      ...extraLines.map((l, idx) => ({
+        rowNum: idx + 2,
+        name: (l.name || '').trim().toLowerCase(),
+        code: (l.ifmisCode || '').trim().toLowerCase(),
+        price: Number(l.unitPrice) || 0,
+      })),
+    ];
+
+    const dupMap = new Map<number, number>();
+    for (let i = 1; i < allRows.length; i++) {
+      const cur = allRows[i];
+      if (!cur.name && !cur.code) continue;
+      for (let j = 0; j < i; j++) {
+        const prev = allRows[j];
+        const sameName = Boolean(cur.name && prev.name && cur.name === prev.name);
+        const sameCodeAndPrice = Boolean(
+          cur.code && prev.code && cur.code === prev.code &&
+          cur.price > 0 && Math.abs(cur.price - prev.price) < 0.005
+        );
+        if (sameName || sameCodeAndPrice) {
+          dupMap.set(i - 1, prev.rowNum);
+          break;
+        }
+      }
+    }
+    return dupMap;
+  }, [name, ifmisItemCode, unitCostETB, extraLines, isEdit]);
+
+  const hasIntraFormDuplicates = intraFormDuplicates.size > 0;
+  const intraFormDuplicateMessage = useMemo(() => {
+    if (!hasIntraFormDuplicates) return undefined;
+    const firstDupEntry = Array.from(intraFormDuplicates.entries())[0];
+    const extraLineIdx = firstDupEntry[0];
+    const targetRow = firstDupEntry[1];
+    const lineName = extraLines[extraLineIdx]?.name?.trim() || `Item ${extraLineIdx + 2}`;
+    return `Row ${extraLineIdx + 2} ("${lineName}") duplicates Row ${targetRow}. If you are receiving more quantity, please increase the quantity in Row ${targetRow} instead of adding a duplicate row.`;
+  }, [hasIntraFormDuplicates, intraFormDuplicates, extraLines]);
+
   const primaryDuplicateAs = isEdit ? undefined : findDuplicateRegistered(ifmisSlipNumber, name, ifmisItemCode, unitCostETB);
-  const linesWithDuplicates = useMemo(() => extraLines.map((l) => ({
+  const linesWithDuplicates = useMemo(() => extraLines.map((l, idx) => ({
     ...l,
     alreadyAs: l.id ? undefined : (l.alreadyAs || findDuplicateRegistered(ifmisSlipNumber, l.name, l.ifmisCode, l.unitPrice)),
-  })), [extraLines, ifmisSlipNumber, registered]);
+    duplicateOfRow: l.id ? undefined : intraFormDuplicates.get(idx),
+  })), [extraLines, ifmisSlipNumber, registered, intraFormDuplicates]);
 
   const duplicateLines = linesWithDuplicates.filter((l) => Boolean(l.alreadyAs));
   const hasDuplicates = Boolean(primaryDuplicateAs || duplicateLines.length > 0);
@@ -819,6 +868,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || submitting) return;
     setFormError(null);
 
     // Each item needs what makes it a true record; nothing is made up for it. The unit price and the voucher's own
@@ -844,17 +894,23 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       const msg = duplicateMessage || 'Duplicate entrance is not permitted.';
       setFormError(msg);
       toast.error('Duplicate entrance not permitted', msg);
-      setSubmitting(false);
       return;
     }
 
-    setSubmitting(true);
+    if (hasIntraFormDuplicates) {
+      const msg = intraFormDuplicateMessage || 'Duplicate lines found in this voucher.';
+      setFormError(msg);
+      toast.error('Duplicate line in voucher', msg);
+      return;
+    }
+
+    setSubmittingLock(true);
     const registeredById = user?.id || '';
 
     if (editItem) {
       if (editItem.status === ItemStatus.REJECTED) {
         toast.error('Rejected batch cannot be edited', 'This record was rejected and is archived. It cannot be modified.');
-        setSubmitting(false);
+        setSubmittingLock(false);
         return;
       }
       try {
@@ -993,7 +1049,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         setFormError(`Update failed: ${errMsg}`);
         toast.error("Receipt couldn't be updated", errMsg);
       } finally {
-        setSubmitting(false);
+        setSubmittingLock(false);
       }
       return;
     }
@@ -1141,12 +1197,12 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           conflicts: err.details.conflicts ?? [],
           retryPayload: stockInPayload,
         });
-        setSubmitting(false);
+        setSubmittingLock(false);
         return;
       }
       setFormError(`The receipt could not be saved: ${errMsg}`);
     } finally {
-      setSubmitting(false);
+      setSubmittingLock(false);
     }
   };
 
@@ -1324,7 +1380,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               type="button"
               disabled={submitting}
               onClick={async () => {
-                setSubmitting(true);
+                if (isSubmittingRef.current || submitting) return;
+                setSubmittingLock(true);
                 try {
                   const res = await api.registerStockIn({ ...duplicateWarning.retryPayload, allowDuplicate: true });
                   setDuplicateWarning(null);
@@ -1334,7 +1391,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
                   setDuplicateWarning(null);
                   setFormError(`The receipt could not be saved: ${err.message || 'Server error'}`);
                 } finally {
-                  setSubmitting(false);
+                  setSubmittingLock(false);
                 }
               }}
               className="rounded px-3 py-1.5 text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
@@ -1557,7 +1614,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               : 'Submit for approval'
         }
         allowIncomplete={true}
-        submitDisabled={hasDuplicates || confirming !== null}
+        submitDisabled={hasDuplicates || hasIntraFormDuplicates || confirming !== null}
         note={
           confirming ? (
             <span role="alertdialog" aria-label="Discard what you've entered?" className="inline-flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-800">
@@ -1586,6 +1643,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           ) : hasDuplicates ? (
             <span className="font-semibold text-rose-600">
               {duplicateMessage}
+            </span>
+          ) : hasIntraFormDuplicates ? (
+            <span className="font-semibold text-amber-700">
+              {intraFormDuplicateMessage}
             </span>
           ) : showMissing && stillNeeded.length > 0 ? (
             <span role="alert" className="font-semibold text-amber-800">

@@ -28,6 +28,8 @@ export interface SlipLine {
   subInventory?: string;
   /** Set when this line was already received on the same Model 19 No. */
   alreadyAs?: string;
+  /** Set when this line duplicates an earlier row within the same receipt form */
+  duplicateOfRow?: number;
   /** The quantity the slip printed, to warn when it lists several of a fixed asset */
   slipQuantity?: number;
   /** Full asset description or technical specifications */
@@ -221,10 +223,15 @@ export const ReceiptItems: React.FC<{
                         // A long description is cut off in the cell; pointing at it shows all of it
                         title={l.name || undefined}
                         onChange={(e) => set(l.key, { name: e.target.value })}
-                        className={cellClass({ invalid: !l.name.trim() })}
+                        className={cellClass({ invalid: !l.name.trim() || !!l.alreadyAs || !!l.duplicateOfRow })}
                       />
                       {l.itemCode && <span className="font-mono text-[10px] text-slate-500 font-medium block">{l.itemCode}</span>}
                       {l.alreadyAs && <p className="mt-0.5 text-[10px] font-semibold text-rose-600">Already received as {l.alreadyAs}. Duplicate entrance is not permitted.</p>}
+                      {l.duplicateOfRow && (
+                        <p className="mt-0.5 text-[10px] font-semibold text-amber-700">
+                          Duplicates Row {l.duplicateOfRow}. Increase quantity in Row {l.duplicateOfRow} instead of adding a duplicate row.
+                        </p>
+                      )}
                     </div>
                   </td>
                   <td className="px-3 py-2.5">
