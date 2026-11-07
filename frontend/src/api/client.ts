@@ -333,6 +333,31 @@ export const api = {
     }>(`/items/check-description?${q.toString()}`);
   },
 
+  /** Pre-flight batch duplicate detection for Excel/Model 19 bulk imports */
+  checkImportDuplicates: (items: Array<{ row: number; name: string; unitCostETB: number; storeLocationId?: string }>) => {
+    return request<{
+      conflicts: Array<{
+        row: number;
+        itemName: string;
+        unitCostETB: number;
+        matchType: 'DISPOSED' | 'AVAILABLE';
+        existingItemCode: string;
+        existingItemName: string;
+        existingStatus: string;
+        storeName?: string;
+        disposedDate?: string;
+        action: 'AUTO_EXCLUDED' | 'PROMPT_USER';
+        message: string;
+      }>;
+      totalDetected: number;
+      disposedCount: number;
+      availableCount: number;
+    }>('/items/check-import-duplicates', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    });
+  },
+
   /** Super Admin only: permanently delete an entire Model 19 / count slip and all its items */
   deleteSlip: (slipNumber: string) => {
     return request<{ success: boolean; message: string; count: number }>(`/items/slip/${encodeURIComponent(slipNumber)}`, {

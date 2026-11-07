@@ -11,7 +11,13 @@ import { TEMPLATE_COLUMNS } from '../../utils/model19-import';
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn() }));
 vi.mock('../../context/ToastContext', () => ({ useToast: () => toast }));
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'EMP-1' } }) }));
-vi.mock('../../api/client', () => ({ api: { registerStockIn: vi.fn(), getSystemSettings: vi.fn() } }));
+vi.mock('../../api/client', () => ({
+  api: {
+    registerStockIn: vi.fn(),
+    getSystemSettings: vi.fn(),
+    checkImportDuplicates: vi.fn(),
+  },
+}));
 
 const stores = [{ id: 'LOC-1', label: 'Saris-Development · Saris' }];
 
@@ -45,6 +51,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   applySystemSettings({ slipAttachmentPolicy: 'OPTIONAL' });
   vi.mocked(api.registerStockIn).mockResolvedValue({} as any);
+  vi.mocked(api.checkImportDuplicates).mockResolvedValue({ conflicts: [], totalDetected: 0, disposedCount: 0, availableCount: 0 });
 });
 
 describe('importing Model 19s from Excel', () => {
@@ -110,5 +117,140 @@ describe('importing Model 19s from Excel', () => {
     fireEvent.change(screen.getByLabelText(/Choose the filled-in template/), { target: { files: [dupFile] } });
     const preview = await screen.findByRole('table', { name: 'Model 19s in the file' });
     expect(preview).toHaveTextContent(/Duplicates item on Row 2/);
+  });
+
+  it('detects database duplicates, auto-excludes disposed assets, and handles available asset prompt resolution', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.checkImportDuplicates).mockResolvedValue({
+      conflicts: [
+        {
+          row: 87,
+          itemName: 'Office Table',
+          unitCostETB: 21673.65,
+          matchType: 'DISPOSED',
+          existingItemCode: 'MOA-FUR-2026-0007',
+          existingItemName: 'Office Table',
+          existingStatus: 'DISPOSED',
+          disposedDate: 'Oct 2026',
+          action: 'AUTO_EXCLUDED',
+          message: 'Matches DISPOSED Asset MOA-FUR-2026-0007 (Disposed Oct 2026)',
+        },
+        {
+          row: 387,
+          itemName: 'Sensitive Scale',
+          unitCostETB: 149500.0,
+          matchType: 'AVAILABLE',
+          existingItemCode: 'MOA-OFS-2026-0084',
+          existingItemName: 'Sensitive Scale',
+          existingStatus: 'AVAILABLE',
+          storeName: 'Saris Store',
+          action: 'PROMPT_USER',
+          message: 'Matches AVAILABLE Asset MOA-OFS-2026-0084 in Saris Store',
+        },
+      ],
+      totalDetected: 2,
+      disposedCount: 1,
+      availableCount: 1,
+    });
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Model 19 lines');
+    ws.addRow([...TEMPLATE_COLUMNS]);
+    const addRow = (no: string, name: string, qty: number, price: number) => {
+      const r: Record<string, unknown> = {
+        'Model 19 No.': no, 'PO No.': 'PO-10', 'Received Date (G.C.)': '2026-03-26', 'Transaction Type': 'PO Receipt', 'Receiving Store': stores[0].label,
+        'IFMIS Item Code': '107101102.0001', 'Item Description': name, UoM: 'EA', Category: 'Office Supplies & Stationery', Quantity: qty, 'Unit Price (ETB)': price, 'VAT 15%': 'No',
+      };
+      ws.addRow(TEMPLATE_COLUMNS.map((c) => r[c] ?? ''));
+    };
+    addRow('0000301', 'Printer Cartridge', 2, 800);
+    const buffer = await wb.xlsx.writeBuffer();
+    const testFile = { name: 'dup-test.xlsx', arrayBuffer: async () => buffer } as unknown as File;
+
+    render(<Model19ImportModal isOpen onClose={vi.fn()} onImported={onImported} stores={stores} />);
+    fireEvent.change(screen.getByLabelText(/Choose the filled-in template/), { target: { files: [testFile] } });
+
+    // Header summary
+    expect(await screen.findByText(/2 Potential Duplicates Detected \(Missing Serial \/ Tag Numbers\)/)).toBeInTheDocument();
+
+    // Disposed card
+    expect(screen.getByText(/Row 87: Office Table/)).toBeInTheDocument();
+    expect(screen.getByText(/Matches DISPOSED Asset MOA-FUR-2026-0007 \(Disposed Oct 2026\)/)).toBeInTheDocument();
+    expect(screen.getByText(/\[Auto-Excluded - Cannot import disposed item\]/)).toBeInTheDocument();
+
+    // Available card
+    expect(screen.getByText(/Row 387: Sensitive Scale/)).toBeInTheDocument();
+    expect(screen.getByText(/Matches AVAILABLE Asset MOA-OFS-2026-0084 in Saris Store/)).toBeInTheDocument();
+    expect(screen.getByText(/What is this item\?/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Re-count of existing Sensitive Scale \(Discard this row\)/)).toBeChecked();
+
+    // Select Force Import as New Asset
+    const forceRadio = screen.getByLabelText(/Brand new 2nd physical unit \(Force Import as New Asset\)/);
+    await user.click(forceRadio);
+    expect(forceRadio).toBeChecked();
+
+    // Apply Resolutions
+    await user.click(screen.getByRole('button', { name: 'Apply Resolutions & Continue' }));
+
+    // Now in preview table mode
+    expect(await screen.findByRole('table', { name: 'Model 19s in the file' })).toBeInTheDocument();
+    // Banner should be visible
+    expect(screen.getByText(/2 duplicate conflicts evaluated/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Review Duplicates/ })).toBeInTheDocument();
+  });
+
+  it('discards matching re-count rows by default and excludes them from the stock-in payload', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.checkImportDuplicates).mockResolvedValue({
+      conflicts: [
+        {
+          row: 3,
+          itemName: 'Existing Scale',
+          unitCostETB: 5000,
+          matchType: 'AVAILABLE',
+          existingItemCode: 'MOA-SCL-01',
+          existingItemName: 'Existing Scale',
+          existingStatus: 'AVAILABLE',
+          storeName: 'Saris Store',
+          action: 'PROMPT_USER',
+          message: 'Matches AVAILABLE Asset MOA-SCL-01 in Saris Store',
+        },
+      ],
+      totalDetected: 1,
+      disposedCount: 0,
+      availableCount: 1,
+    });
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Model 19 lines');
+    ws.addRow([...TEMPLATE_COLUMNS]);
+    const addRow = (name: string, qty: number, price: number) => {
+      const r: Record<string, unknown> = {
+        'Model 19 No.': '0000401', 'PO No.': 'PO-88', 'Received Date (G.C.)': '2026-03-26', 'Transaction Type': 'PO Receipt', 'Receiving Store': stores[0].label,
+        'IFMIS Item Code': '107101102.0001', 'Item Description': name, UoM: 'EA', Category: 'Office Supplies & Stationery', Quantity: qty, 'Unit Price (ETB)': price, 'VAT 15%': 'No',
+      };
+      ws.addRow(TEMPLATE_COLUMNS.map((c) => r[c] ?? ''));
+    };
+    addRow('Fresh New Item', 1, 1000); // row 2
+    addRow('Existing Scale', 1, 5000);  // row 3 (duplicate)
+    const buffer = await wb.xlsx.writeBuffer();
+    const testFile = { name: 'discard-test.xlsx', arrayBuffer: async () => buffer } as unknown as File;
+
+    render(<Model19ImportModal isOpen onClose={vi.fn()} onImported={onImported} stores={stores} />);
+    fireEvent.change(screen.getByLabelText(/Choose the filled-in template/), { target: { files: [testFile] } });
+
+    expect(await screen.findByText(/1 Potential Duplicates Detected/)).toBeInTheDocument();
+    // Default is Discard -> Click Apply Resolutions
+    await user.click(screen.getByRole('button', { name: 'Apply Resolutions & Continue' }));
+
+    // Verify preview table only has 1 line remaining (Fresh New Item), Row 3 discarded
+    expect(await screen.findByRole('table', { name: 'Model 19s in the file' })).toBeInTheDocument();
+    expect(screen.getByText(/1 lines/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Receive 1 Model 19' }));
+    await waitFor(() => expect(api.registerStockIn).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(api.registerStockIn).mock.calls[0][0]).toMatchObject({
+      items: [{ name: 'Fresh New Item', quantity: 1 }],
+    });
   });
 });

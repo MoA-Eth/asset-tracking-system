@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Info, RefreshCw, Upload } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Info, RefreshCw, Upload, XCircle } from 'lucide-react';
 import { api } from '../../api/client';
 import { Modal } from '../ui/Modal';
 import { FormError, FormNotice } from '../ui/FormKit';
@@ -21,6 +21,20 @@ import {
 /** What became of a receipt once sent: received (waiting for approval) or refused by the server, and why */
 type Sent = { ok: true } | { ok: false; reason: string };
 
+export interface ImportDuplicateConflict {
+  row: number;
+  itemName: string;
+  unitCostETB: number;
+  matchType: 'DISPOSED' | 'AVAILABLE';
+  existingItemCode: string;
+  existingItemName: string;
+  existingStatus: string;
+  storeName?: string;
+  disposedDate?: string;
+  action: 'AUTO_EXCLUDED' | 'PROMPT_USER';
+  message: string;
+}
+
 /**
  * Receive several Model 19s from the Excel template. Every receipt and its problems are shown before anything is sent;
  * only receipts without a problem are sent, one by one, as the receive form sends them (each waits for approval).
@@ -35,18 +49,31 @@ export const Model19ImportModal: React.FC<{
   const { user } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState('');
+  const [originalReceipts, setOriginalReceipts] = useState<ImportReceipt[] | null>(null);
   const [receipts, setReceipts] = useState<ImportReceipt[] | null>(null);
   const [busy, setBusy] = useState<'reading' | 'sending' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<Map<string, Sent>>(new Map());
   const [allowDuplicates, setAllowDuplicates] = useState(false);
+
+  // Duplicate resolution state
+  const [conflicts, setConflicts] = useState<ImportDuplicateConflict[]>([]);
+  const [decisions, setDecisions] = useState<Map<number, 'DISCARD' | 'FORCE_NEW'>>(new Map());
+  const [showConflictReview, setShowConflictReview] = useState(false);
+  const [hasAppliedDecisions, setHasAppliedDecisions] = useState(false);
+
   // An Excel file carries no scanned slip: with scans required, nothing can be received from it
   const scanRequired = getSystemSettings().slipAttachmentPolicy === 'REQUIRED';
 
   const keyOf = (r: ImportReceipt) => `${r.model19No}|${r.poNumber}`;
   const reset = () => {
     setFileName('');
+    setOriginalReceipts(null);
     setReceipts(null);
+    setConflicts([]);
+    setDecisions(new Map());
+    setShowConflictReview(false);
+    setHasAppliedDecisions(false);
     setError(null);
     setSent(new Map());
     setAllowDuplicates(false);
@@ -71,8 +98,13 @@ export const Model19ImportModal: React.FC<{
     setFileName(file.name);
     setError(null);
     setSent(new Map());
+    setConflicts([]);
+    setDecisions(new Map());
+    setShowConflictReview(false);
+    setHasAppliedDecisions(false);
 
     if (file.name?.toLowerCase().endsWith('.csv') || file.type === 'text/csv') {
+      setOriginalReceipts(null);
       setReceipts(null);
       setError('Please upload an Excel workbook (.xlsx). CSV files are not supported for Model 19 bulk import.');
       return;
@@ -82,8 +114,42 @@ export const Model19ImportModal: React.FC<{
     try {
       const read = await readModel19File(file, stores);
       if (read.length === 0) throw new Error('No Model 19 lines found. Fill in the "Model 19 lines" sheet (from row 3) and try again.');
+      setOriginalReceipts(read);
       setReceipts(read);
+
+      // Pre-flight duplicate check against database records
+      const linesToCheck: Array<{ row: number; name: string; unitCostETB: number; storeLocationId?: string }> = [];
+      for (const r of read) {
+        for (const l of r.lines) {
+          linesToCheck.push({
+            row: l.row,
+            name: l.name,
+            unitCostETB: l.unitPrice,
+            storeLocationId: r.storeLocationId,
+          });
+        }
+      }
+
+      if (linesToCheck.length > 0) {
+        try {
+          const dupRes = await api.checkImportDuplicates(linesToCheck);
+          if (dupRes && dupRes.totalDetected > 0) {
+            setConflicts(dupRes.conflicts);
+            const initDecisions = new Map<number, 'DISCARD' | 'FORCE_NEW'>();
+            for (const c of dupRes.conflicts) {
+              if (c.matchType === 'AVAILABLE') {
+                initDecisions.set(c.row, 'DISCARD');
+              }
+            }
+            setDecisions(initDecisions);
+            setShowConflictReview(true);
+          }
+        } catch (dupErr) {
+          console.warn('Duplicate pre-check skipped:', dupErr);
+        }
+      }
     } catch (e: any) {
+      setOriginalReceipts(null);
       setReceipts(null);
       setError(e?.message || 'The file could not be read. Please use the official Excel (.xlsx) template.');
     } finally {
@@ -91,8 +157,44 @@ export const Model19ImportModal: React.FC<{
     }
   };
 
+  const applyResolutions = (activeDecisions: Map<number, 'DISCARD' | 'FORCE_NEW'> = decisions) => {
+    if (!originalReceipts) return;
+    const excludedRows = new Set<number>();
+    let hasForceNew = false;
+    for (const c of conflicts) {
+      if (c.matchType === 'DISPOSED') {
+        excludedRows.add(c.row);
+      } else {
+        const dec = activeDecisions.get(c.row) || 'DISCARD';
+        if (dec === 'DISCARD') {
+          excludedRows.add(c.row);
+        } else {
+          hasForceNew = true;
+        }
+      }
+    }
+
+    const filtered = originalReceipts
+      .map((r) => ({
+        ...r,
+        lines: r.lines.filter((l) => !excludedRows.has(l.row)),
+      }))
+      .filter((r) => r.lines.length > 0);
+
+    if (hasForceNew) {
+      setAllowDuplicates(true);
+    }
+    setReceipts(filtered);
+    setHasAppliedDecisions(true);
+    setShowConflictReview(false);
+  };
+
   const ready = (receipts ?? []).filter(receiptOk);
   const withProblems = (receipts ?? []).length - ready.length;
+  const disposedCount = conflicts.filter((c) => c.matchType === 'DISPOSED').length;
+  const availableCount = conflicts.filter((c) => c.matchType === 'AVAILABLE').length;
+
+  const excludedRowsCount = conflicts.filter((c) => c.matchType === 'DISPOSED' || decisions.get(c.row) === 'DISCARD').length;
 
   const send = async () => {
     if (!receipts || ready.length === 0 || !user?.id) return;
@@ -188,8 +290,204 @@ export const Model19ImportModal: React.FC<{
 
         <FormError message={error} />
 
-        {receipts && (
+        {receipts && showConflictReview && (
+          <div className="space-y-4">
+            <div className="rounded-lg border-2 border-amber-400 bg-amber-50/80 p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-amber-950 flex items-center gap-1.5">
+                    <span>⚠️ {conflicts.length} Potential Duplicates Detected (Missing Serial / Tag Numbers)</span>
+                  </h3>
+                  <p className="mt-1 text-xs text-amber-800 leading-relaxed">
+                    Imported lines without serial numbers matched existing inventory assets by item description and unit cost.
+                    Disposed assets cannot be re-imported under audit regulations. For active store assets, confirm if the row is a re-count or an additional physical unit.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {availableCount > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs">
+                <span className="font-medium text-slate-700">
+                  Bulk action for available assets ({availableCount}):
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = new Map(decisions);
+                      conflicts.filter((c) => c.matchType === 'AVAILABLE').forEach((c) => next.set(c.row, 'DISCARD'));
+                      setDecisions(next);
+                    }}
+                    className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                  >
+                    Discard All Available ({availableCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = new Map(decisions);
+                      conflicts.filter((c) => c.matchType === 'AVAILABLE').forEach((c) => next.set(c.row, 'FORCE_NEW'));
+                      setDecisions(next);
+                    }}
+                    className="rounded border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100"
+                  >
+                    Force Import All as New ({availableCount})
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="max-h-[380px] space-y-3 overflow-y-auto pr-1">
+              {conflicts.map((c) => {
+                const isDisposed = c.matchType === 'DISPOSED';
+                const currentDecision = decisions.get(c.row) || 'DISCARD';
+
+                return (
+                  <div
+                    key={c.row}
+                    className={`rounded-lg border p-4 transition-all shadow-sm ${
+                      isDisposed
+                        ? 'border-rose-200 bg-rose-50/50'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
+                      <div>
+                        <span className="text-xs font-bold text-slate-900">
+                          Row {c.row}: {c.itemName} ({formatETB(c.unitCostETB)})
+                        </span>
+                      </div>
+                      <div>
+                        {isDisposed ? (
+                          <span className="inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-800 border border-rose-200">
+                            <XCircle className="h-3 w-3 text-rose-600" />
+                            Auto-Excluded
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 border border-amber-200">
+                            <AlertTriangle className="h-3 w-3 text-amber-600" />
+                            Action Required
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-2.5 space-y-2">
+                      {isDisposed ? (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold text-rose-900">
+                            ❌ Matches DISPOSED Asset {c.existingItemCode} ({c.disposedDate ? `Disposed ${c.disposedDate}` : 'Disposed'})
+                          </p>
+                          <p className="text-[11px] font-semibold text-rose-700 bg-rose-100/70 rounded px-2.5 py-1 inline-block border border-rose-200">
+                            [Auto-Excluded - Cannot import disposed item]
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            Government asset disposal regulations strictly prohibit re-registering previously disposed items. This row will be excluded from the import batch.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          <p className="text-xs font-semibold text-amber-900">
+                            ⚠️ Matches AVAILABLE Asset {c.existingItemCode} in {c.storeName || 'Store'}
+                          </p>
+                          <div>
+                            <p className="text-xs font-medium text-slate-800 mb-1.5">What is this item?</p>
+                            <div className="space-y-1.5 pl-1 text-xs">
+                              <label className="flex items-center gap-2.5 cursor-pointer text-slate-700 hover:text-slate-900">
+                                <input
+                                  type="radio"
+                                  name={`conflict-decision-${c.row}`}
+                                  checked={currentDecision === 'DISCARD'}
+                                  onChange={() => {
+                                    const next = new Map(decisions);
+                                    next.set(c.row, 'DISCARD');
+                                    setDecisions(next);
+                                  }}
+                                  className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                                />
+                                <span className={currentDecision === 'DISCARD' ? 'font-medium text-slate-900' : ''}>
+                                  ( ) Re-count of existing {c.itemName} (Discard this row)
+                                </span>
+                              </label>
+                              <label className="flex items-center gap-2.5 cursor-pointer text-slate-700 hover:text-slate-900">
+                                <input
+                                  type="radio"
+                                  name={`conflict-decision-${c.row}`}
+                                  checked={currentDecision === 'FORCE_NEW'}
+                                  onChange={() => {
+                                    const next = new Map(decisions);
+                                    next.set(c.row, 'FORCE_NEW');
+                                    setDecisions(next);
+                                  }}
+                                  className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                                />
+                                <span className={currentDecision === 'FORCE_NEW' ? 'font-medium text-slate-900' : ''}>
+                                  ( ) Brand new 2nd physical unit (Force Import as New Asset)
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
+              <span className="text-xs text-slate-600 font-medium">
+                <b>{disposedCount}</b> disposed auto-excluded ·{' '}
+                <b>{conflicts.filter((c) => c.matchType === 'AVAILABLE' && (decisions.get(c.row) || 'DISCARD') === 'DISCARD').length}</b> to discard ·{' '}
+                <b>{conflicts.filter((c) => c.matchType === 'AVAILABLE' && decisions.get(c.row) === 'FORCE_NEW').length}</b> to force as new
+              </span>
+              <div className="flex items-center gap-2">
+                {hasAppliedDecisions && (
+                  <button
+                    type="button"
+                    onClick={() => setShowConflictReview(false)}
+                    className={btn.secondary}
+                  >
+                    Cancel / Back to Preview
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => applyResolutions(decisions)}
+                  className={btn.primary}
+                >
+                  Apply Resolutions & Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {receipts && !showConflictReview && (
           <>
+            {conflicts.length > 0 && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50/80 p-3 flex flex-wrap items-center justify-between gap-3 text-xs shadow-sm">
+                <div className="flex items-center gap-2 text-amber-900">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                  <span>
+                    <b>⚠️ {conflicts.length} duplicate conflicts evaluated:</b>{' '}
+                    {disposedCount > 0 && `${disposedCount} disposed asset(s) auto-excluded, `}
+                    {conflicts.filter((c) => c.matchType === 'AVAILABLE' && (decisions.get(c.row) || 'DISCARD') === 'DISCARD').length} re-count row(s) discarded,{' '}
+                    {conflicts.filter((c) => c.matchType === 'AVAILABLE' && decisions.get(c.row) === 'FORCE_NEW').length} forced as new.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowConflictReview(true)}
+                  className="px-2.5 py-1 text-xs font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded shadow-sm transition"
+                >
+                  Review Duplicates ({conflicts.length})
+                </button>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-slate-600">
                 <b>{fileName}</b>: {receipts.length} Model 19{receipts.length === 1 ? '' : 's'},{' '}

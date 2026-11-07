@@ -327,5 +327,63 @@ describe('ItemController - Authenticated User Activity Claiming', () => {
       expect(checkDescSpy).toHaveBeenCalledWith('Dell Latitude 5440', 'loc-1');
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: { matches: [], count: 0 } }));
     });
+
+    it('calls store.checkImportDuplicates with body items and returns detection summary', async () => {
+      const mockResult = {
+        conflicts: [
+          {
+            row: 87,
+            itemName: 'Office Table',
+            unitCostETB: 21673.65,
+            matchType: 'DISPOSED',
+            existingItemCode: 'MOA-FUR-2026-0007',
+            existingItemName: 'Office Table',
+            existingStatus: 'DISPOSED',
+            disposedDate: 'Oct 2026',
+            action: 'AUTO_EXCLUDED',
+            message: 'Matches DISPOSED Asset MOA-FUR-2026-0007 (Disposed Oct 2026)',
+          },
+          {
+            row: 387,
+            itemName: 'Sensitive Scale',
+            unitCostETB: 149500,
+            matchType: 'AVAILABLE',
+            existingItemCode: 'MOA-OFS-2026-0084',
+            existingItemName: 'Sensitive Scale',
+            existingStatus: 'AVAILABLE',
+            storeName: 'Saris Store',
+            action: 'PROMPT_USER',
+            message: 'Matches AVAILABLE Asset MOA-OFS-2026-0084 in Saris Store',
+          },
+        ],
+        totalDetected: 2,
+        disposedCount: 1,
+        availableCount: 1,
+      };
+
+      const checkDupSpy = vi.spyOn(mockStore, 'checkImportDuplicates').mockResolvedValue(mockResult as any);
+      const req: any = {
+        user: { id: 'EMP-ENC-01', role: UserRole.DATA_ENCODER },
+        body: {
+          items: [
+            { row: 87, name: 'Office Table', unitCostETB: 21673.65 },
+            { row: 387, name: 'Sensitive Scale', unitCostETB: 149500 },
+          ],
+        },
+      };
+      const res: any = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      };
+
+      await controller.checkImportDuplicates(req, res, () => {});
+      expect(checkDupSpy).toHaveBeenCalledWith(req.body.items);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: mockResult,
+        })
+      );
+    });
   });
 });

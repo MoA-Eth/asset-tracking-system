@@ -1446,6 +1446,154 @@ export class StoreService {
     };
   }
 
+  /**
+   * Pre-flight batch duplicate detection for Excel/Model 19 bulk imports:
+   * Checks items lacking serial numbers against both DISPOSED and AVAILABLE records in inventory.
+   */
+  public async checkImportDuplicates(
+    items: Array<{ row: number; name: string; unitCostETB: number; storeLocationId?: string }>
+  ) {
+    if (!Array.isArray(items) || items.length === 0) {
+      return { conflicts: [], totalDetected: 0, disposedCount: 0, availableCount: 0 };
+    }
+
+    const validLines = items.filter((it) => {
+      const norm = normalizeDescription(it.name);
+      return norm.length >= 2 && Number(it.unitCostETB) > 0;
+    });
+
+    if (validLines.length === 0) {
+      return { conflicts: [], totalDetected: 0, disposedCount: 0, availableCount: 0 };
+    }
+
+    const distinctPrices = Array.from(new Set(validLines.map((l) => Number(l.unitCostETB))));
+    const priceFilters = distinctPrices.slice(0, 100).map((p) => ({
+      unitCostETB: { gte: p - 0.01, lte: p + 0.01 },
+    }));
+
+    const candidates = await prisma.item.findMany({
+      where: {
+        parentItemId: null,
+        status: { in: ['AVAILABLE', 'PENDING_STOCK_IN', 'DISPOSED'] as any[] },
+        OR: priceFilters,
+      },
+      select: {
+        id: true,
+        itemCode: true,
+        name: true,
+        status: true,
+        unitCostETB: true,
+        storeLocationId: true,
+        updatedAt: true,
+        createdAtGc: true,
+        storeLocation: {
+          select: {
+            name: true,
+            store: { select: { name: true } },
+          },
+        },
+        history: {
+          where: { action: 'DISPOSAL' as any },
+          select: { dateGc: true, dateEc: true },
+          take: 1,
+        },
+      },
+      take: 300,
+    });
+
+    const conflicts: Array<{
+      row: number;
+      itemName: string;
+      unitCostETB: number;
+      matchType: 'DISPOSED' | 'AVAILABLE';
+      existingItemCode: string;
+      existingItemName: string;
+      existingStatus: string;
+      storeName?: string;
+      disposedDate?: string;
+      action: 'AUTO_EXCLUDED' | 'PROMPT_USER';
+      message: string;
+    }> = [];
+
+    for (const line of validLines) {
+      const lineNorm = normalizeDescription(line.name);
+      const linePrice = Number(line.unitCostETB);
+      const lineTokens = lineNorm.split(' ').filter((t) => t.length > 1);
+
+      const matched = candidates.find((c) => {
+        const priceMatch = Math.abs(c.unitCostETB - linePrice) <= 0.01;
+        if (!priceMatch) return false;
+
+        const cNorm = normalizeDescription(c.name);
+        const nameMatch =
+          cNorm === lineNorm ||
+          (lineTokens.length >= 2 && lineTokens.every((t) => cNorm.includes(t)));
+        if (!nameMatch) return false;
+
+        if (c.status !== 'DISPOSED' && line.storeLocationId && c.storeLocationId) {
+          return c.storeLocationId === line.storeLocationId;
+        }
+
+        return true;
+      });
+
+      if (matched) {
+        if (matched.status === 'DISPOSED') {
+          let dispDate = 'Past';
+          if (matched.history && matched.history.length > 0 && matched.history[0].dateGc) {
+            const d = new Date(matched.history[0].dateGc);
+            dispDate = !isNaN(d.getTime())
+              ? d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+              : matched.history[0].dateGc;
+          } else if (matched.updatedAt) {
+            const d = new Date(matched.updatedAt);
+            if (!isNaN(d.getTime())) {
+              dispDate = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            }
+          }
+
+          conflicts.push({
+            row: line.row,
+            itemName: line.name,
+            unitCostETB: linePrice,
+            matchType: 'DISPOSED',
+            existingItemCode: matched.itemCode,
+            existingItemName: matched.name,
+            existingStatus: 'DISPOSED',
+            disposedDate: dispDate,
+            action: 'AUTO_EXCLUDED',
+            message: `Matches DISPOSED Asset ${matched.itemCode} (Disposed ${dispDate})`,
+          });
+        } else {
+          const storeLabel =
+            matched.storeLocation?.store?.name || matched.storeLocation?.name || 'Store';
+          conflicts.push({
+            row: line.row,
+            itemName: line.name,
+            unitCostETB: linePrice,
+            matchType: 'AVAILABLE',
+            existingItemCode: matched.itemCode,
+            existingItemName: matched.name,
+            existingStatus: matched.status,
+            storeName: storeLabel,
+            action: 'PROMPT_USER',
+            message: `Matches AVAILABLE Asset ${matched.itemCode} in ${storeLabel}`,
+          });
+        }
+      }
+    }
+
+    const disposedCount = conflicts.filter((c) => c.matchType === 'DISPOSED').length;
+    const availableCount = conflicts.filter((c) => c.matchType === 'AVAILABLE').length;
+
+    return {
+      conflicts,
+      totalDetected: conflicts.length,
+      disposedCount,
+      availableCount,
+    };
+  }
+
   // ── Stock-In Registration ───────────────────────────────────────────────
 
   public async registerStockIn(

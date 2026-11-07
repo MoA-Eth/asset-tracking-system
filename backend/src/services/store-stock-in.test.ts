@@ -564,5 +564,60 @@ describe('StoreService.registerStockIn approval gate', () => {
       expect(result.count).toBe(1);
       expect(result.matches[0].itemCode).toBe('MOA-IT-2026-0005');
     });
+
+    it('checkImportDuplicates categorizes DISPOSED match as AUTO_EXCLUDED and AVAILABLE match as PROMPT_USER', async () => {
+      db.item.findMany.mockResolvedValue([
+        {
+          id: 'it-disp',
+          itemCode: 'MOA-FUR-2026-0007',
+          name: 'Office Table',
+          status: 'DISPOSED',
+          unitCostETB: 21673.65,
+          storeLocationId: 'loc-fur',
+          updatedAt: new Date('2026-10-15'),
+          createdAtGc: '2026-01-10',
+          storeLocation: { name: 'HQ Furniture Store', store: { name: 'Main Store' } },
+          history: [{ action: 'DISPOSAL', dateGc: '2026-10-15' }],
+        },
+        {
+          id: 'it-avail',
+          itemCode: 'MOA-OFS-2026-0084',
+          name: 'Sensitive Scale',
+          status: 'AVAILABLE',
+          unitCostETB: 149500,
+          storeLocationId: 'loc-saris',
+          updatedAt: new Date('2026-09-01'),
+          createdAtGc: '2026-09-01',
+          storeLocation: { name: 'Saris Store Section A', store: { name: 'Saris Store' } },
+          history: [],
+        },
+      ]);
+
+      const itemsToCheck = [
+        { row: 87, name: 'Office Table', unitCostETB: 21673.65, storeLocationId: 'loc-fur' },
+        { row: 387, name: 'Sensitive Scale', unitCostETB: 149500, storeLocationId: 'loc-saris' },
+        { row: 400, name: 'Unique Brand New Chair', unitCostETB: 5000, storeLocationId: 'loc-fur' },
+      ];
+
+      const res = await StoreService.getInstance().checkImportDuplicates(itemsToCheck);
+      expect(res.totalDetected).toBe(2);
+      expect(res.disposedCount).toBe(1);
+      expect(res.availableCount).toBe(1);
+
+      const disposedConflict = res.conflicts.find((c) => c.row === 87);
+      expect(disposedConflict).toBeDefined();
+      expect(disposedConflict?.matchType).toBe('DISPOSED');
+      expect(disposedConflict?.action).toBe('AUTO_EXCLUDED');
+      expect(disposedConflict?.existingItemCode).toBe('MOA-FUR-2026-0007');
+      expect(disposedConflict?.message).toContain('Matches DISPOSED Asset MOA-FUR-2026-0007');
+
+      const availableConflict = res.conflicts.find((c) => c.row === 387);
+      expect(availableConflict).toBeDefined();
+      expect(availableConflict?.matchType).toBe('AVAILABLE');
+      expect(availableConflict?.action).toBe('PROMPT_USER');
+      expect(availableConflict?.existingItemCode).toBe('MOA-OFS-2026-0084');
+      expect(availableConflict?.storeName).toBe('Saris Store');
+      expect(availableConflict?.message).toContain('Matches AVAILABLE Asset MOA-OFS-2026-0084 in Saris Store');
+    });
   });
 });

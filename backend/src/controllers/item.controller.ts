@@ -132,6 +132,18 @@ export class ItemController {
   });
 
   /**
+   * POST /api/items/check-import-duplicates
+   * Pre-flight batch duplicate detection for Excel/Model 19 bulk imports:
+   * Checks items lacking serial numbers against DISPOSED and AVAILABLE records.
+   */
+  public checkImportDuplicates = asyncHandler(async (req: Request, res: Response) => {
+    assertPermission(req, 'stock-in.write', 'inventory.read');
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    const result = await this.store.checkImportDuplicates(items);
+    return sendSuccess(res, result, 'Import duplicate check completed');
+  });
+
+  /**
    * GET /api/items/:id
    * Retrieves detailed single item record with relations and movement timeline.
    */

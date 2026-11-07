@@ -24,6 +24,7 @@ router.get('/check-slip', requirePermission('stock-in.write', 'inventory.read'),
 router.get('/check-tag', requirePermission('stock-in.write', 'inventory.read', 'transfers.write', 'disposals.write'), controller.checkTag);
 router.get('/check-po', requirePermission('stock-in.write', 'inventory.read'), controller.checkPo);
 router.get('/check-description', requirePermission('stock-in.write', 'inventory.read'), controller.checkDescription);
+router.post('/check-import-duplicates', requirePermission('stock-in.write', 'inventory.read'), controller.checkImportDuplicates);
 router.get('/:id', requirePermission('inventory.read'), controller.getItemById);
 
 router.post('/stock-in', requirePermission('stock-in.write'), controller.registerStockIn);
