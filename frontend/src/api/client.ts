@@ -282,6 +282,39 @@ export const api = {
     }>(`/items/check-slip?${q.toString()}`);
   },
 
+  /** Pre-flight check whether an IFMIS tag number or asset code is already in use */
+  checkTag: (tag: string, exceptItemId?: string) => {
+    const q = new URLSearchParams({ tag });
+    if (exceptItemId) q.set('exceptItemId', exceptItemId);
+    return request<{
+      available: boolean;
+      conflict?: {
+        id: string;
+        itemCode: string;
+        name: string;
+        tag: string;
+        status: string;
+      };
+    }>(`/items/check-tag?${q.toString()}`);
+  },
+
+  /** Pre-flight check whether a Purchase Order (PO) has prior Model 19 receipts recorded */
+  checkPo: (po: string) => {
+    const q = new URLSearchParams({ po });
+    return request<{
+      exists: boolean;
+      poNumber?: string;
+      receiptCount: number;
+      totalItems: number;
+      slips: Array<{
+        slipNumber: string;
+        itemCount: number;
+        storeName?: string;
+        sampleItems: string[];
+      }>;
+    }>(`/items/check-po?${q.toString()}`);
+  },
+
   /** Super Admin only: permanently delete an entire Model 19 / count slip and all its items */
   deleteSlip: (slipNumber: string) => {
     return request<{ success: boolean; message: string; count: number }>(`/items/slip/${encodeURIComponent(slipNumber)}`, {

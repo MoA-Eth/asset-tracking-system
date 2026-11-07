@@ -279,5 +279,37 @@ describe('ItemController - Authenticated User Activity Claiming', () => {
       expect(checkSlipSpy).toHaveBeenCalledWith('M19-0099');
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: { exists: false, count: 0, items: [] } }));
     });
+
+    it('calls store.checkTagNumber with query params', async () => {
+      const checkTagSpy = vi.spyOn(mockStore, 'checkTagNumber').mockResolvedValue({ available: true });
+      const req: any = {
+        user: { id: 'EMP-ENC-01', role: UserRole.DATA_ENCODER },
+        query: { tag: 'MOA-016341', exceptItemId: 'item-2' },
+      };
+      const res: any = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      };
+
+      await controller.checkTag(req, res, () => {});
+      expect(checkTagSpy).toHaveBeenCalledWith('MOA-016341', 'item-2');
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: { available: true } }));
+    });
+
+    it('calls store.checkPoNumber with query params', async () => {
+      const checkPoSpy = vi.spyOn(mockStore, 'checkPoNumber').mockResolvedValue({ exists: false, count: 0, slips: [] });
+      const req: any = {
+        user: { id: 'EMP-ENC-01', role: UserRole.DATA_ENCODER },
+        query: { po: 'PO-2024-001' },
+      };
+      const res: any = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      };
+
+      await controller.checkPo(req, res, () => {});
+      expect(checkPoSpy).toHaveBeenCalledWith('PO-2024-001');
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: { exists: false, count: 0, slips: [] } }));
+    });
   });
 });

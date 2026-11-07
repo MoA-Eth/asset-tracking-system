@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { api } from '../../api/client';
 import { ChevronLeft, ChevronRight, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload, AlertCircle, AlertTriangle, Eye } from 'lucide-react';
 import { btn, statusTone, pill } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
@@ -110,11 +111,42 @@ const RequestStatus: React.FC<{ request: TransactionApproval }> = ({ request }) 
  * A fixed asset's tag number in IFMIS (e.g. MOA-016341). The receipt doesn't carry it; it is recorded here, or when a
  * Model 21 or disposal form first names it, and those forms then find the asset by it.
  */
-const IfmisTagField: React.FC<{ tag?: string; onSave?: (tag: string) => Promise<void> }> = ({ tag, onSave }) => {
+const IfmisTagField: React.FC<{ itemId?: string; tag?: string; onSave?: (tag: string) => Promise<void> }> = ({ itemId, tag, onSave }) => {
   const [draft, setDraft] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [tagConflict, setTagConflict] = useState<string | null>(null);
+  const [checkingTag, setCheckingTag] = useState(false);
+
+  useEffect(() => {
+    if (draft === null) {
+      setTagConflict(null);
+      return;
+    }
+    const t = draft.trim();
+    if (!t) {
+      setTagConflict(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setCheckingTag(true);
+      try {
+        const res = await api.checkTag(t, itemId);
+        if (!res.available && res.conflict) {
+          setTagConflict(`Tag ${res.conflict.tag} is already on ${res.conflict.itemCode} (${res.conflict.name})`);
+        } else {
+          setTagConflict(null);
+        }
+      } catch {
+        // ignore check error
+      } finally {
+        setCheckingTag(false);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [draft, itemId]);
+
   const save = async () => {
-    if (draft === null || !onSave) return;
+    if (draft === null || !onSave || tagConflict) return;
     setSaving(true);
     try {
       await onSave(draft.trim());
@@ -140,22 +172,26 @@ const IfmisTagField: React.FC<{ tag?: string; onSave?: (tag: string) => Promise<
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-1.5">
-          <input
-            id="ifmis-tag-number"
-            aria-label="IFMIS tag number"
-            autoFocus
-            value={draft}
-            placeholder="e.g. MOA-016341"
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); save(); }
-              if (e.key === 'Escape') { e.stopPropagation(); setDraft(null); }
-            }}
-            className="min-w-0 flex-1 rounded-[3px] border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs uppercase focus:border-emerald-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-100"
-          />
-          <button type="button" onClick={save} disabled={saving} className={btn.row}>{saving ? 'Saving…' : 'Save'}</button>
-          <button type="button" onClick={() => setDraft(null)} disabled={saving} className={btn.row}>Cancel</button>
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5">
+            <input
+              id="ifmis-tag-number"
+              aria-label="IFMIS tag number"
+              autoFocus
+              value={draft}
+              placeholder="e.g. MOA-016341"
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); if (!tagConflict && !checkingTag) save(); }
+                if (e.key === 'Escape') { e.stopPropagation(); setDraft(null); }
+              }}
+              className={`min-w-0 flex-1 rounded-[3px] border ${tagConflict ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-300 focus:border-emerald-500 focus:ring-emerald-100'} bg-white px-2.5 py-1.5 font-mono text-xs uppercase focus:outline-hidden focus:ring-2`}
+            />
+            <button type="button" onClick={save} disabled={saving || !!tagConflict || checkingTag} className={btn.row}>{saving ? 'Saving…' : 'Save'}</button>
+            <button type="button" onClick={() => setDraft(null)} disabled={saving} className={btn.row}>Cancel</button>
+          </div>
+          {checkingTag && <p className="text-[10px] text-slate-500">Checking tag availability…</p>}
+          {tagConflict && <p role="alert" className="text-[11px] font-semibold text-rose-600">{tagConflict}</p>}
         </div>
       )}
     </FormKitField>
@@ -707,7 +743,7 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 <ReadOnlyValue mono>{item.itemCode}</ReadOnlyValue>
               </FormKitField>
 
-              {item.itemType !== 'CONSUMABLE' && <IfmisTagField key={item.id} tag={item.ifmisTagNumber} onSave={editing || row.state === 'REJECTED' || item.status === ItemStatus.REJECTED ? undefined : onSaveIfmisTag} />}
+              {item.itemType !== 'CONSUMABLE' && <IfmisTagField key={item.id} itemId={item.id} tag={item.ifmisTagNumber} onSave={editing || row.state === 'REJECTED' || item.status === ItemStatus.REJECTED ? undefined : onSaveIfmisTag} />}
 
               {item.ifmisItemCode && (
                 <FormKitField label="Item code">

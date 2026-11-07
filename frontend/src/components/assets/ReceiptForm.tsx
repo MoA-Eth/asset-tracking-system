@@ -317,6 +317,53 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     return () => clearTimeout(timer);
   }, [ifmisSlipNumber, isEdit]);
 
+  // Pre-flight check for PO Number history and prior receipts
+  const [dbPoInfo, setDbPoInfo] = useState<{
+    checkedPo?: string;
+    exists: boolean;
+    receiptCount: number;
+    totalItems: number;
+    slips: Array<{
+      slipNumber: string;
+      itemCount: number;
+      storeName?: string;
+      sampleItems: string[];
+    }>;
+  }>({ exists: false, receiptCount: 0, totalItems: 0, slips: [] });
+  const [checkingPo, setCheckingPo] = useState(false);
+
+  useEffect(() => {
+    const p = poNumber.trim();
+    if (!p || isEdit) {
+      setDbPoInfo({ exists: false, receiptCount: 0, totalItems: 0, slips: [] });
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setCheckingPo(true);
+      try {
+        const res = await api.checkPo(p);
+        setDbPoInfo({
+          checkedPo: p,
+          exists: res.exists,
+          receiptCount: res.receiptCount || 0,
+          totalItems: res.totalItems || 0,
+          slips: res.slips || [],
+        });
+      } catch {
+        // network or auth error on check is ignored
+      } finally {
+        setCheckingPo(false);
+      }
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [poNumber, isEdit]);
+
+  const isExactDuplicateVoucher = useMemo(() => {
+    if (isEdit || !dbPoInfo.exists || !ifmisSlipNumber.trim()) return false;
+    const slip = ifmisSlipNumber.trim().toLowerCase();
+    return dbPoInfo.slips.some((s) => s.slipNumber.trim().toLowerCase() === slip);
+  }, [isEdit, dbPoInfo, ifmisSlipNumber]);
+
   const { slipAttachmentPolicy, showScannedSlipField } = useSystemSettings();
   const isAttachmentRequired = slipAttachmentPolicy === 'REQUIRED';
 
@@ -1503,6 +1550,19 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
           <Field label="PO number" optional htmlFor="stock-in-po" hint="As printed on the Model 19">
             <input id="stock-in-po" type="text" placeholder="e.g. PO-2024-001" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className={input({ mono: true })} />
+            {checkingPo && (
+              <span className="block mt-0.5 text-[10px] text-slate-500 font-normal">Checking PO history…</span>
+            )}
+            {dbPoInfo.exists && !isEdit && !isExactDuplicateVoucher && (
+              <p className="mt-1 text-[10px] text-blue-700 bg-blue-50 rounded px-1.5 py-0.5 border border-blue-200">
+                PO delivery history: {dbPoInfo.receiptCount} prior receipt{dbPoInfo.receiptCount === 1 ? '' : 's'} recorded ({dbPoInfo.totalItems} items total).
+              </p>
+            )}
+            {isExactDuplicateVoucher && (
+              <p className="mt-1 text-[10px] font-semibold text-rose-700 bg-rose-50 rounded px-1.5 py-0.5 border border-rose-200">
+                Warning: Model 19 #{ifmisSlipNumber.trim()} under PO #{poNumber.trim()} has already been registered in the system.
+              </p>
+            )}
           </Field>
 
           <Field label="Received date (G.C.)" optional hint={`${formatGcToEc(ifmisSlipDateGc)} E.C.`} htmlFor="stock-in-slip-date">

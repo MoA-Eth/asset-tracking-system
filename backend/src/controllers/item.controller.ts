@@ -97,6 +97,29 @@ export class ItemController {
   });
 
   /**
+   * GET /api/items/check-tag?tag=...&exceptItemId=...
+   * Pre-flight check if an asset tag number is already in use.
+   */
+  public checkTag = asyncHandler(async (req: Request, res: Response) => {
+    assertPermission(req, 'stock-in.write', 'inventory.read', 'transfers.write', 'disposals.write');
+    const tag = String(req.query.tag ?? '');
+    const exceptItemId = req.query.exceptItemId ? String(req.query.exceptItemId) : undefined;
+    const result = await this.store.checkTagNumber(tag, exceptItemId);
+    return sendSuccess(res, result, 'Tag check completed');
+  });
+
+  /**
+   * GET /api/items/check-po?po=...
+   * Pre-flight check if a Purchase Order (PO) has prior receipts in the system.
+   */
+  public checkPo = asyncHandler(async (req: Request, res: Response) => {
+    assertPermission(req, 'stock-in.write', 'inventory.read');
+    const po = String(req.query.po ?? '');
+    const result = await this.store.checkPoNumber(po);
+    return sendSuccess(res, result, 'PO check completed');
+  });
+
+  /**
    * GET /api/items/:id
    * Retrieves detailed single item record with relations and movement timeline.
    */

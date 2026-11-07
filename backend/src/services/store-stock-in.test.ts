@@ -504,5 +504,47 @@ describe('StoreService.registerStockIn approval gate', () => {
         })
       );
     });
+
+    it('checkTagNumber returns available: true for empty tag', async () => {
+      expect(await StoreService.getInstance().checkTagNumber('')).toEqual({ available: true });
+    });
+
+    it('checkTagNumber detects conflict on existing tag or itemCode', async () => {
+      db.item.findFirst.mockResolvedValue({
+        id: 'it-existing',
+        itemCode: 'MOA-IT-2025-0012',
+        name: 'Dell Latitude',
+        ifmisTagNumber: 'MOA-016341',
+        status: 'AVAILABLE',
+      });
+      const result = await StoreService.getInstance().checkTagNumber('MOA-016341');
+      expect(result.available).toBe(false);
+      expect(result.conflict).toEqual(
+        expect.objectContaining({
+          id: 'it-existing',
+          itemCode: 'MOA-IT-2025-0012',
+          tag: 'MOA-016341',
+        })
+      );
+    });
+
+    it('checkPoNumber finds receipts associated with PO', async () => {
+      db.item.findMany.mockResolvedValue([
+        {
+          id: 'it-p1',
+          itemCode: 'MOA-IT-2026-0010',
+          name: 'HP ProBook',
+          ifmisSlipNumber: 'M19-100',
+          notes: JSON.stringify({ poNumber: 'PO-2026-TEST' }),
+          createdAtGc: '2026-11-01',
+          storeLocation: { name: 'IT Store' },
+        },
+      ]);
+      const result = await StoreService.getInstance().checkPoNumber('PO-2026-TEST');
+      expect(result.exists).toBe(true);
+      expect(result.receiptCount).toBe(1);
+      expect(result.totalItems).toBe(1);
+      expect(result.slips[0].slipNumber).toBe('M19-100');
+    });
   });
 });

@@ -1302,6 +1302,83 @@ export class StoreService {
     return { exists: false, count: 0, items: [] };
   }
 
+  public async checkTagNumber(tag: string, exceptItemId?: string) {
+    if (!tag || !tag.trim()) return { available: true };
+    const trimmed = tag.trim().replace(/\s+/g, '').toUpperCase();
+    const other = await prisma.item.findFirst({
+      where: {
+        id: exceptItemId ? { not: exceptItemId } : undefined,
+        status: { notIn: ['DISPOSED', 'REJECTED'] as any },
+        OR: [
+          { ifmisTagNumber: { equals: trimmed, mode: 'insensitive' } },
+          { itemCode: { equals: trimmed, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, itemCode: true, name: true, ifmisTagNumber: true, status: true },
+    });
+    if (other) {
+      return {
+        available: false,
+        conflict: {
+          id: other.id,
+          itemCode: other.itemCode,
+          name: other.name,
+          tag: other.ifmisTagNumber || other.itemCode,
+          status: other.status,
+        },
+      };
+    }
+    return { available: true };
+  }
+
+  public async checkPoNumber(poNumber: string) {
+    if (!poNumber || !poNumber.trim()) return { exists: false, count: 0, slips: [] };
+    const trimmed = poNumber.trim();
+    const items = await prisma.item.findMany({
+      where: {
+        notes: { contains: trimmed, mode: 'insensitive' },
+        status: { not: ItemStatus.REJECTED },
+        parentItemId: null,
+      },
+      select: {
+        id: true,
+        itemCode: true,
+        name: true,
+        ifmisSlipNumber: true,
+        notes: true,
+        createdAtGc: true,
+        storeLocation: { select: { name: true } },
+      },
+      take: 50,
+    });
+
+    const matching = items.filter((it) => {
+      const meta = readItemMeta(it.notes);
+      return String(meta.poNumber ?? '').trim().toLowerCase() === trimmed.toLowerCase();
+    });
+
+    if (matching.length === 0) {
+      return { exists: false, count: 0, slips: [] };
+    }
+
+    const slipMap = new Map<string, { slipNumber: string; itemCount: number; storeName?: string; sampleItems: string[] }>();
+    for (const it of matching) {
+      const slip = it.ifmisSlipNumber || 'Unknown Slip';
+      const entry = slipMap.get(slip) || { slipNumber: slip, itemCount: 0, storeName: it.storeLocation?.name, sampleItems: [] };
+      entry.itemCount += 1;
+      if (entry.sampleItems.length < 3) entry.sampleItems.push(it.name);
+      slipMap.set(slip, entry);
+    }
+
+    return {
+      exists: true,
+      poNumber: trimmed,
+      receiptCount: slipMap.size,
+      totalItems: matching.length,
+      slips: Array.from(slipMap.values()),
+    };
+  }
+
   // ── Stock-In Registration ───────────────────────────────────────────────
 
   public async registerStockIn(
