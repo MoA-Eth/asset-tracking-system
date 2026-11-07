@@ -275,6 +275,48 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     retryPayload: Parameters<typeof api.registerStockIn>[0];
   } | null>(null);
 
+  // Pre-flight check for Model 19 slip existence in the database
+  const [dbSlipInfo, setDbSlipInfo] = useState<{
+    checkedSlip?: string;
+    exists: boolean;
+    count: number;
+    items: Array<{
+      id: string;
+      itemCode: string;
+      name: string;
+      status: string;
+      unitCostETB?: number;
+      ifmisItemCode?: string;
+      storeName?: string;
+    }>;
+  }>({ exists: false, count: 0, items: [] });
+  const [checkingSlip, setCheckingSlip] = useState(false);
+
+  useEffect(() => {
+    const s = ifmisSlipNumber.trim();
+    if (!s || s.toUpperCase().startsWith('PENDING-') || isEdit) {
+      setDbSlipInfo({ exists: false, count: 0, items: [] });
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setCheckingSlip(true);
+      try {
+        const res = await api.checkSlip(s);
+        setDbSlipInfo({
+          checkedSlip: s,
+          exists: res.exists,
+          count: res.count || (res.items?.length ?? 0),
+          items: res.items || [],
+        });
+      } catch {
+        // network or auth error on check is ignored
+      } finally {
+        setCheckingSlip(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [ifmisSlipNumber, isEdit]);
+
   const { slipAttachmentPolicy, showScannedSlipField } = useSystemSettings();
   const isAttachmentRequired = slipAttachmentPolicy === 'REQUIRED';
 
@@ -348,12 +390,27 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     const n = itemName?.trim().toLowerCase();
     const c = code?.trim().toLowerCase();
     if (!s || (!n && !c)) return undefined;
-    return registered?.find(
+
+    // Check in-memory registered list
+    const memMatch = registered?.find(
       (r) =>
         r.slipNumber?.trim().toLowerCase() === s &&
         ((!!n && r.name.trim().toLowerCase() === n) ||
           (!!c && r.ifmisItemCode?.trim().toLowerCase() === c && Number(price) > 0 && Math.abs(Number(r.unitCostETB) - Number(price)) < 0.005)),
     )?.itemCode;
+    if (memMatch) return memMatch;
+
+    // Check pre-flight server check for this slip
+    if (dbSlipInfo.exists && dbSlipInfo.checkedSlip?.toLowerCase() === s) {
+      const dbMatch = dbSlipInfo.items.find(
+        (it) =>
+          (!!n && it.name.trim().toLowerCase() === n) ||
+          (!!c && it.ifmisItemCode?.trim().toLowerCase() === c && Number(price) > 0 && Math.abs(Number(it.unitCostETB) - Number(price)) < 0.005),
+      )?.itemCode;
+      if (dbMatch) return dbMatch;
+    }
+
+    return undefined;
   };
 
   // Intra-form duplicate check: detect when two rows on the same new receipt have the same description or code/price
@@ -404,7 +461,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     ...l,
     alreadyAs: l.id ? undefined : (l.alreadyAs || findDuplicateRegistered(ifmisSlipNumber, l.name, l.ifmisCode, l.unitPrice)),
     duplicateOfRow: l.id ? undefined : intraFormDuplicates.get(idx),
-  })), [extraLines, ifmisSlipNumber, registered, intraFormDuplicates]);
+  })), [extraLines, ifmisSlipNumber, registered, intraFormDuplicates, dbSlipInfo]);
 
   const duplicateLines = linesWithDuplicates.filter((l) => Boolean(l.alreadyAs));
   const hasDuplicates = Boolean(primaryDuplicateAs || duplicateLines.length > 0);
@@ -1434,6 +1491,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
               onBlur={fieldErrors.touch('model19No')}
               className={`${input({ mono: true, invalid: !!fieldErrors.error('model19No') })} font-semibold`}
             />
+            {checkingSlip && (
+              <span className="block mt-0.5 text-[10px] text-slate-500 font-normal">Checking voucher…</span>
+            )}
+            {dbSlipInfo.exists && !isEdit && (
+              <p className="mt-1 text-[10px] text-amber-800 bg-amber-50 rounded px-1.5 py-0.5 border border-amber-200">
+                Notice: Model 19 No. {dbSlipInfo.checkedSlip} already has {dbSlipInfo.count} item{dbSlipInfo.count === 1 ? '' : 's'} registered{dbSlipInfo.items[0]?.storeName ? ` (${dbSlipInfo.items[0].storeName})` : ''}.
+              </p>
+            )}
           </Field>
 
           <Field label="PO number" optional htmlFor="stock-in-po" hint="As printed on the Model 19">

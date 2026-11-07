@@ -247,6 +247,41 @@ export const api = {
     });
   },
 
+  /** Pre-flight check whether a serial number is already registered */
+  checkSerial: (serial: string, exceptItemId?: string) => {
+    const q = new URLSearchParams({ serial });
+    if (exceptItemId) q.set('exceptItemId', exceptItemId);
+    return request<{
+      available: boolean;
+      conflict?: {
+        id: string;
+        itemCode: string;
+        name: string;
+        status: string;
+        ifmisSlipNumber: string;
+      };
+    }>(`/items/check-serial?${q.toString()}`);
+  },
+
+  /** Pre-flight check whether a Model 19 slip already exists and what items are on it */
+  checkSlip: (slip: string) => {
+    const q = new URLSearchParams({ slip });
+    return request<{
+      exists: boolean;
+      slipNumber?: string;
+      count: number;
+      items: Array<{
+        id: string;
+        itemCode: string;
+        name: string;
+        status: string;
+        unitCostETB?: number;
+        ifmisItemCode?: string;
+        storeName?: string;
+      }>;
+    }>(`/items/check-slip?${q.toString()}`);
+  },
+
   /** Super Admin only: permanently delete an entire Model 19 / count slip and all its items */
   deleteSlip: (slipNumber: string) => {
     return request<{ success: boolean; message: string; count: number }>(`/items/slip/${encodeURIComponent(slipNumber)}`, {

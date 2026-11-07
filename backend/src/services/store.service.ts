@@ -1233,6 +1233,75 @@ export class StoreService {
     return withBalance;
   }
 
+  // ── Pre-flight Real-time Checks ──────────────────────────────────────────
+
+  public async checkSerialNumber(serialNumber: string, exceptItemId?: string) {
+    if (!serialNumber || !serialNumber.trim()) return { available: true };
+    const trimmed = serialNumber.trim();
+    const other = await prisma.item.findFirst({
+      where: {
+        serialNumber: { equals: trimmed, mode: 'insensitive' },
+        status: { notIn: ['DISPOSED', 'REJECTED'] as any },
+        ...(exceptItemId ? { id: { not: exceptItemId } } : {}),
+      },
+      select: { id: true, itemCode: true, name: true, status: true, ifmisSlipNumber: true },
+    });
+    if (other) {
+      return {
+        available: false,
+        conflict: {
+          id: other.id,
+          itemCode: other.itemCode,
+          name: other.name,
+          status: other.status,
+          ifmisSlipNumber: other.ifmisSlipNumber,
+        },
+      };
+    }
+    return { available: true };
+  }
+
+  public async checkSlipNumber(slipNumber: string) {
+    if (!slipNumber || !slipNumber.trim() || slipNumber.trim().toUpperCase().startsWith('PENDING-')) {
+      return { exists: false, count: 0, items: [] };
+    }
+    const trimmed = slipNumber.trim();
+    const items = await prisma.item.findMany({
+      where: {
+        ifmisSlipNumber: { equals: trimmed, mode: 'insensitive' },
+        status: { not: ItemStatus.REJECTED },
+        parentItemId: null,
+      },
+      select: {
+        id: true,
+        itemCode: true,
+        name: true,
+        status: true,
+        unitCostETB: true,
+        notes: true,
+        storeLocation: { select: { name: true } },
+      },
+      take: 20,
+    });
+    if (items.length > 0) {
+      return {
+        exists: true,
+        slipNumber: trimmed,
+        count: items.length,
+        items: items.map((it) => ({
+          id: it.id,
+          itemCode: it.itemCode,
+          name: it.name,
+          status: it.status,
+          unitCostETB: it.unitCostETB,
+          ifmisItemCode: readItemMeta(it.notes).ifmisItemCode,
+          storeName: it.storeLocation?.name,
+        })),
+      };
+    }
+    return { exists: false, count: 0, items: [] };
+  }
+
   // ── Stock-In Registration ───────────────────────────────────────────────
 
   public async registerStockIn(

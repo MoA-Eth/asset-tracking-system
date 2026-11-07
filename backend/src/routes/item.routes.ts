@@ -17,8 +17,10 @@ router.get(
 );
 router.get('/audit/logs', requirePermission('audit.read'), controller.getAuditLogs);
 router.get('/', requirePermission('inventory.read'), controller.getItems);
-// Before '/:id', so "mine" isn't read as an item id
+// Before '/:id', so "mine", "check-serial", and "check-slip" aren't read as an item id
 router.get('/mine', requirePermission('assets.own'), controller.getMyAssets);
+router.get('/check-serial', requirePermission('stock-in.write', 'inventory.read'), controller.checkSerial);
+router.get('/check-slip', requirePermission('stock-in.write', 'inventory.read'), controller.checkSlip);
 router.get('/:id', requirePermission('inventory.read'), controller.getItemById);
 
 router.post('/stock-in', requirePermission('stock-in.write'), controller.registerStockIn);

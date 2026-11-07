@@ -447,4 +447,62 @@ describe('StoreService.registerStockIn approval gate', () => {
     ).resolves.toBeTruthy();
     expect(db.item.create).toHaveBeenCalled();
   });
+
+  describe('Pre-flight real-time check methods', () => {
+    it('checkSerialNumber returns available: true for empty or blank serial', async () => {
+      const result = await StoreService.getInstance().checkSerialNumber('');
+      expect(result).toEqual({ available: true });
+    });
+
+    it('checkSerialNumber detects conflict and returns existing item details', async () => {
+      db.item.findFirst.mockResolvedValue({
+        id: 'item-conflict',
+        itemCode: 'MOA-IT-2025-0100',
+        name: 'HP EliteBook',
+        status: 'AVAILABLE',
+        ifmisSlipNumber: 'M19-555',
+      });
+      const result = await StoreService.getInstance().checkSerialNumber('SN-HP-999');
+      expect(result).toEqual({
+        available: false,
+        conflict: {
+          id: 'item-conflict',
+          itemCode: 'MOA-IT-2025-0100',
+          name: 'HP EliteBook',
+          status: 'AVAILABLE',
+          ifmisSlipNumber: 'M19-555',
+        },
+      });
+    });
+
+    it('checkSlipNumber returns exists: false for empty or pending slip', async () => {
+      expect(await StoreService.getInstance().checkSlipNumber('')).toEqual({ exists: false, count: 0, items: [] });
+      expect(await StoreService.getInstance().checkSlipNumber('PENDING-12345')).toEqual({ exists: false, count: 0, items: [] });
+    });
+
+    it('checkSlipNumber returns exists: true and items list when found', async () => {
+      db.item.findMany.mockResolvedValue([
+        {
+          id: 'it-1',
+          itemCode: 'MOA-IT-2026-0001',
+          name: 'Dell Server',
+          status: 'AVAILABLE',
+          unitCostETB: 500000,
+          notes: JSON.stringify({ ifmisItemCode: '108101' }),
+          storeLocation: { name: 'Main Store' },
+        },
+      ]);
+      const result = await StoreService.getInstance().checkSlipNumber('M19-999');
+      expect(result.exists).toBe(true);
+      expect(result.count).toBe(1);
+      expect(result.items[0]).toEqual(
+        expect.objectContaining({
+          id: 'it-1',
+          itemCode: 'MOA-IT-2026-0001',
+          name: 'Dell Server',
+          storeName: 'Main Store',
+        })
+      );
+    });
+  });
 });

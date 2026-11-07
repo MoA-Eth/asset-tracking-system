@@ -25,9 +25,11 @@ import { BadRequestError, NotFoundError, ForbiddenError, UnauthorizedError } fro
 
 import { hasPermission, Permission } from '../security/role-policy';
 
-function assertPermission(req: Request, permission: Permission) {
+function assertPermission(req: Request, ...permissions: Permission[]) {
   if (!req.user) throw new UnauthorizedError('Authentication is required.');
-  if (!hasPermission(req.user.role, permission)) throw new ForbiddenError('Your role does not permit this action.');
+  if (!permissions.some((p) => hasPermission(req.user!.role, p))) {
+    throw new ForbiddenError('Your role does not permit this action.');
+  }
 }
 
 export class ItemController {
@@ -69,6 +71,29 @@ export class ItemController {
     assertPermission(req, 'assets.own');
     const assets = await this.store.getMyAssets(req.user!.id);
     return sendSuccess(res, assets, 'Your assets retrieved');
+  });
+
+  /**
+   * GET /api/items/check-serial?serial=...&exceptItemId=...
+   * Pre-flight check if a serial number is already registered.
+   */
+  public checkSerial = asyncHandler(async (req: Request, res: Response) => {
+    assertPermission(req, 'stock-in.write', 'inventory.read');
+    const serial = String(req.query.serial ?? '');
+    const exceptItemId = req.query.exceptItemId ? String(req.query.exceptItemId) : undefined;
+    const result = await this.store.checkSerialNumber(serial, exceptItemId);
+    return sendSuccess(res, result, 'Serial check completed');
+  });
+
+  /**
+   * GET /api/items/check-slip?slip=...
+   * Pre-flight check if a Model 19 slip number is already registered in the system.
+   */
+  public checkSlip = asyncHandler(async (req: Request, res: Response) => {
+    assertPermission(req, 'stock-in.write', 'inventory.read');
+    const slip = String(req.query.slip ?? '');
+    const result = await this.store.checkSlipNumber(slip);
+    return sendSuccess(res, result, 'Slip check completed');
   });
 
   /**

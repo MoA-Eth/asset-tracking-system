@@ -246,4 +246,38 @@ describe('ItemController - Authenticated User Activity Claiming', () => {
       expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
     });
   });
+
+  describe('Pre-flight checkSerial and checkSlip', () => {
+    it('calls store.checkSerialNumber with query params', async () => {
+      const checkSerialSpy = vi.spyOn(mockStore, 'checkSerialNumber').mockResolvedValue({ available: true });
+      const req: any = {
+        user: { id: 'EMP-ENC-01', role: UserRole.DATA_ENCODER },
+        query: { serial: 'SN-12345', exceptItemId: 'item-1' },
+      };
+      const res: any = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      };
+
+      await controller.checkSerial(req, res, () => {});
+      expect(checkSerialSpy).toHaveBeenCalledWith('SN-12345', 'item-1');
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: { available: true } }));
+    });
+
+    it('calls store.checkSlipNumber with query params', async () => {
+      const checkSlipSpy = vi.spyOn(mockStore, 'checkSlipNumber').mockResolvedValue({ exists: false, count: 0, items: [] });
+      const req: any = {
+        user: { id: 'EMP-ENC-01', role: UserRole.DATA_ENCODER },
+        query: { slip: 'M19-0099' },
+      };
+      const res: any = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      };
+
+      await controller.checkSlip(req, res, () => {});
+      expect(checkSlipSpy).toHaveBeenCalledWith('M19-0099');
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: { exists: false, count: 0, items: [] } }));
+    });
+  });
 });
