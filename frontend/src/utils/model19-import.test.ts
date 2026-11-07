@@ -54,7 +54,7 @@ describe('reading Model 19 rows', () => {
     const bad = { 'Received Date (G.C.)': '0026-05-12', 'Receiving Store': 'Main warehouse' };
     const [receipt] = read([
       line(bad),
-      line({ ...bad, Quantity: 'ten', Category: 'Gadgets', 'IFMIS Item Code': '', 'Item Type': '' }),
+      line({ ...bad, 'Item Description': 'Gadget', Quantity: 'ten', Category: 'Gadgets', 'IFMIS Item Code': '', 'Item Type': '' }),
       line({ ...bad, 'Source / Supplier': 'Someone else' }),
     ]);
     expect(receipt.problems).toEqual([
