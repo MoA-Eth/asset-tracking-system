@@ -94,8 +94,8 @@ export const FilterPopover: React.FC<FilterPopoverProps> = ({
         title={accessibleLabel}
         onClick={() => setIsOpen((prev) => !prev)}
         className={`inline-flex items-center justify-center gap-1.5 ${
-          showText ? 'px-3.5 py-1.5 text-xs' : 'px-2.5 py-1.5 h-8'
-        } rounded-[4px] border font-semibold transition cursor-pointer select-none shadow-2xs ${
+          showText ? 'px-3.5 h-9 text-xs' : 'px-2.5 h-9'
+        } rounded-md border font-semibold transition cursor-pointer select-none shadow-2xs ${
           hasActive || isOpen
             ? 'border-emerald-700/60 bg-emerald-50/80 text-emerald-950 shadow-xs ring-1 ring-emerald-600/20'
             : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900'
