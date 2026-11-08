@@ -369,6 +369,56 @@ describe('Approvals: correct a small mistake instead of rejecting', () => {
     await user.click(within(row).getByRole('button', { name: /Endorse/ }));
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
+
+  it('allows Stage 1 Team Leader to click Edit Request from the 3-dot menu', async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const opened = vi.fn();
+    window.addEventListener(OPEN_CORRECTION_EVENT, opened);
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={onNavigate} />);
+    const row = (await screen.findByText('MOA-D')).closest('tr')!;
+
+    // Open kebab 3-dot menu
+    await user.click(within(row).getByRole('button', { name: /Actions for/i }));
+    const editBtn = screen.getByRole('menuitem', { name: /Edit Request/i });
+    expect(editBtn).toBeInTheDocument();
+    expect(editBtn).not.toBeDisabled();
+
+    await user.click(editBtn);
+    expect(onNavigate).toHaveBeenCalledWith('assets');
+    expect(opened).toHaveBeenCalled();
+    expect(takePendingCorrection(() => true)).toEqual({ itemId: 'item-D', requestId: undefined });
+    window.removeEventListener(OPEN_CORRECTION_EVENT, opened);
+  });
+
+  it('allows Stage 2 Department Head to click Edit Request from the 3-dot menu', async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const opened = vi.fn();
+    window.addEventListener(OPEN_CORRECTION_EVENT, opened);
+    auth.role = 'DEPARTMENT_HEAD';
+    auth.user.permissions = ['approvals.authorize'];
+    vi.mocked(api.getApprovals).mockResolvedValue([
+      receiptLine('STAGE2', 'Server Rack', { currentStage: 2, status: 'PENDING', requestedById: 'other-user' }),
+    ] as any);
+
+    render(<ApprovalsPage currentRole={UserRole.DEPARTMENT_HEAD} onNavigate={onNavigate} />);
+    const row = (await screen.findByText('MOA-STAGE2')).closest('tr')!;
+
+    await user.click(within(row).getByRole('button', { name: /Actions for/i }));
+    const editBtn = screen.getByRole('menuitem', { name: /Edit Request/i });
+    expect(editBtn).toBeInTheDocument();
+    expect(editBtn).not.toBeDisabled();
+
+    await user.click(editBtn);
+    expect(onNavigate).toHaveBeenCalledWith('assets');
+    expect(opened).toHaveBeenCalled();
+    expect(takePendingCorrection(() => true)).toEqual({ itemId: 'item-STAGE2', requestId: undefined });
+    window.removeEventListener(OPEN_CORRECTION_EVENT, opened);
+
+    auth.role = 'TEAM_LEADER';
+    auth.user.permissions = ['approvals.endorse'];
+  });
 });
 
 describe('Approvals: table polish and batch valuation', () => {

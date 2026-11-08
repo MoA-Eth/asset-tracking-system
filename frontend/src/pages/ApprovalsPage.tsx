@@ -1172,6 +1172,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       (isDeptHead && !isHighValue) ||
                       (!isChiefDirector && !isDeptHead));
                   const isActionableForMe = isPending && ((canEndorse && stage === 1) || canAuthorizeThis);
+                  const isOwnRequest = appr.requestedById === user?.id;
                   const isExpanded = expandedSlips.has(appr.id);
                   const lines = slipLines.get(appr.id);
 
@@ -1367,6 +1368,23 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                           <RowActionsMenu
                             label={`Actions for ${appr.itemCode || appr.itemName}`}
                             actions={[
+                              {
+                                label: 'Edit Request',
+                                icon: Pencil,
+                                disabled: !canReview || !isPending || isOwnRequest,
+                                reason: !canReview
+                                  ? 'Only authorized approvers can edit requests'
+                                  : !isPending
+                                  ? 'Only pending requests can be edited'
+                                  : isOwnRequest
+                                  ? 'Cannot edit your own request as an approver'
+                                  : undefined,
+                                onClick: () => {
+                                  const target = slipLines.get(appr.id)?.[0] ?? appr;
+                                  requestCorrection(target.itemId, target.transactionType === 'STOCK_IN' ? undefined : target.id);
+                                  onNavigate('assets');
+                                },
+                              },
                               {
                                 label: 'View Full Voucher',
                                 icon: FileText,
