@@ -46,7 +46,7 @@ describe('Approvals: one row per Model 19', () => {
     expect(screen.getByText('MOA-D')).toBeInTheDocument();
     expect(screen.queryByText('MOA-A')).toBeNull();
 
-    await user.click(within(row).getByRole('button', { name: /Endorse/ }));
+    await user.click(within(row).getByRole('button', { name: /Review/ }));
     const lines = screen.getByRole('table', { name: 'Items on this Model 19' });
     expect(within(lines).getAllByRole('row')).toHaveLength(4); // 3 items and the total
     await user.click(screen.getByRole('button', { name: 'Endorse (Stage 1)' }));
@@ -138,7 +138,7 @@ describe('Approvals: one row per Model 22', () => {
     expect(within(row).getByText('Toner, Printer paper')).toBeInTheDocument();
     expect(screen.getByText('MOA-Z')).toBeInTheDocument();
 
-    await user.click(within(row).getByRole('button', { name: /Endorse/ }));
+    await user.click(within(row).getByRole('button', { name: /Review/ }));
     const lines = screen.getByRole('table', { name: 'Items on this Model 22' });
     expect(within(lines).getAllByRole('row')).toHaveLength(3); // 2 items and the total
     await user.click(screen.getByRole('button', { name: 'Endorse (Stage 1)' }));
@@ -204,7 +204,7 @@ describe('Approvals: rejecting', () => {
     const user = userEvent.setup();
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('3 lines')).closest('tr')!;
-    await user.click(within(row).getByRole('button', { name: /Endorse/ }));
+    await user.click(within(row).getByRole('button', { name: /Review/ }));
     const modal = screen.getByText(/Stage 1: Team Leader Endorsement/).closest<HTMLElement>('.max-w-2xl')!;
     expect(within(modal).getByRole('button', { name: /Endorse \(Stage 1\)/ })).toBeInTheDocument();
     expect(within(modal).getByRole('button', { name: /^Reject$/ })).toBeInTheDocument();
@@ -221,11 +221,13 @@ describe('Approvals: rejecting', () => {
     expect(screen.getByText(/Stage 1: Team Leader Endorsement/)).toBeInTheDocument();
   });
 
-  it('rejects straight from the row: only the reason is asked, and the whole Model 19 goes back', async () => {
+  it('rejects straight from the review modal: only the reason is asked, and the whole Model 19 goes back', async () => {
     const user = userEvent.setup();
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('3 lines')).closest('tr')!;
-    await user.click(within(row).getByRole('button', { name: 'Reject' }));
+    await user.click(within(row).getByRole('button', { name: /Review/ }));
+    const modal = screen.getByText(/Stage 1: Team Leader Endorsement/).closest<HTMLElement>('.max-w-2xl')!;
+    await user.click(within(modal).getByRole('button', { name: /^Reject$/ }));
     const dialog = screen.getByRole('dialog');
     // No reason, no rejecting
     expect(within(dialog).getByRole('button', { name: /^Reject$/ })).toBeDisabled();
@@ -251,7 +253,7 @@ describe('Approvals: rejecting', () => {
     try {
       render(<ApprovalsPage currentRole={UserRole.DEPARTMENT_HEAD} onNavigate={vi.fn()} />);
       const row = (await screen.findByText(/Server Rack/)).closest('tr')!;
-      await user.click(within(row).getByRole('button', { name: /Authorize/ }));
+      await user.click(within(row).getByRole('button', { name: /Review/ }));
 
       const modal = screen.getByText(/Stage 2 Authorization/).closest<HTMLElement>('.max-w-2xl')!;
       expect(within(modal).getByRole('button', { name: /Authorize & Sign-Off/ })).toBeInTheDocument();
@@ -282,7 +284,7 @@ describe('Approvals: rejecting', () => {
     expect(within(row).getByText('Rejected')).toBeInTheDocument();
     expect(within(row).getByText(/^by Team Leader · 21 Oct/)).toBeInTheDocument();
     expect(within(row).getByText('Price is entered as USD.')).toBeInTheDocument();
-    expect(within(row).queryByRole('button', { name: /Endorse|Reject/ })).toBeNull();
+    expect(within(row).queryByRole('button', { name: /Review|Endorse|Reject/ })).toBeNull();
   });
 
   it('shows a cancelled request as cancelled by its requester', async () => {
@@ -399,7 +401,7 @@ describe('Approvals: correct a small mistake instead of rejecting', () => {
     window.addEventListener(OPEN_CORRECTION_EVENT, opened);
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={onNavigate} />);
     const row = (await screen.findByText('MOA-D')).closest('tr')!;
-    await user.click(within(row).getByRole('button', { name: /Endorse/ }));
+    await user.click(within(row).getByRole('button', { name: /Review/ }));
     await user.click(screen.getByRole('button', { name: 'Edit' }));
     expect(onNavigate).toHaveBeenCalledWith('assets');
     expect(opened).toHaveBeenCalled();
@@ -412,7 +414,7 @@ describe('Approvals: correct a small mistake instead of rejecting', () => {
     vi.mocked(api.getApprovals).mockResolvedValue([receiptLine('D', 'Scanner', { requestedById: 'leader' })] as any);
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('MOA-D')).closest('tr')!;
-    await user.click(within(row).getByRole('button', { name: /Endorse/ }));
+    await user.click(within(row).getByRole('button', { name: /Review/ }));
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 

@@ -21,6 +21,7 @@ import {
   Square,
   ArrowUpDown,
   Send,
+  ClipboardCheck,
   PackagePlus,
   PackageMinus,
   RotateCcw,
@@ -1321,31 +1322,19 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                         {/* 7. Approval Actions (Inline Decision Buttons) */}
                         <td className="py-2.5 px-2 text-center whitespace-nowrap">
                           {isActionableForMe ? (
-                            <div className="flex items-center justify-center gap-1.5">
+                            <div className="flex items-center justify-center">
                               <button
                                 type="button"
                                 onClick={() => {
                                   setSelectedApproval(appr);
                                   setReviewRemarks('');
                                 }}
-                                className="px-3 py-1 rounded-[4px] bg-moa-green hover:bg-moa-green-hover text-white font-semibold text-xs transition cursor-pointer shadow-2xs flex items-center gap-1"
+                                className="px-3.5 py-1.5 rounded-[4px] bg-moa-green hover:bg-moa-green-hover text-white font-semibold text-xs transition cursor-pointer shadow-2xs flex items-center gap-1.5"
+                                title={`Review ${voucherName(appr.transactionType)} ${appr.ifmisSlipNumber || appr.itemCode}`}
+                                aria-label={`Review ${appr.itemName || appr.itemCode}`}
                               >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>{stage === 1 ? 'Endorse' : isHighValue ? 'Authorize (> 10M)' : 'Authorize'}</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setRejecting(appr);
-                                  setReviewRemarks('');
-                                  setActionError(null);
-                                }}
-                                title="Reject"
-                                aria-label="Reject"
-                                className="px-2.5 py-1 rounded-[4px] border border-rose-300 bg-white hover:bg-rose-50 text-rose-700 font-semibold text-xs transition cursor-pointer shadow-2xs flex items-center gap-1"
-                              >
-                                <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                                <span>Reject</span>
+                                <ClipboardCheck className="w-4 h-4" />
+                                <span>Review</span>
                               </button>
                             </div>
                           ) : (
