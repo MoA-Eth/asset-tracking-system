@@ -22,6 +22,8 @@ import {
   Upload,
   Check,
   Lock,
+  Clock,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table } from '../components/ui/theme';
@@ -235,6 +237,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [dbPrograms, setDbPrograms] = useState<string[]>([]);
   const [staleOnly, setStaleOnly] = useState<boolean>(savedView.staleOnly);
   const [search, setSearch] = useState<string>(savedView.search ?? '');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn>(savedView.sortColumn);
   const [sortDirection, setSortDirection] = useState<SortDirection>(savedView.sortDirection);
 
@@ -331,6 +334,20 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
   const [voucher22, setVoucher22] = useState<Model22Voucher | null>(null);
   const [voucher21, setVoucher21] = useState<Model21Voucher | null>(null);
   const [voucherDisposal, setVoucherDisposal] = useState<DisposalVoucher | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName);
+      if ((e.key === '/' && !isInput) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) {
+        if (!editing && !receipt && !transfer && !issue && !disposing) {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editing, receipt, transfer, issue, disposing]);
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -886,6 +903,43 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
       else next.add(key);
       return next;
     });
+
+  const expandableEntries = useMemo(() => {
+    return pager.pageItems.filter((entry) => {
+      if ('group' in entry && entry.group) {
+        return (entry.group.units?.length ?? 0) > 0 || (entry.group.children?.length ?? 0) > 0;
+      }
+      if ('slip' in entry && entry.slip && 'members' in entry && entry.members) {
+        return entry.members.length > 0;
+      }
+      return false;
+    });
+  }, [pager.pageItems]);
+
+  const allExpanded = useMemo(() => {
+    if (expandableEntries.length === 0) return false;
+    return expandableEntries.every((entry) => {
+      if ('group' in entry && entry.group) return openBatches.has(entry.group.row.item.id);
+      if ('slip' in entry && entry.slip) return openSlips.has(entry.slip);
+      return false;
+    });
+  }, [expandableEntries, openBatches, openSlips]);
+
+  const toggleAllExpand = useCallback(() => {
+    if (allExpanded) {
+      setOpenBatches(new Set());
+      setOpenSlips(new Set());
+    } else {
+      const bSet = new Set<string>();
+      const sSet = new Set<string>();
+      expandableEntries.forEach((entry) => {
+        if ('group' in entry && entry.group) bSet.add(entry.group.row.item.id);
+        if ('slip' in entry && entry.slip) sSet.add(entry.slip);
+      });
+      setOpenBatches(bSet);
+      setOpenSlips(sSet);
+    }
+  }, [allExpanded, expandableEntries]);
 
 
   // ── Printing ──
@@ -1718,6 +1772,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 {row.where && !isBatch && (
                   <span className="text-xs text-slate-500 font-normal truncate max-w-xs">
                     · {row.where}
+                  </span>
+                )}
+                {row.daysInStore !== undefined && row.daysInStore >= STALE_IN_STORE_DAYS && inStoreUnits > 0 && (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-900 border border-amber-200/90"
+                    title={`In store for ${row.daysInStore} days without being issued (${Math.floor(row.daysInStore / 30)} months)`}
+                  >
+                    <Clock className="w-2.5 h-2.5 text-amber-600" />
+                    <span>{row.daysInStore}d in store</span>
                   </span>
                 )}
               </span>
@@ -2564,13 +2627,34 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 <div className="relative flex-1 w-full sm:max-w-md">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
+                    ref={searchInputRef}
                     type="text"
                     aria-label="Search assets"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search by name, code, serial, slip or person…"
-                    className="w-full pl-9 pr-3 h-9 bg-white border border-slate-300 hover:border-slate-400 rounded-md text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors shadow-2xs"
+                    className="w-full pl-9 pr-8 h-9 bg-white border border-slate-300 hover:border-slate-400 rounded-md text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors shadow-2xs"
                   />
+                  {search ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch('');
+                        searchInputRef.current?.focus();
+                      }}
+                      aria-label="Clear search"
+                      title="Clear search"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <div className="hidden sm:flex absolute right-2.5 top-1/2 -translate-y-1/2 items-center pointer-events-none">
+                      <kbd className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-slate-100 border border-slate-200 rounded select-none" title="Press / or Ctrl+K to search">
+                        /
+                      </kbd>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
@@ -2724,6 +2808,19 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       </div>
                     </FilterSection>
                   </FilterPopover>
+
+                  {expandableEntries.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={toggleAllExpand}
+                      className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900 transition cursor-pointer select-none shadow-2xs shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                      title={allExpanded ? 'Collapse all batches & vouchers' : 'Expand all batches & vouchers'}
+                      aria-label={allExpanded ? 'Collapse all batches and vouchers' : 'Expand all batches and vouchers'}
+                    >
+                      <ChevronsUpDown className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{allExpanded ? 'Collapse all' : 'Expand all'}</span>
+                    </button>
+                  )}
 
                   {canReceive && (
                     <button
