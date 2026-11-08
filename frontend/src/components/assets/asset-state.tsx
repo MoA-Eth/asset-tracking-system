@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Lock, Undo2 } from 'lucide-react';
+import { Clock, Lock, Undo2, Check } from 'lucide-react';
 import { statusTone, pill } from '../ui/theme';
 import { ItemWithRelations, TransactionApproval, AssetCategory, ItemType } from '../../types/asset-management';
 import { SHOW_VEHICLE_PARTS } from './receipt-options';
@@ -239,19 +239,21 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
     )
     : row.state === 'IN_STORE' ? (
       <span
-        className={`${pill} ${partly ? statusTone.partly : statusTone.inStore}`}
+        className={`${pill} ${partly ? statusTone.partly : statusTone.inStore} inline-flex items-center gap-1`}
         title={[
           partly ? 'Partly issued' : 'In store',
           isStale(row) ? `${row.daysInStore} days in store` : undefined,
           row.rejected ? `${requestLabel(row.rejected.transactionType, row.rejected.requestDetails).noun} rejected · ${row.rejected.reviewRemarks || ''}` : undefined,
         ].filter(Boolean).join(' · ')}
       >
-        {partly ? 'Partly issued' : 'In store'}
+        <Check className="w-3 h-3 shrink-0" />
+        <span>{partly ? 'Partly issued' : 'In store'}</span>
       </span>
     )
     : row.state === 'ISSUED' ? (
-      <span className={`${pill} ${statusTone.issued}`} title="Issued">
-        Issued
+      <span className={`${pill} ${statusTone.issued} inline-flex items-center gap-1`} title="Issued">
+        <Check className="w-3 h-3 shrink-0" />
+        <span>Issued</span>
       </span>
     )
     : null;
