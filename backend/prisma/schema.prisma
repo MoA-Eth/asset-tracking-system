@@ -35,6 +35,8 @@ enum ItemStatus {
   DISPOSED
   // Receipt (Stock-In) rejected by an approver
   REJECTED
+  // Draft receipt or item saved by encoder before submission
+  DRAFT
 }
 
 // Fixed asset (ቋሚ ዕቃ) or consumable item (አላቂ ዕቃ), chosen when the item is received
@@ -83,6 +85,8 @@ enum ApprovalStatus {
   REJECTED
   /// Withdrawn by its requester after it was rejected; closed, its record released
   CANCELLED
+  /// Draft request saved by encoder before submission
+  DRAFT
 }
 
 enum AuditEntityType {

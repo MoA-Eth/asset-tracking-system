@@ -58,7 +58,7 @@ export const categoryLabel = (item: { category?: string | null; itemCategoryDisp
  * Where an asset record is in its life: received into store (Model 19), issued to someone (Model 22),
  * then transferred to someone else or returned to store (Model 21), and finally disposed of. Each step waits for approval.
  */
-export type AssetState = 'RECEIPT_PENDING' | 'IN_STORE' | 'ISSUED' | 'REQUEST_PENDING' | 'REJECTED' | 'DISPOSED';
+export type AssetState = 'DRAFT' | 'RECEIPT_PENDING' | 'IN_STORE' | 'ISSUED' | 'REQUEST_PENDING' | 'REJECTED' | 'DISPOSED';
 
 /** Who a pending request is waiting for */
 export const STAGE_LABELS: Record<number, string> = {
@@ -196,6 +196,19 @@ export const ReturnedNote: React.FC<{ request: TransactionApproval }> = ({ reque
 
 /** `partly`: a batch with some units out and the rest still in store */
 export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row, partly }) => {
+  if (row.state === 'DRAFT' || row.item.status === 'DRAFT') {
+    return (
+      <span
+        className={`${pill} bg-slate-100 text-slate-700 border border-slate-300 inline-flex items-center gap-1 font-medium`}
+        title="Draft: not submitted for approval yet"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-400 inline-block"></span>
+        <span>Draft</span>
+        <span className="text-[11px]">📝</span>
+      </span>
+    );
+  }
+
   const settled =
     // A piece split off a batch is only ever closed by reversing the issue or disposal that made it: its units went back
     row.state === 'REJECTED' && row.item.parentItemId ? (

@@ -50,16 +50,20 @@ export class ItemController {
    * Retrieves items with optional status, category, location, and search filters.
    */
   public getItems = asyncHandler(async (req: Request, res: Response) => {
-    const { status, category, itemType, departmentId, locationId, programName, search } = req.query;
-    const items = await this.store.getItems({
-      status: status as ItemStatus,
-      category: category as AssetCategory,
-      itemType: itemType as ItemType,
-      departmentId: departmentId as string,
-      locationId: locationId as string,
-      programName: programName as string,
-      search: search as string,
-    });
+    const { status, category, itemType, departmentId, locationId, programName, search, userId } = req.query;
+    const items = await this.store.getItems(
+      {
+        status: status as ItemStatus,
+        category: category as AssetCategory,
+        itemType: itemType as ItemType,
+        departmentId: departmentId as string,
+        locationId: locationId as string,
+        programName: programName as string,
+        search: search as string,
+        userId: userId as string,
+      },
+      req.user?.id,
+    );
     return sendSuccess(res, items, 'Items list retrieved');
   });
 
@@ -445,6 +449,30 @@ export class ItemController {
   public getAuditLogs = asyncHandler(async (_req: Request, res: Response) => {
     const logs = await this.store.getAuditLogs();
     return sendSuccess(res, logs, 'Audit logs retrieved');
+  });
+
+  /**
+   * DELETE /api/items/draft/:id
+   * Discards a draft item (creator or admin).
+   */
+  public deleteDraftItem = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) throw new UnauthorizedError('Authentication is required.');
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const isAdmin = req.user.role === UserRole.SUPER_ADMIN || req.user.role === UserRole.SYSTEM_ADMIN;
+    await this.store.deleteDraftItem(id, req.user.id, isAdmin);
+    return sendSuccess(res, null, 'Draft item discarded.');
+  });
+
+  /**
+   * DELETE /api/items/draft-slip/:slipNumber
+   * Discards an entire draft voucher (creator or admin).
+   */
+  public deleteDraftSlip = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) throw new UnauthorizedError('Authentication is required.');
+    const slipNumber = Array.isArray(req.params.slipNumber) ? req.params.slipNumber[0] : req.params.slipNumber;
+    const isAdmin = req.user.role === UserRole.SUPER_ADMIN || req.user.role === UserRole.SYSTEM_ADMIN;
+    const count = await this.store.deleteDraftSlip(slipNumber, req.user.id, isAdmin);
+    return sendSuccess(res, { count }, `Draft voucher with ${count} item(s) discarded.`);
   });
 
   /**

@@ -1181,17 +1181,37 @@ export class StoreService {
   }
 
   public async getItems(filter?: {
-    status?: ItemStatus;
+    status?: ItemStatus | 'DRAFT';
     category?: AssetCategory;
     itemType?: ItemType;
     departmentId?: string;
     locationId?: string;
     programName?: string;
     search?: string;
-  }): Promise<ItemWithRelations[]> {
+    userId?: string;
+  }, actorId?: string): Promise<ItemWithRelations[]> {
     const where: any = {};
 
-    if (filter?.status) where.status = filter.status;
+    if (filter?.status) {
+      if (filter.status === 'DRAFT') {
+        where.status = 'DRAFT';
+        const targetUserId = filter.userId === 'me' ? actorId : filter.userId;
+        if (targetUserId) {
+          where.registeredById = targetUserId;
+        }
+      } else {
+        where.status = filter.status;
+      }
+    } else {
+      if (actorId) {
+        where.OR = [
+          { status: { not: 'DRAFT' } },
+          { status: 'DRAFT', registeredById: actorId },
+        ];
+      } else {
+        where.status = { not: 'DRAFT' };
+      }
+    }
     if (filter?.category) where.category = filter.category;
     if (filter?.itemType && ITEM_TYPES.includes(filter.itemType)) where.itemType = filter.itemType;
     if (filter?.departmentId) where.assignedDepartmentId = filter.departmentId;
@@ -1604,14 +1624,22 @@ export class StoreService {
     }
     assertMaxLength(payload.ifmisSlipNumber, 100, 'IFMIS Slip Number');
     assertSlipDate(payload.ifmisSlipDateGc);
-    // Whether the scan is needed is a system setting, the same for every user
-    if (isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
+    const isDraft = payload.action === 'SAVE_AS_DRAFT' || payload.isDraft === true;
+    if (isDraft) {
+      const hasName = Boolean(payload.name?.trim() || (payload.items && payload.items.some((l) => l.name?.trim())));
+      const hasSlip = Boolean(payload.ifmisSlipNumber?.trim() && !payload.ifmisSlipNumber.startsWith('PENDING-') && !payload.ifmisSlipNumber.startsWith('DRAFT-'));
+      if (!hasName && !hasSlip) {
+        throw new BadRequestError('Please enter at least an item description or Model 19 number to save as draft.');
+      }
+    }
+    // Whether the scan is needed is a system setting, the same for every user; drafts are exempt
+    if (!isDraft && isSlipRequired() && !payload.ifmisSlipAttachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
 
     const today = getTodayGcAndEc();
     const currentYear = new Date().getFullYear();
     // Every registration, historical or not, waits for Stage 1/2 approval before becoming AVAILABLE.
-    // isHistoricalData only waives the slip attachment requirement above.
-    const initialStatus = ItemStatus.PENDING_STOCK_IN;
+    // Drafts are stored in DRAFT status and do not enter the approval pipeline.
+    const initialStatus = isDraft ? ItemStatus.DRAFT : ItemStatus.PENDING_STOCK_IN;
     let receivingStore = payload.storeLocationId
       ? await prisma.location.findUnique({ where: { id: payload.storeLocationId }, include: { store: true } })
       : null;
@@ -1674,32 +1702,34 @@ export class StoreService {
     // Every line is known by its IFMIS inventory item code; the system gives each record its own code (a tag sent
     // with a fixed asset is used instead).
     const tags: string[] = [];
-    for (const line of rawItems) {
-      const type = receiptLineType(line, payload);
-      const name = line.name || payload.name || 'asset';
-      const ifmisCode = String(line.ifmisItemCode ?? payload.ifmisItemCode ?? '').trim();
-      // A tag is no longer asked on receipt; one sent (older clients, imports) still becomes the item code
-      const tag = type === 'FIXED' ? String(line.itemCode ?? '').trim() : '';
-      if (tag) {
-        if (tags.some((t) => t.toLowerCase() === tag.toLowerCase())) throw new BadRequestError(`Two lines on this slip have tag number ${tag}.`);
-        tags.push(tag);
-      } else if (!ifmisCode && !donation) {
-        throw new BadRequestError(`Enter the item code of ${name}, e.g. 108101101.0021. An item is known by its IFMIS item code.`);
+    if (!isDraft) {
+      for (const line of rawItems) {
+        const type = receiptLineType(line, payload);
+        const name = line.name || payload.name || 'asset';
+        const ifmisCode = String(line.ifmisItemCode ?? payload.ifmisItemCode ?? '').trim();
+        // A tag is no longer asked on receipt; one sent (older clients, imports) still becomes the item code
+        const tag = type === 'FIXED' ? String(line.itemCode ?? '').trim() : '';
+        if (tag) {
+          if (tags.some((t) => t.toLowerCase() === tag.toLowerCase())) throw new BadRequestError(`Two lines on this slip have tag number ${tag}.`);
+          tags.push(tag);
+        } else if (!ifmisCode && !donation) {
+          throw new BadRequestError(`Enter the item code of ${name}, e.g. 108101101.0021. An item is known by its IFMIS item code.`);
+        }
       }
-    }
-    // Check every line before saving any, so a bad line can't leave half a slip registered
-    for (const line of rawItems) assertStockInLine({ ...line, name: line.name || payload.name, category: line.category || payload.category, itemType: line.itemType || payload.itemType, uom: line.uom ?? payload.uom });
-    const typedSerials = rawItems.map((line) => String(line.serialNumber ?? '').trim().toLowerCase()).filter(Boolean);
-    if (new Set(typedSerials).size !== typedSerials.length) throw new BadRequestError('Two lines on this slip have the same serial number.');
-    for (const line of rawItems) await assertSerialNumberFree(line.serialNumber);
-    for (const tag of tags) {
-      const other = await prisma.item.findFirst({ where: { itemCode: { equals: tag, mode: 'insensitive' } }, select: { itemCode: true, name: true } });
-      if (other) throw new ConflictError(`Tag number ${tag} is already registered (${other.name}). Check the tag on the asset.`);
+      // Check every line before saving any, so a bad line can't leave half a slip registered
+      for (const line of rawItems) assertStockInLine({ ...line, name: line.name || payload.name, category: line.category || payload.category, itemType: line.itemType || payload.itemType, uom: line.uom ?? payload.uom });
+      const typedSerials = rawItems.map((line) => String(line.serialNumber ?? '').trim().toLowerCase()).filter(Boolean);
+      if (new Set(typedSerials).size !== typedSerials.length) throw new BadRequestError('Two lines on this slip have the same serial number.');
+      for (const line of rawItems) await assertSerialNumberFree(line.serialNumber);
+      for (const tag of tags) {
+        const other = await prisma.item.findFirst({ where: { itemCode: { equals: tag, mode: 'insensitive' } }, select: { itemCode: true, name: true } });
+        if (other) throw new ConflictError(`Tag number ${tag} is already registered (${other.name}). Check the tag on the asset.`);
+      }
     }
 
     // Check if any line has already been received on this Model 19 slip
     // (by description, or by IFMIS item code at the same price, so a differently typed description is caught too)
-    if (payload.ifmisSlipNumber && !payload.ifmisSlipNumber.startsWith('PENDING-')) {
+    if (!isDraft && payload.ifmisSlipNumber && !payload.ifmisSlipNumber.startsWith('PENDING-')) {
       for (const line of rawItems) {
         const lineName = String(line.name || payload.name || '').trim();
         if (lineName) {
@@ -1728,7 +1758,7 @@ export class StoreService {
     // Cross-voucher duplicate check: warn when a similarly-named item at the same non-zero price
     // already exists (AVAILABLE or PENDING_STOCK_IN) in the same store under a DIFFERENT voucher.
     // This is a soft warning: re-submitting with allowDuplicate=true bypasses it.
-    if (!payload.allowDuplicate) {
+    if (!isDraft && !payload.allowDuplicate) {
       const conflicts: DuplicateWarningDetails['conflicts'] = [];
       for (const line of rawItems) {
         const lineName = String(line.name || payload.name || '').trim();
@@ -1849,46 +1879,50 @@ export class StoreService {
             create: {
               dateGc: today.gc,
               dateEc: today.ec,
-              action: payload.isHistoricalData ? 'HISTORICAL_STOCK_IN' : 'STOCK_IN_REGISTERED',
+              action: isDraft ? 'DRAFT_SAVED' : payload.isHistoricalData ? 'HISTORICAL_STOCK_IN' : 'STOCK_IN_REGISTERED',
               fromEntity: `IFMIS Slip ${payload.ifmisSlipNumber}`,
-              toEntity: `${locationLabel(receivingStore) ?? 'Store'} (Pending Approval)`,
+              toEntity: isDraft ? 'Draft (Not Submitted)' : `${locationLabel(receivingStore) ?? 'Store'} (Pending Approval)`,
               performedBy: user ? user.fullNameEn : payload.registeredById,
               performedByRole: (user?.role ?? 'DATA_ENCODER') as any,
               ifmisSlipNumber: payload.ifmisSlipNumber,
-              notes: lineItem.remark || payload.notes || 'Registered in mirror system from IFMIS Model 19 slip',
+              notes: isDraft ? 'Receipt draft saved by encoder' : lineItem.remark || payload.notes || 'Registered in mirror system from IFMIS Model 19 slip',
             },
           },
         },
         include: ITEM_INCLUDES,
       });
 
-      const createdApproval = await prisma.transactionApproval.create({
-        data: {
-          transactionType: 'STOCK_IN' as any,
-          itemId: newItem.id,
-          itemCode: newItem.itemCode,
-          itemName: newItem.name,
-          ifmisSlipNumber: payload.ifmisSlipNumber,
-          ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
-          ifmisSlipDateEc: slipDateEc,
-          ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
-          requestedById: payload.registeredById,
-          purposeOrRemarks: lineItem.remark || payload.notes || `Received into store (Model 19 #${payload.ifmisSlipNumber})`,
-          status: 'PENDING' as any,
-          createdAtGc: today.gc,
-          createdAtEc: today.ec,
-        },
-      });
-      if (!primaryApproval) {
-        primaryApproval = mapApproval(createdApproval);
+      if (!isDraft) {
+        const createdApproval = await prisma.transactionApproval.create({
+          data: {
+            transactionType: 'STOCK_IN' as any,
+            itemId: newItem.id,
+            itemCode: newItem.itemCode,
+            itemName: newItem.name,
+            ifmisSlipNumber: payload.ifmisSlipNumber,
+            ifmisSlipDateGc: payload.ifmisSlipDateGc || today.gc,
+            ifmisSlipDateEc: slipDateEc,
+            ifmisSlipAttachmentUrl: payload.ifmisSlipAttachmentUrl,
+            requestedById: payload.registeredById,
+            purposeOrRemarks: lineItem.remark || payload.notes || `Received into store (Model 19 #${payload.ifmisSlipNumber})`,
+            status: 'PENDING' as any,
+            createdAtGc: today.gc,
+            createdAtEc: today.ec,
+          },
+        });
+        if (!primaryApproval) {
+          primaryApproval = mapApproval(createdApproval);
+        }
       }
 
       await addAuditLog(
         payload.registeredById,
-        payload.isHistoricalData ? 'REGISTER_HISTORICAL_ITEM' : 'REGISTER_STOCK_IN',
+        isDraft ? 'SAVE_DRAFT_STOCK_IN' : (payload.isHistoricalData ? 'REGISTER_HISTORICAL_ITEM' : 'REGISTER_STOCK_IN'),
         'STOCK_IN',
         newItem.id,
-        `Item ${newItem.itemCode} (${newItem.name}) registered via IFMIS Model 19 slip ${newItem.ifmisSlipNumber}`,
+        isDraft
+          ? `Draft item ${newItem.itemCode} (${newItem.name}) saved for Model 19 slip ${newItem.ifmisSlipNumber}`
+          : `Item ${newItem.itemCode} (${newItem.name}) registered via IFMIS Model 19 slip ${newItem.ifmisSlipNumber}`,
         newItem.ifmisSlipNumber,
       );
 
@@ -1904,43 +1938,68 @@ export class StoreService {
     const item = await prisma.item.findUnique({ where: { id: itemId } });
     if (!item) throw new NotFoundError(`Item ${itemId} not found.`);
 
-    const approval = await prisma.transactionApproval.findFirst({
-      where: { itemId, transactionType: 'STOCK_IN', status: { in: OPEN_STATUSES } },
-    });
-    // Its requester corrects it until the Team Leader endorses it (or once it is returned); the approver it waits for
-    // can correct it at their stage instead of rejecting it
-    const lockedMessage = `Item ${item.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`;
-    if (item.status !== 'PENDING_STOCK_IN' || !approval) throw new ConflictError(lockedMessage);
-    const correction = await correctionBy(approval, actorId, 'stock-in.write', lockedMessage);
+    const isCurrentDraft = item.status === 'DRAFT';
+    const isSavingAsDraft = payload.action === 'SAVE_AS_DRAFT' || (isCurrentDraft && payload.action !== 'SUBMIT_FOR_APPROVAL' && payload.isDraft !== false);
 
-    const slipNo = (payload.ifmisSlipNumber || '').trim();
-    const name = (payload.name || '').trim();
+    let approval: any = null;
+    let correction: any = { label: 'Draft updated' };
+
+    if (!isCurrentDraft) {
+      approval = await prisma.transactionApproval.findFirst({
+        where: { itemId, transactionType: 'STOCK_IN', status: { in: OPEN_STATUSES } },
+      });
+      // Its requester corrects it until the Team Leader endorses it (or once it is returned); the approver it waits for
+      // can correct it at their stage instead of rejecting it
+      const lockedMessage = `Item ${item.itemCode} can only be corrected while it is waiting for Team Leader endorsement or has been returned for correction. Ask an approver to return it for correction.`;
+      if (item.status !== 'PENDING_STOCK_IN' || !approval) throw new ConflictError(lockedMessage);
+      correction = await correctionBy(approval, actorId, 'stock-in.write', lockedMessage);
+    } else {
+      if (item.registeredById && item.registeredById !== actorId) {
+        const actor = await prisma.employee.findUnique({ where: { id: actorId } });
+        if (actor?.role !== 'SUPER_ADMIN' && actor?.role !== 'SYSTEM_ADMIN') {
+          throw new ForbiddenError('You can only edit your own drafts.');
+        }
+      }
+    }
+
+    const slipNo = (payload.ifmisSlipNumber || item.ifmisSlipNumber || '').trim();
+    const name = (payload.name || item.name || '').trim();
     if (payload.provisionType && !PROVISION_TYPES.includes(payload.provisionType)) throw new BadRequestError('Choose Purchase or Donation as the type of provision.');
     const donation = payload.provisionType === 'DONATION';
     const unitCost = payload.unitCostETB !== undefined ? Number(payload.unitCostETB) : (Number(item.unitCostETB) || 0);
     const quantity = Number(payload.quantity ?? 1);
-    if (!slipNo) throw new BadRequestError('IFMIS Slip Number is always mandatory.');
-    if (!name) throw new BadRequestError('Item description is required.');
-    if (!payload.storeLocationId) throw new BadRequestError('Receiving store is required.');
-    if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price cannot be negative.');
-    if (!Number.isFinite(quantity) || quantity <= 0) throw new BadRequestError('Quantity must be greater than 0.');
-    assertUnitOfMeasure(payload.uom);
-    if (payload.serialNumber?.trim() && payload.serialNumber.trim() !== item.serialNumber) await assertSerialNumberFree(payload.serialNumber, itemId);
-    // A correction can't turn the line into one already received on that Model 19
-    const sameLine = await findReceivedLine(
-      prisma,
-      slipNo,
-      {
-        name,
-        ifmisItemCode: payload.ifmisItemCode !== undefined ? payload.ifmisItemCode : readItemMeta(item.notes).ifmisItemCode,
-        unitCostETB: unitCost,
-      },
-      [itemId],
-    );
-    if (sameLine) {
-      throw new ConflictError(`"${sameLine.name}" is already on Model 19 No. ${sameLine.ifmisSlipNumber} as ${sameLine.itemCode}. Check the line before saving.`);
+
+    if (isSavingAsDraft) {
+      const hasName = Boolean(name);
+      const hasSlip = Boolean(slipNo && !slipNo.startsWith('PENDING-') && !slipNo.startsWith('DRAFT-'));
+      if (!hasName && !hasSlip) {
+        throw new BadRequestError('Please enter at least an item description or Model 19 number to save as draft.');
+      }
+    } else {
+      if (!slipNo) throw new BadRequestError('IFMIS Slip Number is always mandatory.');
+      if (!name) throw new BadRequestError('Item description is required.');
+      if (!payload.storeLocationId) throw new BadRequestError('Receiving store is required.');
+      if (!Number.isFinite(unitCost) || unitCost < 0) throw new BadRequestError('Unit price cannot be negative.');
+      if (!Number.isFinite(quantity) || quantity <= 0) throw new BadRequestError('Quantity must be greater than 0.');
+      assertUnitOfMeasure(payload.uom);
+      if (payload.serialNumber?.trim() && payload.serialNumber.trim() !== item.serialNumber) await assertSerialNumberFree(payload.serialNumber, itemId);
+      // A correction can't turn the line into one already received on that Model 19
+      const sameLine = await findReceivedLine(
+        prisma,
+        slipNo,
+        {
+          name,
+          ifmisItemCode: payload.ifmisItemCode !== undefined ? payload.ifmisItemCode : readItemMeta(item.notes).ifmisItemCode,
+          unitCostETB: unitCost,
+        },
+        [itemId],
+      );
+      if (sameLine) {
+        throw new ConflictError(`"${sameLine.name}" is already on Model 19 No. ${sameLine.ifmisSlipNumber} as ${sameLine.itemCode}. Check the line before saving.`);
+      }
     }
-    if (payload.storeLocationId !== item.storeLocationId) {
+    const targetStoreId = payload.storeLocationId || item.storeLocationId;
+    if (payload.storeLocationId && payload.storeLocationId !== item.storeLocationId) {
       const receivingStore = await prisma.location.findUnique({ where: { id: payload.storeLocationId }, include: { store: true } });
       if (!receivingStore) throw new BadRequestError('The selected receiving store no longer exists.');
       assertUsableLocation(receivingStore, 'the receiving store');
@@ -1948,12 +2007,12 @@ export class StoreService {
 
     // A new choice of who receives the goods has to be a store man of the (new) receiving store
     if (payload.receivedByEmployeeId) {
-      const receiver = await requireStoreKeeper(prisma, { locationId: payload.storeLocationId }, payload.receivedByEmployeeId, 'receiving the goods');
+      const receiver = await requireStoreKeeper(prisma, { locationId: targetStoreId }, payload.receivedByEmployeeId, 'receiving the goods');
       if (receiver) payload.receivedBy = receiver.fullNameEn;
     }
 
     const attachmentUrl = payload.ifmisSlipAttachmentUrl || item.ifmisSlipAttachmentUrl;
-    if (isSlipRequired() && !attachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
+    if (!isSavingAsDraft && isSlipRequired() && !attachmentUrl) throw new BadRequestError(SLIP_REQUIRED_MESSAGE);
 
     let previousMeta: any = {};
     try {
@@ -2021,7 +2080,8 @@ export class StoreService {
     };
     const changed = (Object.keys(after) as (keyof typeof after)[]).filter((k) => String(before[k] ?? '') !== String(after[k] ?? ''));
     const metaChanged = JSON.stringify(previousMeta) !== JSON.stringify(meta);
-    if (changed.length === 0 && !metaChanged) {
+    const isSubmittingDraft = isCurrentDraft && (payload.action === 'SUBMIT_FOR_APPROVAL' || payload.isDraft === false);
+    if (changed.length === 0 && !metaChanged && !isSubmittingDraft) {
       const unchanged = await prisma.item.findUnique({ where: { id: itemId }, include: ITEM_INCLUDES });
       return mapItem(unchanged);
     }
@@ -2033,6 +2093,8 @@ export class StoreService {
       ? `${correction.label}: ${changed.map((k) => `${k} ${before[k] ?? '—'} → ${after[k] ?? '—'}`).join('; ')}`
       : `${correction.label}: voucher details`;
 
+    const newStatus = isSubmittingDraft ? ItemStatus.PENDING_STOCK_IN : isCurrentDraft ? ItemStatus.DRAFT : item.status;
+
     const updated = await prisma.$transaction(async (tx) => {
       const saved = await tx.item.update({
         where: { id: itemId },
@@ -2043,6 +2105,7 @@ export class StoreService {
           serialNumber: after.serialNumber,
           unitCostETB: after.unitCostETB,
           condition: after.condition as any,
+          status: newStatus as any,
           storeLocationId: after.storeLocationId,
           ifmisSlipNumber: after.ifmisSlipNumber,
           ifmisSlipDateGc: after.ifmisSlipDateGc,
@@ -2053,31 +2116,51 @@ export class StoreService {
             create: {
               dateGc: today.gc,
               dateEc: today.ec,
-              action: 'STOCK_IN_EDITED',
-              fromEntity: `${await storeLabel(item.storeLocationId)} (Pending Approval)`,
-              toEntity: `${await storeLabel(payload.storeLocationId)} (Pending Approval)`,
+              action: isSubmittingDraft ? 'STOCK_IN_REGISTERED' : isCurrentDraft ? 'DRAFT_SAVED' : 'STOCK_IN_EDITED',
+              fromEntity: isCurrentDraft ? `IFMIS Slip ${after.ifmisSlipNumber}` : `${await storeLabel(item.storeLocationId)} (Pending Approval)`,
+              toEntity: isCurrentDraft && !isSubmittingDraft ? 'Draft (Not Submitted)' : `${await storeLabel(payload.storeLocationId || item.storeLocationId)} (Pending Approval)`,
               performedBy: actor ? actor.fullNameEn : actorId,
               performedByRole: (actor?.role ?? 'DATA_ENCODER') as any,
               ifmisSlipNumber: after.ifmisSlipNumber,
-              notes: summary,
+              notes: isSubmittingDraft ? 'Draft submitted for Team Leader verification' : summary,
             },
           },
         },
         include: ITEM_INCLUDES,
       });
 
-      // Keep the approval request showing the corrected details
-      await tx.transactionApproval.update({
-        where: { id: approval.id },
-        data: {
-          itemName: after.name,
-          ifmisSlipNumber: after.ifmisSlipNumber,
-          ifmisSlipDateGc: after.ifmisSlipDateGc,
-          ifmisSlipDateEc: formatGcToEc(after.ifmisSlipDateGc),
-          ifmisSlipAttachmentUrl: after.ifmisSlipAttachmentUrl,
-          purposeOrRemarks: remark || `Received into store (Model 19 #${after.ifmisSlipNumber})`,
-        },
-      });
+      if (isSubmittingDraft) {
+        await tx.transactionApproval.create({
+          data: {
+            transactionType: 'STOCK_IN' as any,
+            itemId: item.id,
+            itemCode: item.itemCode,
+            itemName: after.name,
+            ifmisSlipNumber: after.ifmisSlipNumber,
+            ifmisSlipDateGc: after.ifmisSlipDateGc,
+            ifmisSlipDateEc: formatGcToEc(after.ifmisSlipDateGc),
+            ifmisSlipAttachmentUrl: after.ifmisSlipAttachmentUrl,
+            requestedById: item.registeredById || actorId,
+            purposeOrRemarks: remark || `Received into store (Model 19 #${after.ifmisSlipNumber})`,
+            status: 'PENDING' as any,
+            createdAtGc: today.gc,
+            createdAtEc: today.ec,
+          },
+        });
+      } else if (approval) {
+        // Keep the approval request showing the corrected details
+        await tx.transactionApproval.update({
+          where: { id: approval.id },
+          data: {
+            itemName: after.name,
+            ifmisSlipNumber: after.ifmisSlipNumber,
+            ifmisSlipDateGc: after.ifmisSlipDateGc,
+            ifmisSlipDateEc: formatGcToEc(after.ifmisSlipDateGc),
+            ifmisSlipAttachmentUrl: after.ifmisSlipAttachmentUrl,
+            purposeOrRemarks: remark || `Received into store (Model 19 #${after.ifmisSlipNumber})`,
+          },
+        });
+      }
 
       await tx.auditLog.create({
         data: {
@@ -2086,11 +2169,15 @@ export class StoreService {
           userId: actorId,
           userName: actor ? actor.fullNameEn : 'System',
           userRole: (actor?.role ?? 'DATA_ENCODER') as any,
-          action: 'EDIT_STOCK_IN',
+          action: isSubmittingDraft ? 'SUBMIT_DRAFT_STOCK_IN' : isCurrentDraft ? 'UPDATE_DRAFT_STOCK_IN' : 'EDIT_STOCK_IN',
           entityType: 'STOCK_IN' as any,
           entityId: itemId,
           ifmisSlipNumber: after.ifmisSlipNumber,
-          details: `Item ${item.itemCode}: ${summary}`,
+          details: isSubmittingDraft
+            ? `Submitted draft Model 19 #${after.ifmisSlipNumber} for approval`
+            : isCurrentDraft
+              ? `Saved draft changes for Model 19 #${after.ifmisSlipNumber}`
+              : `Item ${item.itemCode}: ${summary}`,
           previousState: before as any,
           newState: after as any,
         },
@@ -2100,6 +2187,61 @@ export class StoreService {
     });
 
     return mapItem(updated);
+  }
+
+  public async deleteDraftItem(id: string, actorId: string, isAdmin = false): Promise<void> {
+    const item = await prisma.item.findUnique({ where: { id } });
+    if (!item) throw new NotFoundError('Draft not found.');
+    if (item.status !== 'DRAFT') {
+      throw new BadRequestError('Only draft records can be discarded.');
+    }
+    if (!isAdmin && item.registeredById && item.registeredById !== actorId) {
+      throw new ForbiddenError('You can only discard your own drafts.');
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.itemHistory.deleteMany({ where: { itemId: id } });
+      await tx.item.delete({ where: { id } });
+      await addAuditLog(
+        actorId,
+        'DISCARD_DRAFT',
+        'ITEM',
+        id,
+        `Draft item ${item.itemCode} (${item.name}) discarded`,
+        item.ifmisSlipNumber,
+        null,
+        null,
+        tx,
+      );
+    });
+  }
+
+  public async deleteDraftSlip(slipNumber: string, actorId: string, isAdmin = false): Promise<number> {
+    const items = await prisma.item.findMany({ where: { ifmisSlipNumber: slipNumber } });
+    if (items.length === 0) throw new NotFoundError('Draft voucher not found.');
+    const nonDrafts = items.filter((i) => i.status !== 'DRAFT');
+    if (nonDrafts.length > 0) {
+      throw new BadRequestError('Cannot discard: some items on this voucher are already submitted or active.');
+    }
+    if (!isAdmin && items.some((i) => i.registeredById && i.registeredById !== actorId)) {
+      throw new ForbiddenError('You can only discard your own drafts.');
+    }
+    const ids = items.map((i) => i.id);
+    await prisma.$transaction(async (tx) => {
+      await tx.itemHistory.deleteMany({ where: { itemId: { in: ids } } });
+      await tx.item.deleteMany({ where: { id: { in: ids } } });
+      await addAuditLog(
+        actorId,
+        'DISCARD_DRAFT_VOUCHER',
+        'ITEM',
+        slipNumber,
+        `Draft voucher ${slipNumber} (${items.length} items) discarded`,
+        slipNumber,
+        null,
+        null,
+        tx,
+      );
+    });
+    return items.length;
   }
 
   /**

@@ -18,6 +18,7 @@ export enum ItemStatus {
   PENDING_DISPOSAL = 'PENDING_DISPOSAL', // Disposal requested, waiting for approval (still in store)
   DISPOSED = 'DISPOSED',                 // Disposed of through an approved disposal
   REJECTED = 'REJECTED',                 // Receipt (Stock-In) rejected
+  DRAFT = 'DRAFT',                       // Saved as draft before submission
 }
 
 export enum TransactionType {
@@ -44,6 +45,8 @@ export enum ApprovalStatus {
   CANCELLED = 'CANCELLED',
   /** Formally voided after approval; inventory movements reversed with full audit trail */
   VOIDED = 'VOIDED',
+  /** Saved as draft before submission */
+  DRAFT = 'DRAFT',
 }
 
 export enum AssetCategory {
@@ -659,6 +662,8 @@ export interface CreateStockInRequest {
   ifmisSlipDateGc: string;
   ifmisSlipAttachmentUrl?: string;
   isHistoricalData?: boolean;
+  action?: 'SAVE_AS_DRAFT' | 'SUBMIT_FOR_APPROVAL';
+  isDraft?: boolean;
   condition?: ItemCondition;
   registeredById: string;
   notes?: string;
@@ -730,6 +735,8 @@ export interface UpdateStockInRequest {
   ifmisSlipDateGc: string;
   /** New slip upload; omit to keep the current attachment */
   ifmisSlipAttachmentUrl?: string;
+  action?: 'SAVE_AS_DRAFT' | 'SUBMIT_FOR_APPROVAL';
+  isDraft?: boolean;
 
   poNumber?: string;
   transactionType?: string;
@@ -806,6 +813,8 @@ export interface UpdateStockOutRequest {
   ifmisSlipDateGc: string;
   /** New slip upload; omit to keep the current attachment */
   ifmisSlipAttachmentUrl?: string;
+  action?: 'SAVE_AS_DRAFT' | 'SUBMIT_FOR_APPROVAL';
+  isDraft?: boolean;
   /** Purpose of the issue (optional: it is not on the IFMIS Model 22); for a disposal, the reason (required) */
   purpose?: string;
   remark?: string;
@@ -989,6 +998,8 @@ export interface UpdateReturnRequest {
   ifmisSlipDateGc: string;
   /** New slip upload; omit to keep the current attachment */
   ifmisSlipAttachmentUrl?: string;
+  action?: 'SAVE_AS_DRAFT' | 'SUBMIT_FOR_APPROVAL';
+  isDraft?: boolean;
   returnReason: string;
   condition: ItemCondition;
   /** The store (location) it goes back to; omit to keep what the request has */

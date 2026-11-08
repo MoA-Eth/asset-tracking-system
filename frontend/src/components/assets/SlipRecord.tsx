@@ -23,6 +23,7 @@ export const slipLineTotal = (item: ItemWithRelations): number => {
 };
 
 const STATE_WORDS: Record<AssetState, string> = {
+  DRAFT: 'draft',
   RECEIPT_PENDING: 'receipt pending',
   IN_STORE: 'in store',
   ISSUED: 'issued',
@@ -33,6 +34,7 @@ const STATE_WORDS: Record<AssetState, string> = {
 
 /** How each state looks as a badge, in the colours used across the table */
 const STATE_BADGES: Record<AssetState, { label: string; tone: string }> = {
+  DRAFT: { label: 'Draft 📝', tone: 'bg-slate-100 text-slate-700 border border-slate-300' },
   RECEIPT_PENDING: { label: 'Receipt pending', tone: statusTone.pending },
   REQUEST_PENDING: { label: 'Request pending', tone: statusTone.pending },
   IN_STORE: { label: 'In store', tone: statusTone.inStore },

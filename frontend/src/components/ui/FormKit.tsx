@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ChevronDown, CheckCircle2, Eye, LucideIcon, Paperclip, RefreshCw, RotateCcw, Upload, X } from 'lucide-react';
+import { AlertCircle, ChevronDown, CheckCircle2, Eye, FileText, LucideIcon, Paperclip, RefreshCw, RotateCcw, Upload, X } from 'lucide-react';
 import { SlipViewerModal } from './SlipViewerModal';
 
 /**
@@ -533,6 +533,9 @@ interface FormFooterProps {
   submitLabel: string;
   onCancel: () => void;
   onReset?: () => void;
+  onSaveDraft?: () => void;
+  saveDraftLabel?: string;
+  saveDraftDisabled?: boolean;
   /** Use inside the Modal body so the actions stay visible while scrolling */
   sticky?: boolean;
   /** Keeps the submit button off, e.g. until every required field is filled */
@@ -580,7 +583,22 @@ export function findField(form: HTMLElement, field: string, given: Record<string
   return named.find(([name]) => name.endsWith(` ${want}`))?.[1] ?? null;
 }
 
-export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, submitLabel, onCancel, onReset, sticky = true, submitDisabled = false, missingFields = [], note: customNote, fieldTargets, allowIncomplete = true }) => {
+export const FormFooter: React.FC<FormFooterProps> = ({
+  accent,
+  submitting,
+  submitLabel,
+  onCancel,
+  onReset,
+  onSaveDraft,
+  saveDraftLabel,
+  saveDraftDisabled = false,
+  sticky = true,
+  submitDisabled = false,
+  missingFields = [],
+  note: customNote,
+  fieldTargets,
+  allowIncomplete = true,
+}) => {
   const note = customNote;
   const shown: string[] = [];
   const footer = useRef<HTMLDivElement>(null);
@@ -616,7 +634,9 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
     )}
     <div className="flex flex-wrap items-center justify-end gap-2">
       {!note && !submitDisabled && !submitting && (
-        <span className="hidden text-[11px] text-slate-400 sm:inline">Ctrl + Enter to submit</span>
+        <span className="hidden text-[11px] text-slate-400 sm:inline">
+          {onSaveDraft ? 'Ctrl + S to save draft · Ctrl + Enter to submit' : 'Ctrl + Enter to submit'}
+        </span>
       )}
       {note && (
         <p id="form-footer-note" className="text-[11px] text-slate-500">
@@ -650,6 +670,17 @@ export const FormFooter: React.FC<FormFooterProps> = ({ accent, submitting, subm
         <X className="h-3.5 w-3.5" />
         Cancel
       </button>
+      {onSaveDraft && (
+        <button
+          type="button"
+          onClick={onSaveDraft}
+          disabled={submitting || saveDraftDisabled}
+          className="flex items-center gap-1.5 rounded-[4px] border border-slate-300 bg-white px-4 py-2 text-[13px] font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 shadow-2xs"
+        >
+          <FileText className="h-3.5 w-3.5 text-slate-500" />
+          {saveDraftLabel || 'Save as Draft'}
+        </button>
+      )}
       <button
         type="submit"
         disabled={submitting || submitDisabled}

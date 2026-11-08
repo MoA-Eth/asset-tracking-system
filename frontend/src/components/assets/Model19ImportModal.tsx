@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Info, RefreshCw, Upload, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, FileEdit, FileSpreadsheet, Info, RefreshCw, Upload, XCircle } from 'lucide-react';
 import { api } from '../../api/client';
 import { Modal } from '../ui/Modal';
 import { FormError, FormNotice } from '../ui/FormKit';
@@ -18,8 +18,8 @@ import {
   StoreOption,
 } from '../../utils/model19-import';
 
-/** What became of a receipt once sent: received (waiting for approval) or refused by the server, and why */
-type Sent = { ok: true } | { ok: false; reason: string };
+/** What became of a receipt once sent: received (waiting for approval), saved as draft, or refused by the server, and why */
+type Sent = { ok: true; isDraft?: boolean } | { ok: false; reason: string };
 
 export interface ImportDuplicateConflict {
   row: number;
@@ -196,15 +196,20 @@ export const Model19ImportModal: React.FC<{
 
   const excludedRowsCount = conflicts.filter((c) => c.matchType === 'DISPOSED' || decisions.get(c.row) === 'DISCARD').length;
 
-  const send = async () => {
+  const send = async (asDraft = false) => {
     if (!receipts || ready.length === 0 || !user?.id) return;
     setBusy('sending');
     const results = new Map<string, Sent>();
     // One by one: a receipt the server refuses (e.g. already received) does not stop the others
     for (const r of ready) {
       try {
-        await api.registerStockIn({ ...stockInRequestFor(r, user.id), allowDuplicate: allowDuplicates });
-        results.set(keyOf(r), { ok: true });
+        await api.registerStockIn({
+          ...stockInRequestFor(r, user.id),
+          action: asDraft ? 'SAVE_AS_DRAFT' : 'SUBMIT_FOR_APPROVAL',
+          isDraft: asDraft,
+          allowDuplicate: allowDuplicates,
+        });
+        results.set(keyOf(r), { ok: true, isDraft: asDraft });
       } catch (e: any) {
         results.set(keyOf(r), { ok: false, reason: e?.message || 'Refused by the server' });
       }
@@ -214,13 +219,26 @@ export const Model19ImportModal: React.FC<{
     const received = [...results.values()].filter((x) => x.ok).length;
     const refused = results.size - received;
     if (received > 0) onImported();
-    if (refused === 0) toast.success('Model 19s received', `${received} ${received === 1 ? 'receipt is' : 'receipts are'} waiting for approval.`);
-    else toast.warning('Some receipts were not received', `${received} received, ${refused} refused: see why below.`);
+    if (refused === 0) {
+      if (asDraft) {
+        toast.success('Model 19 drafts saved', `${received} ${received === 1 ? 'draft is' : 'drafts are'} saved in Drafts.`);
+      } else {
+        toast.success('Model 19s received', `${received} ${received === 1 ? 'receipt is' : 'receipts are'} waiting for approval.`);
+      }
+    } else {
+      toast.warning('Some receipts were not processed', `${received} processed, ${refused} refused: see why below.`);
+    }
   };
 
   const statusOf = (r: ImportReceipt) => {
     const s = sent.get(keyOf(r));
-    if (s?.ok) return <span className={`${pill} ${statusTone.approved}`}>Received · waiting for approval</span>;
+    if (s?.ok) {
+      return s.isDraft ? (
+        <span className={`${pill} bg-slate-100 text-slate-700 border border-slate-300 font-medium`}>Saved in Drafts 📝</span>
+      ) : (
+        <span className={`${pill} ${statusTone.approved}`}>Received · waiting for approval</span>
+      );
+    }
     if (s && !s.ok) return <span className={`${pill} ${statusTone.rejected}`}>Refused</span>;
     return receiptOk(r) ? <span className={`${pill} ${statusTone.inStore}`}>Ready</span> : <span className={`${pill} ${statusTone.rejected}`}>Not sent: fix the file</span>;
   };
@@ -243,8 +261,7 @@ export const Model19ImportModal: React.FC<{
       <div className="space-y-4">
         {scanRequired && (
           <FormNotice icon={AlertTriangle} tone="warn">
-            A scanned copy of the slip is required on every receipt (Settings → System), and an Excel file has none. Receive these Model 19s on the
-            receive form with their scans, or make the scan optional first.
+            A scanned copy of the slip is required on every receipt (Settings → System). You can click <strong>Save as Drafts</strong> to import these rows into ATS now and attach their signed scans later, or make scans optional first before submitting directly for approval.
           </FormNotice>
         )}
 
@@ -572,7 +589,16 @@ export const Model19ImportModal: React.FC<{
                     <span>Allow registration if items match existing assets in store</span>
                   </label>
                   <button type="button" onClick={close} disabled={busy !== null} className={btn.secondary}>Cancel</button>
-                  <button type="button" onClick={send} disabled={busy !== null || ready.length === 0 || scanRequired} className={btn.primary}>
+                  <button
+                    type="button"
+                    onClick={() => send(true)}
+                    disabled={busy !== null || ready.length === 0}
+                    className="inline-flex items-center gap-1.5 rounded-[4px] border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {busy === 'sending' ? <RefreshCw className="h-4 w-4 animate-spin text-slate-500" /> : <FileEdit className="h-4 w-4 text-slate-500" />}
+                    {busy === 'sending' ? 'Saving drafts…' : `Save ${ready.length} as Draft${ready.length === 1 ? '' : 's'}`}
+                  </button>
+                  <button type="button" onClick={() => send(false)} disabled={busy !== null || ready.length === 0 || scanRequired} className={btn.primary}>
                     {busy === 'sending' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                     {busy === 'sending' ? `Receiving ${sent.size + 1} of ${ready.length}…` : `Receive ${ready.length} Model 19${ready.length === 1 ? '' : 's'}`}
                   </button>

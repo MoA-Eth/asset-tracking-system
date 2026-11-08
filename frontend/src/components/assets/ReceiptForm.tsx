@@ -35,7 +35,7 @@ export interface StockInFormProps {
   locations: Location[];
   employees: Employee[];
   onCancel: () => void;
-  onSuccess: (result: any, voucher?: Model19Voucher) => void;
+  onSuccess: (result?: any, voucher?: Model19Voucher) => void;
   /** When set, the form corrects this registration instead of creating a new one */
   editItem?: ItemWithRelations;
   /** When editing a batch of 2 or more items (e.g. a rejected Model 19) */
@@ -1074,7 +1074,10 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       try {
         const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
         const slipUrl = copyFile ? (await api.uploadSlip(copyFile)).url : undefined;
+        const isDraftRecord = editItem.status === ItemStatus.DRAFT;
         const res = await api.updateStockIn(editItem.id, {
+          action: isDraftRecord ? 'SUBMIT_FOR_APPROVAL' : undefined,
+          isDraft: false,
           name: effectiveName,
           category: effectiveCategory,
           itemType: effectiveType,
@@ -1111,6 +1114,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         for (const line of existingLines) {
           const lineCat = COMMON_CATEGORIES.find((c) => c.value === line.category);
           await api.updateStockIn(line.id!, {
+            action: isDraftRecord ? 'SUBMIT_FOR_APPROVAL' : undefined,
+            isDraft: false,
             storeLocationId: effectiveStoreLocId || editItem.storeLocationId,
             ifmisSlipNumber: slipNo,
             ifmisSlipDateGc,
@@ -1165,6 +1170,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
             }));
             await api.registerStockIn({
               ...added[0],
+              action: isDraftRecord ? 'SUBMIT_FOR_APPROVAL' : undefined,
+              isDraft: false,
               serialNumber: '',
               storeLocationId: effectiveStoreLocId || editItem.storeLocationId,
               ifmisSlipNumber: slipNo,
@@ -1194,12 +1201,14 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
         const isMultiBatch = Boolean(editBatch && editBatch.length > 1);
         const totalItemsCount = 1 + extraLines.length;
         toast.success(
-          'Receipt updated',
-          isMultiBatch
-            ? `Model 19 #${slipNo} (${totalItemsCount} items) was adjusted and resubmitted for Team Leader endorsement.`
-            : extraLines.length > 0
-              ? `${editItem.itemCode} was corrected and ${extraLines.length} item${extraLines.length === 1 ? '' : 's'} added to Model 19 #${slipNo}. All wait for Team Leader endorsement.`
-              : `${editItem.itemCode} was corrected. ${returned ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`
+          isDraftRecord ? 'Submitted for approval' : 'Receipt updated',
+          isDraftRecord
+            ? `Model 19 #${slipNo} was submitted for Team Leader endorsement.`
+            : isMultiBatch
+              ? `Model 19 #${slipNo} (${totalItemsCount} items) was adjusted and resubmitted for Team Leader endorsement.`
+              : extraLines.length > 0
+                ? `${editItem.itemCode} was corrected and ${extraLines.length} item${extraLines.length === 1 ? '' : 's'} added to Model 19 #${slipNo}. All wait for Team Leader endorsement.`
+                : `${editItem.itemCode} was corrected. ${returned ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`
         );
         onSuccess(res);
       } catch (err: any) {
@@ -1364,6 +1373,241 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     }
   };
 
+  const handleSaveDraft = async () => {
+    if (isSubmittingRef.current || submitting) return;
+    setFormError(null);
+
+    const hasName = Boolean(name.trim() || extraLines.some((l) => l.name.trim()));
+    const hasSlip = Boolean(ifmisSlipNumber.trim());
+
+    if (!hasName && !hasSlip) {
+      const msg = 'Please enter at least an item description or Model 19 number to save as draft.';
+      setFormError(msg);
+      toast.error('Cannot save empty draft', msg);
+      return;
+    }
+
+    const effectiveCategory = (category || AssetCategory.IT_EQUIPMENT) as AssetCategory;
+    const effectiveType = (itemType || ItemType.FIXED) as ItemType;
+    const effectiveTransactionType = transactionType || "PO Receipt";
+    const effectiveStoreLocId = storeLocationId || locations[0]?.id || "";
+    const slipNo = ifmisSlipNumber.trim() || `DRAFT-${Date.now()}`;
+    const effectiveName = name.trim() || extraLines[0]?.name?.trim() || "Draft Item";
+    const effectiveQty = Number(quantity) > 0 ? Number(quantity) : 1;
+    const effectiveUom = uom.trim() || "EA";
+    const effectiveUnitCost = Number(unitCostETB) >= 0 ? Number(unitCostETB) : 0;
+
+    setSubmittingLock(true);
+    try {
+      const selectedCat = COMMON_CATEGORIES.find((c) => c.value === category);
+      const slipUrl = copyFile ? (await api.uploadSlip(copyFile).catch(() => ({ url: undefined }))).url : undefined;
+
+      if (editItem) {
+        await api.updateStockIn(editItem.id, {
+          action: 'SAVE_AS_DRAFT',
+          isDraft: true,
+          name: effectiveName,
+          category: effectiveCategory,
+          itemType: effectiveType,
+          serialNumber: serialNumber.trim() || undefined,
+          unitCostETB: effectiveUnitCost,
+          condition: (condition as ItemCondition) || editItem.condition || ItemCondition.NEW,
+          storeLocationId: effectiveStoreLocId || editItem.storeLocationId,
+          ifmisSlipNumber: slipNo,
+          ifmisSlipDateGc,
+          ifmisSlipAttachmentUrl: slipUrl || editItem.ifmisSlipAttachmentUrl || undefined,
+          provisionType,
+          ifmisItemCode: ifmisItemCode.trim() || undefined,
+          poNumber: donation ? undefined : poNumber.trim() || undefined,
+          transactionType: effectiveTransactionType,
+          source: source.trim() || undefined,
+          donor: donation ? source.trim() || undefined : undefined,
+          buyer: donation ? undefined : buyer.trim() || undefined,
+          programName: programName.trim() || undefined,
+          uom: effectiveUom,
+          subInventory: subInventory.trim() || undefined,
+          itemCategoryDisplay: selectedCat?.label,
+          lotBatchNo: lotBatchNo.trim() || undefined,
+          printedPadFrom: printedPadFrom.trim() || undefined,
+          printedPadTo: printedPadTo.trim() || undefined,
+          quantity: effectiveQty,
+          deliveredBy: deliveredBy.trim() || undefined,
+          receivedByEmployeeId: receivedById || undefined,
+          remark: item1Remark.trim() || remark.trim() || undefined,
+        });
+
+        // Existing sibling lines
+        const existingLines = extraLines.filter((l) => !!l.id);
+        for (const line of existingLines) {
+          const lineCat = COMMON_CATEGORIES.find((c) => c.value === line.category);
+          await api.updateStockIn(line.id!, {
+            action: 'SAVE_AS_DRAFT',
+            isDraft: true,
+            storeLocationId: effectiveStoreLocId || editItem.storeLocationId,
+            ifmisSlipNumber: slipNo,
+            ifmisSlipDateGc,
+            ifmisSlipAttachmentUrl: slipUrl ?? editItem.ifmisSlipAttachmentUrl ?? undefined,
+            name: line.name.trim() || 'Draft Item',
+            category: (line.category || effectiveCategory) as AssetCategory,
+            itemType: (line.itemType || effectiveType) as ItemType,
+            condition: (line.condition as ItemCondition) || (condition as ItemCondition) || editItem.condition || ItemCondition.NEW,
+            unitCostETB: Number(line.unitPrice) || 0,
+            vatApplicable,
+            additionalCharges: vatApplicable ? 0 : Number(line.additionalCharges) || 0,
+            ifmisItemCode: line.ifmisCode?.trim() || undefined,
+            provisionType,
+            poNumber: donation ? undefined : poNumber.trim() || undefined,
+            transactionType: effectiveTransactionType,
+            source: source.trim() || undefined,
+            donor: donation ? source.trim() || undefined : undefined,
+            buyer: donation ? undefined : buyer.trim() || undefined,
+            programName: programName.trim() || undefined,
+            uom: line.uom || effectiveUom,
+            subInventory: line.subInventory?.trim() || undefined,
+            itemCategoryDisplay: lineCat?.label || selectedCat?.label,
+            quantity: Number(line.quantity) || 1,
+            deliveredBy: deliveredBy.trim() || undefined,
+            receivedByEmployeeId: receivedById || undefined,
+            remark: line.remark?.trim() || undefined,
+          });
+        }
+
+        // Newly added lines to this draft batch
+        const newLines = extraLines.filter((l) => !l.id);
+        if (newLines.length > 0) {
+          const added = newLines.map((l) => {
+            const base = (Number(l.quantity) || 1) * (Number(l.unitPrice) || 0);
+            const lineVat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+            const lineTotal = base + (vatApplicable ? lineVat : (Number(l.additionalCharges) || 0));
+            return {
+              ifmisItemCode: l.ifmisCode?.trim() || undefined,
+              name: l.name.trim() || 'Draft Item',
+              category: (l.category || effectiveCategory) as AssetCategory,
+              itemType: (l.itemType || effectiveType) as ItemType,
+              condition: (l.condition as ItemCondition) || (condition as ItemCondition) || editItem.condition || ItemCondition.NEW,
+              serialNumber: '',
+              unitCostETB: Number(l.unitPrice) || 0,
+              uom: l.uom || effectiveUom,
+              subInventory: l.subInventory?.trim() || undefined,
+              itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label || selectedCat?.label,
+              quantity: Number(l.quantity) || 1,
+              totalAmount: lineTotal,
+              vatApplicable,
+              additionalCharges: vatApplicable ? 0 : Number(l.additionalCharges) || 0,
+              remark: l.remark?.trim() || undefined,
+            };
+          });
+          await api.registerStockIn({
+            action: 'SAVE_AS_DRAFT',
+            isDraft: true,
+            name: added[0].name,
+            category: added[0].category,
+            itemType: added[0].itemType,
+            serialNumber: added[0].serialNumber,
+            unitCostETB: added[0].unitCostETB,
+            storeLocationId: effectiveStoreLocId || editItem.storeLocationId,
+            ifmisSlipNumber: slipNo,
+            ifmisSlipDateGc,
+            ifmisSlipAttachmentUrl: slipUrl ?? editItem.ifmisSlipAttachmentUrl ?? undefined,
+            isHistoricalData: false,
+            registeredById: user?.id || '',
+            provisionType,
+            poNumber: donation ? undefined : poNumber.trim() || undefined,
+            transactionType: effectiveTransactionType,
+            source: source.trim() || undefined,
+            donor: donation ? source.trim() || undefined : undefined,
+            buyer: donation ? undefined : buyer.trim() || undefined,
+            programName: programName.trim() || undefined,
+            deliveredBy: deliveredBy.trim() || undefined,
+            receivedByEmployeeId: receivedById || undefined,
+            items: added,
+          });
+        }
+        toast.success('Draft saved', `Draft for Model 19 #${slipNo} saved.`);
+        onSuccess({ success: true, isDraft: true });
+      } else {
+        const allItems = [
+          {
+            ifmisItemCode: ifmisItemCode.trim() || undefined,
+            name: effectiveName,
+            category: effectiveCategory,
+            itemType: effectiveType,
+            serialNumber: serialNumber.trim(),
+            unitCostETB: effectiveUnitCost,
+            condition: (condition as ItemCondition) || ItemCondition.NEW,
+            uom: effectiveUom,
+            subInventory: subInventory.trim() || undefined,
+            itemCategoryDisplay: selectedCat?.label,
+            lotBatchNo: lotBatchNo.trim() || undefined,
+            printedPadFrom: printedPadFrom.trim() || undefined,
+            printedPadTo: printedPadTo.trim() || undefined,
+            quantity: effectiveQty,
+            totalAmount,
+            vatApplicable,
+            additionalCharges: vatApplicable ? 0 : Number(additionalCharges) || 0,
+            remark: item1Remark.trim() || remark.trim() || undefined,
+          },
+          ...extraLines.map((l) => {
+            const base = (Number(l.quantity) || 1) * (Number(l.unitPrice) || 0);
+            const lineVat = vatApplicable ? Math.round(base * 0.15 * 100) / 100 : 0;
+            const lineTotal = base + (vatApplicable ? lineVat : (Number(l.additionalCharges) || 0));
+            return {
+              ifmisItemCode: l.ifmisCode?.trim() || undefined,
+              name: l.name.trim() || 'Draft Item',
+              category: (l.category || effectiveCategory) as AssetCategory,
+              itemType: (l.itemType || effectiveType) as ItemType,
+              serialNumber: '',
+              unitCostETB: Number(l.unitPrice) || 0,
+              condition: (l.condition as ItemCondition) || ItemCondition.NEW,
+              uom: l.uom || effectiveUom,
+              subInventory: l.subInventory?.trim() || undefined,
+              itemCategoryDisplay: COMMON_CATEGORIES.find((c) => c.value === l.category)?.label || selectedCat?.label,
+              quantity: Number(l.quantity) || 1,
+              totalAmount: lineTotal,
+              vatApplicable,
+              additionalCharges: vatApplicable ? 0 : Number(l.additionalCharges) || 0,
+              remark: l.remark?.trim() || undefined,
+            };
+          }),
+        ];
+
+        const res = await api.registerStockIn({
+          action: 'SAVE_AS_DRAFT',
+          isDraft: true,
+          name: effectiveName,
+          category: effectiveCategory,
+          itemType: effectiveType,
+          serialNumber: serialNumber.trim(),
+          unitCostETB: effectiveUnitCost,
+          storeLocationId: effectiveStoreLocId,
+          ifmisSlipNumber: slipNo,
+          ifmisSlipDateGc,
+          ifmisSlipAttachmentUrl: slipUrl,
+          isHistoricalData: false,
+          registeredById: user?.id || '',
+          provisionType,
+          poNumber: donation ? undefined : poNumber.trim() || undefined,
+          transactionType: effectiveTransactionType,
+          source: source.trim() || undefined,
+          donor: donation ? source.trim() || undefined : undefined,
+          buyer: donation ? undefined : buyer.trim() || undefined,
+          programName: programName.trim() || undefined,
+          deliveredBy: deliveredBy.trim() || undefined,
+          receivedByEmployeeId: receivedById || undefined,
+          items: allItems,
+        });
+        toast.success('Draft saved', `Draft for Model 19 #${slipNo} saved.`);
+        onSuccess(res || { success: true, isDraft: true });
+      }
+    } catch (err: any) {
+      const msg = err.message || 'Failed to save draft.';
+      setFormError(msg);
+      toast.error('Draft could not be saved', msg);
+    } finally {
+      setSubmittingLock(false);
+    }
+  };
+
   const input = (opts?: { mono?: boolean; align?: 'left' | 'right' | 'center'; invalid?: boolean }) => inputClass('emerald', opts);
 
   // Item 1 is a row of the items table like every other line
@@ -1508,8 +1752,33 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     </tr>
   );
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleSaveDraft();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleSaveDraft]);
+
   return (
-    <form id="stock-in-form" onSubmit={handleSubmit} onKeyDown={submitOnCtrlEnter(!submitting)} className="space-y-6">
+    <form
+      id="stock-in-form"
+      onSubmit={handleSubmit}
+      onKeyDown={(e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleSaveDraft();
+        } else {
+          submitOnCtrlEnter(!submitting)(e);
+        }
+      }}
+      className="space-y-6"
+    >
       <FormError message={formError} />
 
       {/* Cross-voucher duplicate warning confirmation dialog */}
@@ -1789,8 +2058,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
       <FormFooter
         accent="emerald"
         submitting={submitting}
+        onSaveDraft={handleSaveDraft}
+        saveDraftLabel="Save as Draft"
+        saveDraftDisabled={submitting}
         submitLabel={
-          isEdit
+          isEdit && editItem?.status !== ItemStatus.DRAFT
             ? editBatch && editBatch.length > 1
               ? returned
                 ? `Save and resubmit ${extraLines.length + 1} items`

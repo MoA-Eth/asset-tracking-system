@@ -48,6 +48,10 @@ router.post('/approvals/cancel', requirePermission('stock-in.write', 'stock-out.
 router.post('/approvals/void', requirePermission('approvals.void'), controller.voidApproved);
 
 
+// Discard drafts (creator or admin)
+router.delete('/draft-slip/:slipNumber', requirePermission('stock-in.write'), controller.deleteDraftSlip);
+router.delete('/draft/:id', requirePermission('stock-in.write'), controller.deleteDraftItem);
+
 // Super Admin only: administrative deletions
 router.delete('/slip/:slipNumber', requireRole(UserRole.SUPER_ADMIN), controller.deleteSlip);
 router.delete('/:id', requireRole(UserRole.SUPER_ADMIN), controller.deleteItem);

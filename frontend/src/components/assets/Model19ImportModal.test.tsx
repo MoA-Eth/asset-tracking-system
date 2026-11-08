@@ -253,4 +253,27 @@ describe('importing Model 19s from Excel', () => {
       items: [{ name: 'Fresh New Item', quantity: 1 }],
     });
   });
+
+  it('allows saving Model 19s as drafts even when a scanned slip is required', async () => {
+    const user = userEvent.setup();
+    applySystemSettings({ slipAttachmentPolicy: 'REQUIRED' });
+    const preview = await choose();
+
+    expect(preview).toHaveTextContent('0000101');
+    expect(screen.getByRole('button', { name: 'Receive 1 Model 19' })).toBeDisabled();
+
+    const saveDraftBtn = screen.getByRole('button', { name: 'Save 1 as Draft' });
+    expect(saveDraftBtn).not.toBeDisabled();
+
+    await user.click(saveDraftBtn);
+    await waitFor(() => expect(api.registerStockIn).toHaveBeenCalledTimes(1));
+
+    expect(vi.mocked(api.registerStockIn).mock.calls[0][0]).toMatchObject({
+      action: 'SAVE_AS_DRAFT',
+      isDraft: true,
+      ifmisSlipNumber: '0000101',
+    });
+    expect(await screen.findByText(/Saved in Drafts 📝/)).toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith('Model 19 drafts saved', expect.stringContaining('1 draft is saved in Drafts'));
+  });
 });

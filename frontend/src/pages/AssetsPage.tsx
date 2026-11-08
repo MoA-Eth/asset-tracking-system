@@ -93,13 +93,14 @@ import {
 
 // Where an item is now, or what it waits for. (A "Transferred / returned" filter was history, not a state: a moved
 // record says which Model 21 moved it, and "model 21" in the search finds them.) A view saved with it opens on All.
-type AssetFilter = 'ALL' | 'IN_STORE' | 'ISSUED' | 'PENDING' | 'REJECTED' | 'DISPOSED';
+type AssetFilter = 'ALL' | 'IN_STORE' | 'ISSUED' | 'PENDING' | 'REJECTED' | 'DRAFTS' | 'DISPOSED';
 const FILTERS: { value: AssetFilter; label: string }[] = [
   { value: 'ALL', label: 'All' },
   { value: 'IN_STORE', label: 'In store' },
   { value: 'ISSUED', label: 'Issued' },
   { value: 'PENDING', label: 'Pending' },
   { value: 'REJECTED', label: 'Rejected' },
+  { value: 'DRAFTS', label: 'Drafts' },
   { value: 'DISPOSED', label: 'Disposed' },
 ];
 /** What each status count is: items (one per line received), not units; an item can count under more than one */
@@ -109,6 +110,7 @@ const FILTER_HINTS: Record<AssetFilter, string> = {
   ISSUED: 'Items with all or some units issued; a partly issued item also counts under In store',
   PENDING: 'Items waiting for an approver',
   REJECTED: 'Rejected receipts, receipts sent back to their requester, and items whose last request was rejected',
+  DRAFTS: 'Draft receipts saved by encoders before submission',
   DISPOSED: 'Items with all or some units disposed of',
 };
 
@@ -227,6 +229,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     count: number;
     items?: ItemWithRelations[];
   } | null>(null);
+  const [discardingDraft, setDiscardingDraft] = useState<{ id?: string; slip?: string; name: string; count?: number } | null>(null);
+  const [discardingLoading, setDiscardingLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [dbPrograms, setDbPrograms] = useState<string[]>([]);
   const [staleOnly, setStaleOnly] = useState<boolean>(savedView.staleOnly);
@@ -475,7 +479,8 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         const store = item.storeLocation ? storeLocationLabel(item.storeLocation) : 'Store';
         const holder = item.currentCustodian?.fullNameEn || employeeName(item.currentCustodianId) || item.heldByOrganization || (item.assignedDepartment ? departmentLabel(item.assignedDepartment) : undefined);
         let state: AssetState;
-        if (item.status === ItemStatus.REJECTED) state = 'REJECTED';
+        if (item.status === ItemStatus.DRAFT) state = 'DRAFT';
+        else if (item.status === ItemStatus.REJECTED) state = 'REJECTED';
         else if (item.status === ItemStatus.DISPOSED) state = 'DISPOSED';
         else if (item.status === ItemStatus.PENDING_STOCK_IN) state = 'RECEIPT_PENDING';
         else if (request) state = 'REQUEST_PENDING';
@@ -556,15 +561,21 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
     const sentBack = row.state === 'RECEIPT_PENDING' && row.request?.status === ApprovalStatus.REJECTED;
     // Units on a waiting issue or disposal are still on the shelf until the last approver approves
     const stillInStore = row.item.status === ItemStatus.PENDING_STOCK_OUT || row.item.status === ItemStatus.PENDING_DISPOSAL;
+    const isDraft = row.state === 'DRAFT' || row.item.status === ItemStatus.DRAFT;
     const matchesState =
-      f === 'ALL' ||
-      (f === 'PENDING'
-        ? (row.state === 'RECEIPT_PENDING' && !sentBack) || row.state === 'REQUEST_PENDING'
-        : f === 'REJECTED'
-          ? row.state === 'REJECTED' || !!row.rejected || sentBack
-          : f === 'IN_STORE'
-            ? row.state === 'IN_STORE' || stillInStore
-            : row.state === f);
+      f === 'ALL'
+        ? true
+        : f === 'DRAFTS'
+          ? isDraft
+          : !isDraft && (
+            f === 'PENDING'
+              ? (row.state === 'RECEIPT_PENDING' && !sentBack) || row.state === 'REQUEST_PENDING'
+              : f === 'REJECTED'
+                ? row.state === 'REJECTED' || !!row.rejected || sentBack
+                : f === 'IN_STORE'
+                  ? row.state === 'IN_STORE' || stillInStore
+                  : row.state === f
+          );
     if (!matchesState) return false;
 
     if (locId !== 'ALL' && row.item.storeLocationId !== locId) {
@@ -1798,21 +1809,44 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           {rowTotal(row, children) > 0 ? formatETB(rowTotal(row, children)) : '—'}
         </td>
         <td className={`py-2.5 pl-1 pr-3 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
-          <RowActionsMenu
-            label={item.itemCode}
-            actions={[
-              // Viewing and printing are done from the record (click the row; its printer button), not this menu
-              ...actionsFor(row),
-              {
-                label: 'Duplicate as new receipt',
-                icon: Copy,
-                onClick: () => duplicateItem(item),
-                // A piece split off a batch is not a receipt: duplicate the registration it came from.
-                // A rejected record has it among its own actions already.
-                hidden: !canReceive || !!item.parentItemId || row.state === 'REJECTED' || item.status === ItemStatus.REJECTED,
-              },
-            ]}
-          />
+          {row.state === 'DRAFT' || item.status === ItemStatus.DRAFT ? (
+            <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => openReceipt(item, undefined, `edit-draft-${item.id}-${Date.now()}`)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md text-emerald-800 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 transition shadow-2xs cursor-pointer"
+                title="Continue editing draft receipt"
+              >
+                <Pencil className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Continue</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDiscardingDraft({ id: item.id, name: item.name, slip: item.ifmisSlipNumber })}
+                className="p-1 text-slate-500 hover:text-rose-600 rounded-md border border-slate-200 hover:border-rose-300 hover:bg-rose-50 transition cursor-pointer"
+                title="Discard draft"
+                aria-label="Discard draft"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <RowActionsMenu
+              label={item.itemCode}
+              actions={[
+                // Viewing and printing are done from the record (click the row; its printer button), not this menu
+                ...actionsFor(row),
+                {
+                  label: 'Duplicate as new receipt',
+                  icon: Copy,
+                  onClick: () => duplicateItem(item),
+                  // A piece split off a batch is not a receipt: duplicate the registration it came from.
+                  // A rejected record has it among its own actions already.
+                  hidden: !canReceive || !!item.parentItemId || row.state === 'REJECTED' || item.status === ItemStatus.REJECTED,
+                },
+              ]}
+            />
+          )}
         </td>
       </tr>
     );
@@ -1960,33 +1994,65 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           {total > 0 ? formatETB(total) : isCountSlip ? <span className="text-slate-400 font-normal text-xs">-- estimated count</span> : '—'}
         </td>
         <td className={`py-2.5 pl-1 pr-3 ${table.actionsCell}`}>
-          <RowActionsMenu
-            label={`Model 19 ${lead.ifmisSlipNumber}`}
-            actions={[
-              {
-                label: 'Edit receipt',
-                icon: Pencil,
-                onClick: () => editSlip(members),
-                hidden: !canReceive || !returnedReceiptOf(members),
-              },
-              resubmitAction(returnedReceiptOf(members)),
-              cancelAction(returnedReceiptOf(members)),
-              { label: 'Issue (Model 22)', icon: PackageMinus, onClick: () => issueSlip(key, members), hidden: !canIssue || issuableOf(members).length === 0 },
-              { label: 'Transfer (Model 21)', icon: ArrowRightLeft, onClick: () => transferSlip(key, members), hidden: !canTransfer || transferableOf(members).length === 0 },
-              { label: 'Duplicate as new receipt', icon: Copy, onClick: () => duplicateSlip(members), hidden: !canReceive },
-              {
-                label: `Delete Model 19 & all ${members.length} item(s)`,
-                icon: Trash2,
-                onClick: () =>
-                  setSlipToDelete({
+          {rowsOf.some((r) => r.state === 'DRAFT' || r.item.status === ItemStatus.DRAFT) ? (
+            <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => {
+                  const itemsOfSlip = members.map((g) => g.row.item);
+                  openReceipt(itemsOfSlip[0], undefined, `edit-draft-slip-${itemsOfSlip[0].id}-${Date.now()}`, undefined, itemsOfSlip);
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md text-emerald-800 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 transition shadow-2xs cursor-pointer"
+                title="Continue editing draft receipt"
+              >
+                <Pencil className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Continue</span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setDiscardingDraft({
                     slip: lead.ifmisSlipNumber,
+                    name: lead.name,
                     count: members.length,
-                    items: members.map((m) => m.row.item),
-                  }),
-                hidden: user?.role !== UserRole.SUPER_ADMIN,
-              },
-            ]}
-          />
+                  })
+                }
+                className="p-1 text-slate-500 hover:text-rose-600 rounded-md border border-slate-200 hover:border-rose-300 hover:bg-rose-50 transition cursor-pointer"
+                title="Discard draft voucher"
+                aria-label="Discard draft voucher"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <RowActionsMenu
+              label={`Model 19 ${lead.ifmisSlipNumber}`}
+              actions={[
+                {
+                  label: 'Edit receipt',
+                  icon: Pencil,
+                  onClick: () => editSlip(members),
+                  hidden: !canReceive || !returnedReceiptOf(members),
+                },
+                resubmitAction(returnedReceiptOf(members)),
+                cancelAction(returnedReceiptOf(members)),
+                { label: 'Issue (Model 22)', icon: PackageMinus, onClick: () => issueSlip(key, members), hidden: !canIssue || issuableOf(members).length === 0 },
+                { label: 'Transfer (Model 21)', icon: ArrowRightLeft, onClick: () => transferSlip(key, members), hidden: !canTransfer || transferableOf(members).length === 0 },
+                { label: 'Duplicate as new receipt', icon: Copy, onClick: () => duplicateSlip(members), hidden: !canReceive },
+                {
+                  label: `Delete Model 19 & all ${members.length} item(s)`,
+                  icon: Trash2,
+                  onClick: () =>
+                    setSlipToDelete({
+                      slip: lead.ifmisSlipNumber,
+                      count: members.length,
+                      items: members.map((m) => m.row.item),
+                    }),
+                  hidden: user?.role !== UserRole.SUPER_ADMIN,
+                },
+              ]}
+            />
+          )}
         </td>
       </tr>
     );
@@ -2401,6 +2467,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   const isActive = filter === f.value;
                   const isPending = f.value === 'PENDING' && count && count > 0;
                   const isRejected = f.value === 'REJECTED' && count && count > 0;
+                  const isDraft = f.value === 'DRAFTS' && count && count > 0;
                   return (
                     <button
                       key={f.value}
@@ -2423,7 +2490,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                               ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300/80'
                               : isRejected
                                 ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300/80'
-                                : 'bg-slate-200/80 text-slate-600'
+                                : isDraft
+                                  ? 'bg-slate-200 text-slate-800 ring-1 ring-slate-300'
+                                  : 'bg-slate-200/80 text-slate-600'
                             }`}
                         >
                           {count}
@@ -3246,6 +3315,68 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 </button>
               </div>
             )}
+          </div>
+        </Modal>
+      )}
+
+      {discardingDraft && (
+        <Modal
+          isOpen
+          onClose={() => !discardingLoading && setDiscardingDraft(null)}
+          title={discardingDraft.count && discardingDraft.count > 1 ? 'Discard Draft Voucher?' : 'Discard Draft Item?'}
+          subtitle="This draft record will be permanently deleted. Live inventory is unaffected."
+          size="sm"
+        >
+          <div className="space-y-3 text-xs">
+            <p className="text-slate-700">
+              Are you sure you want to discard{' '}
+              {discardingDraft.count && discardingDraft.count > 1 ? (
+                <>
+                  draft Model 19 <strong className="text-slate-900">#{discardingDraft.slip}</strong> ({discardingDraft.count} items)?
+                </>
+              ) : (
+                <>
+                  draft item <strong className="text-slate-900">{discardingDraft.name}</strong>
+                  {discardingDraft.slip ? ` on Model 19 #${discardingDraft.slip}` : ''}?
+                </>
+              )}
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={discardingLoading}
+                onClick={() => setDiscardingDraft(null)}
+                className={btn.secondary}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={discardingLoading}
+                onClick={async () => {
+                  setDiscardingLoading(true);
+                  try {
+                    if (discardingDraft.slip && discardingDraft.count && discardingDraft.count > 1) {
+                      await api.deleteDraftSlip(discardingDraft.slip);
+                    } else if (discardingDraft.id) {
+                      await api.deleteDraftItem(discardingDraft.id);
+                    } else if (discardingDraft.slip) {
+                      await api.deleteDraftSlip(discardingDraft.slip);
+                    }
+                    toast.success('Draft discarded', 'The draft record was removed.');
+                    setDiscardingDraft(null);
+                    await fetchData(true);
+                  } catch (err: any) {
+                    toast.error('Failed to discard draft', err.message || 'Server error');
+                  } finally {
+                    setDiscardingLoading(false);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-md bg-rose-700 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-rose-800 transition cursor-pointer disabled:opacity-60"
+              >
+                {discardingLoading ? 'Discarding…' : 'Discard Draft'}
+              </button>
+            </div>
           </div>
         </Modal>
       )}

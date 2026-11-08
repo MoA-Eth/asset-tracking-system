@@ -240,6 +240,20 @@ export const api = {
   },
 
   
+  /** Discard a draft item (creator or admin) */
+  deleteDraftItem: (id: string) => {
+    return request<{ success: boolean; message: string }>(`/items/draft/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /** Discard an entire draft voucher (creator or admin) */
+  deleteDraftSlip: (slipNumber: string) => {
+    return request<{ success: boolean; message: string; count: number }>(`/items/draft-slip/${encodeURIComponent(slipNumber)}`, {
+      method: 'DELETE',
+    });
+  },
+
   /** Super Admin only: permanently delete an asset record */
   deleteItem: (id: string) => {
     return request<{ success: boolean; message: string }>(`/items/${encodeURIComponent(id)}`, {
