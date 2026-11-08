@@ -1678,7 +1678,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                 {nested && <span className="mr-1.5 text-emerald-700 font-mono text-xs select-none" aria-hidden="true">↳</span>}
                 {item.name}
                 {nested && (
-                  <span className={`ml-2 inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold ${row.state === 'DISPOSED'
+                  <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${row.state === 'DISPOSED'
                     ? 'bg-slate-200/80 text-slate-700'
                     : row.state === 'ISSUED'
                       ? 'bg-blue-100 text-blue-800'
@@ -1926,13 +1926,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               </span>
               <span className="flex items-center gap-x-1.5 whitespace-nowrap text-xs text-slate-600 mt-0.5">
                 {isCountSlip ? (
-                  <span className="inline-flex items-center gap-1 rounded-[4px] border border-purple-200 bg-purple-50 px-1.5 text-[10px] font-semibold text-purple-800">
+                  <span className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-800">
                     <Lock className="h-2.5 w-2.5 text-purple-600" />
                     <span>ቆጠራ · Count</span>
                     {lead.ifmisSlipNumber && <span className="font-mono text-purple-900">· {lead.ifmisSlipNumber}</span>}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-[4px] border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-semibold text-slate-700">
+                  <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
                     <span>Model 19</span>
                     {lead.ifmisSlipNumber && <span className="font-mono text-slate-600">· {lead.ifmisSlipNumber}</span>}
                   </span>
@@ -2766,7 +2766,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                             setIsActionsMenuOpen(false);
                             handleExportCSV();
                           }}
-                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
                         >
                           <Download className="w-3.5 h-3.5 text-slate-500" />
                           <span>Export CSV</span>
@@ -2779,25 +2779,28 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                             setIsActionsMenuOpen(false);
                             void handleExportExcel();
                           }}
-                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
                         >
                           <Download className="w-3.5 h-3.5 text-slate-500" />
                           <span>Export Excel (with summary)</span>
                         </button>
                         {/* Several Model 19s at once, from the Excel template: each waits for approval as from the receive form */}
                         {canReceive && (
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => {
-                              setIsActionsMenuOpen(false);
-                              setIsModel19ImportOpen(true);
-                            }}
-                            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-[4px] text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
-                          >
-                            <Upload className="w-3.5 h-3.5 text-slate-500" />
-                            <span>Import Model 19s (Excel)</span>
-                          </button>
+                          <>
+                            <div className="h-px bg-slate-100 my-1" />
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                setIsActionsMenuOpen(false);
+                                setIsModel19ImportOpen(true);
+                              }}
+                              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-slate-700 hover:text-emerald-900 hover:bg-emerald-50/70 font-semibold transition cursor-pointer text-left"
+                            >
+                              <Upload className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Import Model 19s (Excel)</span>
+                            </button>
+                          </>
                         )}
                       </div>
                     )}
@@ -2946,7 +2949,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               <AssetsTableSkeleton />
             ) : sortedShown.length === 0 ? (
               <div className="py-16 text-center space-y-1">
-                <Boxes className="w-8 h-8 text-slate-300 mx-auto" />
+                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-2 text-slate-400">
+                  <Boxes className="w-6 h-6 text-slate-400" />
+                </div>
                 <p className="text-sm font-bold text-slate-800">{rows.length === 0 ? 'No assets yet' : 'No assets match'}</p>
                 <p className="text-xs text-slate-500">
                   {rows.length === 0
@@ -2968,7 +2973,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       setSortColumn('activity');
                       setSortDirection('desc');
                     }}
-                    className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 transition cursor-pointer shadow-2xs"
+                    className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-400 hover:text-emerald-800 transition cursor-pointer shadow-2xs"
                   >
                     <X className="w-3.5 h-3.5 text-slate-400" />
                     Clear all filters
@@ -3108,7 +3113,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                                                   <div className="flex items-center gap-1.5">
                                                     <span>{item.name}</span>
                                                     {duplicateSuspectMap.has(item.id) && (
-                                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-200">
+                                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-200">
                                                         <AlertTriangle className="h-2.5 w-2.5 text-amber-600" />
                                                         Dup
                                                       </span>

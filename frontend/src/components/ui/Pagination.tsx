@@ -102,7 +102,7 @@ export const Pagination: React.FC<PaginationProps> = ({ pager, label = 'rows', c
             <select
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
-              className="h-8 rounded-[4px] border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-emerald-600 focus:outline-none cursor-pointer"
+              className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-emerald-600 focus:outline-none cursor-pointer"
             >
               {PAGE_SIZES.map((size) => (
                 <option key={size} value={size}>
