@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Upload,
   Check,
+  Lock,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table } from '../components/ui/theme';
@@ -1836,10 +1837,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
         onKeyDown={(e) => {
           if (e.key === 'Enter' && e.target === e.currentTarget) openSlip(key);
         }}
-        className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${touched
+        className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 transition-colors ${touched
           ? table.rowHighlight
           : isOpen
-            ? 'bg-sky-50/40 hover:bg-sky-50/60 transition-colors'
+            ? 'bg-slate-50/70 border-l-4 border-l-emerald-600 hover:bg-slate-100/70'
             : table.row
           }`}
       >
@@ -1855,7 +1856,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               aria-label={isOpen ? `Hide ${members.length} items` : `Show ${members.length} items`}
               className="mt-0.5 -ml-1 text-slate-400 hover:text-slate-800 transition cursor-pointer p-0.5 rounded hover:bg-slate-200/60"
             >
-              <ChevronRight className={`h-4 w-4 transition-transform duration-150 ${isOpen ? 'rotate-90 text-slate-700' : ''}`} />
+              <ChevronRight className={`h-4 w-4 transition-transform duration-150 ${isOpen ? 'rotate-90 text-emerald-700' : ''}`} />
             </button>
             <div className="min-w-0 flex-1">
               {/* Searching by an item's name puts that item first, so the row shows what was looked for, not "+1" */}
@@ -1867,16 +1868,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
               </span>
               <span className="flex items-center gap-x-1.5 whitespace-nowrap text-xs text-slate-600 mt-0.5">
                 {isCountSlip ? (
-                  <span className="rounded-[4px] border border-purple-200 bg-purple-100 px-1.5 text-[10px] font-semibold text-purple-800">
-                    ቆጠራ · Count
+                  <span className="inline-flex items-center gap-1 rounded-[4px] border border-purple-200 bg-purple-50 px-1.5 text-[10px] font-semibold text-purple-800">
+                    <Lock className="h-2.5 w-2.5 text-purple-600" />
+                    <span>ቆጠራ · Count</span>
+                    {lead.ifmisSlipNumber && <span className="font-mono text-purple-900">· {lead.ifmisSlipNumber}</span>}
                   </span>
                 ) : (
-                  <span className="rounded-[4px] border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-semibold text-slate-700">
-                    Model 19
+                  <span className="inline-flex items-center gap-1 rounded-[4px] border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-semibold text-slate-700">
+                    <span>Model 19</span>
+                    {lead.ifmisSlipNumber && <span className="font-mono text-slate-600">· {lead.ifmisSlipNumber}</span>}
                   </span>
                 )}
-                {lead.ifmisSlipNumber && <span className="font-mono text-[11px] text-slate-500">· {lead.ifmisSlipNumber}</span>}
-                {lead.poNumber && <span className="text-[11px] text-slate-500">PO {lead.poNumber}</span>}
+                {lead.poNumber && <span className="text-[11px] text-slate-500 font-mono">PO {lead.poNumber}</span>}
               </span>
             </div>
           </div>
@@ -1954,7 +1957,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <SlipUnitCost rows={rowsOf} isOpen={isOpen} onViewDetails={() => toggleSlip(key)} />
         </td>
         <td className="pl-2 pr-4 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
-          {formatETB(total)}
+          {total > 0 ? formatETB(total) : isCountSlip ? <span className="text-slate-400 font-normal text-xs">-- estimated count</span> : '—'}
         </td>
         <td className={`py-2.5 pl-1 pr-3 ${table.actionsCell}`}>
           <RowActionsMenu
@@ -2878,6 +2881,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                           currentSortColumn={sortColumn}
                           currentSortDirection={sortDirection}
                           onSort={(key) => handleSort(key as SortColumn)}
+                          title="Asset name, code or Model 19 batch summary"
                           thClassName="pl-5 pr-4 py-2 min-w-[240px]"
                         />
                         <SortableHeader
@@ -2952,13 +2956,72 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                           return (
                             <React.Fragment key={`slip-${entry.slip}`}>
                               {renderSlipRow(entry.slip, entry.members, isOpen)}
-                              {isOpen &&
-                                entry.members.map((member) => (
-                                  <React.Fragment key={member.row.item.id}>
-                                    {renderRow(member.row, { group: member, open: openBatches.has(member.row.item.id) }, true)}
-                                    {openBatches.has(member.row.item.id) && member.children.map((child) => renderRow(child, undefined, true))}
-                                  </React.Fragment>
-                                ))}
+                              {isOpen && (
+                                <tr className="bg-slate-50/50">
+                                  <td colSpan={8} className="px-5 py-3 border-l-4 border-l-emerald-600">
+                                    <div className="rounded-lg border border-slate-200/90 bg-white overflow-hidden shadow-xs">
+                                      <table className="min-w-full text-left text-xs divide-y divide-slate-100" aria-label={`Line items in ${entry.slip}`}>
+                                        <thead className="bg-slate-100/90 text-slate-700 font-semibold text-[11px] uppercase tracking-wider">
+                                          <tr>
+                                            <th className="px-3.5 py-2.5 w-16">Line #</th>
+                                            <th className="px-3.5 py-2.5 w-32">Asset Tag</th>
+                                            <th className="px-3.5 py-2.5 w-44">Serial Number</th>
+                                            <th className="px-3.5 py-2.5">Item Description</th>
+                                            <th className="px-3.5 py-2.5 w-36">Category</th>
+                                            <th className="px-3.5 py-2.5 text-right w-36">Unit Cost</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 bg-white">
+                                          {entry.members.map((member, idx) => {
+                                            const item = member.row.item;
+                                            const lineNum = String(idx + 1).padStart(2, '0');
+                                            const assetTag = item.ifmisTagNumber || item.itemCode;
+                                            const hasSerial = item.serialNumber && item.serialNumber.trim().length > 0;
+                                            return (
+                                              <tr
+                                                key={item.id}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  openRecord(item.id, entry.slip);
+                                                }}
+                                                className="hover:bg-emerald-50/50 cursor-pointer transition-colors"
+                                                title={`Click to view details of ${item.name} (${item.itemCode})`}
+                                              >
+                                                <td className="px-3.5 py-2.5 font-mono text-slate-500 tabular-nums">{lineNum}</td>
+                                                <td className="px-3.5 py-2.5 font-mono font-medium text-slate-800">{assetTag}</td>
+                                                <td className="px-3.5 py-2.5">
+                                                  {hasSerial ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-amber-50 text-amber-900 border border-amber-200/90">
+                                                      [SN: {item.serialNumber}]
+                                                    </span>
+                                                  ) : (
+                                                    <span className="text-slate-300 font-normal select-none">—</span>
+                                                  )}
+                                                </td>
+                                                <td className="px-3.5 py-2.5 font-medium text-slate-900">
+                                                  <div className="flex items-center gap-1.5">
+                                                    <span>{item.name}</span>
+                                                    {duplicateSuspectMap.has(item.id) && (
+                                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-200">
+                                                        <AlertTriangle className="h-2.5 w-2.5 text-amber-600" />
+                                                        Dup
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </td>
+                                                <td className="px-3.5 py-2.5 text-slate-600">{categoryLabel(item)}</td>
+                                                <td className="px-3.5 py-2.5 text-right font-medium text-slate-900 tabular-nums">
+                                                  {item.unitCostETB > 0 ? formatETB(item.unitCostETB) : '—'}
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
                             </React.Fragment>
                           );
                         }

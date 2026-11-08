@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Undo2 } from 'lucide-react';
+import { Clock, Lock, Undo2 } from 'lucide-react';
 import { statusTone, pill } from '../ui/theme';
 import { ItemWithRelations, TransactionApproval, AssetCategory, ItemType } from '../../types/asset-management';
 import { SHOW_VEHICLE_PARTS } from './receipt-options';
@@ -314,13 +314,15 @@ export const AssetStatus: React.FC<{ row: AssetRow; partly?: boolean }> = ({ row
   }
 
   const label = requestLabel(row.request?.transactionType ?? 'STOCK_IN', row.request?.requestDetails).pending;
+  const stage = row.request ? stageLabel(row.request) : undefined;
   return (
     <span
       className={`${pill} ${statusTone.pending}`}
-      title={row.request ? `${label} · ${stageLabel(row.request)}` : label}
+      title={row.request ? `${label} · ${stage}` : label}
     >
       <Clock className="h-3 w-3" />
-      {label}
+      <span>{label}</span>
+      {stage && stage.toLowerCase().includes('dept') && <Lock className="h-2.5 w-2.5 text-amber-700 ml-0.5 inline shrink-0" />}
     </span>
   );
 };
