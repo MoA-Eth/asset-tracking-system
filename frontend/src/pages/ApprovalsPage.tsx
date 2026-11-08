@@ -533,7 +533,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
   // Single Action Handler
   /** A small mistake is corrected in the asset's record instead of rejecting the request; not on one's own request */
-  const correctButton = (a: TransactionApproval) =>
+  const correctButton = (a: TransactionApproval, label = 'Edit') =>
     a.requestedById !== user?.id && (
       <button
         type="button"
@@ -546,7 +546,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
         title="Fix a typo in the request yourself; it stays with you to endorse or authorize"
         className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
       >
-        <Pencil className="w-4 h-4" /> Edit
+        <Pencil className="w-4 h-4" /> {label}
       </button>
     );
 
@@ -1573,6 +1573,16 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
           key={viewingApproval.id}
           approval={viewingApproval}
           onClose={() => setViewingApproval(null)}
+          onEdit={
+            canReview && viewingApproval.status === ApprovalStatus.PENDING && viewingApproval.requestedById !== user?.id
+              ? () => {
+                  const target = viewingApproval;
+                  setViewingApproval(null);
+                  requestCorrection(target.itemId, target.transactionType === 'STOCK_IN' ? undefined : target.id);
+                  onNavigate('assets');
+                }
+              : undefined
+          }
         />
       )}
 
@@ -1611,11 +1621,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   </h3>
                 </div>
               </div>
-              <CloseButton
-                onClose={() => setSelectedApproval(null)}
-                label="Close review"
-                title="Close (Esc)"
-              />
+              <div className="flex items-center gap-2 shrink-0">
+                {selectedApproval.status === ApprovalStatus.PENDING && canReview && correctButton(selectedApproval, 'Edit Request')}
+                <CloseButton
+                  onClose={() => setSelectedApproval(null)}
+                  label="Close review"
+                  title="Close (Esc)"
+                />
+              </div>
             </div>
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4 text-xs">
@@ -1908,11 +1921,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                   const canAuthorize = (isChiefDirector && isHighVal) || (isDeptHead && !isHighVal) || (!isChiefDirector && !isDeptHead);
                   if (!canAuthorize) {
                     return (
-                      <span className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-3 py-1.5 rounded-[4px]">
-                        {isHighVal
-                          ? 'High-Value (> 10M ETB): Reserved for Chief Director'
-                          : 'Standard (≤ 10M ETB): Handled by the Department Head'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {correctButton(selectedApproval)}
+                        <span className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-3 py-1.5 rounded-[4px]">
+                          {isHighVal
+                            ? 'High-Value (> 10M ETB): Reserved for Chief Director'
+                            : 'Standard (≤ 10M ETB): Handled by the Department Head'}
+                        </span>
+                      </div>
                     );
                   }
                   return (

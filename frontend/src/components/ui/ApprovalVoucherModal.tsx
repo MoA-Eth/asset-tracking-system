@@ -33,13 +33,14 @@ type Loaded =
 interface Props {
   approval: TransactionApproval;
   onClose: () => void;
+  onEdit?: () => void;
 }
 
 /**
  * A request shown as the voucher it belongs to (Model 19, 22, 21 or the disposal form), the same paper the other
  * pages print, so an approver reads it the way it will be signed. When no voucher can be built, the item's record is shown.
  */
-export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose }) => {
+export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose, onEdit }) => {
   const { user } = useAuth();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState(false);
@@ -110,13 +111,13 @@ export const ApprovalVoucherModal: React.FC<Props> = ({ approval, onClose }) => 
 
   switch (loaded.kind) {
     case 'model19':
-      return <Model19PrintModal isOpen onClose={onClose} voucher={loaded.voucher} />;
+      return <Model19PrintModal isOpen onClose={onClose} onEdit={onEdit} voucher={loaded.voucher} />;
     case 'model22':
-      return <Model22PrintModal isOpen onClose={onClose} voucher={loaded.voucher} />;
+      return <Model22PrintModal isOpen onClose={onClose} onEdit={onEdit} voucher={loaded.voucher} />;
     case 'model21':
-      return <Model21PrintModal isOpen onClose={onClose} voucher={loaded.voucher} />;
+      return <Model21PrintModal isOpen onClose={onClose} onEdit={onEdit} voucher={loaded.voucher} />;
     default:
-      return <DisposalPrintModal isOpen onClose={onClose} voucher={loaded.voucher} />;
+      return <DisposalPrintModal isOpen onClose={onClose} onEdit={onEdit} voucher={loaded.voucher} />;
   }
 };
 

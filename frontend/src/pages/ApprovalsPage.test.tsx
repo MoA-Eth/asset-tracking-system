@@ -12,7 +12,17 @@ const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.
 vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('../context/ToastContext', () => ({ useToast: () => toast }));
 vi.mock('../api/client', () => ({
-  api: { getApprovals: vi.fn(), getEmployees: vi.fn(), handleApproval: vi.fn(), handleSlipApproval: vi.fn(), voidApprovals: vi.fn() },
+  api: {
+    getApprovals: vi.fn(),
+    getEmployees: vi.fn(),
+    getItems: vi.fn().mockResolvedValue([]),
+    getItemById: vi.fn().mockResolvedValue(undefined),
+    getDepartments: vi.fn().mockResolvedValue([]),
+    getLocations: vi.fn().mockResolvedValue([]),
+    handleApproval: vi.fn(),
+    handleSlipApproval: vi.fn(),
+    voidApprovals: vi.fn(),
+  },
 }));
 
 const receiptLine = (id: string, name: string, extra: object = {}) => ({
@@ -24,6 +34,10 @@ const receiptLine = (id: string, name: string, extra: object = {}) => ({
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api.getEmployees).mockResolvedValue([]);
+  vi.mocked(api.getDepartments).mockResolvedValue([]);
+  vi.mocked(api.getLocations).mockResolvedValue([]);
+  vi.mocked(api.getItems).mockResolvedValue([]);
+  vi.mocked(api.getItemById).mockResolvedValue(undefined as any);
   vi.mocked(api.getApprovals).mockResolvedValue([
     receiptLine('A', 'Dell Latitude'),
     receiptLine('B', 'HP Printer'),
@@ -466,6 +480,45 @@ describe('Approvals: correct a small mistake instead of rejecting', () => {
 
     auth.role = 'TEAM_LEADER';
     auth.user.permissions = ['approvals.endorse'];
+  });
+
+  it('allows clicking Edit Request directly from the review modal header', async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const opened = vi.fn();
+    window.addEventListener(OPEN_CORRECTION_EVENT, opened);
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={onNavigate} />);
+    const row = (await screen.findByText('MOA-D')).closest('tr')!;
+    await user.click(within(row).getByRole('button', { name: /Review/ }));
+    const headerEditBtn = screen.getByRole('button', { name: 'Edit Request' });
+    expect(headerEditBtn).toBeInTheDocument();
+    await user.click(headerEditBtn);
+    expect(onNavigate).toHaveBeenCalledWith('assets');
+    expect(opened).toHaveBeenCalled();
+    expect(takePendingCorrection(() => true)).toEqual({ itemId: 'item-D', requestId: undefined });
+    window.removeEventListener(OPEN_CORRECTION_EVENT, opened);
+  });
+
+  it('allows clicking Edit from the full voucher view modal', async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const opened = vi.fn();
+    window.addEventListener(OPEN_CORRECTION_EVENT, opened);
+    vi.mocked(api.getItems).mockResolvedValue([
+      { id: 'item-D', itemCode: 'MOA-D', name: 'Scanner', status: 'PENDING', receivedDateGc: '2026-10-20' } as any,
+    ]);
+    render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={onNavigate} />);
+    const row = (await screen.findByText('MOA-D')).closest('tr')!;
+    await user.click(within(row).getByRole('button', { name: /Actions for/i }));
+    await user.click(screen.getByRole('menuitem', { name: /View Full Voucher/i }));
+
+    const voucherEditBtn = await screen.findByRole('button', { name: /Edit Model 19 request/i });
+    expect(voucherEditBtn).toBeInTheDocument();
+    await user.click(voucherEditBtn);
+    expect(onNavigate).toHaveBeenCalledWith('assets');
+    expect(opened).toHaveBeenCalled();
+    expect(takePendingCorrection(() => true)).toEqual({ itemId: 'item-D', requestId: undefined });
+    window.removeEventListener(OPEN_CORRECTION_EVENT, opened);
   });
 });
 

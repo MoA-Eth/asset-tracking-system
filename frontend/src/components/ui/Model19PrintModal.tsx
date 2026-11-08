@@ -10,10 +10,11 @@ import {
 interface Model19PrintModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onEdit?: () => void;
   voucher: Model19Voucher | null;
 }
 
-export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, onClose, voucher }) => {
+export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, onClose, onEdit, voucher }) => {
   if (!isOpen || !voucher) return null;
 
   const grandTotal = voucher.grandTotal || voucher.items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0);
@@ -41,6 +42,7 @@ export const Model19PrintModal: React.FC<Model19PrintModalProps> = ({ isOpen, on
     <VoucherShell
       isOpen={isOpen}
       onClose={onClose}
+      onEdit={onEdit}
       model="Model 19"
       toolbarTitle="Model 19 Receiving Report (የዕቃ መረከቢያ ሰነድ)"
       title="Goods Receiving Report"

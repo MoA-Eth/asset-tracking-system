@@ -10,10 +10,11 @@ import {
 interface Model22PrintModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onEdit?: () => void;
   voucher: Model22Voucher | null;
 }
 
-export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, onClose, voucher }) => {
+export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, onClose, onEdit, voucher }) => {
   if (!isOpen || !voucher) return null;
 
   const total = voucher.total || voucher.items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0);
@@ -26,6 +27,7 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, on
     <VoucherShell
       isOpen={isOpen}
       onClose={onClose}
+      onEdit={onEdit}
       model="Model 22"
       toolbarTitle={disposal ? 'Model 22 Disposal Voucher (write-off)' : 'Model 22 Issue Voucher (የዕቃ ወጪ ማዘዣ እና መረከቢያ)'}
       title={disposal ? 'Articles Or Property Disposed Of (Write-off)' : 'Receipt For Articles Or Property Issued'}

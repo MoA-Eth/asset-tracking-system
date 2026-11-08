@@ -1,5 +1,5 @@
 import React from 'react';
-import { Printer, FileText, ChevronRight } from 'lucide-react';
+import { Printer, FileText, ChevronRight, Pencil } from 'lucide-react';
 import { CloseButton } from './CloseButton';
 import { BackButton } from './BackButton';
 import { MoaLogo } from './MoaLogo';
@@ -41,6 +41,7 @@ export const VOUCHER_TD = 'p-1.5 border-r border-slate-300 print:border-black la
 interface VoucherShellProps {
   isOpen: boolean;
   onClose: () => void;
+  onEdit?: () => void;
   /** e.g. "Model 19" — used in the toolbar and the print button's label */
   model: string;
   /** Form name in English and Amharic, shown in the toolbar */
@@ -60,7 +61,7 @@ interface VoucherShellProps {
 }
 
 export const VoucherShell: React.FC<VoucherShellProps> = ({
-  isOpen, onClose, model, toolbarTitle, title, number, subheading, approvalState, approvalNote, printedBy, children,
+  isOpen, onClose, onEdit, model, toolbarTitle, title, number, subheading, approvalState, approvalNote, printedBy, children,
 }) => {
   if (!isOpen) return null;
   return (
@@ -86,6 +87,18 @@ export const VoucherShell: React.FC<VoucherShellProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={onEdit}
+                aria-label={`Edit ${model} request`}
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
+                title="Edit this request"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+            )}
             <button
               onClick={() => window.print()}
               aria-label={`Print ${model} / PDF`}

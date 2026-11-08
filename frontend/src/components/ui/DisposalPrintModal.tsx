@@ -9,6 +9,7 @@ import {
 interface DisposalPrintModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onEdit?: () => void;
   voucher: DisposalVoucher | null;
 }
 
@@ -18,7 +19,7 @@ interface DisposalPrintModalProps {
  * statement, then the storekeeper, FAMU accountant and recipient signatures. No totals, as on IFMIS. Chassis, engine and declaration numbers are for vehicles and machinery: the
  * system doesn't record them, so those cells are left to write in.
  */
-export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, onClose, voucher }) => {
+export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, onClose, onEdit, voucher }) => {
   if (!isOpen || !voucher) return null;
 
   // Original cost less book value is what has been depreciated
@@ -32,6 +33,7 @@ export const DisposalPrintModal: React.FC<DisposalPrintModalProps> = ({ isOpen, 
     <VoucherShell
       isOpen={isOpen}
       onClose={onClose}
+      onEdit={onEdit}
       model="Disposal"
       toolbarTitle="Fixed Asset Disposal Form"
       title="Fixed Asset Disposal Form"
