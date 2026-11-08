@@ -32,7 +32,6 @@ import {
   Paperclip,
   ArrowRightLeft,
   Ban,
-  MessageSquare,
   MoreVertical,
   Pencil,
 } from 'lucide-react';
@@ -194,6 +193,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
   const [viewingApproval, setViewingApproval] = useState<TransactionApproval | null>(null);
   // Rejected straight from its row: only the reason is asked
   const [rejecting, setRejecting] = useState<TransactionApproval | null>(null);
+  const [returnToApprovalOnCancelReject, setReturnToApprovalOnCancelReject] = useState<TransactionApproval | null>(null);
   // Voiding an already approved voucher
   const [voidingApproval, setVoidingApproval] = useState<TransactionApproval | null>(null);
   const [voidReason, setVoidReason] = useState('');
@@ -549,6 +549,21 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       </button>
     );
 
+  const startRejectFlow = (approval: TransactionApproval, fromModal = false) => {
+    if (reviewRemarks.trim()) {
+      void handleAction(approval.id, 'REJECT');
+    } else {
+      if (fromModal) {
+        setReturnToApprovalOnCancelReject(approval);
+      } else {
+        setReturnToApprovalOnCancelReject(null);
+      }
+      setSelectedApproval(null);
+      setRejecting(approval);
+      setActionError(null);
+    }
+  };
+
   const handleAction = async (approvalId: string, action: 'ENDORSE' | 'APPROVE' | 'REJECT') => {
     setActionError(null);
     if (action === 'REJECT' && !reviewRemarks.trim()) {
@@ -578,6 +593,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
 
       setSelectedApproval(null);
       setRejecting(null);
+      setReturnToApprovalOnCancelReject(null);
       setReviewRemarks('');
       setSelectedIds((prev) => prev.filter((id) => id !== approvalId));
       await fetchApprovals();
@@ -1400,17 +1416,6 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                                   ]
                                 : []),
                               {
-                                label: 'Send Back',
-                                icon: MessageSquare,
-                                disabled: !isActionableForMe,
-                                reason: !isActionableForMe ? 'Not actionable in your current queue' : undefined,
-                                onClick: () => {
-                                  setRejecting(appr);
-                                  setReviewRemarks('');
-                                  setActionError(null);
-                                },
-                              },
-                              {
                                 label: 'Void / Cancel Request',
                                 icon: Ban,
                                 disabled: !canVoid,
@@ -1871,8 +1876,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
                   {selectedApproval.currentStage === 1
-                    ? 'Optional endorsement remarks recorded in the official audit trail.'
-                    : 'Needed to reject. A rejected request goes back to its requester, who corrects and resubmits it, or cancels it.'}
+                    ? 'Optional endorsement remarks recorded in the official audit trail. If rejecting, a reason is required.'
+                    : 'Optional for authorization. If rejecting, a reason is required to send back to the requester.'}
                 </p>
               </div>
             </div>
@@ -1889,6 +1894,14 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               {selectedApproval.status === ApprovalStatus.PENDING && selectedApproval.currentStage === 1 && canEndorse && (
                 <>
                   {correctButton(selectedApproval)}
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => startRejectFlow(selectedApproval, true)}
+                    className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <XCircle className="w-4 h-4" /> Reject
+                  </button>
                   <button
                     type="button"
                     disabled={actionLoading}
@@ -1919,7 +1932,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
                       <button
                         type="button"
                         disabled={actionLoading}
-                        onClick={() => handleAction(selectedApproval.id, 'REJECT')}
+                        onClick={() => startRejectFlow(selectedApproval, true)}
                         className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-[3px] text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
                       >
                         <XCircle className="w-4 h-4" /> Reject
@@ -1944,7 +1957,15 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
       {rejecting && (
         <Modal
           isOpen
-          onClose={() => !actionLoading && setRejecting(null)}
+          onClose={() => {
+            if (!actionLoading) {
+              if (returnToApprovalOnCancelReject) {
+                setSelectedApproval(returnToApprovalOnCancelReject);
+                setReturnToApprovalOnCancelReject(null);
+              }
+              setRejecting(null);
+            }
+          }}
           title={`Reject ${voucherName(rejecting.transactionType)} ${rejecting.ifmisSlipNumber}${slipLines.get(rejecting.id) ? ` (${slipLines.get(rejecting.id)!.length} items)` : ''}?`}
           subtitle="It goes back to its requester with your reason, to correct and resubmit, or cancel."
           size="sm"
@@ -1969,7 +1990,18 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate, onRefr
               />
             </label>
             <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={() => setRejecting(null)} disabled={actionLoading} className={btn.secondary}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (returnToApprovalOnCancelReject) {
+                    setSelectedApproval(returnToApprovalOnCancelReject);
+                    setReturnToApprovalOnCancelReject(null);
+                  }
+                  setRejecting(null);
+                }}
+                disabled={actionLoading}
+                className={btn.secondary}
+              >
                 Cancel
               </button>
               <button

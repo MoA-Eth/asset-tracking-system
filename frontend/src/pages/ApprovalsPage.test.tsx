@@ -200,15 +200,25 @@ describe('Approvals: the Chief Director signs a voucher by its grand total', () 
 });
 
 describe('Approvals: rejecting', () => {
-  it('focuses the Stage 1 modal on endorsement actions while rejecting is handled directly from the row', async () => {
+  it('offers Reject in the review modal and seamlessly opens the reason dialog if remarks are empty', async () => {
     const user = userEvent.setup();
     render(<ApprovalsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     const row = (await screen.findByText('3 lines')).closest('tr')!;
     await user.click(within(row).getByRole('button', { name: /Endorse/ }));
     const modal = screen.getByText(/Stage 1: Team Leader Endorsement/).closest<HTMLElement>('.max-w-2xl')!;
     expect(within(modal).getByRole('button', { name: /Endorse \(Stage 1\)/ })).toBeInTheDocument();
-    expect(within(modal).queryByRole('button', { name: /^Reject$/ })).toBeNull();
+    expect(within(modal).getByRole('button', { name: /^Reject$/ })).toBeInTheDocument();
     expect(within(modal).getByText(/Optional endorsement remarks recorded in the official audit trail/)).toBeInTheDocument();
+
+    // Clicking Reject with empty remarks transitions seamlessly to the dedicated reject reason dialog
+    await user.click(within(modal).getByRole('button', { name: /^Reject$/ }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('textbox', { name: 'Reason for rejecting' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /^Reject$/ })).toBeDisabled();
+
+    // Canceling out returns back to the review modal
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByText(/Stage 1: Team Leader Endorsement/)).toBeInTheDocument();
   });
 
   it('rejects straight from the row: only the reason is asked, and the whole Model 19 goes back', async () => {
@@ -223,6 +233,42 @@ describe('Approvals: rejecting', () => {
     await user.click(within(dialog).getByRole('button', { name: /^Reject$/ }));
     expect(api.handleSlipApproval).toHaveBeenCalledWith(expect.objectContaining({ approvalIds: ['A', 'B', 'C'], action: 'REJECT', reviewRemarks: 'Price is entered as USD.' }));
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('allows Stage 2 Department Head to reject from inside the authorization modal with seamless transition', async () => {
+    const user = userEvent.setup();
+    auth.role = 'DEPARTMENT_HEAD';
+    auth.user.permissions = ['approvals.authorize'];
+
+    const pendingStage2 = {
+      status: 'PENDING',
+      currentStage: 2,
+      requestedById: 'different-user',
+      totalAmount: 50000,
+    };
+    vi.mocked(api.getApprovals).mockResolvedValue([receiptLine('STAGE2-1', 'Server Rack', pendingStage2)] as any);
+
+    try {
+      render(<ApprovalsPage currentRole={UserRole.DEPARTMENT_HEAD} onNavigate={vi.fn()} />);
+      const row = (await screen.findByText(/Server Rack/)).closest('tr')!;
+      await user.click(within(row).getByRole('button', { name: /Authorize/ }));
+
+      const modal = screen.getByText(/Stage 2 Authorization/).closest<HTMLElement>('.max-w-2xl')!;
+      expect(within(modal).getByRole('button', { name: /Authorize & Sign-Off/ })).toBeInTheDocument();
+      expect(within(modal).getByRole('button', { name: /^Reject$/ })).toBeInTheDocument();
+
+      await user.click(within(modal).getByRole('button', { name: /^Reject$/ }));
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByRole('textbox', { name: 'Reason for rejecting' })).toBeInTheDocument();
+      await user.type(within(dialog).getByRole('textbox', { name: 'Reason for rejecting' }), 'Incorrect store allocation.');
+      await user.click(within(dialog).getByRole('button', { name: /^Reject$/ }));
+      expect(api.handleApproval).toHaveBeenCalledWith(
+        expect.objectContaining({ approvalId: 'STAGE2-1', action: 'REJECT', reviewRemarks: 'Incorrect store allocation.' })
+      );
+    } finally {
+      auth.role = 'TEAM_LEADER';
+      auth.user.permissions = ['approvals.endorse'];
+    }
   });
 
   it('lists a rejected receipt, still with its requester, under Rejected, with nothing for the approver to do', async () => {
