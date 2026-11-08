@@ -1804,9 +1804,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             <span className="text-slate-300 font-normal select-none">—</span>
           )}
         </td>
-        <td className="pl-2 pr-2 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">{costOf(item) > 0 ? formatETB(Math.round(costOf(item) * 100) / 100) : '—'}</td>
+        <td className="pl-2 pr-2 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
+          {costOf(item) > 0 ? formatETB(Math.round(costOf(item) * 100) / 100) : <span className="text-slate-300 font-normal select-none">—</span>}
+        </td>
         <td className="pl-2 pr-4 py-2.5 text-right tabular-nums font-medium text-slate-900 whitespace-nowrap">
-          {rowTotal(row, children) > 0 ? formatETB(rowTotal(row, children)) : '—'}
+          {rowTotal(row, children) > 0 ? formatETB(rowTotal(row, children)) : <span className="text-slate-300 font-normal select-none">—</span>}
         </td>
         <td className={`py-2.5 pl-1 pr-3 ${table.actionsCell} ${nested ? '!bg-slate-50' : ''}`}>
           {row.state === 'DRAFT' || item.status === ItemStatus.DRAFT ? (
@@ -1991,7 +1993,13 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
           <SlipUnitCost rows={rowsOf} isOpen={isOpen} onViewDetails={() => toggleSlip(key)} />
         </td>
         <td className="pl-2 pr-4 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
-          {total > 0 ? formatETB(total) : isCountSlip ? <span className="text-slate-400 font-normal text-xs">-- estimated count</span> : '—'}
+          {total > 0 ? (
+            formatETB(total)
+          ) : isCountSlip ? (
+            <span className="text-slate-400 font-normal text-xs">-- estimated count</span>
+          ) : (
+            <span className="text-slate-300 font-normal select-none">—</span>
+          )}
         </td>
         <td className={`py-2.5 pl-1 pr-3 ${table.actionsCell}`}>
           {rowsOf.some((r) => r.state === 'DRAFT' || r.item.status === ItemStatus.DRAFT) ? (
@@ -2476,7 +2484,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       onClick={() => setFilter(f.value)}
                       aria-pressed={isActive}
                       className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[5px] text-xs font-semibold transition cursor-pointer select-none whitespace-nowrap ${isActive
-                        ? 'bg-white text-emerald-950 border border-slate-300 shadow-2xs font-bold'
+                        ? 'bg-white text-slate-900 border border-slate-300 shadow-2xs font-bold'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/70 border border-transparent'
                         }`}
                     >
@@ -2484,16 +2492,15 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                       {count !== undefined && ' '}
                       {count !== undefined && (
                         <span
-                          className={`inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums min-w-[18px] ${isActive
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : isPending
-                              ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300/80'
+                          className={`inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums min-w-[18px] ${
+                            isPending
+                              ? 'bg-amber-100 text-amber-900 border border-amber-200'
                               : isRejected
-                                ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300/80'
+                                ? 'bg-rose-100 text-rose-800 border border-rose-200'
                                 : isDraft
-                                  ? 'bg-slate-200 text-slate-800 ring-1 ring-slate-300'
+                                  ? 'bg-slate-200 text-slate-800 border border-slate-300'
                                   : 'bg-slate-200/80 text-slate-600'
-                            }`}
+                          }`}
                         >
                           {count}
                         </span>
@@ -3080,7 +3087,11 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                                                 </td>
                                                 <td className="px-3.5 py-2.5 text-slate-600">{categoryLabel(item)}</td>
                                                 <td className="px-3.5 py-2.5 text-right font-medium text-slate-900 tabular-nums">
-                                                  {item.unitCostETB > 0 ? formatETB(item.unitCostETB) : '—'}
+                                                  {item.unitCostETB > 0 ? (
+                                                    formatETB(item.unitCostETB)
+                                                  ) : (
+                                                    <span className="text-slate-300 font-normal select-none">—</span>
+                                                  )}
                                                 </td>
                                               </tr>
                                             );

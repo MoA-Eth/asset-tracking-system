@@ -55,7 +55,7 @@ export const statusTone: Record<StatusTone, string> = {
   /** A request that was approved */
   approved: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   /** A request that was rejected */
-  rejected: 'bg-red-100 text-red-800 border-red-200',
+  rejected: 'bg-rose-50 text-rose-700 border-rose-200',
   /** Disposed or unknown */
   neutral: 'bg-slate-100 text-slate-700 border-slate-200',
 };

@@ -268,7 +268,7 @@ export const SlipUnitCost: React.FC<SlipUnitCostProps> = ({ rows, isOpen, onView
   // Identical price across all items
   if (costGroups.length === 1) {
     if (costGroups[0].isUnpriced) {
-      return <span className="text-slate-400 whitespace-nowrap">-</span>;
+      return <span className="text-slate-300 font-normal select-none">—</span>;
     }
     return (
       <span className="tabular-nums text-slate-700 whitespace-nowrap">

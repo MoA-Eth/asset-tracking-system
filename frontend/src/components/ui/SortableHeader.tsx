@@ -36,6 +36,7 @@ export const SortableHeader: React.FC<SortableHeaderProps> = ({
       <button
         type="button"
         onClick={() => onSort(columnKey)}
+        aria-label={ariaLabel}
         className={`group inline-flex items-center gap-1.5 font-normal hover:text-slate-900 cursor-pointer select-none transition-colors ${isSorted ? 'text-slate-900' : 'text-slate-600'} ${
           // A right-aligned column keeps its arrow on the left, so the label ends where the figures below it end
           align === 'right' ? 'ml-auto flex-row-reverse' : align === 'center' ? 'mx-auto' : ''
