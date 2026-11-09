@@ -171,7 +171,7 @@ describe('importing Model 19s from Excel', () => {
     fireEvent.change(screen.getByLabelText(/Choose the filled-in template/), { target: { files: [testFile] } });
 
     // Header summary
-    expect(await screen.findByText(/2 Potential Duplicates Detected \(Missing Serial \/ Tag Numbers\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/2 Potential Duplicates Found/)).toBeInTheDocument();
 
     // Disposed card
     expect(screen.getByText(/Row 87: Office Table/)).toBeInTheDocument();
@@ -180,12 +180,11 @@ describe('importing Model 19s from Excel', () => {
 
     // Available card
     expect(screen.getByText(/Row 387: Sensitive Scale/)).toBeInTheDocument();
-    expect(screen.getByText(/Matches AVAILABLE Asset MOA-OFS-2026-0084 in Saris Store/)).toBeInTheDocument();
-    expect(screen.getByText(/What is this item\?/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Re-count of existing Sensitive Scale \(Discard this row\)/)).toBeChecked();
+    expect(screen.getByText(/Matches existing MOA-OFS-2026-0084 in Saris Store/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/This is a duplicate \(Already registered\) - Skip row 387/)).toBeChecked();
 
     // Select Force Import as New Asset
-    const forceRadio = screen.getByLabelText(/Brand new 2nd physical unit \(Force Import as New Asset\)/);
+    const forceRadio = screen.getByLabelText(/This is a new, separate unit - Import row 387/);
     await user.click(forceRadio);
     expect(forceRadio).toBeChecked();
 
@@ -239,7 +238,7 @@ describe('importing Model 19s from Excel', () => {
     render(<Model19ImportModal isOpen onClose={vi.fn()} onImported={onImported} stores={stores} />);
     fireEvent.change(screen.getByLabelText(/Choose the filled-in template/), { target: { files: [testFile] } });
 
-    expect(await screen.findByText(/1 Potential Duplicates Detected/)).toBeInTheDocument();
+    expect(await screen.findByText(/1 Potential Duplicates Found/)).toBeInTheDocument();
     // Default is Discard -> Click Apply Resolutions
     await user.click(screen.getByRole('button', { name: 'Apply Resolutions & Continue' }));
 

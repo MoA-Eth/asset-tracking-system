@@ -309,27 +309,22 @@ export const Model19ImportModal: React.FC<{
 
         {receipts && showConflictReview && (
           <div className="space-y-4">
-            <div className="rounded-lg border-2 border-amber-400 bg-amber-50/80 p-4 shadow-sm">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="text-sm font-bold text-amber-950 flex items-center gap-1.5">
-                    <span>⚠️ {conflicts.length} Potential Duplicates Detected (Missing Serial / Tag Numbers)</span>
-                  </h3>
-                  <p className="mt-1 text-xs text-amber-800 leading-relaxed">
-                    Imported lines without serial numbers matched existing inventory assets by item description and unit cost.
-                    Disposed assets cannot be re-imported under audit regulations. For active store assets, confirm if the row is a re-count or an additional physical unit.
-                  </p>
-                </div>
+            {/* Top Amber Banner matching user mockup */}
+            <div className="rounded-lg border border-amber-300 bg-amber-50/80 px-4 py-3 text-xs text-amber-900 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                <span className="font-medium">
+                  <strong className="font-bold">{conflicts.length} Potential Duplicates Found.</strong> The items below might already be registered in {conflicts.find((c) => c.storeName)?.storeName || 'the store'}. Please review and choose what to do:
+                </span>
               </div>
             </div>
 
             {availableCount > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-slate-200 bg-slate-50/90 px-4 py-2.5 text-xs shadow-2xs">
                 <span className="font-medium text-slate-700">
-                  Bulk action for available assets ({availableCount}):
+                  Do this for all {availableCount} items:
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -337,9 +332,9 @@ export const Model19ImportModal: React.FC<{
                       conflicts.filter((c) => c.matchType === 'AVAILABLE').forEach((c) => next.set(c.row, 'DISCARD'));
                       setDecisions(next);
                     }}
-                    className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-100 transition"
                   >
-                    Discard All Available ({availableCount})
+                    Discard All ({availableCount}) (Don't import)
                   </button>
                   <button
                     type="button"
@@ -348,9 +343,17 @@ export const Model19ImportModal: React.FC<{
                       conflicts.filter((c) => c.matchType === 'AVAILABLE').forEach((c) => next.set(c.row, 'FORCE_NEW'));
                       setDecisions(next);
                     }}
-                    className="rounded border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100"
+                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-100 transition"
                   >
-                    Force Import All as New ({availableCount})
+                    Import All as New ({availableCount}) (Additional items)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyResolutions(decisions)}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-emerald-800 hover:bg-emerald-900 px-4 py-1.5 text-xs font-semibold text-white shadow-xs transition"
+                    title="Apply current decisions and continue to preview immediately"
+                  >
+                    <span>Resolve Automatically</span>
                   </button>
                 </div>
               </div>
@@ -364,34 +367,31 @@ export const Model19ImportModal: React.FC<{
                 return (
                   <div
                     key={c.row}
-                    className={`rounded-lg border p-4 transition-all shadow-sm ${
+                    className={`rounded-lg border p-4 transition-all shadow-2xs ${
                       isDisposed
                         ? 'border-rose-200 bg-rose-50/50'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
-                      <div>
-                        <span className="text-xs font-bold text-slate-900">
-                          Row {c.row}: {c.itemName} ({formatETB(c.unitCostETB)})
+                    {/* Header with row title and match badge */}
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                      <span className="text-xs font-bold text-slate-900">
+                        Row {c.row}: {c.itemName} ({formatETB(c.unitCostETB)})
+                      </span>
+                      {isDisposed ? (
+                        <span className="inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-800 border border-rose-200">
+                          <XCircle className="h-3 w-3 text-rose-600" />
+                          Auto-Excluded
                         </span>
-                      </div>
-                      <div>
-                        {isDisposed ? (
-                          <span className="inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-800 border border-rose-200">
-                            <XCircle className="h-3 w-3 text-rose-600" />
-                            Auto-Excluded
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 border border-amber-200">
-                            <AlertTriangle className="h-3 w-3 text-amber-600" />
-                            Action Required
-                          </span>
-                        )}
-                      </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-900 border border-amber-200">
+                          <AlertTriangle className="h-3 w-3 text-amber-600" />
+                          Matches existing {c.existingItemCode} in {c.storeName || 'Store'}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="pt-2.5 space-y-2">
+                    <div className="pt-3">
                       {isDisposed ? (
                         <div className="space-y-1.5">
                           <p className="text-xs font-semibold text-rose-900">
@@ -405,47 +405,66 @@ export const Model19ImportModal: React.FC<{
                           </p>
                         </div>
                       ) : (
-                        <div className="space-y-2.5">
-                          <p className="text-xs font-semibold text-amber-900">
-                            ⚠️ Matches AVAILABLE Asset {c.existingItemCode} in {c.storeName || 'Store'}
-                          </p>
-                          <div>
-                            <p className="text-xs font-medium text-slate-800 mb-1.5">What is this item?</p>
-                            <div className="space-y-1.5 pl-1 text-xs">
-                              <label className="flex items-center gap-2.5 cursor-pointer text-slate-700 hover:text-slate-900">
-                                <input
-                                  type="radio"
-                                  name={`conflict-decision-${c.row}`}
-                                  checked={currentDecision === 'DISCARD'}
-                                  onChange={() => {
-                                    const next = new Map(decisions);
-                                    next.set(c.row, 'DISCARD');
-                                    setDecisions(next);
-                                  }}
-                                  className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300"
-                                />
-                                <span className={currentDecision === 'DISCARD' ? 'font-medium text-slate-900' : ''}>
-                                  ( ) Re-count of existing {c.itemName} (Discard this row)
-                                </span>
-                              </label>
-                              <label className="flex items-center gap-2.5 cursor-pointer text-slate-700 hover:text-slate-900">
-                                <input
-                                  type="radio"
-                                  name={`conflict-decision-${c.row}`}
-                                  checked={currentDecision === 'FORCE_NEW'}
-                                  onChange={() => {
-                                    const next = new Map(decisions);
-                                    next.set(c.row, 'FORCE_NEW');
-                                    setDecisions(next);
-                                  }}
-                                  className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300"
-                                />
-                                <span className={currentDecision === 'FORCE_NEW' ? 'font-medium text-slate-900' : ''}>
-                                  ( ) Brand new 2nd physical unit (Force Import as New Asset)
-                                </span>
-                              </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Option 1: Duplicate (Discard) */}
+                          <label
+                            className={`flex items-start gap-3 rounded-lg border-2 p-3 cursor-pointer transition-all ${
+                              currentDecision === 'DISCARD'
+                                ? 'border-slate-900 bg-slate-50/60 shadow-2xs'
+                                : 'border-slate-200 bg-white hover:border-slate-300'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`conflict-decision-${c.row}`}
+                              checked={currentDecision === 'DISCARD'}
+                              aria-label={`This is a duplicate (Already registered) - Skip row ${c.row}`}
+                              onChange={() => {
+                                const next = new Map(decisions);
+                                next.set(c.row, 'DISCARD');
+                                setDecisions(next);
+                              }}
+                              className="mt-0.5 h-4 w-4 text-slate-900 focus:ring-slate-900 border-slate-300"
+                            />
+                            <div className="flex-1">
+                              <div className="text-xs font-bold text-slate-900">
+                                This is a duplicate (Already registered)
+                              </div>
+                              <div className="text-[11px] text-slate-500 mt-0.5">
+                                Skip this row; do not import.
+                              </div>
                             </div>
-                          </div>
+                          </label>
+
+                          {/* Option 2: Force New Unit */}
+                          <label
+                            className={`flex items-start gap-3 rounded-lg border-2 p-3 cursor-pointer transition-all ${
+                              currentDecision === 'FORCE_NEW'
+                                ? 'border-slate-900 bg-slate-50/60 shadow-2xs'
+                                : 'border-slate-200 bg-white hover:border-slate-300'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`conflict-decision-${c.row}`}
+                              checked={currentDecision === 'FORCE_NEW'}
+                              aria-label={`This is a new, separate unit - Import row ${c.row}`}
+                              onChange={() => {
+                                const next = new Map(decisions);
+                                next.set(c.row, 'FORCE_NEW');
+                                setDecisions(next);
+                              }}
+                              className="mt-0.5 h-4 w-4 text-slate-900 focus:ring-slate-900 border-slate-300"
+                            />
+                            <div className="flex-1">
+                              <div className="text-xs font-bold text-slate-900">
+                                This is a new, separate unit
+                              </div>
+                              <div className="text-[11px] text-slate-500 mt-0.5">
+                                Import it with a new asset ID.
+                              </div>
+                            </div>
+                          </label>
                         </div>
                       )}
                     </div>
@@ -456,9 +475,9 @@ export const Model19ImportModal: React.FC<{
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
               <span className="text-xs text-slate-600 font-medium">
-                <b>{disposedCount}</b> disposed auto-excluded ·{' '}
+                <b>{disposedCount}</b> excluded ·{' '}
                 <b>{conflicts.filter((c) => c.matchType === 'AVAILABLE' && (decisions.get(c.row) || 'DISCARD') === 'DISCARD').length}</b> to discard ·{' '}
-                <b>{conflicts.filter((c) => c.matchType === 'AVAILABLE' && decisions.get(c.row) === 'FORCE_NEW').length}</b> to force as new
+                <b>{conflicts.filter((c) => c.matchType === 'AVAILABLE' && decisions.get(c.row) === 'FORCE_NEW').length}</b> to import as new
               </span>
               <div className="flex items-center gap-2">
                 {hasAppliedDecisions && (
@@ -473,7 +492,7 @@ export const Model19ImportModal: React.FC<{
                 <button
                   type="button"
                   onClick={() => applyResolutions(decisions)}
-                  className={btn.primary}
+                  className="rounded-md bg-emerald-800 hover:bg-emerald-900 px-5 py-2 text-xs font-bold text-white shadow-xs transition"
                 >
                   Apply Resolutions & Continue
                 </button>

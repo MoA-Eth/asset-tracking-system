@@ -153,10 +153,24 @@ export function receiptsFromRows(
     const normStoreLabel = normalizeStore(storeLabel);
     const countVal = text(r.get('Is Count Data?' as Column)) || text(r.get('Physical Count?' as any)) || text(r.get('Physical Count (ቆጠራ)' as any)) || text(r.get('Count Data?' as any));
     const isCount = /^(y|yes|true|1|✓|አዎ)$/i.test(countVal) || no.toLowerCase().startsWith('count-') || no.toLowerCase().startsWith('ቆጠራ');
-    const store = stores.find((s) => {
-      const normS = normalizeStore(s.label);
-      return normS === normStoreLabel || s.id.toLowerCase() === storeLabel.trim().toLowerCase();
-    });
+    const store =
+      stores.find((s) => {
+        const normS = normalizeStore(s.label);
+        if (normS === normStoreLabel || s.id.toLowerCase() === storeLabel.trim().toLowerCase()) return true;
+        const sTokens = new Set(normS.split(' ').filter(Boolean));
+        const inputTokens = new Set(normStoreLabel.split(' ').filter(Boolean));
+        if (sTokens.size > 0 && inputTokens.size > 0 && [...inputTokens].every((t) => sTokens.has(t)) && [...sTokens].every((t) => inputTokens.has(t))) {
+          return true;
+        }
+        return false;
+      }) ||
+      (normStoreLabel
+        ? stores.find((s) => {
+            const normS = normalizeStore(s.label);
+            const inputTokens = normStoreLabel.split(' ').filter((t) => t.length >= 3);
+            return (inputTokens.length > 0 && inputTokens.every((t) => normS.includes(t))) || normS.includes(normStoreLabel);
+          })
+        : undefined);
     const header = {
       receivedDate: date ?? '',
       transactionType: text(r.get('Transaction Type')) || (po ? 'PO Receipt' : 'Donation / Grant Receipt'),
