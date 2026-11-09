@@ -52,7 +52,19 @@ When you sit down at your other laptop:
 - **Removed Suspected Duplicate UI Overlays**:
   - Completely and cleanly removed the experimental "Suspected Duplicates" filter button, table badges, cross-reference links, and drawer comparison box without affecting core ledger operations.
 
-#### C. Playwright E2E Testing Foundation
+#### C. Single Asset Intake Origin & Movement History Timeline
+- **Customer Need Addressed**:
+  - Storekeepers and auditors requested the ability to distinguish whether a specific single asset was onboarded via **Model 19 Delivery Voucher (የዕቃ ገቢ ደረሰኝ)** or **Physical Inventory Count (የንብረት ቆጠራ · Directive 1010/2024 baseline)**, and see its complete movement timeline.
+- **Header & Section 1 Indicators**:
+  - Header: Displays purple `[ ቆጠራ · Physical Count ]` chip for baseline count assets vs. emerald `[ Model 19 #<slipNo> ]` chip for procurement intakes.
+  - Section 1: Dynamic title (`Inventory count & intake` vs. `Voucher & procurement`) and explicit `Intake method / የመግቢያ መንገድ` field.
+- **Section 6: Asset Movement & Lifecycle History (የንብረት ታሪክ እና እንቅስቃሴ)**:
+  - **Intake Origin Summary Card**: Displays intake method, count sheet ref / Model 19 slip #, PO #, supplier/vendor, buyer, store location, and registering storekeeper.
+  - **Chronological Lifecycle Milestones**: Visual timeline tracking every subsequent movement recorded in `item.history` (Model 19 stock-in approval, Model 22 issue, Model 21 transfer/return, disposal, voiding) with GC/EC dates, actor names, roles, routes (`From → To`), and slip numbers.
+- **Backend Model 19 Duplicate Check Fix**:
+  - Corrected backend query in `checkImportDuplicates` and `registerStockIn` to lookup IFMIS item codes via metadata `notes` and `itemCode` instead of nonexistent database columns, resolving TypeScript build errors (`npm run build`).
+
+#### D. Playwright E2E Testing Foundation
 - Configured Playwright (`playwright.config.ts`) and initial authentication/navigation tests (`auth-and-audit.spec.ts`).
   - Aligned the expandable chevron button (`-ml-3.5`) so multi-line voucher row titles align horizontally with normal rows.
 - **Currency Typography & Spacing Fix**:
@@ -67,11 +79,9 @@ When you sit down at your other laptop:
 
 ### 3. Key Commits Pushed to `main` Today
 
-- `356753e`: `style(assets): add micro checkmark icons to in-store and issued status chips`
-- `869b532`: `feat(assets): add search shortcut, clear button, expand-all toggle, and stale shelf badge`
-- `40cc4f2`: `style(assets): polish empty state, export menu divider, pagination select, and reference badges`
-- `9c306eb`: `refactor(assets): unify toolbar control heights, ETB typography, chevron alignment, and summary metric pills`
-- `39e7fa6`: `style(assets): increase status tab button height, padding, elevation, and active count pills`
+- `6b02023`: `feat(assets): enhance Model 19 duplicate detection with IFMIS codes and voucher collisions`
+- `70f1b67`: `refactor(assets): remove suspected duplicate UI overlays, filters, and comparisons`
+- `5189531`: `feat(assets): add single asset intake origin and movement history timeline`
 
 ---
 
