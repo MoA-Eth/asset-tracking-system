@@ -49,6 +49,8 @@ When you sit down at your other laptop:
 #### B. Assets Page Table Layout Optimization
 - **Quantity Column Consolidation**:
   - Consolidated columns and removed `Issued` column to keep table width tight (min-width `720px`) and prevent horizontal scrolling on standard 13" laptop screens.
+- **Removed Suspected Duplicate UI Overlays**:
+  - Completely and cleanly removed the experimental "Suspected Duplicates" filter button, table badges, cross-reference links, and drawer comparison box without affecting core ledger operations.
 
 #### C. Playwright E2E Testing Foundation
 - Configured Playwright (`playwright.config.ts`) and initial authentication/navigation tests (`auth-and-audit.spec.ts`).
