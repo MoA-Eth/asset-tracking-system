@@ -58,3 +58,10 @@ ssl/
 
 # Database copies the Jenkins pipeline takes before each deploy (on the server)
 backups/
+
+# Playwright test outputs
+playwright-report/
+test-results/
+frontend/playwright-report/
+frontend/test-results/
+

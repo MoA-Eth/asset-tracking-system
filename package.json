@@ -14,6 +14,7 @@
     "test:backend": "npm run test --prefix backend",
     "test:frontend": "npm run test --prefix frontend",
     "test:unit": "npm run test --prefix backend && npm run test --prefix frontend",
+    "test:e2e": "npm run test:e2e --prefix frontend",
     "test:integration": "node backend/test-critical-flows.js && node backend/test-status-consistency.js",
     "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
     "db:setup": "npm run db:setup --prefix backend",
