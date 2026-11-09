@@ -619,5 +619,29 @@ describe('StoreService.registerStockIn approval gate', () => {
       expect(availableConflict?.storeName).toBe('Saris Store');
       expect(availableConflict?.message).toContain('Matches AVAILABLE Asset MOA-OFS-2026-0084 in Saris Store');
     });
+
+    it('does not flag duplicates when item description has comma or spacing differences', async () => {
+      db.item.findMany.mockResolvedValue([
+        {
+          id: 'it-beaker',
+          itemCode: 'MOA-LAB-01',
+          name: 'BEAKER LOW FORM WITH SPOUT, 1000ml',
+          status: 'AVAILABLE',
+          unitCostETB: 50,
+          storeLocationId: 'loc-lab',
+          storeLocation: { name: 'Lab Store', store: { name: 'Kality' } },
+          history: [],
+        },
+      ]);
+
+      // Missing comma: 'BEAKER LOW FORM WITH SPOUT 1000ml'
+      const itemsToCheck = [
+        { row: 10, name: 'BEAKER LOW FORM WITH SPOUT 1000ml', unitCostETB: 50, storeLocationId: 'loc-lab' },
+      ];
+
+      const res = await StoreService.getInstance().checkImportDuplicates(itemsToCheck);
+      expect(res.totalDetected).toBe(0);
+      expect(res.conflicts).toHaveLength(0);
+    });
   });
 });

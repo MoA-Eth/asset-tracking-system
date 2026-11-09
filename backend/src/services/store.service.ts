@@ -1536,15 +1536,12 @@ export class StoreService {
     }> = [];
 
     for (const line of validLines) {
-      const lineNorm = normalizeDescription(line.name);
+      const cleanLineName = String(line.name || '').trim().toLowerCase();
       const linePrice = Number(line.unitCostETB) || 0;
-      const lineTokens = lineNorm.split(' ').filter((t) => t.length > 1);
 
       const matched = candidates.find((c) => {
-        const cNorm = normalizeDescription(c.name);
-        const nameMatch =
-          cNorm === lineNorm ||
-          (lineTokens.length >= 2 && lineTokens.every((t) => cNorm.includes(t)));
+        const cleanCandidateName = String(c.name || '').trim().toLowerCase();
+        const nameMatch = cleanLineName === cleanCandidateName;
         if (!nameMatch) return false;
 
         if (c.status !== 'DISPOSED' && line.storeLocationId && c.storeLocationId) {
