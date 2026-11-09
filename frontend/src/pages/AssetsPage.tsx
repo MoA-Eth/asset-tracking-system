@@ -147,7 +147,7 @@ const SORT_LABELS: Record<SortColumn, string> = {
   total: 'total value',
 };
 export type SortDirection = 'asc' | 'desc';
-const SORT_COLUMNS: SortColumn[] = ['activity', 'name', 'status', 'units', 'issued', 'available', 'where', 'cost', 'total'];
+const SORT_COLUMNS: SortColumn[] = ['activity', 'name', 'status', 'units', 'available', 'where', 'cost', 'total'];
 
 /** Filters and sort, remembered per person in this browser so a refresh keeps the view */
 interface SavedView {
@@ -1861,16 +1861,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             </span>
           )}
         </td>
-        {/* Issued in Use */}
-        <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
-          {issuedUnits > 0 ? (
-            <span className="font-semibold text-blue-950">
-              {issuedUnits.toLocaleString()} <span className="text-[11px] font-normal text-slate-500">{uom.toLowerCase()}</span>
-            </span>
-          ) : (
-            <span className="text-slate-300 font-normal select-none">—</span>
-          )}
-        </td>
         {/* Available in Store */}
         <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
           {inStoreUnits > 0 ? (
@@ -2048,16 +2038,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                   <span className="mt-0.5 block whitespace-nowrap font-sans text-[10px] font-medium leading-tight text-rose-600">
                     {totalRej === totalAll ? 'all rejected' : `${totalRej.toLocaleString()} rejected`}
                   </span>
-                )}
-              </td>
-              {/* Issued */}
-              <td className="px-3 py-2.5 text-right tabular-nums text-slate-700 whitespace-nowrap">
-                {totalIssued > 0 ? (
-                  <span className="font-semibold text-blue-950">
-                    {totalIssued.toLocaleString()} {sameUom && <span className="text-[11px] font-normal text-slate-500">{uom}</span>}
-                  </span>
-                ) : (
-                  <span className="text-slate-300 font-normal select-none">—</span>
                 )}
               </td>
               {/* Available */}
@@ -3080,7 +3060,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
             ) : (
               <>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[820px] text-left text-[13px]">
+                  <table className="w-full min-w-[720px] text-left text-[13px]">
                     <thead className={table.headRow}>
                       <tr>
                         <SortableHeader
@@ -3109,16 +3089,6 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                           align="right"
                           title="Total units received on the Model 19 delivery voucher"
                           thClassName="px-3 py-2 w-28 min-w-[95px] text-right whitespace-nowrap"
-                        />
-                        <SortableHeader
-                          label="Issued"
-                          columnKey="issued"
-                          currentSortColumn={sortColumn}
-                          currentSortDirection={sortDirection}
-                          onSort={(key) => handleSort(key as SortColumn)}
-                          align="right"
-                          title="Units currently in use by staff or directorates"
-                          thClassName="px-3 py-2 w-24 min-w-[85px] text-right whitespace-nowrap"
                         />
                         <SortableHeader
                           label="Available"
@@ -3166,7 +3136,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                               {renderSlipRow(entry.slip, entry.members, isOpen)}
                               {isOpen && (
                                 <tr className="bg-slate-50/50">
-                                  <td colSpan={8} className="px-5 py-3 border-l-4 border-l-emerald-600">
+                                  <td colSpan={7} className="px-5 py-3 border-l-4 border-l-emerald-600">
                                     <div className="rounded-lg border border-slate-200/90 bg-white overflow-hidden shadow-xs">
                                       <table className="min-w-full text-left text-xs divide-y divide-slate-100" aria-label={`Line items in ${entry.slip}`}>
                                         <thead className="bg-slate-100/90 text-slate-700 font-semibold text-[11px] uppercase tracking-wider">
