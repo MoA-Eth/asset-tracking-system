@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
-import { ChevronLeft, ChevronRight, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload, AlertCircle, AlertTriangle, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Clock, Copy, Lock, MapPin, Paperclip, Printer, Tag, Users, X, FileText, PackagePlus, Upload, AlertCircle, AlertTriangle, Eye, History } from 'lucide-react';
 import { btn, statusTone, pill } from '../ui/theme';
 import { CloseButton } from '../ui/CloseButton';
 import { BackButton } from '../ui/BackButton';
@@ -9,7 +9,7 @@ import { SlipViewerModal } from '../ui/SlipViewerModal';
 import { RowAction } from '../ui/RowActionsMenu';
 import { HeaderActionButton } from '../ui/HeaderActionButton';
 import { FormSection, FieldGrid, Field as FormKitField, ReadOnlyValue, TotalValue, FormNotice } from '../ui/FormKit';
-import { ApprovalStatus, ItemStatus, TransactionApproval } from '../../types/asset-management';
+import { ApprovalStatus, ItemStatus, TransactionApproval, ItemMovementHistory } from '../../types/asset-management';
 import { formatETB } from '../../utils/eth-date';
 import { costOf, valueOf } from '../../utils/item-cost';
 import { isGeneratedSerialNumber, displaySerialNumber } from '../../utils/asset-tag';
@@ -101,6 +101,101 @@ const RequestStatus: React.FC<{ request: TransactionApproval }> = ({ request }) 
       {request.status === ApprovalStatus.APPROVED ? 'Approved' : request.status === ApprovalStatus.CANCELLED ? 'Cancelled' : 'Rejected'}
     </span>
   );
+
+function describeHistoryMilestone(h: ItemMovementHistory): {
+  label: string;
+  badgeClass: string;
+} {
+  const act = h.action;
+  if (act === 'HISTORICAL_STOCK_IN') {
+    return {
+      label: 'Initial Inventory Count (የንብረት ቆጠራ)',
+      badgeClass: 'bg-purple-100 text-purple-900 border-purple-300',
+    };
+  }
+  if (act === 'STOCK_IN_REGISTERED' || act === 'STOCK_IN_DRAFT') {
+    return {
+      label: 'Model 19 Intake Registered (የዕቃ ገቢ ደረሰኝ)',
+      badgeClass: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+    };
+  }
+  if (act === 'STOCK_IN_APPROVED') {
+    return {
+      label: 'Model 19 Stock-In Approved (ዕቃ ገቢ ጸድቋል)',
+      badgeClass: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+    };
+  }
+  if (act === 'STOCK_IN_EDITED') {
+    return {
+      label: 'Model 19 Receipt Updated (የዕቃ ገቢ ማሻሻያ)',
+      badgeClass: 'bg-slate-100 text-slate-800 border-slate-300',
+    };
+  }
+  if (act === 'STOCK_OUT_REQUESTED') {
+    return {
+      label: 'Model 22 Issue Requested (የዕቃ ወጪ ጥያቄ)',
+      badgeClass: 'bg-blue-100 text-blue-900 border-blue-300',
+    };
+  }
+  if (act === 'STOCK_OUT_APPROVED') {
+    return {
+      label: 'Issued on Model 22 (ዕቃ ወጪ ተፈጽሟል)',
+      badgeClass: 'bg-blue-100 text-blue-900 border-blue-300',
+    };
+  }
+  if (act === 'TRANSFER_REQUESTED') {
+    return {
+      label: 'Transfer Requested (Model 21 · የዕቃ ማስተላለፊያ)',
+      badgeClass: 'bg-amber-100 text-amber-900 border-amber-300',
+    };
+  }
+  if (act === 'TRANSFER_APPROVED') {
+    return {
+      label: 'Transferred on Model 21 (የንብረት ማስተላለፍ ጸድቋል)',
+      badgeClass: 'bg-amber-100 text-amber-900 border-amber-300',
+    };
+  }
+  if (act === 'RETURN_REQUESTED') {
+    return {
+      label: 'Return Requested (Model 21 · የዕቃ መመለሻ)',
+      badgeClass: 'bg-teal-100 text-teal-900 border-teal-300',
+    };
+  }
+  if (act === 'RETURN_APPROVED') {
+    return {
+      label: 'Returned to Store on Model 21 (ዕቃ መመለሻ)',
+      badgeClass: 'bg-teal-100 text-teal-900 border-teal-300',
+    };
+  }
+  if (act === 'DISPOSAL_REQUESTED') {
+    return {
+      label: 'Disposal Requested (የዕቃ ማስወገድ)',
+      badgeClass: 'bg-rose-100 text-rose-900 border-rose-300',
+    };
+  }
+  if (act === 'DISPOSAL_APPROVED') {
+    return {
+      label: 'Disposed (የዕቃ ማስወገድ ጸድቋል)',
+      badgeClass: 'bg-rose-100 text-rose-900 border-rose-300',
+    };
+  }
+  if (act.includes('VOIDED') || act.includes('CANCELLED')) {
+    return {
+      label: 'Transaction Voided / Cancelled (ተሰርዟል)',
+      badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
+    };
+  }
+  if (act.includes('REJECTED')) {
+    return {
+      label: 'Request Rejected (ውድቅ ተደርጓል)',
+      badgeClass: 'bg-red-100 text-red-900 border-red-300',
+    };
+  }
+  return {
+    label: act.replace(/_/g, ' '),
+    badgeClass: 'bg-slate-100 text-slate-800 border-slate-300',
+  };
+}
 
 /**
  * A fixed asset's tag number in IFMIS (e.g. MOA-016341). The receipt doesn't carry it; it is recorded here, or when a
@@ -344,9 +439,13 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
               </span>
               {/* Quick Action Badges */}
               <AssetStatus row={{ ...row, rejected: undefined }} partly={partly} />
-              {isCount && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-900 border border-purple-300" title="Physical Inventory Count Record (የቆጠራ ውጤት)">
-                  ቆጠራ · Count Record
+              {isCount ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-900 border border-purple-300" title="Physical Inventory Count Record (የንብረት ቆጠራ ውጤት · Baseline Inventory)">
+                  ቆጠራ · Physical Count
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-900 border border-emerald-300" title={`Procurement Intake via Model 19 Delivery Voucher${item.ifmisSlipNumber ? ` #${item.ifmisSlipNumber}` : ''}`}>
+                  Model 19 {item.ifmisSlipNumber ? `#${item.ifmisSlipNumber}` : 'Voucher'}
                 </span>
               )}
               {!editing && locked && (
@@ -511,12 +610,28 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
           {/* Section 1: Voucher & procurement */}
           <FormSection
             step={1}
-            title="Voucher & procurement"
-            subtitle="የሰነድ እና የግዥ መረጃ · IFMIS Model 19 header"
+            title={isCount ? "Inventory count & intake" : "Voucher & procurement"}
+            subtitle={isCount ? "የንብረት ቆጠራ መረጃ · Physical inventory baseline" : "የሰነድ እና የግዥ መረጃ · IFMIS Model 19 header"}
             icon={FileText}
             accent="emerald"
           >
             <FieldGrid>
+              <FormKitField label="Intake method / የመግቢያ መንገድ" span="sm:col-span-2">
+                <ReadOnlyValue>
+                  {isCount ? (
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-purple-900">
+                      <span className="h-2 w-2 rounded-full bg-purple-600" />
+                      Physical Inventory Count (የንብረት ቆጠራ · Baseline Onboarding)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-900">
+                      <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                      Procurement Model 19 (የዕቃ ገቢ ደረሰኝ · Delivery Voucher)
+                    </span>
+                  )}
+                </ReadOnlyValue>
+              </FormKitField>
+
               <FormKitField label={isCount ? "Count Sheet / Ref No. (የቆጠራ ሰነድ)" : "Model 19 No."} optional>
                 <div className="relative flex items-center w-full">
                   <ReadOnlyValue mono className={item.ifmisSlipNumber ? (item.ifmisSlipAttachmentUrl ? 'pr-16' : 'pr-9') : ''}>
@@ -954,6 +1069,150 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 })}
               </ol>
             )}
+          </FormSection>
+
+          {/* Section 6: Asset history & movement lifecycle */}
+          <FormSection
+            step={6}
+            title="Asset history & lifecycle"
+            subtitle="የንብረት ታሪክ እና እንቅስቃሴ · Origin & movement timeline"
+            icon={History}
+            accent="emerald"
+          >
+            <div className="space-y-4">
+              {/* Genesis / Intake Origin Summary */}
+              <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 text-xs space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Intake Origin / የመግቢያ መንገድ
+                    </span>
+                    {isCount ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-purple-300 bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-900">
+                        ቆጠራ · Physical Count
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-900">
+                        Model 19 Delivery Voucher
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-mono text-[11px] text-slate-500">
+                    {item.ifmisSlipDateGc || item.createdAtGc ? shortDate(item.ifmisSlipDateGc || item.createdAtGc) : '—'}
+                    {item.ifmisSlipDateEc || item.createdAtEc ? ` (${item.ifmisSlipDateEc || item.createdAtEc} E.C.)` : ''}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-slate-700">
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">
+                      {isCount ? 'Count Reference / Sheet No.' : 'Model 19 Slip No.'}:
+                    </span>
+                    <span className="font-mono font-bold text-slate-900">
+                      {item.ifmisSlipNumber || '—'}
+                    </span>
+                  </div>
+
+                  {!isCount && item.poNumber && (
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">Purchase Order (PO):</span>
+                      <span className="font-mono font-bold text-slate-900">{item.poNumber}</span>
+                    </div>
+                  )}
+
+                  {!isCount && item.source && (
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">Supplier / Vendor:</span>
+                      <span className="font-medium text-slate-900">{item.source}</span>
+                    </div>
+                  )}
+
+                  {!isCount && item.buyer && (
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">Buyer / Purchasing Unit:</span>
+                      <span className="font-medium text-slate-900">{item.buyer}</span>
+                    </div>
+                  )}
+
+                  {item.storeLocation && (
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">Receiving Store:</span>
+                      <span className="font-medium text-slate-900">{storeLocationLabel(item.storeLocation)}</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Registered / Encoded by:</span>
+                    <span className="font-medium text-slate-900">
+                      {item.registeredBy?.fullNameEn || item.receivedBy || 'Storekeeper'}
+                    </span>
+                  </div>
+                </div>
+
+                {item.ifmisSlipAttachmentUrl && (
+                  <div className="pt-1 flex items-center justify-between border-t border-slate-200/60">
+                    <span className="text-[11px] text-slate-500">Scanned voucher document</span>
+                    <button
+                      type="button"
+                      onClick={() => setSlipUrl(item.ifmisSlipAttachmentUrl!)}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline cursor-pointer"
+                    >
+                      <Paperclip className="h-3 w-3" /> View attached slip
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Chronological Movements & Chain of Custody */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Movement Milestones & Chain of Custody (የእንቅስቃሴ ታሪክ)
+                </p>
+                {(!item.history || item.history.length === 0) ? (
+                  <p className="py-2 text-xs text-slate-400">
+                    No subsequent movements recorded. Asset remains at initial receiving store.
+                  </p>
+                ) : (
+                  <ol className="relative border-l border-slate-200 ml-3 space-y-4 py-2">
+                    {item.history.map((h) => {
+                      const desc = describeHistoryMilestone(h);
+                      return (
+                        <li key={h.id} className="ml-4 space-y-1">
+                          <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border-2 border-white bg-slate-400" />
+                          <div className="flex flex-wrap items-center justify-between gap-1.5">
+                            <span className="font-bold text-slate-900">{desc.label}</span>
+                            <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold border ${desc.badgeClass}`}>
+                              {h.action}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500">
+                            {shortDate(h.dateGc)} {h.dateEc ? `(${h.dateEc} E.C.)` : ''} · by <span className="font-medium text-slate-700">{h.performedBy}</span> {h.performedByRole ? `(${h.performedByRole})` : ''}
+                            {h.approvedBy ? ` · Approved by ${h.approvedBy}` : ''}
+                          </p>
+                          {(h.fromEntity || h.toEntity) && (
+                            <p className="text-xs text-slate-700 flex items-center gap-1 font-medium">
+                              {h.fromEntity ? <span>{h.fromEntity}</span> : null}
+                              {h.fromEntity && h.toEntity ? <ChevronRight className="h-3 w-3 text-slate-400" /> : null}
+                              {h.toEntity ? <span className="text-emerald-800 font-semibold">{h.toEntity}</span> : null}
+                            </p>
+                          )}
+                          {h.ifmisSlipNumber && (
+                            <p className="text-[11px] font-mono text-slate-600">
+                              Voucher / Slip: {h.ifmisSlipNumber}
+                            </p>
+                          )}
+                          {h.notes && (
+                            <p className="text-xs text-slate-600 bg-slate-50 rounded px-2 py-1 border border-slate-100">
+                              {h.notes}
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </div>
+            </div>
           </FormSection>
         </div>
       )}

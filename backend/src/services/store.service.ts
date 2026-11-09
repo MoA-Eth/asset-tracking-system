@@ -1510,7 +1510,10 @@ export class StoreService {
       orTargetConditions.push({ name: { in: distinctNames, mode: 'insensitive' } });
     }
     if (distinctIfmisCodes.length > 0) {
-      orTargetConditions.push({ ifmisItemCode: { in: distinctIfmisCodes, mode: 'insensitive' } });
+      orTargetConditions.push({ itemCode: { in: distinctIfmisCodes, mode: 'insensitive' } });
+      for (const code of distinctIfmisCodes) {
+        orTargetConditions.push({ notes: { contains: code } });
+      }
     }
     if (distinctVouchers.length > 0) {
       orTargetConditions.push({ ifmisSlipNumber: { in: distinctVouchers, mode: 'insensitive' } });
@@ -1535,7 +1538,7 @@ export class StoreService {
         id: true,
         itemCode: true,
         name: true,
-        ifmisItemCode: true,
+        notes: true,
         ifmisSlipNumber: true,
         status: true,
         unitCostETB: true,
@@ -1573,6 +1576,9 @@ export class StoreService {
       message: string;
     }> = [];
 
+    const getCandidateIfmis = (c: any): string | undefined =>
+      (c as any)?.ifmisItemCode || readItemMeta(c?.notes).ifmisItemCode || c?.itemCode || undefined;
+
     for (const line of validLines) {
       const cleanLineName = String(line.name || '').trim().toLowerCase();
       const cleanLineIfmis = String(line.ifmisItemCode || '').trim().toLowerCase();
@@ -1586,7 +1592,7 @@ export class StoreService {
               const cVoucher = String(c.ifmisSlipNumber || '').trim().toLowerCase();
               if (cVoucher !== cleanLineVoucher) return false;
               const cName = String(c.name || '').trim().toLowerCase();
-              const cIfmis = String(c.ifmisItemCode || '').trim().toLowerCase();
+              const cIfmis = String(getCandidateIfmis(c) || '').trim().toLowerCase();
               return (cleanLineName && cName === cleanLineName) || (cleanLineIfmis && cIfmis === cleanLineIfmis);
             })
           : undefined;
@@ -1594,6 +1600,7 @@ export class StoreService {
       if (existingVoucherItem) {
         const storeLabel =
           existingVoucherItem.storeLocation?.store?.name || existingVoucherItem.storeLocation?.name || 'Store';
+        const existingIfmis = getCandidateIfmis(existingVoucherItem);
         conflicts.push({
           row: line.row,
           itemName: line.name,
@@ -1602,7 +1609,7 @@ export class StoreService {
           matchType: 'VOUCHER_EXISTS',
           existingItemCode: existingVoucherItem.itemCode,
           existingItemName: existingVoucherItem.name,
-          existingIfmisCode: existingVoucherItem.ifmisItemCode || undefined,
+          existingIfmisCode: existingIfmis,
           existingStatus: existingVoucherItem.status,
           storeName: storeLabel,
           action: 'AUTO_EXCLUDED',
@@ -1614,7 +1621,7 @@ export class StoreService {
       // 2. Check for matching items
       const matched = candidates.find((c) => {
         const cleanCandidateName = String(c.name || '').trim().toLowerCase();
-        const cleanCandidateIfmis = String(c.ifmisItemCode || '').trim().toLowerCase();
+        const cleanCandidateIfmis = String(getCandidateIfmis(c) || '').trim().toLowerCase();
 
         // Exact name match
         const nameMatch = cleanLineName.length > 0 && cleanLineName === cleanCandidateName;
@@ -1633,6 +1640,7 @@ export class StoreService {
       });
 
       if (matched) {
+        const matchedIfmis = getCandidateIfmis(matched);
         if (matched.status === 'DISPOSED') {
           let dispDate = 'Past';
           if (matched.history && matched.history.length > 0 && matched.history[0].dateGc) {
@@ -1655,7 +1663,7 @@ export class StoreService {
             matchType: 'DISPOSED',
             existingItemCode: matched.itemCode,
             existingItemName: matched.name,
-            existingIfmisCode: matched.ifmisItemCode || undefined,
+            existingIfmisCode: matchedIfmis,
             existingStatus: 'DISPOSED',
             disposedDate: dispDate,
             action: 'AUTO_EXCLUDED',
@@ -1672,11 +1680,11 @@ export class StoreService {
             matchType: 'AVAILABLE',
             existingItemCode: matched.itemCode,
             existingItemName: matched.name,
-            existingIfmisCode: matched.ifmisItemCode || undefined,
+            existingIfmisCode: matchedIfmis,
             existingStatus: matched.status,
             storeName: storeLabel,
             action: 'PROMPT_USER',
-            message: `Matches AVAILABLE Asset ${matched.itemCode} in ${storeLabel}${matched.ifmisItemCode ? ` (IFMIS: ${matched.ifmisItemCode})` : ''}`,
+            message: `Matches AVAILABLE Asset ${matched.itemCode} in ${storeLabel}${matchedIfmis ? ` (IFMIS: ${matchedIfmis})` : ''}`,
           });
         }
       }
@@ -1863,18 +1871,29 @@ export class StoreService {
         });
 
         if (!existing && lineIfmisCode) {
-          existing = await prisma.item.findFirst({
+          const matchingCandidates = await prisma.item.findMany({
             where: {
               storeLocationId: payload.storeLocationId,
               parentItemId: null,
               status: { in: ['AVAILABLE', 'PENDING_STOCK_IN'] as any[] },
-              ifmisItemCode: { equals: lineIfmisCode, mode: 'insensitive' },
+              OR: [
+                { itemCode: { equals: lineIfmisCode, mode: 'insensitive' } },
+                { notes: { contains: lineIfmisCode } },
+              ],
               NOT: payload.ifmisSlipNumber && !payload.ifmisSlipNumber.startsWith('PENDING-')
                 ? { ifmisSlipNumber: { equals: payload.ifmisSlipNumber, mode: 'insensitive' } }
                 : undefined,
             },
-            select: { id: true, itemCode: true, name: true, ifmisSlipNumber: true, status: true },
+            select: { id: true, itemCode: true, name: true, ifmisSlipNumber: true, status: true, notes: true },
+            take: 10,
           });
+
+          existing = matchingCandidates.find((c) => {
+            const metaCode = String(readItemMeta(c.notes).ifmisItemCode ?? '').trim().toLowerCase();
+            const tagCode = String(c.itemCode || '').trim().toLowerCase();
+            const target = lineIfmisCode.toLowerCase();
+            return metaCode === target || tagCode === target;
+          }) || null;
         }
 
         if (!existing && normLineName) {
