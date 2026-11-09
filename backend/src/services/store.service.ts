@@ -1479,23 +1479,23 @@ export class StoreService {
 
     const validLines = items.filter((it) => {
       const norm = normalizeDescription(it.name);
-      return norm.length >= 2 && Number(it.unitCostETB) > 0;
+      return norm.length >= 2;
     });
 
     if (validLines.length === 0) {
       return { conflicts: [], totalDetected: 0, disposedCount: 0, availableCount: 0 };
     }
 
-    const distinctPrices = Array.from(new Set(validLines.map((l) => Number(l.unitCostETB))));
-    const priceFilters = distinctPrices.slice(0, 100).map((p) => ({
-      unitCostETB: { gte: p - 0.01, lte: p + 0.01 },
-    }));
+    const storeLocationIds = Array.from(new Set(validLines.map((l) => l.storeLocationId).filter(Boolean))) as string[];
 
     const candidates = await prisma.item.findMany({
       where: {
         parentItemId: null,
         status: { in: ['AVAILABLE', 'PENDING_STOCK_IN', 'DISPOSED'] as any[] },
-        OR: priceFilters,
+        OR: [
+          ...(storeLocationIds.length > 0 ? [{ storeLocationId: { in: storeLocationIds } }] : []),
+          { status: 'DISPOSED' as any },
+        ],
       },
       select: {
         id: true,
@@ -1518,7 +1518,7 @@ export class StoreService {
           take: 1,
         },
       },
-      take: 300,
+      take: 500,
     });
 
     const conflicts: Array<{
@@ -1537,13 +1537,10 @@ export class StoreService {
 
     for (const line of validLines) {
       const lineNorm = normalizeDescription(line.name);
-      const linePrice = Number(line.unitCostETB);
+      const linePrice = Number(line.unitCostETB) || 0;
       const lineTokens = lineNorm.split(' ').filter((t) => t.length > 1);
 
       const matched = candidates.find((c) => {
-        const priceMatch = Math.abs(c.unitCostETB - linePrice) <= 0.01;
-        if (!priceMatch) return false;
-
         const cNorm = normalizeDescription(c.name);
         const nameMatch =
           cNorm === lineNorm ||
