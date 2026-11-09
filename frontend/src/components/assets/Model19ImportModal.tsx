@@ -24,10 +24,12 @@ type Sent = { ok: true; isDraft?: boolean } | { ok: false; reason: string };
 export interface ImportDuplicateConflict {
   row: number;
   itemName: string;
+  ifmisItemCode?: string;
   unitCostETB: number;
-  matchType: 'DISPOSED' | 'AVAILABLE';
+  matchType: 'DISPOSED' | 'AVAILABLE' | 'VOUCHER_EXISTS';
   existingItemCode: string;
   existingItemName: string;
+  existingIfmisCode?: string;
   existingStatus: string;
   storeName?: string;
   disposedDate?: string;
@@ -118,14 +120,23 @@ export const Model19ImportModal: React.FC<{
       setReceipts(read);
 
       // Pre-flight duplicate check against database records
-      const linesToCheck: Array<{ row: number; name: string; unitCostETB: number; storeLocationId?: string }> = [];
+      const linesToCheck: Array<{
+        row: number;
+        name: string;
+        ifmisItemCode?: string;
+        unitCostETB: number;
+        storeLocationId?: string;
+        model19No?: string;
+      }> = [];
       for (const r of read) {
         for (const l of r.lines) {
           linesToCheck.push({
             row: l.row,
             name: l.name,
+            ifmisItemCode: l.ifmisItemCode,
             unitCostETB: l.unitPrice,
             storeLocationId: r.storeLocationId,
+            model19No: r.model19No,
           });
         }
       }
@@ -162,7 +173,7 @@ export const Model19ImportModal: React.FC<{
     const excludedRows = new Set<number>();
     let hasForceNew = false;
     for (const c of conflicts) {
-      if (c.matchType === 'DISPOSED') {
+      if (c.matchType === 'DISPOSED' || c.matchType === 'VOUCHER_EXISTS') {
         excludedRows.add(c.row);
       } else {
         const dec = activeDecisions.get(c.row) || 'DISCARD';
@@ -193,8 +204,9 @@ export const Model19ImportModal: React.FC<{
   const withProblems = (receipts ?? []).length - ready.length;
   const disposedCount = conflicts.filter((c) => c.matchType === 'DISPOSED').length;
   const availableCount = conflicts.filter((c) => c.matchType === 'AVAILABLE').length;
+  const voucherCollisionCount = conflicts.filter((c) => c.matchType === 'VOUCHER_EXISTS').length;
 
-  const excludedRowsCount = conflicts.filter((c) => c.matchType === 'DISPOSED' || decisions.get(c.row) === 'DISCARD').length;
+  const excludedRowsCount = conflicts.filter((c) => c.matchType === 'DISPOSED' || c.matchType === 'VOUCHER_EXISTS' || decisions.get(c.row) === 'DISCARD').length;
 
   const send = async (asDraft = false) => {
     if (!receipts || ready.length === 0 || !user?.id) return;
@@ -362,23 +374,31 @@ export const Model19ImportModal: React.FC<{
             <div className="max-h-[380px] space-y-3 overflow-y-auto pr-1">
               {conflicts.map((c) => {
                 const isDisposed = c.matchType === 'DISPOSED';
+                const isVoucherCollision = c.matchType === 'VOUCHER_EXISTS';
+                const isAutoExcluded = isDisposed || isVoucherCollision;
                 const currentDecision = decisions.get(c.row) || 'DISCARD';
 
                 return (
                   <div
                     key={c.row}
                     className={`rounded-lg border p-4 transition-all shadow-2xs ${
-                      isDisposed
+                      isAutoExcluded
                         ? 'border-rose-200 bg-rose-50/50'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
-                    {/* Header with row title and match badge */}
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-                      <span className="text-xs font-bold text-slate-900">
-                        Row {c.row}: {c.itemName} ({formatETB(c.unitCostETB)})
-                      </span>
-                      {isDisposed ? (
+                    {/* Header with row title, IFMIS code badge, and match badge */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-slate-900">
+                        <span>Row {c.row}: {c.itemName}</span>
+                        {(c.ifmisItemCode || c.existingIfmisCode) && (
+                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-600 border border-slate-200" title="Ethiopian Federal IFMIS Chart of Accounts Commodity Code">
+                            IFMIS: {c.ifmisItemCode || c.existingIfmisCode}
+                          </span>
+                        )}
+                        <span className="text-slate-500 font-normal">({formatETB(c.unitCostETB)})</span>
+                      </div>
+                      {isAutoExcluded ? (
                         <span className="inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-800 border border-rose-200">
                           <XCircle className="h-3 w-3 text-rose-600" />
                           Auto-Excluded
@@ -392,7 +412,19 @@ export const Model19ImportModal: React.FC<{
                     </div>
 
                     <div className="pt-3">
-                      {isDisposed ? (
+                      {isVoucherCollision ? (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold text-rose-900">
+                            🚫 Model 19 Voucher Already Registered
+                          </p>
+                          <p className="text-[11px] font-semibold text-rose-700 bg-rose-100/70 rounded px-2.5 py-1 inline-block border border-rose-200">
+                            [Auto-Excluded - Duplicate Voucher Entrance Prohibited]
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            {c.message}
+                          </p>
+                        </div>
+                      ) : isDisposed ? (
                         <div className="space-y-1.5">
                           <p className="text-xs font-semibold text-rose-900">
                             ❌ Matches DISPOSED Asset {c.existingItemCode} ({c.disposedDate ? `Disposed ${c.disposedDate}` : 'Disposed'})
@@ -475,7 +507,7 @@ export const Model19ImportModal: React.FC<{
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
               <span className="text-xs text-slate-600 font-medium">
-                <b>{disposedCount}</b> excluded ·{' '}
+                <b>{disposedCount + voucherCollisionCount}</b> excluded ·{' '}
                 <b>{conflicts.filter((c) => c.matchType === 'AVAILABLE' && (decisions.get(c.row) || 'DISCARD') === 'DISCARD').length}</b> to discard ·{' '}
                 <b>{conflicts.filter((c) => c.matchType === 'AVAILABLE' && decisions.get(c.row) === 'FORCE_NEW').length}</b> to import as new
               </span>

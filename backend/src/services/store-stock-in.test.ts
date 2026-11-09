@@ -620,12 +620,13 @@ describe('StoreService.registerStockIn approval gate', () => {
       expect(availableConflict?.message).toContain('Matches AVAILABLE Asset MOA-OFS-2026-0084 in Saris Store');
     });
 
-    it('does not flag duplicates when item description has comma or spacing differences', async () => {
+    it('flags duplicates when IFMIS item code matches in the same store even if name has variation', async () => {
       db.item.findMany.mockResolvedValue([
         {
           id: 'it-beaker',
           itemCode: 'MOA-LAB-01',
           name: 'BEAKER LOW FORM WITH SPOUT, 1000ml',
+          ifmisItemCode: '308101101.0042',
           status: 'AVAILABLE',
           unitCostETB: 50,
           storeLocationId: 'loc-lab',
@@ -634,7 +635,72 @@ describe('StoreService.registerStockIn approval gate', () => {
         },
       ]);
 
-      // Missing comma: 'BEAKER LOW FORM WITH SPOUT 1000ml'
+      const itemsToCheck = [
+        {
+          row: 12,
+          name: 'BEAKER LOW FORM WITH SPOUT 1000ml', // description differs
+          ifmisItemCode: '308101101.0042', // identical IFMIS code
+          unitCostETB: 50,
+          storeLocationId: 'loc-lab',
+        },
+      ];
+
+      const res = await StoreService.getInstance().checkImportDuplicates(itemsToCheck);
+      expect(res.totalDetected).toBe(1);
+      expect(res.availableCount).toBe(1);
+      expect(res.conflicts[0].existingItemCode).toBe('MOA-LAB-01');
+      expect(res.conflicts[0].existingIfmisCode).toBe('308101101.0042');
+    });
+
+    it('flags VOUCHER_EXISTS as AUTO_EXCLUDED when Model 19 slip was already received in the store', async () => {
+      db.item.findMany.mockResolvedValue([
+        {
+          id: 'it-prev-m19',
+          itemCode: 'MOA-IT-2026-0099',
+          name: 'Dell Precision Tower 3660',
+          ifmisSlipNumber: 'M19-2026-0044',
+          status: 'AVAILABLE',
+          unitCostETB: 120000,
+          storeLocationId: 'loc-central',
+          storeLocation: { name: 'Central Store', store: { name: 'Central Store' } },
+          history: [],
+        },
+      ]);
+
+      const itemsToCheck = [
+        {
+          row: 5,
+          name: 'Dell Precision Tower 3660',
+          model19No: 'M19-2026-0044',
+          unitCostETB: 120000,
+          storeLocationId: 'loc-central',
+        },
+      ];
+
+      const res = await StoreService.getInstance().checkImportDuplicates(itemsToCheck);
+      expect(res.totalDetected).toBe(1);
+      expect(res.voucherCollisionCount).toBe(1);
+      expect(res.conflicts[0].matchType).toBe('VOUCHER_EXISTS');
+      expect(res.conflicts[0].action).toBe('AUTO_EXCLUDED');
+      expect(res.conflicts[0].message).toContain('is already registered in Central Store');
+    });
+
+    it('does not flag duplicates when item description has comma or spacing differences and no IFMIS code', async () => {
+      db.item.findMany.mockResolvedValue([
+        {
+          id: 'it-beaker',
+          itemCode: 'MOA-LAB-01',
+          name: 'BEAKER LOW FORM WITH SPOUT, 1000ml',
+          ifmisItemCode: '308101101.0042',
+          status: 'AVAILABLE',
+          unitCostETB: 50,
+          storeLocationId: 'loc-lab',
+          storeLocation: { name: 'Lab Store', store: { name: 'Kality' } },
+          history: [],
+        },
+      ]);
+
+      // Missing comma: 'BEAKER LOW FORM WITH SPOUT 1000ml', and no IFMIS code passed
       const itemsToCheck = [
         { row: 10, name: 'BEAKER LOW FORM WITH SPOUT 1000ml', unitCostETB: 50, storeLocationId: 'loc-lab' },
       ];

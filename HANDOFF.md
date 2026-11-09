@@ -1,7 +1,6 @@
 # Ministry of Agriculture — Asset Tracking System (MoA-ATS)
 ## Daily Session Handoff & Continuity Guide
-**Last Updated**: 2026-11-08 (Evening)  
-**Latest Git Commit on `main`**: `356753e` (`style(assets): add micro checkmark icons to in-store and issued status chips`)  
+**Last Updated**: 2026-11-09 (Night)  
 **Git Repository**: `https://github.com/MoA-Eth/asset-tracking-system.git`  
 **Working Branch**: `main` (Clean, fully pushed to GitHub)
 
@@ -17,12 +16,13 @@ When you sit down at your other laptop:
    ```
 2. **Start Dev Servers**:
    ```bash
-   # Terminal 1 (Backend - Port 3000):
+   # Terminal 1 (Backend - Port 5000):
    cd backend && npm run dev
 
-   # Terminal 2 (Frontend - Port 3001/3000):
+   # Terminal 2 (Frontend - Port 3000):
    cd frontend && npm run dev
    ```
+   *(Ensure local Postgres Docker container `moa-ams-postgres` is started on port 5432).*
 3. **In the Antigravity Chat**:
    Simply type:
    > *"Read HANDOFF.md and let's continue."*
@@ -30,24 +30,28 @@ When you sit down at your other laptop:
 
 ---
 
-### 2. What Was Accomplished in Today's Sessions (2026-11-08)
+### 2. What Was Accomplished in Today's Sessions (2026-11-09)
 
-#### A. Assets Page UI/UX Polish & Modernization
-- **Status Filter Tabs**:
-  - Increased button height to `h-9` (36px), rounded corners (`rounded-lg`), tactile elevation shadow (`shadow-xs ring-1 ring-slate-950/5`), and bold pill count badges.
-- **Toolbar Control Alignment**:
-  - Standardized all toolbar elements to `h-9` (36px): Search input, Quick Type Switcher (All / Fixed Assets / Consumables), Filter popover button, Expand All toggle, `+ Receive items (Model 19)` button, and 3-dot export menu button.
-- **Instant Search Shortcut & Quick Clear**:
-  - Press `/` anywhere on the page (or `Ctrl+K` / `Cmd+K`) to jump focus to the search bar.
-  - Press `(×)` to clear the search query and refocus in one click.
-  - Responsive `/` keyboard hint badge shown inside the input when empty.
-- **Expand All / Collapse All Toggle**:
-  - When batch items or multi-line Model 19 vouchers appear on the page, an `Expand all` / `Collapse all` button appears in the toolbar to toggle all rows open/closed at once.
-- **Stale Stock Shelf-Time Indicator**:
-  - In-store inventory remaining over 90 days shows an amber clock badge (`124d in store`) with an informative hover tooltip.
-- **Refined Status Chips**:
-  - `In store` and `Issued` status pills now display crisp micro-checkmarks (`✓ In store`, `✓ Issued`) while preserving official Ethiopian public property administration terminology (Directive 1010/2024 & Model 19–22).
-- **Multi-Line Row Chevron Alignment**:
+#### A. Model 19 Excel Import & Duplicate Detection Engine
+- **IFMIS Item Code Integration**:
+  - `ifmisItemCode` (e.g. `305101101.0086`) is now extracted from Excel, passed to the backend, and used as a primary matching key.
+  - Matches assets in store even if item description has minor punctuation/naming variations.
+  - Displays IFMIS badge in the conflict card.
+- **Removed `take: 500` Bottleneck**:
+  - Replaced arbitrary sample fetching with targeted PostgreSQL queries filtering on imported names, IFMIS codes, and voucher numbers.
+- **Model 19 Voucher-Level Collision Prevention**:
+  - Automatically identifies if a Model 19 voucher was previously registered in the store ledger and auto-excludes it (`VOUCHER_EXISTS`).
+- **Unified Cross-Voucher Checks**:
+  - Removed outdated unit price restriction from `registerStockIn` to keep submission logic consistent with pre-flight detection.
+- **Redesigned Duplicate Resolution Modal**:
+  - Amber banner, bulk discard/force-new buttons, and per-item radio selections.
+
+#### B. Assets Page Table Layout Optimization
+- **Quantity Column Consolidation**:
+  - Consolidated columns and removed `Issued` column to keep table width tight (min-width `720px`) and prevent horizontal scrolling on standard 13" laptop screens.
+
+#### C. Playwright E2E Testing Foundation
+- Configured Playwright (`playwright.config.ts`) and initial authentication/navigation tests (`auth-and-audit.spec.ts`).
   - Aligned the expandable chevron button (`-ml-3.5`) so multi-line voucher row titles align horizontally with normal rows.
 - **Currency Typography & Spacing Fix**:
   - Refined `renderCurrency` to handle non-breaking space (`\u00a0`) in `ETB` currency formatting, separating the currency symbol (`ETB`) in lighter font from the bold amount.

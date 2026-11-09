@@ -1468,39 +1468,75 @@ export class StoreService {
 
   /**
    * Pre-flight batch duplicate detection for Excel/Model 19 bulk imports:
-   * Checks items lacking serial numbers against both DISPOSED and AVAILABLE records in inventory.
+   * Checks items against existing Model 19 vouchers, DISPOSED assets, and AVAILABLE store inventory.
    */
   public async checkImportDuplicates(
-    items: Array<{ row: number; name: string; unitCostETB: number; storeLocationId?: string }>
+    items: Array<{
+      row: number;
+      name: string;
+      ifmisItemCode?: string;
+      unitCostETB: number;
+      storeLocationId?: string;
+      model19No?: string;
+    }>
   ) {
     if (!Array.isArray(items) || items.length === 0) {
-      return { conflicts: [], totalDetected: 0, disposedCount: 0, availableCount: 0 };
+      return { conflicts: [], totalDetected: 0, disposedCount: 0, availableCount: 0, voucherCollisionCount: 0 };
     }
 
     const validLines = items.filter((it) => {
       const norm = normalizeDescription(it.name);
-      return norm.length >= 2;
+      return norm.length >= 2 || Boolean(it.ifmisItemCode?.trim());
     });
 
     if (validLines.length === 0) {
-      return { conflicts: [], totalDetected: 0, disposedCount: 0, availableCount: 0 };
+      return { conflicts: [], totalDetected: 0, disposedCount: 0, availableCount: 0, voucherCollisionCount: 0 };
     }
 
     const storeLocationIds = Array.from(new Set(validLines.map((l) => l.storeLocationId).filter(Boolean))) as string[];
+    const distinctNames = Array.from(new Set(validLines.map((l) => String(l.name || '').trim()).filter((n) => n.length >= 2)));
+    const distinctIfmisCodes = Array.from(new Set(validLines.map((l) => String(l.ifmisItemCode || '').trim()).filter(Boolean)));
+    const distinctVouchers = Array.from(
+      new Set(
+        validLines
+          .map((l) => String(l.model19No || '').trim())
+          .filter((v) => v && !v.toLowerCase().startsWith('pending-') && !v.toLowerCase().startsWith('draft-'))
+      )
+    );
+
+    // Build targeted query conditions instead of fetching an arbitrary take: 500
+    const orTargetConditions: any[] = [];
+    if (distinctNames.length > 0) {
+      orTargetConditions.push({ name: { in: distinctNames, mode: 'insensitive' } });
+    }
+    if (distinctIfmisCodes.length > 0) {
+      orTargetConditions.push({ ifmisItemCode: { in: distinctIfmisCodes, mode: 'insensitive' } });
+    }
+    if (distinctVouchers.length > 0) {
+      orTargetConditions.push({ ifmisSlipNumber: { in: distinctVouchers, mode: 'insensitive' } });
+    }
 
     const candidates = await prisma.item.findMany({
       where: {
         parentItemId: null,
         status: { in: ['AVAILABLE', 'PENDING_STOCK_IN', 'DISPOSED'] as any[] },
-        OR: [
-          ...(storeLocationIds.length > 0 ? [{ storeLocationId: { in: storeLocationIds } }] : []),
-          { status: 'DISPOSED' as any },
+        AND: [
+          {
+            OR: [
+              ...(storeLocationIds.length > 0 ? [{ storeLocationId: { in: storeLocationIds } }] : []),
+              { status: 'DISPOSED' as any },
+              ...(distinctVouchers.length > 0 ? [{ ifmisSlipNumber: { in: distinctVouchers, mode: 'insensitive' as const } }] : []),
+            ],
+          },
+          ...(orTargetConditions.length > 0 ? [{ OR: orTargetConditions }] : []),
         ],
       },
       select: {
         id: true,
         itemCode: true,
         name: true,
+        ifmisItemCode: true,
+        ifmisSlipNumber: true,
         status: true,
         unitCostETB: true,
         storeLocationId: true,
@@ -1518,16 +1554,18 @@ export class StoreService {
           take: 1,
         },
       },
-      take: 500,
+      take: 2000,
     });
 
     const conflicts: Array<{
       row: number;
       itemName: string;
+      ifmisItemCode?: string;
       unitCostETB: number;
-      matchType: 'DISPOSED' | 'AVAILABLE';
+      matchType: 'DISPOSED' | 'AVAILABLE' | 'VOUCHER_EXISTS';
       existingItemCode: string;
       existingItemName: string;
+      existingIfmisCode?: string;
       existingStatus: string;
       storeName?: string;
       disposedDate?: string;
@@ -1537,13 +1575,56 @@ export class StoreService {
 
     for (const line of validLines) {
       const cleanLineName = String(line.name || '').trim().toLowerCase();
+      const cleanLineIfmis = String(line.ifmisItemCode || '').trim().toLowerCase();
+      const cleanLineVoucher = String(line.model19No || '').trim().toLowerCase();
       const linePrice = Number(line.unitCostETB) || 0;
 
+      // 1. Check if the exact Model 19 voucher line was already registered in the DB
+      const existingVoucherItem =
+        cleanLineVoucher && !cleanLineVoucher.startsWith('pending-') && !cleanLineVoucher.startsWith('draft-')
+          ? candidates.find((c) => {
+              const cVoucher = String(c.ifmisSlipNumber || '').trim().toLowerCase();
+              if (cVoucher !== cleanLineVoucher) return false;
+              const cName = String(c.name || '').trim().toLowerCase();
+              const cIfmis = String(c.ifmisItemCode || '').trim().toLowerCase();
+              return (cleanLineName && cName === cleanLineName) || (cleanLineIfmis && cIfmis === cleanLineIfmis);
+            })
+          : undefined;
+
+      if (existingVoucherItem) {
+        const storeLabel =
+          existingVoucherItem.storeLocation?.store?.name || existingVoucherItem.storeLocation?.name || 'Store';
+        conflicts.push({
+          row: line.row,
+          itemName: line.name,
+          ifmisItemCode: line.ifmisItemCode,
+          unitCostETB: linePrice,
+          matchType: 'VOUCHER_EXISTS',
+          existingItemCode: existingVoucherItem.itemCode,
+          existingItemName: existingVoucherItem.name,
+          existingIfmisCode: existingVoucherItem.ifmisItemCode || undefined,
+          existingStatus: existingVoucherItem.status,
+          storeName: storeLabel,
+          action: 'AUTO_EXCLUDED',
+          message: `Model 19 No. ${existingVoucherItem.ifmisSlipNumber} is already registered in ${storeLabel} (${existingVoucherItem.itemCode}). Duplicate entry is prohibited.`,
+        });
+        continue;
+      }
+
+      // 2. Check for matching items
       const matched = candidates.find((c) => {
         const cleanCandidateName = String(c.name || '').trim().toLowerCase();
-        const nameMatch = cleanLineName === cleanCandidateName;
-        if (!nameMatch) return false;
+        const cleanCandidateIfmis = String(c.ifmisItemCode || '').trim().toLowerCase();
 
+        // Exact name match
+        const nameMatch = cleanLineName.length > 0 && cleanLineName === cleanCandidateName;
+        // Exact IFMIS code match (if both provide IFMIS codes)
+        const ifmisMatch =
+          cleanLineIfmis.length > 0 && cleanCandidateIfmis.length > 0 && cleanLineIfmis === cleanCandidateIfmis;
+
+        if (!nameMatch && !ifmisMatch) return false;
+
+        // For non-disposed items, scope strictly to the same store location
         if (c.status !== 'DISPOSED' && line.storeLocationId && c.storeLocationId) {
           return c.storeLocationId === line.storeLocationId;
         }
@@ -1569,10 +1650,12 @@ export class StoreService {
           conflicts.push({
             row: line.row,
             itemName: line.name,
+            ifmisItemCode: line.ifmisItemCode,
             unitCostETB: linePrice,
             matchType: 'DISPOSED',
             existingItemCode: matched.itemCode,
             existingItemName: matched.name,
+            existingIfmisCode: matched.ifmisItemCode || undefined,
             existingStatus: 'DISPOSED',
             disposedDate: dispDate,
             action: 'AUTO_EXCLUDED',
@@ -1584,14 +1667,16 @@ export class StoreService {
           conflicts.push({
             row: line.row,
             itemName: line.name,
+            ifmisItemCode: line.ifmisItemCode,
             unitCostETB: linePrice,
             matchType: 'AVAILABLE',
             existingItemCode: matched.itemCode,
             existingItemName: matched.name,
+            existingIfmisCode: matched.ifmisItemCode || undefined,
             existingStatus: matched.status,
             storeName: storeLabel,
             action: 'PROMPT_USER',
-            message: `Matches AVAILABLE Asset ${matched.itemCode} in ${storeLabel}`,
+            message: `Matches AVAILABLE Asset ${matched.itemCode} in ${storeLabel}${matched.ifmisItemCode ? ` (IFMIS: ${matched.ifmisItemCode})` : ''}`,
           });
         }
       }
@@ -1599,12 +1684,14 @@ export class StoreService {
 
     const disposedCount = conflicts.filter((c) => c.matchType === 'DISPOSED').length;
     const availableCount = conflicts.filter((c) => c.matchType === 'AVAILABLE').length;
+    const voucherCollisionCount = conflicts.filter((c) => c.matchType === 'VOUCHER_EXISTS').length;
 
     return {
       conflicts,
       totalDetected: conflicts.length,
       disposedCount,
       availableCount,
+      voucherCollisionCount,
     };
   }
 
@@ -1749,7 +1836,7 @@ export class StoreService {
       }
     }
 
-    // Cross-voucher duplicate check: warn when a similarly-named item at the same non-zero price
+    // Cross-voucher duplicate check: warn when a similarly-named item or same IFMIS code
     // already exists (AVAILABLE or PENDING_STOCK_IN) in the same store under a DIFFERENT voucher.
     // This is a soft warning: re-submitting with allowDuplicate=true bypasses it.
     if (!isDraft && !payload.allowDuplicate) {
@@ -1757,16 +1844,17 @@ export class StoreService {
       for (const line of rawItems) {
         const lineName = String(line.name || payload.name || '').trim();
         const normLineName = normalizeDescription(lineName);
+        const lineIfmisCode = String(line.ifmisItemCode || payload.ifmisItemCode || '').trim();
         const linePrice = Number(line.unitCostETB ?? payload.unitCostETB);
         // Only warn when we have a name and a non-zero price (zero-cost items are too ambiguous)
         if (!normLineName || !linePrice) continue;
+
         let existing = await prisma.item.findFirst({
           where: {
             storeLocationId: payload.storeLocationId,
             parentItemId: null,
             status: { in: ['AVAILABLE', 'PENDING_STOCK_IN'] as any[] },
             name: { equals: lineName, mode: 'insensitive' },
-            unitCostETB: { gte: linePrice - 0.005, lte: linePrice + 0.005 },
             NOT: payload.ifmisSlipNumber && !payload.ifmisSlipNumber.startsWith('PENDING-')
               ? { ifmisSlipNumber: { equals: payload.ifmisSlipNumber, mode: 'insensitive' } }
               : undefined,
@@ -1774,13 +1862,27 @@ export class StoreService {
           select: { id: true, itemCode: true, name: true, ifmisSlipNumber: true, status: true },
         });
 
-        if (!existing) {
+        if (!existing && lineIfmisCode) {
+          existing = await prisma.item.findFirst({
+            where: {
+              storeLocationId: payload.storeLocationId,
+              parentItemId: null,
+              status: { in: ['AVAILABLE', 'PENDING_STOCK_IN'] as any[] },
+              ifmisItemCode: { equals: lineIfmisCode, mode: 'insensitive' },
+              NOT: payload.ifmisSlipNumber && !payload.ifmisSlipNumber.startsWith('PENDING-')
+                ? { ifmisSlipNumber: { equals: payload.ifmisSlipNumber, mode: 'insensitive' } }
+                : undefined,
+            },
+            select: { id: true, itemCode: true, name: true, ifmisSlipNumber: true, status: true },
+          });
+        }
+
+        if (!existing && normLineName) {
           const candidates = await prisma.item.findMany({
             where: {
               storeLocationId: payload.storeLocationId,
               parentItemId: null,
               status: { in: ['AVAILABLE', 'PENDING_STOCK_IN'] as any[] },
-              unitCostETB: { gte: linePrice - 0.005, lte: linePrice + 0.005 },
               NOT: payload.ifmisSlipNumber && !payload.ifmisSlipNumber.startsWith('PENDING-')
                 ? { ifmisSlipNumber: { equals: payload.ifmisSlipNumber, mode: 'insensitive' } }
                 : undefined,

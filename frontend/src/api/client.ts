@@ -348,15 +348,17 @@ export const api = {
   },
 
   /** Pre-flight batch duplicate detection for Excel/Model 19 bulk imports */
-  checkImportDuplicates: (items: Array<{ row: number; name: string; unitCostETB: number; storeLocationId?: string }>) => {
+  checkImportDuplicates: (items: Array<{ row: number; name: string; ifmisItemCode?: string; unitCostETB: number; storeLocationId?: string; model19No?: string }>) => {
     return request<{
       conflicts: Array<{
         row: number;
         itemName: string;
+        ifmisItemCode?: string;
         unitCostETB: number;
-        matchType: 'DISPOSED' | 'AVAILABLE';
+        matchType: 'DISPOSED' | 'AVAILABLE' | 'VOUCHER_EXISTS';
         existingItemCode: string;
         existingItemName: string;
+        existingIfmisCode?: string;
         existingStatus: string;
         storeName?: string;
         disposedDate?: string;
@@ -366,6 +368,7 @@ export const api = {
       totalDetected: number;
       disposedCount: number;
       availableCount: number;
+      voucherCollisionCount?: number;
     }>('/items/check-import-duplicates', {
       method: 'POST',
       body: JSON.stringify({ items }),
