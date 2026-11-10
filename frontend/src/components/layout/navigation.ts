@@ -135,8 +135,8 @@ const RETIRED_TABS: Record<string, string> = {
 export function getValidTab(user: Pick<AuthUser, 'allowedTabs' | 'landingTab'> | null, requested?: string | null): string {
   const allowed = user?.allowedTabs ?? [];
   const candidate = requested ? RETIRED_TABS[requested] ?? requested : requested;
-  // Profile and Help (the user manual) are for everyone, reached from the account menu
-  if (candidate === 'settings-profile' || candidate === 'docs') return candidate;
+  // Profile, Help, and temporary Duplicate Audit are accessible directly
+  if (candidate === 'settings-profile' || candidate === 'docs' || candidate === 'duplicate-audit') return candidate;
   if (candidate && allowed.includes(candidate)) return candidate;
   return user?.landingTab && allowed.includes(user.landingTab) ? user.landingTab : (allowed[0] ?? '');
 }

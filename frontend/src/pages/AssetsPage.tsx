@@ -24,6 +24,7 @@ import {
   Lock,
   Clock,
   ChevronsUpDown,
+  ShieldAlert,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { btn, table } from '../components/ui/theme';
@@ -191,7 +192,7 @@ interface AssetsPageProps {
   onNavigate: (tab: string) => void;
 }
 
-export const AssetsPage: React.FC<AssetsPageProps> = () => {
+export const AssetsPage: React.FC<AssetsPageProps> = ({ onNavigate }) => {
   const { user } = useAuth();
   const toast = useToast();
   const can = (permission: string) => user?.role === UserRole.SUPER_ADMIN || (user?.permissions?.includes(permission) ?? false);
@@ -2517,6 +2518,18 @@ export const AssetsPage: React.FC<AssetsPageProps> = () => {
                     </button>
                   );
                 })}
+
+                {onNavigate && user?.role === UserRole.SUPER_ADMIN && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('duplicate-audit')}
+                    className="ml-auto inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 transition-colors cursor-pointer shrink-0"
+                    title="Open dedicated Duplicate Audit screen to cross-check pending items against store inventory (Super Admin only)"
+                  >
+                    <ShieldAlert size={14} className="text-amber-700" />
+                    <span>Audit Duplicates</span>
+                  </button>
+                )}
               </div>
             </div>
             <div className="flex flex-col gap-2.5 px-3.5 py-2.5">

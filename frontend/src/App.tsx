@@ -27,6 +27,7 @@ const ProfilePage = lazy(() => import('./pages/settings/ProfilePage').then(m => 
 const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const CreatePasswordPage = lazy(() => import('./pages/CreatePasswordPage').then(m => ({ default: m.CreatePasswordPage })));
 const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage').then(m => ({ default: m.ChangePasswordPage })));
+const DuplicateAuditPage = lazy(() => import('./pages/DuplicateAuditPage').then(m => ({ default: m.DuplicateAuditPage })));
 
 const PageLoadingFallback: React.FC = () => (
   <div className="p-4 space-y-4 animate-fadeIn" role="status" aria-busy="true">
@@ -289,6 +290,7 @@ const AuthenticatedPortal: React.FC = () => {
             )}
             {activeTab === 'home' && <HomePage currentRole={role} onNavigate={handleTabChange} />}
             {activeTab === 'assets' && <AssetsPage currentRole={role} onNavigate={handleTabChange} />}
+            {activeTab === 'duplicate-audit' && <DuplicateAuditPage onNavigate={handleTabChange} />}
             {activeTab === 'my-assets' && <MyAssetsPage />}
             {activeTab === 'docs' && <DocsPage />}
             {activeTab === 'approvals' && (
