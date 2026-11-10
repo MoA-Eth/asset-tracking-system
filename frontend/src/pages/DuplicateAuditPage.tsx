@@ -12,26 +12,17 @@ import {
   RefreshCw,
   Search,
   ShieldAlert,
-  Building2,
-  Package,
-  Layers,
-  Sparkles,
-  ExternalLink,
+  ShieldCheck,
   Check,
   X,
   FileSpreadsheet,
-  HelpCircle,
-  ShieldCheck,
-  ArrowRight,
-  Info,
+  Layers,
 } from 'lucide-react';
 
 export interface MatchedAttribute {
   key: string;
   label: string;
-  pendingValue: string;
-  existingValue: string;
-  note?: string;
+  value: string;
 }
 
 export interface DuplicateConflict {
@@ -42,10 +33,6 @@ export interface DuplicateConflict {
   headline: string;
   reason: string;
   matchedAttributes: MatchedAttribute[];
-  suggestedAction: {
-    recommendedItemToDeleteId: string;
-    explanation: string;
-  };
   severity: 'HIGH' | 'MEDIUM';
 }
 
@@ -143,84 +130,53 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
   const allConflicts = useMemo<DuplicateConflict[]>(() => {
     const list: DuplicateConflict[] = [];
 
-    // Helper to extract overlapping attributes between two records
     const buildMatchedAttributes = (
       p: ItemWithRelations,
-      e: ItemWithRelations,
-      primaryType: string
+      e: ItemWithRelations
     ): MatchedAttribute[] => {
       const attrs: MatchedAttribute[] = [];
 
-      // 1. Serial Number
       if (isValidSerial(p.serialNumber) && isValidSerial(e.serialNumber) && p.serialNumber?.trim().toLowerCase() === e.serialNumber?.trim().toLowerCase()) {
         attrs.push({
           key: 'serial',
           label: 'Serial Number',
-          pendingValue: p.serialNumber.trim(),
-          existingValue: e.serialNumber.trim(),
-          note: 'Exact match',
+          value: p.serialNumber.trim(),
         });
       }
 
-      // 2. Model 19 Voucher
       const pSlip = String(p.ifmisSlipNumber || '').trim();
       const eSlip = String(e.ifmisSlipNumber || '').trim();
       if (pSlip && eSlip && pSlip.toLowerCase() === eSlip.toLowerCase()) {
         attrs.push({
           key: 'voucher',
-          label: 'Model 19 Voucher #',
-          pendingValue: `#${pSlip}`,
-          existingValue: `#${eSlip}`,
-          note: 'Identical voucher number',
+          label: 'Model 19 Voucher',
+          value: `#${pSlip}`,
         });
       }
 
-      // 3. Item Description / Name
       const pNorm = normalizeDesc(p.name);
       const eNorm = normalizeDesc(e.name);
       if (pNorm && eNorm && pNorm === eNorm) {
         attrs.push({
           key: 'name',
-          label: 'Item Description',
-          pendingValue: p.name,
-          existingValue: e.name,
-          note: 'Normalized match',
+          label: 'Description',
+          value: p.name,
         });
       }
 
-      // 4. Store Location
       if (p.storeLocationId && e.storeLocationId && p.storeLocationId === e.storeLocationId) {
-        const storeLabel = storeMap.get(p.storeLocationId) || 'Store';
         attrs.push({
           key: 'store',
-          label: 'Store Location',
-          pendingValue: storeLabel,
-          existingValue: storeLabel,
-          note: 'Same store location',
+          label: 'Store',
+          value: storeMap.get(p.storeLocationId) || 'Same Store',
         });
       }
 
-      // 5. Unit Cost (if identical)
       if (p.unitCostETB !== undefined && e.unitCostETB !== undefined && Math.abs(p.unitCostETB - e.unitCostETB) < 0.01) {
         attrs.push({
           key: 'cost',
           label: 'Unit Cost',
-          pendingValue: formatETB(p.unitCostETB),
-          existingValue: formatETB(e.unitCostETB),
-          note: 'Same unit cost',
-        });
-      }
-
-      // 6. IFMIS Code / Tag
-      const pCode = String(p.itemCode || p.ifmisTagNumber || '').trim().toLowerCase();
-      const eCode = String(e.itemCode || e.ifmisTagNumber || '').trim().toLowerCase();
-      if (pCode && eCode && pCode === eCode) {
-        attrs.push({
-          key: 'ifmis',
-          label: 'IFMIS Code / Tag',
-          pendingValue: p.itemCode || p.ifmisTagNumber || '',
-          existingValue: e.itemCode || e.ifmisTagNumber || '',
-          note: 'Matching item/tag code',
+          value: formatETB(p.unitCostETB),
         });
       }
 
@@ -239,42 +195,32 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
         // Condition 1: Non-blank Serial Number match
         const existSerial = isValidSerial(existing.serialNumber) ? existing.serialNumber.trim().toLowerCase() : null;
         if (pendingSerial && existSerial && pendingSerial === existSerial) {
-          const matchedAttrs = buildMatchedAttributes(pending, existing, 'SERIAL');
           list.push({
             id: `serial-${pending.id}-${existing.id}`,
             pendingItem: pending,
             existingItem: existing,
             matchType: 'SERIAL',
-            headline: `Exact Serial Number Collision ("${pending.serialNumber}")`,
-            reason: `Incoming pending item "${pending.name}" has the identical serial number as registered asset "${existing.itemCode}" in ${storeMap.get(existing.storeLocationId) || 'store'}.`,
-            matchedAttributes: matchedAttrs,
-            suggestedAction: {
-              recommendedItemToDeleteId: pending.id,
-              explanation: `Delete this incoming pending row (${pending.itemCode}) to prevent duplicate serial registration. The existing registered asset (${existing.itemCode}) will remain intact.`,
-            },
+            headline: 'Duplicate Serial Number',
+            reason: `Serial "${pending.serialNumber}" is already registered on asset ${existing.itemCode} in ${storeMap.get(existing.storeLocationId) || 'store'}.`,
+            matchedAttributes: buildMatchedAttributes(pending, existing),
             severity: 'HIGH',
           });
-          continue; // best match found for this pending item
+          continue;
         }
 
-        // Condition 2: Model 19 Voucher collision (same voucher number already registered in store)
+        // Condition 2: Model 19 Voucher collision
         const existVoucher = String(existing.ifmisSlipNumber || '').trim().toLowerCase();
         if (isRealVoucher && existVoucher && pendingVoucher === existVoucher) {
           const existNormName = normalizeDesc(existing.name);
           if (pendingNormName === existNormName || (pendingIfmis && pendingIfmis === String(existing.itemCode || '').toLowerCase())) {
-            const matchedAttrs = buildMatchedAttributes(pending, existing, 'VOUCHER');
             list.push({
               id: `voucher-${pending.id}-${existing.id}`,
               pendingItem: pending,
               existingItem: existing,
               matchType: 'VOUCHER',
-              headline: `Model 19 Voucher #${pending.ifmisSlipNumber} Already Registered`,
-              reason: `Voucher #${pending.ifmisSlipNumber} was already received and registered into inventory under ${existing.itemCode}.`,
-              matchedAttributes: matchedAttrs,
-              suggestedAction: {
-                recommendedItemToDeleteId: pending.id,
-                explanation: `Delete this pending line (${pending.itemCode}) because Voucher #${pending.ifmisSlipNumber} has already been registered in the system.`,
-              },
+              headline: 'Model 19 Voucher Collision',
+              reason: `Voucher #${pending.ifmisSlipNumber} was already received and registered into inventory (${existing.itemCode}).`,
+              matchedAttributes: buildMatchedAttributes(pending, existing),
               severity: 'HIGH',
             });
             continue;
@@ -285,19 +231,14 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
         if (existing.status === ItemStatus.DISPOSED) {
           const existNormName = normalizeDesc(existing.name);
           if (pendingNormName.length >= 3 && pendingNormName === existNormName) {
-            const matchedAttrs = buildMatchedAttributes(pending, existing, 'DISPOSED');
             list.push({
               id: `disposed-${pending.id}-${existing.id}`,
               pendingItem: pending,
               existingItem: existing,
               matchType: 'DISPOSED',
-              headline: `Collision with Previously DISPOSED Asset (${existing.itemCode})`,
-              reason: `Item description matches an asset previously disposed/written off. Verify whether this is a re-acquisition or a redundant record.`,
-              matchedAttributes: matchedAttrs,
-              suggestedAction: {
-                recommendedItemToDeleteId: pending.id,
-                explanation: `If this is an accidental re-import of an old disposed record, delete this pending item. If it is genuinely a new asset, dismiss this warning.`,
-              },
+              headline: 'Collision with Disposed Asset',
+              reason: `Matches an asset previously marked as DISPOSED (${existing.itemCode}).`,
+              matchedAttributes: buildMatchedAttributes(pending, existing),
               severity: 'HIGH',
             });
             continue;
@@ -308,22 +249,17 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
         if (pending.storeLocationId && existing.storeLocationId && pending.storeLocationId === existing.storeLocationId) {
           const existNormName = normalizeDesc(existing.name);
           if (pendingNormName.length >= 3 && pendingNormName === existNormName) {
-            const matchedAttrs = buildMatchedAttributes(pending, existing, 'STORE_ITEM');
             list.push({
               id: `store-${pending.id}-${existing.id}`,
               pendingItem: pending,
               existingItem: existing,
               matchType: 'STORE_ITEM',
-              headline: `Identical Description & Store Collision (${storeMap.get(pending.storeLocationId) || 'Store'})`,
-              reason: `An asset with the identical description is already recorded in ${storeMap.get(pending.storeLocationId) || 'this store'} under ${existing.itemCode}.`,
-              matchedAttributes: matchedAttrs,
-              suggestedAction: {
-                recommendedItemToDeleteId: pending.id,
-                explanation: `Remove this pending line if it was accidentally imported a second time. The existing store record remains safe.`,
-              },
+              headline: 'Same Item in Same Store',
+              reason: `Identical description already exists in ${storeMap.get(pending.storeLocationId) || 'this store'} under ${existing.itemCode}.`,
+              matchedAttributes: buildMatchedAttributes(pending, existing),
               severity: 'MEDIUM',
             });
-            break; // found match in same store
+            break;
           }
         }
       }
@@ -343,35 +279,25 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
         const p2NormName = normalizeDesc(p2.name);
 
         if (p1Serial && p2Serial && p1Serial === p2Serial) {
-          const matchedAttrs = buildMatchedAttributes(p2, p1, 'INTRA_PENDING');
           list.push({
             id: `pending-dup-serial-${p1.id}-${p2.id}`,
             pendingItem: p2,
             existingItem: p1,
             matchType: 'INTRA_PENDING',
-            headline: `Repeated Serial "${p1.serialNumber}" Inside Excel Import Batch`,
-            reason: `The newly imported batch contains multiple pending rows with the same serial number.`,
-            matchedAttributes: matchedAttrs,
-            suggestedAction: {
-              recommendedItemToDeleteId: p2.id,
-              explanation: `Delete the duplicate pending row (${p2.itemCode}) and keep the first pending row (${p1.itemCode}).`,
-            },
+            headline: 'Repeated Serial in Import Batch',
+            reason: `Repeated serial "${p1.serialNumber}" across multiple lines in the incoming Excel batch.`,
+            matchedAttributes: buildMatchedAttributes(p2, p1),
             severity: 'HIGH',
           });
         } else if (p1Voucher && p2Voucher && p1Voucher === p2Voucher && p1NormName && p1NormName === p2NormName) {
-          const matchedAttrs = buildMatchedAttributes(p2, p1, 'INTRA_PENDING');
           list.push({
             id: `pending-dup-voucher-${p1.id}-${p2.id}`,
             pendingItem: p2,
             existingItem: p1,
             matchType: 'INTRA_PENDING',
-            headline: `Repeated Line in Same Imported Voucher #${p1.ifmisSlipNumber}`,
-            reason: `Voucher #${p1.ifmisSlipNumber} contains multiple identical item entries in the imported batch.`,
-            matchedAttributes: matchedAttrs,
-            suggestedAction: {
-              recommendedItemToDeleteId: p2.id,
-              explanation: `Delete the duplicate pending row (${p2.itemCode}) to prevent double-counting.`,
-            },
+            headline: 'Repeated Item in Same Voucher',
+            reason: `Voucher #${p1.ifmisSlipNumber} contains multiple identical lines in the incoming batch.`,
+            matchedAttributes: buildMatchedAttributes(p2, p1),
             severity: 'HIGH',
           });
         }
@@ -389,19 +315,16 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
   // Filtered conflicts based on user controls
   const filteredConflicts = useMemo(() => {
     return activeConflicts.filter((c) => {
-      // Store filter
       if (storeFilter !== 'ALL') {
         const matchesPending = c.pendingItem.storeLocationId === storeFilter;
         const matchesExisting = c.existingItem.storeLocationId === storeFilter;
         if (!matchesPending && !matchesExisting) return false;
       }
 
-      // Type filter
       if (typeFilter !== 'ALL' && c.matchType !== typeFilter) {
         return false;
       }
 
-      // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const pName = (c.pendingItem.name || '').toLowerCase();
@@ -433,7 +356,7 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
       await api.deleteItem(item.id);
       toast.success(
         'Duplicate Line Removed',
-        `Pending item ${item.itemCode} was deleted from Receive Pending. Store record ${conflict.existingItem.itemCode} was preserved.`
+        `Pending item ${item.itemCode} was removed from Receive Pending.`
       );
       setItems((prev) => prev.filter((i) => i.id !== item.id && i.parentItemId !== item.id));
       setSelectedConflictIds((prev) => {
@@ -443,7 +366,7 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
       });
       setConfirmConflict(null);
     } catch (err: any) {
-      toast.error('Deletion Failed', err?.message || 'Could not delete item. Super Admin role required.');
+      toast.error('Deletion Failed', err?.message || 'Could not delete item.');
     } finally {
       setActionInProgress(null);
     }
@@ -454,7 +377,7 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
     const toDelete = filteredConflicts.filter((c) => selectedConflictIds.has(c.id));
     if (toDelete.length === 0) return;
 
-    const confirmMsg = `Are you sure you want to delete ${toDelete.length} selected duplicate line item(s) from Receive Pending?\n\nExisting inventory records in store will NOT be affected.`;
+    const confirmMsg = `Permanently delete ${toDelete.length} selected duplicate lines from Receive Pending?\n\nExisting inventory in store will NOT be affected.`;
     if (!window.confirm(confirmMsg)) return;
 
     setActionInProgress('BATCH');
@@ -472,10 +395,10 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
     }
 
     if (successCount > 0) {
-      toast.success('Batch Deletion Completed', `Successfully deleted ${successCount} duplicate item(s) from Receive Pending.`);
+      toast.success('Batch Deletion Completed', `Removed ${successCount} duplicate items.`);
     }
     if (failedCodes.length > 0) {
-      toast.error('Some Items Not Deleted', `Could not delete ${failedCodes.length} items (${failedCodes.slice(0, 3).join(', ')}).`);
+      toast.error('Some Items Not Deleted', `Could not delete ${failedCodes.length} items.`);
     }
 
     setSelectedConflictIds(new Set());
@@ -490,10 +413,9 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
       next.delete(conflictId);
       return next;
     });
-    toast.info('Conflict Dismissed', 'Warning hidden for this session.');
+    toast.info('Warning Dismissed', 'Hidden for this session.');
   };
 
-  // Select all / deselect all
   const toggleSelectAll = () => {
     if (selectedConflictIds.size === filteredConflicts.length) {
       setSelectedConflictIds(new Set());
@@ -514,20 +436,20 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
   // Role Gate: Super Admin Only
   if (!isSuperAdmin) {
     return (
-      <div className="max-w-xl mx-auto my-16 bg-white rounded-2xl border border-rose-200 p-8 shadow-xs text-center">
-        <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
-          <ShieldAlert size={28} />
+      <div className="max-w-md mx-auto my-20 bg-white rounded-2xl border border-slate-200 p-8 shadow-xs text-center">
+        <div className="w-12 h-12 mx-auto mb-3.5 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+          <ShieldAlert size={24} />
         </div>
-        <h2 className="text-lg font-bold text-slate-900">Restricted Diagnostic Feature</h2>
-        <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-          The <strong>Import Duplicate Audit Screen</strong> is currently available to <strong>Super Administrators</strong> only to safely detect and resolve duplicate Excel import records.
+        <h2 className="text-base font-bold text-slate-900">Restricted Feature</h2>
+        <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+          The Duplicate Audit tool is currently restricted to <strong>Super Administrators</strong>.
         </p>
-        <div className="mt-6">
+        <div className="mt-5">
           {onNavigate && (
             <button
               type="button"
               onClick={() => onNavigate('assets')}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
             >
               <ArrowLeft size={14} />
               <span>Return to Assets</span>
@@ -539,32 +461,32 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
   }
 
   return (
-    <div className="space-y-4 pb-12">
-      {/* Top Banner / Breadcrumb */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+    <div className="space-y-4 pb-12 max-w-7xl mx-auto">
+      {/* Top Header & Breadcrumb */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white px-5 py-4 rounded-xl border border-slate-200 shadow-2xs">
         <div className="flex items-center gap-3">
           {onNavigate && (
             <button
               type="button"
               onClick={() => onNavigate('assets')}
-              className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
               title="Return to Assets"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={16} />
             </button>
           )}
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">
-                Import Duplicate Audit
+              <h1 className="text-lg font-bold tracking-tight text-slate-900">
+                Duplicate Import Audit
               </h1>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-900 border border-emerald-300">
-                <ShieldCheck size={11} className="text-emerald-700" />
-                Super Admin Diagnostic
+              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 border border-slate-200">
+                <ShieldCheck size={12} className="text-emerald-700" />
+                Super Admin
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Cross-referencing newly imported items in <strong>"Receive Pending"</strong> status against registered store inventory.
+              Review and remove duplicate Excel import records currently in <strong>"Receive Pending"</strong>.
             </p>
           </div>
         </div>
@@ -574,79 +496,82 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
             type="button"
             onClick={() => void fetchData()}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin text-emerald-600' : ''} />
-            <span>Re-scan Database</span>
+            <RefreshCw size={13} className={loading ? 'animate-spin text-emerald-600' : ''} />
+            <span>Re-scan</span>
           </button>
           {onNavigate && (
             <button
               type="button"
               onClick={() => onNavigate('assets')}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors cursor-pointer shadow-xs"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors cursor-pointer shadow-xs"
             >
-              <ArrowLeft size={14} />
+              <ArrowLeft size={13} />
               <span>Back to Assets</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* KPI Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">
-            Pending Items Scanned
-          </span>
-          <span className="mt-1 text-2xl font-bold tracking-tight text-slate-900 block tabular-nums">
-            {pendingItems.length}
-          </span>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">Waiting for reception</span>
+      {/* Clean Stat Strip */}
+      <div className="bg-white rounded-xl border border-slate-200 px-5 py-3 shadow-2xs flex flex-wrap items-center justify-between gap-4 text-xs">
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">Scanned Pending:</span>
+            <strong className="text-slate-900 font-mono text-sm">{pendingItems.length}</strong>
+          </div>
+          <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">Duplicates Detected:</span>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-bold text-xs ${
+              activeConflicts.length > 0 ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600'
+            }`}>
+              {activeConflicts.length}
+            </span>
+          </div>
+          <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">Safe Items:</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold text-xs bg-emerald-100 text-emerald-800">
+              {Math.max(0, pendingItems.length - activeConflicts.length)}
+            </span>
+          </div>
+          <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">Stores:</span>
+            <strong className="text-slate-900 font-mono">{locations.length}</strong>
+          </div>
         </div>
 
-        <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3.5 shadow-2xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-rose-800 block">
-            Duplicates Detected
-          </span>
-          <span className="mt-1 text-2xl font-bold tracking-tight text-rose-700 block tabular-nums">
-            {activeConflicts.length}
-          </span>
-          <span className="text-[11px] text-rose-700/80 mt-0.5 block">Matching registered records</span>
-        </div>
-
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 shadow-2xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800 block">
-            Unique / Safe Items
-          </span>
-          <span className="mt-1 text-2xl font-bold tracking-tight text-emerald-700 block tabular-nums">
-            {Math.max(0, pendingItems.length - activeConflicts.length)}
-          </span>
-          <span className="text-[11px] text-emerald-700/80 mt-0.5 block">Clear to receive</span>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">
-            Stores Evaluated
-          </span>
-          <span className="mt-1 text-2xl font-bold tracking-tight text-slate-900 block tabular-nums">
-            {locations.length}
-          </span>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">Active store locations</span>
-        </div>
+        {/* Batch Delete Trigger if any selected */}
+        {selectedConflictIds.size > 0 && (
+          <button
+            type="button"
+            onClick={() => void handleDeleteSelected()}
+            disabled={actionInProgress === 'BATCH'}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-800 transition-colors shadow-xs cursor-pointer"
+          >
+            <Trash2 size={13} />
+            <span>
+              {actionInProgress === 'BATCH' ? 'Deleting…' : `Delete Selected (${selectedConflictIds.size})`}
+            </span>
+          </button>
+        )}
       </div>
 
-      {/* Filter and Bulk Action Controls */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-        <div className="flex flex-wrap items-center gap-2">
+      {/* Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-2 flex-1">
           {/* Search Bar */}
-          <div className="relative min-w-[200px] sm:min-w-[260px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, voucher, code, serial…"
-              className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 text-xs focus:border-emerald-600 focus:outline-none"
+              placeholder="Search name, voucher, serial, or code…"
+              className="w-full h-8.5 pl-9 pr-3 rounded-lg border border-slate-200 text-xs focus:border-emerald-600 focus:outline-none placeholder:text-slate-400"
             />
           </div>
 
@@ -654,7 +579,7 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
           <select
             value={storeFilter}
             onChange={(e) => setStoreFilter(e.target.value)}
-            className="h-9 px-3 rounded-lg border border-slate-200 text-xs text-slate-700 bg-white focus:border-emerald-600 focus:outline-none"
+            className="h-8.5 px-2.5 rounded-lg border border-slate-200 text-xs text-slate-700 bg-white focus:border-emerald-600 focus:outline-none"
           >
             <option value="ALL">All Stores ({locations.length})</option>
             {locations.map((loc) => (
@@ -668,87 +593,51 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as any)}
-            className="h-9 px-3 rounded-lg border border-slate-200 text-xs text-slate-700 bg-white focus:border-emerald-600 focus:outline-none"
+            className="h-8.5 px-2.5 rounded-lg border border-slate-200 text-xs text-slate-700 bg-white focus:border-emerald-600 focus:outline-none"
           >
             <option value="ALL">All Conflict Types</option>
-            <option value="SERIAL">Exact Serial Matches</option>
-            <option value="VOUCHER">Model 19 Voucher Collisions</option>
+            <option value="SERIAL">Serial Number Matches</option>
+            <option value="VOUCHER">Model 19 Collisions</option>
             <option value="STORE_ITEM">Store & Description Matches</option>
-            <option value="DISPOSED">Matches Disposed Asset</option>
+            <option value="DISPOSED">Disposed Asset Matches</option>
             <option value="INTRA_PENDING">Repeated Rows in Excel</option>
           </select>
         </div>
 
-        {/* Bulk Action Controls */}
+        {/* Select All Toggle */}
         {filteredConflicts.length > 0 && (
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={toggleSelectAll}
-              className="h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-            >
-              {selectedConflictIds.size === filteredConflicts.length ? 'Deselect All' : 'Select All'}
-            </button>
-
-            {selectedConflictIds.size > 0 && (
-              <button
-                type="button"
-                onClick={() => void handleDeleteSelected()}
-                disabled={actionInProgress === 'BATCH'}
-                className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-rose-700 px-3.5 text-xs font-semibold text-white hover:bg-rose-800 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
-              >
-                <Trash2 size={14} />
-                <span>
-                  {actionInProgress === 'BATCH' ? 'Deleting…' : `Delete Selected Duplicates (${selectedConflictIds.size})`}
-                </span>
-              </button>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={toggleSelectAll}
+            className="h-8.5 px-3 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer shrink-0"
+          >
+            {selectedConflictIds.size === filteredConflicts.length ? 'Deselect All' : 'Select All'}
+          </button>
         )}
       </div>
 
       {/* Main Conflict Cards List */}
       {loading ? (
         <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
-          <RefreshCw size={28} className="mx-auto text-emerald-600 animate-spin" />
-          <p className="mt-3 text-sm font-semibold text-slate-900">Scanning Database for Duplicates…</p>
-          <p className="mt-1 text-xs text-slate-500">Cross-checking all items in Receive Pending against active inventory.</p>
+          <RefreshCw size={24} className="mx-auto text-emerald-600 animate-spin" />
+          <p className="mt-3 text-xs font-semibold text-slate-700">Scanning Database for Duplicates…</p>
         </div>
       ) : filteredConflicts.length === 0 ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-12 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-            <CheckCircle2 size={32} />
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/30 p-12 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+            <CheckCircle2 size={26} />
           </div>
-          <h3 className="mt-4 text-base font-bold text-slate-900">
-            {allConflicts.length === 0 ? 'No Duplicates Detected' : 'No Matching Conflicts with Current Filters'}
+          <h3 className="mt-3 text-sm font-bold text-slate-900">
+            {allConflicts.length === 0 ? 'No Duplicates Detected' : 'No Conflicts Match Active Filters'}
           </h3>
-          <p className="mt-1 max-w-md mx-auto text-xs text-slate-600 leading-relaxed">
+          <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
             {allConflicts.length === 0
-              ? 'All imported items currently in "Receive Pending" status are distinct from existing store inventory.'
+              ? 'All imported items in Receive Pending are unique and ready to be processed.'
               : 'Try clearing your search query or filters to see all flagged conflicts.'}
           </p>
-          {onNavigate && (
-            <div className="mt-5">
-              <button
-                type="button"
-                onClick={() => onNavigate('assets')}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors cursor-pointer"
-              >
-                <ArrowLeft size={14} />
-                <span>Return to Assets</span>
-              </button>
-            </div>
-          )}
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="text-xs font-semibold text-slate-600 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-            <span>Showing {filteredConflicts.length} potential duplicate conflict(s):</span>
-            <span className="text-slate-500 font-normal">
-              Click <strong>"Agree & Delete from Pending"</strong> on any card to remove only the imported pending record.
-            </span>
-          </div>
-
+        <div className="space-y-3.5">
           {filteredConflicts.map((c) => {
             const isSelected = selectedConflictIds.has(c.id);
             const isDeleting = actionInProgress === c.id;
@@ -756,40 +645,38 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
             return (
               <div
                 key={c.id}
-                className={`rounded-xl border transition-all overflow-hidden ${
-                  isSelected ? 'border-rose-400 bg-rose-50/20 shadow-xs' : 'border-slate-200 bg-white hover:border-slate-300'
+                className={`rounded-xl border bg-white transition-all overflow-hidden ${
+                  isSelected ? 'border-rose-400 ring-1 ring-rose-300' : 'border-slate-200 shadow-2xs hover:border-slate-300'
                 }`}
               >
-                {/* Header Strip with Reason & Severity */}
-                <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-slate-50/90 border-b border-slate-200 text-xs">
-                  <div className="flex items-center gap-2.5">
+                {/* Clean Top Strip */}
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 text-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleSelectOne(c.id)}
-                      className="h-4 w-4 rounded accent-rose-600 cursor-pointer"
-                      title="Select for bulk deletion"
+                      className="h-4 w-4 rounded accent-rose-600 cursor-pointer shrink-0"
+                      title="Select for bulk action"
                     />
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold ${
-                        c.severity === 'HIGH'
-                          ? 'bg-rose-100 text-rose-900 border border-rose-300'
-                          : 'bg-amber-100 text-amber-900 border border-amber-300'
-                      }`}
-                    >
-                      <AlertTriangle size={13} className={c.severity === 'HIGH' ? 'text-rose-700' : 'text-amber-700'} />
-                      <span>{c.headline}</span>
+                    <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold shrink-0 ${
+                      c.severity === 'HIGH' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      <AlertTriangle size={12} />
+                      {c.headline}
+                    </span>
+                    <span className="text-slate-600 truncate text-[11px]">
+                      {c.reason}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0 ml-auto">
                     <button
                       type="button"
                       onClick={() => handleDismiss(c.id)}
-                      className="text-xs text-slate-500 hover:text-slate-800 font-medium px-2.5 py-1 rounded-md hover:bg-slate-200/60 transition-colors cursor-pointer"
-                      title="Dismiss warning for this session"
+                      className="text-xs text-slate-400 hover:text-slate-700 px-2 py-1 rounded transition-colors cursor-pointer"
                     >
-                      Dismiss Warning
+                      Dismiss
                     </button>
                     <button
                       type="button"
@@ -797,77 +684,48 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
                       disabled={isDeleting}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-800 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
                     >
-                      <Trash2 size={13} />
-                      <span>{isDeleting ? 'Deleting…' : 'Agree & Delete from Pending'}</span>
+                      <Trash2 size={12} />
+                      <span>{isDeleting ? 'Deleting…' : 'Delete Duplicate'}</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Conflict Explanation & Matched Attributes Pills */}
-                <div className="px-4 py-3 bg-amber-50/30 border-b border-amber-100 space-y-2">
-                  <div className="flex items-start gap-2 text-xs text-slate-700">
-                    <Info size={14} className="text-amber-600 shrink-0 mt-0.5" />
-                    <p className="leading-relaxed">
-                      <strong>Why this was detected:</strong> {c.reason}
-                    </p>
+                {/* Matched Attributes Pills (Subtle single row) */}
+                {c.matchedAttributes.length > 0 && (
+                  <div className="px-4 py-1.5 bg-white border-b border-slate-100 flex flex-wrap items-center gap-1.5 text-[11px]">
+                    <span className="text-slate-400 font-medium">Overlapping:</span>
+                    {c.matchedAttributes.map((attr) => (
+                      <span
+                        key={attr.key}
+                        className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-slate-700 font-medium"
+                      >
+                        <span className="text-slate-500">{attr.label}:</span>
+                        <strong className="font-mono text-slate-900">{attr.value}</strong>
+                      </span>
+                    ))}
                   </div>
+                )}
 
-                  {/* Overlapping Attributes Badges */}
-                  {c.matchedAttributes.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">
-                        Duplicated Attributes:
-                      </span>
-                      {c.matchedAttributes.map((attr) => (
-                        <span
-                          key={attr.key}
-                          className="inline-flex items-center gap-1 rounded-md bg-white border border-amber-200 px-2 py-0.5 text-[11px] text-slate-800 shadow-2xs"
-                        >
-                          <span className="font-semibold text-slate-600">{attr.label}:</span>
-                          <span className="font-mono font-bold text-rose-700">{attr.pendingValue}</span>
-                          {attr.note && <span className="text-[10px] text-slate-400 italic">({attr.note})</span>}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Suggested Action Bar */}
-                  <div className="rounded-lg bg-emerald-50/80 border border-emerald-200/80 px-3 py-2 text-xs text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-emerald-800">💡 Suggested Action:</span>
-                      <span className="text-emerald-900">{c.suggestedAction.explanation}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmConflict(c)}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 hover:text-rose-800 underline underline-offset-2 shrink-0 cursor-pointer"
-                    >
-                      Delete Incoming Line
-                      <ArrowRight size={11} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Side-by-Side Comparison Grid */}
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Left Column: Newly Imported Pending Item (Proposed for Removal) */}
-                  <div className="rounded-xl border border-rose-200 bg-rose-50/20 p-3.5 space-y-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-900 border border-rose-200 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                        ⚠️ Pending Import (Suggested to Delete)
-                      </span>
-                      <span className="text-xs font-mono font-bold text-slate-600">
-                        {c.pendingItem.itemCode}
-                      </span>
-                    </div>
-
+                {/* Side-by-Side Comparison (Clean, airy layout) */}
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {/* Left Column: Pending Record to Delete */}
+                  <div className="rounded-lg border border-rose-200/80 bg-rose-50/20 p-3.5 flex flex-col justify-between gap-3">
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider">
+                          Incoming (Receive Pending)
+                        </span>
+                        <span className="text-xs font-mono font-bold text-slate-500">
+                          {c.pendingItem.itemCode}
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">
                         {c.pendingItem.name}
                       </h4>
-                      <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-slate-600">
+
+                      <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-600">
                         <div>
-                          <span className="text-slate-400">Model 19 Voucher:</span>{' '}
+                          <span className="text-slate-400">Model 19:</span>{' '}
                           <strong className="text-slate-800">#{c.pendingItem.ifmisSlipNumber || '—'}</strong>
                         </div>
                         <div>
@@ -879,66 +737,35 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
                           <strong className="text-slate-800">{formatETB(c.pendingItem.unitCostETB)}</strong>
                         </div>
                         <div>
-                          <span className="text-slate-400">Quantity:</span>{' '}
-                          <strong className="text-slate-800">{c.pendingItem.quantity ?? 1}</strong>
+                          <span className="text-slate-400">Serial:</span>{' '}
+                          <strong className="font-mono text-slate-900 bg-white px-1 py-0.5 rounded border border-slate-200">
+                            {c.pendingItem.serialNumber || '—'}
+                          </strong>
                         </div>
                       </div>
                     </div>
-
-                    <div className="pt-2 border-t border-rose-100 text-xs text-slate-600 flex items-center justify-between">
-                      <span>
-                        Serial:{' '}
-                        <strong className={c.matchType === 'SERIAL' ? 'text-rose-700 font-mono bg-rose-100 px-1 py-0.5 rounded' : 'font-mono'}>
-                          {c.pendingItem.serialNumber || '—'}
-                        </strong>
-                      </span>
-                      <span>
-                        IFMIS Tag: <span className="font-mono text-slate-700">{c.pendingItem.ifmisTagNumber || c.pendingItem.itemCode || '—'}</span>
-                      </span>
-                    </div>
-
-                    <div className="pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setConfirmConflict(c)}
-                        disabled={isDeleting}
-                        className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
-                      >
-                        <Trash2 size={13} />
-                        <span>Confirm & Delete from Receive Pending</span>
-                      </button>
-                    </div>
                   </div>
 
-                  {/* Right Column: Existing Registered Item (Kept Safe) */}
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/20 p-3.5 space-y-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                          c.existingItem.status === ItemStatus.DISPOSED
-                            ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                            : c.existingItem.status === ItemStatus.AVAILABLE
-                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                            : 'bg-blue-100 text-blue-900 border border-blue-200'
-                        }`}
-                      >
-                        <Check size={11} className="text-emerald-700" />
-                        {c.existingItem.status === ItemStatus.AVAILABLE
-                          ? '✅ Registered Asset in Store (Kept Safe)'
-                          : c.existingItem.status === ItemStatus.DISPOSED
-                          ? '⚠️ Historical Disposed Asset'
-                          : `✅ ${c.existingItem.status} (Kept Safe)`}
-                      </span>
-                      <span className="text-xs font-mono font-bold text-slate-800">
-                        {c.existingItem.itemCode}
-                      </span>
-                    </div>
-
+                  {/* Right Column: Preserved Existing System Record */}
+                  <div className="rounded-lg border border-slate-200 bg-slate-50/40 p-3.5 flex flex-col justify-between gap-3">
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                          c.existingItem.status === ItemStatus.DISPOSED ? 'text-amber-700' : 'text-emerald-800'
+                        }`}>
+                          {c.existingItem.status === ItemStatus.DISPOSED
+                            ? 'Historical (Disposed Asset)'
+                            : 'Existing Asset in Store (Preserved)'}
+                        </span>
+                        <span className="text-xs font-mono font-bold text-slate-700">
+                          {c.existingItem.itemCode}
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">
                         {c.existingItem.name}
                       </h4>
-                      <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-slate-600">
+
+                      <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-600">
                         <div>
                           <span className="text-slate-400">Registered On:</span>{' '}
                           <strong className="text-slate-800">#{c.existingItem.ifmisSlipNumber || '—'}</strong>
@@ -952,26 +779,12 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
                           <strong className="text-slate-800">{formatETB(c.existingItem.unitCostETB)}</strong>
                         </div>
                         <div>
-                          <span className="text-slate-400">Status:</span>{' '}
-                          <strong className="text-slate-800">{c.existingItem.status}</strong>
+                          <span className="text-slate-400">Serial:</span>{' '}
+                          <strong className="font-mono text-slate-900 bg-white px-1 py-0.5 rounded border border-slate-200">
+                            {c.existingItem.serialNumber || '—'}
+                          </strong>
                         </div>
                       </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-emerald-100 text-xs text-slate-600 flex items-center justify-between">
-                      <span>
-                        Serial:{' '}
-                        <strong className={c.matchType === 'SERIAL' ? 'text-rose-700 font-mono bg-rose-100 px-1 py-0.5 rounded' : 'font-mono'}>
-                          {c.existingItem.serialNumber || '—'}
-                        </strong>
-                      </span>
-                      <span>
-                        IFMIS Tag: <span className="font-mono text-slate-700">{c.existingItem.ifmisTagNumber || '—'}</span>
-                      </span>
-                    </div>
-
-                    <div className="pt-2 flex items-center justify-center p-2 rounded-lg bg-emerald-100/60 text-emerald-900 text-[11px] font-medium">
-                      <span>🛡️ Safe · This record will NOT be deleted or modified.</span>
                     </div>
                   </div>
                 </div>
@@ -981,14 +794,14 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
         </div>
       )}
 
-      {/* Confirmation Modal for Individual Deletion */}
+      {/* Confirmation Modal for Deletion */}
       {confirmConflict && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-5 py-4 bg-rose-50 border-b border-rose-100 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-rose-900 font-bold text-sm">
-                <AlertTriangle size={18} className="text-rose-600" />
-                <span>Confirm Duplicate Deletion from Receive Pending</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+            <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                <Trash2 size={16} className="text-rose-600" />
+                <span>Delete Duplicate Line</span>
               </div>
               <button
                 type="button"
@@ -999,36 +812,28 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
               </button>
             </div>
 
-            <div className="p-5 space-y-4 text-xs text-slate-700">
+            <div className="p-5 space-y-3.5 text-xs text-slate-700">
               <p className="leading-relaxed">
-                You are about to remove duplicate imported pending item{' '}
-                <strong>"{confirmConflict.pendingItem.name}"</strong> (Item Code:{' '}
+                Remove incoming line{' '}
+                <strong>"{confirmConflict.pendingItem.name}"</strong> (
                 <span className="font-mono font-bold text-slate-900">{confirmConflict.pendingItem.itemCode}</span>) from{' '}
-                <strong>Receive Pending</strong>.
+                <strong>Receive Pending</strong>?
               </p>
 
-              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-2">
-                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Audit Summary:
+              <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-1.5 text-[11px]">
+                <div>
+                  <span className="text-slate-400">Reason:</span>{' '}
+                  <span className="font-medium text-slate-800">{confirmConflict.reason}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500">Why flagged:</span>{' '}
-                  <span className="font-semibold text-slate-900">{confirmConflict.reason}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500">Incoming Record (to be deleted):</span>{' '}
-                  <span className="font-semibold text-rose-700 font-mono">{confirmConflict.pendingItem.itemCode}</span>{' '}
-                  on Model 19 #{confirmConflict.pendingItem.ifmisSlipNumber || '—'}
-                </div>
-                <div>
-                  <span className="text-slate-500">Existing System Record (preserved):</span>{' '}
-                  <span className="font-semibold text-emerald-800 font-mono">{confirmConflict.existingItem.itemCode}</span>{' '}
-                  in {storeMap.get(confirmConflict.existingItem.storeLocationId) || 'Store'}
+                  <span className="text-slate-400">Preserved Store Record:</span>{' '}
+                  <strong className="font-mono text-emerald-800">{confirmConflict.existingItem.itemCode}</strong>{' '}
+                  ({storeMap.get(confirmConflict.existingItem.storeLocationId) || 'Store'})
                 </div>
               </div>
 
-              <p className="text-[11px] text-slate-500 italic">
-                Note: This only deletes this incoming line from the pending import. No registered store inventory or approved vouchers will be modified.
+              <p className="text-[11px] text-slate-400">
+                The existing registered store asset will remain safe and untouched.
               </p>
             </div>
 
@@ -1036,7 +841,7 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
               <button
                 type="button"
                 onClick={() => setConfirmConflict(null)}
-                className="px-3.5 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -1044,10 +849,10 @@ export const DuplicateAuditPage: React.FC<DuplicateAuditPageProps> = ({ onNaviga
                 type="button"
                 onClick={() => void executeDelete(confirmConflict)}
                 disabled={actionInProgress === confirmConflict.id}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-rose-700 text-xs font-semibold text-white hover:bg-rose-800 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-700 text-xs font-semibold text-white hover:bg-rose-800 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
               >
-                <Trash2 size={14} />
-                <span>{actionInProgress === confirmConflict.id ? 'Deleting…' : 'Yes, Delete from Pending'}</span>
+                <Trash2 size={13} />
+                <span>{actionInProgress === confirmConflict.id ? 'Deleting…' : 'Delete'}</span>
               </button>
             </div>
           </div>
